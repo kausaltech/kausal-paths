@@ -77,6 +77,7 @@ INSTALLED_APPS = [
 
     'taggit',
     'modelcluster',
+    'graphene_django',
 
     'django.contrib.admin',
     'django.contrib.auth',

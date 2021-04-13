@@ -14,11 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, re_path, include
+from django.urls import path, include
 
 from wagtail.core import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
+
+from .graphql_views import PathsGraphQLView
 
 
 urlpatterns = [
@@ -30,4 +32,6 @@ urlpatterns = [
     # For anything not caught by a more specific rule above, hand over to
     # Wagtail's serving mechanism
     path('pages/', include(wagtail_urls)),
+
+    path('v1/graphql/', PathsGraphQLView.as_view(graphiql=True))
 ]
