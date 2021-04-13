@@ -1,0 +1,12 @@
+psycopg2-binary
+pandas
+python-dotenv
+wagtail
+django-environ
+django-cors-headers
+graphene-django
+graphene-django-optimizer
+sentry_sdk
+djangorestframework
+django-extensions
+scipy

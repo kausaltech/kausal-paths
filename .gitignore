@@ -1,0 +1,10 @@
+__pycache__/
+/Attic
+*~
+*.pickle
+/.env
+/.django_secret
+/local_settings.py
+*.mo
+/.ipynb_checkpoints/
+/.vscode/
