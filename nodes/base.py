@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from typing import Iterable, Dict
 from django.utils.translation import gettext_lazy as _
-from dvc_pandas import load_dataset
+import dvc_pandas
 import pandas as pd
+
+
+FORECAST_COLUMN = 'Forecast'
 
 
 class YearlyValue:
@@ -41,6 +44,32 @@ class Dataset:
     identifier: str
     column: str = None
 
+    def load(self, context):
+        df = context.load_dataset(self.identifier)
+        cols = df.columns
+        if self.column:
+            assert self.column in cols
+            cols = [self.column]
+            if FORECAST_COLUMN in cols:
+                cols.append(FORECAST_COLUMN)
+        return df[cols]
+
+
+class Context:
+    nodes: dict
+    datasets: dict[str, Dataset]
+
+    def __init__(self):
+        self.nodes = {}
+        self.datasets = {}
+
+    def load_dataset(self, identifier):
+        if identifier in self.datasets:
+            return self.datasets[identifier]
+        df = dvc_pandas.load_dataset(identifier)
+        self.datasets[identifier] = df
+        return df
+
 
 class Node:
     # identifier of the Node instance
@@ -53,18 +82,33 @@ class Node:
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable  # of Nodes
     output_nodes: Iterable  # of Nodes
+    context: Context
 
-    def __init__(self, identifier: str, input_datasets: Iterable[Dataset] = None):
+    def __init__(self, context: Context, identifier: str, input_datasets: Iterable[Dataset] = None):
+        self.context = context
         self.identifier = identifier
-        self.input_datasets = input_datasets
+        self.input_datasets = input_datasets or []
         self.input_nodes = []
         self.output_nodes = []
 
+    def get_input_datasets(self):
+        dfs = []
+        for ds in self.input_datasets:
+            df = ds.load(self.context)
+            dfs.append(df)
+        return dfs
+
     def get_input_dataset(self):
-        pass
+        """Gets the first (and only) dataset if it exists."""
+        if not self.input_datasets:
+            return None
+
+        datasets = self.get_input_datasets()
+        assert len(datasets) == 1
+        return datasets[0]
 
     def compute(self) -> pd.DataFrame:
-        pass
+        raise Exception('Implement in subclass')
 
     def __str__(self):
         return '%s [%s]' % (self.identifier, str(type(self)))

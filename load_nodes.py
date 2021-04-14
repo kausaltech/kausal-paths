@@ -1,6 +1,7 @@
+import os
 import importlib
 import yaml
-from nodes.base import Dataset
+from nodes import Dataset, Context
 
 
 class InstanceLoader:
@@ -10,7 +11,7 @@ class InstanceLoader:
         for ds in ds_config:
             o = Dataset(identifier=ds['identifier'], column=ds.get('column'))
             datasets.append(o)
-        node = node_class(config['identifier'], input_datasets=datasets)
+        node = node_class(self.context, config['identifier'], input_datasets=datasets)
         node.config = config
         return node
 
@@ -47,11 +48,20 @@ class InstanceLoader:
         for in_node in node.input_nodes:
             self.print_graph(in_node, indent + 1)
 
+    def compute(self):
+        all_nodes = self.nodes.values()
+        root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
+        assert len(root_nodes) == 1
+        root_nodes[0].compute()
+
     def __init__(self, fn):
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
+        self.context = Context()
         self.config = data['instance']
+        os.environ['DVC_PANDAS_REPOSITORY'] = self.config['dataset_repo']
         self.setup_nodes()
 
 
 loader = InstanceLoader('configs/tampere.yaml')
 loader.print_graph()
+loader.compute()

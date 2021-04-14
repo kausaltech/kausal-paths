@@ -1,3 +1,4 @@
+import pandas as pd
 from .base import Node, _
 
 
@@ -12,4 +13,13 @@ class SectorEmissions(Node):
     }
 
     def compute(self):
-        pass
+        print(self)
+        df = self.get_input_dataset()
+        if df is not None:
+            print(df)
+
+        for node in self.input_nodes:
+            df = node.compute()
+
+        return pd.DataFrame()
+

@@ -1,5 +1,6 @@
 instance:
   identifier: tampere
+  dataset_repo: git@github.com:kausaltech/dvctest.git
   name: Hiilineutraali Tampere 2030
   nodes:
     - identifier: net_emissions
@@ -11,7 +12,7 @@ instance:
       output_nodes:
         - net_emissions
       input_datasets:
-        - identifier: tampere/ghg_emissions
+        - identifier: hsy/pks_khk_paastot
           column: Transportation total
     - identifier: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
@@ -19,7 +20,7 @@ instance:
       output_nodes:
         - net_emissions
       input_datasets:
-        - identifier: tampere/ghg_emissions
+        - identifier: hsy/pks_khk_paastot
           column: Heating total
 
   scenarios:
