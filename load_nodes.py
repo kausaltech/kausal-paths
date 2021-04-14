@@ -48,10 +48,10 @@ class InstanceLoader:
             self.print_graph(in_node, indent + 1)
 
     def __init__(self, fn):
-        data = yaml.load(open('tampere.yaml', 'r'), Loader=yaml.Loader)
+        data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
         self.config = data['instance']
         self.setup_nodes()
 
 
-loader = InstanceLoader('tampere.yaml')
+loader = InstanceLoader('configs/tampere.yaml')
 loader.print_graph()
