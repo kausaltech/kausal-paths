@@ -1,0 +1,1 @@
+FORECAST_COLUMN = 'Forecast'

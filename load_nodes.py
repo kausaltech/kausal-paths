@@ -48,6 +48,10 @@ class InstanceLoader:
         for in_node in node.input_nodes:
             self.print_graph(in_node, indent + 1)
 
+    def load_datasets(self, datasets):
+        for ds in datasets:
+            self.context.add_dataset(ds)
+
     def compute(self):
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
@@ -59,9 +63,10 @@ class InstanceLoader:
         self.context = Context()
         self.config = data['instance']
         os.environ['DVC_PANDAS_REPOSITORY'] = self.config['dataset_repo']
+        self.load_datasets(self.config.get('datasets', []))
         self.setup_nodes()
 
 
-loader = InstanceLoader('configs/tampere.yaml')
+loader = InstanceLoader('configs/helsinki.yaml')
 loader.print_graph()
 loader.compute()

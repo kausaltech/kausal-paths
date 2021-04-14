@@ -4,8 +4,8 @@ from django.utils.translation import gettext_lazy as _
 import dvc_pandas
 import pandas as pd
 
-
-FORECAST_COLUMN = 'Forecast'
+from .datasets import Dataset
+from .context import Context
 
 
 class YearlyValue:
@@ -37,38 +37,6 @@ class Variable:
 
 class YearlyVariable(Variable):
     values: Iterable[YearlyValue]
-
-
-@dataclass
-class Dataset:
-    identifier: str
-    column: str = None
-
-    def load(self, context):
-        df = context.load_dataset(self.identifier)
-        cols = df.columns
-        if self.column:
-            assert self.column in cols
-            cols = [self.column]
-            if FORECAST_COLUMN in cols:
-                cols.append(FORECAST_COLUMN)
-        return df[cols]
-
-
-class Context:
-    nodes: dict
-    datasets: dict[str, Dataset]
-
-    def __init__(self):
-        self.nodes = {}
-        self.datasets = {}
-
-    def load_dataset(self, identifier):
-        if identifier in self.datasets:
-            return self.datasets[identifier]
-        df = dvc_pandas.load_dataset(identifier)
-        self.datasets[identifier] = df
-        return df
 
 
 class Node:

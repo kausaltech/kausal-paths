@@ -1,0 +1,37 @@
+instance:
+  identifier: helsinki
+  dataset_repo: git@github.com:kausaltech/dvctest.git
+  name: Hiilineutraali Helsinki 2035
+  datasets:
+    - identifier: emissions
+      input_dataset: hsy/pks_khk_paastot
+      filters:
+        - column: Kaupunki
+          value: Helsinki
+      groupby:
+        columns_from: Sektori1
+        value_column: Päästöt
+        index_column: Vuosi
+
+  nodes:
+    - identifier: net_emissions
+      name: Kokonaispäästöt (scope 2)
+      type: simple.SectorEmissions
+
+    - identifier: transportation_emissions
+      name: Liikenteen päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - identifier: emissions
+          column: Liikenne
+
+    - identifier: building_heating_emissions
+      name: Rakennusten lämmityksen päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - identifier: emissions
+          column: Lämmitys
