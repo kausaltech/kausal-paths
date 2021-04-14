@@ -1,6 +1,6 @@
 from typing import Iterable
 from dataclasses import dataclass
-from .constants import FORECAST_COLUMN, YEAR_COLUMN
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 
 @dataclass
@@ -33,7 +33,10 @@ class Dataset:
             assert self.column in cols
             if YEAR_COLUMN in cols:
                 df = df.set_index(YEAR_COLUMN)
-            cols = [self.column]
             if FORECAST_COLUMN in cols:
-                cols.append(FORECAST_COLUMN)
+                df = df.rename(columns={self.column: VALUE_COLUMN})
+                cols = [VALUE_COLUMN, FORECAST_COLUMN]
+            else:
+                return df[self.column]
+
         return df[cols]

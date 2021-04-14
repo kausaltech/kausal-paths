@@ -75,6 +75,10 @@ class Node:
         assert len(datasets) == 1
         return datasets[0]
 
+    def get_output(self) -> pd.DataFrame:
+        # FIXME: Implement caching
+        return self.compute()
+
     def compute(self) -> pd.DataFrame:
         raise Exception('Implement in subclass')
 

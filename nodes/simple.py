@@ -1,4 +1,5 @@
 import pandas as pd
+from .constants import FORECAST_COLUMN, VALUE_COLUMN
 from .base import Node, _
 
 
@@ -13,13 +14,14 @@ class SectorEmissions(Node):
     }
 
     def compute(self):
-        print(self)
         df = self.get_input_dataset()
-        if df is not None:
-            print(df)
 
         for node in self.input_nodes:
-            df = node.compute()
+            node_df = node.get_output()
+            if df is None:
+                df = node_df
+            else:
+                df[VALUE_COLUMN] += node_df[VALUE_COLUMN]
+                df[FORECAST_COLUMN] = df[FORECAST_COLUMN] | node_df[FORECAST_COLUMN]
 
-        return pd.DataFrame()
-
+        return df

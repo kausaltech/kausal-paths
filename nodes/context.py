@@ -19,8 +19,6 @@ class Context:
 
     def add_dataset(self, config):
         assert config['identifier'] not in self.datasets
-        print('loading %s' % config['identifier'])
         ds = Dataset(**config)
         df = ds.load(self)
-        print(df)
         self.datasets[config['identifier']] = df

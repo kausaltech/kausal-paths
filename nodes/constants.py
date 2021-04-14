@@ -1,2 +1,3 @@
 FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
+VALUE_COLUMN = 'Value'

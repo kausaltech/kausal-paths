@@ -58,7 +58,7 @@ class InstanceLoader:
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
         assert len(root_nodes) == 1
-        root_nodes[0].compute()
+        return root_nodes[0].compute()
 
     def __init__(self, fn):
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
@@ -73,4 +73,4 @@ class InstanceLoader:
 
 loader = InstanceLoader('configs/tampere.yaml')
 loader.print_graph()
-loader.compute()
+print(loader.compute())
