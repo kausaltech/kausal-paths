@@ -10,3 +10,5 @@ sentry_sdk
 djangorestframework
 django-extensions
 scipy
+dvc-pandas
+ipython

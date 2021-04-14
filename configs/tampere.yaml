@@ -1,0 +1,37 @@
+instance:
+  identifier: tampere
+  name: Hiilineutraali Tampere 2030
+  nodes:
+    - identifier: net_emissions
+      name: Kokonaispäästöt (scope 2)
+      type: simple.SectorEmissions
+    - identifier: transportation_emissions
+      name: Liikenteen päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - identifier: tampere/ghg_emissions
+          column: Transportation total
+    - identifier: building_heating_emissions
+      name: Rakennusten lämmityksen päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - identifier: tampere/ghg_emissions
+          column: Heating total
+
+  scenarios:
+    - identifier: roadmap
+      interventions:
+        - identifier: reduce_building_heating_emissions
+          name: Rakennusten lämmityksen päästöt putoavat
+          type: yearly
+          output_nodes:
+            - building_heating_emissions
+          values:
+            - 2021: -8.1
+            - 2022: -10.3
+            - 2023: -13.6
+            - 2030: -124.2
