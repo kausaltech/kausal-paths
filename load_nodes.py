@@ -1,6 +1,8 @@
 import os
 import importlib
+import dvc_pandas
 import yaml
+from dvc_pandas import pull_datasets
 from nodes import Dataset, Context
 
 
@@ -63,10 +65,12 @@ class InstanceLoader:
         self.context = Context()
         self.config = data['instance']
         os.environ['DVC_PANDAS_REPOSITORY'] = self.config['dataset_repo']
+        if True:
+            dvc_pandas.pull_datasets()
         self.load_datasets(self.config.get('datasets', []))
         self.setup_nodes()
 
 
-loader = InstanceLoader('configs/helsinki.yaml')
+loader = InstanceLoader('configs/tampere.yaml')
 loader.print_graph()
 loader.compute()

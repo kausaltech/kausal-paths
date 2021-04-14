@@ -12,7 +12,7 @@ instance:
       output_nodes:
         - net_emissions
       input_datasets:
-        - identifier: hsy/pks_khk_paastot
+        - identifier: tampere/scenarios/bau
           column: Transportation total
     - identifier: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
@@ -20,7 +20,7 @@ instance:
       output_nodes:
         - net_emissions
       input_datasets:
-        - identifier: hsy/pks_khk_paastot
+        - identifier: tampere/scenarios/bau
           column: Heating total
 
   scenarios:

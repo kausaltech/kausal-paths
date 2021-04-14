@@ -1,6 +1,6 @@
 from typing import Iterable
 from dataclasses import dataclass
-from .constants import FORECAST_COLUMN
+from .constants import FORECAST_COLUMN, YEAR_COLUMN
 
 
 @dataclass
@@ -31,6 +31,8 @@ class Dataset:
         cols = df.columns
         if self.column:
             assert self.column in cols
+            if YEAR_COLUMN in cols:
+                df = df.set_index(YEAR_COLUMN)
             cols = [self.column]
             if FORECAST_COLUMN in cols:
                 cols.append(FORECAST_COLUMN)
