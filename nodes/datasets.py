@@ -5,7 +5,7 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 @dataclass
 class Dataset:
-    identifier: str
+    id: str
     input_dataset: str = None
     column: str = None
     filters: Iterable = None
@@ -27,7 +27,7 @@ class Dataset:
 
             return df
 
-        df = context.load_dataset(self.identifier)
+        df = context.load_dataset(self.id)
         cols = df.columns
         if self.column:
             assert self.column in cols

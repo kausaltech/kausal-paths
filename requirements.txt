@@ -20,9 +20,9 @@ backcall==0.2.0
     # via ipython
 beautifulsoup4==4.8.2
     # via wagtail
-boto3==1.17.51
+boto3==1.17.52
     # via dvc
-botocore==1.20.51
+botocore==1.20.52
     # via
     #   boto3
     #   s3transfer
@@ -339,7 +339,7 @@ willow==1.4
     # via wagtail
 xlrd==2.0.1
     # via tablib
-xlsxwriter==1.3.8
+xlsxwriter==1.3.9
     # via wagtail
 xlwt==1.3.0
     # via tablib

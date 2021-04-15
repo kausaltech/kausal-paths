@@ -1,32 +1,52 @@
 instance:
-  identifier: tampere
-  dataset_repo: git@github.com:kausaltech/dvctest.git
+  id: tampere
+  dataset_repo: https://github.com/kausaltech/dvctest.git
   name: Hiilineutraali Tampere 2030
   nodes:
-    - identifier: net_emissions
+    - id: net_emissions
       name: Kokonaispäästöt (scope 2)
       type: simple.SectorEmissions
-    - identifier: transportation_emissions
+    - id: transportation_emissions
       name: Liikenteen päästöt
       type: simple.SectorEmissions
       output_nodes:
         - net_emissions
       input_datasets:
-        - identifier: tampere/scenarios/bau
+        - id: tampere/scenarios/bau
           column: Transportation total
-    - identifier: building_heating_emissions
+    - id: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
       type: simple.SectorEmissions
       output_nodes:
         - net_emissions
       input_datasets:
-        - identifier: tampere/scenarios/bau
+        - id: tampere/scenarios/bau
           column: Heating total
 
+  pages:
+    - id: home
+      path: '/'
+      name: Kokonaispäästöt
+      cards:
+        - name: Kokonaispäästöt Tampereella
+          type: stacked
+          metrics:
+            - id: net_emissions
+              only_inputs: true
+
+        - name: Liikenteen päästökehitys
+          metrics:
+            - id: transportation_emissions
+          upstream_cards:
+            - net_emissions
+
   scenarios:
-    - identifier: roadmap
+    - id: baseline
+      name: Peruskehitys
+    - id: roadmap
+      name: Hiilineutraali Tampere 2030 -tiekartta
       interventions:
-        - identifier: reduce_building_heating_emissions
+        - id: reduce_building_heating_emissions
           name: Rakennusten lämmityksen päästöt putoavat
           type: yearly
           output_nodes:

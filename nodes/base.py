@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Iterable, Dict
 from django.utils.translation import gettext_lazy as _
@@ -8,24 +10,13 @@ from .datasets import Dataset
 from .context import Context
 
 
-class YearlyValue:
-    year: int
-    value: float
-
-
-class Metric:
-    identifier: str = None
-    name: str = None
-    unit: str = None
-
-
 class Variable:
-    identifier: str = None
+    id: str = None
     name: str = None
     unit: str = None
 
-    def __init__(self, identifier, unit):
-        self.identifier = identifier
+    def __init__(self, id, unit):
+        self.id = id
         self.unit = unit
 
     def serialize(self):
@@ -35,26 +26,22 @@ class Variable:
         raise Exception('Implement in subclass')
 
 
-class YearlyVariable(Variable):
-    values: Iterable[YearlyValue]
-
-
 class Node:
     # identifier of the Node instance
-    identifier: str = None
-    output_metrics: Iterable[Metric]
+    id: str = None
+    # output_metrics: Iterable[Metric]
 
     # name is the human-readable description for the Node class
     name: str = None
 
     input_datasets: Iterable[Dataset] = []
-    input_nodes: Iterable  # of Nodes
-    output_nodes: Iterable  # of Nodes
+    input_nodes: Iterable[Node]
+    output_nodes: Iterable[Node]
     context: Context
 
-    def __init__(self, context: Context, identifier: str, input_datasets: Iterable[Dataset] = None):
+    def __init__(self, context: Context, id: str, input_datasets: Iterable[Dataset] = None):
         self.context = context
-        self.identifier = identifier
+        self.id = id
         self.input_datasets = input_datasets or []
         self.input_nodes = []
         self.output_nodes = []
@@ -83,4 +70,4 @@ class Node:
         raise Exception('Implement in subclass')
 
     def __str__(self):
-        return '%s [%s]' % (self.identifier, str(type(self)))
+        return '%s [%s]' % (self.id, str(type(self)))
