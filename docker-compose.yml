@@ -1,0 +1,51 @@
+version: '3.2'
+services:
+  db:
+    container_name: paths-db
+    build:
+      context: .
+      dockerfile: ./docker/db/Dockerfile
+    restart: always
+    environment:
+      - POSTGRES_USER=paths
+      - POSTGRES_PASSWORD
+    volumes:
+      - db_data:/var/lib/postgresql/data/
+
+  app:
+    container_name: paths
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        - STATIC_ROOT=/srv/static
+        - MEDIA_ROOT=/srv/media
+    restart: always
+    volumes:
+      - paths_media:/srv/media
+      - paths_build_cache:/root/.cache
+    environment:
+      - POSTGRES_PASSWORD
+      - DATABASE_URL=postgres://paths:${POSTGRES_PASSWORD}@db/paths
+      - STATIC_ROOT=/srv/static
+      - MEDIA_ROOT=/srv/media
+      - LC_CTYPE=C.UTF-8
+      - DEBUG
+      - ALLOWED_HOSTS
+      - COOKIE_PREFIX
+      - INTERNAL_IPS
+      - SENTRY_DSN
+      - SECRET_KEY
+      - OIDC_ISSUER_URL
+      - OIDC_CLIENT_ID
+      - OIDC_CLIENT_SECRET
+    ports:
+      - "${HOST_PORT:-127.0.0.1:8000}:8000"
+      - "${UWSGI_SOCKET_PORT:-127.0.0.1:8001}:8001"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+  paths_media:
+  paths_build_cache:
