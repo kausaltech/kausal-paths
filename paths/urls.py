@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.decorators.csrf import csrf_exempt
 
 from wagtail.core import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
@@ -33,5 +34,5 @@ urlpatterns = [
     # Wagtail's serving mechanism
     path('pages/', include(wagtail_urls)),
 
-    path('v1/graphql/', PathsGraphQLView.as_view(graphiql=True))
+    path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view(graphiql=True))),
 ]
