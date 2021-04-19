@@ -72,6 +72,12 @@ instance:
           upstream_cards:
             - net_emissions
 
+        - name: Lämmityksen päästökehitys
+          metrics:
+            - id: building_heating_emissions
+          upstream_cards:
+            - net_emissions
+
   scenarios:
     - id: baseline
       name: Peruskehitys
