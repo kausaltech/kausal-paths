@@ -11,4 +11,13 @@ card = page.cards[0]
 print(card)
 metric = card.metrics[0]
 print(metric)
-print(metric.get_historical_values(loader.context))
+
+print('Historical:')
+vals = metric.get_historical_values(loader.context)
+for val in vals:
+    print(val)
+
+print('\nForecast:')
+vals = metric.get_forecast_values(loader.context)
+for val in vals:
+    print(val)
