@@ -22,6 +22,38 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Heating total
+    - id: electricity_consumption_emissions
+      name: Sähkön kulutuksen päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - id: tampere/scenarios/bau
+          column: Electricity consumption total
+    - id: industry_emissions
+      name: Teollisuuden ja työkoneiden päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - id: tampere/scenarios/bau
+          column: Industry and machinery
+    - id: waste_treatment_emissions
+      name: Jätehuollon päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - id: tampere/scenarios/bau
+          column: Waste treatment total
+    - id: agriculture_emissions
+      name: Maatalouden päästöt
+      type: simple.SectorEmissions
+      output_nodes:
+        - net_emissions
+      input_datasets:
+        - id: tampere/scenarios/bau
+          column: Agriculture total
 
   pages:
     - id: home
