@@ -2,28 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable, Dict
-from django.utils.translation import gettext_lazy as _
 import dvc_pandas
 import pandas as pd
 
 from .datasets import Dataset
 from .context import Context
-
-
-class Variable:
-    id: str = None
-    name: str = None
-    unit: str = None
-
-    def __init__(self, id, unit):
-        self.id = id
-        self.unit = unit
-
-    def serialize(self):
-        raise Exception('Implement in subclass')
-
-    def deserialize(self):
-        raise Exception('Implement in subclass')
+from .params import Parameter
 
 
 class Node:
@@ -37,6 +21,8 @@ class Node:
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable[Node]
     output_nodes: Iterable[Node]
+    parameters: Iterable[Parameter]
+
     context: Context
 
     def __init__(self, context: Context, id: str, input_datasets: Iterable[Dataset] = None):
@@ -45,6 +31,10 @@ class Node:
         self.input_datasets = input_datasets or []
         self.input_nodes = []
         self.output_nodes = []
+
+        # Call the subclass post-init method if it is defined
+        if hasattr(self, '__post_init__'):
+            self.__post_init__()
 
     def get_input_datasets(self):
         dfs = []
@@ -65,6 +55,9 @@ class Node:
     def get_output(self) -> pd.DataFrame:
         # FIXME: Implement caching
         return self.compute()
+
+    def get_target_year(self) -> int:
+        return self.context.target_year
 
     def compute(self) -> pd.DataFrame:
         raise Exception('Implement in subclass')

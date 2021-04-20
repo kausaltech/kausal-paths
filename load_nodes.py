@@ -1,23 +1,36 @@
 from nodes.instance import InstanceLoader
 
-print(1)
 loader = InstanceLoader('configs/tampere.yaml')
 loader.print_graph()
-print(2)
-
+context = loader.context
 
 page = list(loader.pages.values())[0]
 card = page.cards[0]
-print(card)
-metric = card.metrics[0]
-print(metric)
 
+metric = card.metrics[0]
+
+print(metric)
 print('Historical:')
-vals = metric.get_historical_values(loader.context)
+vals = metric.get_historical_values(context)
 for val in vals:
     print(val)
 
 print('\nForecast:')
-vals = metric.get_forecast_values(loader.context)
+vals = metric.get_forecast_values(context)
+for val in vals:
+    print(val)
+
+print('\nRoadmap scenario:')
+
+context.activate_scenario(context.get_scenario('roadmap'))
+page.refresh()
+
+print('Historical:')
+vals = metric.get_historical_values(context)
+for val in vals:
+    print(val)
+
+print('\nForecast:')
+vals = metric.get_forecast_values(context)
 for val in vals:
     print(val)

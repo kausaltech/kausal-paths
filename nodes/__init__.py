@@ -1,5 +1,5 @@
 from .context import Context
-from .base import Node
+from .node import Node
 from .datasets import Dataset
 
 

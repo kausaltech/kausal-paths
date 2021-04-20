@@ -48,6 +48,9 @@ class Metric:
             self._get_values(context)
         return self.values['forecast']
 
+    def refresh(self):
+        self.values = None
+
 
 @dataclass
 class Card:
@@ -77,6 +80,10 @@ class Card:
                 node = context.get_node(m['id'])
                 m['name'] = node.name
             self.metrics.append(Metric(**m))
+
+    def refresh(self):
+        for m in self.metrics:
+            m.refresh()
 
 
 @dataclass
@@ -113,3 +120,9 @@ class Page:
                 c.downstream_cards.append(uc)
 
         self.cards = list(all_cards.values())
+
+    def refresh(self):
+        """Resets the stored values for all cards and metrics."""
+
+        for card in self.cards:
+            card.refresh()

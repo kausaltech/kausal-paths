@@ -1,3 +1,5 @@
+from nodes.actions.base import Action
+from nodes.scenario import Scenario
 from typing import Dict
 import os
 import importlib
@@ -31,6 +33,19 @@ class InstanceLoader:
             node = self.make_node(node_class, nc)
             self.context.add_node(node)
 
+    def setup_actions(self):
+        for nc in self.config['actions']:
+            klass = nc['type'].split('.')
+            node_name = klass.pop(-1)
+            klass.insert(0, 'nodes')
+            klass.insert(1, 'actions')
+            mod = importlib.import_module('.'.join(klass))
+            node_class = getattr(mod, node_name)
+            node = self.make_node(node_class, nc)
+            self.context.add_node(node)
+            node.param_defaults['enabled'] = False
+
+    def setup_edges(self):
         # Setup edges
         for node in self.context.nodes.values():
             for out_id in node.config.get('output_nodes', []):
@@ -38,6 +53,16 @@ class InstanceLoader:
                 out_node.input_nodes.append(node)
                 node.output_nodes.append(out_node)
                 # FIXME: Check for cycles?
+
+    def setup_scenarios(self):
+        for sc in self.config['scenarios']:
+            actions = sc.pop('actions', [])
+            scenario = Scenario(**sc)
+            for act_conf in actions:
+                node = self.context.get_node(act_conf.pop('id'))
+                assert isinstance(node, Action)
+                scenario.actions.append([node, act_conf])
+            self.context.add_scenario(scenario)
 
     def print_graph(self, node=None, indent=0):
         if node is None:
@@ -54,12 +79,6 @@ class InstanceLoader:
         for ds in datasets:
             self.context.add_dataset(ds)
 
-    def compute(self):
-        all_nodes = self.context.nodes.values()
-        root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-        assert len(root_nodes) == 1
-        return root_nodes[0].compute()
-
     def setup_pages(self):
         self.pages = {}
 
@@ -74,10 +93,15 @@ class InstanceLoader:
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
         self.context = Context()
         self.config = data['instance']
+        self.context.target_year = self.config['target_year']
 
         os.environ['DVC_PANDAS_REPOSITORY'] = self.config['dataset_repo']
         if False:
             dvc_pandas.pull_datasets()
         self.load_datasets(self.config.get('datasets', []))
+
         self.setup_nodes()
+        self.setup_actions()
+        self.setup_edges()
+        self.setup_scenarios()
         self.setup_pages()

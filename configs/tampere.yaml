@@ -2,10 +2,12 @@ instance:
   id: tampere
   dataset_repo: https://github.com/kausaltech/dvctest.git
   name: Hiilineutraali Tampere 2030
+  target_year: 2030
   nodes:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
       type: simple.SectorEmissions
+
     - id: transportation_emissions
       name: Liikenteen päästöt
       type: simple.SectorEmissions
@@ -14,6 +16,7 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Transportation total
+
     - id: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
       type: simple.SectorEmissions
@@ -22,6 +25,7 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Heating total
+
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
       type: simple.SectorEmissions
@@ -30,6 +34,7 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Electricity consumption total
+
     - id: industry_emissions
       name: Teollisuuden ja työkoneiden päästöt
       type: simple.SectorEmissions
@@ -38,6 +43,7 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Industry and machinery
+
     - id: waste_treatment_emissions
       name: Jätehuollon päästöt
       type: simple.SectorEmissions
@@ -46,6 +52,7 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Waste treatment total
+
     - id: agriculture_emissions
       name: Maatalouden päästöt
       type: simple.SectorEmissions
@@ -54,6 +61,16 @@ instance:
       input_datasets:
         - id: tampere/scenarios/bau
           column: Agriculture total
+
+  actions:
+    - id: reduce_transportation_emissions
+      name: Vähennetään liikenteen päästöjä
+      type: simple.EmissionReductionAction
+      output_nodes:
+        - transportation_emissions
+      input_datasets:
+        - id: tampere/scenarios/actions
+          column: Transportation total
 
   pages:
     - id: home
@@ -81,16 +98,9 @@ instance:
   scenarios:
     - id: baseline
       name: Peruskehitys
+
     - id: roadmap
       name: Hiilineutraali Tampere 2030 -tiekartta
-      interventions:
-        - id: reduce_building_heating_emissions
-          name: Rakennusten lämmityksen päästöt putoavat
-          type: yearly
-          output_nodes:
-            - building_heating_emissions
-          values:
-            - 2021: -8.1
-            - 2022: -10.3
-            - 2023: -13.6
-            - 2030: -124.2
+      actions:
+        - id: reduce_transportation_emissions
+          enabled: true
