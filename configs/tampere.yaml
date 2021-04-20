@@ -11,12 +11,14 @@ instance:
       name: Liikenteen päästöt
       column: Transportation total
       part_of: net_emissions
+      color: '#668EC9'
     #
     # Heating
     #
     - id: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
       part_of: net_emissions
+      color: '#AD3963'
 
     - id: district_heating_emissions
       name: Kaukolämpö
@@ -50,18 +52,25 @@ instance:
       name: Sähkön kulutuksen päästöt
       part_of: net_emissions
       column: Electricity consumption total
+      color: '#F4D240'
+
     - id: industry_emissions
       name: Teollisuuden ja työkoneiden päästöt
       part_of: net_emissions
       column: Industry and machinery
+      color: '#E8B455'
+
     - id: waste_treatment_emissions
       name: Jätehuollon päästöt
       column: Waste treatment total
       part_of: net_emissions
+      color: '#397368'
+
     - id: agriculture_emissions
       name: Maatalouden päästöt
       part_of: net_emissions
       column: Agriculture total
+      color: '#ABC872'
 
   actions:
     - id: reduce_heating_emissions

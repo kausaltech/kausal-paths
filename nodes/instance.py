@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from nodes.node import Node
 from nodes.actions.base import Action
 from nodes.scenario import Scenario
 from typing import Dict
@@ -21,7 +22,7 @@ class InstanceLoader:
     pages: Dict[str, Page]
     instance: Instance
 
-    def make_node(self, node_class, config):
+    def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', [])
         datasets = []
         for ds in ds_config:
@@ -29,6 +30,7 @@ class InstanceLoader:
             datasets.append(o)
         node = node_class(self.context, config['id'], input_datasets=datasets)
         node.name = config.get('name')
+        node.color = config.get('color')
         node.config = config
         return node
 
@@ -54,7 +56,6 @@ class InstanceLoader:
                 input_datasets=[dict(id=dataset_id, column=data_col)] if data_col else [],
                 **ec
             )
-            print(nc)
             node = self.make_node(node_class, nc)
             self.context.add_node(node)
 
