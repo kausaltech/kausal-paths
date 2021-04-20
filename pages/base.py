@@ -27,6 +27,8 @@ class Metric:
         df.index.name = 'year'
         df = df.reset_index()
         df = df.rename(columns={VALUE_COLUMN: 'value'})
+        if hasattr(df.value, 'pint'):
+            df.value = df.value.pint.m
         forecast = df.loc[df[FORECAST_COLUMN], ['year', 'value']].to_dict('records')
         historical = df.loc[~df[FORECAST_COLUMN], ['year', 'value']].to_dict('records')
         return dict(

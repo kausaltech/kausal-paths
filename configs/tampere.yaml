@@ -4,6 +4,7 @@ instance:
   name: Hiilineutraali Tampere 2030
   target_year: 2030
   emission_dataset: tampere/scenarios/bau
+  emission_unit: kt
   emission_sectors:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
@@ -20,10 +21,10 @@ instance:
       part_of: net_emissions
       color: '#AD3963'
 
-    - id: district_heating_emissions
-      name: Kaukolämpö
-      part_of: building_heating_emissions
-      column: District heating
+    #- id: district_heating_emissions
+    #  name: Kaukolämpö
+    #  part_of: building_heating_emissions
+    #  column: District heating
 
     - id: separate_heating_emissions
       name: Erillislämmitys
@@ -72,15 +73,57 @@ instance:
       column: Agriculture total
       color: '#ABC872'
 
-  actions:
-    - id: reduce_heating_emissions
-      name: Vähennetään lämmityksen päästöjä
-      type: simple.EmissionReductionAction
+  nodes:
+    - id: district_heating_emissions
+      name: Kaukolämpö
+      type: simple.EmissionFactorActivity
+      unit: kt
       output_nodes:
         - building_heating_emissions
-      input_datasets:
-        - id: tampere/scenarios/diff
-          column: Heating total
+
+    - id: district_heating_consumption
+      name: Kaukolämmön kulutus
+      unit: GWh
+      type: simple.Activity
+      output_nodes:
+        - district_heating_emissions
+      historical_values: [[2010, 2206.6], [2011, 1869.3], [2012, 2072.7], [2013, 1888.2], [2014, 1872.2], [2015, 1775.6], [2016, 1956.7], [2017, 1917.2], [2018, 1955.1]]
+      forecast_values: [[2019, 1911], [2020, 1840], [2021, 1815], [2022, 1791], [2023, 1766], [2024, 1741], [2025, 1716], [2026, 1691], [2027, 1666], [2028, 1641], [2029, 1617]]
+
+    - id: district_heating_emission_factor
+      name: Kaukolämmön päästökerroin
+      type: simple.AdditiveNode
+      unit: g/kWh
+      output_nodes:
+        - district_heating_emissions
+      historical_values: [[2010, 179], [2011, 170.1], [2012, 162.3], [2013, 153.9], [2014, 160.6], [2015, 140.7], [2016, 140], [2017, 130], [2018, 136.3]]
+      forecast_values: [[2019, 126], [2020, 123], [2021, 123], [2022, 123], [2023, 123], [2024, 123], [2025, 123], [2026, 123], [2027, 123], [2028, 123], [2029, 123], [2030, 123]]
+
+  actions:
+    # - id: reduce_heating_emissions
+    #   name: Vähennetään lämmityksen päästöjä
+    #   type: simple.EmissionReductionAction
+    #   output_nodes:
+    #     - building_heating_emissions
+    #   input_datasets:
+    #     - id: tampere/scenarios/diff
+    #       column: Heating total
+
+    - id: naistenlahti3
+      name: Naistenlahti 3
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - district_heating_emission_factor
+      forecast_values: [[2022, -23], [2023, -23]]
+      unit: g/kWh
+
+    - id: other_renewable_district_heating
+      name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - district_heating_emission_factor
+      forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [2029, -14], [2030, -6]]
+      unit: g/kWh
 
   pages:
     - id: home
@@ -97,5 +140,7 @@ instance:
       default: true
       name: Hiilineutraali Tampere 2030 -tiekartta
       actions:
-        - id: reduce_heating_emissions
+        - id: naistenlahti3
+          enabled: true
+        - id: other_renewable_district_heating
           enabled: true

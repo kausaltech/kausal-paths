@@ -1,7 +1,7 @@
 import pandas as pd
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from nodes import Node
 
 
@@ -42,3 +42,11 @@ class Action(Node):
         df = df.reindex(new_index, fill_value=self.no_effect_value)
         df[FORECAST_COLUMN] = True
         return df
+
+    def compute_effect(self) -> pd.DataFrame:
+        raise Exception("Implement in subclass")
+
+    def compute(self) -> Optional[pd.DataFrame]:
+        if not self.enabled:
+            return None
+        return self.compute_effect()

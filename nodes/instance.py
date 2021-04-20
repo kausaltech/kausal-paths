@@ -25,13 +25,28 @@ class InstanceLoader:
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', [])
         datasets = []
+
+        unit = config.get('unit')
+        if unit:
+            unit = self.context.unit_registry(unit).units
+
         for ds in ds_config:
             o = Dataset(id=ds['id'], column=ds.get('column'))
             datasets.append(o)
+
+        if 'historical_values' in config or 'forecast_values' in config:
+            datasets.append(Dataset.from_fixed_values(
+                id=config['id'], unit=unit,
+                historical=config.get('historical_values'),
+                forecast=config.get('forecast_values'),
+            ))
+
         node = node_class(self.context, config['id'], input_datasets=datasets)
         node.name = config.get('name')
         node.color = config.get('color')
+        node.unit = unit
         node.config = config
+
         return node
 
     def setup_nodes(self):
@@ -48,12 +63,15 @@ class InstanceLoader:
         mod = importlib.import_module('nodes.simple')
         node_class = getattr(mod, 'SectorEmissions')
         dataset_id = self.config.get('emission_dataset')
+        unit = self.config.get('emission_unit')
+
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
             data_col = ec.pop('column', None)
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
                 input_datasets=[dict(id=dataset_id, column=data_col)] if data_col else [],
+                unit=unit,
                 **ec
             )
             node = self.make_node(node_class, nc)
@@ -91,13 +109,22 @@ class InstanceLoader:
             self.context.add_scenario(scenario)
 
     def print_graph(self, node=None, indent=0):
+        from colored import fg, attr
+
         if node is None:
             all_nodes = self.context.nodes.values()
             root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
             assert len(root_nodes) == 1
             node = root_nodes[0]
 
-        print('  ' * indent + str(node))
+        if isinstance(node, Action):
+            node_color = 'green'
+        else:
+            node_color = 'yellow'
+        node_str =  f"{fg(node_color)}{node.id} "
+        node_str += f"{fg('grey_50')}{str(type(node))} "
+        node_str += attr('reset')
+        print('  ' * indent + node_str)
         for in_node in node.input_nodes:
             self.print_graph(in_node, indent + 1)
 
@@ -143,7 +170,6 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_pages()
 
-        self.context.generate_baseline_values()
         for scenario in self.context.scenarios.values():
             if scenario.default:
                 break

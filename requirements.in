@@ -13,3 +13,5 @@ scipy
 dvc-pandas
 ipython
 pint
+pint-pandas
+colored

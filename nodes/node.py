@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Iterable, Dict, Optional, Union
-from pint import UnitRegistry
-import dvc_pandas
+from typing import Iterable, Optional, Union
+import pint
 import pandas as pd
+import pint_pandas
 
 from .datasets import Dataset
 from .context import Context
@@ -21,6 +20,9 @@ class Node:
 
     # if the node has an established visualisation color
     color: str = None
+
+    # output unit (from pint)
+    unit: pint.Unit
 
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable[Node]
@@ -70,8 +72,21 @@ class Node:
         raise Exception('Implement in subclass')
 
     @property
-    def ureg(self) -> UnitRegistry:
+    def ureg(self) -> pint.UnitRegistry:
         return self.context.unit_registry
+
+    def is_compatible_unit(self, unit_a: Union[str, pint.Unit], unit_b: Union[str, pint.Unit]):
+        if isinstance(unit_a, str):
+            unit_a = self.ureg(unit_a).units
+        if isinstance(unit_b, str):
+            unit_b = self.ureg(unit_b).units
+        if unit_a.dimensionality != unit_b.dimensionality:
+            return False
+        return True
+
+    def ensure_output_unit(self, s: pd.Series):
+        pt = pint_pandas.PintType(self.unit)
+        return s.astype(pt)
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))

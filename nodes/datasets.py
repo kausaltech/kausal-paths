@@ -1,4 +1,9 @@
-from typing import Iterable
+from __future__ import annotations
+
+import pandas as pd
+import pint
+import pint_pandas
+from typing import Iterable, List, Tuple
 from dataclasses import dataclass
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
@@ -11,7 +16,12 @@ class Dataset:
     filters: Iterable = None
     groupby: dict = None
 
+    fixed_data: pd.DataFrame = None
+
     def load(self, context):
+        if self.fixed_data is not None:
+            return self.fixed_data
+
         if self.input_dataset:
             df = context.load_dataset(self.input_dataset)
             if self.filters:
@@ -47,3 +57,40 @@ class Dataset:
                 return df[self.column]
 
         return df[cols]
+
+    @classmethod
+    def from_fixed_values(
+        kls, id: str,
+        unit: pint.Unit,
+        historical: List[Tuple[int, float]] = None,
+        forecast: List[Tuple[int, float]] = None,
+    ) -> Dataset:
+        if historical:
+            hdf = pd.DataFrame(historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
+            hdf['Forecast'] = False
+        else:
+            hdf = None
+
+        if forecast:
+            fdf = pd.DataFrame(forecast, columns=[YEAR_COLUMN, VALUE_COLUMN])
+            fdf['Forecast'] = True
+        else:
+            fdf = None
+
+        if hdf is not None and fdf is not None:
+            df = hdf.append(fdf)
+        elif hdf is not None:
+            df = hdf
+        else:
+            df = fdf
+
+        df = df.set_index(YEAR_COLUMN)
+
+        # Ensure value column has right units
+        pt = pint_pandas.PintType(unit)
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(float).astype(pt)
+
+        ds = Dataset(id=id)
+        ds.fixed_data = df
+
+        return ds

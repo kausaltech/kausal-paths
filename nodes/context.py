@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from pint import UnitRegistry
+import pint
+import pint_pandas
 
 import dvc_pandas
 from .datasets import Dataset
@@ -11,13 +12,21 @@ if TYPE_CHECKING:
     from .scenario import Scenario
 
 
+unit_registry = pint.UnitRegistry()
+# By default, kt is knots, but here kilotonne is the most common
+# usage.
+unit_registry.define('kt = kilotonne')
+pint.set_application_registry(unit_registry)
+pint_pandas.PintType.ureg = unit_registry
+
+
 class Context:
     nodes: dict[str, Node]
     datasets: dict[str, Dataset]
     params: dict[str, Parameter]
     scenarios: dict[str, Scenario]
     target_year: int
-    unit_registry: UnitRegistry
+    unit_registry: pint.UnitRegistry
     # The URL for the default dataset repo for dvc-pandas
     dataset_repo_url: str
     active_scenario: Scenario
@@ -30,10 +39,7 @@ class Context:
         self.nodes = {}
         self.datasets = {}
         self.scenarios = {}
-        self.unit_registry = UnitRegistry()
-        # By default, kt is knots, but here kilotonne is the most common
-        # usage.
-        self.unit_registry.define('kt = kilotonne')
+        self.unit_registry = unit_registry
         self.active_scenario = None
 
     def load_dataset(self, identifier: str):
@@ -78,9 +84,14 @@ class Context:
 
         # Set the new parameters
         scenario.activate()
+        self.active_scenario = scenario
 
     def generate_baseline_values(self):
+        old_scenario = self.active_scenario
+
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
         for node in self.nodes.values():
             node.baseline_values = node.get_output()
+
+        self.activate_scenario(old_scenario)

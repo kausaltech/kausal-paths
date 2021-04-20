@@ -41,6 +41,8 @@ colorama==0.4.4
     # via
     #   dvc
     #   rich
+colored==1.4.2
+    # via -r requirements.in
 commonmark==0.9.1
     # via rich
 configobj==5.0.6
@@ -176,6 +178,7 @@ pandas==1.2.4
     #   -r requirements.in
     #   dvc-pandas
     #   fastparquet
+    #   pint-pandas
 parso==0.8.2
     # via jedi
 pathlib2==2.3.5
@@ -190,8 +193,12 @@ pickleshare==0.7.5
     # via ipython
 pillow==8.2.0
     # via wagtail
-pint==0.17
+pint-pandas==0.2
     # via -r requirements.in
+pint==0.17
+    # via
+    #   -r requirements.in
+    #   pint-pandas
 ply==3.11
     # via
     #   dvc

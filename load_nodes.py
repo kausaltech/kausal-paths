@@ -1,3 +1,4 @@
+import sys
 from nodes.instance import InstanceLoader
 
 loader = InstanceLoader('configs/tampere.yaml')
@@ -26,6 +27,13 @@ def print_metric(metric):
         print(val)
 
 
+if len(sys.argv) > 1:
+    node_id = sys.argv[1]
+    node = context.get_node(node_id)
+    print(node.get_output())
+    exit()
+
 if True:
+    loader.context.generate_baseline_values()
     for sector in page.get_sectors():
         print(sector)

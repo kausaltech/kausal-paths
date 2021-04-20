@@ -7,6 +7,7 @@ from nodes.instance import InstanceLoader
 
 loader = InstanceLoader(os.path.join(settings.BASE_DIR, 'configs/tampere.yaml'))
 loader.print_graph()
+loader.context.generate_baseline_values()
 
 
 class YearlyValue(graphene.ObjectType):
@@ -61,13 +62,18 @@ class EmissionSector(graphene.ObjectType):
 
 
 class EmissionPageNode(graphene.ObjectType):
-    emission_sectors = graphene.List(EmissionSector)
+    emission_sectors = graphene.List(
+        EmissionSector, id=graphene.ID()
+    )
 
     class Meta:
         interfaces = (PageInterface,)
 
-    def resolve_emission_sectors(root, info):
-        return root.get_sectors()
+    def resolve_emission_sectors(root, info, id=None):
+        all_sectors = root.get_sectors()
+        if id is not None:
+            all_sectors = list(filter(lambda x: x.id == id, all_sectors))
+        return all_sectors
 
 
 class InstanceNode(graphene.ObjectType):
