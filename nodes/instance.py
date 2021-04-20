@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from nodes.actions.base import Action
 from nodes.scenario import Scenario
 from typing import Dict
@@ -7,11 +8,18 @@ import dvc_pandas
 import yaml
 from dvc_pandas import pull_datasets
 from . import Dataset, Context
-from pages.base import Page
+from pages.base import EmissionPage, Page
+
+
+@dataclass
+class Instance:
+    id: str
+    name: str
 
 
 class InstanceLoader:
     pages: Dict[str, Page]
+    instance: Instance
 
     def make_node(self, node_class, config):
         ds_config = config.get('input_datasets', [])
@@ -25,12 +33,28 @@ class InstanceLoader:
         return node
 
     def setup_nodes(self):
-        for nc in self.config['nodes']:
+        for nc in self.config.get('nodes', []):
             klass = nc['type'].split('.')
             node_name = klass.pop(-1)
             klass.insert(0, 'nodes')
             mod = importlib.import_module('.'.join(klass))
             node_class = getattr(mod, node_name)
+            node = self.make_node(node_class, nc)
+            self.context.add_node(node)
+
+    def generate_nodes_from_emission_sectors(self):
+        mod = importlib.import_module('nodes.simple')
+        node_class = getattr(mod, 'SectorEmissions')
+        dataset_id = self.config.get('emission_dataset')
+        for ec in self.config.get('emission_sectors', []):
+            parent_id = ec.pop('part_of', None)
+            data_col = ec.pop('column', None)
+            nc = dict(
+                output_nodes=[parent_id] if parent_id else [],
+                input_datasets=[dict(id=dataset_id, column=data_col)] if data_col else [],
+                **ec
+            )
+            print(nc)
             node = self.make_node(node_class, nc)
             self.context.add_node(node)
 
@@ -85,21 +109,33 @@ class InstanceLoader:
 
         for pc in self.config['pages']:
             assert pc['id'] not in self.pages
-            page = Page(**pc)
-            cards = pc.get('cards', [])
-            page.add_cards(cards, self.context)
+            page_type = pc.pop('type')
+            if page_type == 'emission':
+                node_id = pc.pop('node')
+                node = self.context.get_node(node_id)
+                page = EmissionPage(**pc, node=node)
+            elif page_type == 'card':
+                # FIXME
+                cards = pc.get('cards', [])
+                # page.add_cards(cards, self.context)
+                raise Exception('Card page unsupported for now')
+            else:
+                raise Exception('Invalid page type: %s' % page_type)
+
             self.pages[pc['id']] = page
 
     def __init__(self, fn):
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
         self.context = Context()
         self.config = data['instance']
+        self.instance = Instance(id=self.config['id'], name=self.config['name'])
         self.context.dataset_repo_url = self.config['dataset_repo']
         self.context.target_year = self.config['target_year']
         if False:
             dvc_pandas.pull_datasets()
         self.load_datasets(self.config.get('datasets', []))
 
+        self.generate_nodes_from_emission_sectors()
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()

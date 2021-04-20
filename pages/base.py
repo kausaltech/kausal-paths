@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Dict, List
+from nodes.simple import SectorEmissions
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 import pandas as pd
@@ -97,6 +98,10 @@ class Page:
     id: str
     name: str
     path: str
+
+
+@dataclass
+class CardPage(Page):
     cards: List[Card] = None
 
     def add_cards(self, cards: List[dict], context: Context):
@@ -132,3 +137,43 @@ class Page:
 
         for card in self.cards:
             card.refresh()
+
+
+@dataclass
+class EmissionSector:
+    node: Node
+    parent: Optional[EmissionSector]
+    metric: Metric = None
+
+    @property
+    def id(self) -> str:
+        return self.node.id
+
+    @property
+    def name(self) -> str:
+        return self.node.name
+
+    @property
+    def color(self) -> Optional[str]:
+        return self.node.color
+
+    def __post_init__(self):
+        self.metric = Metric(id=self.id, name=self.name)
+
+
+@dataclass
+class EmissionPage(Page):
+    node: Node
+
+    def _get_node_sectors(self, node: Node, parent: EmissionSector = None) -> List[EmissionSector]:
+        sectors = []
+        sector = EmissionSector(node=node, parent=parent)
+        sectors.append(sector)
+        for input_node in node.input_nodes:
+            if not isinstance(input_node, SectorEmissions):
+                continue
+            sectors += self._get_node_sectors(input_node, sector)
+        return sectors
+
+    def get_sectors(self):
+        return self._get_node_sectors(self.node, None)

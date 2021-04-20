@@ -19,6 +19,9 @@ class Node:
     # name is the human-readable description for the Node class
     name: str = None
 
+    # if the node has an established visualisation color
+    color: str = None
+
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable[Node]
     output_nodes: Iterable[Node]

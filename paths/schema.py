@@ -1,4 +1,5 @@
 import os
+from pages.base import EmissionPage, Page
 from django.conf import settings
 import graphene
 from nodes.instance import InstanceLoader
@@ -16,6 +17,7 @@ class YearlyValue(graphene.ObjectType):
 class ForecastMetricNode(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
+    unit = graphene.String()
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
@@ -38,16 +40,54 @@ class CardNode(graphene.ObjectType):
     downstream_cards = graphene.List(lambda: CardNode)
 
 
-class PageNode(graphene.ObjectType):
+class PageInterface(graphene.Interface):
     id = graphene.ID()
     path = graphene.String()
     name = graphene.String()
-    cards = graphene.List(CardNode)
+
+    @classmethod
+    def resolve_type(cls, page, info):
+        if isinstance(page, EmissionPage):
+            return EmissionPageNode
+        raise Exception()
+
+
+class EmissionSector(graphene.ObjectType):
+    id = graphene.ID()
+    name = graphene.String()
+    color = graphene.String()
+    parent = graphene.Field(lambda: EmissionSector)
+    metric = graphene.Field(ForecastMetricNode)
+
+
+class EmissionPageNode(graphene.ObjectType):
+    emission_sectors = graphene.List(EmissionSector)
+
+    class Meta:
+        interfaces = (PageInterface,)
+
+    def resolve_emission_sectors(root, info):
+        return root.get_sectors()
+
+
+class InstanceNode(graphene.ObjectType):
+    id = graphene.ID()
+    name = graphene.String()
+    target_year = graphene.Int()
+
+
+def get_page_node(page: Page):
+    if isinstance(page, EmissionPage):
+        return EmissionPageNode(page)
 
 
 class Query(graphene.ObjectType):
-    pages = graphene.List(PageNode)
-    page = graphene.Field(PageNode, path=graphene.String(required=False), id=graphene.String(required=False))
+    instance = graphene.Field(InstanceNode)
+    pages = graphene.List(PageInterface)
+    page = graphene.Field(
+        PageInterface, path=graphene.String(required=False),
+        id=graphene.String(required=False)
+    )
 
     def resolve_pages(root, info):
         return list(loader.pages.values())
@@ -60,7 +100,16 @@ class Query(graphene.ObjectType):
                     return page
         return None
 
+    def resolve_instance(root, info):
+        instance = loader.instance
+        return dict(
+            id=instance.id,
+            name=instance.name,
+            target_year=loader.context.target_year
+        )
+
 
 schema = graphene.Schema(
     query=Query,
+    types=[EmissionPageNode]
 )

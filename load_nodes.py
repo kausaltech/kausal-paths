@@ -5,7 +5,6 @@ loader.print_graph()
 context = loader.context
 
 page = list(loader.pages.values())[0]
-card = page.cards[0]
 
 
 def print_metric(metric):
@@ -27,7 +26,6 @@ def print_metric(metric):
         print(val)
 
 
-if False:
-    for metric in card.metrics:
-        print_metric(metric)
-        print()
+if True:
+    for sector in page.get_sectors():
+        print(sector)

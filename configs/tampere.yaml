@@ -3,64 +3,65 @@ instance:
   dataset_repo: https://github.com/kausaltech/dvctest.git
   name: Hiilineutraali Tampere 2030
   target_year: 2030
-  nodes:
+  emission_dataset: tampere/scenarios/bau
+  emission_sectors:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
-      type: simple.SectorEmissions
-
     - id: transportation_emissions
       name: Liikenteen päästöt
-      type: simple.SectorEmissions
-      output_nodes:
-        - net_emissions
-      input_datasets:
-        - id: tampere/scenarios/bau
-          column: Transportation total
-
+      column: Transportation total
+      part_of: net_emissions
+    #
+    # Heating
+    #
     - id: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
-      type: simple.SectorEmissions
-      output_nodes:
-        - net_emissions
-      input_datasets:
-        - id: tampere/scenarios/bau
-          column: Heating total
+      part_of: net_emissions
+
+    - id: district_heating_emissions
+      name: Kaukolämpö
+      part_of: building_heating_emissions
+      column: District heating
+
+    - id: separate_heating_emissions
+      name: Erillislämmitys
+      part_of: building_heating_emissions
+    - id: oil_heating_emissions
+      name: Öljylämmitys
+      part_of: separate_heating_emissions
+      column: Oil heating
+    - id: gas_heating_emissions
+      part_of: separate_heating_emissions
+      column: Gas heating
+
+    - id: electric_heating_emissions
+      name: Sähkölämmitys
+      part_of: building_heating_emissions
+    - id: geothermal_heating_emissions
+      name: Maalämpö
+      part_of: electric_heating_emissions
+      column: Geothermal heating
+    - id: direct_electric_heating_emissions
+      name: Suorasähkö
+      part_of: electric_heating_emissions
+      column: Direct electric heating
 
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
-      type: simple.SectorEmissions
-      output_nodes:
-        - net_emissions
-      input_datasets:
-        - id: tampere/scenarios/bau
-          column: Electricity consumption total
-
+      part_of: net_emissions
+      column: Electricity consumption total
     - id: industry_emissions
       name: Teollisuuden ja työkoneiden päästöt
-      type: simple.SectorEmissions
-      output_nodes:
-        - net_emissions
-      input_datasets:
-        - id: tampere/scenarios/bau
-          column: Industry and machinery
-
+      part_of: net_emissions
+      column: Industry and machinery
     - id: waste_treatment_emissions
       name: Jätehuollon päästöt
-      type: simple.SectorEmissions
-      output_nodes:
-        - net_emissions
-      input_datasets:
-        - id: tampere/scenarios/bau
-          column: Waste treatment total
-
+      column: Waste treatment total
+      part_of: net_emissions
     - id: agriculture_emissions
       name: Maatalouden päästöt
-      type: simple.SectorEmissions
-      output_nodes:
-        - net_emissions
-      input_datasets:
-        - id: tampere/scenarios/bau
-          column: Agriculture total
+      part_of: net_emissions
+      column: Agriculture total
 
   actions:
     - id: reduce_heating_emissions
@@ -74,32 +75,10 @@ instance:
 
   pages:
     - id: home
+      name: Hiilineutraali Tampere 2030 -päästöskenaario
       path: '/'
-      name: Kokonaispäästöt
-      cards:
-        - name: Kokonaispäästöt Tampereella
-          type: stacked_emissions
-          metrics:
-            - id: net_emissions
-              only_inputs: true
-
-        - name: Liikenteen päästökehitys
-          metrics:
-            - id: transportation_emissions
-          upstream_cards:
-            - net_emissions
-
-        - name: Lämmityksen päästökehitys
-          metrics:
-            - id: building_heating_emissions
-          upstream_cards:
-            - net_emissions
-
-        - name: Sähkönkulutuksen päästökehitys
-          metrics:
-            - id: electricity_consumption_emissions
-          upstream_cards:
-            - net_emissions
+      type: emission
+      node: net_emissions
 
   scenarios:
     - id: baseline
