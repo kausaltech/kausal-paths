@@ -18,8 +18,6 @@ class EmissionReductionAction(Action):
         if not self.enabled:
             return None
 
-        vals = range(20)
-        years = [x + 2019 for x in vals]
-        s = pd.Series(list(vals), index=years)
-        s = 0 - s
-        return self.forecast_series(s)
+        df = self.get_input_dataset()
+        df[VALUE_COLUMN] = 0 - df[VALUE_COLUMN]
+        return df

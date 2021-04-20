@@ -7,6 +7,7 @@ from nodes.actions import Action
 class Scenario:
     id: str
     name: str
+    default: bool = False
     # Dict of actions and their parameters
     actions: list[tuple[Action, dict[str, Any]]] = None
 

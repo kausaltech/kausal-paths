@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Dict
+from typing import Iterable, Dict, Optional, Union
+from pint import UnitRegistry
 import dvc_pandas
 import pandas as pd
 
@@ -22,6 +23,9 @@ class Node:
     input_nodes: Iterable[Node]
     output_nodes: Iterable[Node]
     parameters: Iterable[Parameter]
+
+    # Output for the node in the baseline scenario
+    baseline_values: Optional[pd.DataFrame]
 
     context: Context
 
@@ -61,6 +65,10 @@ class Node:
 
     def compute(self) -> pd.DataFrame:
         raise Exception('Implement in subclass')
+
+    @property
+    def ureg(self) -> UnitRegistry:
+        return self.context.unit_registry
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))

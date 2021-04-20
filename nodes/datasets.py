@@ -30,6 +30,13 @@ class Dataset:
         df = context.load_dataset(self.id)
         cols = df.columns
         if self.column:
+            if self.column not in cols:
+                available = ', '.join(cols)
+                raise Exception(
+                    "Column '%s' not found in dataset '%s'. Available columns: %s" % (
+                        self.column, self.id, available
+                    )
+                )
             assert self.column in cols
             if YEAR_COLUMN in cols:
                 df = df.set_index(YEAR_COLUMN)

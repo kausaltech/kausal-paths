@@ -7,30 +7,27 @@ context = loader.context
 page = list(loader.pages.values())[0]
 card = page.cards[0]
 
-metric = card.metrics[0]
 
-print(metric)
-print('Historical:')
-vals = metric.get_historical_values(context)
-for val in vals:
-    print(val)
+def print_metric(metric):
+    print(metric)
 
-print('\nForecast:')
-vals = metric.get_forecast_values(context)
-for val in vals:
-    print(val)
+    print('Historical:')
+    vals = metric.get_historical_values(context)
+    for val in vals:
+        print(val)
 
-print('\nRoadmap scenario:')
+    print('\nBaseline forecast:')
+    vals = metric.get_baseline_forecast_values(context)
+    for val in vals:
+        print(val)
 
-context.activate_scenario(context.get_scenario('roadmap'))
-page.refresh()
+    print('\nRoadmap scenario:')
+    vals = metric.get_forecast_values(context)
+    for val in vals:
+        print(val)
 
-print('Historical:')
-vals = metric.get_historical_values(context)
-for val in vals:
-    print(val)
 
-print('\nForecast:')
-vals = metric.get_forecast_values(context)
-for val in vals:
-    print(val)
+if False:
+    for metric in card.metrics:
+        print_metric(metric)
+        print()

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from pint import UnitRegistry
+
 import dvc_pandas
 from .datasets import Dataset
 if TYPE_CHECKING:
@@ -15,6 +17,10 @@ class Context:
     params: dict[str, Parameter]
     scenarios: dict[str, Scenario]
     target_year: int
+    unit_registry: UnitRegistry
+    # The URL for the default dataset repo for dvc-pandas
+    dataset_repo_url: str
+    active_scenario: Scenario
 
     def __init__(self):
         from nodes.actions import Action
@@ -24,11 +30,16 @@ class Context:
         self.nodes = {}
         self.datasets = {}
         self.scenarios = {}
+        self.unit_registry = UnitRegistry()
+        # By default, kt is knots, but here kilotonne is the most common
+        # usage.
+        self.unit_registry.define('kt = kilotonne')
+        self.active_scenario = None
 
     def load_dataset(self, identifier: str):
         if identifier in self.datasets:
             return self.datasets[identifier]
-        df = dvc_pandas.load_dataset(identifier)
+        df = dvc_pandas.load_dataset(identifier, repo_url=self.dataset_repo_url)
         self.datasets[identifier] = df
         return df
 
@@ -67,3 +78,9 @@ class Context:
 
         # Set the new parameters
         scenario.activate()
+
+    def generate_baseline_values(self):
+        scenario = self.scenarios['baseline']
+        self.activate_scenario(scenario)
+        for node in self.nodes.values():
+            node.baseline_values = node.get_output()

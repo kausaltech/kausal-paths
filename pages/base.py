@@ -48,6 +48,12 @@ class Metric:
             self._get_values(context)
         return self.values['forecast']
 
+    def get_baseline_forecast_values(self, context: Context) -> List[YearlyValue]:
+        node = context.get_node(self.id)
+        df = node.baseline_values
+        vals = self.df_to_yearly(df)
+        return vals['forecast']
+
     def refresh(self):
         self.values = None
 
@@ -76,7 +82,7 @@ class Card:
                 self.add_metrics(input_metrics, context)
                 continue
 
-            if 'name' not in m:
+            if not m.get('name'):
                 node = context.get_node(m['id'])
                 m['name'] = node.name
             self.metrics.append(Metric(**m))

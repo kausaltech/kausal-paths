@@ -63,14 +63,14 @@ instance:
           column: Agriculture total
 
   actions:
-    - id: reduce_transportation_emissions
-      name: Vähennetään liikenteen päästöjä
+    - id: reduce_heating_emissions
+      name: Vähennetään lämmityksen päästöjä
       type: simple.EmissionReductionAction
       output_nodes:
-        - transportation_emissions
+        - building_heating_emissions
       input_datasets:
-        - id: tampere/scenarios/actions
-          column: Transportation total
+        - id: tampere/scenarios/diff
+          column: Heating total
 
   pages:
     - id: home
@@ -78,7 +78,7 @@ instance:
       name: Kokonaispäästöt
       cards:
         - name: Kokonaispäästöt Tampereella
-          type: stacked
+          type: stacked_emissions
           metrics:
             - id: net_emissions
               only_inputs: true
@@ -95,12 +95,19 @@ instance:
           upstream_cards:
             - net_emissions
 
+        - name: Sähkönkulutuksen päästökehitys
+          metrics:
+            - id: electricity_consumption_emissions
+          upstream_cards:
+            - net_emissions
+
   scenarios:
     - id: baseline
       name: Peruskehitys
 
     - id: roadmap
+      default: true
       name: Hiilineutraali Tampere 2030 -tiekartta
       actions:
-        - id: reduce_transportation_emissions
+        - id: reduce_heating_emissions
           enabled: true

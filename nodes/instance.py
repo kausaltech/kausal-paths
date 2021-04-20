@@ -20,6 +20,7 @@ class InstanceLoader:
             o = Dataset(id=ds['id'], column=ds.get('column'))
             datasets.append(o)
         node = node_class(self.context, config['id'], input_datasets=datasets)
+        node.name = config.get('name')
         node.config = config
         return node
 
@@ -93,9 +94,8 @@ class InstanceLoader:
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
         self.context = Context()
         self.config = data['instance']
+        self.context.dataset_repo_url = self.config['dataset_repo']
         self.context.target_year = self.config['target_year']
-
-        os.environ['DVC_PANDAS_REPOSITORY'] = self.config['dataset_repo']
         if False:
             dvc_pandas.pull_datasets()
         self.load_datasets(self.config.get('datasets', []))
@@ -105,3 +105,11 @@ class InstanceLoader:
         self.setup_edges()
         self.setup_scenarios()
         self.setup_pages()
+
+        self.context.generate_baseline_values()
+        for scenario in self.context.scenarios.values():
+            if scenario.default:
+                break
+        else:
+            raise Exception('No default scenario defined')
+        self.context.activate_scenario(scenario)

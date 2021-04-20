@@ -12,3 +12,4 @@ django-extensions
 scipy
 dvc-pandas
 ipython
+pint

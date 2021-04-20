@@ -18,12 +18,16 @@ class ForecastMetricNode(graphene.ObjectType):
     name = graphene.String()
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
+    baseline_forecast_values = graphene.List(YearlyValue)
 
     def resolve_historical_values(root, info):
         return root.get_historical_values(loader.context)
 
     def resolve_forecast_values(root, info):
         return root.get_forecast_values(loader.context)
+
+    def resolve_baseline_forecast_values(root, info):
+        return root.get_baseline_forecast_values(loader.context)
 
 
 class CardNode(graphene.ObjectType):
