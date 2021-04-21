@@ -139,7 +139,7 @@ class InstanceLoader:
             node_color = 'green'
         else:
             node_color = 'yellow'
-        node_str =  f"{fg(node_color)}{node.id} "
+        node_str = f"{fg(node_color)}{node.id} "
         node_str += f"{fg('grey_50')}{str(type(node))} "
         node_str += attr('reset')
         print('  ' * indent + node_str)

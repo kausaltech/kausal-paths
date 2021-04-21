@@ -86,6 +86,16 @@ class InstanceNode(graphene.ObjectType):
     target_year = graphene.Int()
 
 
+class NodeNode(graphene.ObjectType):
+    id = graphene.ID()
+    name = graphene.String()
+    color = graphene.String()
+    unit = graphene.String()
+    input_nodes = graphene.List(lambda: NodeNode)
+    output_nodes = graphene.List(lambda: NodeNode)
+    # TODO: input_datasets, parameters, baseline_values, context
+
+
 def get_page_node(page: Page):
     if isinstance(page, EmissionPage):
         return EmissionPageNode(page)
@@ -98,6 +108,15 @@ class Query(graphene.ObjectType):
         PageInterface, path=graphene.String(required=False),
         id=graphene.String(required=False)
     )
+    nodes = graphene.List(NodeNode)
+
+    def resolve_instance(root, info):
+        instance = loader.instance
+        return dict(
+            id=instance.id,
+            name=instance.name,
+            target_year=loader.context.target_year
+        )
 
     def resolve_pages(root, info):
         return list(loader.pages.values())
@@ -110,13 +129,8 @@ class Query(graphene.ObjectType):
                     return page
         return None
 
-    def resolve_instance(root, info):
-        instance = loader.instance
-        return dict(
-            id=instance.id,
-            name=instance.name,
-            target_year=loader.context.target_year
-        )
+    def resolve_nodes(root, info):
+        return loader.context.nodes.values()
 
 
 class LocaleDirective(GraphQLDirective):
