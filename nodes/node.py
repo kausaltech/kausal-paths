@@ -25,6 +25,8 @@ class Node:
 
     # output unit (from pint)
     unit: pint.Unit
+    # output quantity (like 'energy' or 'emissions')
+    quantity: str = None
 
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable[Node]
@@ -50,7 +52,7 @@ class Node:
     def get_input_datasets(self):
         dfs = []
         for ds in self.input_datasets:
-            df = ds.load(self.context)
+            df = ds.load(self.context).copy()
             dfs.append(df)
         return dfs
 

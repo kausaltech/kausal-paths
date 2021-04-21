@@ -62,6 +62,8 @@ class InstanceLoader:
         node = node_class(self.context, config['id'], input_datasets=datasets)
         node.name = self.make_trans_string(config, 'name')
         node.color = config.get('color')
+        if 'quantity' in config:
+            node.quantity = config['quantity']
         node.unit = unit
         node.config = config
 

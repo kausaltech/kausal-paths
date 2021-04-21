@@ -13,6 +13,7 @@ class AdditiveNode(Node):
 
     def compute(self):
         df = self.get_input_dataset()
+
         for node in self.input_nodes:
             node_df = node.get_output()
             if node_df is None:
@@ -34,6 +35,7 @@ class AdditiveNode(Node):
 
 
 class SectorEmissions(AdditiveNode):
+    quantity = 'emissions'
     """Simple addition of subsector emissions"""
     pass
 

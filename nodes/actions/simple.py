@@ -8,7 +8,8 @@ class AdditiveAction(Action):
     no_effect_value = 0
 
     def compute_effect(self):
-        return self.get_input_dataset()
+        df = self.get_input_dataset()
+        return df
 
 
 class CumulativeAdditiveAction(Action):

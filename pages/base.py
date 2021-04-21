@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 from nodes import Node, Context
+from nodes.actions import Action
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 
 
@@ -172,7 +173,7 @@ class EmissionPage(Page):
         sector = EmissionSector(node=node, parent=parent)
         sectors.append(sector)
         for input_node in node.input_nodes:
-            if not isinstance(input_node, SectorEmissions):
+            if input_node.quantity != 'emissions' or isinstance(input_node, Action):
                 continue
             sectors += self._get_node_sectors(input_node, sector)
         return sectors
