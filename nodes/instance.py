@@ -1,15 +1,19 @@
 from dataclasses import dataclass
+
+import re
+from dvc import repo
 from nodes.node import Node
 from nodes.actions.base import Action
 from nodes.scenario import Scenario
 from typing import Dict
-import os
 import importlib
 import dvc_pandas
 import yaml
 from dvc_pandas import pull_datasets
-from . import Dataset, Context
+
+from common.i18n import TranslatedString
 from pages.base import EmissionPage, Page
+from . import Dataset, Context
 
 
 @dataclass
@@ -21,6 +25,20 @@ class Instance:
 class InstanceLoader:
     pages: Dict[str, Page]
     instance: Instance
+
+    def make_trans_string(self, config, attr):
+        default = config.get(attr)
+        langs = {}
+        if default is not None:
+            langs[self.config['default_language']] = default
+        for key in config.keys():
+            m = re.match(r'%s_([a-z]+)' % attr, key)
+            if m is None:
+                continue
+            langs[m.groups()[0]] = config[key]
+        if not langs:
+            return None
+        return TranslatedString(**langs)
 
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', [])
@@ -42,7 +60,7 @@ class InstanceLoader:
             ))
 
         node = node_class(self.context, config['id'], input_datasets=datasets)
-        node.name = config.get('name')
+        node.name = self.make_trans_string(config, 'name')
         node.color = config.get('color')
         node.unit = unit
         node.config = config
@@ -160,7 +178,7 @@ class InstanceLoader:
         self.context.dataset_repo_url = self.config['dataset_repo']
         self.context.target_year = self.config['target_year']
         if False:
-            dvc_pandas.pull_datasets()
+            dvc_pandas.pull_datasets(repo_url=self.context.dataset_repo_url)
         self.load_datasets(self.config.get('datasets', []))
 
         self.generate_nodes_from_emission_sectors()

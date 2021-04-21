@@ -5,6 +5,8 @@ import pint
 import pandas as pd
 import pint_pandas
 
+from common.i18n import TranslatedString
+
 from .datasets import Dataset
 from .context import Context
 from .params import Parameter
@@ -16,7 +18,7 @@ class Node:
     # output_metrics: Iterable[Metric]
 
     # name is the human-readable description for the Node class
-    name: str = None
+    name: TranslatedString = None
 
     # if the node has an established visualisation color
     color: str = None

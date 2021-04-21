@@ -1,6 +1,10 @@
 import os
 from pages.base import EmissionPage, Page
 from django.conf import settings
+from graphql.type import (
+    DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
+    GraphQLString, specified_directives
+)
 import graphene
 from nodes.instance import InstanceLoader
 
@@ -115,7 +119,23 @@ class Query(graphene.ObjectType):
         )
 
 
+class LocaleDirective(GraphQLDirective):
+    def __init__(self):
+        super().__init__(
+            name='locale',
+            description='Select locale in which to return data',
+            args={
+                'lang': GraphQLArgument(
+                    type_=GraphQLNonNull(GraphQLString),
+                    description='Selected language'
+                )
+            },
+            locations=[DirectiveLocation.QUERY]
+        )
+
+
 schema = graphene.Schema(
     query=Query,
+    directives=specified_directives + [LocaleDirective()],
     types=[EmissionPageNode]
 )

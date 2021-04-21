@@ -1,5 +1,6 @@
 instance:
   id: tampere
+  default_language: fi
   dataset_repo: https://github.com/kausaltech/dvctest.git
   name: Hiilineutraali Tampere 2030
   target_year: 2030
@@ -8,8 +9,10 @@ instance:
   emission_sectors:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
+      name_en: Net emissions (scope 2)
     - id: transportation_emissions
       name: Liikenteen päästöt
+      name_en: Transportation
       column: Transportation total
       part_of: net_emissions
       color: '#668EC9'
@@ -18,6 +21,7 @@ instance:
     #
     - id: building_heating_emissions
       name: Rakennusten lämmityksen päästöt
+      name_en: Building heating
       part_of: net_emissions
       color: '#AD3963'
 
@@ -28,46 +32,57 @@ instance:
 
     - id: separate_heating_emissions
       name: Erillislämmitys
+      name_en: Separate heating
       part_of: building_heating_emissions
     - id: oil_heating_emissions
       name: Öljylämmitys
+      name_en: Oil heating
       part_of: separate_heating_emissions
       column: Oil heating
     - id: gas_heating_emissions
       part_of: separate_heating_emissions
+      name: Kaasulämmitys
+      name_en: Gas heating
       column: Gas heating
 
     - id: electric_heating_emissions
       name: Sähkölämmitys
+      name_en: Electric heating
       part_of: building_heating_emissions
     - id: geothermal_heating_emissions
       name: Maalämpö
+      name_en: Geothermal heating
       part_of: electric_heating_emissions
       column: Geothermal heating
     - id: direct_electric_heating_emissions
       name: Suorasähkö
+      name_en: Direct electric heating
       part_of: electric_heating_emissions
       column: Direct electric heating
 
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
+      name_en: Electricity consumption
       part_of: net_emissions
       column: Electricity consumption total
       color: '#F4D240'
 
     - id: industry_emissions
       name: Teollisuuden ja työkoneiden päästöt
+      name_en: Industry and machinery
       part_of: net_emissions
       column: Industry and machinery
       color: '#E8B455'
 
     - id: waste_treatment_emissions
       name: Jätehuollon päästöt
+      name_en: Waste treatment
       column: Waste treatment total
       part_of: net_emissions
       color: '#397368'
 
     - id: agriculture_emissions
+      name_en: Agriculture
       name: Maatalouden päästöt
       part_of: net_emissions
       column: Agriculture total
@@ -76,6 +91,7 @@ instance:
   nodes:
     - id: district_heating_emissions
       name: Kaukolämpö
+      name_en: District heating emissions
       type: simple.EmissionFactorActivity
       unit: kt
       output_nodes:
@@ -83,6 +99,7 @@ instance:
 
     - id: district_heating_consumption
       name: Kaukolämmön kulutus
+      name_en: District heat consumption
       unit: GWh
       type: simple.Activity
       output_nodes:
@@ -92,6 +109,7 @@ instance:
 
     - id: district_heating_emission_factor
       name: Kaukolämmön päästökerroin
+      name_en: District heating emission factor
       type: simple.AdditiveNode
       unit: g/kWh
       output_nodes:
@@ -110,7 +128,8 @@ instance:
     #       column: Heating total
 
     - id: naistenlahti3
-      name: Naistenlahti 3
+      name: Naistenlahti 3 -biovoimalaitos
+      name_en: Naistenlahti 3 bio thermal plant
       type: simple.CumulativeAdditiveAction
       output_nodes:
         - district_heating_emission_factor
@@ -119,6 +138,7 @@ instance:
 
     - id: other_renewable_district_heating
       name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
+      name_en: Increase share of renewables in district heat production
       type: simple.CumulativeAdditiveAction
       output_nodes:
         - district_heating_emission_factor
