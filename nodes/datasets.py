@@ -8,6 +8,10 @@ from dataclasses import dataclass
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 
+# Use the pyarrow parquet engine because it's faster to start.
+pd.set_option('io.parquet.engine', 'pyarrow')
+
+
 @dataclass
 class Dataset:
     id: str
