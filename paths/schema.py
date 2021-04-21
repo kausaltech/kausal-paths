@@ -73,7 +73,7 @@ class EmissionPageNode(graphene.ObjectType):
     class Meta:
         interfaces = (PageInterface,)
 
-    def resolve_emission_sectors(root, info, id=None):
+    def resolve_emission_sectors(root: EmissionPage, info, id=None):
         all_sectors = root.get_sectors()
         if id is not None:
             all_sectors = list(filter(lambda x: x.id == id, all_sectors))

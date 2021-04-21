@@ -65,7 +65,10 @@ class Node:
 
     def get_output(self) -> pd.DataFrame:
         # FIXME: Implement caching
-        return self.compute()
+        out = self.compute()
+        if out is None:
+            return None
+        return out.copy()
 
     def get_target_year(self) -> int:
         return self.context.target_year

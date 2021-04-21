@@ -44,10 +44,10 @@ class Context:
 
     def load_dataset(self, identifier: str):
         if identifier in self.datasets:
-            return self.datasets[identifier]
+            return self.datasets[identifier].copy()
         df = dvc_pandas.load_dataset(identifier, repo_url=self.dataset_repo_url)
         self.datasets[identifier] = df
-        return df
+        return df.copy()
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets
