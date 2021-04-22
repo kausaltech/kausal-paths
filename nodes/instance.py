@@ -57,12 +57,10 @@ class InstanceLoader:
 
         for ds in ds_config:
             if isinstance(ds, str):
-                ds_id = ds
-                ds_column = None
+                dc = {'id': ds}
             else:
-                ds_id = ds['id']
-                ds_column = ds.get('column')
-            o = Dataset(id=ds_id, column=ds_column)
+                dc = ds
+            o = Dataset(**dc)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
@@ -103,7 +101,11 @@ class InstanceLoader:
             data_col = ec.pop('column', None)
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
-                input_datasets=[dict(id=dataset_id, column=data_col)] if data_col else [],
+                input_datasets=[dict(
+                    id=dataset_id,
+                    column=data_col,
+                    forecast_from=self.config.get('emission_forecast_from'),
+                )] if data_col else [],
                 unit=unit,
                 **ec
             )

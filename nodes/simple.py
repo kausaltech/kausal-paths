@@ -15,6 +15,12 @@ class AdditiveNode(Node):
     def compute(self):
         df = self.get_input_dataset()
 
+        if df is not None:
+            if not isinstance(df, pd.DataFrame):
+                raise NodeError(self, "Input is not a DataFrame")
+            if VALUE_COLUMN not in df.columns:
+                raise NodeError(self, "Input dataset doesn't have Value column")
+
         for node in self.input_nodes:
             node_df = node.get_output()
             if node_df is None:

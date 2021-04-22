@@ -20,6 +20,8 @@ class Dataset:
     filters: Iterable = None
     groupby: dict = None
 
+    # The year from which the time series is a forecast
+    forecast_from: int = None
     fixed_data: pd.DataFrame = None
 
     def load(self, context):
@@ -57,6 +59,12 @@ class Dataset:
             if FORECAST_COLUMN in cols:
                 df = df.rename(columns={self.column: VALUE_COLUMN})
                 cols = [VALUE_COLUMN, FORECAST_COLUMN]
+            elif self.forecast_from is not None:
+                df = pd.DataFrame(df[self.column])
+                df = df.rename(columns={self.column: VALUE_COLUMN})
+                df['Forecast'] = False
+                df.loc[df.index >= self.forecast_from, 'Forecast'] = True
+                return df
             else:
                 return df[self.column]
 

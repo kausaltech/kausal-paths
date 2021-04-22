@@ -54,6 +54,8 @@ class Node:
         dfs = []
         for ds in self.input_datasets:
             df = ds.load(self.context).copy()
+            if df.index.duplicated().any():
+                raise NodeError(self, "Input dataset has duplicate index rows")
             dfs.append(df)
         return dfs
 
@@ -71,6 +73,8 @@ class Node:
         out = self.compute()
         if out is None:
             return None
+        if out.index.duplicated().any():
+            raise NodeError(self, "Node output has duplicate index rows")
         return out.copy()
 
     def get_target_year(self) -> int:

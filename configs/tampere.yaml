@@ -6,6 +6,7 @@ instance:
   target_year: 2030
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt
+  emission_forecast_from: 2019
   parameters:
     - id: municipality_name
       value: Tampere
@@ -148,11 +149,11 @@ instance:
       part_of: agriculture_emissions
       column: Field crops
 
-    - id: industrial_electricity_consumption_emissions
-      name_en: Industrial electricity consumption
-      name: Teollisuuden sähkön kulutuksen päästöt
-      part_of: electricity_consumption_emissions
-      column: Industrial electricity consumption
+    #- id: industrial_electricity_consumption_emissions
+    #  name_en: Industrial electricity consumption
+    #  name: Teollisuuden sähkön kulutuksen päästöt
+    #  part_of: electricity_consumption_emissions
+    #  column: Industrial electricity consumption
 
   nodes:
     - id: population
