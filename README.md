@@ -49,7 +49,7 @@ Compile the translation files:
 
 ```shell
 python manage.py compilemessages
-
+```
 
 You can now run the backend:
 
