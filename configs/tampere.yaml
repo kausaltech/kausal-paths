@@ -13,12 +13,48 @@ instance:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
       name_en: Net emissions (scope 2)
+
     - id: transportation_emissions
       name: Liikenteen päästöt
       name_en: Transportation
-      column: Transportation total
       part_of: net_emissions
       color: '#668EC9'
+    - id: car_emissions
+      name: Henkilöautot
+      name_en: Private cars
+      column: Private cars
+      part_of: transportation_emissions
+    - id: van_emissions
+      name: Pakettiautot
+      name_en: Vans
+      column: Vans
+      part_of: transportation_emissions
+    - id: bus_emissions
+      name: Linja-autot
+      name_en: Buses
+      column: Buses
+      part_of: transportation_emissions
+    - id: truck_emissions
+      name: Kuorma-autot
+      name_en: Trucks and lorries
+      column: Trucks and lorries
+      part_of: transportation_emissions
+    - id: motorbike_emissions
+      name: Moottoripyörät yms.
+      name_en: Motorbikes etc.
+      column: Motorbikes
+      part_of: transportation_emissions
+    - id: local_train_emissions
+      name: Lähijunat
+      name_en: Local trains
+      column: Local trains
+      part_of: transportation_emissions
+    - id: tram_emissions
+      name: Raitiotiet
+      name_en: Trams
+      column: Trams
+      part_of: transportation_emissions
+
     #
     # Heating
     #
@@ -62,13 +98,6 @@ instance:
       name_en: Direct electric heating
       part_of: electric_heating_emissions
       column: Direct electric heating
-
-    - id: electricity_consumption_emissions
-      name: Sähkön kulutuksen päästöt
-      name_en: Electricity consumption
-      part_of: net_emissions
-      column: Electricity consumption total
-      color: '#F4D240'
 
     - id: industry_emissions
       name: Teollisuuden ja työkoneiden päästöt
@@ -168,13 +197,14 @@ instance:
       historical_values: [[2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
       forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
 
-    # - id: electricity_consumption_emissions
-    #   name: Sähkön kulutuksen päästöt
-    #   name_en: Electricity consumption
-    #   type: simple.EmissionFactorActivity
-    #   unit: kt
-    #   output_nodes:
-    #     - net_emissions
+    - id: electricity_consumption_emissions
+      name: Sähkön kulutuksen päästöt
+      name_en: Electricity consumption
+      type: simple.EmissionFactorActivity
+      unit: kt
+      color: '#F4D240'
+      output_nodes:
+        - net_emissions
 
   actions:
     # - id: reduce_heating_emissions
