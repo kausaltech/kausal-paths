@@ -30,6 +30,8 @@ class Metric:
         df = df.rename(columns={VALUE_COLUMN: 'value'})
         if hasattr(df.value, 'pint'):
             df.value = df.value.pint.m
+        if df.isnull().sum().sum():
+            raise Exception('Metric %s contains NaN values' % self.id)
         forecast = df.loc[df[FORECAST_COLUMN], ['year', 'value']].to_dict('records')
         historical = df.loc[~df[FORECAST_COLUMN], ['year', 'value']].to_dict('records')
         return dict(

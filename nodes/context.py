@@ -5,10 +5,12 @@ import pint
 import pint_pandas
 
 import dvc_pandas
+from params.discover import discover_parameters
+from params import Parameter
+
 from .datasets import Dataset
 if TYPE_CHECKING:
     from .node import Node
-    from .params import Parameter
     from .scenario import Scenario
 
 
@@ -16,6 +18,9 @@ unit_registry = pint.UnitRegistry()
 # By default, kt is knots, but here kilotonne is the most common
 # usage.
 unit_registry.define('kt = kilotonne')
+# We also need population
+unit_registry.define('person = [population] = cap')
+
 pint.set_application_registry(unit_registry)
 pint_pandas.PintType.ureg = unit_registry
 
@@ -30,6 +35,7 @@ class Context:
     # The URL for the default dataset repo for dvc-pandas
     dataset_repo_url: str
     active_scenario: Scenario
+    supported_params: dict[str, type]
 
     def __init__(self):
         from nodes.actions import Action
@@ -41,6 +47,7 @@ class Context:
         self.scenarios = {}
         self.unit_registry = unit_registry
         self.active_scenario = None
+        self.supported_params = discover_parameters()
 
     def load_dataset(self, identifier: str):
         if identifier in self.datasets:
@@ -56,7 +63,8 @@ class Context:
         self.datasets[config['id']] = df
 
     def add_node(self, node: Node):
-        assert node.id not in self.nodes
+        if node.id in self.nodes:
+            raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
 
     def get_node(self, id) -> Node:

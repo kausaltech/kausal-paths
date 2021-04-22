@@ -41,15 +41,28 @@ class InstanceLoader:
         return TranslatedString(**langs)
 
     def make_node(self, node_class, config) -> Node:
-        ds_config = config.get('input_datasets', [])
+        ds_config = config.get('input_datasets', None)
         datasets = []
 
         unit = config.get('unit')
+        if unit is None:
+            unit = getattr(node_class, 'unit')
         if unit:
             unit = self.context.unit_registry(unit).units
 
+        # If the graph doesn't specify input datasets, the node
+        # might.
+        if ds_config is None:
+            ds_config = getattr(node_class, 'input_datasets', [])
+
         for ds in ds_config:
-            o = Dataset(id=ds['id'], column=ds.get('column'))
+            if isinstance(ds, str):
+                ds_id = ds
+                ds_column = None
+            else:
+                ds_id = ds['id']
+                ds_column = ds.get('column')
+            o = Dataset(id=ds_id, column=ds_column)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
@@ -114,9 +127,19 @@ class InstanceLoader:
         for node in self.context.nodes.values():
             for out_id in node.config.get('output_nodes', []):
                 out_node = self.context.get_node(out_id)
+                assert node not in out_node.input_nodes
                 out_node.input_nodes.append(node)
+                assert out_node not in node.output_nodes
                 node.output_nodes.append(out_node)
-                # FIXME: Check for cycles?
+
+            for in_id in node.config.get('input_nodes', []):
+                in_node = self.context.get_node(in_id)
+                assert node not in in_node.output_nodes
+                in_node.output_nodes.append(node)
+                assert in_node not in node.input_nodes
+                node.input_nodes.append(in_node)
+
+        # FIXME: Check for cycles?
 
     def setup_scenarios(self):
         for sc in self.config['scenarios']:
@@ -179,8 +202,7 @@ class InstanceLoader:
         self.instance = Instance(id=self.config['id'], name=self.config['name'])
         self.context.dataset_repo_url = self.config['dataset_repo']
         self.context.target_year = self.config['target_year']
-        if False:
-            dvc_pandas.pull_datasets(repo_url=self.context.dataset_repo_url)
+
         self.load_datasets(self.config.get('datasets', []))
 
         self.generate_nodes_from_emission_sectors()

@@ -9,7 +9,8 @@ from common.i18n import TranslatedString
 
 from .datasets import Dataset
 from .context import Context
-from .params import Parameter
+from .exceptions import NodeError
+from params import Parameter
 
 
 class Node:
@@ -93,6 +94,11 @@ class Node:
 
     def ensure_output_unit(self, s: pd.Series):
         pt = pint_pandas.PintType(self.unit)
+        if hasattr(s, 'pint'):
+            if not self.unit.is_compatible_with(s.pint.units):
+                raise NodeError(self, 'Series with type %s is not compatible with %s' % (
+                    s.pint.units, self.unit
+                ))
         return s.astype(pt)
 
     def __str__(self):

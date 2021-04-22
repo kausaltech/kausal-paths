@@ -6,6 +6,9 @@ instance:
   target_year: 2030
   emission_dataset: tampere/scenarios/bau
   emission_unit: kt
+  parameters:
+    - id: municipality_name
+      value: Tampere
   emission_sectors:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
@@ -89,6 +92,10 @@ instance:
       color: '#ABC872'
 
   nodes:
+    - id: population
+      type: finland.Population
+      name: Väestö
+
     - id: district_heating_emissions
       name: Kaukolämpö
       name_en: District heating emissions
@@ -107,7 +114,7 @@ instance:
       output_nodes:
         - district_heating_emissions
       historical_values: [[1990, 1388.4], [2010, 2206.6], [2011, 1869.3], [2012, 2072.7], [2013, 1888.2], [2014, 1872.2], [2015, 1775.6], [2016, 1956.7], [2017, 1917.2], [2018, 1955.1]]
-      forecast_values: [[2019, 1911], [2020, 1840], [2021, 1815], [2022, 1791], [2023, 1766], [2024, 1741], [2025, 1716], [2026, 1691], [2027, 1666], [2028, 1641], [2029, 1617]]
+      forecast_values: [[2019, 1911], [2020, 1840], [2021, 1815], [2022, 1791], [2023, 1766], [2024, 1741], [2025, 1716], [2026, 1691], [2027, 1666], [2028, 1641], [2029, 1617], [2030, 1592]]
 
     - id: district_heating_emission_factor
       name: Kaukolämmön päästökerroin
@@ -119,6 +126,55 @@ instance:
         - district_heating_emissions
       historical_values: [[1990, 250], [2010, 179], [2011, 170.1], [2012, 162.3], [2013, 153.9], [2014, 160.6], [2015, 140.7], [2016, 140], [2017, 130], [2018, 136.3]]
       forecast_values: [[2019, 126], [2020, 123], [2021, 123], [2022, 123], [2023, 123], [2024, 123], [2025, 123], [2026, 123], [2027, 123], [2028, 123], [2029, 123], [2030, 123]]
+
+    - id: electricity_consumption_per_capita
+      name: Sähkönkulutus asukasta kohti
+      name_en: Electricity consumption per capita
+      type: simple.AdditiveNode
+      unit: kWh/person
+      output_nodes:
+        - electricity_consumption_other
+      historical_values: [[2010, 5728], [2011, 5555], [2012, 5672], [2013, 5531], [2014, 5550], [2015, 5423], [2016, 5477], [2017, 5467], [2018, 5328]]
+      forecast_values: [[2019, 5289], [2020, 5249], [2021, 5210], [2022, 5171], [2023, 5131], [2024, 5092], [2025, 5052], [2026, 5013], [2027, 4974], [2028, 4934], [2029, 4895], [2030, 4855]]
+
+    - id: electricity_consumption_other
+      name: Muu sähkönkulutus
+      name_en: Other electricity consumption
+      type: simple.PerCapita
+      unit: GWh
+      quantity: energy
+      input_nodes:
+        - population
+      output_nodes:
+        - electricity_consumption
+
+    - id: electricity_consumption
+      name: Sähkönkulutus
+      name_en: Electricity consumption
+      type: simple.AdditiveNode
+      unit: GWh
+      quantity: energy
+      output_nodes:
+        - electricity_consumption_emissions
+
+    - id: electricity_production_emission_factor
+      name: Sähköntuotannon päästökerroin
+      name_en: Electricity production emission factor
+      type: simple.AdditiveNode
+      output_nodes:
+        - electricity_consumption_emissions
+      unit: g/kWh
+      quantity: emission_factor
+      historical_values: [[2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
+      forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
+
+    # - id: electricity_consumption_emissions
+    #   name: Sähkön kulutuksen päästöt
+    #   name_en: Electricity consumption
+    #   type: simple.EmissionFactorActivity
+    #   unit: kt
+    #   output_nodes:
+    #     - net_emissions
 
   actions:
     # - id: reduce_heating_emissions

@@ -3,6 +3,7 @@ import pandas as pd
 from common.i18n import gettext_lazy as _
 from .constants import FORECAST_COLUMN, VALUE_COLUMN
 from .node import Node
+from .exceptions import NodeError
 
 
 EMISSION_UNIT = 'kg'
@@ -18,15 +19,16 @@ class AdditiveNode(Node):
             node_df = node.get_output()
             if node_df is None:
                 continue
+
             if df is None:
                 df = node_df
             else:
-                val1 = df[VALUE_COLUMN]
+                val1 = self.ensure_output_unit(df[VALUE_COLUMN])
                 if hasattr(val1, 'pint'):
-                    val1 = val1.pint.to(self.unit).pint.m
-                val2 = node_df[VALUE_COLUMN]
+                    val1 = val1.pint.m
+                val2 = self.ensure_output_unit(df[VALUE_COLUMN])
                 if hasattr(val2, 'pint'):
-                    val2 = val2.pint.to(self.unit).pint.m
+                    val2 = val2.pint.m
                 val1 = val1.add(val2, fill_value=0)
                 df[VALUE_COLUMN] = self.ensure_output_unit(val1)
                 df[FORECAST_COLUMN] = df[FORECAST_COLUMN] | node_df[FORECAST_COLUMN]
@@ -40,19 +42,17 @@ class SectorEmissions(AdditiveNode):
     pass
 
 
-class EmissionFactorActivity(Node):
-    """Multiply an activity by an emission factor."""
-
-    quantity = 'emissions'
+class MultiplicativeNode(Node):
+    """Multiply nodes together."""
 
     def compute(self):
         if len(self.input_nodes) != 2:
-            raise Exception("Must receive exactly two inputs")
+            raise NodeError(self, "Must receive exactly two inputs")
 
         n1, n2 = self.input_nodes
         output_unit = n1.unit * n2.unit
-        if not self.is_compatible_unit(output_unit, EMISSION_UNIT):
-            raise Exception("Multiplying emission inputs must result in mass")
+        if not self.is_compatible_unit(output_unit, self.unit):
+            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
 
         df1 = n1.get_output()
         df2 = n2.get_output()
@@ -63,6 +63,16 @@ class EmissionFactorActivity(Node):
         df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
         return df
+
+
+class EmissionFactorActivity(MultiplicativeNode):
+    """Multiply an activity by an emission factor."""
+    quantity = 'emissions'
+    unit = EMISSION_UNIT
+
+
+class PerCapita(MultiplicativeNode):
+    pass
 
 
 class Activity(AdditiveNode):
