@@ -26,7 +26,7 @@ class AdditiveNode(Node):
                 val1 = self.ensure_output_unit(df[VALUE_COLUMN])
                 if hasattr(val1, 'pint'):
                     val1 = val1.pint.m
-                val2 = self.ensure_output_unit(df[VALUE_COLUMN])
+                val2 = self.ensure_output_unit(node_df[VALUE_COLUMN])
                 if hasattr(val2, 'pint'):
                     val2 = val2.pint.m
                 val1 = val1.add(val2, fill_value=0)
