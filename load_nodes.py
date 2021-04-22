@@ -38,5 +38,5 @@ if True:
     dvc_pandas.pull_datasets(repo_url=loader.context.dataset_repo_url)
 
     loader.context.generate_baseline_values()
-    for sector in page.get_sectors():
-        print(sector)
+    #for sector in page.get_sectors():
+    #    print(sector)

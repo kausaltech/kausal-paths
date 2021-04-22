@@ -109,16 +109,50 @@ instance:
     - id: waste_treatment_emissions
       name: Jätehuollon päästöt
       name_en: Waste treatment
-      column: Waste treatment total
       part_of: net_emissions
       color: '#397368'
+
+    - id: solid_waste_treatment_emissions
+      name: Kiinteän jätteen käsittelyn päästöt
+      name_en: Solid waste treatment
+      column: Solid waste treatment
+      part_of: waste_treatment_emissions
+
+    - id: waste_water_treatment_emissions
+      name: Jäteveden puhdistuksen päästöt
+      name_en: Waste water treatment
+      column: Waste water treatment
+      part_of: waste_treatment_emissions
 
     - id: agriculture_emissions
       name_en: Agriculture
       name: Maatalouden päästöt
       part_of: net_emissions
-      column: Agriculture total
       color: '#ABC872'
+
+    - id: cattle_digestion_emissions
+      name_en: Cattle digestion
+      name: Eläinten ruoansulatus
+      part_of: agriculture_emissions
+      column: Cattle digestion
+
+    - id: manure_treatment_emissions
+      name_en: Manure treatment
+      name: Lannankäsittely
+      part_of: agriculture_emissions
+      column: Manure treatment
+
+    - id: field_crops_emissions
+      name_en: Field crops
+      name: Peltoviljelyn päästöt
+      part_of: agriculture_emissions
+      column: Field crops
+
+    - id: industrial_electricity_consumption_emissions
+      name_en: Industrial electricity consumption
+      name: Teollisuuden sähkön kulutuksen päästöt
+      part_of: electricity_consumption_emissions
+      column: Industrial electricity consumption
 
   nodes:
     - id: population
