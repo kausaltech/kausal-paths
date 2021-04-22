@@ -102,6 +102,7 @@ instance:
       name: Kaukolämmön kulutus
       name_en: District heat consumption
       unit: GWh
+      quantity: energy
       type: simple.Activity
       output_nodes:
         - district_heating_emissions
@@ -113,6 +114,7 @@ instance:
       name_en: District heating emission factor
       type: simple.AdditiveNode
       unit: g/kWh
+      quantity: emission_factor
       output_nodes:
         - district_heating_emissions
       historical_values: [[1990, 250], [2010, 179], [2011, 170.1], [2012, 162.3], [2013, 153.9], [2014, 160.6], [2015, 140.7], [2016, 140], [2017, 130], [2018, 136.3]]

@@ -7,6 +7,7 @@ from graphql.type import (
 )
 import graphene
 from nodes.instance import InstanceLoader
+from nodes.actions import Action
 
 
 loader = InstanceLoader(os.path.join(settings.BASE_DIR, 'configs/tampere.yaml'))
@@ -91,9 +92,14 @@ class NodeNode(graphene.ObjectType):
     name = graphene.String()
     color = graphene.String()
     unit = graphene.String()
+    quantity = graphene.String()
+    is_action = graphene.Boolean()
     input_nodes = graphene.List(lambda: NodeNode)
     output_nodes = graphene.List(lambda: NodeNode)
     # TODO: input_datasets, parameters, baseline_values, context
+
+    def resolve_is_action(root, info):
+        return isinstance(root, Action)
 
 
 def get_page_node(page: Page):

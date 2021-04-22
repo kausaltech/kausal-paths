@@ -43,6 +43,8 @@ class SectorEmissions(AdditiveNode):
 class EmissionFactorActivity(Node):
     """Multiply an activity by an emission factor."""
 
+    quantity = 'emissions'
+
     def compute(self):
         if len(self.input_nodes) != 2:
             raise Exception("Must receive exactly two inputs")
