@@ -148,6 +148,7 @@ class CardPage(Page):
 class EmissionSector:
     node: Node
     parent: Optional[EmissionSector]
+    color: str = None
     metric: Metric = None
 
     @property
@@ -157,10 +158,6 @@ class EmissionSector:
     @property
     def name(self) -> str:
         return self.node.name
-
-    @property
-    def color(self) -> Optional[str]:
-        return self.node.color
 
     def __post_init__(self):
         self.metric = Metric(id=self.id, name=self.name)
@@ -173,6 +170,10 @@ class EmissionPage(Page):
     def _get_node_sectors(self, node: Node, parent: EmissionSector = None) -> List[EmissionSector]:
         sectors = []
         sector = EmissionSector(node=node, parent=parent)
+        if node.color:
+            sector.color = node.color
+        elif parent is not None and parent.color:
+            sector.color = parent.color
         sectors.append(sector)
         for input_node in node.input_nodes:
             if input_node.quantity != 'emissions' or isinstance(input_node, Action):

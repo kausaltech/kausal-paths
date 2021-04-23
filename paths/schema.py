@@ -98,6 +98,15 @@ class NodeNode(graphene.ObjectType):
     output_nodes = graphene.List(lambda: NodeNode)
     # TODO: input_datasets, parameters, baseline_values, context
 
+    def resolve_color(root, info):
+        if root.color:
+            return root.color
+        if root.quantity == 'emissions':
+            for parent in root.output_nodes:
+                if parent.color:
+                    root.color = parent.color
+                    return root.color
+
     def resolve_is_action(root, info):
         return isinstance(root, Action)
 
