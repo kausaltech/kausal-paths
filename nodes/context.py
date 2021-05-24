@@ -32,8 +32,7 @@ class Context:
     scenarios: dict[str, Scenario]
     target_year: int
     unit_registry: pint.UnitRegistry
-    # The URL for the default dataset repo for dvc-pandas
-    dataset_repo_url: str
+    dataset_repo: dvc_pandas.Repository
     active_scenario: Scenario
     supported_params: dict[str, type]
 
@@ -52,9 +51,10 @@ class Context:
     def load_dataset(self, identifier: str):
         if identifier in self.datasets:
             return self.datasets[identifier].copy()
-        df = dvc_pandas.load_dataset(identifier, repo_url=self.dataset_repo_url)
-        self.datasets[identifier] = df
-        return df.copy()
+        self.dataset_repo.pull_datasets()
+        dataset = self.dataset_repo.load_dataset(identifier)
+        self.datasets[identifier] = dataset.df
+        return dataset.df.copy()
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets

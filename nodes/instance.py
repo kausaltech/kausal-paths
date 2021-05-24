@@ -1,15 +1,13 @@
 from dataclasses import dataclass
 
+import dvc_pandas
+import importlib
 import re
-from dvc import repo
+import yaml
 from nodes.node import Node
 from nodes.actions.base import Action
 from nodes.scenario import Scenario
 from typing import Dict
-import importlib
-import dvc_pandas
-import yaml
-from dvc_pandas import pull_datasets
 
 from common.i18n import TranslatedString
 from pages.base import EmissionPage, Page
@@ -202,7 +200,7 @@ class InstanceLoader:
         self.context = Context()
         self.config = data['instance']
         self.instance = Instance(id=self.config['id'], name=self.config['name'])
-        self.context.dataset_repo_url = self.config['dataset_repo']
+        self.context.dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
         self.context.target_year = self.config['target_year']
 
         self.load_datasets(self.config.get('datasets', []))

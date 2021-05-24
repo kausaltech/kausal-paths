@@ -92,7 +92,7 @@ draftjs-exporter==2.1.7
     # via wagtail
 dulwich==0.20.21
     # via dvc
-dvc-pandas==0.0.3
+dvc-pandas==0.0.4
     # via -r requirements.in
 dvc[s3]==2.0.18
     # via dvc-pandas
@@ -186,7 +186,9 @@ pickleshare==0.7.5
 pillow==8.2.0
     # via wagtail
 pint-pandas==0.2
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   dvc-pandas
 pint==0.17
     # via
     #   -r requirements.in

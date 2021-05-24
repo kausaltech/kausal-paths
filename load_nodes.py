@@ -34,8 +34,7 @@ if len(sys.argv) > 1:
     exit()
 
 if True:
-    import dvc_pandas
-    dvc_pandas.pull_datasets(repo_url=loader.context.dataset_repo_url)
+    loader.context.dataset_repo.pull_datasets()
 
     loader.context.generate_baseline_values()
     #for sector in page.get_sectors():
