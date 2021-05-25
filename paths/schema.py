@@ -1,5 +1,5 @@
 import graphene
-from pages.base import EmissionPage, Page
+from pages.base import EmissionPage, Metric, Page
 from graphql.type import (
     DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
     GraphQLString, specified_directives
@@ -9,6 +9,25 @@ from wagtail.core.rich_text import expand_db_html
 from . import loader
 from nodes.actions import Action
 from pages.models import NodePage
+
+
+class UnitNode(graphene.ObjectType):
+    short = graphene.String()
+    long = graphene.String()
+    html_short = graphene.String()
+    html_long = graphene.String()
+
+    def resolve_short(root, info):
+        return root.format_babel('~P')
+
+    def resolve_long(root, info):
+        return root.format_babel('P')
+
+    def resolve_html_short(root, info):
+        return root.format_babel('~H')
+
+    def resolve_html_long(root, info):
+        return root.format_babel('H')
 
 
 class YearlyValue(graphene.ObjectType):
@@ -83,15 +102,33 @@ class InstanceNode(graphene.ObjectType):
     target_year = graphene.Int()
 
 
+class ParameterInterface(graphene.Interface):
+    id = graphene.ID()
+    node = graphene.Field(lambda x: NodeNode)
+
+
+class NumberParameterNode(graphene.ObjectType):
+    value = graphene.Float()
+
+
+class BoolParameterNode(graphene.ObjectType):
+    value = graphene.Boolean()
+
+
+class StringParameterNode(graphene.ObjectType):
+    value = graphene.String()
+
+
 class NodeNode(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
     color = graphene.String()
-    unit = graphene.String()
+    unit = graphene.Field(UnitNode)
     quantity = graphene.String()
     is_action = graphene.Boolean()
     input_nodes = graphene.List(lambda: NodeNode)
     output_nodes = graphene.List(lambda: NodeNode)
+    metric = graphene.Field(ForecastMetricNode)
     # TODO: input_datasets, parameters, baseline_values, context
     description = graphene.String()
 
@@ -114,6 +151,9 @@ class NodeNode(graphene.ObjectType):
             return None
         return expand_db_html(page.description)
 
+    def resolve_metric(root, info):
+        return Metric(id=root.id, name=root.name)
+
 
 def get_page_node(page: Page):
     if isinstance(page, EmissionPage):
@@ -129,6 +169,9 @@ class Query(graphene.ObjectType):
         id=graphene.String(required=False)
     )
     nodes = graphene.List(NodeNode)
+    node = graphene.Field(
+        NodeNode, id=graphene.ID(required=True)
+    )
 
     def resolve_instance(root, info):
         instance = loader.instance
@@ -149,8 +192,22 @@ class Query(graphene.ObjectType):
                     return page
         return None
 
+    def resolve_node(root, info, id):
+        return loader.context.nodes.get(id)
+
     def resolve_nodes(root, info):
         return loader.context.nodes.values()
+
+
+class SetParameterMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        number_value = graphene.Float()
+        bool_value = graphene.Boolean()
+        string_value = graphene.String()
+
+    def mutate(self, id, number_value=None, bool_value=None, string_value=None):
+        pass
 
 
 class LocaleDirective(GraphQLDirective):
