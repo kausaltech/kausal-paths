@@ -1,3 +1,4 @@
+from django import forms
 from django.db.models import CharField
 from wagtail.core.models import Page
 from wagtail.core.fields import RichTextField
@@ -6,15 +7,19 @@ from wagtail.admin.edit_handlers import FieldPanel
 from pages.loader import loader
 
 
-class NodePage(Page):
-    NODE_CHOICES = [(id, str(node.name)) for id, node in loader.context.nodes.items()]
+class NodeSelectWidget(forms.Select):
+    def __init__(self, *args, **kwargs):
+        kwargs['choices'] = [(id, str(node.name)) for id, node in loader.context.nodes.items()]
+        super().__init__(*args, **kwargs)
 
+
+class NodePage(Page):
     description = RichTextField()
-    node = CharField(max_length=100, choices=NODE_CHOICES, unique=True)
+    node = CharField(max_length=100, unique=True)
 
     content_panels = Page.content_panels + [
         FieldPanel('description', classname="full"),
-        FieldPanel('node'),
+        FieldPanel('node', widget=NodeSelectWidget),
     ]
 
     parent_page_types = ['wagtailcore.Page']
