@@ -46,20 +46,12 @@ class PageInterface(graphene.Interface):
     id = graphene.ID()
     path = graphene.String()
     name = graphene.String()
-    description = graphene.String()
 
     @classmethod
     def resolve_type(cls, page, info):
         if isinstance(page, EmissionPage):
             return EmissionPageNode
         raise Exception()
-
-    def resolve_description(root, info):
-        try:
-            page = NodePage.objects.get(node=root.id)
-        except NodePage.DoesNotExist:
-            return None
-        return expand_db_html(page.description)
 
 
 class EmissionSector(graphene.ObjectType):
@@ -101,6 +93,7 @@ class NodeNode(graphene.ObjectType):
     input_nodes = graphene.List(lambda: NodeNode)
     output_nodes = graphene.List(lambda: NodeNode)
     # TODO: input_datasets, parameters, baseline_values, context
+    description = graphene.String()
 
     def resolve_color(root, info):
         if root.color:
@@ -113,6 +106,13 @@ class NodeNode(graphene.ObjectType):
 
     def resolve_is_action(root, info):
         return isinstance(root, Action)
+
+    def resolve_description(root, info):
+        try:
+            page = NodePage.objects.get(node=root.id)
+        except NodePage.DoesNotExist:
+            return None
+        return expand_db_html(page.description)
 
 
 def get_page_node(page: Page):
