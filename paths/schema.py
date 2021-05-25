@@ -38,7 +38,7 @@ class YearlyValue(graphene.ObjectType):
 class ForecastMetricNode(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
-    unit = graphene.String()
+    unit = graphene.Field(UnitNode)
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)

@@ -144,11 +144,20 @@ class InstanceLoader:
     def setup_scenarios(self):
         for sc in self.config['scenarios']:
             actions = sc.pop('actions', [])
+            all_actions_enabled = sc.pop('all_actions_enabled', False)
             scenario = Scenario(**sc)
+            if all_actions_enabled:
+                for node in self.context.nodes.values():
+                    if not isinstance(node, Action):
+                        continue
+                    param = node.get_param('enabled')
+                    scenario.params.append((param, True))
+            """
             for act_conf in actions:
                 node = self.context.get_node(act_conf.pop('id'))
                 assert isinstance(node, Action)
                 scenario.actions.append([node, act_conf])
+            """
             self.context.add_scenario(scenario)
 
     def print_graph(self, node=None, indent=0):
@@ -186,9 +195,6 @@ class InstanceLoader:
                 node = self.context.get_node(node_id)
                 page = EmissionPage(**pc, node=node)
             elif page_type == 'card':
-                # FIXME
-                cards = pc.get('cards', [])
-                # page.add_cards(cards, self.context)
                 raise Exception('Card page unsupported for now')
             else:
                 raise Exception('Invalid page type: %s' % page_type)

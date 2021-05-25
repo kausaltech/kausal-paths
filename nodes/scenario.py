@@ -1,6 +1,6 @@
-from typing import List, Any
+from typing import List, Any, Tuple
 from dataclasses import dataclass
-from nodes.actions import Action
+from params import Parameter
 
 
 @dataclass
@@ -8,12 +8,12 @@ class Scenario:
     id: str
     name: str
     default: bool = False
-    # Dict of actions and their parameters
-    actions: list[tuple[Action, dict[str, Any]]] = None
+    # Dict of params and their values in the scenario
+    params: List[Tuple[Parameter, Any]] = None
 
     def __post_init__(self):
-        self.actions = []
+        self.params = []
 
     def activate(self):
-        for action, params in self.actions:
-            action.set_params(params)
+        for param, val in self.params:
+            param.set(val)

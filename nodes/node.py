@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Type, Union
 import pint
 import pandas as pd
 import pint_pandas
@@ -32,7 +32,7 @@ class Node:
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable[Node]
     output_nodes: Iterable[Node]
-    parameters: Iterable[Parameter]
+    params: Dict[str, Parameter]
 
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
@@ -45,10 +45,34 @@ class Node:
         self.input_datasets = input_datasets or []
         self.input_nodes = []
         self.output_nodes = []
+        self.params = {}
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
+
+    def register_param(self, id: str, param_class: Type):
+        global_id = '%s.%s' % (self.id, id)
+        param = param_class(id=global_id, node=self)
+        assert global_id not in self.context.params
+        self.context.params[global_id] = param
+        self.params[id] = param
+
+    def register_params(self):
+        pass
+
+    def get_param(self, id: str):
+        if id in self.params:
+            return self.params[id]
+        return self.context.get_param(id)
+
+    def get_param_value(self, id: str) -> Any:
+        return self.get_param(id).value
+
+    def set_param_value(self, id: str, value: Any):
+        if id not in self.params:
+            raise NodeError(self, 'Node param %s not found' % id)
+        self.params[id].set_value(value)
 
     def get_input_datasets(self):
         dfs = []

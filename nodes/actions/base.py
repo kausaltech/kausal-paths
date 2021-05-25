@@ -1,12 +1,12 @@
+from params.base import BoolParameter
 import pandas as pd
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 from nodes import Node
 
 
 class Action(Node):
-    enabled: bool
     param_defaults: Dict[str, Any]
     params: Dict[str, Any]
 
@@ -18,20 +18,23 @@ class Action(Node):
     def __post_init__(self):
         self.param_defaults = {}
         self.params = {}
-        self.enabled = False
 
-    def enable(self):
-        self.enabled = True
+    def is_enabled(self) -> bool:
+        return self.get_param_value('enabled')
 
-    def disable(self):
-        self.enabled = False
+    def register_params(self):
+        super().register_params()
 
+        self.register_param('enabled', BoolParameter)
+
+    """
     def set_params(self, params: Dict[str, Any]):
         self.params.update(params)
         if self.params.get('enabled'):
             self.enable()
         else:
             self.disable()
+    """
 
     def forecast_series(self, series: pd.Series):
         df = pd.DataFrame(index=series.index)
@@ -47,6 +50,6 @@ class Action(Node):
         raise Exception("Implement in subclass")
 
     def compute(self) -> Optional[pd.DataFrame]:
-        if not self.enabled:
+        if not self.is_enabled():
             return None
         return self.compute_effect()

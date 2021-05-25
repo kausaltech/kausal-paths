@@ -269,6 +269,24 @@ instance:
       forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [2029, -14], [2030, -6]]
       unit: g/kWh
 
+    - id: private_building_energy_renovation
+      name: Korjausrakentaminen yksityisissä kiinteistöissä
+      name_en: Energy renovation of privately owned buildings
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - district_heating_consumption
+      forecast_values: [[2021, -23.9], [2022, -23.9], [2023, -23.9], [2024, -23.9], [2025, -23.9], [2026, -23.9], [2027, -23.9], [2028, -23.9], [2029, -23.9], [2030, -23.9]]
+      unit: GWh
+
+    - id: distributed_renewable_energy
+      name: Hajautettu uusiutuva energia
+      name_en: Distributed renewable energy production
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - district_heating_consumption
+      forecast_values: [[2020, -0.2], [2021, -0.3], [2022, -0.45], [2023, -0.6], [2024, -0.8], [2025, -1.1], [2026, -1.5], [2027, -2], [2028, -2.7], [2029, -3.3], [2030, -4]]
+      unit: GWh
+
   pages:
     - id: home
       name: Hiilineutraali Tampere 2030 -päästöskenaario
@@ -283,8 +301,4 @@ instance:
     - id: roadmap
       default: true
       name: Hiilineutraali Tampere 2030 -tiekartta
-      actions:
-        - id: naistenlahti3
-          enabled: true
-        - id: other_renewable_district_heating
-          enabled: true
+      all_actions_enabled: true

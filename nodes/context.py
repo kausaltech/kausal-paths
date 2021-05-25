@@ -1,6 +1,7 @@
 from __future__ import annotations
+from params.base import BoolParameter
 
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import pint
 import pint_pandas
 
@@ -44,6 +45,7 @@ class Context:
         self.nodes = {}
         self.datasets = {}
         self.scenarios = {}
+        self.params = {}
         self.unit_registry = unit_registry
         self.active_scenario = None
         self.supported_params = discover_parameters()
@@ -67,8 +69,22 @@ class Context:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
 
-    def get_node(self, id) -> Node:
+        assert node.context == self
+        node.register_params()
+
+    def get_node(self, id: str) -> Node:
         return self.nodes[id]
+
+    def get_param_value(self, id: str) -> Any:
+        if id not in self.params:
+            raise Exception('Param %s not found' % id)
+        return self.params[id].value
+
+    def set_param_value(self, id: str, value: Any):
+        param = self.params.get(id)
+        if param is None:
+            raise Exception('Param %s not found' % id)
+        param.set_value(value)
 
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
@@ -85,10 +101,8 @@ class Context:
 
     def activate_scenario(self, scenario: Scenario):
         # Reset every action node to its default params
-        for node in self.nodes.values():
-            if not isinstance(node, self.Action):
-                continue
-            node.set_params(node.param_defaults)
+        for param in self.params.values():
+            param.reset()
 
         # Set the new parameters
         scenario.activate()
@@ -103,3 +117,7 @@ class Context:
             node.baseline_values = node.get_output()
 
         self.activate_scenario(old_scenario)
+
+    def print_params(self):
+        for param_id, param in self.params.items():
+            print('%s: %s' % (param_id, param.value))

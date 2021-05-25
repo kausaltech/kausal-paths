@@ -35,7 +35,7 @@ if len(sys.argv) > 1:
 
 if True:
     loader.context.dataset_repo.pull_datasets()
-
+    loader.context.print_params()
     loader.context.generate_baseline_values()
     #for sector in page.get_sectors():
     #    print(sector)

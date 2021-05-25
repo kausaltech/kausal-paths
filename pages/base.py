@@ -19,7 +19,6 @@ class YearlyValue:
 class Metric:
     id: str
     name: str
-    nodes: List[Node] = None
 
     def __post_init__(self):
         self.values = None
