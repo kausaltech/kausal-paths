@@ -6,9 +6,9 @@ from graphql.type import (
 )
 from wagtail.core.rich_text import expand_db_html
 
-from . import loader
 from nodes.actions import Action
 from pages.models import NodePage
+from pages.loader import loader
 
 
 class UnitNode(graphene.ObjectType):
