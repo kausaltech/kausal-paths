@@ -1,18 +1,14 @@
-import os
+import graphene
 from pages.base import EmissionPage, Page
-from django.conf import settings
 from graphql.type import (
     DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
     GraphQLString, specified_directives
 )
-import graphene
-from nodes.instance import InstanceLoader
+from wagtail.core.rich_text import expand_db_html
+
+from . import loader
 from nodes.actions import Action
-
-
-loader = InstanceLoader(os.path.join(settings.BASE_DIR, 'configs/tampere.yaml'))
-loader.print_graph()
-loader.context.generate_baseline_values()
+from pages.models import NodePage
 
 
 class YearlyValue(graphene.ObjectType):
@@ -50,12 +46,20 @@ class PageInterface(graphene.Interface):
     id = graphene.ID()
     path = graphene.String()
     name = graphene.String()
+    description = graphene.String()
 
     @classmethod
     def resolve_type(cls, page, info):
         if isinstance(page, EmissionPage):
             return EmissionPageNode
         raise Exception()
+
+    def resolve_description(root, info):
+        try:
+            page = NodePage.objects.get(node=root.id)
+        except NodePage.DoesNotExist:
+            return None
+        return expand_db_html(page.description)
 
 
 class EmissionSector(graphene.ObjectType):
@@ -117,6 +121,7 @@ def get_page_node(page: Page):
 
 
 class Query(graphene.ObjectType):
+    # TODO: Put (some of) the below in a separate app (like pages)?
     instance = graphene.Field(InstanceNode)
     pages = graphene.List(PageInterface)
     page = graphene.Field(
