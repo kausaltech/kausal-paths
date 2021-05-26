@@ -10,7 +10,7 @@ from nodes.scenario import Scenario
 from typing import Dict
 
 from common.i18n import TranslatedString
-from pages.base import EmissionPage, Page
+from pages.base import ActionPage, EmissionPage, Page
 from . import Dataset, Context
 
 
@@ -200,6 +200,12 @@ class InstanceLoader:
                 raise Exception('Invalid page type: %s' % page_type)
 
             self.pages[pc['id']] = page
+
+        for node in self.context.nodes.values():
+            if not isinstance(node, Action):
+                continue
+            page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
+            self.pages[node.id] = page
 
     def __init__(self, fn):
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)

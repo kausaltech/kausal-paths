@@ -1,5 +1,5 @@
 import graphene
-from pages.base import EmissionPage, Metric, Page
+from pages.base import ActionPage, EmissionPage, Metric, Page
 from graphql.type import (
     DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
     GraphQLString, specified_directives
@@ -70,6 +70,8 @@ class PageInterface(graphene.Interface):
     def resolve_type(cls, page, info):
         if isinstance(page, EmissionPage):
             return EmissionPageNode
+        elif isinstance(page, ActionPage):
+            return ActionPageNode
         raise Exception()
 
 
@@ -94,6 +96,20 @@ class EmissionPageNode(graphene.ObjectType):
         if id is not None:
             all_sectors = list(filter(lambda x: x.id == id, all_sectors))
         return all_sectors
+
+
+class ActionPageNode(graphene.ObjectType):
+    action = graphene.Field(lambda: NodeNode)
+
+    descendant_nodes = graphene.List(
+        lambda: NodeNode
+    )
+
+    class Meta:
+        interfaces = (PageInterface,)
+
+    def resolve_descendant_nodes(root: ActionPage, info):
+        return root.get_descendant_nodes()
 
 
 class InstanceNode(graphene.ObjectType):
@@ -153,11 +169,6 @@ class NodeNode(graphene.ObjectType):
 
     def resolve_metric(root, info):
         return Metric(id=root.id, name=root.name)
-
-
-def get_page_node(page: Page):
-    if isinstance(page, EmissionPage):
-        return EmissionPageNode(page)
 
 
 class Query(graphene.ObjectType):
@@ -228,5 +239,5 @@ class LocaleDirective(GraphQLDirective):
 schema = graphene.Schema(
     query=Query,
     directives=specified_directives + [LocaleDirective()],
-    types=[EmissionPageNode]
+    types=[EmissionPageNode, ActionPageNode]
 )

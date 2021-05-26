@@ -104,6 +104,7 @@ class Page:
     path: str
 
 
+'''
 @dataclass
 class CardPage(Page):
     cards: List[Card] = None
@@ -141,7 +142,7 @@ class CardPage(Page):
 
         for card in self.cards:
             card.refresh()
-
+'''
 
 @dataclass
 class EmissionSector:
@@ -182,3 +183,11 @@ class EmissionPage(Page):
 
     def get_sectors(self):
         return self._get_node_sectors(self.node, None)
+
+
+@dataclass
+class ActionPage(Page):
+    action: Action
+
+    def get_descendant_nodes(self) -> List[Node]:
+        return self.action.get_descendant_nodes()
