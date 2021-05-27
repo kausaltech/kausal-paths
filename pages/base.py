@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 from nodes import Node, Context
-from nodes.actions import Action
+from nodes.actions import ActionNode
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 
 
@@ -176,7 +176,7 @@ class EmissionPage(Page):
             sector.color = parent.color
         sectors.append(sector)
         for input_node in node.input_nodes:
-            if input_node.quantity != 'emissions' or isinstance(input_node, Action):
+            if input_node.quantity != 'emissions' or isinstance(input_node, ActionNode):
                 continue
             sectors += self._get_node_sectors(input_node, sector)
         return sectors
@@ -187,7 +187,7 @@ class EmissionPage(Page):
 
 @dataclass
 class ActionPage(Page):
-    action: Action
+    action: ActionNode
 
     def get_descendant_nodes(self) -> List[Node]:
         return self.action.get_descendant_nodes()

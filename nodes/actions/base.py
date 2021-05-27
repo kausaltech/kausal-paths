@@ -6,10 +6,7 @@ from typing import Any, Dict, Optional, Type
 from nodes import Node
 
 
-class Action(Node):
-    param_defaults: Dict[str, Any]
-    params: Dict[str, Any]
-
+class ActionNode(Node):
     # The value to use for "no effect" years.
     # For additive actions, it probably is 0, and for multiplicative
     # actions, 1.0.

@@ -1,3 +1,4 @@
+from params.base import Parameter
 import graphene
 from pages.base import ActionPage, EmissionPage, Metric, Page
 from graphql.type import (
@@ -6,7 +7,7 @@ from graphql.type import (
 )
 from wagtail.core.rich_text import expand_db_html
 
-from nodes.actions import Action
+from nodes.actions import ActionNode
 from pages.models import NodePage
 from pages.loader import loader
 
@@ -119,20 +120,29 @@ class InstanceNode(graphene.ObjectType):
 
 
 class ParameterInterface(graphene.Interface):
-    id = graphene.ID()
-    node = graphene.Field(lambda x: NodeNode)
+    id = graphene.ID()  # global id
+    node_relative_id = graphene.ID()  # can be null if node is null
+    node = graphene.Field(lambda x: NodeNode)  # can be null for global params
+    is_customized = graphene.Boolean()
+
+    def resolve_is_customized(root, info):
+        # check if parameter exists in session
+        pass
 
 
 class NumberParameterNode(graphene.ObjectType):
     value = graphene.Float()
+    default_value = graphene.Float()
 
 
 class BoolParameterNode(graphene.ObjectType):
     value = graphene.Boolean()
+    default_value = graphene.Boolean()
 
 
 class StringParameterNode(graphene.ObjectType):
     value = graphene.String()
+    default_value = graphene.String()
 
 
 class NodeNode(graphene.ObjectType):
@@ -147,6 +157,7 @@ class NodeNode(graphene.ObjectType):
     metric = graphene.Field(ForecastMetricNode)
     # TODO: input_datasets, parameters, baseline_values, context
     description = graphene.String()
+    params = graphene.List(ParameterInterface)
 
     def resolve_color(root, info):
         if root.color:
@@ -158,7 +169,7 @@ class NodeNode(graphene.ObjectType):
                     return root.color
 
     def resolve_is_action(root, info):
-        return isinstance(root, Action)
+        return isinstance(root, ActionNode)
 
     def resolve_description(root, info):
         try:
@@ -183,6 +194,7 @@ class Query(graphene.ObjectType):
     node = graphene.Field(
         NodeNode, id=graphene.ID(required=True)
     )
+    params = graphene.List(ParameterInterface)
 
     def resolve_instance(root, info):
         instance = loader.instance
@@ -218,6 +230,19 @@ class SetParameterMutation(graphene.Mutation):
         string_value = graphene.String()
 
     def mutate(self, id, number_value=None, bool_value=None, string_value=None):
+        pass
+
+
+class ResetParameterMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID()
+
+    def mutate(self, id=None):
+        if id is None:
+            # reset all parameters to defaults
+            pass
+            return
+        # get id from context, set to default value
         pass
 
 

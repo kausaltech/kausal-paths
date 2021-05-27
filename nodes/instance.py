@@ -5,7 +5,7 @@ import importlib
 import re
 import yaml
 from nodes.node import Node
-from nodes.actions.base import Action
+from nodes.actions.base import ActionNode
 from nodes.scenario import Scenario
 from typing import Dict
 
@@ -148,7 +148,7 @@ class InstanceLoader:
             scenario = Scenario(**sc)
             if all_actions_enabled:
                 for node in self.context.nodes.values():
-                    if not isinstance(node, Action):
+                    if not isinstance(node, ActionNode):
                         continue
                     param = node.get_param('enabled')
                     scenario.params.append((param, True))
@@ -169,7 +169,7 @@ class InstanceLoader:
             assert len(root_nodes) == 1
             node = root_nodes[0]
 
-        if isinstance(node, Action):
+        if isinstance(node, ActionNode):
             node_color = 'green'
         else:
             node_color = 'yellow'
@@ -202,7 +202,7 @@ class InstanceLoader:
             self.pages[pc['id']] = page
 
         for node in self.context.nodes.values():
-            if not isinstance(node, Action):
+            if not isinstance(node, ActionNode):
                 continue
             page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
             self.pages[node.id] = page
