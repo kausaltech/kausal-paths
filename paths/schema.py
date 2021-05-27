@@ -1,6 +1,5 @@
-from params.base import Parameter
 import graphene
-from pages.base import ActionPage, EmissionPage, Metric, Page
+from pages.base import ActionPage, EmissionPage, Metric
 from graphql.type import (
     DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
     GraphQLString, specified_directives
@@ -12,7 +11,7 @@ from pages.models import NodePage
 from pages.loader import loader
 
 
-class UnitNode(graphene.ObjectType):
+class UnitType(graphene.ObjectType):
     short = graphene.String()
     long = graphene.String()
     html_short = graphene.String()
@@ -36,10 +35,10 @@ class YearlyValue(graphene.ObjectType):
     value = graphene.Float()
 
 
-class ForecastMetricNode(graphene.ObjectType):
+class ForecastMetricType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
-    unit = graphene.Field(UnitNode)
+    unit = graphene.Field(UnitType)
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
@@ -54,12 +53,12 @@ class ForecastMetricNode(graphene.ObjectType):
         return root.get_baseline_forecast_values(loader.context)
 
 
-class CardNode(graphene.ObjectType):
+class CardType(graphene.ObjectType):
     id = graphene.String()
     name = graphene.String()
-    metrics = graphene.List(ForecastMetricNode)
-    upstream_cards = graphene.List(lambda: CardNode)
-    downstream_cards = graphene.List(lambda: CardNode)
+    metrics = graphene.List(ForecastMetricType)
+    upstream_cards = graphene.List(lambda: CardType)
+    downstream_cards = graphene.List(lambda: CardType)
 
 
 class PageInterface(graphene.Interface):
@@ -70,9 +69,9 @@ class PageInterface(graphene.Interface):
     @classmethod
     def resolve_type(cls, page, info):
         if isinstance(page, EmissionPage):
-            return EmissionPageNode
+            return EmissionPageType
         elif isinstance(page, ActionPage):
-            return ActionPageNode
+            return ActionPageType
         raise Exception()
 
 
@@ -81,10 +80,10 @@ class EmissionSector(graphene.ObjectType):
     name = graphene.String()
     color = graphene.String()
     parent = graphene.Field(lambda: EmissionSector)
-    metric = graphene.Field(ForecastMetricNode)
+    metric = graphene.Field(ForecastMetricType)
 
 
-class EmissionPageNode(graphene.ObjectType):
+class EmissionPageType(graphene.ObjectType):
     emission_sectors = graphene.List(
         EmissionSector, id=graphene.ID()
     )
@@ -99,11 +98,11 @@ class EmissionPageNode(graphene.ObjectType):
         return all_sectors
 
 
-class ActionPageNode(graphene.ObjectType):
-    action = graphene.Field(lambda: NodeNode)
+class ActionPageType(graphene.ObjectType):
+    action = graphene.Field(lambda: NodeType)
 
     descendant_nodes = graphene.List(
-        lambda: NodeNode
+        lambda: NodeType
     )
 
     class Meta:
@@ -113,7 +112,7 @@ class ActionPageNode(graphene.ObjectType):
         return root.get_descendant_nodes()
 
 
-class InstanceNode(graphene.ObjectType):
+class InstanceType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
     target_year = graphene.Int()
@@ -122,7 +121,7 @@ class InstanceNode(graphene.ObjectType):
 class ParameterInterface(graphene.Interface):
     id = graphene.ID()  # global id
     node_relative_id = graphene.ID()  # can be null if node is null
-    node = graphene.Field(lambda x: NodeNode)  # can be null for global params
+    node = graphene.Field(lambda: NodeType)  # can be null for global params
     is_customized = graphene.Boolean()
 
     def resolve_is_customized(root, info):
@@ -130,31 +129,31 @@ class ParameterInterface(graphene.Interface):
         pass
 
 
-class NumberParameterNode(graphene.ObjectType):
+class NumberParameterType(graphene.ObjectType):
     value = graphene.Float()
     default_value = graphene.Float()
 
 
-class BoolParameterNode(graphene.ObjectType):
+class BoolParameterType(graphene.ObjectType):
     value = graphene.Boolean()
     default_value = graphene.Boolean()
 
 
-class StringParameterNode(graphene.ObjectType):
+class StringParameterType(graphene.ObjectType):
     value = graphene.String()
     default_value = graphene.String()
 
 
-class NodeNode(graphene.ObjectType):
+class NodeType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
     color = graphene.String()
-    unit = graphene.Field(UnitNode)
+    unit = graphene.Field(UnitType)
     quantity = graphene.String()
     is_action = graphene.Boolean()
-    input_nodes = graphene.List(lambda: NodeNode)
-    output_nodes = graphene.List(lambda: NodeNode)
-    metric = graphene.Field(ForecastMetricNode)
+    input_nodes = graphene.List(lambda: NodeType)
+    output_nodes = graphene.List(lambda: NodeType)
+    metric = graphene.Field(ForecastMetricType)
     # TODO: input_datasets, parameters, baseline_values, context
     description = graphene.String()
     params = graphene.List(ParameterInterface)
@@ -184,15 +183,15 @@ class NodeNode(graphene.ObjectType):
 
 class Query(graphene.ObjectType):
     # TODO: Put (some of) the below in a separate app (like pages)?
-    instance = graphene.Field(InstanceNode)
+    instance = graphene.Field(InstanceType)
     pages = graphene.List(PageInterface)
     page = graphene.Field(
         PageInterface, path=graphene.String(required=False),
         id=graphene.String(required=False)
     )
-    nodes = graphene.List(NodeNode)
+    nodes = graphene.List(NodeType)
     node = graphene.Field(
-        NodeNode, id=graphene.ID(required=True)
+        NodeType, id=graphene.ID(required=True)
     )
     params = graphene.List(ParameterInterface)
 
@@ -264,5 +263,5 @@ class LocaleDirective(GraphQLDirective):
 schema = graphene.Schema(
     query=Query,
     directives=specified_directives + [LocaleDirective()],
-    types=[EmissionPageNode, ActionPageNode]
+    types=[EmissionPageType, ActionPageType]
 )
