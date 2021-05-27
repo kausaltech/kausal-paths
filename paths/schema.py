@@ -291,6 +291,7 @@ class ResetParameterMutation(graphene.Mutation):
         else:
             params = info.context.session.get('params', {})
             params.pop(id, None)
+        info.context.session.modified = True
         return ResetParameterMutation(ok=True)
 
 
