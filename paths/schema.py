@@ -6,6 +6,7 @@ from graphql.type import (
 )
 from wagtail.core.rich_text import expand_db_html
 
+from params.base import BoolParameter, NumberParameter, StringParameter
 from nodes.actions import ActionNode
 from pages.models import NodePage
 from pages.loader import loader
@@ -72,7 +73,7 @@ class PageInterface(graphene.Interface):
             return EmissionPageType
         elif isinstance(page, ActionPage):
             return ActionPageType
-        raise Exception()
+        raise Exception(f"{page} has invalid type")
 
 
 class EmissionSector(graphene.ObjectType):
@@ -117,24 +118,51 @@ class ParameterInterface(graphene.Interface):
     node = graphene.Field(lambda: NodeType)  # can be null for global params
     is_customized = graphene.Boolean()
 
+    @classmethod
+    def resolve_type(cls, parameter, info):
+        if isinstance(parameter, BoolParameter):
+            return BoolParameterType
+        elif isinstance(parameter, NumberParameter):
+            return NumberParameterType
+        elif isinstance(parameter, StringParameter):
+            return StringParameterType
+        raise Exception(f"{parameter} has invalid type")
+
     def resolve_is_customized(root, info):
-        # check if parameter exists in session
-        pass
-
-
-class NumberParameterType(graphene.ObjectType):
-    value = graphene.Float()
-    default_value = graphene.Float()
+        return root.is_customized(info.context.session.get('params'))
 
 
 class BoolParameterType(graphene.ObjectType):
+    class Meta:
+        interfaces = (ParameterInterface,)
+
     value = graphene.Boolean()
     default_value = graphene.Boolean()
 
+    def resolve_value(root, info):
+        return root.get(info.context.session.get('params'))
+
+
+class NumberParameterType(graphene.ObjectType):
+    class Meta:
+        interfaces = (ParameterInterface,)
+
+    value = graphene.Float()
+    default_value = graphene.Float()
+
+    def resolve_value(root, info):
+        return root.get(info.context.session.get('params'))
+
 
 class StringParameterType(graphene.ObjectType):
+    class Meta:
+        interfaces = (ParameterInterface,)
+
     value = graphene.String()
     default_value = graphene.String()
+
+    def resolve_value(root, info):
+        return root.get(info.context.session.get('params'))
 
 
 class NodeType(graphene.ObjectType):
@@ -150,7 +178,7 @@ class NodeType(graphene.ObjectType):
     metric = graphene.Field(ForecastMetricType)
     # TODO: input_datasets, parameters, baseline_values, context
     description = graphene.String()
-    params = graphene.List(ParameterInterface)
+    parameters = graphene.List(ParameterInterface)
 
     def resolve_color(root, info):
         if root.color:
@@ -177,6 +205,9 @@ class NodeType(graphene.ObjectType):
             return None
         return expand_db_html(page.description)
 
+    def resolve_parameters(root, info):
+        return root.parameters.values()
+
 
 class Query(graphene.ObjectType):
     # TODO: Put (some of) the below in a separate app (like pages)?
@@ -190,7 +221,7 @@ class Query(graphene.ObjectType):
     node = graphene.Field(
         NodeType, id=graphene.ID(required=True)
     )
-    params = graphene.List(ParameterInterface)
+    parameters = graphene.List(ParameterInterface)
 
     def resolve_instance(root, info):
         instance = loader.instance
@@ -217,6 +248,9 @@ class Query(graphene.ObjectType):
     def resolve_nodes(root, info):
         return loader.context.nodes.values()
 
+    def resolve_parameters(root, info):
+        return loader.context.params.values()
+
 
 class SetParameterMutation(graphene.Mutation):
     class Arguments:
@@ -225,21 +259,44 @@ class SetParameterMutation(graphene.Mutation):
         bool_value = graphene.Boolean()
         string_value = graphene.String()
 
-    def mutate(self, id, number_value=None, bool_value=None, string_value=None):
-        pass
+    ok = graphene.Boolean()
+    parameter = graphene.Field(ParameterInterface)
+
+    def mutate(root, info, id, number_value=None, bool_value=None, string_value=None):
+        value = None
+        for v in (number_value, bool_value, string_value):
+            if v is not None:
+                if value is not None:
+                    raise Exception("Only one type of value allowed")
+                value = v
+        if value is None:
+            raise Exception("No value specified")
+        params = info.context.session.setdefault('params', {})
+        params[id] = value
+        # Explicitly mark session as modified because we might only have modified `session['params']`, not `session`
+        info.context.session.modified = True
+        return SetParameterMutation(ok=True, parameter=loader.context.params.get(id))
 
 
 class ResetParameterMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID()
 
-    def mutate(self, id=None):
+    ok = graphene.Boolean()
+
+    def mutate(root, info, id=None):
         if id is None:
-            # reset all parameters to defaults
-            pass
-            return
-        # get id from context, set to default value
-        pass
+            # Reset all parameters to defaults
+            info.context.session.pop('params', None)
+        else:
+            params = info.context.session.get('params', {})
+            params.pop(id, None)
+        return ResetParameterMutation(ok=True)
+
+
+class Mutations(graphene.ObjectType):
+    set_parameter = SetParameterMutation.Field()
+    reset_parameter = ResetParameterMutation.Field()
 
 
 class LocaleDirective(GraphQLDirective):
@@ -260,5 +317,12 @@ class LocaleDirective(GraphQLDirective):
 schema = graphene.Schema(
     query=Query,
     directives=specified_directives + [LocaleDirective()],
-    types=[EmissionPageType, ActionPageType]
+    types=[
+        ActionPageType,
+        BoolParameterType,
+        EmissionPageType,
+        NumberParameterType,
+        StringParameterType,
+    ],
+    mutation=Mutations,
 )

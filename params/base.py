@@ -26,6 +26,16 @@ class Parameter:
     def set(self, value: typing.Any):
         self.value = self.clean(value)
 
+    def get(self, session_params=None):
+        if session_params is None:
+            return self.value
+        return session_params.get(self.id, self.value)
+
+    def is_customized(self, session_params=None):
+        if session_params is None:
+            return False
+        return self.id in session_params
+
 
 @dataclass
 class NumberParameter(Parameter):
