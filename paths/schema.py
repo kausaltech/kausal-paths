@@ -101,15 +101,8 @@ class EmissionPageType(graphene.ObjectType):
 class ActionPageType(graphene.ObjectType):
     action = graphene.Field(lambda: NodeType)
 
-    descendant_nodes = graphene.List(
-        lambda: NodeType
-    )
-
     class Meta:
         interfaces = (PageInterface,)
-
-    def resolve_descendant_nodes(root: ActionPage, info):
-        return root.get_descendant_nodes()
 
 
 class InstanceType(graphene.ObjectType):
@@ -153,6 +146,7 @@ class NodeType(graphene.ObjectType):
     is_action = graphene.Boolean()
     input_nodes = graphene.List(lambda: NodeType)
     output_nodes = graphene.List(lambda: NodeType)
+    descendant_nodes = graphene.List(lambda: NodeType, proper=graphene.Boolean())
     metric = graphene.Field(ForecastMetricType)
     # TODO: input_datasets, parameters, baseline_values, context
     description = graphene.String()
@@ -170,15 +164,18 @@ class NodeType(graphene.ObjectType):
     def resolve_is_action(root, info):
         return isinstance(root, ActionNode)
 
+    def resolve_descendant_nodes(root, info, proper=False):
+        return root.get_descendant_nodes(proper)
+
+    def resolve_metric(root, info):
+        return Metric(id=root.id, name=root.name)
+
     def resolve_description(root, info):
         try:
             page = NodePage.objects.get(node=root.id)
         except NodePage.DoesNotExist:
             return None
         return expand_db_html(page.description)
-
-    def resolve_metric(root, info):
-        return Metric(id=root.id, name=root.name)
 
 
 class Query(graphene.ObjectType):

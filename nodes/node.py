@@ -129,11 +129,14 @@ class Node:
                 ))
         return s.astype(pt)
 
-    def get_descendant_nodes(self) -> List[Node]:
+    def get_descendant_nodes(self, proper=False) -> List[Node]:
         # Depth-first traversal
         result = []
         closed = set()
-        open = [self]  # stack
+        if proper:
+            open = self.output_nodes.copy()
+        else:
+            open = [self]
         while open:
             current = open.pop()
             if current not in closed:

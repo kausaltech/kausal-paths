@@ -188,6 +188,3 @@ class EmissionPage(Page):
 @dataclass
 class ActionPage(Page):
     action: ActionNode
-
-    def get_descendant_nodes(self) -> List[Node]:
-        return self.action.get_descendant_nodes()
