@@ -1,9 +1,9 @@
 import pandas as pd
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from .base import Action
+from .base import ActionNode
 
 
-class AdditiveAction(Action):
+class AdditiveAction(ActionNode):
     """Simple action that produces an additive change to a value."""
     no_effect_value = 0
 
@@ -12,7 +12,7 @@ class AdditiveAction(Action):
         return df
 
 
-class CumulativeAdditiveAction(Action):
+class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
     def compute_effect(self):
@@ -31,7 +31,7 @@ class CumulativeAdditiveAction(Action):
         return df
 
 
-class EmissionReductionAction(Action):
+class EmissionReductionAction(ActionNode):
     """Simple emission reduction impact"""
 
     no_effect_value = 0

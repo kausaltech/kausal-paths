@@ -38,9 +38,9 @@ class Context:
     supported_params: dict[str, type]
 
     def __init__(self):
-        from nodes.actions import Action
+        from nodes.actions import ActionNode
         # Avoid circular import
-        self.Action = Action
+        self.Action = ActionNode
 
         self.nodes = {}
         self.datasets = {}
