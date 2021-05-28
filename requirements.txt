@@ -16,6 +16,8 @@ asgiref==3.3.4
     # via django
 atpublic==2.3
     # via flufl.lock
+attrs==21.2.0
+    # via pytest
 backcall==0.2.0
     # via ipython
 beautifulsoup4==4.8.2
@@ -72,8 +74,9 @@ django-taggit==1.4.0
     # via wagtail
 django-treebeard==4.5.1
     # via wagtail
-django==3.1.8
+django==3.2.3
     # via
+    #   -r requirements.in
     #   django-cors-headers
     #   django-extensions
     #   django-filter
@@ -98,6 +101,12 @@ dvc[s3]==2.0.18
     # via dvc-pandas
 et-xmlfile==1.0.1
     # via openpyxl
+factory-boy==3.2.0
+    # via
+    #   -r requirements.in
+    #   pytest-factoryboy
+faker==8.4.0
+    # via factory-boy
 flatten-dict==0.3.0
     # via dvc
 flufl.lock==3.2
@@ -135,6 +144,10 @@ html5lib==1.1
     # via wagtail
 idna==2.10
     # via requests
+inflection==0.5.1
+    # via pytest-factoryboy
+iniconfig==1.1.1
+    # via pytest
 ipython-genutils==0.2.0
     # via traitlets
 ipython==7.22.0
@@ -166,6 +179,7 @@ packaging==20.9
     # via
     #   dvc
     #   pint
+    #   pytest
 pandas==1.2.4
     # via
     #   -r requirements.in
@@ -193,6 +207,8 @@ pint==0.17
     # via
     #   -r requirements.in
     #   pint-pandas
+pluggy==0.13.1
+    # via pytest
 ply==3.11
     # via
     #   dvc
@@ -210,6 +226,8 @@ psycopg2-binary==2.8.6
     # via -r requirements.in
 ptyprocess==0.7.0
     # via pexpect
+py==1.10.0
+    # via pytest
 pyarrow==3.0.0
     # via dvc-pandas
 pyasn1==0.4.8
@@ -232,11 +250,20 @@ pyparsing==2.4.7
     #   grandalf
     #   packaging
     #   pydot
+pytest-django==4.3.0
+    # via -r requirements.in
+pytest-factoryboy==2.1.0
+    # via -r requirements.in
+pytest==6.2.4
+    # via
+    #   pytest-django
+    #   pytest-factoryboy
 python-benedict==0.23.2
     # via dvc
 python-dateutil==2.8.1
     # via
     #   botocore
+    #   faker
     #   pandas
     #   python-benedict
 python-dotenv==0.17.0
@@ -313,11 +340,13 @@ telepath==0.1.1
     # via wagtail
 text-unidecode==1.3
     # via
+    #   faker
     #   graphene-django
     #   python-slugify
 toml==0.10.2
     # via
     #   dvc
+    #   pytest
     #   python-benedict
 tqdm==4.60.0
     # via dvc

@@ -247,10 +247,14 @@ class InstanceLoader:
             page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
             instance.pages[node.id] = page
 
-    def __init__(self, fn):
-        data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
+    @classmethod
+    def from_yaml(cls, filename):
+        data = yaml.load(open(filename, 'r'), Loader=yaml.Loader)
+        return cls(data['instance'])
+
+    def __init__(self, config):
+        self.config = config
         self.context = Context()
-        self.config = data['instance']
         self.instance = Instance(
             id=self.config['id'], name=self.config['name'], context=self.context
         )
