@@ -47,6 +47,4 @@ class ActionNode(Node):
         raise Exception("Implement in subclass")
 
     def compute(self) -> Optional[pd.DataFrame]:
-        if not self.is_enabled():
-            return None
         return self.compute_effect()
