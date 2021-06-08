@@ -214,6 +214,7 @@ class Query(graphene.ObjectType):
     node = graphene.Field(
         NodeType, id=graphene.ID(required=True)
     )
+    actions = graphene.List(NodeType)
     parameters = graphene.List(ParameterInterface)
 
     def resolve_instance(root, info):
@@ -244,6 +245,10 @@ class Query(graphene.ObjectType):
     def resolve_nodes(root, info):
         instance = info.context.instance
         return instance.context.nodes.values()
+
+    def resolve_actions(root, info):
+        instance = info.context.instance
+        return [n for n in instance.context.nodes.values() if isinstance(n, ActionNode)]
 
     def resolve_parameters(root, info):
         instance = info.context.instance
