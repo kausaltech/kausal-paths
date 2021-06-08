@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import pandas as pd
 from nodes import Node, Context
 from nodes.actions import ActionNode
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
 
 
 @dataclass
@@ -19,53 +19,67 @@ class YearlyValue:
 class Metric:
     id: str
     name: str
+    df: pd.DataFrame
 
-    def __post_init__(self):
-        self.values = None
+    def split_df(self) -> Dict[str, List[YearlyValue]]:
+        if hasattr(self, 'split_values'):
+            return self.split_values
 
-    def df_to_yearly(self, df: pd.DataFrame) -> Dict[str, List[YearlyValue]]:
+        df = self.df.copy()
+
         if df is None or VALUE_COLUMN not in df.columns:
-            return dict(historical=[], forecast=[])
+            self.split_values = None
+            return None
 
         df.index.name = 'year'
         df = df.reset_index()
+        if df.isnull().sum().sum():
+            raise Exception('Metric %s contains NaN values' % self.id)
+
         df = df.rename(columns={VALUE_COLUMN: 'value'})
         if hasattr(df.value, 'pint'):
             df.value = df.value.pint.m
-        if df.isnull().sum().sum():
-            raise Exception('Metric %s contains NaN values' % self.id)
-        forecast = df.loc[df[FORECAST_COLUMN], ['year', 'value']].to_dict('records')
-        historical = df.loc[~df[FORECAST_COLUMN], ['year', 'value']].to_dict('records')
-        return dict(
+        is_forecast = df[FORECAST_COLUMN]
+
+        if BASELINE_VALUE_COLUMN in df.columns:
+            bs = df[BASELINE_VALUE_COLUMN]
+            if hasattr(bs, 'pint'):
+                bs = bs.pint.m
+            bdf = df[['year']].copy()
+            bdf['value'] = bs
+            baseline = bdf.loc[is_forecast, ['year', 'value']].to_dict('records')
+        else:
+            baseline = None
+
+        forecast = df.loc[is_forecast, ['year', 'value']].to_dict('records')
+        historical = df.loc[~is_forecast, ['year', 'value']].to_dict('records')
+        out = dict(
             historical=[YearlyValue(**r) for r in historical],
             forecast=[YearlyValue(**r) for r in forecast],
+            baseline=[YearlyValue(**r) for r in baseline] if baseline else None
         )
+        self.split_values = out
+        return out
 
-    def _get_values(self, context):
-        node = context.get_node(self.id)
-        df = node.get_output()
-        self.values = self.df_to_yearly(df)
+    def get_historical_values(self) -> List[YearlyValue]:
+        vals = self.split_df()
+        if not vals:
+            return None
+        return vals['historical']
 
-    def get_historical_values(self, context: Context) -> List[YearlyValue]:
-        if not self.values:
-            self._get_values(context)
-        return self.values['historical']
-
-    def get_forecast_values(self, context: Context) -> List[YearlyValue]:
-        if not self.values:
-            self._get_values(context)
-        return self.values['forecast']
-
-    def get_baseline_forecast_values(self, context: Context) -> List[YearlyValue]:
-        node = context.get_node(self.id)
-        df = node.baseline_values
-        vals = self.df_to_yearly(df)
+    def get_forecast_values(self) -> List[YearlyValue]:
+        vals = self.split_df()
+        if not vals:
+            return None
         return vals['forecast']
 
-    def refresh(self):
-        self.values = None
+    def get_baseline_forecast_values(self) -> List[YearlyValue]:
+        vals = self.split_df()
+        if not vals:
+            return None
+        return vals['baseline']
 
-
+'''
 @dataclass
 class Card:
     id: str
@@ -98,7 +112,7 @@ class Card:
     def refresh(self):
         for m in self.metrics:
             m.refresh()
-
+'''
 
 @dataclass
 class Page:
@@ -147,6 +161,7 @@ class CardPage(Page):
             card.refresh()
 '''
 
+
 @dataclass
 class EmissionSector:
     node: Node
@@ -163,7 +178,7 @@ class EmissionSector:
         return self.node.name
 
     def __post_init__(self):
-        self.metric = Metric(id=self.id, name=self.name)
+        self.metric = Metric(id=self.id, name=self.name, df=self.node.get_output())
 
 
 @dataclass

@@ -1,12 +1,15 @@
+from nodes.constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN
 import graphene
 from pages.base import ActionPage, EmissionPage, Metric
 from graphql.type import (
     DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
     GraphQLString, specified_directives
 )
+from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
 
 from params import BoolParameter, NumberParameter, StringParameter
+from nodes import Node
 from nodes.actions import ActionNode
 from pages.models import NodePage
 
@@ -38,22 +41,21 @@ class YearlyValue(graphene.ObjectType):
 class ForecastMetricType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
+    # output_node will be set if the node outputs multiple time-series
+    output_node = graphene.Field(lambda: NodeType)
     unit = graphene.Field(UnitType)
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
 
-    def resolve_historical_values(root, info):
-        instance = info.context.instance
-        return root.get_historical_values(instance.context)
+    def resolve_historical_values(root: Metric, info):
+        return root.get_historical_values()
 
-    def resolve_forecast_values(root, info):
-        instance = info.context.instance
-        return root.get_forecast_values(instance.context)
+    def resolve_forecast_values(root: Metric, info):
+        return root.get_forecast_values()
 
-    def resolve_baseline_forecast_values(root, info):
-        instance = info.context.instance
-        return root.get_baseline_forecast_values(instance.context)
+    def resolve_baseline_forecast_values(root: Metric, info):
+        return root.get_baseline_forecast_values()
 
 
 class CardType(graphene.ObjectType):
@@ -168,7 +170,13 @@ class NodeType(graphene.ObjectType):
     input_nodes = graphene.List(lambda: NodeType)
     output_nodes = graphene.List(lambda: NodeType)
     descendant_nodes = graphene.List(lambda: NodeType, proper=graphene.Boolean())
+    # TODO: Remove metric??
     metric = graphene.Field(ForecastMetricType)
+    output_metrics = graphene.List(ForecastMetricType)
+
+    # Only for Actions
+    impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
+
     # TODO: input_datasets, parameters, baseline_values, context
     description = graphene.String()
     parameters = graphene.List(ParameterInterface)
@@ -188,14 +196,42 @@ class NodeType(graphene.ObjectType):
     def resolve_descendant_nodes(root, info, proper=False):
         return root.get_descendant_nodes(proper)
 
-    def resolve_metric(root, info):
-        return Metric(id=root.id, name=root.name)
+    def resolve_metric(root: Node, info):
+        df = root.get_output()
+        if df is None:
+            return None
+        if VALUE_COLUMN not in df.columns:
+            return None
+        if root.baseline_values is not None:
+            df[BASELINE_VALUE_COLUMN] = root.baseline_values[VALUE_COLUMN]
+        return Metric(id=root.id, name=root.name, df=df)
+
+    def resolve_impact_metric(root: ActionNode, info, target_node_id: str = None):
+        context = info.context.instance.context
+        if target_node_id is not None:
+            if target_node_id not in context.nodes:
+                raise GraphQLError("Node %s not found" % target_node_id, [info])
+            target_node = context.get_node(target_node_id)
+        else:
+            # FIXME: Determine a "default" target node from instance
+            target_node = context.get_node('net_emissions')
+
+        if not isinstance(root, ActionNode):
+            return None
+
+        df = root.compute_impact(target_node)
+        df = df[[IMPACT_COLUMN, FORECAST_COLUMN]]
+        df = df.rename(columns={IMPACT_COLUMN: VALUE_COLUMN})
+        return Metric(id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df)
 
     def resolve_description(root, info):
         try:
             page = NodePage.objects.get(node=root.id)
         except NodePage.DoesNotExist:
-            return None
+            if root.description:
+                return '<p>%s</p>' % root.description
+            else:
+                return None
         return expand_db_html(page.description)
 
     def resolve_parameters(root, info):
