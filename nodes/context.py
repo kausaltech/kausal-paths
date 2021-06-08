@@ -52,7 +52,6 @@ class Context:
     def load_dataset(self, identifier: str):
         if identifier in self.datasets:
             return self.datasets[identifier].copy()
-        self.dataset_repo.pull_datasets()
         dataset = self.dataset_repo.load_dataset(identifier)
         self.datasets[identifier] = dataset.df
         return dataset.df.copy()
@@ -128,3 +127,6 @@ class Context:
     def print_params(self):
         for param_id, param in self.params.items():
             print('%s: %s' % (param_id, param.value))
+
+    def pull_datasets(self):
+        self.dataset_repo.pull_datasets()
