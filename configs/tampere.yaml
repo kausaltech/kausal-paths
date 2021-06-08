@@ -74,11 +74,6 @@ instance:
       name: Erillislämmitys
       name_en: Separate heating
       part_of: building_heating_emissions
-    - id: oil_heating_emissions
-      name: Öljylämmitys
-      name_en: Oil heating
-      part_of: separate_heating_emissions
-      column: Oil heating
     - id: gas_heating_emissions
       part_of: separate_heating_emissions
       name: Kaasulämmitys
@@ -89,16 +84,6 @@ instance:
       name: Sähkölämmitys
       name_en: Electric heating
       part_of: building_heating_emissions
-    - id: geothermal_heating_emissions
-      name: Maalämpö
-      name_en: Geothermal heating
-      part_of: electric_heating_emissions
-      column: Geothermal heating
-    - id: direct_electric_heating_emissions
-      name: Suorasähkö
-      name_en: Direct electric heating
-      part_of: electric_heating_emissions
-      column: Direct electric heating
 
     - id: industry_emissions
       name: Teollisuuden ja työkoneiden päästöt
@@ -191,6 +176,84 @@ instance:
       historical_values: [[1990, 250], [2010, 179], [2011, 170.1], [2012, 162.3], [2013, 153.9], [2014, 160.6], [2015, 140.7], [2016, 140], [2017, 130], [2018, 136.3]]
       forecast_values: [[2019, 126], [2020, 123], [2021, 123], [2022, 123], [2023, 123], [2024, 123], [2025, 123], [2026, 123], [2027, 123], [2028, 123], [2029, 123], [2030, 123]]
 
+    - id: oil_heating_emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      quantity: emissions
+      name: Öljylämmitys
+      name_en: Oil heating
+      output_nodes:
+        - separate_heating_emissions
+
+    - id: oil_heating_energy_use
+      unit: GWh
+      quantity: energy
+      type: simple.Activity
+      output_nodes:
+        - oil_heating_emissions
+      historical_values: [[2010, 332.3], [2011, 266.0], [2012, 298.9], [2013, 275.6], [2014, 276.4], [2015, 264.7], [2016, 297.0], [2017, 280.4], [2018, 274.1]]
+      forecast_values: [[2019, 263.2], [2020, 252.3], [2021, 241.4], [2022, 230.5], [2023, 219.6], [2024, 208.7], [2025, 197.8], [2026, 186.9], [2027, 176.0], [2028, 165.1], [2029, 154.2], [2030, 143.3]]
+
+    - id: oil_heating_emission_factor
+      type: simple.AdditiveNode
+      unit: g/kWh
+      quantity: emission_factor
+      historical_values: [[2010, 268.4], [2011, 263.5], [2012, 263.5], [2013, 263.5], [2014, 264.5], [2015, 264.5], [2016, 266.3], [2017, 268], [2018, 268], [2019, 268], [2020, 268]]
+      forecast_values: [[2021, 264.1055], [2022, 260.211], [2023, 256.3165], [2024, 252.422], [2025, 248.5275], [2026, 244.633], [2027, 240.7385], [2028, 236.844], [2029, 236.844], [2030, 236.844]]
+      output_nodes:
+        - oil_heating_emissions
+
+      #
+      # ----------- geothermal --------------
+      #
+    - id: geothermal_heating_emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      quantity: emissions
+      name: Maalämmön päästöt
+      name_en: Geothermal heating emissions
+      input_nodes:
+        - electricity_production_emission_factor
+      output_nodes:
+        - electric_heating_emissions
+
+    - id: geothermal_heating_electricity_use
+      unit: GWh
+      quantity: energy
+      type: simple.Activity
+      name: Maalämmön sähkönkulutus
+      name_en: Geothermal heating electricity consumption
+      output_nodes:
+        - geothermal_heating_emissions
+      historical_values: [[2010, 2.8], [2011, 4.5], [2012, 5.3], [2013, 7.6], [2014, 7.6], [2015, 8.1], [2016, 10.3], [2017, 13.7], [2018, 16.3]]
+      forecast_values: [[2019, 18.5], [2020, 20.6], [2021, 22.8], [2022, 24.9], [2023, 27.1], [2024, 29.2], [2025, 31.4], [2026, 33.5], [2027, 35.7], [2028, 37.8], [2029, 40.0], [2030, 42.1]]
+
+
+    - id: direct_electric_heating_emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      quantity: emissions
+      name: Suorasähkölämmityksen päästöt
+      name_en: Direct electric heating emissions
+      input_nodes:
+        - electricity_production_emission_factor
+      output_nodes:
+        - electric_heating_emissions
+
+    - id: direct_electric_heating_electricity_use
+      quantity: energy
+      type: simple.Activity
+      unit: GWh
+      name: Suorasähkölämmityksen sähkönkulutus
+      name_en: Direct electric heating electricity consumption
+      output_nodes:
+        - direct_electric_heating_emissions
+      historical_values: [[2010, 217], [2011, 207], [2012, 215], [2013, 208], [2014, 201], [2015, 195], [2016, 216.5], [2017, 215.8], [2018, 218.3], [2019, 215.8]]
+      forecast_values: [[2020, 210], [2021, 210], [2022, 210], [2023, 210], [2024, 210], [2025, 210], [2026, 211], [2027, 211], [2028, 211], [2029, 211], [2030, 211]]
+
+      #
+      # ----------- Electricity use ------------
+      #
     - id: electricity_consumption_per_capita
       name: Sähkönkulutus asukasta kohti
       name_en: Electricity consumption per capita
@@ -292,6 +355,35 @@ instance:
           description: Prosentuaalinen lisäys uusiutuvan energian tuotannossa
           description_en: Increase in renewable energy production
       unit: GWh
+
+    - id: oil_heated_private_buildings_to_geothermal
+      name: Öljylämmityksestä luopuminen yksityisessä rakenuskannassa
+      name_en: Private oil heated buildings to geothermal
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - oil_heating_energy_use
+        - geothermal_heating_electricity_use
+      forecast_values:
+        - id: oil_heating_energy_use
+          values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025, -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030, -5.73]]
+        - id: geothermal_heating_electricity_use
+          values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10], [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
+      unit: GWh
+      description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
+
+    - id: oil_heated_municipal_buildings_to_heat_pump
+      name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - oil_heating_energy_use
+        - direct_electric_heating_electricity_use
+      forecast_values:
+        - id: oil_heating_energy_use
+          values: [[2021, -0.734], [2022, -0.734], [2023, -0.734], [2024, -0.734], [2025, -0.734]]
+        - id: direct_electric_heating_electricity_use
+          values: [[2021, 0.2936], [2022, 0.2936], [2023, 0.2936], [2024, 0.2936], [2025, 0.2936]]
+      unit: GWh
+      description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
 
   pages:
     - id: home

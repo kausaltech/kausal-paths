@@ -31,18 +31,22 @@ class CumulativeAdditiveAction(ActionNode):
         df = df.reindex(range(df.index.min(), target_year + 1))
         df[FORECAST_COLUMN] = True
 
-        val = df[VALUE_COLUMN]
-        if hasattr(val, 'pint'):
-            val = val.pint.m
-        val = val.fillna(0).cumsum()
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
 
-        target_year_ratio = self.get_param_value('target_year_ratio', local=True, required=False)
-        if target_year_ratio is not None:
-            val *= target_year_ratio
+            val = df[col]
+            if hasattr(val, 'pint'):
+                val = val.pint.m
+            val = val.fillna(0).cumsum()
 
-        df[VALUE_COLUMN] = self.ensure_output_unit(val)
-        if not self.is_enabled():
-            df[VALUE_COLUMN] = 0.0
+            target_year_ratio = self.get_param_value('target_year_ratio', local=True, required=False)
+            if target_year_ratio is not None:
+                val *= target_year_ratio
+
+            df[col] = self.ensure_output_unit(val)
+            if not self.is_enabled():
+                df[col] = 0.0
 
         return df
 

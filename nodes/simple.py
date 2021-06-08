@@ -22,13 +22,15 @@ class AdditiveNode(Node):
                 raise NodeError(self, "Input dataset doesn't have Value column")
 
         for node in self.input_nodes:
-            node_df = node.get_output()
+            node_df = node.get_output(self)
             if node_df is None:
                 continue
 
             if df is None:
                 df = node_df
             else:
+                if VALUE_COLUMN not in df.columns:
+                    raise NodeError(self, "Value column missing in output of %s" % node.id)
                 val1 = self.ensure_output_unit(df[VALUE_COLUMN])
                 if hasattr(val1, 'pint'):
                     val1 = val1.pint.m

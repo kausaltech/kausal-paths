@@ -1,4 +1,5 @@
 from __future__ import annotations
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 import pint
@@ -18,8 +19,11 @@ class Node:
     id: str = None
     # output_metrics: Iterable[Metric]
 
-    # name is the human-readable description for the Node class
+    # name is the human-readable label for the Node instance
     name: TranslatedString = None
+
+    # description for the Node instance
+    description: TranslatedString = None
 
     # if the node has an established visualisation color
     color: str = None
@@ -51,6 +55,7 @@ class Node:
         self.input_nodes = []
         self.output_nodes = []
         self.allowed_params = []
+        self.baseline_values = None
         self.params = {}
 
         # Call the subclass post-init method if it is defined
@@ -93,7 +98,7 @@ class Node:
     def set_param_value(self, id: str, value: Any):
         if id not in self.params:
             raise NodeError(self, 'Node param %s not found' % id)
-        self.params[id].set_value(value)
+        self.params[id].set(value)
 
     def get_input_datasets(self):
         dfs = []
@@ -113,21 +118,39 @@ class Node:
         assert len(datasets) == 1
         return datasets[0]
 
-    def get_output(self) -> pd.DataFrame:
+    def get_output(self, target_node: Node = None) -> pd.DataFrame:
         # FIXME: Implement caching
         out = self.compute()
         if out is None:
             return None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
+
+        # If a node has multiple outputs, we can specify only one series
+        # to include.
+        if target_node is not None:
+            if target_node.id in out.columns:
+                cols = [target_node.id]
+                if FORECAST_COLUMN in out.columns:
+                    cols.append(FORECAST_COLUMN)
+                out = out[cols]
+                out = out.rename(columns={target_node.id: VALUE_COLUMN})
+
         return out.copy()
 
     def print_output(self):
         df = self.get_output()
+
         # Strip pint units before displaying to prevent a warning
         for col in list(df.columns):
             if hasattr(df[col], 'pint'):
                 df[col] = df[col].pint.m
+
+        if self.baseline_values is not None and VALUE_COLUMN in df.columns:
+            df['Baseline'] = self.baseline_values[VALUE_COLUMN]
+            if hasattr(df.Baseline, 'pint'):
+                df.Baseline = df.Baseline.pint.m
+
         print(df)
 
     def get_target_year(self) -> int:

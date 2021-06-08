@@ -71,6 +71,18 @@ class Dataset:
         return df[cols]
 
     @classmethod
+    def fixed_multi_values_to_df(kls, data):
+        series = []
+        for d in data:
+            vals = d['values']
+            s = pd.Series(data=[x[1] for x in vals], index=[x[0] for x in vals], name=d['id'])
+            series.append(s)
+        df = pd.concat(series, axis=1)
+        df.index.name = YEAR_COLUMN
+        df = df.reset_index()
+        return df
+
+    @classmethod
     def from_fixed_values(
         kls, id: str,
         unit: pint.Unit,
@@ -79,13 +91,16 @@ class Dataset:
     ) -> Dataset:
         if historical:
             hdf = pd.DataFrame(historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
-            hdf['Forecast'] = False
+            hdf[FORECAST_COLUMN] = False
         else:
             hdf = None
 
         if forecast:
-            fdf = pd.DataFrame(forecast, columns=[YEAR_COLUMN, VALUE_COLUMN])
-            fdf['Forecast'] = True
+            if isinstance(forecast[0], dict):
+                fdf = kls.fixed_multi_values_to_df(forecast)
+            else:
+                fdf = pd.DataFrame(forecast, columns=[YEAR_COLUMN, VALUE_COLUMN])
+            fdf[FORECAST_COLUMN] = True
         else:
             fdf = None
 
@@ -100,7 +115,10 @@ class Dataset:
 
         # Ensure value column has right units
         pt = pint_pandas.PintType(unit)
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(float).astype(pt)
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            df[col] = df[col].astype(float).astype(pt)
 
         ds = Dataset(id=id)
         ds.fixed_data = df

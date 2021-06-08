@@ -24,6 +24,9 @@ class Metric:
         self.values = None
 
     def df_to_yearly(self, df: pd.DataFrame) -> Dict[str, List[YearlyValue]]:
+        if df is None or VALUE_COLUMN not in df.columns:
+            return dict(historical=[], forecast=[])
+
         df.index.name = 'year'
         df = df.reset_index()
         df = df.rename(columns={VALUE_COLUMN: 'value'})
