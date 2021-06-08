@@ -9,7 +9,6 @@ from wagtail.core.rich_text import expand_db_html
 from params.base import BoolParameter, NumberParameter, StringParameter
 from nodes.actions import ActionNode
 from pages.models import NodePage
-from pages.loader import loader
 
 
 class UnitType(graphene.ObjectType):
@@ -45,13 +44,16 @@ class ForecastMetricType(graphene.ObjectType):
     baseline_forecast_values = graphene.List(YearlyValue)
 
     def resolve_historical_values(root, info):
-        return root.get_historical_values(loader.context)
+        instance = info.context.instance
+        return root.get_historical_values(instance.context)
 
     def resolve_forecast_values(root, info):
-        return root.get_forecast_values(loader.context)
+        instance = info.context.instance
+        return root.get_forecast_values(instance.context)
 
     def resolve_baseline_forecast_values(root, info):
-        return root.get_baseline_forecast_values(loader.context)
+        instance = info.context.instance
+        return root.get_baseline_forecast_values(instance.context)
 
 
 class CardType(graphene.ObjectType):
@@ -224,18 +226,20 @@ class Query(graphene.ObjectType):
     parameters = graphene.List(ParameterInterface)
 
     def resolve_instance(root, info):
-        instance = loader.instance
+        instance = info.context.instance
         return dict(
             id=instance.id,
             name=instance.name,
-            target_year=loader.context.target_year
+            target_year=instance.context.target_year
         )
 
     def resolve_pages(root, info):
-        return list(loader.pages.values())
+        instance = info.context.instance
+        return list(instance.pages.values())
 
     def resolve_page(root, info, path=None, id=None):
-        all_pages = list(loader.pages.values())
+        instance = info.context.instance
+        all_pages = list(instance.pages.values())
         if path:
             for page in all_pages:
                 if page.path == path:
@@ -243,13 +247,16 @@ class Query(graphene.ObjectType):
         return None
 
     def resolve_node(root, info, id):
-        return loader.context.nodes.get(id)
+        instance = info.context.instance
+        return instance.context.nodes.get(id)
 
     def resolve_nodes(root, info):
-        return loader.context.nodes.values()
+        instance = info.context.instance
+        return instance.context.nodes.values()
 
     def resolve_parameters(root, info):
-        return loader.context.params.values()
+        instance = info.context.instance
+        return instance.context.params.values()
 
 
 class SetParameterMutation(graphene.Mutation):
@@ -275,7 +282,8 @@ class SetParameterMutation(graphene.Mutation):
         params[id] = value
         # Explicitly mark session as modified because we might only have modified `session['params']`, not `session`
         info.context.session.modified = True
-        return SetParameterMutation(ok=True, parameter=loader.context.params.get(id))
+        instance = info.context.instance
+        return SetParameterMutation(ok=True, parameter=instance.context.params.get(id))
 
 
 class ResetParameterMutation(graphene.Mutation):

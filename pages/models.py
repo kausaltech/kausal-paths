@@ -4,12 +4,12 @@ from wagtail.core.models import Page
 from wagtail.core.fields import RichTextField
 from wagtail.admin.edit_handlers import FieldPanel
 
-from pages.loader import loader
-
 
 class NodeSelectWidget(forms.Select):
     def __init__(self, *args, **kwargs):
-        kwargs['choices'] = [(id, str(node.name)) for id, node in loader.context.nodes.items()]
+        from pages.loader import loader
+        instance = loader.instance
+        kwargs['choices'] = [(id, str(node.name)) for id, node in instance.context.nodes.items()]
         super().__init__(*args, **kwargs)
 
 
@@ -19,7 +19,7 @@ class NodePage(Page):
 
     content_panels = Page.content_panels + [
         FieldPanel('description', classname="full"),
-        FieldPanel('node', widget=NodeSelectWidget),
+        FieldPanel('node'),
     ]
 
     parent_page_types = ['wagtailcore.Page']

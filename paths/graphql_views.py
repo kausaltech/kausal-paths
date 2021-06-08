@@ -28,8 +28,16 @@ class LocaleMiddleware:
         return next(root, info, **kwargs)
 
 
+class InstanceMiddleware:
+    def resolve(self, next, root, info, **kwargs):
+        if root is None:
+            from pages.loader import loader
+            info.context.instance = loader.instance
+        return next(root, info, **kwargs)
+
+
 class PathsGraphQLView(GraphQLView):
     def __init__(self, *args, **kwargs):
         if 'middleware' not in kwargs:
-            kwargs['middleware'] = (LocaleMiddleware,)
+            kwargs['middleware'] = (LocaleMiddleware, InstanceMiddleware)
         super().__init__(*args, **kwargs)

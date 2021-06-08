@@ -18,10 +18,11 @@ from . import Dataset, Context
 class Instance:
     id: str
     name: str
+    context: Context
+    pages: Dict[str, Page] = None
 
 
 class InstanceLoader:
-    pages: Dict[str, Page]
     instance: Instance
 
     def make_trans_string(self, config, attr):
@@ -185,10 +186,11 @@ class InstanceLoader:
             self.context.add_dataset(ds)
 
     def setup_pages(self):
-        self.pages = {}
+        instance = self.instance
+        instance.pages = {}
 
         for pc in self.config['pages']:
-            assert pc['id'] not in self.pages
+            assert pc['id'] not in instance.pages
             page_type = pc.pop('type')
             if page_type == 'emission':
                 node_id = pc.pop('node')
@@ -199,19 +201,21 @@ class InstanceLoader:
             else:
                 raise Exception('Invalid page type: %s' % page_type)
 
-            self.pages[pc['id']] = page
+            instance.pages[pc['id']] = page
 
         for node in self.context.nodes.values():
             if not isinstance(node, ActionNode):
                 continue
             page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
-            self.pages[node.id] = page
+            instance.pages[node.id] = page
 
     def __init__(self, fn):
         data = yaml.load(open(fn, 'r'), Loader=yaml.Loader)
         self.context = Context()
         self.config = data['instance']
-        self.instance = Instance(id=self.config['id'], name=self.config['name'])
+        self.instance = Instance(
+            id=self.config['id'], name=self.config['name'], context=self.context
+        )
         self.context.dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
         self.context.target_year = self.config['target_year']
 
