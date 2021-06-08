@@ -1,7 +1,6 @@
 from __future__ import annotations
-from params.base import BoolParameter
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 import pint
 import pint_pandas
 
@@ -75,16 +74,24 @@ class Context:
     def get_node(self, id: str) -> Node:
         return self.nodes[id]
 
-    def get_param_value(self, id: str) -> Any:
+    def get_param(self, id: str, required: bool = True) -> Optional[Parameter]:
         if id not in self.params:
+            if not required:
+                return None
             raise Exception('Param %s not found' % id)
-        return self.params[id].value
+        return self.params[id]
+
+    def get_param_value(self, id: str, required: bool = True) -> Any:
+        param = self.get_param(id, required=required)
+        if param is None:
+            return None
+        return param.value
 
     def set_param_value(self, id: str, value: Any):
         param = self.params.get(id)
         if param is None:
             raise Exception('Param %s not found' % id)
-        param.set_value(value)
+        param.set(value)
 
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios

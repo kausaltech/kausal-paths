@@ -1,4 +1,4 @@
-from .base import (
+from .param import (
     Parameter, NumberParameter, BoolParameter, StringParameter
 )
 

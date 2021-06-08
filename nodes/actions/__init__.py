@@ -1,3 +1,3 @@
-from .base import ActionNode
+from .action import ActionNode
 
 __all__ = [ActionNode]

@@ -1,11 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from nodes.exceptions import NodeError
 
 import dvc_pandas
 import importlib
 import re
 import yaml
 from nodes.node import Node
-from nodes.actions.base import ActionNode
+from nodes.actions import ActionNode
 from nodes.scenario import CustomScenario, Scenario
 from typing import Dict
 
@@ -80,6 +81,26 @@ class InstanceLoader:
             node.quantity = config['quantity']
         node.unit = unit
         node.config = config
+
+        allowed_params = config.get('allowed_params', [])
+        if allowed_params:
+            # Ensure that the node class allows these parameters
+            class_allowed_params = {p.id: p for p in getattr(node_class, 'allowed_params', [])}
+            node.allowed_params = []
+            for pc in allowed_params:
+                param_id = pc.pop('id')
+                description = self.make_trans_string(pc, 'description', pop=True)
+                param_obj = class_allowed_params.get(param_id)
+                if param_obj is None:
+                    raise NodeError(node, "Parameter %s not allowed by node class" % param_id)
+                # Merge parameter values
+                fields = asdict(param_obj)
+                fields.update(pc)
+                if description is not None:
+                    fields['description'] = description
+                node.allowed_params.append(type(param_obj)(**fields))
+        else:
+            node.allowed_params = []
 
         return node
 

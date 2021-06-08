@@ -32,7 +32,12 @@ class Node:
     input_datasets: Iterable[Dataset] = []
     input_nodes: Iterable[Node]
     output_nodes: Iterable[Node]
+
+    # Parameters with their values
     params: Dict[str, Parameter]
+
+    # All allowed parameters for this class or object
+    allowed_params: Iterable[Parameter]
 
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
@@ -45,29 +50,45 @@ class Node:
         self.input_datasets = input_datasets or []
         self.input_nodes = []
         self.output_nodes = []
+        self.allowed_params = []
         self.params = {}
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
 
-    def register_param(self, id: str, param_class: Type):
-        global_id = '%s.%s' % (self.id, id)
-        param = param_class(id=global_id, node=self)
+    def register_param(self, param: Parameter):
+        local_id = param.id
+        global_id = '%s.%s' % (self.id, param.id)
+        param.id = global_id
+        param.node = self
         assert global_id not in self.context.params
         self.context.params[global_id] = param
-        self.params[id] = param
+        assert local_id not in self.params
+        self.params[local_id] = param
 
     def register_params(self):
-        pass
+        for param in self.allowed_params:
+            self.register_param(param)
 
-    def get_param(self, id: str):
+    def get_param(self, id: str, local: bool = False, required: bool = True):
+        # First attempt to find the parameter in the node-local parameter
+        # set, then fall back to global parameters (unless 'local' specifically
+        # requested).
         if id in self.params:
             return self.params[id]
-        return self.context.get_param(id)
+        if local:
+            if required:
+                raise NodeError(self, 'Local parameter %s not found' % id)
+            else:
+                return None
+        return self.context.get_param(id, required=required)
 
-    def get_param_value(self, id: str) -> Any:
-        return self.get_param(id).value
+    def get_param_value(self, id: str, local: bool = False, required: bool = True) -> Any:
+        param = self.get_param(id, local=local, required=required)
+        if param is None:
+            return None
+        return param.value
 
     def set_param_value(self, id: str, value: Any):
         if id not in self.params:
@@ -100,6 +121,14 @@ class Node:
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
         return out.copy()
+
+    def print_output(self):
+        df = self.get_output()
+        # Strip pint units before displaying to prevent a warning
+        for col in list(df.columns):
+            if hasattr(df[col], 'pint'):
+                df[col] = df[col].pint.m
+        print(df)
 
     def get_target_year(self) -> int:
         return self.context.target_year

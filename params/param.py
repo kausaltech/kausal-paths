@@ -2,15 +2,16 @@ from __future__ import annotations
 import typing
 from dataclasses import dataclass
 if typing.TYPE_CHECKING:
-    from nodes import Node, Context
+    from nodes import Node
 
 
 class ValidationError(Exception):
-    def __init__(self, param, *args, **kwargs):
-        if not args and not kwargs:
-            super().__init__("[Param %s]: Parameter validation failed" % param.id)
+    def __init__(self, param: Parameter, msg: str = None):
+        if msg is not None:
+            msg_str = ': %s' % msg
         else:
-            super().__init__(*args, **kwargs)
+            msg_str = ''
+        super().__init__("[Param %s]: Parameter validation failed%s" % (param.id, msg_str))
 
 
 @dataclass
@@ -43,6 +44,10 @@ class NumberParameter(Parameter):
             value = float(value)
         except ValueError:
             raise ValidationError(self)
+        if self.min_value is not None and value < self.min_value:
+            raise ValidationError(self, 'Below min_value')
+        if self.max_value is not None and value > self.max_value:
+            raise ValidationError(self, 'Above max_value')
         return value
 
 

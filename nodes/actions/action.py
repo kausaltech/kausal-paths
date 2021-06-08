@@ -1,9 +1,9 @@
-from params.base import BoolParameter
+from typing import Optional
 import pandas as pd
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from typing import Any, Dict, Optional, Type
 from nodes import Node
+from params import BoolParameter
 
 
 class ActionNode(Node):
@@ -21,8 +21,7 @@ class ActionNode(Node):
 
     def register_params(self):
         super().register_params()
-
-        self.register_param('enabled', BoolParameter)
+        self.register_param(BoolParameter(id='enabled'))
 
     """
     def set_params(self, params: Dict[str, Any]):

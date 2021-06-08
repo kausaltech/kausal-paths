@@ -3,7 +3,7 @@ import importlib
 import os
 import pkgutil
 
-from . import base
+from . import param as param_base
 
 
 def discover_parameters():
@@ -16,12 +16,12 @@ def discover_parameters():
     all_params = {}
 
     base_classes = {
-        x for x in base.__dict__.values()
-        if inspect.isclass(x) and issubclass(x, base.Parameter)
+        x for x in param_base.__dict__.values()
+        if inspect.isclass(x) and issubclass(x, param_base.Parameter)
     }
 
     for p in pkgs:
-        if p.name in ('%s.discover' % this_pkg, '%s.base' % this_pkg):
+        if p.name in ('%s.discover' % this_pkg, '%s.param' % this_pkg):
             continue
 
         mod = importlib.import_module(p.name)
@@ -30,7 +30,7 @@ def discover_parameters():
                 continue
             if attr in base_classes:
                 continue
-            if not issubclass(attr, base.Parameter):
+            if not issubclass(attr, param_base.Parameter):
                 continue
 
             if attr.id in all_params:

@@ -285,6 +285,12 @@ instance:
       output_nodes:
         - district_heating_consumption
       forecast_values: [[2020, -0.2], [2021, -0.3], [2022, -0.45], [2023, -0.6], [2024, -0.8], [2025, -1.1], [2026, -1.5], [2027, -2], [2028, -2.7], [2029, -3.3], [2030, -4]]
+      allowed_params:
+        - id: target_year_ratio
+          min_value: 0
+          max_value: 5
+          description: Prosentuaalinen lisäys uusiutuvan energian tuotannossa
+          description_en: Increase in renewable energy production
       unit: GWh
 
   pages:
@@ -297,8 +303,10 @@ instance:
   scenarios:
     - id: baseline
       name: Peruskehitys
+      name_en: Baseline
 
     - id: roadmap
       default: true
       name: Hiilineutraali Tampere 2030 -tiekartta
+      name_en: Carbon-neutral Tampere 2030 roadmap
       all_actions_enabled: true

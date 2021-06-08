@@ -6,7 +6,7 @@ from graphql.type import (
 )
 from wagtail.core.rich_text import expand_db_html
 
-from params.base import BoolParameter, NumberParameter, StringParameter
+from params import BoolParameter, NumberParameter, StringParameter
 from nodes.actions import ActionNode
 from pages.models import NodePage
 

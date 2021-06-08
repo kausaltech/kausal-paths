@@ -1,4 +1,4 @@
-from .base import StringParameter
+from .param import StringParameter
 
 
 class MunicipalityName(StringParameter):

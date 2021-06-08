@@ -1,6 +1,7 @@
+from params import NumberParameter
 import pandas as pd
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from .base import ActionNode
+from .action import ActionNode
 
 
 class AdditiveAction(ActionNode):
@@ -17,6 +18,10 @@ class AdditiveAction(ActionNode):
 class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
+    allowed_params = [
+        NumberParameter('target_year_ratio', min_value=0, default_value=1)
+    ]
+
     def compute_effect(self):
         if self.is_enabled():
             df = pd.DataFrame
@@ -30,6 +35,11 @@ class CumulativeAdditiveAction(ActionNode):
         if hasattr(val, 'pint'):
             val = val.pint.m
         val = val.fillna(0).cumsum()
+
+        target_year_ratio = self.get_param_value('target_year_ratio', local=True, required=False)
+        if target_year_ratio is not None:
+            val *= target_year_ratio
+
         df[VALUE_COLUMN] = self.ensure_output_unit(val)
         if not self.is_enabled():
             df[VALUE_COLUMN] = 0.0
