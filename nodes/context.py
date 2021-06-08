@@ -105,7 +105,7 @@ class Context:
             param.reset()
 
         # Set the new parameters
-        scenario.activate()
+        scenario.activate(self)
         self.active_scenario = scenario
 
     def generate_baseline_values(self):

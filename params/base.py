@@ -2,7 +2,7 @@ from __future__ import annotations
 import typing
 from dataclasses import dataclass
 if typing.TYPE_CHECKING:
-    from nodes import Node
+    from nodes import Node, Context
 
 
 class ValidationError(Exception):
@@ -19,6 +19,7 @@ class Parameter:
     description: str = None
     # Set if this parameter is bound to a specific node
     node: Node = None
+    is_customized: bool = False
 
     def reset(self):
         self.value = self.default_value
@@ -26,21 +27,16 @@ class Parameter:
     def set(self, value: typing.Any):
         self.value = self.clean(value)
 
-    def get(self, session_params=None):
-        if session_params is None:
-            return self.value
-        return session_params.get(self.id, self.value)
-
-    def is_customized(self, session_params=None):
-        if session_params is None:
-            return False
-        return self.id in session_params
+    def get(self):
+        return self.value
 
 
 @dataclass
 class NumberParameter(Parameter):
     value: float = None
     default_value: float = None
+    min_value: float = None
+    max_value: float = None
 
     def clean(self, value: float):
         try:

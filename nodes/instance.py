@@ -6,7 +6,7 @@ import re
 import yaml
 from nodes.node import Node
 from nodes.actions.base import ActionNode
-from nodes.scenario import Scenario
+from nodes.scenario import CustomScenario, Scenario
 from typing import Dict
 
 from common.i18n import TranslatedString
@@ -25,16 +25,20 @@ class Instance:
 class InstanceLoader:
     instance: Instance
 
-    def make_trans_string(self, config, attr):
+    def make_trans_string(self, config: Dict, attr: str, pop: bool=False):
         default = config.get(attr)
+        if pop:
+            del config[attr]
         langs = {}
         if default is not None:
             langs[self.config['default_language']] = default
-        for key in config.keys():
+        for key in list(config.keys()):
             m = re.match(r'%s_([a-z]+)' % attr, key)
             if m is None:
                 continue
             langs[m.groups()[0]] = config[key]
+            if pop:
+                del config[key]
         if not langs:
             return None
         return TranslatedString(**langs)
@@ -143,10 +147,13 @@ class InstanceLoader:
         # FIXME: Check for cycles?
 
     def setup_scenarios(self):
+        default_scenario = None
+
         for sc in self.config['scenarios']:
             actions = sc.pop('actions', [])
             all_actions_enabled = sc.pop('all_actions_enabled', False)
-            scenario = Scenario(**sc)
+            name = self.make_trans_string(sc, 'name', pop=True)
+            scenario = Scenario(**sc, name=name)
             if all_actions_enabled:
                 for node in self.context.nodes.values():
                     if not isinstance(node, ActionNode):
@@ -159,7 +166,16 @@ class InstanceLoader:
                 assert isinstance(node, Action)
                 scenario.actions.append([node, act_conf])
             """
+            if scenario.default:
+                assert default_scenario is None
+                default_scenario = scenario
             self.context.add_scenario(scenario)
+
+        self.context.add_scenario(
+            CustomScenario(
+                id='custom', name='Custom', base_scenario=default_scenario
+            )
+        )
 
     def print_graph(self, node=None, indent=0):
         from colored import fg, attr

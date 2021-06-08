@@ -131,6 +131,7 @@ class ParameterInterface(graphene.Interface):
         raise Exception(f"{parameter} has invalid type")
 
     def resolve_is_customized(root, info):
+        context = info.context.instance.context
         return root.is_customized(info.context.session.get('params'))
 
 
@@ -150,6 +151,9 @@ class NumberParameterType(graphene.ObjectType):
         interfaces = (ParameterInterface,)
 
     value = graphene.Float()
+    min_value = graphene.Float()
+    max_value = graphene.Float()
+
     default_value = graphene.Float()
 
     def resolve_value(root, info):
@@ -278,11 +282,19 @@ class SetParameterMutation(graphene.Mutation):
                 value = v
         if value is None:
             raise Exception("No value specified")
-        params = info.context.session.setdefault('params', {})
+
+        session = info.context.session
+        instance = info.context.instance
+        context = instance.context
+        # TODO: Ensure parameter id actually exists, validate input value
+
+        params = session.setdefault('params', {})
         params[id] = value
         # Explicitly mark session as modified because we might only have modified `session['params']`, not `session`
-        info.context.session.modified = True
+        session.active_scenario = 'custom'
+        session.modified = True
         instance = info.context.instance
+        # TODO: Get the parameter from the 'custom' scenario
         return SetParameterMutation(ok=True, parameter=instance.context.params.get(id))
 
 
@@ -293,9 +305,11 @@ class ResetParameterMutation(graphene.Mutation):
     ok = graphene.Boolean()
 
     def mutate(root, info, id=None):
+        session = info.context.session
         if id is None:
             # Reset all parameters to defaults
-            info.context.session.pop('params', None)
+            session.pop('params', None)
+            session.pop('active_scenario', None)
         else:
             params = info.context.session.get('params', {})
             params.pop(id, None)

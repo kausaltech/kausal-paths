@@ -1,3 +1,4 @@
+from nodes.scenario import CustomScenario
 from django.conf import settings
 from django.utils.translation import activate
 
@@ -32,6 +33,27 @@ class InstanceMiddleware:
     def resolve(self, next, root, info, **kwargs):
         if root is None:
             from pages.loader import loader
+            instance = loader.instance
+            context = instance.context
+            session = info.context.session
+
+            if 'active_scenario' in session:
+                try:
+                    scenario = context.get_scenario(session['active_scenario'])
+                except KeyError:
+                    del session['active_scenario']
+                    scenario = None
+            else:
+                scenario = None
+
+            if scenario is not None:
+                if isinstance(scenario, CustomScenario):
+                    # We pass the user session to the custom scenario so that
+                    # it can access the customized parameter values.
+                    session = info.context.session
+                    scenario.set_session(session)
+                context.activate_scenario(scenario)
+
             info.context.instance = loader.instance
         return next(root, info, **kwargs)
 
