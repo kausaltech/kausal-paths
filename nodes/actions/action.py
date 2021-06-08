@@ -1,9 +1,13 @@
+
 from typing import Optional
 import pandas as pd
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes import Node
 from params import BoolParameter
+
+
+ENABLED_PARAM_ID = 'enabled'
 
 
 class ActionNode(Node):
@@ -17,11 +21,11 @@ class ActionNode(Node):
         self.params = {}
 
     def is_enabled(self) -> bool:
-        return self.get_param_value('enabled')
+        return self.get_param_value(ENABLED_PARAM_ID)
 
     def register_params(self):
         super().register_params()
-        self.register_param(BoolParameter(id='enabled'))
+        self.register_param(BoolParameter(id=ENABLED_PARAM_ID))
 
     """
     def set_params(self, params: Dict[str, Any]):
@@ -47,3 +51,19 @@ class ActionNode(Node):
 
     def compute(self) -> Optional[pd.DataFrame]:
         return self.compute_effect()
+
+    def compute_impact(self, target_node: Node) -> pd.DataFrame:
+        # Determine the impact of this action in the target node
+        enabled = self.is_enabled()
+        self.set_param_value(ENABLED_PARAM_ID, False)
+        disabled_df = target_node.get_output()
+        assert disabled_df is not None and VALUE_COLUMN in disabled_df.columns
+        self.set_param_value(ENABLED_PARAM_ID, enabled)
+        df = target_node.get_output()
+        df['ValueWithoutAction'] = disabled_df[VALUE_COLUMN]
+        df['Impact'] = df[VALUE_COLUMN] - df['ValueWithoutAction']
+        return df
+
+    def print_impact(self, target_node: Node):
+        df = self.compute_impact(target_node)
+        print(df)
