@@ -302,28 +302,32 @@ class SetParameterMutation(graphene.Mutation):
     parameter = graphene.Field(ParameterInterface)
 
     def mutate(root, info, id, number_value=None, bool_value=None, string_value=None):
-        value = None
-        for v in (number_value, bool_value, string_value):
+        context_params = info.context.instance.context.params
+        param, value = None, None
+        parameter_classes = {
+            number_value: NumberParameter,
+            bool_value: BoolParameter,
+            string_value: StringParameter,
+        }
+        for v, parameter_class in parameter_classes.items():
             if v is not None:
                 if value is not None:
                     raise Exception("Only one type of value allowed")
-                value = v
+                try:
+                    param = context_params[id]
+                except KeyError:
+                    raise Exception("Parameter does not exist in context")
+                value = param.clean(v)
         if value is None:
             raise Exception("No value specified")
-
         session = info.context.session
-        instance = info.context.instance
-        context = instance.context
-        # TODO: Ensure parameter id actually exists, validate input value
-
-        params = session.setdefault('params', {})
-        params[id] = value
+        session_params = session.setdefault('params', {})
+        session_params[id] = value
         # Explicitly mark session as modified because we might only have modified `session['params']`, not `session`
         session.active_scenario = 'custom'
         session.modified = True
-        instance = info.context.instance
         # TODO: Get the parameter from the 'custom' scenario
-        return SetParameterMutation(ok=True, parameter=instance.context.params.get(id))
+        return SetParameterMutation(ok=True, parameter=param)
 
 
 class ResetParameterMutation(graphene.Mutation):

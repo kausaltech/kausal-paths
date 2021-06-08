@@ -40,6 +40,9 @@ class NumberParameter(Parameter):
     max_value: float = None
 
     def clean(self, value: float):
+        # Avoid converting, e.g., bool to float
+        if not isinstance(value, (int, float)):
+            raise ValidationError(self)
         try:
             value = float(value)
         except ValueError:
@@ -57,9 +60,8 @@ class BoolParameter(Parameter):
     default_value: bool = None
 
     def clean(self, value: bool):
-        try:
-            value = bool(value)
-        except ValueError:
+        # Avoid converting non-bool to bool
+        if not isinstance(value, bool):
             raise ValidationError(self)
         return value
 

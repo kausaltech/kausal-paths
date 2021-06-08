@@ -7,7 +7,7 @@ from wagtail.admin.edit_handlers import FieldPanel
 
 class NodeSelectWidget(forms.Select):
     def __init__(self, *args, **kwargs):
-        from pages.loader import loader
+        from pages.apps import loader
         instance = loader.instance
         kwargs['choices'] = [(id, str(node.name)) for id, node in instance.context.nodes.items()]
         super().__init__(*args, **kwargs)

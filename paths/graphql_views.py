@@ -32,7 +32,7 @@ class LocaleMiddleware:
 class InstanceMiddleware:
     def resolve(self, next, root, info, **kwargs):
         if root is None:
-            from pages.loader import loader
+            from pages.apps import loader
             instance = loader.instance
             context = instance.context
             session = info.context.session
