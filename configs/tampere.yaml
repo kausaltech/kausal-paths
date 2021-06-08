@@ -189,6 +189,8 @@ instance:
       unit: GWh
       quantity: energy
       type: simple.Activity
+      name: Öljylämmityksen energiankulutus
+      name_en: Oil heating energy consumption
       output_nodes:
         - oil_heating_emissions
       historical_values: [[2010, 332.3], [2011, 266.0], [2012, 298.9], [2013, 275.6], [2014, 276.4], [2015, 264.7], [2016, 297.0], [2017, 280.4], [2018, 274.1]]
@@ -198,6 +200,8 @@ instance:
       type: simple.AdditiveNode
       unit: g/kWh
       quantity: emission_factor
+      name: Lämmitysöljyn päästökerroin
+      name_en: Heating oil emission factor
       historical_values: [[2010, 268.4], [2011, 263.5], [2012, 263.5], [2013, 263.5], [2014, 264.5], [2015, 264.5], [2016, 266.3], [2017, 268], [2018, 268], [2019, 268], [2020, 268]]
       forecast_values: [[2021, 264.1055], [2022, 260.211], [2023, 256.3165], [2024, 252.422], [2025, 248.5275], [2026, 244.633], [2027, 240.7385], [2028, 236.844], [2029, 236.844], [2030, 236.844]]
       output_nodes:
