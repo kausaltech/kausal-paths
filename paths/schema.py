@@ -130,10 +130,6 @@ class ParameterInterface(graphene.Interface):
             return StringParameterType
         raise Exception(f"{parameter} has invalid type")
 
-    def resolve_is_customized(root, info):
-        context = info.context.instance.context
-        return root.is_customized(info.context.session.get('params'))
-
 
 class BoolParameterType(graphene.ObjectType):
     class Meta:
@@ -141,9 +137,6 @@ class BoolParameterType(graphene.ObjectType):
 
     value = graphene.Boolean()
     default_value = graphene.Boolean()
-
-    def resolve_value(root, info):
-        return root.get(info.context.session.get('params'))
 
 
 class NumberParameterType(graphene.ObjectType):
@@ -156,9 +149,6 @@ class NumberParameterType(graphene.ObjectType):
 
     default_value = graphene.Float()
 
-    def resolve_value(root, info):
-        return root.get(info.context.session.get('params'))
-
 
 class StringParameterType(graphene.ObjectType):
     class Meta:
@@ -166,9 +156,6 @@ class StringParameterType(graphene.ObjectType):
 
     value = graphene.String()
     default_value = graphene.String()
-
-    def resolve_value(root, info):
-        return root.get(info.context.session.get('params'))
 
 
 class NodeType(graphene.ObjectType):
@@ -212,7 +199,7 @@ class NodeType(graphene.ObjectType):
         return expand_db_html(page.description)
 
     def resolve_parameters(root, info):
-        return root.parameters.values()
+        return root.params.values()
 
 
 class Query(graphene.ObjectType):
