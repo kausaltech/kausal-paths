@@ -9,3 +9,5 @@ __pycache__/
 /.ipynb_checkpoints/
 /.vscode/
 /venv/
+/.direnv/
+/.envrc
