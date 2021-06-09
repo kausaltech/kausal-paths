@@ -170,6 +170,8 @@ class NodeType(graphene.ObjectType):
     input_nodes = graphene.List(lambda: NodeType)
     output_nodes = graphene.List(lambda: NodeType)
     descendant_nodes = graphene.List(lambda: NodeType, proper=graphene.Boolean())
+    upstream_actions = graphene.List(lambda: NodeType)
+
     # TODO: Remove metric??
     metric = graphene.Field(ForecastMetricType)
     output_metrics = graphene.List(ForecastMetricType)
@@ -193,8 +195,11 @@ class NodeType(graphene.ObjectType):
     def resolve_is_action(root, info):
         return isinstance(root, ActionNode)
 
-    def resolve_descendant_nodes(root, info, proper=False):
+    def resolve_descendant_nodes(root: Node, info, proper=False):
         return root.get_descendant_nodes(proper)
+
+    def resolve_upstream_actions(root: Node, info):
+        return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
 
     def resolve_metric(root: Node, info):
         df = root.get_output()

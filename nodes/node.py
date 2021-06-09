@@ -1,4 +1,5 @@
 from __future__ import annotations
+from types import FunctionType
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
@@ -196,6 +197,20 @@ class Node:
                 result.append(current)
                 open += current.output_nodes
         return result
+
+    def get_upstream_nodes(self, filter: FunctionType = None) -> List[Node]:
+        result = []
+        closed = set()
+        open = [self]
+        while open:
+            current = open.pop()
+            if current not in closed:
+                closed.add(current)
+                if filter is None or filter(current):
+                    result.append(current)
+                open += current.input_nodes
+        return result
+
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
