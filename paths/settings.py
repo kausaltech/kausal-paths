@@ -142,10 +142,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    # Match localhost with optional port
+    r'^https?://localhost(:\d+)?$',
+    r'^https://([a-z0-9-_]+\.)*kausal\.tech$'
+]
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
 ]
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = None
 
 GRAPHENE = {
     'SCHEMA': f'{PROJECT_NAME}.schema.schema',
