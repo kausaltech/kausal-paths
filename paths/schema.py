@@ -290,6 +290,7 @@ class Query(graphene.ObjectType):
     )
     actions = graphene.List(NodeType)
     parameters = graphene.List(ParameterInterface)
+    parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
     scenarios = graphene.List(ScenarioType)
 
     def resolve_instance(root, info: GQLInfo):
@@ -332,6 +333,13 @@ class Query(graphene.ObjectType):
     def resolve_parameters(root, info):
         instance = info.context.instance
         return instance.context.params.values()
+
+    def resolve_parameter(root, info, id):
+        instance = info.context.instance
+        try:
+            return instance.context.params[id]
+        except KeyError:
+            raise GraphQLError(f"Parameter {id} does not exist")
 
 
 class SetParameterMutation(graphene.Mutation):
