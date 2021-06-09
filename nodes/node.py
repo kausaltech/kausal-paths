@@ -194,7 +194,8 @@ class Node:
             current = open.pop()
             if current not in closed:
                 closed.add(current)
-                result.append(current)
+                if current is not self:
+                    result.append(current)
                 open += current.output_nodes
         return result
 
@@ -210,7 +211,6 @@ class Node:
                     result.append(current)
                 open += current.input_nodes
         return result
-
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))

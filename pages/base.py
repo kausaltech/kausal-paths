@@ -20,6 +20,7 @@ class Metric:
     id: str
     name: str
     df: pd.DataFrame
+    node: Node = None
 
     def split_df(self) -> Dict[str, List[YearlyValue]]:
         if hasattr(self, 'split_values'):

@@ -189,7 +189,6 @@ class NodeType(graphene.ObjectType):
     metric = graphene.Field(ForecastMetricType)
     output_metrics = graphene.List(ForecastMetricType)
 
-    # Only for Actions
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
 
     # TODO: input_datasets, parameters, baseline_values, context
@@ -208,7 +207,8 @@ class NodeType(graphene.ObjectType):
     def resolve_is_action(root, info):
         return isinstance(root, ActionNode)
 
-    def resolve_descendant_nodes(root: Node, info, proper=False):
+    def resolve_descendant_nodes(root: Node, info: GQLInfo, proper=False):
+        info.context._upstream_node = root
         return root.get_descendant_nodes(proper)
 
     def resolve_upstream_actions(root: Node, info):
@@ -222,22 +222,28 @@ class NodeType(graphene.ObjectType):
             return None
         if root.baseline_values is not None:
             df[BASELINE_VALUE_COLUMN] = root.baseline_values[VALUE_COLUMN]
-        return Metric(id=root.id, name=root.name, df=df)
+        return Metric(id=root.id, name=root.name, node=root, df=df)
 
-    def resolve_impact_metric(root: ActionNode, info, target_node_id: str = None):
+    def resolve_impact_metric(root: Node, info, target_node_id: str = None):
         context = info.context.instance.context
+        upstream_node = getattr(info.context, '_upstream_node', None)
         if target_node_id is not None:
             if target_node_id not in context.nodes:
                 raise GraphQLError("Node %s not found" % target_node_id, [info])
+            source_node = root
             target_node = context.get_node(target_node_id)
+        elif upstream_node is not None:
+            source_node = upstream_node
+            target_node = root
         else:
             # FIXME: Determine a "default" target node from instance
+            source_node = root
             target_node = context.get_node('net_emissions')
 
-        if not isinstance(root, ActionNode):
+        if not isinstance(source_node, ActionNode):
             return None
 
-        df = root.compute_impact(target_node)
+        df = source_node.compute_impact(target_node)
         df = df[[IMPACT_COLUMN, FORECAST_COLUMN]]
         df = df.rename(columns={IMPACT_COLUMN: VALUE_COLUMN})
         return Metric(id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df)
