@@ -114,6 +114,12 @@ class Context:
         scenario.activate(self)
         self.active_scenario = scenario
 
+    def get_default_scenario(self) -> Scenario:
+        for scenario in self.scenarios.values():
+            if scenario.default:
+                return scenario
+        raise Exception("No default scenario found")
+
     def generate_baseline_values(self):
         old_scenario = self.active_scenario
 

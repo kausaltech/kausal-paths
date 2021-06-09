@@ -1,3 +1,7 @@
+from nodes.scenario import Scenario
+from nodes.instance import Instance
+from nodes.context import Context
+from params.param import ValidationError
 from nodes.constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN
 import graphene
 from pages.base import ActionPage, EmissionPage, Metric
@@ -12,6 +16,15 @@ from params import BoolParameter, NumberParameter, StringParameter
 from nodes import Node
 from nodes.actions import ActionNode
 from pages.models import NodePage
+
+
+# Helper classes for typing
+class GQLContext:
+    instance: Instance
+
+
+class GQLInfo:
+    context: GQLContext
 
 
 class UnitType(graphene.ObjectType):
@@ -243,6 +256,20 @@ class NodeType(graphene.ObjectType):
         return root.params.values()
 
 
+class ScenarioType(graphene.ObjectType):
+    id = graphene.ID()
+    name = graphene.String()
+    is_active = graphene.Boolean()
+    is_default = graphene.Boolean()
+
+    def resolve_is_active(root: Scenario, info: GQLInfo):
+        context = info.context.instance.context
+        return context.active_scenario == root
+
+    def resolve_is_default(root: Scenario, info: GQLInfo):
+        return root.default
+
+
 class Query(graphene.ObjectType):
     # TODO: Put (some of) the below in a separate app (like pages)?
     instance = graphene.Field(InstanceType)
@@ -257,14 +284,19 @@ class Query(graphene.ObjectType):
     )
     actions = graphene.List(NodeType)
     parameters = graphene.List(ParameterInterface)
+    scenarios = graphene.List(ScenarioType)
 
-    def resolve_instance(root, info):
+    def resolve_instance(root, info: GQLInfo):
         instance = info.context.instance
         return dict(
             id=instance.id,
             name=instance.name,
             target_year=instance.context.target_year
         )
+
+    def resolve_scenarios(root, info: GQLInfo):
+        context = info.context.instance.context
+        return list(context.scenarios.values())
 
     def resolve_pages(root, info):
         instance = info.context.instance
@@ -306,32 +338,45 @@ class SetParameterMutation(graphene.Mutation):
     ok = graphene.Boolean()
     parameter = graphene.Field(ParameterInterface)
 
-    def mutate(root, info, id, number_value=None, bool_value=None, string_value=None):
-        context_params = info.context.instance.context.params
-        param, value = None, None
-        parameter_classes = {
-            number_value: NumberParameter,
-            bool_value: BoolParameter,
-            string_value: StringParameter,
+    def mutate(root, info: GQLInfo, id, number_value=None, bool_value=None, string_value=None):
+        context = info.context.instance.context
+        try:
+            param = context.params[id]
+        except KeyError:
+            raise GraphQLError("Parameter %s does not exist", [info])
+
+        parameter_values = {
+            NumberParameter: (number_value, 'numberValue'),
+            BoolParameter: (bool_value, 'boolValue'),
+            StringParameter: (string_value, 'stringValue'),
         }
-        for v, parameter_class in parameter_classes.items():
-            if v is not None:
-                if value is not None:
-                    raise Exception("Only one type of value allowed")
-                try:
-                    param = context_params[id]
-                except KeyError:
-                    raise Exception("Parameter does not exist in context")
-                value = param.clean(v)
+        p = parameter_values.pop(type(param), None)
+        if p is None:
+            raise Exception("Attempting to mutate an unsupported parameter class: %s" % type(param))
+        value, attr_name = p
         if value is None:
-            raise Exception("No value specified")
+            raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.id))
+
+        for v, _ in parameter_values.values():
+            if v is not None:
+                raise GraphQLError("Only one type of value allowed", [info])
+
+        try:
+            value = param.clean(value)
+        except ValidationError as e:
+            raise GraphQLError(str(e), [info])
+
         session = info.context.session
         session_params = session.setdefault('params', {})
         session_params[id] = value
+
+        custom_scenario = context.scenarios['custom']
+        custom_scenario.set_session(session)
+        context.activate_scenario(custom_scenario)
+        session['active_scenario'] = 'custom'
         # Explicitly mark session as modified because we might only have modified `session['params']`, not `session`
-        session.active_scenario = 'custom'
         session.modified = True
-        # TODO: Get the parameter from the 'custom' scenario
+
         return SetParameterMutation(ok=True, parameter=param)
 
 
@@ -341,15 +386,20 @@ class ResetParameterMutation(graphene.Mutation):
 
     ok = graphene.Boolean()
 
-    def mutate(root, info, id=None):
+    def mutate(root, info: GQLInfo, id=None):
+        context = info.context.instance.context
         session = info.context.session
         if id is None:
             # Reset all parameters to defaults
             session.pop('params', None)
-            session.pop('active_scenario', None)
         else:
-            params = info.context.session.get('params', {})
+            params = session.get('params', {})
             params.pop(id, None)
+
+        params = session.get('params', {})
+        if not params:
+            session['active_scenario'] = context.get_default_scenario().id
+
         info.context.session.modified = True
         return ResetParameterMutation(ok=True)
 

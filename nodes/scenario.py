@@ -47,8 +47,8 @@ class CustomScenario(Scenario):
         return False
 
     def activate(self, context):
-        self.base_scenario.activate()
-        params = self.session.params
+        self.base_scenario.activate(context)
+        params = self.session.get('params', {})
         for param_id, val in list(params.items()):
             param = context.params.get(param_id)
             if param is None:

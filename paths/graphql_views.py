@@ -37,22 +37,22 @@ class InstanceMiddleware:
             context = instance.context
             session = info.context.session
 
+            scenario = None
             if 'active_scenario' in session:
                 try:
                     scenario = context.get_scenario(session['active_scenario'])
                 except KeyError:
                     del session['active_scenario']
-                    scenario = None
-            else:
-                scenario = None
 
-            if scenario is not None:
-                if isinstance(scenario, CustomScenario):
-                    # We pass the user session to the custom scenario so that
-                    # it can access the customized parameter values.
-                    session = info.context.session
-                    scenario.set_session(session)
-                context.activate_scenario(scenario)
+            if scenario is None:
+                scenario = context.get_default_scenario()
+
+            if isinstance(scenario, CustomScenario):
+                # We pass the user session to the custom scenario so that
+                # it can access the customized parameter values.
+                session = info.context.session
+                scenario.set_session(session)
+            context.activate_scenario(scenario)
 
             info.context.instance = loader.instance
         return next(root, info, **kwargs)
