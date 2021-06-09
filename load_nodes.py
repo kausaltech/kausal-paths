@@ -17,7 +17,7 @@ if True:
     warnings.showwarning = warn_with_traceback
 
 
-loader = InstanceLoader('configs/tampere.yaml')
+loader = InstanceLoader.from_yaml('configs/tampere.yaml')
 loader.print_graph()
 context = loader.context
 
