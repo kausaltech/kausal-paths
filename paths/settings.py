@@ -151,7 +151,9 @@ CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
 SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
 
 GRAPHENE = {
     'SCHEMA': f'{PROJECT_NAME}.schema.schema',
