@@ -258,7 +258,13 @@ class InstanceLoader:
         self.instance = Instance(
             id=self.config['id'], name=self.config['name'], context=self.context
         )
-        self.context.dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
+        static_datasets = self.config.get('static_datasets')
+        if static_datasets is not None:
+            if self.config.get('dataset_repo') is not None:
+                raise Exception('static_datasets and dataset_repo may not be specified at the same time')
+            self.context.dataset_repo = dvc_pandas.StaticRepository(static_datasets)
+        else:
+            self.context.dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
         self.context.target_year = self.config['target_year']
 
         self.load_datasets(self.config.get('datasets', []))

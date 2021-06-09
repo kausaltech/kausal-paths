@@ -12,6 +12,6 @@ class PagesConfig(AppConfig):
 
     def ready(self):
         global loader
-        loader = InstanceLoader.from_yaml(os.path.join(settings.BASE_DIR, 'configs/tampere.yaml'))
+        loader = InstanceLoader.from_yaml(os.path.join(settings.BASE_DIR, settings.INSTANCE_LOADER_CONFIG))
         loader.print_graph()
         loader.context.generate_baseline_values()

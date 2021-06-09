@@ -103,6 +103,8 @@ MIDDLEWARE = [
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
 ]
 
+INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
+
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
 

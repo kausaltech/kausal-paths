@@ -1,0 +1,65 @@
+instance:
+  id: test_instance
+  name: Test instance
+  default_language: fi
+  target_year: 2030
+  emission_dataset: test/scenarios/emissions/bau
+  emission_unit: kt
+  emission_forecast_from: 2019
+
+  static_datasets:
+    - identifier: test/scenarios/emissions/bau
+      columns:
+        - Year
+        - Net emissions
+      data:
+        - [2020, 12.3]
+        - [2021, 10.0]
+
+  parameters:
+    - id: municipality_name
+      value: Sunnydale
+
+  emission_sectors:
+    - id: net_emissions
+      name: Net emissions
+      name_en: Net emissions
+      column: Net emissions
+
+  nodes:
+    - id: node
+      name: Node
+      name_en: Node
+      type: simple.Activity
+      unit: kt
+      quantity: emissions
+      output_nodes:
+        - net_emissions
+
+  actions:
+    - id: action
+      name: Action
+      name_en: Action
+      type: simple.CumulativeAdditiveAction
+      output_nodes:
+        - node
+      forecast_values: [[2022, -23], [2023, -23]]
+      unit: kt
+
+  pages:
+    - id: home
+      name: Home
+      path: '/'
+      type: emission
+      node: net_emissions
+
+  scenarios:
+    - id: baseline
+      name: Peruskehitys
+      name_en: Baseline
+
+    - id: roadmap
+      default: true
+      name: Roadmap
+      name_en: Roadmap
+      all_actions_enabled: true
