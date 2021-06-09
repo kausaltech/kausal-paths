@@ -52,5 +52,5 @@ def test_set_parameter_disable_action(graphql_client_query_data):
             }
         }
     }
-    # TODO: Don't trust the response but check that the action is really enabled
+    # TODO: Don't trust the response but check that the action is really disabled
     assert data == expected
