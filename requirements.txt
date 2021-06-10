@@ -4,6 +4,14 @@
 #
 #    pip-compile
 #
+aiobotocore[boto3]==1.3.0
+    # via
+    #   dvc
+    #   s3fs
+aiohttp==3.7.4.post0
+    # via aiobotocore
+aioitertools==0.7.1
+    # via aiobotocore
 aniso8601==7.0.0
     # via graphene
 anyascii==0.2.0
@@ -14,23 +22,26 @@ appdirs==1.4.4
     #   dvc-pandas
 asgiref==3.3.4
     # via django
+async-timeout==3.0.1
+    # via aiohttp
 atpublic==2.3
     # via flufl.lock
 attrs==21.2.0
-    # via pytest
+    # via
+    #   aiohttp
+    #   pytest
 backcall==0.2.0
     # via ipython
-beautifulsoup4==4.8.2
+beautifulsoup4==4.9.3
     # via wagtail
-boto3==1.17.54
-    # via dvc
-botocore==1.20.54
+boto3==1.17.49
+    # via aiobotocore
+botocore==1.20.49
     # via
+    #   aiobotocore
     #   boto3
     #   s3transfer
-cached-property==1.5.2
-    # via pygit2
-certifi==2020.12.5
+certifi==2021.5.30
     # via
     #   dulwich
     #   requests
@@ -38,7 +49,9 @@ certifi==2020.12.5
 cffi==1.14.5
     # via pygit2
 chardet==4.0.0
-    # via requests
+    # via
+    #   aiohttp
+    #   requests
 colorama==0.4.4
     # via
     #   dvc
@@ -74,7 +87,7 @@ django-taggit==1.4.0
     # via wagtail
 django-treebeard==4.5.1
     # via wagtail
-django==3.2.3
+django==3.2.4
     # via
     #   -r requirements.in
     #   django-cors-headers
@@ -93,35 +106,37 @@ dpath==2.0.1
     # via dvc
 draftjs-exporter==2.1.7
     # via wagtail
-dulwich==0.20.21
+dulwich==0.20.23
     # via dvc
-dvc-pandas==0.0.4
+dvc-pandas==0.0.5
     # via -r requirements.in
-dvc[s3]==2.0.18
+dvc[s3]==2.3.0
     # via dvc-pandas
-et-xmlfile==1.0.1
+et-xmlfile==1.1.0
     # via openpyxl
 factory-boy==3.2.0
     # via
     #   -r requirements.in
     #   pytest-factoryboy
-faker==8.4.0
+faker==8.6.0
     # via factory-boy
-flatten-dict==0.3.0
+flatten-dict==0.4.0
     # via dvc
 flufl.lock==3.2
     # via dvc
-fsspec==0.9.0
-    # via dvc
-ftfy==6.0.1
+fsspec==2021.05.0
+    # via
+    #   dvc
+    #   s3fs
+ftfy==6.0.3
     # via python-benedict
-funcy==1.15
+funcy==1.16
     # via dvc
 future==0.18.2
     # via grandalf
 gitdb==4.0.7
     # via gitpython
-gitpython==3.1.15
+gitpython==3.1.17
     # via
     #   dvc
     #   dvc-pandas
@@ -143,14 +158,16 @@ graphql-relay==2.0.1
 html5lib==1.1
     # via wagtail
 idna==2.10
-    # via requests
+    # via
+    #   requests
+    #   yarl
 inflection==0.5.1
     # via pytest-factoryboy
 iniconfig==1.1.1
     # via pytest
 ipython-genutils==0.2.0
     # via traitlets
-ipython==7.22.0
+ipython==7.24.1
     # via -r requirements.in
 jedi==0.18.0
     # via ipython
@@ -162,13 +179,19 @@ jsonpath-ng==1.5.2
     # via dvc
 l18n==2020.6.1
     # via wagtail
-mailchecker==4.0.6
+mailchecker==4.0.8
     # via python-benedict
+matplotlib-inline==0.1.2
+    # via ipython
+multidict==5.1.0
+    # via
+    #   aiohttp
+    #   yarl
 nanotime==0.5.2
     # via dvc
 networkx==2.5.1
     # via dvc
-numpy==1.20.2
+numpy==1.20.3
     # via
     #   pandas
     #   pyarrow
@@ -187,13 +210,11 @@ pandas==1.2.4
     #   pint-pandas
 parso==0.8.2
     # via jedi
-pathlib2==2.3.5
-    # via flatten-dict
 pathspec==0.8.1
     # via dvc
 pexpect==4.8.0
     # via ipython
-phonenumbers==8.12.21
+phonenumbers==8.12.24
     # via python-benedict
 pickleshare==0.7.5
     # via ipython
@@ -228,7 +249,7 @@ ptyprocess==0.7.0
     # via pexpect
 py==1.10.0
     # via pytest
-pyarrow==3.0.0
+pyarrow==4.0.1
     # via dvc-pandas
 pyasn1==0.4.8
     # via dvc
@@ -236,9 +257,9 @@ pycparser==2.20
     # via cffi
 pydot==1.4.2
     # via dvc
-pygit2==1.5.0
+pygit2==1.6.0
     # via dvc
-pygments==2.8.1
+pygments==2.9.0
     # via
     #   ipython
     #   rich
@@ -250,7 +271,7 @@ pyparsing==2.4.7
     #   grandalf
     #   packaging
     #   pydot
-pytest-django==4.3.0
+pytest-django==4.4.0
     # via -r requirements.in
 pytest-factoryboy==2.1.0
     # via -r requirements.in
@@ -258,7 +279,7 @@ pytest==6.2.4
     # via
     #   pytest-django
     #   pytest-factoryboy
-python-benedict==0.23.2
+python-benedict==0.24.0
     # via dvc
 python-dateutil==2.8.1
     # via
@@ -266,11 +287,11 @@ python-dateutil==2.8.1
     #   faker
     #   pandas
     #   python-benedict
-python-dotenv==0.17.0
+python-dotenv==0.17.1
     # via -r requirements.in
-python-fsutil==0.4.0
+python-fsutil==0.5.0
     # via python-benedict
-python-slugify==4.0.1
+python-slugify==5.0.2
     # via python-benedict
 python-snappy==0.6.0
     # via dvc-pandas
@@ -288,29 +309,31 @@ requests==2.25.1
     #   python-benedict
     #   python-fsutil
     #   wagtail
-rich==10.1.0
+rich==10.3.0
     # via dvc
 ruamel.yaml.clib==0.2.2
     # via ruamel.yaml
-ruamel.yaml==0.17.4
+ruamel.yaml==0.17.9
     # via
     #   dvc
     #   dvc-pandas
 rx==1.6.1
     # via graphql-core
-s3transfer==0.4.0
+s3fs==2021.5.0
+    # via dvc
+s3transfer==0.3.7
     # via boto3
-scipy==1.6.2
+scipy==1.6.3
     # via -r requirements.in
-sentry-sdk==1.0.0
+sentry-sdk==1.1.0
     # via -r requirements.in
 shortuuid==1.0.1
     # via dvc
-shtab==1.3.5
+shtab==1.3.6
     # via dvc
-singledispatch==3.6.1
+singledispatch==3.6.2
     # via graphene-django
-six==1.15.0
+six==1.16.0
     # via
     #   configobj
     #   flatten-dict
@@ -321,7 +344,6 @@ six==1.15.0
     #   html5lib
     #   jsonpath-ng
     #   l18n
-    #   pathlib2
     #   promise
     #   python-benedict
     #   python-dateutil
@@ -336,7 +358,7 @@ tablib[xls,xlsx]==3.0.0
     # via wagtail
 tabulate==0.8.9
     # via dvc
-telepath==0.1.1
+telepath==0.2
     # via wagtail
 text-unidecode==1.3
     # via
@@ -348,16 +370,18 @@ toml==0.10.2
     #   dvc
     #   pytest
     #   python-benedict
-tqdm==4.60.0
+tqdm==4.61.0
     # via dvc
 traitlets==5.0.5
-    # via ipython
-typing-extensions==3.7.4.3
     # via
+    #   ipython
+    #   matplotlib-inline
+typing-extensions==3.10.0.0
+    # via
+    #   aiohttp
+    #   aioitertools
     #   dvc
-    #   gitpython
-    #   rich
-urllib3==1.26.4
+urllib3==1.26.5
     # via
     #   botocore
     #   dulwich
@@ -365,7 +389,7 @@ urllib3==1.26.4
     #   sentry-sdk
 voluptuous==0.12.1
     # via dvc
-wagtail==2.13
+wagtail==2.13.1
     # via -r requirements.in
 wcwidth==0.2.5
     # via
@@ -375,14 +399,18 @@ webencodings==0.5.1
     # via html5lib
 willow==1.4
     # via wagtail
+wrapt==1.12.1
+    # via aiobotocore
 xlrd==2.0.1
     # via tablib
-xlsxwriter==1.3.9
+xlsxwriter==1.4.3
     # via wagtail
 xlwt==1.3.0
     # via tablib
 xmltodict==0.12.0
     # via python-benedict
+yarl==1.6.3
+    # via aiohttp
 zc.lockfile==2.0
     # via dvc
 
