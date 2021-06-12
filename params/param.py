@@ -1,6 +1,8 @@
 from __future__ import annotations
 import typing
 from dataclasses import dataclass
+from common.i18n import TranslatedString
+
 if typing.TYPE_CHECKING:
     from nodes import Node
 
@@ -17,7 +19,7 @@ class ValidationError(Exception):
 @dataclass
 class Parameter:
     id: str
-    description: str = None
+    description: TranslatedString = None
     # Set if this parameter is bound to a specific node
     node: Node = None
     is_customized: bool = False
@@ -38,6 +40,12 @@ class NumberParameter(Parameter):
     default_value: float = None
     min_value: float = None
     max_value: float = None
+    unit: str = None
+
+    def __post_init__(self):
+        if self.unit is not None and isinstance(self.unit, str):
+            from nodes.context import unit_registry
+            self.unit = unit_registry(self.unit).units
 
     def clean(self, value: float):
         # Avoid converting, e.g., bool to float

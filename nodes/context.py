@@ -14,13 +14,19 @@ if TYPE_CHECKING:
     from .scenario import Scenario
 
 
-unit_registry = pint.UnitRegistry()
+unit_registry = pint.UnitRegistry(preprocessors=[
+    lambda s: s.replace('%', ' percent '),
+])
+
 # By default, kt is knots, but here kilotonne is the most common
 # usage.
 unit_registry.define('kt = kilotonne')
 # We also need population
 unit_registry.define('person = [population] = cap')
-
+unit_registry.define(pint.unit.UnitDefinition(
+    'percent', '%', (), pint.converters.ScaleConverter(0.01)
+))
+unit_registry.default_format = '~P'
 pint.set_application_registry(unit_registry)
 pint_pandas.PintType.ureg = unit_registry
 

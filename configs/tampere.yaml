@@ -134,11 +134,11 @@ instance:
       part_of: agriculture_emissions
       column: Field crops
 
-    #- id: industrial_electricity_consumption_emissions
-    #  name_en: Industrial electricity consumption
-    #  name: Teollisuuden sähkön kulutuksen päästöt
-    #  part_of: electricity_consumption_emissions
-    #  column: Industrial electricity consumption
+    - id: industrial_electricity_consumption_emissions
+      name_en: Industrial electricity consumption
+      name: Teollisuuden sähkön kulutuksen päästöt
+      part_of: electricity_consumption_emissions
+      column: Industrial electricity consumption
 
   nodes:
     - id: population
@@ -229,7 +229,7 @@ instance:
       name_en: Geothermal heating electricity consumption
       output_nodes:
         - geothermal_heating_emissions
-      historical_values: [[2010, 2.8], [2011, 4.5], [2012, 5.3], [2013, 7.6], [2014, 7.6], [2015, 8.1], [2016, 10.3], [2017, 13.7], [2018, 16.3]]
+      historical_values: [[1990, 0], [2010, 2.8], [2011, 4.5], [2012, 5.3], [2013, 7.6], [2014, 7.6], [2015, 8.1], [2016, 10.3], [2017, 13.7], [2018, 16.3]]
       forecast_values: [[2019, 18.5], [2020, 20.6], [2021, 22.8], [2022, 24.9], [2023, 27.1], [2024, 29.2], [2025, 31.4], [2026, 33.5], [2027, 35.7], [2028, 37.8], [2029, 40.0], [2030, 42.1]]
 
 
@@ -252,39 +252,40 @@ instance:
       name_en: Direct electric heating electricity consumption
       output_nodes:
         - direct_electric_heating_emissions
-      historical_values: [[2010, 217], [2011, 207], [2012, 215], [2013, 208], [2014, 201], [2015, 195], [2016, 216.5], [2017, 215.8], [2018, 218.3], [2019, 215.8]]
+      historical_values: [[1990, 112.8], [2010, 217], [2011, 207], [2012, 215], [2013, 208], [2014, 201], [2015, 195], [2016, 216.5], [2017, 215.8], [2018, 218.3], [2019, 215.8]]
       forecast_values: [[2020, 210], [2021, 210], [2022, 210], [2023, 210], [2024, 210], [2025, 210], [2026, 211], [2027, 211], [2028, 211], [2029, 211], [2030, 211]]
 
       #
       # ----------- Electricity use ------------
       #
-    - id: electricity_consumption_per_capita
+    - id: other_electricity_consumption_per_capita
       name: Sähkönkulutus asukasta kohti
       name_en: Electricity consumption per capita
       type: simple.AdditiveNode
       unit: kWh/person
       output_nodes:
-        - electricity_consumption_other
-      historical_values: [[2010, 5728], [2011, 5555], [2012, 5672], [2013, 5531], [2014, 5550], [2015, 5423], [2016, 5477], [2017, 5467], [2018, 5328]]
+        - other_electricity_consumption
+      historical_values: [[1990, 2211], [2010, 5728], [2011, 5555], [2012, 5672], [2013, 5531], [2014, 5550], [2015, 5423], [2016, 5477], [2017, 5467], [2018, 5328]]
       forecast_values: [[2019, 5289], [2020, 5249], [2021, 5210], [2022, 5171], [2023, 5131], [2024, 5092], [2025, 5052], [2026, 5013], [2027, 4974], [2028, 4934], [2029, 4895], [2030, 4855]]
 
-    - id: electricity_consumption_other
+    - id: other_electricity_consumption
       name: Muu sähkönkulutus
       name_en: Other electricity consumption
-      type: simple.PerCapita
+      type: simple.PerCapitaActivity
       unit: GWh
       quantity: energy
       input_nodes:
         - population
       output_nodes:
-        - electricity_consumption
+        - other_electricity_consumption_emissions
 
-    - id: electricity_consumption
-      name: Sähkönkulutus
-      name_en: Electricity consumption
-      type: simple.AdditiveNode
-      unit: GWh
-      quantity: energy
+    - id: other_electricity_consumption_emissions
+      name: Muun sähkönkulutuksen päästöt
+      name_en: Other electricity consumption emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      input_nodes:
+        - electricity_production_emission_factor
       output_nodes:
         - electricity_consumption_emissions
 
@@ -292,21 +293,38 @@ instance:
       name: Sähköntuotannon päästökerroin
       name_en: Electricity production emission factor
       type: simple.AdditiveNode
-      output_nodes:
-        - electricity_consumption_emissions
       unit: g/kWh
       quantity: emission_factor
-      historical_values: [[2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
+      historical_values: [[1990, 350], [2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
       forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
 
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
-      name_en: Electricity consumption
-      type: simple.EmissionFactorActivity
+      name_en: Electricity consumption emissions
+      type: simple.SectorEmissions
       unit: kt
       color: '#F4D240'
       output_nodes:
         - net_emissions
+
+    - id: renewable_electricity_production
+      name: Uusiutuva sähköntuotanto
+      name_en: Renewable electricity production
+      type: simple.AdditiveNode
+      unit: GWh
+      quantity: energy
+      output_nodes:
+        - renewable_electricity_production_emissions_reductions
+
+    - id: renewable_electricity_production_emissions_reductions
+      name: Uusiutuvan sähköntuotannon päästövähennykset
+      name_en: Renewable electricity production emissions reductions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      input_nodes:
+        - electricity_production_emission_factor
+      output_nodes:
+        - electricity_consumption_emissions
 
   actions:
     # - id: reduce_heating_emissions
@@ -339,18 +357,27 @@ instance:
     - id: private_building_energy_renovation
       name: Korjausrakentaminen yksityisissä kiinteistöissä
       name_en: Energy renovation of privately owned buildings
-      type: simple.CumulativeAdditiveAction
+      type: simple.LinearCumulativeAdditiveAction
       output_nodes:
         - district_heating_consumption
-      forecast_values: [[2021, -23.9], [2022, -23.9], [2023, -23.9], [2024, -23.9], [2025, -23.9], [2026, -23.9], [2027, -23.9], [2028, -23.9], [2029, -23.9], [2030, -23.9]]
+        - other_electricity_consumption
+        - direct_electric_heating_electricity_use
+      forecast_values:
+        - id: district_heating_consumption
+          values: [[2020, 0], [2030, -239]]
+        - id: other_electricity_consumption
+          values: [[2020, 0], [2030, -12.65]]
+        - id: direct_electric_heating_electricity_use
+          values: [[2020, 0], [2030, 10.01]]
       unit: GWh
 
     - id: distributed_renewable_energy
       name: Hajautettu uusiutuva energia
       name_en: Distributed renewable energy production
+      description: Arvioitu aurinkosähkön tuotannon kasvu. Sähkölaitos arvioi, että vuonna 2030 tuotanto olisi noin 10 - 20 GWh/vuosi. Nykytuotanto 2020 on noin 0,2 GWh. 2016 tehdyn uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita)
       type: simple.CumulativeAdditiveAction
       output_nodes:
-        - district_heating_consumption
+        - renewable_electricity_production
       forecast_values: [[2020, -0.2], [2021, -0.3], [2022, -0.45], [2023, -0.6], [2024, -0.8], [2025, -1.1], [2026, -1.5], [2027, -2], [2028, -2.7], [2029, -3.3], [2030, -4]]
       allowed_params:
         - id: target_year_ratio
@@ -377,15 +404,15 @@ instance:
 
     - id: oil_heated_municipal_buildings_to_heat_pump
       name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
-      type: simple.CumulativeAdditiveAction
+      type: simple.LinearCumulativeAdditiveAction
       output_nodes:
         - oil_heating_energy_use
         - direct_electric_heating_electricity_use
       forecast_values:
         - id: oil_heating_energy_use
-          values: [[2021, -0.734], [2022, -0.734], [2023, -0.734], [2024, -0.734], [2025, -0.734]]
+          values: [[2020, 0], [2025, -3.674]]
         - id: direct_electric_heating_electricity_use
-          values: [[2021, 0.2936], [2022, 0.2936], [2023, 0.2936], [2024, 0.2936], [2025, 0.2936]]
+          values: [[2020, 0], [2025, 1.468]]
       unit: GWh
       description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
 
@@ -400,6 +427,9 @@ instance:
     - id: baseline
       name: Peruskehitys
       name_en: Baseline
+      params:
+        - id: naistenlahti3.enabled
+          value: true
 
     - id: roadmap
       default: true

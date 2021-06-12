@@ -66,4 +66,4 @@ class ActionNode(Node):
 
     def print_impact(self, target_node: Node):
         df = self.compute_impact(target_node)
-        print(df)
+        self.print_pint_df(df)

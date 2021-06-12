@@ -26,7 +26,7 @@ class Instance:
 class InstanceLoader:
     instance: Instance
 
-    def make_trans_string(self, config: Dict, attr: str, pop: bool=False):
+    def make_trans_string(self, config: Dict, attr: str, pop: bool = False):
         default = config.get(attr)
         if pop:
             del config[attr]
@@ -124,6 +124,9 @@ class InstanceLoader:
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
             data_col = ec.pop('column', None)
+            if 'name_en' in ec:
+                if 'emissions' not in ec['name_en']:
+                    ec['name_en'] += ' emissions'
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
                 input_datasets=[dict(
@@ -172,9 +175,9 @@ class InstanceLoader:
         default_scenario = None
 
         for sc in self.config['scenarios']:
-            actions = sc.pop('actions', [])
             all_actions_enabled = sc.pop('all_actions_enabled', False)
             name = self.make_trans_string(sc, 'name', pop=True)
+            params = sc.pop('params', [])
             scenario = Scenario(**sc, name=name)
             if all_actions_enabled:
                 for node in self.context.nodes.values():
@@ -182,12 +185,11 @@ class InstanceLoader:
                         continue
                     param = node.get_param('enabled')
                     scenario.params.append((param, True))
-            """
-            for act_conf in actions:
-                node = self.context.get_node(act_conf.pop('id'))
-                assert isinstance(node, Action)
-                scenario.actions.append([node, act_conf])
-            """
+
+            for pc in params:
+                param = self.context.get_param(pc['id'])
+                scenario.params.append((param, param.clean(pc['value'])))
+
             if scenario.default:
                 assert default_scenario is None
                 default_scenario = scenario

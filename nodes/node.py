@@ -122,6 +122,7 @@ class Node:
     def get_output(self, target_node: Node = None) -> pd.DataFrame:
         # FIXME: Implement caching
         out = self.compute()
+
         if out is None:
             return None
         if out.index.duplicated().any():
@@ -141,18 +142,18 @@ class Node:
 
     def print_output(self):
         df = self.get_output()
-
-        # Strip pint units before displaying to prevent a warning
-        for col in list(df.columns):
-            if hasattr(df[col], 'pint'):
-                df[col] = df[col].pint.m
-
         if self.baseline_values is not None and VALUE_COLUMN in df.columns:
             df['Baseline'] = self.baseline_values[VALUE_COLUMN]
-            if hasattr(df.Baseline, 'pint'):
-                df.Baseline = df.Baseline.pint.m
+        self.print_pint_df(df)
 
-        print(df)
+    def print_pint_df(self, df: pd.DataFrame):
+        pint_cols = [col for col in df.columns if hasattr(df[col], 'pint')]
+        out = df[pint_cols].pint.dequantify()
+        for col in df.columns:
+            if col in pint_cols:
+                continue
+            out[col] = df[col]
+        print(out)
 
     def get_target_year(self) -> int:
         return self.context.target_year
@@ -173,12 +174,16 @@ class Node:
             return False
         return True
 
-    def ensure_output_unit(self, s: pd.Series):
+    def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
         pt = pint_pandas.PintType(self.unit)
         if hasattr(s, 'pint'):
             if not self.unit.is_compatible_with(s.pint.units):
-                raise NodeError(self, 'Series with type %s is not compatible with %s' % (
-                    s.pint.units, self.unit
+                if input_node is not None:
+                    node_str = ' from node %s' % input_node.id
+                else:
+                    node_str = ''
+                raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
+                    s.pint.units, node_str, self.unit
                 ))
         return s.astype(pt)
 
