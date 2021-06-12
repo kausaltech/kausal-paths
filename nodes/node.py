@@ -1,23 +1,27 @@
 from __future__ import annotations
-from types import FunctionType
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
-import pint
+import hashlib
+import os
+import inspect
+from types import FunctionType
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+
 import pandas as pd
+import pint
 import pint_pandas
 
 from common.i18n import TranslatedString
-
-from .datasets import Dataset
-from .context import Context
-from .exceptions import NodeError
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from params import Parameter
+
+from .context import Context
+from .datasets import Dataset
+from .exceptions import NodeError
 
 
 class Node:
     # identifier of the Node instance
-    id: str = None
+    id: str
     # output_metrics: Iterable[Metric]
 
     # name is the human-readable label for the Node instance
@@ -27,19 +31,20 @@ class Node:
     description: TranslatedString = None
 
     # if the node has an established visualisation color
-    color: str = None
+    color: Optional[str] = None
 
     # output unit (from pint)
     unit: pint.Unit
     # output quantity (like 'energy' or 'emissions')
-    quantity: str = None
+    quantity: Optional[str] = None
 
-    input_datasets: Iterable[Dataset] = []
+    input_datasets: List[str]
     # List of global parameters that this node requires
-    input_parameters: List[str] = []
+    input_params: List[str]
 
-    input_nodes: Iterable[Node]
-    output_nodes: Iterable[Node]
+    input_dataset_instances: List[Dataset]
+    input_nodes: List[Node]
+    output_nodes: List[Node]
 
     # Parameters with their values
     params: Dict[str, Parameter]
@@ -52,10 +57,17 @@ class Node:
 
     context: Context
 
-    def __init__(self, context: Context, id: str, input_datasets: Iterable[Dataset] = None):
+    __post_init__: Callable[[Node], None]
+
+    def __init__(self, context: Context, id: str, input_datasets: List[Dataset] = None):
         self.context = context
         self.id = id
-        self.input_datasets = input_datasets or []
+        if input_datasets:
+            self.input_dataset_instances = input_datasets
+        else:
+            self.input_dataset_instances = []
+        self.input_params = getattr(self, 'input_params', [])
+
         self.input_nodes = []
         self.output_nodes = []
         self.allowed_params = []
@@ -95,8 +107,8 @@ class Node:
             else:
                 return None
 
-        if id not in self.input_parameters:
-            raise NodeError(self, 'Node is trying to access parameter %s but it is not listed in Node.input_parameters' % id)
+        if id not in self.input_params:
+            raise NodeError(self, 'Node is trying to access parameter %s but it is not listed in Node.input_params' % id)
 
         return self.context.get_param(id, required=required)
 
@@ -111,32 +123,55 @@ class Node:
             raise NodeError(self, 'Node param %s not found' % id)
         self.params[id].set(value)
 
-    def get_input_datasets(self):
+    def get_input_datasets(self) -> List[Union[pd.DataFrame, pd.Series]]:
         dfs = []
-        for ds in self.input_datasets:
-            df = ds.load(self.context).copy()
+        for ds in self.input_dataset_instances:
+            df = ds.get_copy(self.context)
             if df.index.duplicated().any():
                 raise NodeError(self, "Input dataset has duplicate index rows")
             dfs.append(df)
         return dfs
 
-    def get_input_dataset(self):
+    def get_input_dataset(self) -> Optional[Union[pd.DataFrame, pd.Series]]:
         """Gets the first (and only) dataset if it exists."""
-        if not self.input_datasets:
-            return None
-
         datasets = self.get_input_datasets()
+        if not datasets:
+            return None
         assert len(datasets) == 1
         return datasets[0]
 
-    def get_output(self, target_node: Node = None) -> pd.DataFrame:
-        # FIXME: Implement caching
-        out = self.compute()
+    def calculate_hash(self) -> bytes:
+        h = hashlib.md5()
+        for node in self.input_nodes:
+            h.update(node.calculate_hash())
+        for param in self.params.values():
+            h.update(param.calculate_hash())
+        for ds in self.input_dataset_instances:
+            h.update(ds.calculate_hash(self.context))
+        for klass in type(self).mro():
+            try:
+                mod_mtime = os.path.getmtime(inspect.getfile(klass))
+            except TypeError:
+                continue
+            h.update(str(mod_mtime).encode('utf8'))
+        return h.digest()
+
+    def get_output(self, target_node: Node = None) -> Optional[pd.DataFrame]:
+        node_hash = self.calculate_hash().hex()
+        out = self.context.cache.get(node_hash)
+        if out is None:
+            out = self.compute()
+            was_cached = False
+        else:
+            was_cached = True
 
         if out is None:
             return None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
+
+        if not was_cached:
+            self.context.cache.set(node_hash, out)
 
         # If a node has multiple outputs, we can specify only one series
         # to include.

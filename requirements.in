@@ -19,3 +19,5 @@ colored
 factory-boy
 pytest-django
 pytest-factoryboy
+orjson
+redis

@@ -1,4 +1,5 @@
 import argparse
+from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 import sys
 from nodes.instance import InstanceLoader
@@ -16,6 +17,7 @@ if True:
 
     warnings.showwarning = warn_with_traceback
 
+load_dotenv()
 
 loader = InstanceLoader.from_yaml('configs/tampere.yaml')
 loader.print_graph()

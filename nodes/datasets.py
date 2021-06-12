@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import hashlib
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+import orjson
+
 import pandas as pd
 import pint
 import pint_pandas
-from typing import Iterable, List, Tuple
-from dataclasses import dataclass
+from dvc_pandas import Dataset as DVCDataset, Repository
+
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
+if TYPE_CHECKING:
+    from .context import Context
 
 # Use the pyarrow parquet engine because it's faster to start.
 pd.set_option('io.parquet.engine', 'pyarrow')
@@ -15,21 +22,54 @@ pd.set_option('io.parquet.engine', 'pyarrow')
 @dataclass
 class Dataset:
     id: str
-    input_dataset: str = None
-    column: str = None
-    filters: Iterable = None
-    groupby: dict = None
 
-    # The year from which the time series is a forecast
-    forecast_from: int = None
-    fixed_data: pd.DataFrame = None
+    # If this dataset comes from dvc-pandas, we can customize the output
+    # further by specifying a column, filters and groupby.
+    # If `input_dataset` is not specified, we default to `id` being
+    # the dvc-pandas dataset identifier.
+    input_dataset: Optional[str] = None
+    column: Optional[str] = None
+    filters: Optional[List] = None
+    groupby: Optional[Dict] = None
 
-    def load(self, context):
+    # The year from which the time series becomes a forecast
+    forecast_from: Optional[int] = None
+    fixed_data: Optional[pd.DataFrame] = None
+
+    df: Optional[pd.DataFrame] = field(init=False)
+    hash: Optional[bytes] = field(init=False)
+    dvc_dataset: Optional[DVCDataset] = field(init=False)
+
+    def __post_init__(self):
+        self.df = None
+        self.hash = None
+        self.dvc_dataset = None
+
+    def load_dvc_dataset(self, context: Context) -> DVCDataset:
+        if self.dvc_dataset is not None:
+            return self.dvc_dataset
+        if self.input_dataset:
+            dvc_dataset_id = self.input_dataset
+        else:
+            dvc_dataset_id = self.id
+        return context.load_dvc_dataset(dvc_dataset_id)
+
+    def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
         if self.fixed_data is not None:
             return self.fixed_data
 
+        if self.df is not None:
+            return self.df
+
+        ds_hash = self.calculate_hash(context)
+        obj = context.cache.get(ds_hash.hex())
+        if obj is not None:
+            self.df = obj
+            return obj
+
         if self.input_dataset:
-            df = context.load_dataset(self.input_dataset)
+            self.dvc_dataset = context.load_dvc_dataset(self.input_dataset)
+            df = self.dvc_dataset.df
             if self.filters:
                 for d in self.filters:
                     col = d['column']
@@ -43,7 +83,8 @@ class Dataset:
 
             return df
 
-        df = context.load_dataset(self.id)
+        self.dvc_dataset = context.load_dvc_dataset(self.id)
+        df = self.dvc_dataset.df
         cols = df.columns
         if self.column:
             if self.column not in cols:
@@ -69,6 +110,28 @@ class Dataset:
                 return df[self.column]
 
         return df[cols]
+
+    def get_copy(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+        return self.load(context).copy()
+
+    def calculate_hash(self, context: Context) -> bytes:
+        if self.hash is not None:
+            return self.hash
+        extra_fields = ['input_dataset', 'column', 'filters', 'groupby', 'forecast_from']
+        d = {'id': self.id}
+        for f in extra_fields:
+            d[f] = getattr(self, f)
+
+        if self.fixed_data is not None:
+            df = self.fixed_data
+            hash_val = str(pd.util.hash_pandas_object(df).sum())
+        else:
+            ds = self.load_dvc_dataset(context)
+            hash_val = str(ds.modified_at.isoformat())
+        d['hash'] = hash_val
+        h = hashlib.md5(orjson.dumps(d)).digest()
+        self.hash = h
+        return h
 
     @classmethod
     def fixed_multi_values_to_df(kls, data):

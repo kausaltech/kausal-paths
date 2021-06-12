@@ -7,7 +7,7 @@ from nodes.exceptions import NodeError
 class Population(Node):
     TOTAL_POPULATION_COLUMN = 'Väestö 31.12.'
 
-    input_parameters = ['municipality_name']
+    input_params = ['municipality_name']
     input_datasets = [
         'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11ra',
         'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_128w'

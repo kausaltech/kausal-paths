@@ -1,12 +1,15 @@
 from __future__ import annotations
+import os
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING, Union
+import pandas as pd
 import pint
 import pint_pandas
 
 import dvc_pandas
 from params.discover import discover_parameters
 from params import Parameter
+from common.cache import Cache
 
 from .datasets import Dataset
 if TYPE_CHECKING:
@@ -33,7 +36,8 @@ pint_pandas.PintType.ureg = unit_registry
 
 class Context:
     nodes: dict[str, Node]
-    datasets: dict[str, Dataset]
+    datasets: Dict[str, Dataset]
+    dvc_datasets: Dict[str, dvc_pandas.Dataset]
     params: dict[str, Parameter]
     scenarios: dict[str, Scenario]
     target_year: int
@@ -41,6 +45,7 @@ class Context:
     dataset_repo: dvc_pandas.Repository
     active_scenario: Scenario
     supported_params: dict[str, type]
+    cache: Cache
 
     def __init__(self):
         from nodes.actions import ActionNode
@@ -51,22 +56,25 @@ class Context:
         self.datasets = {}
         self.scenarios = {}
         self.params = {}
+        self.dvc_datasets = {}
         self.unit_registry = unit_registry
         self.active_scenario = None
         self.supported_params = discover_parameters()
+        self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
 
-    def load_dataset(self, identifier: str):
-        if identifier in self.datasets:
-            return self.datasets[identifier].copy()
-        dataset = self.dataset_repo.load_dataset(identifier)
-        self.datasets[identifier] = dataset.df
-        return dataset.df.copy()
+    def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
+        ds = self.datasets.get(id)
+        if ds is None:
+            if not self.dataset_repo.has_dataset(id):
+                raise Exception('Dataset %s not found in DVC repo' % id)
+            ds = self.dataset_repo.load_dataset(id)
+            self.dvc_datasets[id] = ds
+        return ds
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets
         ds = Dataset(**config)
-        df = ds.load(self)
-        self.datasets[config['id']] = df
+        self.datasets[ds.id] = ds
 
     def add_node(self, node: Node):
         if node.id in self.nodes:

@@ -61,10 +61,12 @@ class InstanceLoader:
 
         for ds in ds_config:
             if isinstance(ds, str):
-                dc = {'id': ds}
+                ds_id = ds
+                dc = {}
             else:
+                ds_id = ds.pop('id')
                 dc = ds
-            o = Dataset(**dc)
+            o = Dataset(id=ds_id, **dc)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
