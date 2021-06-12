@@ -18,6 +18,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import TemplateView
 
 from wagtail.core import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
@@ -35,6 +36,10 @@ urlpatterns = [
     # For anything not caught by a more specific rule above, hand over to
     # Wagtail's serving mechanism
     path('pages/', include(wagtail_urls)),
+
+    path('v1/graphql/docs/', TemplateView.as_view(
+        template_name='graphql-voyager.html',
+    ), name='graphql-voyager'),
 
     path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view(graphiql=True))),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
