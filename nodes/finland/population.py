@@ -15,7 +15,7 @@ class Population(Node):
     unit = 'person'
 
     def compute(self):
-        muni_name = 'Tampere'
+        muni_name = self.get_param_value('municipality_name')
 
         df_hist, df_forecast = self.get_input_datasets()
         df_hist = df_hist.xs(muni_name, level='Alue')

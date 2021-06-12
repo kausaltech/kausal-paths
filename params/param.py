@@ -23,9 +23,7 @@ class Parameter:
     # Set if this parameter is bound to a specific node
     node: Node = None
     is_customized: bool = False
-
-    def reset(self):
-        self.value = self.default_value
+    is_customizable: bool = None
 
     def set(self, value: typing.Any):
         self.value = self.clean(value)
@@ -37,9 +35,9 @@ class Parameter:
 @dataclass
 class NumberParameter(Parameter):
     value: float = None
-    default_value: float = None
     min_value: float = None
     max_value: float = None
+    step: float = None
     unit: str = None
 
     def __post_init__(self):
@@ -63,9 +61,13 @@ class NumberParameter(Parameter):
 
 
 @dataclass
+class PercentageParameter(NumberParameter):
+    unit = '%'
+
+
+@dataclass
 class BoolParameter(Parameter):
     value: bool = None
-    default_value: bool = None
 
     def clean(self, value: bool):
         # Avoid converting non-bool to bool
@@ -77,7 +79,6 @@ class BoolParameter(Parameter):
 @dataclass
 class StringParameter(Parameter):
     value: str = None
-    default_value: str = None
 
     def clean(self, value: str):
         if not isinstance(value, str):

@@ -7,7 +7,7 @@ instance:
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt
   emission_forecast_from: 2019
-  parameters:
+  params:
     - id: municipality_name
       value: Tampere
   emission_sectors:
@@ -379,10 +379,13 @@ instance:
       output_nodes:
         - renewable_electricity_production
       forecast_values: [[2020, -0.2], [2021, -0.3], [2022, -0.45], [2023, -0.6], [2024, -0.8], [2025, -1.1], [2026, -1.5], [2027, -2], [2028, -2.7], [2029, -3.3], [2030, -4]]
-      allowed_params:
+      params:
         - id: target_year_ratio
+          values:
+            default: 100
           min_value: 0
-          max_value: 5
+          max_value: 500
+          step: 20
           description: Prosentuaalinen lisäys uusiutuvan energian tuotannossa
           description_en: Increase in renewable energy production
       unit: GWh
@@ -431,7 +434,7 @@ instance:
         - id: naistenlahti3.enabled
           value: true
 
-    - id: roadmap
+    - id: default
       default: true
       name: Hiilineutraali Tampere 2030 -tiekartta
       name_en: Carbon-neutral Tampere 2030 roadmap

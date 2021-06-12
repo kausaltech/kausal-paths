@@ -35,6 +35,9 @@ class Node:
     quantity: str = None
 
     input_datasets: Iterable[Dataset] = []
+    # List of global parameters that this node requires
+    input_parameters: List[str] = []
+
     input_nodes: Iterable[Node]
     output_nodes: Iterable[Node]
 
@@ -68,6 +71,9 @@ class Node:
         global_id = '%s.%s' % (self.id, param.id)
         param.id = global_id
         param.node = self
+        # By default node parameters are customizable
+        if param.is_customizable is None:
+            param.is_customizable = True
         assert global_id not in self.context.params
         self.context.params[global_id] = param
         assert local_id not in self.params
@@ -88,6 +94,10 @@ class Node:
                 raise NodeError(self, 'Local parameter %s not found' % id)
             else:
                 return None
+
+        if id not in self.input_parameters:
+            raise NodeError(self, 'Node is trying to access parameter %s but it is not listed in Node.input_parameters' % id)
+
         return self.context.get_param(id, required=required)
 
     def get_param_value(self, id: str, local: bool = False, required: bool = True) -> Any:

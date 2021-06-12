@@ -112,10 +112,6 @@ class Context:
         return root_nodes[0].compute()
 
     def activate_scenario(self, scenario: Scenario):
-        # Reset every action node to its default params
-        for param in self.params.values():
-            param.reset()
-
         # Set the new parameters
         scenario.activate(self)
         self.active_scenario = scenario

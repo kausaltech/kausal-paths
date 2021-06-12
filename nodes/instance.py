@@ -28,7 +28,7 @@ class InstanceLoader:
 
     def make_trans_string(self, config: Dict, attr: str, pop: bool = False):
         default = config.get(attr)
-        if pop:
+        if pop and default is not None:
             del config[attr]
         langs = {}
         if default is not None:
@@ -83,14 +83,16 @@ class InstanceLoader:
         node.unit = unit
         node.config = config
 
-        allowed_params = config.get('allowed_params', [])
-        if allowed_params:
+        params = config.get('params', [])
+        if params:
             # Ensure that the node class allows these parameters
             class_allowed_params = {p.id: p for p in getattr(node_class, 'allowed_params', [])}
             node.allowed_params = []
-            for pc in allowed_params:
+            for pc in params:
                 param_id = pc.pop('id')
+                name = self.make_trans_string(pc, 'name', pop=True)
                 description = self.make_trans_string(pc, 'description', pop=True)
+                scenario_values = pc.pop('values', {})
                 param_obj = class_allowed_params.get(param_id)
                 if param_obj is None:
                     raise NodeError(node, "Parameter %s not allowed by node class" % param_id)
@@ -99,6 +101,14 @@ class InstanceLoader:
                 fields.update(pc)
                 if description is not None:
                     fields['description'] = description
+                if name is not None:
+                    fields['name'] = description
+                param = type(param_obj)(**fields)
+                for scenario_id, value in scenario_values.items():
+                    scenario = self.scenario_node_params.setdefault(scenario_id, {})
+                    scenario_params = scenario.setdefault(node.id, {})
+                    scenario_params[param.id] = param.clean(value)
+
                 node.allowed_params.append(type(param_obj)(**fields))
         else:
             node.allowed_params = []
@@ -179,16 +189,22 @@ class InstanceLoader:
             name = self.make_trans_string(sc, 'name', pop=True)
             params = sc.pop('params', [])
             scenario = Scenario(**sc, name=name)
-            if all_actions_enabled:
-                for node in self.context.nodes.values():
-                    if not isinstance(node, ActionNode):
-                        continue
-                    param = node.get_param('enabled')
-                    scenario.params.append((param, True))
+
+            for node in self.context.nodes.values():
+                if not isinstance(node, ActionNode):
+                    continue
+                param = node.get_param('enabled')
+                scenario.params[param.id] = all_actions_enabled
 
             for pc in params:
                 param = self.context.get_param(pc['id'])
-                scenario.params.append((param, param.clean(pc['value'])))
+                scenario.params[param.id] = param.clean(pc['value'])
+
+            for node_id, node_params in self.scenario_node_params.get(scenario.id, {}).items():
+                node = self.context.get_node(node_id)
+                for param_id, val in node_params.items():
+                    param = node.get_param(param_id, local=True)
+                    scenario.params[param.id] = val
 
             if scenario.default:
                 assert default_scenario is None
@@ -249,6 +265,21 @@ class InstanceLoader:
             page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
             instance.pages[node.id] = page
 
+    def setup_global_params(self):
+        context = self.context
+        for pc in self.config.get('params', []):
+            param_id = pc['id']
+            assert param_id not in context.params
+            param_type = context.supported_params.get(param_id)
+            if param_type is None:
+                raise Exception('Unknown parameter: %s' % param_id)
+            param_val = pc.pop('value', None)
+            if 'is_customizable' not in pc:
+                pc['is_customizable'] = False
+            param = param_type(**pc)
+            param.set(param_val)
+            context.params[param_id] = param
+
     @classmethod
     def from_yaml(cls, filename):
         data = yaml.load(open(filename, 'r'), Loader=yaml.Loader)
@@ -270,11 +301,12 @@ class InstanceLoader:
         self.context.target_year = self.config['target_year']
 
         self.load_datasets(self.config.get('datasets', []))
-
+        self.scenario_node_params = {}
         self.generate_nodes_from_emission_sectors()
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
+        self.setup_global_params()
         self.setup_scenarios()
         self.setup_pages()
 

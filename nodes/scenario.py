@@ -1,5 +1,5 @@
 import logging
-from typing import List, Any, Tuple, TYPE_CHECKING
+from typing import Dict, List, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 
 from common.i18n import TranslatedString
@@ -17,13 +17,14 @@ class Scenario:
     name: TranslatedString
     default: bool = False
     # Dict of params and their values in the scenario
-    params: List[Tuple[Parameter, Any]] = None
+    params: Dict[str, Any] = None
 
     def __post_init__(self):
-        self.params = []
+        self.params = {}
 
     def activate(self, context):
-        for param, val in self.params:
+        for param_id, val in self.params.items():
+            param = context.get_param(param_id)
             param.set(val)
             param.is_customized = False
 

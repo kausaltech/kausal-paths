@@ -1,5 +1,4 @@
-from params import NumberParameter
-import pandas as pd
+from params import PercentageParameter
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from .action import ActionNode
 
@@ -20,7 +19,7 @@ class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
     allowed_params = [
-        NumberParameter('target_year_ratio', min_value=0, default_value=1, unit='%')
+        PercentageParameter('target_year_ratio', min_value=0)
     ]
 
     def add_cumulatively(self, df):
@@ -39,7 +38,7 @@ class CumulativeAdditiveAction(ActionNode):
 
             target_year_ratio = self.get_param_value('target_year_ratio', local=True, required=False)
             if target_year_ratio is not None:
-                val *= target_year_ratio
+                val *= target_year_ratio / 100
 
             df[col] = val
             if not self.is_enabled():

@@ -45,6 +45,7 @@ def print_metric(metric):
 
 parser = argparse.ArgumentParser(description='Execute the computational graph')
 parser.add_argument('--baseline', action='store_true', help='generate baseline scenario values')
+parser.add_argument('--scenario', type=str, help='select scenario')
 parser.add_argument('--param', action='append', type=str, help='set a parameter')
 parser.add_argument('--list-params', action='store_true', help='list parameters')
 parser.add_argument('--node', type=str, nargs='+', help='Compute node')
@@ -54,6 +55,8 @@ args = parser.parse_args()
 if args.pull_datasets:
     context.pull_datasets()
 
+if args.scenario:
+    context.activate_scenario(context.get_scenario(args.scenario))
 
 if args.list_params:
     context.print_params()
