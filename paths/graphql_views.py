@@ -1,10 +1,10 @@
-from nodes.scenario import CustomScenario
+import orjson
 from django.conf import settings
 from django.utils.translation import activate
-
 from graphene_django.views import GraphQLView
 from graphql.error import GraphQLError
 
+from nodes.scenario import CustomScenario
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
@@ -63,3 +63,8 @@ class PathsGraphQLView(GraphQLView):
         if 'middleware' not in kwargs:
             kwargs['middleware'] = (LocaleMiddleware, InstanceMiddleware)
         super().__init__(*args, **kwargs)
+
+    def json_encode(self, request, d, pretty=False):
+        if not (self.pretty or pretty) and not request.GET.get("pretty"):
+            return orjson.dumps(d)
+        return orjson.dumps(d, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS)
