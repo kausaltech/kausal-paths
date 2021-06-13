@@ -1,17 +1,16 @@
 from __future__ import annotations
 import os
 
-from typing import Any, Dict, Optional, TYPE_CHECKING, Union
-import pandas as pd
+from typing import Any, Dict, Optional, TYPE_CHECKING
 import pint
 import pint_pandas
 
 import dvc_pandas
-from params.discover import discover_parameters
-from params import Parameter
-from common.cache import Cache
-
 from .datasets import Dataset
+from common.cache import Cache
+from params import Parameter
+from params.discover import discover_parameters
+
 if TYPE_CHECKING:
     from .node import Node
     from .scenario import Scenario
@@ -146,3 +145,23 @@ class Context:
 
     def pull_datasets(self):
         self.dataset_repo.pull_datasets()
+
+    def print_graph(self, node=None, indent=0):
+        from colored import fg, attr
+
+        if node is None:
+            all_nodes = self.nodes.values()
+            root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
+            assert len(root_nodes) == 1
+            node = root_nodes[0]
+
+        if isinstance(node, self.Action):
+            node_color = 'green'
+        else:
+            node_color = 'yellow'
+        node_str = f"{fg(node_color)}{node.id} "
+        node_str += f"{fg('grey_50')}{str(type(node))} "
+        node_str += attr('reset')
+        print('  ' * indent + node_str)
+        for in_node in node.input_nodes:
+            self.print_graph(in_node, indent + 1)

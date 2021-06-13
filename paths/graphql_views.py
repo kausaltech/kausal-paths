@@ -32,8 +32,7 @@ class LocaleMiddleware:
 class InstanceMiddleware:
     def resolve(self, next, root, info, **kwargs):
         if root is None:
-            from pages.apps import loader
-            instance = loader.instance
+            from pages.apps import instance
             context = instance.context
             session = info.context.session
 
@@ -54,7 +53,7 @@ class InstanceMiddleware:
                 scenario.set_session(session)
             context.activate_scenario(scenario)
 
-            info.context.instance = loader.instance
+            info.context.instance = instance
         return next(root, info, **kwargs)
 
 

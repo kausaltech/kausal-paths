@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass, asdict
 from nodes.exceptions import NodeError
 
@@ -83,7 +84,10 @@ class InstanceLoader:
         if 'quantity' in config:
             node.quantity = config['quantity']
         node.unit = unit
-        node.config = config
+        assert node.id not in self._input_nodes
+        assert node.id not in self._output_nodes
+        self._input_nodes[node.id] = config.get('input_nodes', [])
+        self._output_nodes[node.id] = config.get('output_nodes', [])
 
         params = config.get('params', [])
         if params:
@@ -167,14 +171,14 @@ class InstanceLoader:
     def setup_edges(self):
         # Setup edges
         for node in self.context.nodes.values():
-            for out_id in node.config.get('output_nodes', []):
+            for out_id in self._output_nodes.get(node.id, []):
                 out_node = self.context.get_node(out_id)
                 assert node not in out_node.input_nodes
                 out_node.input_nodes.append(node)
                 assert out_node not in node.output_nodes
                 node.output_nodes.append(out_node)
 
-            for in_id in node.config.get('input_nodes', []):
+            for in_id in self._input_nodes.get(node.id, []):
                 in_node = self.context.get_node(in_id)
                 assert node not in in_node.output_nodes
                 in_node.output_nodes.append(node)
@@ -218,26 +222,6 @@ class InstanceLoader:
                 id='custom', name='Custom', base_scenario=default_scenario
             )
         )
-
-    def print_graph(self, node=None, indent=0):
-        from colored import fg, attr
-
-        if node is None:
-            all_nodes = self.context.nodes.values()
-            root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-            assert len(root_nodes) == 1
-            node = root_nodes[0]
-
-        if isinstance(node, ActionNode):
-            node_color = 'green'
-        else:
-            node_color = 'yellow'
-        node_str = f"{fg(node_color)}{node.id} "
-        node_str += f"{fg('grey_50')}{str(type(node))} "
-        node_str += attr('reset')
-        print('  ' * indent + node_str)
-        for in_node in node.input_nodes:
-            self.print_graph(in_node, indent + 1)
 
     def load_datasets(self, datasets):
         for ds in datasets:
@@ -304,6 +288,9 @@ class InstanceLoader:
 
         self.load_datasets(self.config.get('datasets', []))
         self.scenario_node_params = {}
+        # Store input and output node configs for each created node, to be used in setup_edges().
+        self._input_nodes = {}
+        self._output_nodes = {}
         self.generate_nodes_from_emission_sectors()
         self.setup_nodes()
         self.setup_actions()

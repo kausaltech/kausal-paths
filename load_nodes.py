@@ -20,8 +20,8 @@ if True:
 load_dotenv()
 
 loader = InstanceLoader.from_yaml('configs/tampere.yaml')
-loader.print_graph()
 context = loader.context
+context.print_graph()
 
 page = list(loader.instance.pages.values())[0]
 
