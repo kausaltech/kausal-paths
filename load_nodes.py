@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 import sys
 from nodes.instance import InstanceLoader
+from common.perf import PerfCounter
 
 
 if True:
@@ -50,7 +51,8 @@ parser.add_argument('--baseline', action='store_true', help='generate baseline s
 parser.add_argument('--scenario', type=str, help='select scenario')
 parser.add_argument('--param', action='append', type=str, help='set a parameter')
 parser.add_argument('--list-params', action='store_true', help='list parameters')
-parser.add_argument('--node', type=str, nargs='+', help='Compute node')
+parser.add_argument('--debug', action='store_true', help='enable debug messages and disable cache')
+parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 args = parser.parse_args()
 
@@ -63,9 +65,16 @@ if args.scenario:
 if args.list_params:
     context.print_params()
 
+if args.debug:
+    for node_id in (args.node or []):
+        node = context.get_node(node_id)
+        node.debug = True
+
 if args.baseline:
-    print('Generating baseline prediction')
+    pc = PerfCounter('Baseline')
+    pc.display('generating')
     context.generate_baseline_values()
+    pc.display('done')
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
