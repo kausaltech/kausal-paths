@@ -150,9 +150,27 @@ class ResetParameterMutation(graphene.Mutation):
         return ResetParameterMutation(ok=True)
 
 
+class ActivateScenarioMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+
+    ok = graphene.Boolean()
+
+    def mutate(root, info: GQLInfo, id):
+        context = info.context.instance.context
+        session = info.context.session
+        if id not in context.scenarios:
+            raise GraphQLError("Scenario '%s' not found" % id, [info])
+
+        session['active_scenario'] = id
+
+        return dict(ok=True)
+
+
 class Mutations(graphene.ObjectType):
     set_parameter = SetParameterMutation.Field()
     reset_parameter = ResetParameterMutation.Field()
+    activate_scenario = ActivateScenarioMutation.Field()
 
 
 class Query(graphene.ObjectType):
