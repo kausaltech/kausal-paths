@@ -45,6 +45,15 @@ class AdditiveNode(Node):
             if VALUE_COLUMN not in df.columns:
                 raise NodeError(self, "Input dataset doesn't have Value column")
 
+            if df.index.max() < self.get_target_year():
+                last_year = df.index.max()
+                last_val = df.loc[last_year]
+                new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
+                df = df.reindex(new_index)
+                df.iloc[-1] = last_val
+                df = df.fillna(method='bfill')
+                df.loc[df.index > last_year, FORECAST_COLUMN] = True
+
         return self.add_nodes(df, self.input_nodes)
 
 
