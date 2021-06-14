@@ -56,7 +56,7 @@ class Node:
     baseline_values: Optional[pd.DataFrame]
 
     context: Context
-
+    debug: bool = False
     __post_init__: Callable[[Node], None]
 
     def __init__(self, context: Context, id: str, input_datasets: List[Dataset] = None):
@@ -159,18 +159,21 @@ class Node:
     def get_output(self, target_node: Node = None) -> Optional[pd.DataFrame]:
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
-        if out is None:
+        if out is None or self.debug:
             out = self.compute()
-            was_cached = False
+            cache_hit = False
         else:
-            was_cached = True
+            cache_hit = True
+
+        if self.id == 'electricity_production_emission_factor':
+            print(self.debug, cache_hit)
 
         if out is None:
             return None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
 
-        if not was_cached:
+        if not cache_hit:
             self.context.cache.set(node_hash, out)
 
         # If a node has multiple outputs, we can specify only one series

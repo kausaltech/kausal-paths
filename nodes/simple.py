@@ -14,6 +14,9 @@ class AdditiveNode(Node):
     """Simple addition of inputs"""
 
     def add_nodes(self, df: pd.DataFrame, nodes: List[Node]):
+        if self.debug:
+            print('%s: input dataset:' % self.id)
+            print(self.print_pint_df(df))
         for node in nodes:
             node_df = node.get_output(self)
             if node_df is None:
@@ -22,6 +25,10 @@ class AdditiveNode(Node):
             if df is None:
                 df = node_df
                 continue
+
+            if self.debug:
+                print('%s: adding output from node %s' % (self.id, node.id))
+                self.print_pint_df(node_df)
 
             if VALUE_COLUMN not in df.columns:
                 raise NodeError(self, "Value column missing in output of %s" % node.id)
