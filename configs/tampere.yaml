@@ -296,7 +296,7 @@ instance:
       unit: g/kWh
       quantity: emission_factor
       historical_values: [[1990, 350], [2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
-      forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
+      # forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
 
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
@@ -419,6 +419,15 @@ instance:
       unit: GWh
       description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
 
+    - id: cleaner_electricity_production
+      name: Kansallinen sähköntuotanto puhdistuu
+      name_en: Shift to low-carbon in national electricity production
+      output_nodes:
+        - electricity_production_emission_factor
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -61]]
+      unit: g/kWh
+
   pages:
     - id: home
       name: Hiilineutraali Tampere 2030 -päästöskenaario
@@ -432,6 +441,8 @@ instance:
       name_en: Baseline
       params:
         - id: naistenlahti3.enabled
+          value: true
+        - id: cleaner_electricity_production.enabled
           value: true
 
     - id: default
