@@ -51,6 +51,7 @@ class EmissionSector(graphene.ObjectType):
     color = graphene.String()
     parent = graphene.Field(lambda: EmissionSector)
     metric = graphene.Field('nodes.schema.ForecastMetricType')
+    node = graphene.Field('nodes.schema.NodeType')
 
 
 class EmissionPageType(graphene.ObjectType):
