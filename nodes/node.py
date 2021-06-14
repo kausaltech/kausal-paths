@@ -165,9 +165,6 @@ class Node:
         else:
             cache_hit = True
 
-        if self.id == 'electricity_production_emission_factor':
-            print(self.debug, cache_hit)
-
         if out is None:
             return None
         if out.index.duplicated().any():
