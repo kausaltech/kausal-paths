@@ -54,6 +54,8 @@ class Node:
 
     # Parameters with their values
     params: Dict[str, Parameter]
+    # Maps a scenario to scenario-specific parameters and their values
+    scenario_params: Dict[str, Dict[str, Parameter]]
 
     # All allowed parameters for this class or object
     allowed_params: Iterable[Parameter]
@@ -81,6 +83,7 @@ class Node:
         self.baseline_values = None
         self.params = {}
         self.content = None
+        self.scenario_params = {}
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -283,6 +286,13 @@ class Node:
                     result.append(current)
                 open += current.input_nodes
         return result
+
+    def on_scenario_created(self, scenario):
+        """Called when a scenario is created with this node among the nodes to be notified."""
+        scenario_params = self.scenario_params.get(scenario.id, {})
+        for param_id, val in scenario_params.items():
+            param = self.get_param(param_id, local=True)
+            scenario.params[param.id] = val
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))

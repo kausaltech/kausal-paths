@@ -2,6 +2,43 @@ import json
 import pytest
 from graphene_django.utils.testing import graphql_query
 
+from nodes.tests.factories import (
+    ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceFactory, ScenarioFactory
+)
+
+
+@pytest.fixture
+def context():
+    return ContextFactory()
+
+
+@pytest.fixture
+def action_node(context):
+    return ActionNodeFactory(context=context)
+
+
+@pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
+def default_scenario(context, action_node):
+    return ScenarioFactory(context=context, default=True, all_actions_enabled=True, nodes=[action_node])
+
+
+@pytest.fixture
+def custom_scenario(context, action_node, default_scenario):
+    return CustomScenarioFactory(
+        context=context,
+        id='custom',
+        name='Custom',
+        base_scenario=default_scenario,
+        nodes=[action_node],
+    )
+
+
+@pytest.fixture(autouse=True)
+def instance(context):
+    from pages import global_instance
+    global_instance.instance = InstanceFactory(context=context)
+    return global_instance.instance
+
 
 @pytest.fixture
 def graphql_client_query(client):

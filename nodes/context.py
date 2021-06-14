@@ -122,8 +122,9 @@ class Context:
         return root_nodes[0].compute()
 
     def activate_scenario(self, scenario: Scenario):
+        assert scenario.context == self
         # Set the new parameters
-        scenario.activate(self)
+        scenario.activate()
         self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:

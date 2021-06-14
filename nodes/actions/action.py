@@ -67,3 +67,8 @@ class ActionNode(Node):
     def print_impact(self, target_node: Node):
         df = self.compute_impact(target_node)
         self.print_pint_df(df)
+
+    def on_scenario_created(self, scenario):
+        super().on_scenario_created(scenario)
+        param = self.get_param('enabled')
+        scenario.params[param.id] = scenario.all_actions_enabled
