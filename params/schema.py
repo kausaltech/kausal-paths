@@ -156,16 +156,19 @@ class ActivateScenarioMutation(graphene.Mutation):
         id = graphene.ID(required=True)
 
     ok = graphene.Boolean()
+    active_scenario = graphene.Field('nodes.schema.ScenarioType')
 
     def mutate(root, info: GQLInfo, id):
         context = info.context.instance.context
         session = info.context.session
-        if id not in context.scenarios:
+        scenario = context.scenarios.get(id)
+        if scenario is None:
             raise GraphQLError("Scenario '%s' not found" % id, [info])
 
-        session['active_scenario'] = id
+        session['active_scenario'] = scenario.id
+        context.activate_scenario(scenario)
 
-        return dict(ok=True)
+        return dict(ok=True, active_scenario=scenario)
 
 
 class Mutations(graphene.ObjectType):
