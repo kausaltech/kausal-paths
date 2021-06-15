@@ -93,6 +93,7 @@ class SetParameterMutation(graphene.Mutation):
 
         parameter_values = {
             NumberParameter: (number_value, 'numberValue'),
+            PercentageParameter: (number_value, 'numberValue'),
             BoolParameter: (bool_value, 'boolValue'),
             StringParameter: (string_value, 'stringValue'),
         }
