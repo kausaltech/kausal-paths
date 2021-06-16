@@ -134,17 +134,34 @@ instance:
       part_of: agriculture_emissions
       column: Field crops
 
-    - id: industrial_electricity_consumption_emissions
-      name_en: Industrial electricity consumption
-      name: Teollisuuden sähkön kulutuksen päästöt
-      part_of: electricity_consumption_emissions
-      column: Industrial electricity consumption
+    #
+    # Electricity emissions
+    #
 
-    - id: service_and_construction_electricity_consumption_emissions
-      name_en: Service and construction electricity consumption emissions
-      name: Palveluiden ja rakentamisen sähkön kulutuksen päästöt
-      part_of: electricity_consumption_emissions
-      column: Industrial electricity consumption
+    - id: other_power_consumption_emissions
+      name_en: Other power consumption (non-heat) emissions
+      name: Muun käyttösähkön kulutuksen päästöt
+      column: Other power consumption
+      part_of: other_electricity_consumption_emissions
+    
+    - id: power_consumption_residential_emissions
+      name_en: Power consumption residential emissions
+      name: Asuntojen käyttösähkön kulutuksen päästöt
+      column: Power consumption residential and agriculture
+      part_of: other_electricity_consumption_emissions
+
+    - id: power_consumption_commerce_emissions
+      name_en: Power consumption commerce and construction emissions
+      name: Palveluiden ja rakentamisen käyttösähkön kulutuksen päästöt
+      column: Power consumption commerce and construction
+      part_of: other_electricity_consumption_emissions
+      #historical_values: [[1990: 420], [2010: 776], [2011: 767], [2012: 783], [2013: 779], [2014: 796], [2015: 784], [2016: 814], [2017: 799], [2018: 767]]
+
+    - id: power_consumption_industry_emissions
+      name_en: Power consumption industry emissions
+      name: Teollisuuden käyttösähkön kulutuksen päästöt
+      column: Power consumption industry
+      part_of: other_electricity_consumption_emissions
 
   nodes:
     - id: population
@@ -312,7 +329,7 @@ instance:
       input_nodes:
         - electricity_production_emission_factor
       output_nodes:
-        - service_and_construction_electricity_consumption_emissions
+        - power_consumption_commerce_emissions
 
     - id: electricity_production_emission_factor
       name: Sähköntuotannon päästökerroin
@@ -458,7 +475,8 @@ instance:
       name_en: Converting street lighting to LED lamps
       type: simple.LinearCumulativeAdditiveAction
       unit: GWh
-      forecast_values: [[2020, 0], [2030, -3]] # 20000 light bulbs * 50 W/bulb * 3000 h/a
+      description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus otetaan käyttöön vuoteen 2025 mennessä. Vuonna 2019 LEDejä oli 33% valaistuksesta. Hankinta koskien valaistuksen ohjausjärjestelmää on saatu päätökseen ja ohjausjärjestelmän toteutus voi alkaa.
+      forecast_values: [[2019, 0], [2025, -12]] # 20000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
       output_nodes:
         - street_lighting_electricity_savings
 
