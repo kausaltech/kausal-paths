@@ -140,6 +140,12 @@ instance:
       part_of: electricity_consumption_emissions
       column: Industrial electricity consumption
 
+    - id: service_and_construction_electricity_consumption_emissions
+      name_en: Service and construction electricity consumption emissions
+      name: Palveluiden ja rakentamisen sähkön kulutuksen päästöt
+      part_of: electricity_consumption_emissions
+      column: Industrial electricity consumption
+
   nodes:
     - id: population
       type: finland.Population
@@ -289,6 +295,25 @@ instance:
       output_nodes:
         - electricity_consumption_emissions
 
+    - id: street_lighting_electricity_savings
+      name: Katuvalaistuksen sähkönsäästö
+      name_en: Street lighting electricity savings
+      type: simple.Activity
+      unit: GWh
+      quantity: energy
+      output_nodes:
+        - street_lighting_emissions
+
+    - id: street_lighting_emissions
+      name: Katuvalaistuksen päästöt
+      name_en: Street lighting emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      input_nodes:
+        - electricity_production_emission_factor
+      output_nodes:
+        - service_and_construction_electricity_consumption_emissions
+
     - id: electricity_production_emission_factor
       name: Sähköntuotannon päästökerroin
       name_en: Electricity production emission factor
@@ -427,6 +452,15 @@ instance:
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -61]]
       unit: g/kWh
+
+    - id: converting_street_lighting_to_lead
+      name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+      name_en: Converting street lighting to LED lamps
+      type: simple.LinearCumulativeAdditiveAction
+      unit: GWh
+      forecast_values: [[2020, 0], [2030, -3]] # 20000 light bulbs * 50 W/bulb * 3000 h/a
+      output_nodes:
+        - street_lighting_electricity_savings
 
   pages:
     - id: home
