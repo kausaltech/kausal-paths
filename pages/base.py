@@ -80,6 +80,10 @@ class Metric:
             return None
         return vals['baseline']
 
+    @property
+    def unit(self):
+        return self.node.unit if self.node else None
+
 '''
 @dataclass
 class Card:
@@ -179,7 +183,9 @@ class EmissionSector:
         return self.node.name
 
     def __post_init__(self):
-        self.metric = Metric(id=self.id, name=self.name, df=self.node.get_output())
+        self.metric = Metric(
+            id=self.id, name=self.name, df=self.node.get_output(),
+        )
 
 
 @dataclass
