@@ -476,7 +476,7 @@ instance:
       type: simple.LinearCumulativeAdditiveAction
       unit: GWh
       description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus otetaan käyttöön vuoteen 2025 mennessä. Vuonna 2019 LEDejä oli 33% valaistuksesta. Hankinta koskien valaistuksen ohjausjärjestelmää on saatu päätökseen ja ohjausjärjestelmän toteutus voi alkaa.
-      forecast_values: [[2019, 0], [2025, -12]] # 20000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+      forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
       output_nodes:
         - street_lighting_electricity_savings
 
