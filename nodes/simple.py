@@ -58,7 +58,10 @@ class AdditiveNode(Node):
                 new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
                 df = df.reindex(new_index)
                 df.iloc[-1] = last_val
+                dt = df.dtypes[VALUE_COLUMN]
+                df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.m
                 df = df.fillna(method='bfill')
+                df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
                 df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
         return self.add_nodes(df, self.input_nodes)
