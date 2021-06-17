@@ -1,3 +1,4 @@
+from params.param import NumberParameter
 from typing import List
 import pandas as pd
 
@@ -128,3 +129,35 @@ class PerCapitaActivity(MultiplicativeNode):
 class Activity(AdditiveNode):
     """Add activity amounts together."""
     pass
+
+
+class FixedMultiplierNode(Node):
+    allowed_params = [
+        NumberParameter(id='multiplier')
+    ]
+
+    def compute(self):
+        if len(self.input_nodes) != 1:
+            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
+
+        node = self.input_nodes[0]
+
+        df = node.get_output()
+        multiplier = self.get_param_value('multiplier', local=True)
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            df[col] *= multiplier
+
+        # If we have also data from an input dataset, we only fill in the gaps from the
+        # calculated data.
+        data_df = self.get_input_dataset()
+        if data_df is not None:
+            latest_year = data_df.index.max()
+            if latest_year < df.index.max():
+                merge_df = df[df.index > latest_year]
+                data_df = data_df.reindex(data_df.index.append(merge_df.index))
+                data_df.loc[data_df.index > latest_year] = merge_df
+            return data_df
+
+        return df
