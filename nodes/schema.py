@@ -16,6 +16,9 @@ class InstanceType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
     target_year = graphene.Int()
+    reference_year = graphene.Int()
+    minimum_historical_year = graphene.Int()
+    maximum_historical_year = graphene.Int()
 
 
 class YearlyValue(graphene.ObjectType):
@@ -49,6 +52,7 @@ class NodeType(graphene.ObjectType):
     color = graphene.String()
     unit = graphene.Field('paths.schema.UnitType')
     quantity = graphene.String()
+    target_year_goal = graphene.Float()
     is_action = graphene.Boolean()
     input_nodes = graphene.List(lambda: NodeType)
     output_nodes = graphene.List(lambda: NodeType)

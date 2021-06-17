@@ -38,6 +38,9 @@ class Node:
     # output quantity (like 'energy' or 'emissions')
     quantity: Optional[str] = None
 
+    # set if this node has a specific goal for the simulation target year
+    target_year_goal: Optional[float] = None
+
     input_datasets: List[str]
     # List of global parameters that this node requires
     input_params: List[str]

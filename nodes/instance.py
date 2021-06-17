@@ -1,4 +1,3 @@
-from collections import defaultdict
 from dataclasses import dataclass, asdict
 from nodes.exceptions import NodeError
 
@@ -9,7 +8,7 @@ import yaml
 from nodes.node import Node
 from nodes.actions import ActionNode
 from nodes.scenario import CustomScenario, Scenario
-from typing import Dict
+from typing import Dict, Optional
 
 from common.i18n import TranslatedString
 from pages.base import ActionPage, EmissionPage, Page
@@ -19,9 +18,14 @@ from . import Dataset, Context
 @dataclass
 class Instance:
     id: str
-    name: str
+    name: TranslatedString
     context: Context
-    pages: Dict[str, Page] = None
+    target_year_goal: Optional[float] = None
+    reference_year: Optional[int] = None
+    minimum_historical_year: Optional[int] = None
+    maximum_historical_year: Optional[int] = None
+
+    pages: Optional[Dict[str, Page]] = None
 
 
 class InstanceLoader:
@@ -77,10 +81,14 @@ class InstanceLoader:
                 forecast=config.get('forecast_values'),
             ))
 
-        node = node_class(self.context, config['id'], input_datasets=datasets)
+        node = node_class(
+            self.context, config['id'], input_datasets=datasets,
+        )
         node.name = self.make_trans_string(config, 'name')
         node.description = self.make_trans_string(config, 'description')
         node.color = config.get('color')
+        node.target_year_goal = config.get('target_year_goal')
+
         if 'quantity' in config:
             node.quantity = config['quantity']
         node.unit = unit
@@ -274,8 +282,12 @@ class InstanceLoader:
     def __init__(self, config):
         self.config = config
         self.context = Context()
+        instance_attrs = ['reference_year', 'minimum_historical_year', 'maximum_historical_year']
         self.instance = Instance(
-            id=self.config['id'], name=self.config['name'], context=self.context
+            id=self.config['id'],
+            name=self.make_trans_string(self.config, 'name'),
+            context=self.context,
+            **{attr: self.config.get(attr) for attr in instance_attrs}
         )
         static_datasets = self.config.get('static_datasets')
         if static_datasets is not None:
