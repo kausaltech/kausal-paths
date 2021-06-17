@@ -141,26 +141,30 @@ instance:
     - id: other_power_consumption_emissions
       name_en: Other power consumption (non-heat) emissions
       name: Muun käyttösähkön kulutuksen päästöt
-      column: Other power consumption
+#      column: Other power consumption
+      column: Other electricity consumption
       part_of: other_electricity_consumption_emissions
     
     - id: power_consumption_residential_emissions
       name_en: Power consumption residential emissions
       name: Asuntojen käyttösähkön kulutuksen päästöt
-      column: Power consumption residential and agriculture
+#      column: Power consumption residential and agriculture
+      column: Other electricity consumption
       part_of: other_electricity_consumption_emissions
 
     - id: power_consumption_commerce_emissions
       name_en: Power consumption commerce and construction emissions
       name: Palveluiden ja rakentamisen käyttösähkön kulutuksen päästöt
-      column: Power consumption commerce and construction
+#      column: Power consumption commerce and construction
+      column: Other electricity consumption
       part_of: other_electricity_consumption_emissions
       #historical_values: [[1990: 420], [2010: 776], [2011: 767], [2012: 783], [2013: 779], [2014: 796], [2015: 784], [2016: 814], [2017: 799], [2018: 767]]
 
     - id: power_consumption_industry_emissions
       name_en: Power consumption industry emissions
       name: Teollisuuden käyttösähkön kulutuksen päästöt
-      column: Power consumption industry
+#      column: Power consumption industry
+      column: Industrial electricity consumption
       part_of: other_electricity_consumption_emissions
 
   nodes:
@@ -470,7 +474,7 @@ instance:
       forecast_values: [[2019, 0], [2030, -61]]
       unit: g/kWh
 
-    - id: converting_street_lighting_to_lead
+    - id: converting_street_lighting_to_led
       name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
       name_en: Converting street lighting to LED lamps
       type: simple.LinearCumulativeAdditiveAction
