@@ -3,7 +3,11 @@ instance:
   default_language: fi
   dataset_repo: https://github.com/kausaltech/dvctest.git
   name: Hiilineutraali Tampere 2030
+  name_en: Carbon-neutral Tampere 2030
   target_year: 2030
+  reference_year: 1990
+  minimum_historical_year: 2010
+  maximum_historical_year: 2018
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt
   emission_forecast_from: 2019
@@ -14,6 +18,7 @@ instance:
     - id: net_emissions
       name: Kokonaispäästöt (scope 2)
       name_en: Net emissions (scope 2)
+      target_year_goal: 260
 
     - id: transportation_emissions
       name: Liikenteen päästöt
@@ -217,7 +222,7 @@ instance:
       name: Maalämmön päästöt
       name_en: Geothermal heating emissions
       input_nodes:
-        - electricity_production_emission_factor
+        - electric_heating_emission_factor
       output_nodes:
         - electric_heating_emissions
 
@@ -232,7 +237,6 @@ instance:
       historical_values: [[1990, 0], [2010, 2.8], [2011, 4.5], [2012, 5.3], [2013, 7.6], [2014, 7.6], [2015, 8.1], [2016, 10.3], [2017, 13.7], [2018, 16.3]]
       forecast_values: [[2019, 18.5], [2020, 20.6], [2021, 22.8], [2022, 24.9], [2023, 27.1], [2024, 29.2], [2025, 31.4], [2026, 33.5], [2027, 35.7], [2028, 37.8], [2029, 40.0], [2030, 42.1]]
 
-
     - id: direct_electric_heating_emissions
       type: simple.EmissionFactorActivity
       unit: kt
@@ -240,7 +244,7 @@ instance:
       name: Suorasähkölämmityksen päästöt
       name_en: Direct electric heating emissions
       input_nodes:
-        - electricity_production_emission_factor
+        - electric_heating_emission_factor
       output_nodes:
         - electric_heating_emissions
 
@@ -298,6 +302,21 @@ instance:
       historical_values: [[1990, 350], [2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
       # forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
 
+    - id: electric_heating_emission_factor
+      name: Lämmityssähkön päästökerroin
+      name_en: Heating electricity emission factor
+      type: simple.FixedMultiplierNode
+      unit: g/kWh
+      quantity: emission_factor
+      description: Lämmityssähkölle oletetaan 8 % korkeampi päästökerroin.
+      description_en: We assume an 8 % higher emission factor for heating electricity.
+      historical_values: [[2010, 304.6], [2011, 226.9], [2012, 156.9], [2013, 181.5], [2014, 146.1], [2015, 114.3], [2016, 116.9], [2017, 101.5], [2018, 117.7]]
+      input_nodes:
+        - electricity_production_emission_factor
+      params:
+        - id: multiplier
+          value: 1.08
+
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
       name_en: Electricity consumption emissions
@@ -306,25 +325,6 @@ instance:
       color: '#F4D240'
       output_nodes:
         - net_emissions
-
-    - id: renewable_electricity_production
-      name: Uusiutuva sähköntuotanto
-      name_en: Renewable electricity production
-      type: simple.AdditiveNode
-      unit: GWh
-      quantity: energy
-      output_nodes:
-        - renewable_electricity_production_emissions_reductions
-
-    - id: renewable_electricity_production_emissions_reductions
-      name: Uusiutuvan sähköntuotannon päästövähennykset
-      name_en: Renewable electricity production emissions reductions
-      type: simple.EmissionFactorActivity
-      unit: kt
-      input_nodes:
-        - electricity_production_emission_factor
-      output_nodes:
-        - electricity_consumption_emissions
 
   actions:
     # - id: reduce_heating_emissions
@@ -375,17 +375,17 @@ instance:
       name: Hajautettu uusiutuva energia
       name_en: Distributed renewable energy production
       description: Arvioitu aurinkosähkön tuotannon kasvu. Sähkölaitos arvioi, että vuonna 2030 tuotanto olisi noin 10 - 20 GWh/vuosi. Nykytuotanto 2020 on noin 0,2 GWh. 2016 tehdyn uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita)
-      type: simple.CumulativeAdditiveAction
+      type: simple.LinearCumulativeAdditiveAction
       output_nodes:
-        - renewable_electricity_production
-      forecast_values: [[2020, -0.2], [2021, -0.3], [2022, -0.45], [2023, -0.6], [2024, -0.8], [2025, -1.1], [2026, -1.5], [2027, -2], [2028, -2.7], [2029, -3.3], [2030, -4]]
+        - other_electricity_consumption
+      forecast_values: [[2019, 0], [2030, -850]]
       params:
         - id: target_year_ratio
           values:
-            default: 100
+            default: 2
           min_value: 0
-          max_value: 500
-          step: 20
+          max_value: 100
+          step: 1
           description: Prosentuaalinen lisäys uusiutuvan energian tuotannossa
           description_en: Increase in renewable energy production
       unit: GWh
@@ -427,6 +427,12 @@ instance:
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -61]]
       unit: g/kWh
+
+    # - id: oil_biofuel_mix_increase
+    #   name: Kevyen polttoöljyn bionesteen sekoitevelvoite
+    #   name_en: Increase share of biofuels in oil
+    #   output_nodes:
+    #     - Heating
 
   pages:
     - id: home
