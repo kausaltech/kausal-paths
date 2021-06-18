@@ -20,21 +20,21 @@ instance:
       name_en: Transportation
       part_of: net_emissions
       color: '#668EC9'
-    - id: car_emissions
-      name: Henkilöautot
-      name_en: Private cars
-      column: Private cars
-      part_of: transportation_emissions
+    #- id: car_emissions
+    #  name: Henkilöautot
+    #  name_en: Private cars
+    #  column: Private cars
+    #  part_of: transportation_emissions
     - id: van_emissions
       name: Pakettiautot
       name_en: Vans
       column: Vans
       part_of: transportation_emissions
-    - id: bus_emissions
-      name: Linja-autot
-      name_en: Buses
-      column: Buses
-      part_of: transportation_emissions
+    #- id: bus_emissions
+    #  name: Linja-autot
+    #  name_en: Buses
+    #  column: Buses
+    #  part_of: transportation_emissions
     - id: truck_emissions
       name: Kuorma-autot
       name_en: Trucks and lorries
@@ -383,21 +383,27 @@ instance:
       historical_values: [[2015, 0], [2016, 0], [2017, 0], [2018, 0]]
       forecast_values: [[2019, 0], [2020, 0], [2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
 
-    #- id: car_kilometers
-    #  name: Autokilometrit
-    #  name_en: Car kilometers
-    #  type: simple.AdditiveNode
-    #  unit: Gm
-    #  historical_values: [[2015, 440], [2016, 440], [2017, 427], [2018, 429]]
-    #  forecast_values: [[2019, 431], [2020, 433], [2021, 434], [2022, 436], [2023, 438], [2024, 440], [2025, 442], [2026, 440], [2027, 439], [2028, 438], [2029, 436], [2030, 435]]
+    - id: car_kilometers
+      name: Autokilometrit
+      name_en: Car kilometers
+      type: simple.Activity
+      quantity: length
+      unit: Gm
+      output_nodes:
+        - car_emissions
+      historical_values: [[2015, 440], [2016, 440], [2017, 427], [2018, 429]]
+      forecast_values: [[2019, 431], [2020, 433], [2021, 434], [2022, 436], [2023, 438], [2024, 440], [2025, 442], [2026, 440], [2027, 439], [2028, 438], [2029, 436], [2030, 435]]
 
-    #- id: bus_kilometers
-    #  name: Bussikilometrit
-    #  name_en: Bus kilometers
-    #  type: simple.AdditiveNode
-    #  unit: Gm
-    #  historical_values: [[2015, 10], [2016, 10], [2017, 10], [2018, 9]]
-    #  forecast_values: [[2019, 9], [2020, 9], [2021, 9], [2022, 8.9], [2023, 9], [2024, 9.1], [2025, 9.1], [2026, 9], [2027, 9.1], [2028, 9.3], [2029, 9.4], [2030, 9.6]]
+    - id: bus_kilometers
+      name: Bussikilometrit
+      name_en: Bus kilometers
+      type: simple.Activity
+      quantity: length
+      unit: Gm
+      output_nodes:
+        - bus_emissions
+      historical_values: [[2015, 10], [2016, 10], [2017, 10], [2018, 9]]
+      forecast_values: [[2019, 9], [2020, 9], [2021, 9], [2022, 8.9], [2023, 9], [2024, 9.1], [2025, 9.1], [2026, 9], [2027, 9.1], [2028, 9.3], [2029, 9.4], [2030, 9.6]]
 
     - id: tram_emission_factor
       name: Ratikan päästökerroin
@@ -410,21 +416,27 @@ instance:
       historical_values: [[2015, 0], [2016, 0], [2017, 0], [2018, 0]]
       forecast_values: [[2019, 0], [2020, 0], [2021, 207], [2022, 193], [2023, 179], [2024, 164], [2025, 150], [2026, 136], [2027, 122], [2028, 108], [2029, 94], [2030, 79]]
 
-    #- id: car_emission_factor # private car (engine mix), street
-    #  name: Auton päästökerroin
-    #  name_en: Car emission factor
-    #  type: simple.AdditiveNode
-    #  unit: g/km
-    #  historical_values: [[2016, 202], [2017, 197], [2018, 192], [2019, 187]]
-    #  forecast_values: [[2020, 179], [2021, 171], [2022, 164], [2023, 157], [2024, 150], [2025, 142], [2026, 132], [2027, 123], [2028, 113], [2029, 104], [2030, 96]]
+    - id: car_emission_factor # private car (engine mix), street
+      name: Auton päästökerroin
+      name_en: Car emission factor
+      quantity: emission_factor
+      type: simple.AdditiveNode
+      unit: g/km
+      output_nodes:
+        - car_emissions
+      historical_values: [[2015, 202], [2016, 202], [2017, 197], [2018, 192]]
+      forecast_values: [[2019, 187], [2020, 179], [2021, 171], [2022, 164], [2023, 157], [2024, 150], [2025, 142], [2026, 132], [2027, 123], [2028, 113], [2029, 104], [2030, 96]]
 
-    #- id: bus_emission_factor # street
-    #  name: Bussin päästökerroin
-    #  name_en: Bus emission factor
-    #  type: simple.AdditiveNode
-    #  unit: g/km
-    #  historical_values: [[2016, 861], [2017, 865], [2018, 846], [2019, 816]]
-    #  forecast_values: [[2020, 774], [2021, 733], [2022, 691], [2023, 650], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
+    - id: bus_emission_factor # street
+      name: Bussin päästökerroin
+      name_en: Bus emission factor
+      type: simple.AdditiveNode
+      quantity: emission_factor
+      unit: g/km
+      output_nodes:
+        - bus_emissions
+      historical_values: [[2015, 861], [2016, 861], [2017, 865], [2018, 846]]
+      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 691], [2023, 650], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
 
     - id: tram_emissions
       name: Ratikka
@@ -434,31 +446,24 @@ instance:
       quantity: emissions
       output_nodes:
         - transportation_emissions
-      #historical_values: [[2010, 3], [2011, 5]]
     
-    #- id: car_emissions
-    #  name: Henkilöauto
-    #  name_en: Private car
-    #  type: simple.EmissionFactorActivity
-    #  unit: kt
-    #  quantity: emission
-    #  input_nodes:
-    #    - car_kilometers
-    #    - car_emission_factor
-    #  part_of:
-    #    - transportation_emissions
+    - id: car_emissions
+      name: Henkilöauto
+      name_en: Private car
+      type: simple.EmissionFactorActivity
+      quantity: emissions
+      unit: kt
+      output_nodes:
+        - transportation_emissions
     
-    #- id: bus_emissions
-    #  name: Bussi
-    #  name_en: Bus
-    #  type: simple.EmissionFactorActivity
-    #  unit: kt
-    #  quantity: emission
-    #  input_nodes:
-    #    - bus_kilometers
-    #    - bus_emission_factor
-    #  part_of:
-    #    - transportation_emissions
+    - id: bus_emissions
+      name: Bussi
+      name_en: Bus
+      type: simple.EmissionFactorActivity
+      unit: kt
+      quantity: emissions
+      output_nodes:
+        - transportation_emissions
 
   actions:
     # - id: reduce_heating_emissions
@@ -580,15 +585,15 @@ instance:
       description: Raitiotien ensimmäinen vaihe
       output_nodes: 
         - tram_kilometers
-    #  #  - car_kilometers
-    #  #  - bus_kilometers
+        - car_kilometers
+        - bus_kilometers
       forecast_values: 
         - id: tram_kilometers
           values: [[2021, 0.7], [2022, 0.7]]
-    #  #  - id: car_kilometers
-    #  #    values: [[2021, -2.95], [2022, -2.95]]
-    #  #  - id: bus_kilometers
-    #  #    values: [[2021, -0.48], [2022, -0.36]]
+        - id: car_kilometers
+          values: [[2021, -2.95], [2022, -2.95]]
+        - id: bus_kilometers
+          values: [[2021, -0.48], [2022, -0.36]]
 
   pages:
     - id: home
