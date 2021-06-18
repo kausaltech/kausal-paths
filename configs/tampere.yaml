@@ -372,24 +372,24 @@ instance:
       output_nodes:
         - net_emissions
 
-    - id: renewable_electricity_production
-      name: Uusiutuva sähköntuotanto
-      name_en: Renewable electricity production
-      type: simple.AdditiveNode
-      unit: GWh
-      quantity: energy
-      output_nodes:
-        - renewable_electricity_production_emissions_reductions
+    #- id: renewable_electricity_production  ### WAS THIS REMOVED ON PURPOSE OR DID I MAKE A MERGE MISTAKE?
+    #  name: Uusiutuva sähköntuotanto
+    #  name_en: Renewable electricity production
+    #  type: simple.AdditiveNode
+    #  unit: GWh
+    #  quantity: energy
+    #  output_nodes:
+    #    - renewable_electricity_production_emissions_reductions
 
-    - id: renewable_electricity_production_emissions_reductions
-      name: Uusiutuvan sähköntuotannon päästövähennykset
-      name_en: Renewable electricity production emissions reductions
-      type: simple.EmissionFactorActivity
-      unit: kt
-      input_nodes:
-        - electricity_production_emission_factor
-      output_nodes:
-        - electricity_consumption_emissions
+    #- id: renewable_electricity_production_emissions_reductions
+    #  name: Uusiutuvan sähköntuotannon päästövähennykset
+    #  name_en: Renewable electricity production emissions reductions
+    #  type: simple.EmissionFactorActivity
+    #  unit: kt
+    #  input_nodes:
+    #    - electricity_production_emission_factor
+    #  output_nodes:
+    #    - electricity_consumption_emissions
 
     - id: tram_kilometers
       name: Ratikkakilometrit
