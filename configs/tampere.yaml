@@ -595,6 +595,42 @@ instance:
         - id: bus_kilometers
           values: [[2021, -0.48], [2022, -0.36]]
 
+    - id: tram_phase_2
+      name: Ratikan rakennusvaihe 2 (2023-2025)
+      name_en: Tram construction phase 2 (2023-2025)
+      type: simple.CumulativeAdditiveAction
+      unit: Gm
+      description: Raitiotien toinen vaihe
+      output_nodes: 
+        - tram_kilometers
+        - car_kilometers
+        - bus_kilometers
+      forecast_values: 
+        - id: tram_kilometers
+          values: [[2024, 0.535], [2025, 0.535]]
+        - id: car_kilometers
+          values: [[2024, -2.35], [2025, -2.35]]
+        - id: bus_kilometers
+          values: [[2025, -0.71]]
+
+    - id: tram_phase_3
+      name: Ratikan rakennusvaihe 3 (2028-2030)
+      name_en: Tram construction phase 3 (2028-2030)
+      type: simple.CumulativeAdditiveAction
+      unit: Gm
+      description: Raitiotien kolmas vaihe
+      output_nodes: 
+        - tram_kilometers
+        - car_kilometers
+        - bus_kilometers
+      forecast_values: 
+        - id: tram_kilometers
+          values: [[2029, 0.325], [2030, 0.325]]
+        - id: car_kilometers
+          values: [[2029, -4.3], [2030, -4.3]]
+        - id: bus_kilometers
+          values: [[2030, 0]]
+
   pages:
     - id: home
       name: Hiilineutraali Tampere 2030 -päästöskenaario
