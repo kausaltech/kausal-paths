@@ -11,6 +11,18 @@ instance:
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt
   emission_forecast_from: 2019
+  activity_dataset: tampere/scenarios/activity/bau # Use only for transport activities
+  activity_unit: Gm
+  activity_forecast_from: 2019
+
+  #activity_sectors: # This works except there are NaN in the data.
+  #  - id: car_kilometers
+  #    name: Autokilometrit
+  #    name_en: Car kilometers
+  #    column: Private car street
+  #  #  quantity: length
+  #    part_of: car_emissions
+
   params:
     - id: municipality_name
       value: Tampere
@@ -25,21 +37,11 @@ instance:
       name_en: Transportation
       part_of: net_emissions
       color: '#668EC9'
-    #- id: car_emissions
-    #  name: Henkilöautot
-    #  name_en: Private cars
-    #  column: Private cars
-    #  part_of: transportation_emissions
     - id: van_emissions
       name: Pakettiautot
       name_en: Vans
       column: Vans
       part_of: transportation_emissions
-    #- id: bus_emissions
-    #  name: Linja-autot
-    #  name_en: Buses
-    #  column: Buses
-    #  part_of: transportation_emissions
     - id: truck_emissions
       name: Kuorma-autot
       name_en: Trucks and lorries
@@ -55,12 +57,7 @@ instance:
       name_en: Local trains
       column: Local trains
       part_of: transportation_emissions
-    #- id: tram_emissions
-    #  name: Raitiotiet
-    #  name_en: Trams
-    #  column: Trams
-    #  part_of: transportation_emissions
-
+    
     #
     # Heating
     #
@@ -494,6 +491,7 @@ instance:
       name: Naistenlahti 3 -biovoimalaitos
       name_en: Naistenlahti 3 bio thermal plant
       type: simple.CumulativeAdditiveAction
+      description: Tampereen sähkölaitos saa suunnitelmiensa mukaan lisättyä uusiutuvaa energiaa kaukolämmön tuotannossa. Naistenlahti 3 vähentää Kaukolämmön päästökerrointa vuoteen 2023 mennessä Tampereen Sähkölaitoksen ennusteen mukaisesti. Tampereen sähkölaitos saa suunnitelmiensa mukaan lisättyä uusiutuvaa energiaa kaukolämmön tuotannossa. Naistenlahti 3 vähentää Kaukolämmön päästökerrointa vuoteen 2023 mennessä Tampereen Sähkölaitoksen ennusteen mukaisesti. 
       output_nodes:
         - district_heating_emission_factor
       forecast_values: [[2022, -23], [2023, -23]]
@@ -615,7 +613,7 @@ instance:
       name_en: Tram construction phase 2 (2023-2025)
       type: simple.CumulativeAdditiveAction
       unit: Gm
-      description: Raitiotien toinen vaihe
+      description: Raitiotien toinen vaihe. TALLI-mallilla valmistui arvio toukokuussa 2020 raitiotien 2. vaiheen liikennevaikutukssita. Siitä saatujen tulosten mukaan laskettiin erotus henkilöautoilussa vaihtoehtojen välillä. Bussivaihtoehdossa oli 5,9 milj. henkilöautokilometriä enemmän kuin pelkässä 1. vaiheessa vuonna 2025. Suorite-ero on siirretty ratikan valmitumisvuodelle ja seuravalle (ratikka käynnistyy puolessa välissä vuotta. 2. vaiheen valmistuttua henkilöautosuorite on vuonna 2025 vielä 4,7 milj. km pienempi,  Ratikan suorite ja bussien pienentyneet suoritteet on otettu käyttövoimalaskelmista, johon lähtötiedot on saatu joukkoliikenneyksiköltä.
       output_nodes: 
         - tram_kilometers
         - car_kilometers

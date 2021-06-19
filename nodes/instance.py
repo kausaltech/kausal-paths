@@ -164,6 +164,57 @@ class InstanceLoader:
             node = self.make_node(node_class, nc)
             self.context.add_node(node)
 
+    def generate_nodes_from_activity_sectors(self):
+        mod = importlib.import_module('nodes.simple')
+        node_class = getattr(mod, 'Activity')
+        dataset_id = self.config.get('activity_dataset')
+        unit = self.config.get('activity_unit')
+
+        for ec in self.config.get('activity_sectors', []):
+            print(ec) #REMOVE
+            parent_id = ec.pop('part_of', None)
+            data_col = ec.pop('column', None)
+            if 'name_en' in ec:
+                if 'kilometers' not in ec['name_en']:
+                    ec['name_en'] += ' kilometers'
+            nc = dict(
+                output_nodes=[parent_id] if parent_id else [],
+                input_datasets=[dict(
+                    id=dataset_id,
+                    column=data_col,
+                    forecast_from=self.config.get('activity_forecast_from'),
+                )] if data_col else [],
+                unit=unit,
+                **ec
+            )
+            node = self.make_node(node_class, nc)
+            self.context.add_node(node)
+
+    def generate_nodes_from_emission_factors(self): # TODO
+        mod = importlib.import_module('nodes.simple')
+        node_class = getattr(mod, 'SectorEmissions')
+        dataset_id = self.config.get('emission_dataset')
+        unit = self.config.get('emission_unit')
+
+        for ec in self.config.get('emission_sectors', []):
+            parent_id = ec.pop('part_of', None)
+            data_col = ec.pop('column', None)
+            if 'name_en' in ec:
+                if 'emissions' not in ec['name_en']:
+                    ec['name_en'] += ' emissions'
+            nc = dict(
+                output_nodes=[parent_id] if parent_id else [],
+                input_datasets=[dict(
+                    id=dataset_id,
+                    column=data_col,
+                    forecast_from=self.config.get('emission_forecast_from'),
+                )] if data_col else [],
+                unit=unit,
+                **ec
+            )
+            node = self.make_node(node_class, nc)
+            self.context.add_node(node)
+
     def setup_actions(self):
         for nc in self.config['actions']:
             klass = nc['type'].split('.')
@@ -304,6 +355,7 @@ class InstanceLoader:
         self._input_nodes = {}
         self._output_nodes = {}
         self.generate_nodes_from_emission_sectors()
+        self.generate_nodes_from_activity_sectors()
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
