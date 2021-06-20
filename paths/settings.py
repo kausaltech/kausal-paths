@@ -74,6 +74,9 @@ INSTALLED_APPS = [
     'wagtail.search',
     'wagtail.admin',
     'wagtail.core',
+    'wagtail.contrib.modeladmin',
+    'wagtail.contrib.styleguide',
+    'wagtailfontawesome',
 
     'taggit',
     'modelcluster',
@@ -89,6 +92,7 @@ INSTALLED_APPS = [
     'django_extensions',
 
     'pages',
+
 ]
 
 MIDDLEWARE = [
@@ -176,6 +180,9 @@ TIME_ZONE = 'Europe/Helsinki'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+LOCALE_PATHS = [
+    os.path.join(BASE_DIR, 'locale')
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/

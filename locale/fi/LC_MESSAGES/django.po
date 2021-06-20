@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-15 17:30+0300\n"
+"POT-Creation-Date: 2021-06-19 12:19+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,15 +18,39 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: paths/settings.py:153
+#: pages/models.py:34
+msgid "Node identifier"
+msgstr "Solmun tunniste"
+
+#: pages/models.py:37
+msgid "Short description"
+msgstr "Lyhyt kuvaus"
+
+#: pages/models.py:40
+msgid "Body"
+msgstr "Kuvaus"
+
+#: pages/models.py:44
+msgid "Node"
+msgstr "Solmu"
+
+#: pages/models.py:45
+msgid "Nodes"
+msgstr "Solmut"
+
+#: params/global.py:6
+msgid "Municipality name"
+msgstr ""
+
+#: paths/settings.py:173
 msgid "Finnish"
 msgstr ""
 
-#: paths/settings.py:154
+#: paths/settings.py:174
 msgid "English"
 msgstr ""
 
-#: paths/settings.py:155
+#: paths/settings.py:175
 msgid "Swedish"
 msgstr ""
 

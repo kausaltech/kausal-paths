@@ -4,7 +4,6 @@ from django.utils.translation import activate
 from graphene_django.views import GraphQLView
 from graphql.error import GraphQLError
 
-from nodes.scenario import CustomScenario
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
@@ -32,7 +31,9 @@ class LocaleMiddleware:
 class InstanceMiddleware:
     def resolve(self, next, root, info, **kwargs):
         if root is None:
-            from pages.apps import instance
+            from pages.global_instance import instance
+
+            instance.refresh()
             context = instance.context
             session = info.context.session
 

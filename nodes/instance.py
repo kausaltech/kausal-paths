@@ -1,18 +1,24 @@
-from dataclasses import dataclass, asdict
-from nodes.exceptions import NodeError
-
-import dvc_pandas
 import importlib
+import logging
 import re
-import yaml
-from nodes.node import Node
-from nodes.actions import ActionNode
-from nodes.scenario import CustomScenario, Scenario
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Dict, Optional
 
+import dvc_pandas
+import yaml
+
 from common.i18n import TranslatedString
+from nodes.actions import ActionNode
+from nodes.exceptions import NodeError
+from nodes.node import Node
+from nodes.scenario import CustomScenario, Scenario
 from pages.base import ActionPage, EmissionPage, Page
-from . import Dataset, Context
+
+from . import Context, Dataset
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -26,6 +32,31 @@ class Instance:
     maximum_historical_year: Optional[int] = None
 
     pages: Optional[Dict[str, Page]] = None
+    content_refreshed_at: Optional[datetime] = field(init=False)
+
+    def __post_init__(self):
+        self.content_refreshed_at = None
+
+    def refresh(self):
+        """Reload the Django models that have the rich-text content related to nodes.
+
+        Reload only happens if the Instance has been updated since the last refresh.
+        """
+        from pages.models import InstanceContent
+
+        iobj = InstanceContent.objects.filter(identifier=self.id).first()
+        if iobj is None:
+            return
+        if self.content_refreshed_at is not None and self.content_refreshed_at >= iobj.modified_at:
+            return
+
+        context = self.context
+        for pc in iobj.nodes.all():
+            if pc.node_id not in context.nodes:
+                logger.error('NodeContent exists for missing node ID: %s' % pc.node_id)
+                continue
+            node = context.nodes[pc.node_id]
+            node.content = pc
 
 
 class InstanceLoader:

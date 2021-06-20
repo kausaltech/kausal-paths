@@ -21,3 +21,5 @@ pytest-django
 pytest-factoryboy
 orjson
 redis
+wagtailfontawesome
+django-stubs

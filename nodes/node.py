@@ -4,7 +4,7 @@ import hashlib
 import os
 import inspect
 from types import FunctionType
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 
 import pandas as pd
 import pint
@@ -17,6 +17,9 @@ from params import Parameter
 from .context import Context
 from .datasets import Dataset
 from .exceptions import NodeError
+
+if TYPE_CHECKING:
+    from pages.models import NodeContent
 
 
 class Node:
@@ -60,6 +63,7 @@ class Node:
 
     context: Context
     debug: bool = False
+    content: Optional[NodeContent]
     __post_init__: Callable[[Node], None]
 
     def __init__(self, context: Context, id: str, input_datasets: List[Dataset] = None):
@@ -76,6 +80,7 @@ class Node:
         self.allowed_params = []
         self.baseline_values = None
         self.params = {}
+        self.content = None
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -159,11 +164,13 @@ class Node:
             h.update(str(mod_mtime).encode('utf8'))
         return h.digest()
 
-    def get_output(self, target_node: Node = None) -> Optional[pd.DataFrame]:
+    def get_output(self, target_node: Node = None) -> pd.DataFrame:
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
         if out is None or self.debug:
             out = self.compute()
+            if out is None:
+                raise NodeError(self, "Node returned no output")
             cache_hit = False
         else:
             cache_hit = True
@@ -267,3 +274,16 @@ class Node:
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
+
+    @property
+    def short_description(self):
+        if self.content is not None:
+            # FIXME: Format RichTextField?
+            return self.content.short_description or self.description
+
+    @property
+    def body(self):
+        if self.content is None:
+            return None
+        # FIXME: Format RichTextField?
+        return self.content.body

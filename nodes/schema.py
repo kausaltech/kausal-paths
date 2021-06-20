@@ -71,6 +71,10 @@ class NodeType(graphene.ObjectType):
     description = graphene.String()
     parameters = graphene.List('params.schema.ParameterInterface')
 
+    # These are potentially plucked from pages.models.NodeContent
+    short_description = graphene.String()
+    body = graphene.String()
+
     def resolve_color(root, info):
         if root.color:
             return root.color
