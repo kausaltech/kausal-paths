@@ -354,7 +354,6 @@ instance:
       type: simple.FixedMultiplierNode
       unit: g/kWh
       quantity: emission_factor
-      description: Lämmityssähkölle oletetaan 8 % korkeampi päästökerroin.
       description_en: We assume an 8 % higher emission factor for heating electricity.
       historical_values: [[2010, 304.6], [2011, 226.9], [2012, 156.9], [2013, 181.5], [2014, 146.1], [2015, 114.3], [2016, 116.9], [2017, 101.5], [2018, 117.7]]
       input_nodes:
@@ -532,7 +531,6 @@ instance:
     - id: distributed_renewable_energy
       name: Hajautettu uusiutuva energia
       name_en: Distributed renewable energy production
-      description: Arvioitu aurinkosähkön tuotannon kasvu. Sähkölaitos arvioi, että vuonna 2030 tuotanto olisi noin 10 - 20 GWh/vuosi. Nykytuotanto 2020 on noin 0,2 GWh. 2016 tehdyn uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita)
       type: simple.LinearCumulativeAdditiveAction
       output_nodes:
         - other_electricity_consumption
@@ -561,7 +559,6 @@ instance:
         - id: geothermal_heating_electricity_use
           values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10], [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
       unit: GWh
-      description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
 
     - id: oil_heated_municipal_buildings_to_heat_pump
       name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
@@ -575,7 +572,6 @@ instance:
         - id: direct_electric_heating_electricity_use
           values: [[2020, 0], [2025, 1.468]]
       unit: GWh
-      description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
 
     - id: cleaner_electricity_production
       name: Kansallinen sähköntuotanto puhdistuu
@@ -591,7 +587,6 @@ instance:
       name_en: Converting street lighting to LED lamps
       type: simple.LinearCumulativeAdditiveAction
       unit: GWh
-      description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus otetaan käyttöön vuoteen 2025 mennessä. Vuonna 2019 LEDejä oli 33% valaistuksesta. Hankinta koskien valaistuksen ohjausjärjestelmää on saatu päätökseen ja ohjausjärjestelmän toteutus voi alkaa.
       forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
       output_nodes:
         - street_lighting_electricity_savings
@@ -601,7 +596,6 @@ instance:
       name_en: Tram construction phase 1 (2019-2022)
       type: simple.CumulativeAdditiveAction
       unit: Gm
-      description: Raitiotien ensimmäinen vaihe
       output_nodes: 
         - tram_kilometers
         - car_kilometers
@@ -619,7 +613,6 @@ instance:
       name_en: Tram construction phase 2 (2023-2025)
       type: simple.CumulativeAdditiveAction
       unit: Gm
-      description: Raitiotien toinen vaihe
       output_nodes: 
         - tram_kilometers
         - car_kilometers
@@ -637,7 +630,6 @@ instance:
       name_en: Tram construction phase 3 (2028-2030)
       type: simple.CumulativeAdditiveAction
       unit: Gm
-      description: Raitiotien kolmas vaihe
       output_nodes: 
         - tram_kilometers
         - car_kilometers
