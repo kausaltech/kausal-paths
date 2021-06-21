@@ -20,26 +20,19 @@ instance:
       name_en: Net emissions (scope 2)
       target_year_goal: 260
 
+    #
+    # Transportation
+    #
     - id: transportation_emissions
       name: Liikenteen päästöt
       name_en: Transportation
       part_of: net_emissions
       color: '#668EC9'
-    #- id: car_emissions
-    #  name: Henkilöautot
-    #  name_en: Private cars
-    #  column: Private cars
-    #  part_of: transportation_emissions
     - id: van_emissions
       name: Pakettiautot
       name_en: Vans
       column: Vans
       part_of: transportation_emissions
-    #- id: bus_emissions
-    #  name: Linja-autot
-    #  name_en: Buses
-    #  column: Buses
-    #  part_of: transportation_emissions
     - id: truck_emissions
       name: Kuorma-autot
       name_en: Trucks and lorries
@@ -55,11 +48,6 @@ instance:
       name_en: Local trains
       column: Local trains
       part_of: transportation_emissions
-    #- id: tram_emissions
-    #  name: Raitiotiet
-    #  name_en: Trams
-    #  column: Trams
-    #  part_of: transportation_emissions
 
     #
     # Heating
@@ -69,11 +57,6 @@ instance:
       name_en: Building heating
       part_of: net_emissions
       color: '#AD3963'
-
-    #- id: district_heating_emissions
-    #  name: Kaukolämpö
-    #  part_of: building_heating_emissions
-    #  column: District heating
 
     - id: separate_heating_emissions
       name: Erillislämmitys
@@ -146,30 +129,25 @@ instance:
     - id: other_power_consumption_emissions
       name_en: Other power consumption (non-heat) emissions
       name: Muun käyttösähkön kulutuksen päästöt
-#      column: Other power consumption
-      column: Other electricity consumption
+      column: Other power consumption
       part_of: other_electricity_consumption_emissions
     
     - id: power_consumption_residential_emissions
       name_en: Power consumption residential emissions
       name: Asuntojen käyttösähkön kulutuksen päästöt
-#      column: Power consumption residential and agriculture
-      column: Other electricity consumption
+      column: Power consumption residential and agriculture
       part_of: other_electricity_consumption_emissions
 
     - id: power_consumption_commerce_emissions
       name_en: Power consumption commerce and construction emissions
       name: Palveluiden ja rakentamisen käyttösähkön kulutuksen päästöt
-#      column: Power consumption commerce and construction
-      column: Other electricity consumption
+      column: Power consumption commerce and construction
       part_of: other_electricity_consumption_emissions
-      #historical_values: [[1990: 420], [2010: 776], [2011: 767], [2012: 783], [2013: 779], [2014: 796], [2015: 784], [2016: 814], [2017: 799], [2018: 767]]
-
+    
     - id: power_consumption_industry_emissions
       name_en: Power consumption industry emissions
       name: Teollisuuden käyttösähkön kulutuksen päästöt
-#      column: Power consumption industry
-      column: Industrial electricity consumption
+      column: Power consumption industry
       part_of: other_electricity_consumption_emissions
 
   nodes:
@@ -394,7 +372,7 @@ instance:
       name: Ratikkakilometrit
       name_en: Tram kilometers
       type: simple.Activity
-      quantity: length
+      quantity: mileage
       unit: Gm
       output_nodes:
         - tram_emissions
@@ -405,7 +383,7 @@ instance:
       name: Autokilometrit
       name_en: Car kilometers
       type: simple.Activity
-      quantity: length
+      quantity: mileage
       unit: Gm
       output_nodes:
         - car_emissions
@@ -416,7 +394,7 @@ instance:
       name: Bussikilometrit
       name_en: Bus kilometers
       type: simple.Activity
-      quantity: length
+      quantity: mileage
       unit: Gm
       output_nodes:
         - bus_emissions
@@ -547,7 +525,7 @@ instance:
       unit: GWh
 
     - id: oil_heated_private_buildings_to_geothermal
-      name: Öljylämmityksestä luopuminen yksityisessä rakenuskannassa
+      name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
       name_en: Private oil heated buildings to geothermal
       type: simple.CumulativeAdditiveAction
       output_nodes:
