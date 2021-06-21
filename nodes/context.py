@@ -23,6 +23,8 @@ unit_registry = pint.UnitRegistry(preprocessors=[
 # By default, kt is knots, but here kilotonne is the most common
 # usage.
 unit_registry.define('kt = kilotonne')
+# Mega-kilometers is often used for mileage
+unit_registry.define('Mkm = gigameters')
 # We also need population
 unit_registry.define('person = [population] = cap')
 unit_registry.define(pint.unit.UnitDefinition(
@@ -45,6 +47,7 @@ class Context:
     active_scenario: Scenario
     supported_params: dict[str, type]
     cache: Cache
+    skip_cache: bool = False
 
     def __init__(self):
         from nodes.actions import ActionNode
@@ -152,7 +155,8 @@ class Context:
         if node is None:
             all_nodes = self.nodes.values()
             root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-            assert len(root_nodes) == 1
+            if len(root_nodes) != 1:
+                raise Exception('Too many root nodes: %s' % (', '.join([x.id for x in root_nodes])))
             node = root_nodes[0]
 
         if isinstance(node, self.Action):

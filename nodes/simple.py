@@ -1,4 +1,5 @@
-from params.param import NumberParameter
+from re import T
+from params.param import BoolParameter, NumberParameter
 from typing import List
 import pandas as pd
 
@@ -11,25 +12,78 @@ from .exceptions import NodeError
 EMISSION_UNIT = 'kg'
 
 
-class AdditiveNode(Node):
+class SimpleNode(Node):
+    allowed_params = [
+        BoolParameter(
+            id='fill_gaps_using_input_dataset', label='Fill in gaps in computation using input dataset',
+            value=False, is_customizable=False
+        ),
+        BoolParameter(
+            id='replace_output_using_input_dataset', label='Replace output using input dataset',
+            value=False, is_customizable=False
+        )
+    ]
+
+    def replace_output_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+        # If we have also data from an input dataset, we only fill in the gaps from the
+        # calculated data.
+        df = df.dropna()
+
+        data_df = self.get_input_dataset()
+        if data_df is None:
+            return df
+
+        latest_year = data_df.index.max()
+        if latest_year < df.index.max():
+            merge_df = df[df.index > latest_year]
+            data_df = data_df.reindex(data_df.index.append(merge_df.index))
+            if not set(merge_df.columns).issubset(set(data_df.columns)):
+                missing_cols = [col for col in merge_df.columns if col not in data_df.coluns]
+                raise Exception('Columns missing from input dataset: %s' % ', '.join(missing_cols))
+            for col in data_df.columns:
+                if col == FORECAST_COLUMN:
+                    continue
+                data_df[col] = self.ensure_output_unit(data_df[col])
+            data_df.loc[data_df.index > latest_year] = merge_df
+
+        data_df[FORECAST_COLUMN] = data_df[FORECAST_COLUMN].astype(bool)
+        return data_df
+
+    def fill_gaps_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+        data_df = self.get_input_dataset()
+        if data_df is None:
+            return df
+
+        index_diff = data_df.index.difference(df.index)
+        if not len(index_diff):
+            return df
+        df = df.reindex(index_diff.append(df.index))
+        df.loc[df.index.isin(index_diff)] = data_df
+        return df
+
+
+class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
 
     def add_nodes(self, df: pd.DataFrame, nodes: List[Node]):
         if self.debug:
             print('%s: input dataset:' % self.id)
-            print(self.print_pint_df(df))
+            if df is not None:
+                print(self.print_pint_df(df))
+            else:
+                print('\tNo input dataset')
         for node in nodes:
             node_df = node.get_output(self)
             if node_df is None:
                 continue
 
-            if df is None:
-                df = node_df
-                continue
-
             if self.debug:
                 print('%s: adding output from node %s' % (self.id, node.id))
                 self.print_pint_df(node_df)
+
+            if df is None:
+                df = node_df
+                continue
 
             if VALUE_COLUMN not in df.columns:
                 raise NodeError(self, "Value column missing in output of %s" % node.id)
@@ -42,6 +96,7 @@ class AdditiveNode(Node):
             val1 = val1.add(val2, fill_value=0)
             df[VALUE_COLUMN] = self.ensure_output_unit(val1)
             df[FORECAST_COLUMN] = df[FORECAST_COLUMN] | node_df[FORECAST_COLUMN]
+
         return df
 
     def compute(self):
@@ -52,6 +107,8 @@ class AdditiveNode(Node):
                 raise NodeError(self, "Input is not a DataFrame")
             if VALUE_COLUMN not in df.columns:
                 raise NodeError(self, "Input dataset doesn't have Value column")
+
+            df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
 
             if df.index.max() < self.get_target_year():
                 last_year = df.index.max()
@@ -65,7 +122,14 @@ class AdditiveNode(Node):
                 df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
                 df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
-        return self.add_nodes(df, self.input_nodes)
+        if self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False):
+            df = self.add_nodes(None, self.input_nodes)
+            df = self.fill_gaps_using_input_dataset(df)
+        else:
+            df = self.add_nodes(df, self.input_nodes)
+
+        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+        return df
 
 
 class SectorEmissions(AdditiveNode):
@@ -100,20 +164,32 @@ class MultiplicativeNode(AdditiveNode):
         df1 = n1.get_output()
         df2 = n2.get_output()
         df = df1.copy()
+
+        if self.debug:
+            print('%s: Multiply input from node 1 (%s):' % (self.id, n1.id))
+            self.print_pint_df(df1)
+            print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
+            self.print_pint_df(df2)
+
         df[VALUE_COLUMN] *= df2[VALUE_COLUMN]
         df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
 
         df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
-        """
-        ds_df = self.get_input_dataset()
-        if ds_df is not None:
-            index_diff = ds_df.index.difference(df)
-            if len(index_diff):
-                df = ...
-        """
+        df = self.add_nodes(df, additive_nodes)
+        fill_gaps = self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
+        if fill_gaps:
+            df = self.fill_gaps_using_input_dataset(df)
+        replace_output = self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(df)
+        if self.debug:
+            print('%s: Output:' % self.id)
+            self.print_pint_df(df)
 
-        return self.add_nodes(df, additive_nodes)
+        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+
+        return df
 
 
 class EmissionFactorActivity(MultiplicativeNode):
@@ -131,10 +207,10 @@ class Activity(AdditiveNode):
     pass
 
 
-class FixedMultiplierNode(Node):
+class FixedMultiplierNode(SimpleNode):
     allowed_params = [
-        NumberParameter(id='multiplier')
-    ]
+        NumberParameter(id='multiplier'),
+    ] + SimpleNode.allowed_params
 
     def compute(self):
         if len(self.input_nodes) != 1:
@@ -149,15 +225,8 @@ class FixedMultiplierNode(Node):
                 continue
             df[col] *= multiplier
 
-        # If we have also data from an input dataset, we only fill in the gaps from the
-        # calculated data.
-        data_df = self.get_input_dataset()
-        if data_df is not None:
-            latest_year = data_df.index.max()
-            if latest_year < df.index.max():
-                merge_df = df[df.index > latest_year]
-                data_df = data_df.reindex(data_df.index.append(merge_df.index))
-                data_df.loc[data_df.index > latest_year] = merge_df
-            return data_df
+        replace_output = self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(df)
 
         return df

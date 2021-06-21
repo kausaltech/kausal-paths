@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 import orjson
 
 import pandas as pd
 import pint
 import pint_pandas
-from dvc_pandas import Dataset as DVCDataset, Repository
+from dvc_pandas import Dataset as DVCDataset
 
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
@@ -29,8 +29,11 @@ class Dataset:
     # the dvc-pandas dataset identifier.
     input_dataset: Optional[str] = None
     column: Optional[str] = None
-    filters: Optional[List] = None
-    groupby: Optional[Dict] = None
+    filters: Optional[list] = None
+    groupby: Optional[dict] = None
+    dropna: Optional[bool] = None
+    min_year: Optional[int] = None
+    max_year: Optional[int] = None
 
     # The year from which the time series becomes a forecast
     forecast_from: Optional[int] = None
@@ -54,6 +57,17 @@ class Dataset:
             dvc_dataset_id = self.id
         return context.load_dvc_dataset(dvc_dataset_id)
 
+    def handle_output(self, df: Union[pd.DataFrame, pd.Series], ds_hash: str, context: Context):
+        if self.max_year:
+            df = df[df.index <= self.max_year]
+        if self.min_year:
+            df = df[df.index >= self.min_year]
+        if self.dropna:
+            df = df.dropna()
+
+        context.cache.set(ds_hash, df)
+        return df
+
     def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
         if self.fixed_data is not None:
             return self.fixed_data
@@ -61,9 +75,9 @@ class Dataset:
         if self.df is not None:
             return self.df
 
-        ds_hash = self.calculate_hash(context)
-        obj = context.cache.get(ds_hash.hex())
-        if obj is not None:
+        ds_hash = self.calculate_hash(context).hex()
+        obj = context.cache.get(ds_hash)
+        if obj is not None and not context.skip_cache:
             self.df = obj
             return obj
 
@@ -80,11 +94,10 @@ class Dataset:
                 g = self.groupby
                 df = df.groupby([g['index_column'], g['columns_from']])[g['value_column']].sum()
                 df = df.unstack(g['columns_from'])
+        else:
+            self.dvc_dataset = context.load_dvc_dataset(self.id)
+            df = self.dvc_dataset.df
 
-            return df
-
-        self.dvc_dataset = context.load_dvc_dataset(self.id)
-        df = self.dvc_dataset.df
         cols = df.columns
         if self.column:
             if self.column not in cols:
@@ -94,7 +107,6 @@ class Dataset:
                         self.column, self.id, available
                     )
                 )
-            assert self.column in cols
             if YEAR_COLUMN in cols:
                 df = df.set_index(YEAR_COLUMN)
             if FORECAST_COLUMN in cols:
@@ -105,11 +117,13 @@ class Dataset:
                 df = df.rename(columns={self.column: VALUE_COLUMN})
                 df['Forecast'] = False
                 df.loc[df.index >= self.forecast_from, 'Forecast'] = True
-                return df
+                return self.handle_output(df, ds_hash, context)
             else:
-                return df[self.column]
+                s = df[self.column]
+                return self.handle_output(s, ds_hash, context)
 
-        return df[cols]
+        df = df[cols]
+        return self.handle_output(df, ds_hash, context)
 
     def get_copy(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
         return self.load(context).copy()
@@ -117,7 +131,10 @@ class Dataset:
     def calculate_hash(self, context: Context) -> bytes:
         if self.hash is not None:
             return self.hash
-        extra_fields = ['input_dataset', 'column', 'filters', 'groupby', 'forecast_from']
+        extra_fields = [
+            'input_dataset', 'column', 'filters', 'groupby', 'forecast_from',
+            'max_year', 'min_year', 'dropna'
+        ]
         d = {'id': self.id}
         for f in extra_fields:
             d[f] = getattr(self, f)

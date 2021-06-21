@@ -115,8 +115,8 @@ class Node:
             else:
                 return None
 
-        if id not in self.input_params:
-            raise NodeError(self, 'Node is trying to access parameter %s but it is not listed in Node.input_params' % id)
+        # if id not in self.input_params:
+        #     raise NodeError(self, 'Node is trying to access parameter %s but it is not listed in Node.input_params' % id)
 
         return self.context.get_param(id, required=required)
 
@@ -145,7 +145,8 @@ class Node:
         datasets = self.get_input_datasets()
         if not datasets:
             return None
-        assert len(datasets) == 1
+        if len(datasets) != 1:
+            raise NodeError(self, 'Expected only 1 input dataset, got %d' % len(datasets))
         return datasets[0]
 
     def calculate_hash(self) -> bytes:
@@ -167,8 +168,12 @@ class Node:
     def get_output(self, target_node: Node = None) -> pd.DataFrame:
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
-        if out is None or self.debug:
-            out = self.compute()
+        if out is None or self.debug or self.context.skip_cache:
+            try:
+                out = self.compute()
+            except Exception as e:
+                print('Exception when computing node %s' % self.id)
+                raise e
             if out is None:
                 raise NodeError(self, "Node returned no output")
             cache_hit = False
@@ -179,6 +184,9 @@ class Node:
             return None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
+        if FORECAST_COLUMN in out.columns:
+            if out.dtypes[FORECAST_COLUMN] != bool:
+                raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
             self.context.cache.set(node_hash, out)
@@ -203,6 +211,10 @@ class Node:
 
     def print_pint_df(self, df: pd.DataFrame):
         pint_cols = [col for col in df.columns if hasattr(df[col], 'pint')]
+        if not pint_cols:
+            print(df)
+            return
+
         out = df[pint_cols].pint.dequantify()
         for col in df.columns:
             if col in pint_cols:

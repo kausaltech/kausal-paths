@@ -123,6 +123,8 @@ class InstanceLoader:
         if 'quantity' in config:
             node.quantity = config['quantity']
         node.unit = unit
+        if node.id in self._input_nodes or node.id in self._output_nodes:
+            raise Exception('Node %s is already configured' % node.id)
         assert node.id not in self._input_nodes
         assert node.id not in self._output_nodes
         self._input_nodes[node.id] = config.get('input_nodes', [])
@@ -130,6 +132,8 @@ class InstanceLoader:
 
         params = config.get('params', [])
         if params:
+            if isinstance(params, dict):
+                params = [dict(id=param_id, value=value) for param_id, value in params.items()]
             # Ensure that the node class allows these parameters
             class_allowed_params = {p.id: p for p in getattr(node_class, 'allowed_params', [])}
             node.allowed_params = []

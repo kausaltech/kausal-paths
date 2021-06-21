@@ -49,7 +49,7 @@ class ActionNode(Node):
     def compute_effect(self) -> pd.DataFrame:
         raise Exception("Implement in subclass")
 
-    def compute(self) -> Optional[pd.DataFrame]:
+    def compute(self) -> pd.DataFrame:
         return self.compute_effect()
 
     def compute_impact(self, target_node: Node) -> pd.DataFrame:

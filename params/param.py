@@ -22,6 +22,7 @@ class ValidationError(Exception):
 @dataclass
 class Parameter:
     id: str
+    label: TranslatedString = None
     description: TranslatedString = None
     # Set if this parameter is bound to a specific node
     node: Optional[Node] = None
@@ -58,7 +59,7 @@ class NumberParameter(Parameter):
 
     def clean(self, value: float):
         # Avoid converting, e.g., bool to float
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, (int, float, str)):
             raise ValidationError(self)
         try:
             value = float(value)
