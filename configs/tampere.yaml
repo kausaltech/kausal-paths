@@ -73,11 +73,22 @@ instance:
       name_en: Electric heating
       part_of: building_heating_emissions
 
-    - id: industry_emissions
+      #
+      # Other emission sources
+      #
+
+    - id: industry_and_machinery_emissions
       name: Teollisuuden ja työkoneiden päästöt
       name_en: Industry and machinery
       part_of: net_emissions
-      column: Industry and machinery
+    #  column: Industry without city machinery
+      color: '#E8B455'
+
+    - id: industry_emissions
+      name: Teollisuuden päästöt ilman kaupungin työkoneita
+      name_en: Industry emissions without city machinery
+      part_of: industry_and_machinery_emissions
+      column: Industry without city machinery
       color: '#E8B455'
 
     - id: waste_treatment_emissions
@@ -325,6 +336,10 @@ instance:
         - id: multiplier
           value: .95
 
+    #
+    # Transport nodes
+    #
+
     - id: electricity_consumption_emissions
       name: Sähkön kulutuksen päästöt
       name_en: Electricity consumption emissions
@@ -488,6 +503,51 @@ instance:
           forecast_from: 2019
       output_nodes:
         - transportation_emissions
+
+    
+    #
+    # City machinery
+    #
+   
+    - id: city_machinery_emissions
+      name: Kaupungin työkoneiden päästöt
+      name_en: City machinery emissions
+      type: simple.EmissionFactorActivity
+      quantity: emissions
+      unit: kt
+      input_datasets:
+        - id: tampere/scenarios/emissions/bau
+          column: Industry without city machinery
+      output_nodes:
+        - industry_and_machinery_emissions
+
+    - id: city_machinery_fuel_consumption
+      name: Kaupunkin työkoneiden polttoaineenkulutus
+      name_en: City machinery fuel consumption
+      type: simple.Activity
+      quantity: fuel_consumption
+      unit: l
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: City machinery fuel consumption
+      output_nodes:
+        - city_machinery_emissions
+
+    - id: city_machinery_emission_factor
+      name: Dieselin päästökerroin
+      name_en: Diesel emission factor
+      type: simple.AdditiveNode
+      quantity: emission_factor
+      unit: g/l
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Machinery
+      output_nodes:
+        - city_machinery_emissions
+
+  #
+  # ------- ACTIONS --------
+  #
 
   actions:
     # - id: reduce_heating_emissions
@@ -671,6 +731,19 @@ instance:
           values: [[2029, -4.3], [2030, -4.3]]
         - id: bus_kilometers
           values: [[2030, 0]]
+
+    - id: renewable_diesel_in_city_machinery
+      name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
+      name_en: Renewable diesel in city machinery
+      type: simple.LinearCumulativeAdditiveAction
+      unit: g/l
+      quantity: emission_factor
+      output_nodes:
+        - city_machinery_emission_factor
+      forecast_values:
+        - id: city_machinery_emission_factor
+          values: [[2021, 0], [2030, -2689]]
+
     # - id: oil_biofuel_mix_increase
     #   name: Kevyen polttoöljyn bionesteen sekoitevelvoite
     #   name_en: Increase share of biofuels in oil
