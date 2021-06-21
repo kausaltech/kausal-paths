@@ -52,9 +52,14 @@ parser.add_argument('--scenario', type=str, help='select scenario')
 parser.add_argument('--param', action='append', type=str, help='set a parameter')
 parser.add_argument('--list-params', action='store_true', help='list parameters')
 parser.add_argument('--debug', action='store_true', help='enable debug messages and disable cache')
+parser.add_argument('--check', action='store_true', help='perform sanity checking')
+parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 args = parser.parse_args()
+
+if args.skip_cache:
+    context.skip_cache = True
 
 if args.pull_datasets:
     context.pull_datasets()
@@ -75,6 +80,31 @@ if args.baseline:
     pc.display('generating')
     context.generate_baseline_values()
     pc.display('done')
+
+if args.check:
+    for node_id, node in context.nodes.items():
+        node.check()
+        df = node.get_output()
+        na_count = df.isna().sum().sum()
+        if na_count:
+            print('Node %s has NaN values:' % node.id)
+            node.print_output()
+
+        if node.baseline_values is not None:
+            na_count = node.baseline_values.isna().sum().sum()
+            if na_count:
+                print('Node %s baseline forecast has NaN values:' % node.id)
+                node.print_pint_df(node.baseline_values)
+
+    import os
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
+    django.setup()
+    from pages.models import NodeContent
+    for nc in NodeContent.objects.all():
+        if nc.node_id not in context.nodes:
+            print('NodeContent exists for missing node %s' % nc.node_id)
+
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
