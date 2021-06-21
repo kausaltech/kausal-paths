@@ -130,7 +130,7 @@ instance:
       name_en: Industrial electricity consumption
       name: Teollisuuden sähkön kulutuksen päästöt
       part_of: electricity_consumption_emissions
-      column: Industrial electricity consumption
+      column: Power consumption industry
 
   nodes:
     - id: population
@@ -280,7 +280,7 @@ instance:
         replace_output_using_input_dataset: true
       input_datasets:
         - id: tampere/scenarios/emissions/bau
-          column: Other electricity consumption
+          column: Other power consumption
           forecast_from: 2019
           max_year: 2018
       input_nodes:
