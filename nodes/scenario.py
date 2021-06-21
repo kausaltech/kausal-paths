@@ -1,9 +1,12 @@
 import logging
-from typing import Dict, List, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+
+import sentry_sdk
 
 from common.i18n import TranslatedString
 from params import Parameter
+
 if TYPE_CHECKING:
     from .context import Context
 
@@ -52,11 +55,23 @@ class CustomScenario(Scenario):
         params = self.session.get('params', {})
         for param_id, val in list(params.items()):
             param = context.params.get(param_id)
+            is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)
-                logger.warn('parameter %s not found in context' % param_id)
+                logger.error('parameter %s not found in context' % param_id)
+                is_valid = False
+            else:
+                try:
+                    val = param.clean(val)
+                except Exception as e:
+                    logger.error('parameter %s has invalid value: %s' % (param_id, val))
+                    is_valid = False
+                    sentry_sdk.capture_exception(e)
+
+            if not is_valid:
                 del params[param_id]
                 self.session.modified = True
                 continue
+
             param.set(val)
             param.is_customized = True
