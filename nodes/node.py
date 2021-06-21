@@ -11,7 +11,7 @@ import pint
 import pint_pandas
 
 from common.i18n import TranslatedString
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import FORECAST_COLUMN, KNOWN_QUANTITIES, VALUE_COLUMN
 from params import Parameter
 
 from .context import Context
@@ -287,3 +287,9 @@ class Node:
             return None
         # FIXME: Format RichTextField?
         return self.content.body
+
+    def check(self):
+        if self.quantity is None:
+            raise NodeError(self, 'No quantity set')
+        if self.quantity not in KNOWN_QUANTITIES:
+            raise NodeError(self, 'Quantity %s is unknown' % self.quantity)

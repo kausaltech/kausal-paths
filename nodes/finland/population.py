@@ -13,6 +13,7 @@ class Population(Node):
         'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_128w'
     ]
     unit = 'person'
+    quantity = 'population'
 
     def compute(self):
         muni_name = self.get_param_value('municipality_name')
