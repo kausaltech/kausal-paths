@@ -328,7 +328,6 @@ instance:
       type: simple.FixedMultiplierNode
       unit: g/kWh
       quantity: emission_factor
-      description: Muulle sähkönkulutukselle oletetaan 5 % pienempi päästökerroin.
       description_en: We assume an 5 % higher emission factor for other electricity consumption.
       input_nodes:
         - electricity_production_emission_factor
@@ -670,7 +669,6 @@ instance:
       type: simple.LinearCumulativeAdditiveAction
       unit: GWh
       quantity: energy
-      description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus otetaan käyttöön vuoteen 2025 mennessä. Vuonna 2019 LEDejä oli 33% valaistuksesta. Hankinta koskien valaistuksen ohjausjärjestelmää on saatu päätökseen ja ohjausjärjestelmän toteutus voi alkaa.
       forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
       output_nodes:
         - other_electricity_consumption
@@ -680,7 +678,6 @@ instance:
       name_en: Tram construction phase 1 (2019-2022)
       type: simple.CumulativeAdditiveAction
       unit: Mkm
-      description: Raitiotien ensimmäinen vaihe
       quantity: mileage
       output_nodes: 
         - tram_kilometers
@@ -700,7 +697,6 @@ instance:
       type: simple.CumulativeAdditiveAction
       unit: Mkm
       quantity: mileage
-      description: Raitiotien toinen vaihe
       output_nodes: 
         - tram_kilometers
         - car_kilometers_streets
@@ -719,7 +715,6 @@ instance:
       type: simple.CumulativeAdditiveAction
       unit: Mkm
       quantity: mileage
-      description: Raitiotien kolmas vaihe
       output_nodes: 
         - tram_kilometers
         - car_kilometers_streets
