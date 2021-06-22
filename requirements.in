@@ -7,6 +7,7 @@ django-environ
 django-cors-headers
 graphene-django
 graphene-django-optimizer
+graphene-stubs
 sentry_sdk
 djangorestframework
 django-extensions

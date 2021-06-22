@@ -153,6 +153,8 @@ graphene-django-optimizer==0.8.0
     # via -r requirements.in
 graphene-django==2.15.0
     # via -r requirements.in
+graphene-stubs==0.15
+    # via -r requirements.in
 graphene==2.1.8
     # via graphene-django
 graphql-core==2.3.2
@@ -197,7 +199,9 @@ multidict==5.1.0
 mypy-extensions==0.4.3
     # via mypy
 mypy==0.902
-    # via django-stubs
+    # via
+    #   django-stubs
+    #   graphene-stubs
 nanotime==0.5.2
     # via dvc
 networkx==2.5.1
@@ -398,6 +402,7 @@ typing-extensions==3.10.0.0
     #   aioitertools
     #   django-stubs
     #   dvc
+    #   graphene-stubs
     #   mypy
 urllib3==1.26.5
     # via
