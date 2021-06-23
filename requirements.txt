@@ -131,7 +131,7 @@ flatten-dict==0.4.0
     # via dvc
 flufl.lock==3.2
     # via dvc
-fsspec==2021.5.0
+fsspec==2021.05.0
     # via
     #   dvc
     #   s3fs
@@ -396,6 +396,8 @@ traitlets==5.0.5
     # via
     #   ipython
     #   matplotlib-inline
+types-orjson==0.1.1
+    # via -r requirements.in
 typing-extensions==3.10.0.0
     # via
     #   aiohttp
