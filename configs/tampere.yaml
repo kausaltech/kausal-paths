@@ -496,6 +496,8 @@ instance:
       type: simple.EmissionFactorActivity
       unit: kt
       quantity: emissions
+      params:
+        fill_gaps_using_input_dataset: true
       input_datasets:
         - id: tampere/scenarios/emissions/bau
           column: Buses
