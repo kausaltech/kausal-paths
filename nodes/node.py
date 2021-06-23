@@ -90,17 +90,11 @@ class Node:
             self.__post_init__()
 
     def register_param(self, param: Parameter):
-        local_id = param.id
-        global_id = '%s.%s' % (self.id, param.id)
-        param.id = global_id
-        param.node = self
-        # By default node parameters are customizable
-        if param.is_customizable is None:
-            param.is_customizable = True
-        assert global_id not in self.context.params
-        self.context.params[global_id] = param
-        assert local_id not in self.params
-        self.params[local_id] = param
+        param.set_node(self)
+        assert param.id not in self.context.params
+        self.context.params[param.id] = param
+        assert param.node_relative_id not in self.params
+        self.params[param.node_relative_id] = param
 
     def register_params(self):
         for param in self.allowed_params:

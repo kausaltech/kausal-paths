@@ -248,7 +248,7 @@ class InstanceLoader:
                 default_scenario = scenario
             self.context.add_scenario(scenario)
 
-        self.context.add_scenario(
+        self.context.add_custom_scenario(
             CustomScenario(
                 id='custom',
                 name='Custom',

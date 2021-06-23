@@ -12,7 +12,7 @@ from . import (
 
 class ParameterInterface(graphene.Interface):
     id = graphene.ID()  # global id
-    name = graphene.String()
+    label = graphene.String()
     description = graphene.String()
     node_relative_id = graphene.ID()  # can be null if node is null
     node = graphene.Field('nodes.schema.NodeType')  # can be null for global params

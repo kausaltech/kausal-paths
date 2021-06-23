@@ -13,7 +13,7 @@ from params.discover import discover_parameters
 
 if TYPE_CHECKING:
     from .node import Node
-    from .scenario import Scenario
+    from .scenario import CustomScenario, Scenario
 
 
 unit_registry = pint.UnitRegistry(preprocessors=[
@@ -41,6 +41,7 @@ class Context:
     dvc_datasets: Dict[str, dvc_pandas.Dataset]
     params: dict[str, Parameter]
     scenarios: dict[str, Scenario]
+    custom_scenario: CustomScenario
     target_year: int
     unit_registry: pint.UnitRegistry
     dataset_repo: dvc_pandas.Repository
@@ -57,6 +58,7 @@ class Context:
         self.nodes = {}
         self.datasets = {}
         self.scenarios = {}
+        self.custom_scenario = None
         self.params = {}
         self.dvc_datasets = {}
         self.unit_registry = unit_registry
@@ -111,6 +113,11 @@ class Context:
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
         self.scenarios[scenario.id] = scenario
+
+    def add_custom_scenario(self, scenario: CustomScenario):
+        self.add_scenario(scenario)
+        assert self.custom_scenario is None
+        self.custom_scenario = scenario
 
     def get_scenario(self, id) -> Scenario:
         return self.scenarios[id]
