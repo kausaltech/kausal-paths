@@ -1,14 +1,16 @@
 import importlib
 import logging
+from nodes.constants import DecisionLevel
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
 import dvc_pandas
+from graphene.types import decimal
 import yaml
 
-from common.i18n import TranslatedString
+from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
@@ -154,8 +156,7 @@ class InstanceLoader:
                     fields['name'] = description
                 param = type(param_obj)(**fields)
                 for scenario_id, value in scenario_values.items():
-                    scenario = self.scenario_node_params.setdefault(scenario_id, {})
-                    scenario_params = scenario.setdefault(node.id, {})
+                    scenario_params = node.scenario_params.setdefault(scenario_id, {})
                     scenario_params[param.id] = param.clean(value)
 
                 node.allowed_params.append(type(param_obj)(**fields))
@@ -208,6 +209,14 @@ class InstanceLoader:
             mod = importlib.import_module('.'.join(klass))
             node_class = getattr(mod, node_name)
             node = self.make_node(node_class, nc)
+            decision_level = nc.get('decision_level')
+            if decision_level is not None:
+                for name, val in DecisionLevel.__members__.items():
+                    if decision_level == name.lower():
+                        break
+                else:
+                    raise Exception('Invalid decision level for action %s: %s' % (nc['id'], val))
+                node.decision_level = val
             self.context.add_node(node)
             node.param_defaults['enabled'] = False
 
@@ -234,35 +243,28 @@ class InstanceLoader:
         default_scenario = None
 
         for sc in self.config['scenarios']:
-            all_actions_enabled = sc.pop('all_actions_enabled', False)
             name = self.make_trans_string(sc, 'name', pop=True)
-            params = sc.pop('params', [])
-            scenario = Scenario(**sc, name=name)
-
-            for node in self.context.nodes.values():
-                if not isinstance(node, ActionNode):
-                    continue
-                param = node.get_param('enabled')
-                scenario.params[param.id] = all_actions_enabled
-
-            for pc in params:
+            params_config = sc.pop('params', [])
+            params = {}
+            for pc in params_config:
                 param = self.context.get_param(pc['id'])
-                scenario.params[param.id] = param.clean(pc['value'])
+                params[param.id] = param.clean(pc['value'])
+                # scenario.params[param.id] = param.clean(pc['value'])
 
-            for node_id, node_params in self.scenario_node_params.get(scenario.id, {}).items():
-                node = self.context.get_node(node_id)
-                for param_id, val in node_params.items():
-                    param = node.get_param(param_id, local=True)
-                    scenario.params[param.id] = val
+            scenario = Scenario(**sc, name=name, context=self.context, params=params, nodes=self.context.nodes.values())
 
             if scenario.default:
                 assert default_scenario is None
                 default_scenario = scenario
             self.context.add_scenario(scenario)
 
-        self.context.add_scenario(
+        self.context.add_custom_scenario(
             CustomScenario(
-                id='custom', name='Custom', base_scenario=default_scenario
+                id='custom',
+                name=_('Custom'),
+                context=self.context,
+                base_scenario=default_scenario,
+                nodes=self.context.nodes.values(),
             )
         )
 
@@ -334,7 +336,6 @@ class InstanceLoader:
         self.context.target_year = self.config['target_year']
 
         self.load_datasets(self.config.get('datasets', []))
-        self.scenario_node_params = {}
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}
         self._output_nodes = {}

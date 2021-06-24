@@ -131,7 +131,7 @@ flatten-dict==0.4.0
     # via dvc
 flufl.lock==3.2
     # via dvc
-fsspec==2021.5.0
+fsspec==2021.05.0
     # via
     #   dvc
     #   s3fs
@@ -152,6 +152,8 @@ grandalf==0.6
 graphene-django-optimizer==0.8.0
     # via -r requirements.in
 graphene-django==2.15.0
+    # via -r requirements.in
+graphene-stubs==0.15
     # via -r requirements.in
 graphene==2.1.8
     # via graphene-django
@@ -197,7 +199,9 @@ multidict==5.1.0
 mypy-extensions==0.4.3
     # via mypy
 mypy==0.902
-    # via django-stubs
+    # via
+    #   django-stubs
+    #   graphene-stubs
 nanotime==0.5.2
     # via dvc
 networkx==2.5.1
@@ -392,12 +396,15 @@ traitlets==5.0.5
     # via
     #   ipython
     #   matplotlib-inline
+types-orjson==0.1.1
+    # via -r requirements.in
 typing-extensions==3.10.0.0
     # via
     #   aiohttp
     #   aioitertools
     #   django-stubs
     #   dvc
+    #   graphene-stubs
     #   mypy
 urllib3==1.26.5
     # via

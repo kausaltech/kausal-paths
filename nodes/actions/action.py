@@ -2,7 +2,7 @@
 from typing import Optional
 import pandas as pd
 
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, DecisionLevel
 from nodes import Node
 from params import BoolParameter
 
@@ -11,6 +11,8 @@ ENABLED_PARAM_ID = 'enabled'
 
 
 class ActionNode(Node):
+    decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
+
     # The value to use for "no effect" years.
     # For additive actions, it probably is 0, and for multiplicative
     # actions, 1.0.
@@ -67,3 +69,8 @@ class ActionNode(Node):
     def print_impact(self, target_node: Node):
         df = self.compute_impact(target_node)
         self.print_pint_df(df)
+
+    def on_scenario_created(self, scenario):
+        super().on_scenario_created(scenario)
+        param = self.get_param('enabled')
+        scenario.params[param.id] = scenario.all_actions_enabled

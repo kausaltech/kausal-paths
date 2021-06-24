@@ -1,14 +1,13 @@
 import logging
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from dataclasses import dataclass, InitVar
+from typing import Any, Dict, List
 
 import sentry_sdk
 
+from .context import Context
 from common.i18n import TranslatedString
+from nodes.node import Node
 from params import Parameter
-
-if TYPE_CHECKING:
-    from .context import Context
 
 
 logger = logging.getLogger(__name__)
@@ -18,16 +17,23 @@ logger = logging.getLogger(__name__)
 class Scenario:
     id: str
     name: TranslatedString
+    context: Context
+
     default: bool = False
     # Dict of params and their values in the scenario
     params: Dict[str, Any] = None
+    all_actions_enabled: bool = False
+    # Nodes that will be notified of this scenario's creation
+    nodes: InitVar[List[Node]] = []
 
-    def __post_init__(self):
+    def __post_init__(self, nodes):
         self.params = {}
+        for node in nodes:
+            node.on_scenario_created(self)
 
-    def activate(self, context):
+    def activate(self):
         for param_id, val in self.params.items():
-            param = context.get_param(param_id)
+            param = self.context.get_param(param_id)
             param.set(val)
             param.is_customized = False
 
@@ -50,11 +56,12 @@ class CustomScenario(Scenario):
             return True
         return False
 
-    def activate(self, context):
-        self.base_scenario.activate(context)
+    def activate(self):
+        assert self.base_scenario.context == self.context
+        self.base_scenario.activate()
         params = self.session.get('params', {})
         for param_id, val in list(params.items()):
-            param = context.params.get(param_id)
+            param = self.context.params.get(param_id)
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)

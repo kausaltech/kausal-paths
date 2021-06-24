@@ -46,9 +46,8 @@ class InstanceMiddleware:
 
             # Tell the custom scenario about the user setting so that
             # it can locate the customized parameters.
-            custom_scenario = context.scenarios.get('custom')
-            if custom_scenario is not None:
-                custom_scenario.set_session(session)
+            if context.custom_scenario is not None:
+                context.custom_scenario.set_session(session)
 
             if scenario is None:
                 scenario = context.get_default_scenario()

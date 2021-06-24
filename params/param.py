@@ -22,8 +22,8 @@ class ValidationError(Exception):
 @dataclass
 class Parameter:
     id: str
-    label: TranslatedString = None
-    description: TranslatedString = None
+    label: Optional[TranslatedString] = None
+    description: Optional[TranslatedString] = None
     # Set if this parameter is bound to a specific node
     node: Optional[Node] = None
     is_customized: bool = False
@@ -42,6 +42,19 @@ class Parameter:
 
     def clean(self, value: Any) -> Any:
         raise NotImplementedError('Implement in subclass')
+
+    @property
+    def node_relative_id(self):
+        return self.id.split('.')[-1]
+
+    def set_node(self, node: Node):
+        assert '.' not in self.id
+        global_id = f'{node.id}.{self.id}'
+        self.id = global_id
+        self.node = node
+        # By default node parameters are customizable
+        if self.is_customizable is None:
+            self.is_customizable = True
 
 
 @dataclass

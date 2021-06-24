@@ -496,6 +496,8 @@ instance:
       type: simple.EmissionFactorActivity
       unit: kt
       quantity: emissions
+      params:
+        fill_gaps_using_input_dataset: true
       input_datasets:
         - id: tampere/scenarios/emissions/bau
           column: Buses
@@ -503,7 +505,6 @@ instance:
       output_nodes:
         - transportation_emissions
 
-    
     #
     # City machinery
     #
@@ -543,6 +544,17 @@ instance:
           column: Machinery
       output_nodes:
         - city_machinery_emissions
+
+    - id: renewable_electricity_consumption_reduction
+      name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
+      name_en: Decrease in purchased energy due to renewable electricity production
+      quantity: energy
+      type: simple.FixedMultiplierNode
+      output_nodes:
+        - other_electricity_consumption
+      params:
+        multiplier: -1
+      unit: GWh
 
   #
   # ------- ACTIONS --------
@@ -602,17 +614,18 @@ instance:
       type: simple.LinearCumulativeAdditiveAction
       quantity: energy
       output_nodes:
-        - other_electricity_consumption
-      forecast_values: [[2019, 0], [2030, -850]]
+        - renewable_electricity_consumption_reduction
+      forecast_values: [[2019, 0], [2020, 0.2], [2030, -850]]
       params:
-        - id: target_year_ratio
+        - id: target_year_level
           values:
-            default: 2
+            default: 17
           min_value: 0
-          max_value: 100
+          max_value: 850
           step: 1
-          description: Rakennettu osuus kaikesta aurinkosähköpotentiaalista
-          description_en: Share of total PV potential that will be built
+          unit: GWh
+          description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+          description_en: PV energy production in 2030
       unit: GWh
 
     - id: oil_heated_private_buildings_to_geothermal
@@ -647,6 +660,7 @@ instance:
     - id: cleaner_electricity_production
       name: Kansallinen sähköntuotanto puhdistuu
       name_en: Shift to low-carbon in national electricity production
+      decision_level: nation
       quantity: emission_factor
       output_nodes:
         - electricity_production_emission_factor
@@ -654,12 +668,13 @@ instance:
       forecast_values: [[2019, 0], [2030, -80]]
       unit: g/kWh
       params:
-        - id: target_year_ratio
+        - id: target_year_level
           values:
-            default: 76
-          min_value: 0
-          max_value: 100
+            default: -61
+          min_value: -80
+          max_value: 0
           step: 1
+          unit: g/kWh
           description: Sähköntuotannon päästökertoimen pieneneminen
           description_en: Reduction of electricity production emission factor
 
@@ -757,12 +772,6 @@ instance:
       historical_values: [[2016, 861], [2017, 865], [2018, 846]]
       forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 69.1], [2023, 65.0], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
 
-
-    # - id: oil_biofuel_mix_increase
-    #   name: Kevyen polttoöljyn bionesteen sekoitevelvoite
-    #   name_en: Increase share of biofuels in oil
-    #   output_nodes:
-    #     - Heating
 
   pages:
     - id: home

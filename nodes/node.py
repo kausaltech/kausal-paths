@@ -54,6 +54,8 @@ class Node:
 
     # Parameters with their values
     params: Dict[str, Parameter]
+    # Maps a scenario to scenario-specific parameters and their values
+    scenario_params: Dict[str, Dict[str, Parameter]]
 
     # All allowed parameters for this class or object
     allowed_params: Iterable[Parameter]
@@ -81,23 +83,18 @@ class Node:
         self.baseline_values = None
         self.params = {}
         self.content = None
+        self.scenario_params = {}
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
 
     def register_param(self, param: Parameter):
-        local_id = param.id
-        global_id = '%s.%s' % (self.id, param.id)
-        param.id = global_id
-        param.node = self
-        # By default node parameters are customizable
-        if param.is_customizable is None:
-            param.is_customizable = True
-        assert global_id not in self.context.params
-        self.context.params[global_id] = param
-        assert local_id not in self.params
-        self.params[local_id] = param
+        param.set_node(self)
+        assert param.id not in self.context.params
+        self.context.params[param.id] = param
+        assert param.node_relative_id not in self.params
+        self.params[param.node_relative_id] = param
 
     def register_params(self):
         for param in self.allowed_params:
@@ -283,6 +280,13 @@ class Node:
                     result.append(current)
                 open += current.input_nodes
         return result
+
+    def on_scenario_created(self, scenario):
+        """Called when a scenario is created with this node among the nodes to be notified."""
+        scenario_params = self.scenario_params.get(scenario.id, {})
+        for param_id, val in scenario_params.items():
+            param = self.get_param(param_id, local=True)
+            scenario.params[param.id] = val
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
