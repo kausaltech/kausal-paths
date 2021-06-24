@@ -8,7 +8,7 @@ from pages.base import Metric
 
 from . import Node
 from .actions import ActionNode
-from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN
+from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, DecisionLevel
 from .scenario import Scenario
 
 
@@ -46,6 +46,9 @@ class ForecastMetricType(graphene.ObjectType):
         return root.get_baseline_forecast_values()
 
 
+ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
+
+
 class NodeType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
@@ -54,6 +57,7 @@ class NodeType(graphene.ObjectType):
     quantity = graphene.String()
     target_year_goal = graphene.Float()
     is_action = graphene.Boolean()
+    decision_level = graphene.Field(ActionDecisionLevel)
     input_nodes = graphene.List(lambda: NodeType)
     output_nodes = graphene.List(lambda: NodeType)
     descendant_nodes = graphene.List(lambda: NodeType, proper=graphene.Boolean())

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-19 12:19+0300\n"
+"POT-Creation-Date: 2021-06-24 11:03+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,23 +18,39 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: pages/models.py:34
+#: nodes/instance.py:264
+msgid "Custom"
+msgstr "Räätälöity"
+
+#: pages/models.py:24
+msgid "Instance identifier"
+msgstr "Instanssin tunniste"
+
+#: pages/models.py:29
+msgid "Instance"
+msgstr ""
+
+#: pages/models.py:30
+msgid "Instances"
+msgstr ""
+
+#: pages/models.py:41
 msgid "Node identifier"
 msgstr "Solmun tunniste"
 
-#: pages/models.py:37
+#: pages/models.py:44
 msgid "Short description"
 msgstr "Lyhyt kuvaus"
 
-#: pages/models.py:40
+#: pages/models.py:47
 msgid "Body"
 msgstr "Kuvaus"
 
-#: pages/models.py:44
+#: pages/models.py:51
 msgid "Node"
 msgstr "Solmu"
 
-#: pages/models.py:45
+#: pages/models.py:52
 msgid "Nodes"
 msgstr "Solmut"
 

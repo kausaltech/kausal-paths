@@ -1,3 +1,5 @@
+from enum import Enum
+
 FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
@@ -8,3 +10,9 @@ KNOWN_QUANTITIES = [
     'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita'
 ]
 ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage']
+
+
+class DecisionLevel(Enum):
+    MUNICIPALITY = 1
+    NATION = 2
+    EU = 3

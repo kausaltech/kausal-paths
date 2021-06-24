@@ -1,14 +1,16 @@
 import importlib
 import logging
+from nodes.constants import DecisionLevel
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
 import dvc_pandas
+from graphene.types import decimal
 import yaml
 
-from common.i18n import TranslatedString
+from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
@@ -207,6 +209,14 @@ class InstanceLoader:
             mod = importlib.import_module('.'.join(klass))
             node_class = getattr(mod, node_name)
             node = self.make_node(node_class, nc)
+            decision_level = nc.get('decision_level')
+            if decision_level is not None:
+                for name, val in DecisionLevel.__members__.items():
+                    if decision_level == name.lower():
+                        break
+                else:
+                    raise Exception('Invalid decision level for action %s: %s' % (nc['id'], val))
+                node.decision_level = val
             self.context.add_node(node)
             node.param_defaults['enabled'] = False
 
@@ -251,7 +261,7 @@ class InstanceLoader:
         self.context.add_custom_scenario(
             CustomScenario(
                 id='custom',
-                name='Custom',
+                name=_('Custom'),
                 context=self.context,
                 base_scenario=default_scenario,
                 nodes=self.context.nodes.values(),

@@ -505,7 +505,6 @@ instance:
       output_nodes:
         - transportation_emissions
 
-    
     #
     # City machinery
     #
@@ -649,6 +648,7 @@ instance:
     - id: cleaner_electricity_production
       name: Kansallinen sähköntuotanto puhdistuu
       name_en: Shift to low-carbon in national electricity production
+      decision_level: nation
       quantity: emission_factor
       output_nodes:
         - electricity_production_emission_factor
