@@ -735,9 +735,28 @@ instance:
       quantity: emission_factor
       output_nodes:
         - city_machinery_emission_factor
+      #  - city_machinery_fuel_consumption
       forecast_values:
         - id: city_machinery_emission_factor
+        #  quantity: emission_factor
+        #  unit: g/l
           values: [[2021, 0], [2030, -2689]]
+        #- id: city_machinery_fuel_consumption # TODO An action should be able to have several output nodes with different units
+        #  quantity: fuel_consumption
+        #  unit: l
+        #  values: [[2021, 0], [2030, 64000]]
+
+    - id: energy_change_in_buses
+      name: Bussiliikenteen käyttövoimamuutos
+      name_en: Energy change in buses
+      type: simple.CumulativeAdditiveAction
+      quantity: emission_factor
+      unit: g/km
+      output_nodes:
+        - bus_emission_factor
+      historical_values: [[2016, 861], [2017, 865], [2018, 846]]
+      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 69.1], [2023, 65.0], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
+
 
     # - id: oil_biofuel_mix_increase
     #   name: Kevyen polttoöljyn bionesteen sekoitevelvoite
