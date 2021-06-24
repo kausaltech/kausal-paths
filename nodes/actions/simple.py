@@ -1,5 +1,7 @@
-from params import PercentageParameter
+from params.param import Parameter
+from params import PercentageParameter, NumberParameter
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.node import NodeError
 from .action import ActionNode
 
 
@@ -18,8 +20,8 @@ class AdditiveAction(ActionNode):
 class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
-    allowed_params = [
-        PercentageParameter('target_year_ratio', min_value=0)
+    allowed_params: list[Parameter] = [
+        PercentageParameter('target_year_ratio', min_value=0),
     ]
 
     def add_cumulatively(self, df):
@@ -53,6 +55,10 @@ class CumulativeAdditiveAction(ActionNode):
 
 
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
+    allowed_params = CumulativeAdditiveAction.allowed_params + [
+        NumberParameter('target_year_level')
+    ]
+
     """Cumulative additive action where a yearly target is set and the effect is linear."""
     def compute_effect(self):
         df = self.get_input_dataset()
@@ -60,6 +66,13 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         end_year = df.index.max()
         df = df.reindex(range(start_year, end_year + 1))
         df[FORECAST_COLUMN] = True
+
+        target_year_level = self.get_param_value('target_year_level', local=True, required=False)
+        if target_year_level is not None:
+            if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
+                raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
+            df.loc[end_year, VALUE_COLUMN] = target_year_level
+
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue

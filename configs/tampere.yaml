@@ -545,6 +545,17 @@ instance:
       output_nodes:
         - city_machinery_emissions
 
+    - id: renewable_electricity_consumption_reduction
+      name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
+      name_en: Decrease in purchased energy due to renewable electricity production
+      quantity: energy
+      type: simple.FixedMultiplierNode
+      output_nodes:
+        - other_electricity_consumption
+      params:
+        multiplier: -1
+      unit: GWh
+
   #
   # ------- ACTIONS --------
   #
@@ -603,17 +614,18 @@ instance:
       type: simple.LinearCumulativeAdditiveAction
       quantity: energy
       output_nodes:
-        - other_electricity_consumption
-      forecast_values: [[2019, 0], [2030, -850]]
+        - renewable_electricity_consumption_reduction
+      forecast_values: [[2019, 0], [2020, 0.2], [2030, -850]]
       params:
-        - id: target_year_ratio
+        - id: target_year_level
           values:
-            default: 2
+            default: 17
           min_value: 0
-          max_value: 100
+          max_value: 850
           step: 1
-          description: Rakennettu osuus kaikesta aurinkosähköpotentiaalista
-          description_en: Share of total PV potential that will be built
+          unit: GWh
+          description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+          description_en: PV energy production in 2030
       unit: GWh
 
     - id: oil_heated_private_buildings_to_geothermal
@@ -656,12 +668,13 @@ instance:
       forecast_values: [[2019, 0], [2030, -80]]
       unit: g/kWh
       params:
-        - id: target_year_ratio
+        - id: target_year_level
           values:
-            default: 76
-          min_value: 0
-          max_value: 100
+            default: -61
+          min_value: -80
+          max_value: 0
           step: 1
+          unit: g/kWh
           description: Sähköntuotannon päästökertoimen pieneneminen
           description_en: Reduction of electricity production emission factor
 
@@ -740,12 +753,6 @@ instance:
       forecast_values:
         - id: city_machinery_emission_factor
           values: [[2021, 0], [2030, -2689]]
-
-    # - id: oil_biofuel_mix_increase
-    #   name: Kevyen polttoöljyn bionesteen sekoitevelvoite
-    #   name_en: Increase share of biofuels in oil
-    #   output_nodes:
-    #     - Heating
 
   pages:
     - id: home
