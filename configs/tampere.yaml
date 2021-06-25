@@ -443,10 +443,14 @@ instance:
       type: simple.AdditiveNode
       quantity: emission_factor
       unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Bus street constant fuel share
+          dropna: true
       output_nodes:
         - bus_emissions
-      historical_values: [[2016, 861], [2017, 865], [2018, 846]]
-      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 691], [2023, 650], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
+#      historical_values: [[2016, 861], [2017, 865], [2018, 846]]
+#      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 691], [2023, 650], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
 
     - id: tram_emissions
       name: Ratikkaliikenteen päästöt
@@ -761,17 +765,20 @@ instance:
         #  unit: l
         #  values: [[2021, 0], [2030, 64000]]
 
-    - id: energy_change_in_buses
+    - id: energy_conversion_in_buses
       name: Bussiliikenteen käyttövoimamuutos
-      name_en: Energy change in buses
-      type: simple.CumulativeAdditiveAction
+      name_en: Energy conversion in buses
+      type: simple.AdditiveAction
       quantity: emission_factor
       unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Bus street difference to constant fuel share
+          forecast_from: 2020
+          dropna: true
       output_nodes:
         - bus_emission_factor
-      historical_values: [[2016, 861], [2017, 865], [2018, 846]]
-      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 69.1], [2023, 65.0], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
-
+        
 
   pages:
     - id: home
