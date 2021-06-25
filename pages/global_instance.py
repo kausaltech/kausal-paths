@@ -1,9 +1,9 @@
 import os
 from django.conf import settings
 
-from nodes.instance import InstanceLoader
+from nodes.instance import Instance, InstanceLoader
 
-instance = None
+instance: Instance
 
 if settings.INSTANCE_LOADER_CONFIG is not None:
     loader = InstanceLoader.from_yaml(os.path.join(settings.BASE_DIR, settings.INSTANCE_LOADER_CONFIG))
