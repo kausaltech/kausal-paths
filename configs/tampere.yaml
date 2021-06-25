@@ -435,10 +435,14 @@ instance:
       quantity: emission_factor
       type: simple.AdditiveNode
       unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Private car street
+          dropna: true
       output_nodes:
         - car_emissions_streets
-      historical_values: [[2016, 202], [2017, 197], [2018, 192]]
-      forecast_values: [[2019, 187], [2020, 179], [2021, 171], [2022, 164], [2023, 157], [2024, 150], [2025, 142], [2026, 132], [2027, 123], [2028, 113], [2029, 104], [2030, 96]]
+#      historical_values: [[2016, 202], [2017, 197], [2018, 192]]
+#      forecast_values: [[2019, 187], [2020, 179], [2021, 171], [2022, 164], [2023, 157], [2024, 150], [2025, 142], [2026, 132], [2027, 123], [2028, 113], [2029, 104], [2030, 96]]
 
     - id: car_emission_factor_roads
       name: Henkilöautoilun päästökerroin (maantieajo)
@@ -446,10 +450,14 @@ instance:
       quantity: emission_factor
       type: simple.AdditiveNode
       unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Private car road
+          dropna: true
       output_nodes:
         - car_emissions_roads
-      historical_values: [[2016, 133.0], [2017, 129.0], [2018, 126.0]]
-      forecast_values: [[2019, 122.0], [2020, 117.0], [2021, 112.0], [2022, 108.0], [2023, 103.0], [2024, 98.0], [2025, 93.0], [2026, 87.0], [2027, 81.0], [2028, 75.0], [2029, 69.0], [2030, 63.0]]
+#      historical_values: [[2016, 133.0], [2017, 129.0], [2018, 126.0]]
+#      forecast_values: [[2019, 122.0], [2020, 117.0], [2021, 112.0], [2022, 108.0], [2023, 103.0], [2024, 98.0], [2025, 93.0], [2026, 87.0], [2027, 81.0], [2028, 75.0], [2029, 69.0], [2030, 63.0]]
 
     - id: bus_emission_factor_streets
       name: Bussin päästökerroin (katuajo)
@@ -470,10 +478,14 @@ instance:
       type: simple.AdditiveNode
       quantity: emission_factor
       unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Bus road
+          dropna: true
       output_nodes:
         - bus_emissions_roads
-      historical_values: [[2016, 861], [2017, 865], [2018, 846]]
-      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 691], [2023, 650], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
+#      historical_values: [[2016, 861], [2017, 865], [2018, 846]]
+#      forecast_values: [[2019, 816], [2020, 774], [2021, 733], [2022, 691], [2023, 650], [2024, 607], [2025, 568], [2026, 474], [2027, 380], [2028, 287], [2029, 195], [2030, 102]]
 
     - id: tram_emissions
       name: Ratikkaliikenteen päästöt
@@ -817,7 +829,7 @@ instance:
           forecast_from: 2020
           dropna: true
       output_nodes:
-        - bus_emission_factor
+        - bus_emission_factor_streets
 
 
   pages:
