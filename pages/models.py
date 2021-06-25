@@ -1,3 +1,5 @@
+from typing import Optional
+from nodes.node import Node
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -51,14 +53,19 @@ class NodeContent(models.Model):
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
 
-    def get_node_object(self):
+    def get_node_object(self) -> Optional[Node]:
         from .global_instance import instance
         context = instance.context
+        if self.node_id not in context.nodes:
+            return None
         return context.get_node(self.node_id)
 
     @property
     def name(self):
-        return str(self.get_node_object().name)
+        node = self.get_node_object()
+        if node is None:
+            return '⚠️'
+        return str(node.name)
 
     def __str__(self):
         return self.name
