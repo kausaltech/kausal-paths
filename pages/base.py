@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import numpy as np
 from nodes.simple import SectorEmissions
 from typing import Dict, List, Optional
 from dataclasses import dataclass
@@ -26,38 +28,38 @@ class Metric:
         if hasattr(self, 'split_values'):
             return self.split_values
 
-        df = self.df.copy()
-
-        if df is None or VALUE_COLUMN not in df.columns:
+        if self.df is None or VALUE_COLUMN not in self.df.columns:
             self.split_values = None
             return None
 
-        df.index.name = 'year'
-        df = df.reset_index()
-        if df.isnull().sum().sum():
-            raise Exception('Metric %s contains NaN values' % self.id)
+        df = self.df.copy()
+        for col in df.columns:
+            if hasattr(df[col], 'pint'):
+                df[col] = df[col].pint.m
 
-        df = df.rename(columns={VALUE_COLUMN: 'value'})
-        if hasattr(df.value, 'pint'):
-            df.value = df.value.pint.m
-        is_forecast = df[FORECAST_COLUMN]
+        hist = []
+        forecast = []
+        baseline = []
+        for row in df.itertuples():
+            is_fc = getattr(row, FORECAST_COLUMN)
+            val = getattr(row, VALUE_COLUMN)
+            year = row.Index
+            if np.isnan(val):
+                raise Exception("Metric %s contains NaN values" % self.id)
+            if not is_fc:
+                hist.append(YearlyValue(year=year, value=val))
+            else:
+                bl_val = getattr(row, BASELINE_VALUE_COLUMN, None)
+                if bl_val is not None:
+                    if np.isnan(bl_val):
+                        raise Exception("Metric %s baseline contains NaN values" % self.id)
+                    baseline.append(YearlyValue(year=year, value=bl_val))
+                forecast.append(YearlyValue(year=year, value=val))
 
-        if BASELINE_VALUE_COLUMN in df.columns:
-            bs = df[BASELINE_VALUE_COLUMN]
-            if hasattr(bs, 'pint'):
-                bs = bs.pint.m
-            bdf = df[['year']].copy()
-            bdf['value'] = bs
-            baseline = bdf.loc[is_forecast, ['year', 'value']].to_dict('records')
-        else:
-            baseline = None
-
-        forecast = df.loc[is_forecast, ['year', 'value']].to_dict('records')
-        historical = df.loc[~is_forecast, ['year', 'value']].to_dict('records')
         out = dict(
-            historical=[YearlyValue(**r) for r in historical],
-            forecast=[YearlyValue(**r) for r in forecast],
-            baseline=[YearlyValue(**r) for r in baseline] if baseline else None
+            historical=hist,
+            forecast=forecast,
+            baseline=baseline if baseline else None
         )
         self.split_values = out
         return out
