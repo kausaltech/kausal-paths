@@ -24,10 +24,15 @@ class NodeEditHandler(ObjectList):
 
     def get_form_class(self):
         instance = get_instance(self.request)
+        iobj = InstanceContent.objects.get(identifier=instance.id)
         context = instance.context
         klass = super().get_form_class()
         field = klass.base_fields['node_id']
-        choices = [(node_id, node.name) for node_id, node in context.nodes.items()]
+        node_qs = iobj.nodes.all()
+        if self.instance is not None:
+            node_qs = node_qs.exclude(id=self.instance.id)
+        existing_ids = set(node_qs.values_list('node_id', flat=True))
+        choices = [(node_id, node.name) for node_id, node in context.nodes.items() if node_id not in existing_ids]
         field.widget.choices = choices
         return klass
 
