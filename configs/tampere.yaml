@@ -424,10 +424,13 @@ instance:
       quantity: emission_factor
       type: simple.AdditiveNode
       unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Trams
+          min_year: 2016
+          dropna: true
       output_nodes:
         - tram_emissions
-      historical_values: [[2016, 0], [2017, 0], [2018, 0]]
-      forecast_values: [[2019, 0], [2020, 0], [2021, 207], [2022, 193], [2023, 179], [2024, 164], [2025, 150], [2026, 136], [2027, 122], [2028, 108], [2029, 94], [2030, 79]]
 
     - id: car_emission_factor_streets
       name: Henkilöautoilun päästökerroin (katuajo)
