@@ -163,10 +163,14 @@ instance:
       unit: GWh
       quantity: energy
       type: simple.Activity
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
       output_nodes:
         - district_heating_emissions
-      historical_values: [[1990, 1388.4], [2010, 2206.6], [2011, 1869.3], [2012, 2072.7], [2013, 1888.2], [2014, 1872.2], [2015, 1775.6], [2016, 1956.7], [2017, 1917.2], [2018, 1955.1]]
-      forecast_values: [[2019, 1911], [2020, 1840], [2021, 1815], [2022, 1791], [2023, 1766], [2024, 1741], [2025, 1716], [2026, 1691], [2027, 1666], [2028, 1641], [2029, 1617], [2030, 1592]]
+#      historical_values: [[1990, 1388.4], [2010, 2206.6], [2011, 1869.3], [2012, 2072.7], [2013, 1888.2], [2014, 1872.2], [2015, 1775.6], [2016, 1956.7], [2017, 1917.2], [2018, 1955.1]]
+#      forecast_values: [[2019, 1911], [2020, 1840], [2021, 1815], [2022, 1791], [2023, 1766], [2024, 1741], [2025, 1716], [2026, 1691], [2027, 1666], [2028, 1641], [2029, 1617], [2030, 1592]]
 
     - id: district_heating_emission_factor
       name: Kaukolämmön päästökerroin
@@ -174,10 +178,14 @@ instance:
       type: simple.AdditiveNode
       unit: g/kWh
       quantity: emission_factor
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: District heating utility method
+          dropna: true
       output_nodes:
         - district_heating_emissions
-      historical_values: [[1990, 250], [2010, 179], [2011, 170.1], [2012, 162.3], [2013, 153.9], [2014, 160.6], [2015, 140.7], [2016, 140], [2017, 130], [2018, 136.3]]
-      forecast_values: [[2019, 126], [2020, 123], [2021, 123], [2022, 123], [2023, 123], [2024, 123], [2025, 123], [2026, 123], [2027, 123], [2028, 123], [2029, 123], [2030, 123]]
+#      historical_values: [[1990, 250], [2010, 179], [2011, 170.1], [2012, 162.3], [2013, 153.9], [2014, 160.6], [2015, 140.7], [2016, 140], [2017, 130], [2018, 136.3]]
+#      forecast_values: [[2019, 126], [2020, 123], [2021, 123], [2022, 123], [2023, 123], [2024, 123], [2025, 123], [2026, 123], [2027, 123], [2028, 123], [2029, 123], [2030, 123]]
 
     - id: oil_heating_emissions
       type: simple.EmissionFactorActivity
@@ -194,10 +202,14 @@ instance:
       type: simple.Activity
       name: Öljylämmityksen energiankulutus
       name_en: Oil heating energy consumption
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: Total oil heating
+          dropna: true
       output_nodes:
         - oil_heating_emissions
-      historical_values: [[1990, 460], [2010, 332.3], [2011, 266.0], [2012, 298.9], [2013, 275.6], [2014, 276.4], [2015, 264.7], [2016, 297.0], [2017, 280.4], [2018, 274.1]]
-      forecast_values: [[2019, 263.2], [2020, 252.3], [2021, 241.4], [2022, 230.5], [2023, 219.6], [2024, 208.7], [2025, 197.8], [2026, 186.9], [2027, 176.0], [2028, 165.1], [2029, 154.2], [2030, 143.3]]
+#      historical_values: [[1990, 460], [2010, 332.3], [2011, 266.0], [2012, 298.9], [2013, 275.6], [2014, 276.4], [2015, 264.7], [2016, 297.0], [2017, 280.4], [2018, 274.1]]
+#      forecast_values: [[2019, 263.2], [2020, 252.3], [2021, 241.4], [2022, 230.5], [2023, 219.6], [2024, 208.7], [2025, 197.8], [2026, 186.9], [2027, 176.0], [2028, 165.1], [2029, 154.2], [2030, 143.3]]
 
     - id: oil_heating_emission_factor
       type: simple.AdditiveNode
@@ -205,8 +217,12 @@ instance:
       quantity: emission_factor
       name: Lämmitysöljyn päästökerroin
       name_en: Heating oil emission factor
-      historical_values: [[1990, 268.4], [2010, 268.4], [2011, 263.5], [2012, 263.5], [2013, 263.5], [2014, 264.5], [2015, 264.5], [2016, 266.3], [2017, 268], [2018, 268], [2019, 268], [2020, 268]]
-      forecast_values: [[2021, 264.1055], [2022, 260.211], [2023, 256.3165], [2024, 252.422], [2025, 248.5275], [2026, 244.633], [2027, 240.7385], [2028, 236.844], [2029, 236.844], [2030, 236.844]]
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Oil heating
+          dropna: true
+#      historical_values: [[1990, 268.4], [2010, 268.4], [2011, 263.5], [2012, 263.5], [2013, 263.5], [2014, 264.5], [2015, 264.5], [2016, 266.3], [2017, 268], [2018, 268], [2019, 268], [2020, 268]]
+#      forecast_values: [[2021, 264.1055], [2022, 260.211], [2023, 256.3165], [2024, 252.422], [2025, 248.5275], [2026, 244.633], [2027, 240.7385], [2028, 236.844], [2029, 236.844], [2030, 236.844]]
       output_nodes:
         - oil_heating_emissions
 
@@ -230,10 +246,14 @@ instance:
       type: simple.Activity
       name: Maalämmön sähkönkulutus
       name_en: Geothermal heating electricity consumption
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: Geothermal heating residential
+          dropna: true
       output_nodes:
         - geothermal_heating_emissions
-      historical_values: [[1990, 0], [2010, 2.8], [2011, 4.5], [2012, 5.3], [2013, 7.6], [2014, 7.6], [2015, 8.1], [2016, 10.3], [2017, 13.7], [2018, 16.3]]
-      forecast_values: [[2019, 18.5], [2020, 20.6], [2021, 22.8], [2022, 24.9], [2023, 27.1], [2024, 29.2], [2025, 31.4], [2026, 33.5], [2027, 35.7], [2028, 37.8], [2029, 40.0], [2030, 42.1]]
+#      historical_values: [[1990, 0], [2010, 2.8], [2011, 4.5], [2012, 5.3], [2013, 7.6], [2014, 7.6], [2015, 8.1], [2016, 10.3], [2017, 13.7], [2018, 16.3]]
+#      forecast_values: [[2019, 18.5], [2020, 20.6], [2021, 22.8], [2022, 24.9], [2023, 27.1], [2024, 29.2], [2025, 31.4], [2026, 33.5], [2027, 35.7], [2028, 37.8], [2029, 40.0], [2030, 42.1]]
 
     - id: direct_electric_heating_emissions
       type: simple.EmissionFactorActivity
@@ -252,10 +272,14 @@ instance:
       unit: GWh
       name: Suorasähkölämmityksen sähkönkulutus
       name_en: Direct electric heating electricity consumption
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: Electric heating total
+          dropna: true
       output_nodes:
         - direct_electric_heating_emissions
-      historical_values: [[1990, 112.8], [2010, 217], [2011, 207], [2012, 215], [2013, 208], [2014, 201], [2015, 195], [2016, 216.5], [2017, 215.8], [2018, 218.3], [2019, 215.8]]
-      forecast_values: [[2020, 210], [2021, 210], [2022, 210], [2023, 210], [2024, 210], [2025, 210], [2026, 211], [2027, 211], [2028, 211], [2029, 211], [2030, 211]]
+#      historical_values: [[1990, 112.8], [2010, 217], [2011, 207], [2012, 215], [2013, 208], [2014, 201], [2015, 195], [2016, 216.5], [2017, 215.8], [2018, 218.3], [2019, 215.8]]
+#      forecast_values: [[2020, 210], [2021, 210], [2022, 210], [2023, 210], [2024, 210], [2025, 210], [2026, 211], [2027, 211], [2028, 211], [2029, 211], [2030, 211]]
 
       #
       # ----------- Electricity use ------------
@@ -266,10 +290,13 @@ instance:
       type: simple.AdditiveNode
       unit: kWh/person
       quantity: per_capita
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: Other electricity consumption per capita
       output_nodes:
         - other_electricity_consumption
-      historical_values: [[1990, 2211], [2010, 5728], [2011, 5555], [2012, 5672], [2013, 5531], [2014, 5550], [2015, 5423], [2016, 5477], [2017, 5467], [2018, 5328]]
-      forecast_values: [[2019, 5289], [2020, 5249], [2021, 5210], [2022, 5171], [2023, 5131], [2024, 5092], [2025, 5052], [2026, 5013], [2027, 4974], [2028, 4934], [2029, 4895], [2030, 4855]]
+#      historical_values: [[1990, 2211], [2010, 5728], [2011, 5555], [2012, 5672], [2013, 5531], [2014, 5550], [2015, 5423], [2016, 5477], [2017, 5467], [2018, 5328]]
+#      forecast_values: [[2019, 5289], [2020, 5249], [2021, 5210], [2022, 5171], [2023, 5131], [2024, 5092], [2025, 5052], [2026, 5013], [2027, 4974], [2028, 4934], [2029, 4895], [2030, 4855]]
 
     - id: other_electricity_consumption
       name: Muu sähkönkulutus
@@ -305,8 +332,11 @@ instance:
       type: simple.AdditiveNode
       unit: g/kWh
       quantity: emission_factor
-      historical_values: [[1990, 350], [2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
-      # forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Other power consumption
+#      historical_values: [[1990, 350], [2010, 247], [2011, 200], [2012, 132], [2013, 160], [2014, 131], [2015, 104], [2016, 109], [2017, 95], [2018, 109], [2019, 92]]
+#      # forecast_values: [[2020, 87], [2021, 81], [2022, 76], [2023, 70], [2024, 65], [2025, 59], [2026, 54], [2027, 48], [2028, 43], [2029, 37], [2030, 31]]
 
     - id: electric_heating_emission_factor
       name: Lämmityssähkön päästökerroin
@@ -315,7 +345,7 @@ instance:
       unit: g/kWh
       quantity: emission_factor
       description_en: We assume an 8 % higher emission factor for heating electricity.
-      historical_values: [[2010, 304.6], [2011, 226.9], [2012, 156.9], [2013, 181.5], [2014, 146.1], [2015, 114.3], [2016, 116.9], [2017, 101.5], [2018, 117.7]]
+#      historical_values: [[2010, 304.6], [2011, 226.9], [2012, 156.9], [2013, 181.5], [2014, 146.1], [2015, 114.3], [2016, 116.9], [2017, 101.5], [2018, 117.7]]
       input_nodes:
         - electricity_production_emission_factor
       params:
@@ -734,8 +764,8 @@ instance:
           max_value: 0
           step: 1
           unit: g/kWh
-          description: Sähköntuotannon päästökertoimen pieneneminen
-          description_en: Reduction of electricity production emission factor
+          description: Sähköntuotannon päästökertoimen muutos
+          description_en: Change in electricity production emission factor
 
     - id: converting_street_lighting_to_led
       name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
