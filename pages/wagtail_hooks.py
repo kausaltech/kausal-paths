@@ -60,3 +60,15 @@ class NodeAdmin(ModelAdmin):
 
 
 modeladmin_register(NodeAdmin)
+
+
+class InstanceAdmin(ModelAdmin):
+    model = InstanceContent
+    menu_icon = 'fa-bank'
+    menu_order = 300
+    list_display = ('name', 'identifier')
+    search_fields = ('name', 'identifier')
+    create_view_class = NodeCreateView
+
+
+modeladmin_register(InstanceAdmin)

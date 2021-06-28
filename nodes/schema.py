@@ -3,7 +3,7 @@ from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
 
 from paths.graphql_helpers import GQLInfo
-from pages.models import NodePage
+from pages.models import NodePage, InstanceContent
 from pages.base import Metric
 
 from . import Node
@@ -19,6 +19,21 @@ class InstanceType(graphene.ObjectType):
     reference_year = graphene.Int()
     minimum_historical_year = graphene.Int()
     maximum_historical_year = graphene.Int()
+
+    lead_title = graphene.String()
+    lead_paragraph = graphene.String()
+
+    def resolve_lead_title(root, info):
+        obj = InstanceContent.objects.filter(identifier=root.id).first()
+        if obj is None:
+            return None
+        return obj.lead_title
+
+    def resolve_lead_paragraph(root, info):
+        obj = InstanceContent.objects.filter(identifier=root.id).first()
+        if obj is None:
+            return None
+        return obj.lead_paragraph
 
 
 class YearlyValue(graphene.ObjectType):
@@ -170,12 +185,7 @@ class Query(graphene.ObjectType):
     scenarios = graphene.List(ScenarioType)
 
     def resolve_instance(root, info: GQLInfo):
-        instance = info.context.instance
-        return dict(
-            id=instance.id,
-            name=instance.name,
-            target_year=instance.context.target_year
-        )
+        return info.context.instance
 
     def resolve_scenarios(root, info: GQLInfo):
         context = info.context.instance.context

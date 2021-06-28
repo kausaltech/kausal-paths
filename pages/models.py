@@ -23,16 +23,32 @@ class NodePage(Page):
 
 class InstanceContent(models.Model):
     identifier = models.CharField(
-        max_length=100, unique=True, verbose_name=_('Instance identifier')
+        max_length=100, unique=True, verbose_name=_('Instance identifier'),
+        editable=False,
     )
     modified_at = models.DateTimeField(editable=False, auto_now=True)
+
+    lead_title = models.CharField(max_length=100, verbose_name=_('Lead title'))
+    lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
+
+    panels = [
+        FieldPanel('lead_title'),
+        FieldPanel('lead_paragraph'),
+    ]
 
     class Meta:
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
 
+    @property
+    def name(self):
+        from .global_instance import instance
+        if instance.id != self.identifier:
+            return '⚠️'
+        return str(instance.name)
+
     def __str__(self):
-        return self.identifier
+        return self.name
 
 
 class NodeContent(models.Model):

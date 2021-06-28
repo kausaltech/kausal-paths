@@ -36,6 +36,10 @@ class Instance:
     pages: Optional[Dict[str, Page]] = None
     content_refreshed_at: Optional[datetime] = field(init=False)
 
+    @property
+    def target_year(self) -> int:
+        return self.context.target_year
+
     def __post_init__(self):
         self.content_refreshed_at = None
 
