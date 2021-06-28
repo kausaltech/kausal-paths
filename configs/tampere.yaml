@@ -28,6 +28,8 @@ instance:
       name_en: Transportation emissions
       part_of: net_emissions
       color: '#668EC9'
+      target_year_goal: 115
+
     - id: van_emissions
       name: Pakettiautojen päästöt
       name_en: Van emissions
@@ -851,7 +853,7 @@ instance:
 
   scenarios:
     - id: baseline
-      name: Peruskehitys
+      name: Nykykehitys
       name_en: Baseline
       params:
         - id: naistenlahti3.enabled
