@@ -323,6 +323,7 @@ instance:
       input_datasets:
         - id: tampere/scenarios/emission_factors/bau
           column: Other power consumption
+          max_year: 2019
 
     - id: electric_heating_emission_factor
       name: Lämmityssähkön päästökerroin
