@@ -1,5 +1,3 @@
-
-from typing import Optional
 import pandas as pd
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, DecisionLevel
@@ -19,24 +17,10 @@ class ActionNode(Node):
     no_effect_value: float = None
 
     def __post_init__(self):
-        self.param_defaults = {}
-        self.params = {}
+        self.add_parameter(BoolParameter(local_id=ENABLED_PARAM_ID))
 
     def is_enabled(self) -> bool:
         return self.get_param_value(ENABLED_PARAM_ID)
-
-    def register_params(self):
-        super().register_params()
-        self.register_param(BoolParameter(id=ENABLED_PARAM_ID))
-
-    """
-    def set_params(self, params: Dict[str, Any]):
-        self.params.update(params)
-        if self.params.get('enabled'):
-            self.enable()
-        else:
-            self.disable()
-    """
 
     def forecast_series(self, series: pd.Series):
         df = pd.DataFrame(index=series.index)
@@ -72,5 +56,6 @@ class ActionNode(Node):
 
     def on_scenario_created(self, scenario):
         super().on_scenario_created(scenario)
-        param = self.get_param('enabled')
-        scenario.params[param.id] = scenario.all_actions_enabled
+        param = self.get_param(ENABLED_PARAM_ID, local=True)
+        if param.get_scenario_setting(scenario.id) is None:
+            param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)

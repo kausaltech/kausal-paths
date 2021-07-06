@@ -3,8 +3,9 @@ import pytest
 from graphene_django.utils.testing import graphql_query
 
 from nodes.tests.factories import (
-    ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceFactory, ScenarioFactory
+    ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory, ScenarioFactory
 )
+from params.tests.factories import BoolParameterFactory
 
 
 @pytest.fixture
@@ -14,12 +15,13 @@ def context():
 
 @pytest.fixture
 def action_node(context):
-    return ActionNodeFactory(context=context)
+    node = ActionNodeFactory(context=context)
+    return node
 
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
 def default_scenario(context, action_node):
-    return ScenarioFactory(context=context, default=True, all_actions_enabled=True, nodes=[action_node])
+    return ScenarioFactory(id='default', context=context, default=True, all_actions_enabled=True, nodes=[action_node])
 
 
 @pytest.fixture

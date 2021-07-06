@@ -45,8 +45,6 @@ class Node:
     target_year_goal: Optional[float] = None
 
     input_datasets: List[str]
-    # List of global parameters that this node requires
-    input_params: List[str]
 
     input_dataset_instances: List[Dataset]
     input_nodes: List[Node]
@@ -54,10 +52,8 @@ class Node:
 
     # Parameters with their values
     params: Dict[str, Parameter]
-    # Maps a scenario to scenario-specific parameters and their values
-    scenario_params: Dict[str, Dict[str, Parameter]]
 
-    # All allowed parameters for this class or object
+    # All allowed parameters for this class
     allowed_params: Iterable[Parameter]
 
     # Output for the node in the baseline scenario
@@ -75,30 +71,22 @@ class Node:
             self.input_dataset_instances = input_datasets
         else:
             self.input_dataset_instances = []
-        self.input_params = getattr(self, 'input_params', [])
 
         self.input_nodes = []
         self.output_nodes = []
-        self.allowed_params = []
         self.baseline_values = None
         self.params = {}
         self.content = None
-        self.scenario_params = {}
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
 
-    def register_param(self, param: Parameter):
+    def add_parameter(self, param: Parameter):
+        if param.local_id in self.params:
+            raise Exception(f"Local parameter {param.local_id} already defined for node {self.id}")
+        self.params[param.local_id] = param
         param.set_node(self)
-        assert param.id not in self.context.params
-        self.context.params[param.id] = param
-        assert param.node_relative_id not in self.params
-        self.params[param.node_relative_id] = param
-
-    def register_params(self):
-        for param in self.allowed_params:
-            self.register_param(param)
 
     def get_param(self, id: str, local: bool = False, required: bool = True):
         # First attempt to find the parameter in the node-local parameter
@@ -111,9 +99,6 @@ class Node:
                 raise NodeError(self, 'Local parameter %s not found' % id)
             else:
                 return None
-
-        # if id not in self.input_params:
-        #     raise NodeError(self, 'Node is trying to access parameter %s but it is not listed in Node.input_params' % id)
 
         return self.context.get_param(id, required=required)
 
@@ -283,10 +268,7 @@ class Node:
 
     def on_scenario_created(self, scenario):
         """Called when a scenario is created with this node among the nodes to be notified."""
-        scenario_params = self.scenario_params.get(scenario.id, {})
-        for param_id, val in scenario_params.items():
-            param = self.get_param(param_id, local=True)
-            scenario.params[param.id] = val
+        pass
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))

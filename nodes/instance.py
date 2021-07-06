@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Dict, Optional
 
 import dvc_pandas
-from graphene.types import decimal
 import yaml
 
 from common.i18n import TranslatedString, gettext_lazy as _
@@ -141,8 +140,7 @@ class InstanceLoader:
             if isinstance(params, dict):
                 params = [dict(id=param_id, value=value) for param_id, value in params.items()]
             # Ensure that the node class allows these parameters
-            class_allowed_params = {p.id: p for p in getattr(node_class, 'allowed_params', [])}
-            node.allowed_params = []
+            class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_params', [])}
             for pc in params:
                 param_id = pc.pop('id')
                 name = self.make_trans_string(pc, 'name', pop=True)
@@ -159,13 +157,10 @@ class InstanceLoader:
                 if name is not None:
                     fields['name'] = description
                 param = type(param_obj)(**fields)
-                for scenario_id, value in scenario_values.items():
-                    scenario_params = node.scenario_params.setdefault(scenario_id, {})
-                    scenario_params[param.id] = param.clean(value)
+                node.add_parameter(param)
 
-                node.allowed_params.append(type(param_obj)(**fields))
-        else:
-            node.allowed_params = []
+                for scenario_id, value in scenario_values.items():
+                    param.add_scenario_setting(scenario_id, param.clean(value))
 
         return node
 
@@ -222,7 +217,6 @@ class InstanceLoader:
                     raise Exception('Invalid decision level for action %s: %s' % (nc['id'], val))
                 node.decision_level = val
             self.context.add_node(node)
-            node.param_defaults['enabled'] = False
 
     def setup_edges(self):
         # Setup edges
@@ -249,13 +243,11 @@ class InstanceLoader:
         for sc in self.config['scenarios']:
             name = self.make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
-            params = {}
             for pc in params_config:
                 param = self.context.get_param(pc['id'])
-                params[param.id] = param.clean(pc['value'])
-                # scenario.params[param.id] = param.clean(pc['value'])
+                param.add_scenario_setting(sc['id'], param.clean(pc['value']))
 
-            scenario = Scenario(**sc, name=name, context=self.context, params=params, nodes=self.context.nodes.values())
+            scenario = Scenario(**sc, name=name, context=self.context, nodes=self.context.nodes.values())
 
             if scenario.default:
                 assert default_scenario is None
@@ -303,17 +295,15 @@ class InstanceLoader:
     def setup_global_params(self):
         context = self.context
         for pc in self.config.get('params', []):
-            param_id = pc['id']
-            assert param_id not in context.params
-            param_type = context.supported_params.get(param_id)
-            if param_type is None:
-                raise Exception('Unknown parameter: %s' % param_id)
+            param_id = pc.pop('id')
+            pc['local_id'] = param_id
+            param_type = context.get_parameter_type(param_id)
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
             param = param_type(**pc)
             param.set(param_val)
-            context.params[param_id] = param
+            context.add_global_parameter(param)
 
     @classmethod
     def from_yaml(cls, filename):

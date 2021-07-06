@@ -1,13 +1,17 @@
 import pytest
 
-from params.tests.factories import NumberParameterFactory
+from params.tests.factories import BoolParameterFactory, NumberParameterFactory
 
 pytestmark = pytest.mark.django_db
 
 
-def test_parameter_interface(graphql_client_query_data, context, action_node):
+@pytest.mark.parametrize('is_global', [True, False])
+def test_parameter_interface(graphql_client_query_data, context, action_node, is_global):
     param = NumberParameterFactory()
-    action_node.register_param(param)
+    if is_global:
+        context.add_global_parameter(param)
+    else:
+        action_node.add_parameter(param)
     data = graphql_client_query_data(
         '''
         query($param: ID!) {
@@ -25,20 +29,54 @@ def test_parameter_interface(graphql_client_query_data, context, action_node):
           }
         }
         ''',
-        variables={'param': param.id}
+        variables={'param': param.global_id}
     )
+    if is_global:
+        expected_node = None
+    else:
+        expected_node = {'__typename': 'NodeType'}
     expected = {
         'parameter': {
             '__typename': 'NumberParameterType',
-            'id': param.id,
+            'id': param.global_id,
             'label': str(param.label),
             'description': str(param.description),
-            'nodeRelativeId': param.node_relative_id,
-            'node': {
-                '__typename': 'NodeType'
-            },
+            'nodeRelativeId': param.local_id,
+            'node': expected_node,
             'isCustomized': param.is_customized,
             'isCustomizable': param.is_customizable,
+        }
+    }
+    assert data == expected
+
+
+@pytest.mark.parametrize('default_value', [True, False])
+def test_bool_parameter_type(graphql_client_query_data, context, default_value):
+    param = BoolParameterFactory()
+    param.add_scenario_setting('default', default_value)
+    context.add_global_parameter(param)
+    # TODO: Resolver not part of BoolParameter but of ParameterInterface (similarly for other types). Check if tests are correct.
+    data = graphql_client_query_data(
+        '''
+        query($param: ID!) {
+          parameter(id: $param) {
+            __typename
+            id
+            ... on BoolParameterType {
+              value
+              defaultValue
+            }
+          }
+        }
+        ''',
+        variables={'param': param.global_id}
+    )
+    expected = {
+        'parameter': {
+            '__typename': 'BoolParameterType',
+            'id': param.global_id,
+            'value': param.value,
+            'defaultValue': default_value,
         }
     }
     assert data == expected

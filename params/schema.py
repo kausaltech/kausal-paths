@@ -10,6 +10,18 @@ from . import (
 )
 
 
+class ResolveDefaultValueMixin:
+    @staticmethod
+    def resolve_default_value(root: Parameter, info: GQLInfo) -> Any:
+        context = info.context.instance.context
+        scenario = context.get_default_scenario()
+        return root.get_scenario_setting(scenario.id)
+        # param = scenario.params.get(root.id)
+        # if param is None:
+        #     return None
+        # return param.value
+
+
 class ParameterInterface(graphene.Interface):
     id = graphene.ID()  # global id
     label = graphene.String()
@@ -18,6 +30,14 @@ class ParameterInterface(graphene.Interface):
     node = graphene.Field('nodes.schema.NodeType')  # can be null for global params
     is_customized = graphene.Boolean()
     is_customizable = graphene.Boolean()
+
+    # TODO: Use the proper field names instead of defining this alias?
+    def resolve_id(root, info):
+        return root.global_id
+
+    # TODO: Use the proper field names instead of defining this alias?
+    def resolve_node_relative_id(root, info):
+        return root.local_id
 
     @classmethod
     def resolve_type(cls, parameter, info):
@@ -34,16 +54,8 @@ class ParameterInterface(graphene.Interface):
                 return type_map[param_type]
         raise Exception(f"{parameter} has invalid type")
 
-    def resolve_default_value(root: Parameter, info: GQLInfo) -> Any:
-        context = info.context.instance.context
-        scenario = context.get_default_scenario()
-        param = scenario.params.get(root.id)
-        if param is None:
-            return None
-        return param.value
 
-
-class BoolParameterType(graphene.ObjectType):
+class BoolParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -51,7 +63,7 @@ class BoolParameterType(graphene.ObjectType):
     default_value = graphene.Boolean()
 
 
-class NumberParameterType(graphene.ObjectType):
+class NumberParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -63,7 +75,7 @@ class NumberParameterType(graphene.ObjectType):
     unit = graphene.Field('paths.schema.UnitType')
 
 
-class StringParameterType(graphene.ObjectType):
+class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -84,7 +96,7 @@ class SetParameterMutation(graphene.Mutation):
     def mutate(root, info: GQLInfo, id, number_value=None, bool_value=None, string_value=None):
         context = info.context.instance.context
         try:
-            param = context.params[id]
+            param = context.get_param(id)
         except KeyError:
             raise GraphQLError("Parameter %s does not exist", [info])
 
@@ -120,14 +132,14 @@ class SetParameterMutation(graphene.Mutation):
             raise GraphQLError(str(e), [info])
 
         session = info.context.session
-        session_params = session.setdefault('params', {})
-        session_params[id] = value
+        session_settings = session.setdefault('settings', {})
+        session_settings[id] = value
 
         custom_scenario = context.scenarios['custom']
         custom_scenario.set_session(session)
         context.activate_scenario(custom_scenario)
         session['active_scenario'] = 'custom'
-        # Explicitly mark session as modified because we might only have modified `session['params']`, not `session`
+        # Explicitly mark session as modified because we might only have modified `session['settings']`, not `session`
         session.modified = True
 
         return SetParameterMutation(ok=True, parameter=param)
@@ -194,7 +206,7 @@ class Query(graphene.ObjectType):
     def resolve_parameter(root, info: GQLInfo, id):
         instance = info.context.instance
         try:
-            return instance.context.params[id]
+            return instance.context.get_param(id)
         except KeyError:
             raise GraphQLError(f"Parameter {id} does not exist")
 

@@ -41,11 +41,12 @@ class ScenarioFactory(Factory):
     class Meta:
         model = Scenario
 
-    context = SubFactory(ContextFactory)
     id = Sequence(lambda i: f'scenario{i}')
     name = TranslatedString('scenario')
+    context = SubFactory(ContextFactory)
     default = False
-    params = None
+    all_actions_enabled = False
+    nodes = []
 
     add_to_context = PostGeneration(lambda obj, create, extracted, **kwargs: obj.context.add_scenario(obj))
 

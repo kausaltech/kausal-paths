@@ -1,9 +1,8 @@
-from re import T
 from params.param import BoolParameter, NumberParameter
 from typing import List
 import pandas as pd
 
-from common.i18n import gettext_lazy as _
+from common.i18n import TranslatedString
 from .constants import FORECAST_COLUMN, VALUE_COLUMN
 from .node import Node
 from .exceptions import NodeError
@@ -15,12 +14,14 @@ EMISSION_UNIT = 'kg'
 class SimpleNode(Node):
     allowed_params = [
         BoolParameter(
-            id='fill_gaps_using_input_dataset', label='Fill in gaps in computation using input dataset',
-            value=False, is_customizable=False
+            local_id='fill_gaps_using_input_dataset',
+            label=TranslatedString("Fill in gaps in computation using input dataset"),
+            is_customizable=False
         ),
         BoolParameter(
-            id='replace_output_using_input_dataset', label='Replace output using input dataset',
-            value=False, is_customizable=False
+            local_id='replace_output_using_input_dataset',
+            label=TranslatedString("Replace output using input dataset"),
+            is_customizable=False
         )
     ]
 
@@ -209,7 +210,7 @@ class Activity(AdditiveNode):
 
 class FixedMultiplierNode(SimpleNode):
     allowed_params = [
-        NumberParameter(id='multiplier'),
+        NumberParameter(local_id='multiplier'),
     ] + SimpleNode.allowed_params
 
     def compute(self):

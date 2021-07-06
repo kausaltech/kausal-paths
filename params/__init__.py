@@ -1,10 +1,8 @@
 from .param import (
-    Parameter, NumberParameter, BoolParameter, StringParameter, PercentageParameter,
-    ValidationError
+    BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter, ValidationError
 )
 
 
 __all__ = [
-    Parameter, NumberParameter, BoolParameter, StringParameter, PercentageParameter,
-    ValidationError
+    'BoolParameter', 'NumberParameter', 'Parameter', 'PercentageParameter', 'StringParameter', 'ValidationError'
 ]

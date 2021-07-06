@@ -1,13 +1,12 @@
 import logging
 from dataclasses import dataclass, InitVar
-from typing import Any, Dict, List
+from typing import List, Optional
 
 import sentry_sdk
 
 from .context import Context
 from common.i18n import TranslatedString
 from nodes.node import Node
-from params import Parameter
 
 
 logger = logging.getLogger(__name__)
@@ -20,48 +19,35 @@ class Scenario:
     context: Context
 
     default: bool = False
-    # Dict of params and their values in the scenario
-    params: Dict[str, Any] = None
     all_actions_enabled: bool = False
     # Nodes that will be notified of this scenario's creation
     nodes: InitVar[List[Node]] = []
 
     def __post_init__(self, nodes):
-        self.params = {}
+        self.nodes = nodes
         for node in nodes:
             node.on_scenario_created(self)
 
     def activate(self):
-        for param_id, val in self.params.items():
-            param = self.context.get_param(param_id)
-            param.set(val)
-            param.is_customized = False
-
-    def is_parameter_customized(self, param: Parameter):
-        # Parameters can be customized only in the CustomScenario
-        return False
+        for node in self.nodes:
+            for param in node.params.values():
+                param.reset_to_scenario_setting(self)
 
 
 @dataclass
 class CustomScenario(Scenario):
-    base_scenario: Scenario = None
+    base_scenario: Optional[Scenario] = None
     session = None
 
     def set_session(self, session):
         self.session = session
 
-    def is_parameter_customized(self, param: Parameter):
-        params = self.session.params
-        if param.id in params:
-            return True
-        return False
-
     def activate(self):
         assert self.base_scenario.context == self.context
         self.base_scenario.activate()
-        params = self.session.get('params', {})
-        for param_id, val in list(params.items()):
-            param = self.context.params.get(param_id)
+        settings = self.session.get('settings', {})
+        for param_id, val in list(settings.items()):
+            param = self.context.get_param(param_id, required=False)
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)
@@ -76,7 +62,7 @@ class CustomScenario(Scenario):
                     sentry_sdk.capture_exception(e)
 
             if not is_valid:
-                del params[param_id]
+                del settings[param_id]
                 self.session.modified = True
                 continue
 
