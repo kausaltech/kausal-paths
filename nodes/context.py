@@ -92,7 +92,6 @@ class Context:
         if node.id in self.nodes:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
-        assert node.context == self
 
     def get_node(self, id: str) -> Node:
         return self.nodes[id]
@@ -108,7 +107,7 @@ class Context:
         except ValueError:
             param = self.global_params.get(id)
         else:
-            param = self.nodes[node_id].get_param(param_name, local=True, required=required)
+            param = self.nodes[node_id].get_param(param_name, required=required)
         if param is None and required:
             raise Exception('Param %s not found' % id)
         return param
@@ -129,9 +128,9 @@ class Context:
         assert scenario.id not in self.scenarios
         self.scenarios[scenario.id] = scenario
 
-    def add_custom_scenario(self, scenario: CustomScenario):
-        self.add_scenario(scenario)
+    def set_custom_scenario(self, scenario: CustomScenario):
         assert self.custom_scenario is None
+        self.add_scenario(scenario)
         self.custom_scenario = scenario
 
     def get_scenario(self, id) -> Scenario:
@@ -141,12 +140,11 @@ class Context:
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
         assert len(root_nodes) == 1
-        return root_nodes[0].compute()
+        return root_nodes[0].compute(self)
 
     def activate_scenario(self, scenario: Scenario):
-        assert scenario.context == self
         # Set the new parameters
-        scenario.activate()
+        scenario.activate(self)
         self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:
@@ -161,7 +159,7 @@ class Context:
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
         for node in self.nodes.values():
-            node.baseline_values = node.get_output()
+            node.baseline_values = node.get_output(self)
 
         self.activate_scenario(old_scenario)
 

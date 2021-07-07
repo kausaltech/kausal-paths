@@ -1,4 +1,5 @@
-from factory import Factory, PostGeneration, Sequence, SubFactory
+from factory import Factory, Sequence, SubFactory
+from typing import List
 
 from common.i18n import TranslatedString
 from nodes.actions import ActionNode
@@ -26,10 +27,7 @@ class NodeFactory(Factory):
     class Meta:
         model = Node
 
-    context = SubFactory(ContextFactory)
     id = Sequence(lambda i: f'node{i}')
-
-    add_to_context = PostGeneration(lambda obj, create, extracted, **kwargs: obj.context.add_node(obj))
 
 
 class ActionNodeFactory(NodeFactory):
@@ -43,12 +41,9 @@ class ScenarioFactory(Factory):
 
     id = Sequence(lambda i: f'scenario{i}')
     name = TranslatedString('scenario')
-    context = SubFactory(ContextFactory)
     default = False
     all_actions_enabled = False
-    nodes = []
-
-    add_to_context = PostGeneration(lambda obj, create, extracted, **kwargs: obj.context.add_scenario(obj))
+    nodes: List[Node] = []
 
 
 class CustomScenarioFactory(ScenarioFactory):

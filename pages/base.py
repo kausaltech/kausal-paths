@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
-from nodes.simple import SectorEmissions
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, InitVar
 
 import pandas as pd
 from nodes import Node, Context
@@ -22,7 +21,7 @@ class Metric:
     id: str
     name: str
     df: pd.DataFrame
-    node: Node = None
+    node: Optional[Node] = None
 
     def split_df(self) -> Dict[str, List[YearlyValue]]:
         if hasattr(self, 'split_values'):
@@ -171,10 +170,11 @@ class CardPage(Page):
 
 @dataclass
 class EmissionSector:
+    context: InitVar[Context]
     node: Node
     parent: Optional[EmissionSector]
-    color: str = None
-    metric: Metric = None
+    color: Optional[str] = None
+    metric: Optional[Metric] = None
 
     @property
     def id(self) -> str:
@@ -182,11 +182,11 @@ class EmissionSector:
 
     @property
     def name(self) -> str:
-        return self.node.name
+        return str(self.node.name)
 
-    def __post_init__(self):
+    def __post_init__(self, context):
         self.metric = Metric(
-            id=self.id, name=self.name, df=self.node.get_output(),
+            id=self.id, name=self.name, df=self.node.get_output(context),
         )
 
 
@@ -194,9 +194,9 @@ class EmissionSector:
 class EmissionPage(Page):
     node: Node
 
-    def _get_node_sectors(self, node: Node, parent: EmissionSector = None) -> List[EmissionSector]:
+    def _get_node_sectors(self, context: Context, node: Node, parent: EmissionSector = None) -> List[EmissionSector]:
         sectors = []
-        sector = EmissionSector(node=node, parent=parent)
+        sector = EmissionSector(context=context, node=node, parent=parent)
         if node.color:
             sector.color = node.color
         elif parent is not None and parent.color:
@@ -205,11 +205,11 @@ class EmissionPage(Page):
         for input_node in node.input_nodes:
             if input_node.quantity != 'emissions' or isinstance(input_node, ActionNode):
                 continue
-            sectors += self._get_node_sectors(input_node, sector)
+            sectors += self._get_node_sectors(context, input_node, sector)
         return sectors
 
-    def get_sectors(self):
-        return self._get_node_sectors(self.node, None)
+    def get_sectors(self, context):
+        return self._get_node_sectors(context, self.node, None)
 
 
 @dataclass

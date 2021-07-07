@@ -51,12 +51,15 @@ class ForecastMetricType(graphene.ObjectType):
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
 
+    @staticmethod
     def resolve_historical_values(root: Metric, info):
         return root.get_historical_values()
 
+    @staticmethod
     def resolve_forecast_values(root: Metric, info):
         return root.get_forecast_values()
 
+    @staticmethod
     def resolve_baseline_forecast_values(root: Metric, info):
         return root.get_baseline_forecast_values()
 
@@ -106,23 +109,28 @@ class NodeType(graphene.ObjectType):
     def resolve_is_action(root, info):
         return isinstance(root, ActionNode)
 
+    @staticmethod
     def resolve_descendant_nodes(root: Node, info: GQLInfo, proper=False):
         info.context._upstream_node = root
         return root.get_descendant_nodes(proper)
 
+    @staticmethod
     def resolve_upstream_actions(root: Node, info):
         return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
 
+    @staticmethod
     def resolve_metric(root: Node, info):
-        df = root.get_output()
+        context = info.context.instance.context
+        df = root.get_output(context)
         if df is None:
             return None
         if VALUE_COLUMN not in df.columns:
             return None
         if root.baseline_values is not None:
             df[BASELINE_VALUE_COLUMN] = root.baseline_values[VALUE_COLUMN]
-        return Metric(id=root.id, name=root.name, node=root, df=df)
+        return Metric(id=root.id, name=str(root.name), node=root, df=df)
 
+    @staticmethod
     def resolve_impact_metric(root: Node, info, target_node_id: str = None):
         context = info.context.instance.context
         upstream_node = getattr(info.context, '_upstream_node', None)
@@ -142,7 +150,7 @@ class NodeType(graphene.ObjectType):
         if not isinstance(source_node, ActionNode):
             return None
 
-        df = source_node.compute_impact(target_node)
+        df = source_node.compute_impact(context, target_node)
         df = df[[IMPACT_COLUMN, FORECAST_COLUMN]]
         df = df.rename(columns={IMPACT_COLUMN: VALUE_COLUMN})
         return Metric(id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df)
@@ -167,10 +175,12 @@ class ScenarioType(graphene.ObjectType):
     is_active = graphene.Boolean()
     is_default = graphene.Boolean()
 
+    @staticmethod
     def resolve_is_active(root: Scenario, info: GQLInfo):
         context = info.context.instance.context
         return context.active_scenario == root
 
+    @staticmethod
     def resolve_is_default(root: Scenario, info: GQLInfo):
         return root.default
 

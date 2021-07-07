@@ -15,24 +15,28 @@ def context():
 
 @pytest.fixture
 def action_node(context):
-    node = ActionNodeFactory(context=context)
+    node = ActionNodeFactory()
+    context.add_node(node)
     return node
 
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
 def default_scenario(context, action_node):
-    return ScenarioFactory(id='default', context=context, default=True, all_actions_enabled=True, nodes=[action_node])
+    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True, nodes=[action_node])
+    context.add_scenario(scenario)
+    return scenario
 
 
 @pytest.fixture
 def custom_scenario(context, action_node, default_scenario):
-    return CustomScenarioFactory(
-        context=context,
+    custom_scenario = CustomScenarioFactory(
         id='custom',
         name='Custom',
         base_scenario=default_scenario,
         nodes=[action_node],
     )
+    context.set_custom_scenario(custom_scenario)
+    return custom_scenario
 
 
 @pytest.fixture(autouse=True)

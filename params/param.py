@@ -56,7 +56,7 @@ class Parameter:
 
     def add_scenario_setting(self, scenario_id, value):
         if scenario_id in self.scenario_settings:
-            raise Exception(f"Parameter setting for scenario {scenario_id} already exists")
+            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario_id} already exists")
         self.scenario_settings[scenario_id] = value
 
     def get_scenario_setting(self, scenario_id):
@@ -69,6 +69,8 @@ class Parameter:
         return f'{self.node.id}.{self.local_id}'
 
     def set_node(self, node):
+        if self.node is not None:
+            raise Exception(f"Node for parameter {self.global_id} already set")
         self.node = node
 
 

@@ -62,8 +62,10 @@ class EmissionPageType(graphene.ObjectType):
     class Meta:
         interfaces = (PageInterface,)
 
+    @staticmethod
     def resolve_emission_sectors(root: EmissionPage, info, id=None):
-        all_sectors = root.get_sectors()
+        context = info.context.instance.context
+        all_sectors = root.get_sectors(context)
         if id is not None:
             all_sectors = list(filter(lambda x: x.id == id, all_sectors))
         return all_sectors

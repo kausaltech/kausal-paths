@@ -84,11 +84,11 @@ if args.baseline:
 if args.check:
     for node_id, node in context.nodes.items():
         node.check()
-        df = node.get_output()
+        df = node.get_output(context)
         na_count = df.isna().sum().sum()
         if na_count:
             print('Node %s has NaN values:' % node.id)
-            node.print_output()
+            node.print_output(context)
 
         if node.baseline_values is not None:
             na_count = node.baseline_values.isna().sum().sum()
@@ -112,9 +112,9 @@ for param_arg in (args.param or []):
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
-    node.print_output()
+    node.print_output(context)
     if isinstance(node, ActionNode):
-        node.print_impact(context.get_node('net_emissions'))
+        node.print_impact(context, context.get_node('net_emissions'))
 
 
 if False:

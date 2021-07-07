@@ -135,10 +135,9 @@ class SetParameterMutation(graphene.Mutation):
         session_settings = session.setdefault('settings', {})
         session_settings[id] = value
 
-        custom_scenario = context.scenarios['custom']
-        custom_scenario.set_session(session)
-        context.activate_scenario(custom_scenario)
-        session['active_scenario'] = 'custom'
+        context.custom_scenario.set_session(session)
+        context.activate_scenario(context.custom_scenario)
+        session['active_scenario'] = context.custom_scenario.id
         # Explicitly mark session as modified because we might only have modified `session['settings']`, not `session`
         session.modified = True
 

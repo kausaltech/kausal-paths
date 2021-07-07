@@ -4,7 +4,6 @@ from typing import List, Optional
 
 import sentry_sdk
 
-from .context import Context
 from common.i18n import TranslatedString
 from nodes.node import Node
 
@@ -16,7 +15,6 @@ logger = logging.getLogger(__name__)
 class Scenario:
     id: str
     name: TranslatedString
-    context: Context
 
     default: bool = False
     all_actions_enabled: bool = False
@@ -28,7 +26,7 @@ class Scenario:
         for node in nodes:
             node.on_scenario_created(self)
 
-    def activate(self):
+    def activate(self, context):
         for node in self.nodes:
             for param in node.params.values():
                 param.reset_to_scenario_setting(self)
@@ -42,12 +40,11 @@ class CustomScenario(Scenario):
     def set_session(self, session):
         self.session = session
 
-    def activate(self):
-        assert self.base_scenario.context == self.context
-        self.base_scenario.activate()
+    def activate(self, context):
+        self.base_scenario.activate(context)
         settings = self.session.get('settings', {})
         for param_id, val in list(settings.items()):
-            param = self.context.get_param(param_id, required=False)
+            param = context.get_param(param_id, required=False)
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)

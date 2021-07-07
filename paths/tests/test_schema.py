@@ -155,8 +155,8 @@ def test_string_parameter_type(graphql_client_query_data, context, default_scena
     assert data == expected
 
 
-def test_action_enabled(graphql_client_query_data, context, action_node):
-    param_id = f'{action_node.id}.enabled'
+def test_action_enabled(graphql_client_query_data, action_node):
+    param_id = action_node.enabled_param.global_id
     data = graphql_client_query_data(
         '''
         query($param: ID!) {
@@ -181,12 +181,13 @@ def test_action_enabled(graphql_client_query_data, context, action_node):
     assert data == expected
 
 
-def test_set_parameter_disable_action(graphql_client_query_data, context, action_node, custom_scenario):
-    param_id = f'{action_node.id}.enabled'
+@pytest.mark.parametrize('enabled', [True, False])
+def test_set_parameter_action_enabled(graphql_client_query_data, action_node, custom_scenario, enabled):
+    param_id = action_node.enabled_param.global_id
     data = graphql_client_query_data(
         '''
-        mutation($param: ID!) {
-          setParameter(id: $param, boolValue: false) {
+        mutation($param: ID!, $value: Boolean!) {
+          setParameter(id: $param, boolValue: $value) {
             ok
             parameter {
               id
@@ -197,16 +198,16 @@ def test_set_parameter_disable_action(graphql_client_query_data, context, action
           }
         }
         ''',
-        variables={'param': param_id}
+        variables={'param': param_id, 'value': enabled}
     )
     expected = {
         'setParameter': {
             'ok': True,
             'parameter': {
                 'id': param_id,
-                'value': False,
+                'value': enabled,
             }
         }
     }
-    # TODO: Don't trust the response but check that the action is really disabled
     assert data == expected
+    assert action_node.is_enabled() == enabled

@@ -59,13 +59,11 @@ class Node:
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
 
-    context: Context
     debug: bool = False
     content: Optional[NodeContent]
     __post_init__: Callable[[Node], None]
 
-    def __init__(self, context: Context, id: str, input_datasets: List[Dataset] = None):
-        self.context = context
+    def __init__(self, id: str, input_datasets: List[Dataset] = None):
         self.id = id
         if input_datasets:
             self.input_dataset_instances = input_datasets
@@ -88,57 +86,51 @@ class Node:
         self.params[param.local_id] = param
         param.set_node(self)
 
-    def get_param(self, id: str, local: bool = False, required: bool = True):
-        # First attempt to find the parameter in the node-local parameter
-        # set, then fall back to global parameters (unless 'local' specifically
-        # requested).
-        if id in self.params:
-            return self.params[id]
-        if local:
-            if required:
-                raise NodeError(self, 'Local parameter %s not found' % id)
-            else:
-                return None
+    def get_param(self, local_id: str, required: bool = True):
+        """Get the parameter with the given local id from this node's parameters."""
+        if local_id in self.params:
+            return self.params[local_id]
+        if required:
+            raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
+        return None
 
-        return self.context.get_param(id, required=required)
-
-    def get_param_value(self, id: str, local: bool = False, required: bool = True) -> Any:
-        param = self.get_param(id, local=local, required=required)
+    def get_param_value(self, id: str, required: bool = True) -> Any:
+        param = self.get_param(id, required=required)
         if param is None:
             return None
         return param.value
 
-    def set_param_value(self, id: str, value: Any):
-        if id not in self.params:
-            raise NodeError(self, 'Node param %s not found' % id)
-        self.params[id].set(value)
+    def set_param_value(self, local_id: str, value: Any):
+        if local_id not in self.params:
+            raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
+        self.params[local_id].set(value)
 
-    def get_input_datasets(self) -> List[Union[pd.DataFrame, pd.Series]]:
+    def get_input_datasets(self, context: Context) -> List[Union[pd.DataFrame, pd.Series]]:
         dfs = []
         for ds in self.input_dataset_instances:
-            df = ds.get_copy(self.context)
+            df = ds.get_copy(context)
             if df.index.duplicated().any():
                 raise NodeError(self, "Input dataset has duplicate index rows")
             dfs.append(df)
         return dfs
 
-    def get_input_dataset(self) -> Optional[Union[pd.DataFrame, pd.Series]]:
+    def get_input_dataset(self, context: Context) -> Optional[Union[pd.DataFrame, pd.Series]]:
         """Gets the first (and only) dataset if it exists."""
-        datasets = self.get_input_datasets()
+        datasets = self.get_input_datasets(context)
         if not datasets:
             return None
         if len(datasets) != 1:
             raise NodeError(self, 'Expected only 1 input dataset, got %d' % len(datasets))
         return datasets[0]
 
-    def calculate_hash(self) -> bytes:
+    def calculate_hash(self, context: Context) -> bytes:
         h = hashlib.md5()
         for node in self.input_nodes:
-            h.update(node.calculate_hash())
+            h.update(node.calculate_hash(context))
         for param in self.params.values():
             h.update(param.calculate_hash())
         for ds in self.input_dataset_instances:
-            h.update(ds.calculate_hash(self.context))
+            h.update(ds.calculate_hash(context))
         for klass in type(self).mro():
             try:
                 mod_mtime = os.path.getmtime(inspect.getfile(klass))
@@ -147,12 +139,12 @@ class Node:
             h.update(str(mod_mtime).encode('utf8'))
         return h.digest()
 
-    def get_output(self, target_node: Node = None) -> pd.DataFrame:
-        node_hash = self.calculate_hash().hex()
-        out = self.context.cache.get(node_hash)
-        if out is None or self.debug or self.context.skip_cache:
+    def get_output(self, context: Context, target_node: Node = None) -> pd.DataFrame:
+        node_hash = self.calculate_hash(context).hex()
+        out = context.cache.get(node_hash)
+        if out is None or self.debug or context.skip_cache:
             try:
-                out = self.compute()
+                out = self.compute(context)
             except Exception as e:
                 print('Exception when computing node %s' % self.id)
                 raise e
@@ -171,7 +163,7 @@ class Node:
                 raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
-            self.context.cache.set(node_hash, out)
+            context.cache.set(node_hash, out)
 
         # If a node has multiple outputs, we can specify only one series
         # to include.
@@ -185,8 +177,8 @@ class Node:
 
         return out.copy()
 
-    def print_output(self):
-        df = self.get_output()
+    def print_output(self, context: Context):
+        df = self.get_output(context)
         if self.baseline_values is not None and VALUE_COLUMN in df.columns:
             df['Baseline'] = self.baseline_values[VALUE_COLUMN]
         self.print_pint_df(df)
@@ -204,21 +196,17 @@ class Node:
             out[col] = df[col]
         print(out)
 
-    def get_target_year(self) -> int:
-        return self.context.target_year
+    def get_target_year(self, context: Context) -> int:
+        return context.target_year
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self, context: Context) -> pd.DataFrame:
         raise Exception('Implement in subclass')
 
-    @property
-    def ureg(self) -> pint.UnitRegistry:
-        return self.context.unit_registry
-
-    def is_compatible_unit(self, unit_a: Union[str, pint.Unit], unit_b: Union[str, pint.Unit]):
+    def is_compatible_unit(self, context: Context, unit_a: Union[str, pint.Unit], unit_b: Union[str, pint.Unit]):
         if isinstance(unit_a, str):
-            unit_a = self.ureg(unit_a).units
+            unit_a = context.unit_registry(unit_a).units
         if isinstance(unit_b, str):
-            unit_b = self.ureg(unit_b).units
+            unit_b = context.unit_registry(unit_b).units
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True

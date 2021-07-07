@@ -117,9 +117,7 @@ class InstanceLoader:
                 forecast=config.get('forecast_values'),
             ))
 
-        node = node_class(
-            self.context, config['id'], input_datasets=datasets,
-        )
+        node = node_class(config['id'], input_datasets=datasets)
         node.name = self.make_trans_string(config, 'name')
         node.description = self.make_trans_string(config, 'description')
         node.color = config.get('color')
@@ -247,18 +245,17 @@ class InstanceLoader:
                 param = self.context.get_param(pc['id'])
                 param.add_scenario_setting(sc['id'], param.clean(pc['value']))
 
-            scenario = Scenario(**sc, name=name, context=self.context, nodes=self.context.nodes.values())
+            scenario = Scenario(**sc, name=name, nodes=self.context.nodes.values())
 
             if scenario.default:
                 assert default_scenario is None
                 default_scenario = scenario
             self.context.add_scenario(scenario)
 
-        self.context.add_custom_scenario(
+        self.context.set_custom_scenario(
             CustomScenario(
                 id='custom',
                 name=_('Custom'),
-                context=self.context,
                 base_scenario=default_scenario,
                 nodes=self.context.nodes.values(),
             )
