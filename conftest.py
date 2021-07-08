@@ -6,13 +6,17 @@ from pytest_factoryboy import register
 from nodes.tests.factories import (
     ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory, NodeFactory, ScenarioFactory
 )
-from params.tests.factories import BoolParameterFactory, ParameterFactory
+from params.tests.factories import (
+    BoolParameterFactory, ParameterFactory, NumberParameterFactory, StringParameterFactory
+)
 
 register(BoolParameterFactory)
 register(ContextFactory)
 register(NodeFactory)
+register(NumberParameterFactory)
 register(ParameterFactory)
 register(ScenarioFactory)  # Does not notify any nodes of the scenario's creation
+register(StringParameterFactory)
 
 
 @pytest.fixture

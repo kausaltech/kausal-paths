@@ -12,7 +12,7 @@ class ParameterFactory(Factory):
     local_id = Sequence(lambda i: f'param{i}')
     label = TranslatedString("Parameter label")
     description = TranslatedString("Parameter description")
-    is_customizable = None
+    is_customizable = True
 
 
 class NumberParameterFactory(ParameterFactory):
