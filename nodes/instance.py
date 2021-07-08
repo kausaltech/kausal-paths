@@ -138,7 +138,7 @@ class InstanceLoader:
             if isinstance(params, dict):
                 params = [dict(id=param_id, value=value) for param_id, value in params.items()]
             # Ensure that the node class allows these parameters
-            class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_params', [])}
+            class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
             for pc in params:
                 param_id = pc.pop('id')
                 name = self.make_trans_string(pc, 'name', pop=True)
@@ -241,11 +241,11 @@ class InstanceLoader:
         for sc in self.config['scenarios']:
             name = self.make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
-            for pc in params_config:
-                param = self.context.get_param(pc['id'])
-                param.add_scenario_setting(sc['id'], param.clean(pc['value']))
+            scenario = Scenario(**sc, name=name, notified_nodes=self.context.nodes.values())
 
-            scenario = Scenario(**sc, name=name, nodes=self.context.nodes.values())
+            for pc in params_config:
+                param = self.context.get_parameter(pc['id'])
+                param.add_scenario_setting(scenario, param.clean(pc['value']))
 
             if scenario.default:
                 assert default_scenario is None
@@ -257,7 +257,7 @@ class InstanceLoader:
                 id='custom',
                 name=_('Custom'),
                 base_scenario=default_scenario,
-                nodes=self.context.nodes.values(),
+                notified_nodes=self.context.nodes.values(),
             )
         )
 
@@ -289,7 +289,7 @@ class InstanceLoader:
             page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
             instance.pages[node.id] = page
 
-    def setup_global_params(self):
+    def setup_global_parameters(self):
         context = self.context
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
@@ -334,7 +334,7 @@ class InstanceLoader:
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
-        self.setup_global_params()
+        self.setup_global_parameters()
         self.setup_scenarios()
         self.setup_pages()
 

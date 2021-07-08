@@ -20,7 +20,7 @@ class AdditiveAction(ActionNode):
 class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
-    allowed_params: list[Parameter] = [
+    allowed_parameters: list[Parameter] = [
         PercentageParameter('target_year_ratio', min_value=0),
     ]
 
@@ -38,7 +38,7 @@ class CumulativeAdditiveAction(ActionNode):
                 val = val.pint.m
             val = val.fillna(0).cumsum()
 
-            target_year_ratio = self.get_param_value('target_year_ratio', required=False)
+            target_year_ratio = self.get_parameter_value('target_year_ratio', required=False)
             if target_year_ratio is not None:
                 val *= target_year_ratio / 100
 
@@ -55,7 +55,7 @@ class CumulativeAdditiveAction(ActionNode):
 
 
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
-    allowed_params = CumulativeAdditiveAction.allowed_params + [
+    allowed_parameters = CumulativeAdditiveAction.allowed_parameters + [
         NumberParameter('target_year_level')
     ]
 
@@ -67,7 +67,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         df = df.reindex(range(start_year, end_year + 1))
         df[FORECAST_COLUMN] = True
 
-        target_year_level = self.get_param_value('target_year_level', required=False)
+        target_year_level = self.get_parameter_value('target_year_level', required=False)
         if target_year_level is not None:
             if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")

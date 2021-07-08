@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass, field, InitVar
 from typing import List, Optional
 
 import sentry_sdk
@@ -19,17 +19,16 @@ class Scenario:
     default: bool = False
     all_actions_enabled: bool = False
     # Nodes that will be notified of this scenario's creation
-    nodes: InitVar[List[Node]] = []
+    notified_nodes: List[Node] = field(default_factory=list)
 
-    def __post_init__(self, nodes):
-        self.nodes = nodes
-        for node in nodes:
+    def __post_init__(self):
+        for node in self.notified_nodes:
             node.on_scenario_created(self)
 
     def activate(self, context):
-        for node in self.nodes:
-            for param in node.params.values():
-                param.reset_to_scenario_setting(self)
+        """Resets each parameter in the context to its setting for this scenario if it has one."""
+        for param in context.get_all_parameters():
+            param.reset_to_scenario_setting(self)
 
 
 @dataclass
@@ -44,7 +43,7 @@ class CustomScenario(Scenario):
         self.base_scenario.activate(context)
         settings = self.session.get('settings', {})
         for param_id, val in list(settings.items()):
-            param = context.get_param(param_id, required=False)
+            param = context.get_parameter(param_id, required=False)
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)

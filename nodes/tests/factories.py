@@ -43,7 +43,7 @@ class ScenarioFactory(Factory):
     name = TranslatedString('scenario')
     default = False
     all_actions_enabled = False
-    nodes: List[Node] = []
+    notified_nodes: List[Node] = []
 
 
 class CustomScenarioFactory(ScenarioFactory):

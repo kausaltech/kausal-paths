@@ -1,16 +1,18 @@
 import json
 import pytest
 from graphene_django.utils.testing import graphql_query
+from pytest_factoryboy import register
 
 from nodes.tests.factories import (
-    ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory, ScenarioFactory
+    ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory, NodeFactory, ScenarioFactory
 )
-from params.tests.factories import BoolParameterFactory
+from params.tests.factories import BoolParameterFactory, ParameterFactory
 
-
-@pytest.fixture
-def context():
-    return ContextFactory()
+register(BoolParameterFactory)
+register(ContextFactory)
+register(NodeFactory)
+register(ParameterFactory)
+register(ScenarioFactory)  # Does not notify any nodes of the scenario's creation
 
 
 @pytest.fixture
@@ -22,7 +24,7 @@ def action_node(context):
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
 def default_scenario(context, action_node):
-    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True, nodes=[action_node])
+    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True, notified_nodes=[action_node])
     context.add_scenario(scenario)
     return scenario
 
@@ -33,7 +35,7 @@ def custom_scenario(context, action_node, default_scenario):
         id='custom',
         name='Custom',
         base_scenario=default_scenario,
-        nodes=[action_node],
+        notified_nodes=[action_node],
     )
     context.set_custom_scenario(custom_scenario)
     return custom_scenario

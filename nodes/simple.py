@@ -1,5 +1,5 @@
-from params.param import BoolParameter, NumberParameter, Parameter
-from typing import Iterable, List
+from params.param import BoolParameter, NumberParameter
+from typing import List
 import pandas as pd
 
 from common.i18n import TranslatedString
@@ -12,7 +12,7 @@ EMISSION_UNIT = 'kg'
 
 
 class SimpleNode(Node):
-    allowed_params = [
+    allowed_parameters = [
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
             label=TranslatedString("Fill in gaps in computation using input dataset"),
@@ -123,7 +123,7 @@ class AdditiveNode(SimpleNode):
                 df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
                 df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
-        if self.get_param_value('fill_gaps_using_input_dataset', required=False):
+        if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
             df = self.add_nodes(context, None, self.input_nodes)
             df = self.fill_gaps_using_input_dataset(context, df)
         else:
@@ -178,10 +178,10 @@ class MultiplicativeNode(AdditiveNode):
         df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
         df = self.add_nodes(context, df, additive_nodes)
-        fill_gaps = self.get_param_value('fill_gaps_using_input_dataset', required=False)
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
             df = self.fill_gaps_using_input_dataset(context, df)
-        replace_output = self.get_param_value('replace_output_using_input_dataset', required=False)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset(context, df)
         if self.debug:
@@ -209,9 +209,9 @@ class Activity(AdditiveNode):
 
 
 class FixedMultiplierNode(SimpleNode):
-    allowed_params = [
+    allowed_parameters = [
         NumberParameter(local_id='multiplier'),
-    ] + SimpleNode.allowed_params
+    ] + SimpleNode.allowed_parameters
 
     def compute(self, context: Context):
         if len(self.input_nodes) != 1:
@@ -220,13 +220,13 @@ class FixedMultiplierNode(SimpleNode):
         node = self.input_nodes[0]
 
         df = node.get_output(context)
-        multiplier = self.get_param_value('multiplier')
+        multiplier = self.get_parameter_value('multiplier')
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue
             df[col] *= multiplier
 
-        replace_output = self.get_param_value('replace_output_using_input_dataset', required=False)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset(context, df)
 

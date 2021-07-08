@@ -15,11 +15,7 @@ class ResolveDefaultValueMixin:
     def resolve_default_value(root: Parameter, info: GQLInfo) -> Any:
         context = info.context.instance.context
         scenario = context.get_default_scenario()
-        return root.get_scenario_setting(scenario.id)
-        # param = scenario.params.get(root.id)
-        # if param is None:
-        #     return None
-        # return param.value
+        return root.get_scenario_setting(scenario)
 
 
 class ParameterInterface(graphene.Interface):
@@ -27,7 +23,7 @@ class ParameterInterface(graphene.Interface):
     label = graphene.String()
     description = graphene.String()
     node_relative_id = graphene.ID()  # can be null if node is null
-    node = graphene.Field('nodes.schema.NodeType')  # can be null for global params
+    node = graphene.Field('nodes.schema.NodeType')  # can be null for global parameters
     is_customized = graphene.Boolean()
     is_customizable = graphene.Boolean()
 
@@ -96,7 +92,7 @@ class SetParameterMutation(graphene.Mutation):
     def mutate(root, info: GQLInfo, id, number_value=None, bool_value=None, string_value=None):
         context = info.context.instance.context
         try:
-            param = context.get_param(id)
+            param = context.get_parameter(id)
         except KeyError:
             raise GraphQLError("Parameter %s does not exist", [info])
 
@@ -200,12 +196,12 @@ class Query(graphene.ObjectType):
 
     def resolve_parameters(root, info: GQLInfo):
         instance = info.context.instance
-        return instance.context.params.values()
+        return instance.context.parameters.values()
 
     def resolve_parameter(root, info: GQLInfo, id):
         instance = info.context.instance
         try:
-            return instance.context.get_param(id)
+            return instance.context.get_parameter(id)
         except KeyError:
             raise GraphQLError(f"Parameter {id} does not exist")
 

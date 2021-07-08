@@ -68,7 +68,7 @@ if args.scenario:
     context.activate_scenario(context.get_scenario(args.scenario))
 
 if args.list_params:
-    context.print_params()
+    context.print_all_parameters()
 
 if args.debug:
     for node_id in (args.node or []):
@@ -108,7 +108,7 @@ if args.check:
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
-    context.set_param_value(param_id, val)
+    context.set_parameter_value(param_id, val)
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
@@ -119,7 +119,7 @@ for node_id in (args.node or []):
 
 if False:
     loader.context.dataset_repo.pull_datasets()
-    loader.context.print_params()
+    loader.context.print_all_parameters()
     loader.context.generate_baseline_values()
     #for sector in page.get_sectors():
     #    print(sector)

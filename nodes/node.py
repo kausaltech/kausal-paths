@@ -51,10 +51,10 @@ class Node:
     output_nodes: List[Node]
 
     # Parameters with their values
-    params: Dict[str, Parameter]
+    parameters: Dict[str, Parameter]
 
     # All allowed parameters for this class
-    allowed_params: Iterable[Parameter]
+    allowed_parameters: Iterable[Parameter]
 
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
@@ -73,7 +73,7 @@ class Node:
         self.input_nodes = []
         self.output_nodes = []
         self.baseline_values = None
-        self.params = {}
+        self.parameters = {}
         self.content = None
 
         # Call the subclass post-init method if it is defined
@@ -81,29 +81,33 @@ class Node:
             self.__post_init__()
 
     def add_parameter(self, param: Parameter):
-        if param.local_id in self.params:
+        if param.local_id in self.parameters:
             raise Exception(f"Local parameter {param.local_id} already defined for node {self.id}")
-        self.params[param.local_id] = param
+        self.parameters[param.local_id] = param
         param.set_node(self)
 
-    def get_param(self, local_id: str, required: bool = True):
+    def get_parameters(self):
+        for param in self.parameters.values():
+            yield param
+
+    def get_parameter(self, local_id: str, required: bool = True):
         """Get the parameter with the given local id from this node's parameters."""
-        if local_id in self.params:
-            return self.params[local_id]
+        if local_id in self.parameters:
+            return self.parameters[local_id]
         if required:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         return None
 
-    def get_param_value(self, id: str, required: bool = True) -> Any:
-        param = self.get_param(id, required=required)
+    def get_parameter_value(self, id: str, required: bool = True) -> Any:
+        param = self.get_parameter(id, required=required)
         if param is None:
             return None
         return param.value
 
-    def set_param_value(self, local_id: str, value: Any):
-        if local_id not in self.params:
+    def set_parameter_value(self, local_id: str, value: Any):
+        if local_id not in self.parameters:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
-        self.params[local_id].set(value)
+        self.parameters[local_id].set(value)
 
     def get_input_datasets(self, context: Context) -> List[Union[pd.DataFrame, pd.Series]]:
         dfs = []
@@ -127,7 +131,7 @@ class Node:
         h = hashlib.md5()
         for node in self.input_nodes:
             h.update(node.calculate_hash(context))
-        for param in self.params.values():
+        for param in self.parameters.values():
             h.update(param.calculate_hash())
         for ds in self.input_dataset_instances:
             h.update(ds.calculate_hash(context))

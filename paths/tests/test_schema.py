@@ -53,7 +53,7 @@ def test_parameter_interface(graphql_client_query_data, context, action_node, is
 @pytest.mark.parametrize('default_value', [True, False])
 def test_bool_parameter_type(graphql_client_query_data, context, default_value, default_scenario):
     param = BoolParameterFactory()
-    param.add_scenario_setting(default_scenario.id, default_value)
+    param.add_scenario_setting(default_scenario, default_value)
     context.add_global_parameter(param)
     data = graphql_client_query_data(
         '''
@@ -84,7 +84,7 @@ def test_bool_parameter_type(graphql_client_query_data, context, default_value, 
 def test_number_parameter_type(graphql_client_query_data, context, default_scenario):
     default_value = 42.42
     param = NumberParameterFactory()
-    param.add_scenario_setting(default_scenario.id, default_value)
+    param.add_scenario_setting(default_scenario, default_value)
     context.add_global_parameter(param)
     data = graphql_client_query_data(
         '''
@@ -127,7 +127,7 @@ def test_number_parameter_type(graphql_client_query_data, context, default_scena
 def test_string_parameter_type(graphql_client_query_data, context, default_scenario):
     default_value = 'foobar'
     param = StringParameterFactory()
-    param.add_scenario_setting(default_scenario.id, default_value)
+    param.add_scenario_setting(default_scenario, default_value)
     context.add_global_parameter(param)
     data = graphql_client_query_data(
         '''

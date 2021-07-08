@@ -54,13 +54,13 @@ class Parameter:
     def clean(self, value: Any) -> Any:
         raise NotImplementedError('Implement in subclass')
 
-    def add_scenario_setting(self, scenario_id, value):
-        if scenario_id in self.scenario_settings:
-            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario_id} already exists")
-        self.scenario_settings[scenario_id] = value
+    def add_scenario_setting(self, scenario, value):
+        if scenario.id in self.scenario_settings:
+            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario.id} already exists")
+        self.scenario_settings[scenario.id] = value
 
-    def get_scenario_setting(self, scenario_id):
-        return self.scenario_settings.get(scenario_id)
+    def get_scenario_setting(self, scenario):
+        return self.scenario_settings.get(scenario.id)
 
     @property
     def global_id(self):

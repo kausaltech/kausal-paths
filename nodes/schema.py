@@ -166,7 +166,7 @@ class NodeType(graphene.ObjectType):
         return expand_db_html(page.description)
 
     def resolve_parameters(root, info):
-        return [param for param in root.params.values() if param.is_customizable]
+        return [param for param in root.parameters.values() if param.is_customizable]
 
 
 class ScenarioType(graphene.ObjectType):
