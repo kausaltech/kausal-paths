@@ -248,8 +248,7 @@ class Node:
             current = open.pop()
             if current not in closed:
                 closed.add(current)
-                if current is not self:
-                    result.append(current)
+                result.append(current)
                 open += current.output_nodes
         return result
 
