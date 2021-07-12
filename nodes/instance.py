@@ -27,7 +27,6 @@ class Instance:
     id: str
     name: TranslatedString
     context: Context
-    target_year_goal: Optional[float] = None
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
@@ -117,15 +116,17 @@ class InstanceLoader:
                 forecast=config.get('forecast_values'),
             ))
 
-        node = node_class(config['id'], input_datasets=datasets)
-        node.name = self.make_trans_string(config, 'name')
-        node.description = self.make_trans_string(config, 'description')
-        node.color = config.get('color')
-        node.target_year_goal = config.get('target_year_goal')
+        node = node_class(
+            id=config['id'],
+            name=self.make_trans_string(config, 'name'),
+            description=self.make_trans_string(config, 'description'),
+            color=config.get('color'),
+            unit=unit,
+            quantity=config.get('quantity'),
+            target_year_goal=config.get('target_year_goal'),
+            input_datasets=datasets,
+        )
 
-        if 'quantity' in config:
-            node.quantity = config['quantity']
-        node.unit = unit
         if node.id in self._input_nodes or node.id in self._output_nodes:
             raise Exception('Node %s is already configured' % node.id)
         assert node.id not in self._input_nodes
@@ -221,17 +222,13 @@ class InstanceLoader:
         for node in self.context.nodes.values():
             for out_id in self._output_nodes.get(node.id, []):
                 out_node = self.context.get_node(out_id)
-                assert node not in out_node.input_nodes
-                out_node.input_nodes.append(node)
-                assert out_node not in node.output_nodes
-                node.output_nodes.append(out_node)
+                out_node.add_input_node(node)
+                node.add_output_node(out_node)
 
             for in_id in self._input_nodes.get(node.id, []):
                 in_node = self.context.get_node(in_id)
-                assert node not in in_node.output_nodes
-                in_node.output_nodes.append(node)
-                assert in_node not in node.input_nodes
-                node.input_nodes.append(in_node)
+                in_node.add_output_node(node)
+                node.add_input_node(in_node)
 
         # FIXME: Check for cycles?
 
@@ -309,7 +306,17 @@ class InstanceLoader:
 
     def __init__(self, config):
         self.config = config
-        self.context = Context()
+
+        static_datasets = self.config.get('static_datasets')
+        if static_datasets is not None:
+            if self.config.get('dataset_repo') is not None:
+                raise Exception('static_datasets and dataset_repo may not be specified at the same time')
+            dataset_repo = dvc_pandas.StaticRepository(static_datasets)
+        else:
+            dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
+        target_year = self.config['target_year']
+        self.context = Context(dataset_repo, target_year)
+
         instance_attrs = ['reference_year', 'minimum_historical_year', 'maximum_historical_year']
         self.instance = Instance(
             id=self.config['id'],
@@ -317,14 +324,6 @@ class InstanceLoader:
             context=self.context,
             **{attr: self.config.get(attr) for attr in instance_attrs}
         )
-        static_datasets = self.config.get('static_datasets')
-        if static_datasets is not None:
-            if self.config.get('dataset_repo') is not None:
-                raise Exception('static_datasets and dataset_repo may not be specified at the same time')
-            self.context.dataset_repo = dvc_pandas.StaticRepository(static_datasets)
-        else:
-            self.context.dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
-        self.context.target_year = self.config['target_year']
 
         self.load_datasets(self.config.get('datasets', []))
         # Store input and output node configs for each created node, to be used in setup_edges().

@@ -52,18 +52,20 @@ class Context:
     cache: Cache
     skip_cache: bool = False
 
-    def __init__(self):
+    def __init__(self, dataset_repo, target_year):
         from nodes.actions import ActionNode
         # Avoid circular import
         self.Action = ActionNode
 
         self.nodes = {}
         self.datasets = {}
+        self.dvc_datasets = {}
+        self.global_parameters = {}
         self.scenarios = {}
         self.custom_scenario = None
-        self.global_parameters = {}
-        self.dvc_datasets = {}
+        self.target_year = target_year
         self.unit_registry = unit_registry
+        self.dataset_repo = dataset_repo
         self.active_scenario = None
         self.supported_parameter_types = discover_parameter_types()
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))

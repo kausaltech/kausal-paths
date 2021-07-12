@@ -4,15 +4,16 @@ from graphene_django.utils.testing import graphql_query
 from pytest_factoryboy import register
 
 from nodes.tests.factories import (
-    ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory, NodeFactory, ScenarioFactory
+    AdditiveActionFactory, ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory, NodeFactory,
+    ScenarioFactory, SimpleNodeFactory
 )
+from pages.tests.factories import InstanceContentFactory
 from params.tests.factories import (
     BoolParameterFactory, ParameterFactory, NumberParameterFactory, StringParameterFactory
 )
 
 register(BoolParameterFactory)
 register(ContextFactory)
-register(NodeFactory)
 register(NumberParameterFactory)
 register(ParameterFactory)
 register(ScenarioFactory)  # Does not notify any nodes of the scenario's creation
@@ -20,8 +21,29 @@ register(StringParameterFactory)
 
 
 @pytest.fixture
+def node(context):
+    node = NodeFactory()
+    context.add_node(node)
+    return node
+
+
+@pytest.fixture
 def action_node(context):
     node = ActionNodeFactory()
+    context.add_node(node)
+    return node
+
+
+@pytest.fixture
+def additive_action(context):
+    node = AdditiveActionFactory()
+    context.add_node(node)
+    return node
+
+
+@pytest.fixture
+def simple_node(context):
+    node = SimpleNodeFactory()
     context.add_node(node)
     return node
 
@@ -50,6 +72,11 @@ def instance(context):
     from pages import global_instance
     global_instance.instance = InstanceFactory(context=context)
     return global_instance.instance
+
+
+@pytest.fixture
+def instance_content(instance):
+    return InstanceContentFactory(identifier=instance.id)
 
 
 @pytest.fixture

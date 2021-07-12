@@ -4,7 +4,7 @@ import hashlib
 import os
 import inspect
 from types import FunctionType
-from typing import Any, Callable, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 
 import pandas as pd
 import pint
@@ -28,21 +28,21 @@ class Node:
     # output_metrics: Iterable[Metric]
 
     # name is the human-readable label for the Node instance
-    name: TranslatedString = None
+    name: Optional[TranslatedString]
 
     # description for the Node instance
-    description: TranslatedString = None
+    description: Optional[TranslatedString]
 
     # if the node has an established visualisation color
-    color: Optional[str] = None
+    color: Optional[str]
 
     # output unit (from pint)
     unit: pint.Unit
     # output quantity (like 'energy' or 'emissions')
-    quantity: Optional[str] = None
+    quantity: Optional[str]
 
     # set if this node has a specific goal for the simulation target year
-    target_year_goal: Optional[float] = None
+    target_year_goal: Optional[float]
 
     input_datasets: List[str]
 
@@ -54,7 +54,7 @@ class Node:
     parameters: Dict[str, Parameter]
 
     # All allowed parameters for this class
-    allowed_parameters: Iterable[Parameter]
+    allowed_parameters: ClassVar[Iterable[Parameter]]
 
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
@@ -63,13 +63,21 @@ class Node:
     content: Optional[NodeContent]
     __post_init__: Callable[[Node], None]
 
-    def __init__(self, id: str, input_datasets: List[Dataset] = None):
-        self.id = id
-        if input_datasets:
-            self.input_dataset_instances = input_datasets
-        else:
-            self.input_dataset_instances = []
+    def __init__(
+        self, id, name, description=None, color=None, unit=None, quantity=None, target_year_goal=None,
+        input_datasets: List[Dataset] = None,
+    ):
+        if input_datasets is None:
+            input_datasets = []
 
+        self.id = id
+        self.name = name
+        self.description = description
+        self.color = color
+        self.unit = unit
+        self.quantity = quantity
+        self.target_year_goal = target_year_goal
+        self.input_dataset_instances = input_datasets
         self.input_nodes = []
         self.output_nodes = []
         self.baseline_values = None
@@ -283,3 +291,13 @@ class Node:
             raise NodeError(self, 'No quantity set')
         if self.quantity not in KNOWN_QUANTITIES:
             raise NodeError(self, 'Quantity %s is unknown' % self.quantity)
+
+    def add_input_node(self, node):
+        if node in self.input_nodes:
+            raise Exception(f"Node {node} already added to input nodes for {self.id}")
+        self.input_nodes.append(node)
+
+    def add_output_node(self, node):
+        if node in self.output_nodes:
+            raise Exception(f"Node {node} already added to output nodes for {self.id}")
+        self.output_nodes.append(node)

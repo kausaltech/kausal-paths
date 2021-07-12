@@ -20,6 +20,7 @@ class ActionNode(Node):
 
     def __post_init__(self):
         self.enabled_param = BoolParameter(local_id=ENABLED_PARAM_ID)
+        self.enabled_param.set(False)
         self.add_parameter(self.enabled_param)
 
     def is_enabled(self) -> Optional[bool]:

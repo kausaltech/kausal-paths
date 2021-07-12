@@ -1,17 +1,20 @@
 import pytest
 
 from params.tests.factories import BoolParameterFactory, NumberParameterFactory, StringParameterFactory
+from nodes.tests.factories import NodeFactory
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.mark.parametrize('is_global', [True, False])
-def test_parameter_interface(graphql_client_query_data, context, action_node, is_global):
+def test_parameter_interface(graphql_client_query_data, context, is_global):
     param = NumberParameterFactory()
     if is_global:
         context.add_global_parameter(param)
     else:
-        action_node.add_parameter(param)
+        node = NodeFactory()
+        node.add_parameter(param)
+        context.add_node(node)
     data = graphql_client_query_data(
         '''
         query($param: ID!) {
@@ -251,7 +254,7 @@ def test_set_parameter_string(graphql_client_query_data, string_parameter, conte
     assert data == expected
 
 
-def test_set_parameter_sets_activates_custom_scenario(
+def test_set_parameter_activates_custom_scenario(
     graphql_client_query_data, bool_parameter, context, custom_scenario
 ):
     context.add_global_parameter(bool_parameter)
