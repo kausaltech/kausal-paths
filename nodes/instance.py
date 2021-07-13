@@ -236,13 +236,13 @@ class InstanceLoader:
         default_scenario = None
 
         for sc in self.config['scenarios']:
-            name = self.make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
-            scenario = Scenario(**sc, name=name, notified_nodes=self.context.nodes.values())
-
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
-                param.add_scenario_setting(scenario, param.clean(pc['value']))
+                param.add_scenario_setting(sc['id'], param.clean(pc['value']))
+
+            name = self.make_trans_string(sc, 'name', pop=True)
+            scenario = Scenario(**sc, name=name, notified_nodes=self.context.nodes.values())
 
             if scenario.default:
                 assert default_scenario is None

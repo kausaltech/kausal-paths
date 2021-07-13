@@ -61,4 +61,4 @@ class ActionNode(Node):
     def on_scenario_created(self, scenario):
         super().on_scenario_created(scenario)
         if self.enabled_param.get_scenario_setting(scenario) is None:
-            self.enabled_param.add_scenario_setting(scenario, scenario.all_actions_enabled)
+            self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)

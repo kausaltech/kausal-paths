@@ -55,9 +55,20 @@ class Parameter:
         raise NotImplementedError('Implement in subclass')
 
     def add_scenario_setting(self, scenario, value):
-        if scenario.id in self.scenario_settings:
-            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario.id} already exists")
-        self.scenario_settings[scenario.id] = value
+        """
+        Add the given value as the setting for the given scenario.
+
+        `scenario` can be an instance of `Scenario` or a string that is a scenario ID.
+        """
+        from nodes.scenario import Scenario
+        if isinstance(scenario, Scenario):
+            scenario_id = scenario.id
+        else:
+            scenario_id = scenario
+
+        if scenario_id in self.scenario_settings:
+            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario_id} already exists")
+        self.scenario_settings[scenario_id] = value
 
     def get_scenario_setting(self, scenario):
         return self.scenario_settings.get(scenario.id)
