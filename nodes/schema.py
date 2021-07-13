@@ -193,9 +193,14 @@ class Query(graphene.ObjectType):
     )
     actions = graphene.List(NodeType)
     scenarios = graphene.List(ScenarioType)
+    scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
 
     def resolve_instance(root, info: GQLInfo):
         return info.context.instance
+
+    def resolve_scenario(root, info, id):
+        context = info.context.instance.context
+        return context.get_scenario(id)
 
     def resolve_scenarios(root, info: GQLInfo):
         context = info.context.instance.context

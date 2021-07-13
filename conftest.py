@@ -16,7 +16,6 @@ register(BoolParameterFactory)
 register(ContextFactory)
 register(NumberParameterFactory)
 register(ParameterFactory)
-register(ScenarioFactory)  # Does not notify any nodes of the scenario's creation
 register(StringParameterFactory)
 
 
@@ -39,6 +38,14 @@ def additive_action(context):
     node = AdditiveActionFactory()
     context.add_node(node)
     return node
+
+
+@pytest.fixture
+def scenario(context):
+    """Does not notify any nodes of the scenario's creation."""
+    scenario = ScenarioFactory()
+    context.add_scenario(scenario)
+    return scenario
 
 
 @pytest.fixture

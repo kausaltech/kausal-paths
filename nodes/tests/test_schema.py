@@ -150,3 +150,31 @@ def test_node_type(graphql_client_query_data, additive_action, context):
         }
     }
     assert data == expected
+
+
+def test_scenario_type(graphql_client_query_data, context, scenario):
+    is_active = scenario == context.active_scenario
+    data = graphql_client_query_data(
+        '''
+        query($id: ID!) {
+          scenario(id: $id) {
+            __typename
+            id
+            name
+            isActive
+            isDefault
+          }
+        }
+        ''',
+        variables={'id': scenario.id}
+    )
+    expected = {
+        'scenario': {
+            '__typename': 'ScenarioType',
+            'id': scenario.id,
+            'name': str(scenario.name),
+            'isActive': is_active,
+            'isDefault': scenario.default,
+        }
+    }
+    assert data == expected
