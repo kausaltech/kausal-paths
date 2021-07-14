@@ -3,7 +3,8 @@ import pytest
 pytestmark = pytest.mark.django_db
 
 
-def test_action_enabled(graphql_client_query_data, action_node):
+def test_action_enabled(graphql_client_query_data, default_scenario, action_node):
+    action_node.on_scenario_created(default_scenario)
     param_id = action_node.enabled_param.global_id
     data = graphql_client_query_data(
         '''

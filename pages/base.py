@@ -23,6 +23,17 @@ class Metric:
     df: pd.DataFrame
     node: Optional[Node] = None
 
+    @staticmethod
+    def from_node(node, context):
+        df = node.get_output(context)
+        if df is None:
+            return None
+        if VALUE_COLUMN not in df.columns:
+            return None
+        if node.baseline_values is not None:
+            df[BASELINE_VALUE_COLUMN] = node.baseline_values[VALUE_COLUMN]
+        return Metric(id=node.id, name=str(node.name), node=node, df=df)
+
     def split_df(self) -> Dict[str, List[YearlyValue]]:
         if hasattr(self, 'split_values'):
             return self.split_values

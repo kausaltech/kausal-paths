@@ -258,7 +258,7 @@ def test_set_parameter_activates_custom_scenario(
     graphql_client_query_data, bool_parameter, context, custom_scenario
 ):
     context.add_global_parameter(bool_parameter)
-    assert context.active_scenario is None
+    assert context.active_scenario != custom_scenario
     param_id = bool_parameter.global_id
     graphql_client_query_data(
         '''

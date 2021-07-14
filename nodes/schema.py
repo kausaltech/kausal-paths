@@ -121,14 +121,7 @@ class NodeType(graphene.ObjectType):
     @staticmethod
     def resolve_metric(root: Node, info):
         context = info.context.instance.context
-        df = root.get_output(context)
-        if df is None:
-            return None
-        if VALUE_COLUMN not in df.columns:
-            return None
-        if root.baseline_values is not None:
-            df[BASELINE_VALUE_COLUMN] = root.baseline_values[VALUE_COLUMN]
-        return Metric(id=root.id, name=str(root.name), node=root, df=df)
+        return Metric.from_node(root, context)
 
     @staticmethod
     def resolve_impact_metric(root: Node, info, target_node_id: str = None):

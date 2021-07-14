@@ -300,3 +300,8 @@ class Node:
         if node in self.output_nodes:
             raise Exception(f"Node {node} already added to output nodes for {self.id}")
         self.output_nodes.append(node)
+
+    def generate_baseline_values(self, context):
+        assert self.baseline_values is None
+        assert context.active_scenario.id == 'baseline'
+        self.baseline_values = self.get_output(context)

@@ -4,7 +4,7 @@ from typing import List
 from common.i18n import TranslatedString
 from nodes.actions import ActionNode
 from nodes.actions.simple import AdditiveAction
-from nodes.context import Context
+from nodes.context import Context, unit_registry
 from nodes.datasets import Dataset
 from nodes.instance import Instance
 from nodes.node import Node
@@ -43,7 +43,7 @@ class NodeFactory(Factory):
     name = TranslatedString('name')
     description = TranslatedString('description')
     color = 'pink'
-    unit = 'kWh'
+    unit = unit_registry('kWh').units
     quantity = 'energy'
     target_year_goal = 500.0
     input_datasets = [Dataset.from_fixed_values(

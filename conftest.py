@@ -56,19 +56,29 @@ def simple_node(context):
 
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
-def default_scenario(context, action_node):
-    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True, notified_nodes=[action_node])
+def default_scenario(context):
+    """Adds default scenario but doesn't notify any nodes of its creation."""
+    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True)
+    context.add_scenario(scenario)
+    context.activate_scenario(scenario)
+    return scenario
+
+
+@pytest.fixture
+def baseline_scenario(context):
+    """Adds baseline scenario but doesn't notify any nodes of its creation."""
+    scenario = ScenarioFactory(id='baseline', all_actions_enabled=True)
     context.add_scenario(scenario)
     return scenario
 
 
 @pytest.fixture
-def custom_scenario(context, action_node, default_scenario):
+def custom_scenario(context, default_scenario):
+    """Adds custom scenario but doesn't notify any nodes of its creation."""
     custom_scenario = CustomScenarioFactory(
         id='custom',
         name='Custom',
         base_scenario=default_scenario,
-        notified_nodes=[action_node],
     )
     context.set_custom_scenario(custom_scenario)
     return custom_scenario

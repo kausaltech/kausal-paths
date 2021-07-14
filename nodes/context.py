@@ -156,12 +156,13 @@ class Context:
         raise Exception("No default scenario found")
 
     def generate_baseline_values(self):
+        assert self.active_scenario
         old_scenario = self.active_scenario
 
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
         for node in self.nodes.values():
-            node.baseline_values = node.get_output(self)
+            node.generate_baseline_values(self)
         self.activate_scenario(old_scenario)
 
     def get_all_parameters(self):

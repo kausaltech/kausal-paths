@@ -3,6 +3,7 @@ import pytest
 pytestmark = pytest.mark.django_db
 
 from nodes.tests.factories import NodeFactory
+from pages.base import Metric
 
 
 def test_instance_type(graphql_client_query_data, instance, instance_content):
@@ -34,6 +35,81 @@ def test_instance_type(graphql_client_query_data, instance, instance_content):
             'maximumHistoricalYear': instance.maximum_historical_year,
             'leadTitle': instance_content.lead_title,
             'leadParagraph': instance_content.lead_paragraph,
+        }
+    }
+    assert data == expected
+
+
+def test_forecast_metric_type(graphql_client_query_data, additive_action, context, baseline_scenario):
+    context.generate_baseline_values()
+    metric = Metric.from_node(additive_action, context)
+    data = graphql_client_query_data(
+        '''
+        query($id: ID!) {
+          node(id: $id) {
+            metric {
+              __typename
+              id
+              name
+              outputNode {
+                __typename
+                id
+              }
+              unit {
+                __typename
+                short
+              }
+              historicalValues {
+                __typename
+                year
+                value
+              }
+              forecastValues {
+                __typename
+                year
+                value
+              }
+              baselineForecastValues {
+                __typename
+                year
+                value
+              }
+            }
+          }
+        }
+        ''',
+        variables={'id': additive_action.id}
+    )
+    expected_historical_values = [{
+        '__typename': 'YearlyValue',
+        'year': yearly_value.year,
+        'value': yearly_value.value,
+    } for yearly_value in metric.get_historical_values()]
+    expected_forecast_values = [{
+        '__typename': 'YearlyValue',
+        'year': yearly_value.year,
+        'value': yearly_value.value,
+    } for yearly_value in metric.get_forecast_values()]
+    expected_baseline_forecast_values = [{
+        '__typename': 'YearlyValue',
+        'year': yearly_value.year,
+        'value': yearly_value.value,
+    } for yearly_value in metric.get_baseline_forecast_values()]
+    expected = {
+        'node': {
+            'metric': {
+                '__typename': 'ForecastMetricType',
+                'id': metric.id,
+                'name': metric.name,
+                'outputNode': None,  # TODO
+                'unit': {
+                    '__typename': 'UnitType',
+                    'short': metric.unit.format_babel('~P'),
+                },
+                'historicalValues': expected_historical_values,
+                'forecastValues': expected_forecast_values,
+                'baselineForecastValues': expected_baseline_forecast_values,
+            }
         }
     }
     assert data == expected
