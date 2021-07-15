@@ -68,7 +68,7 @@ if args.scenario:
     context.activate_scenario(context.get_scenario(args.scenario))
 
 if args.list_params:
-    context.print_params()
+    context.print_all_parameters()
 
 if args.debug:
     for node_id in (args.node or []):
@@ -84,11 +84,11 @@ if args.baseline:
 if args.check:
     for node_id, node in context.nodes.items():
         node.check()
-        df = node.get_output()
+        df = node.get_output(context)
         na_count = df.isna().sum().sum()
         if na_count:
             print('Node %s has NaN values:' % node.id)
-            node.print_output()
+            node.print_output(context)
 
         if node.baseline_values is not None:
             na_count = node.baseline_values.isna().sum().sum()
@@ -108,18 +108,18 @@ if args.check:
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
-    context.set_param_value(param_id, val)
+    context.set_parameter_value(param_id, val)
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
-    node.print_output()
+    node.print_output(context)
     if isinstance(node, ActionNode):
-        node.print_impact(context.get_node('net_emissions'))
+        node.print_impact(context, context.get_node('net_emissions'))
 
 
 if False:
     loader.context.dataset_repo.pull_datasets()
-    loader.context.print_params()
+    loader.context.print_all_parameters()
     loader.context.generate_baseline_values()
     #for sector in page.get_sectors():
     #    print(sector)

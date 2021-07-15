@@ -6,8 +6,8 @@ import pkgutil
 from . import param as param_base
 
 
-def discover_parameters():
-    """Discover all the supported parameters by iterating through package modules."""
+def discover_parameter_types():
+    """Discover all the supported parameter classes by iterating through package modules."""
 
     this_pkg = __package__
     this_path = os.path.dirname(__file__)

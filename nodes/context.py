@@ -9,7 +9,7 @@ import dvc_pandas
 from .datasets import Dataset
 from common.cache import Cache
 from params import Parameter
-from params.discover import discover_parameters
+from params.discover import discover_parameter_types
 
 if TYPE_CHECKING:
     from .node import Node
@@ -39,32 +39,42 @@ class Context:
     nodes: dict[str, Node]
     datasets: Dict[str, Dataset]
     dvc_datasets: Dict[str, dvc_pandas.Dataset]
-    params: dict[str, Parameter]
+    # global_parameters contains parameters that are not specific to a node.
+    # Node-specific parameters are managed by the node.
+    global_parameters: dict[str, Parameter]
     scenarios: dict[str, Scenario]
     custom_scenario: CustomScenario
     target_year: int
     unit_registry: pint.UnitRegistry
     dataset_repo: dvc_pandas.Repository
     active_scenario: Scenario
-    supported_params: dict[str, type]
+    supported_parameter_types: dict[str, type]
     cache: Cache
     skip_cache: bool = False
 
-    def __init__(self):
+    def __init__(self, dataset_repo, target_year):
         from nodes.actions import ActionNode
         # Avoid circular import
         self.Action = ActionNode
 
         self.nodes = {}
         self.datasets = {}
+        self.dvc_datasets = {}
+        self.global_parameters = {}
         self.scenarios = {}
         self.custom_scenario = None
-        self.params = {}
-        self.dvc_datasets = {}
+        self.target_year = target_year
         self.unit_registry = unit_registry
+        self.dataset_repo = dataset_repo
         self.active_scenario = None
-        self.supported_params = discover_parameters()
+        self.supported_parameter_types = discover_parameter_types()
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
+
+    def get_parameter_type(self, parameter_id: str) -> type:
+        param_type = self.supported_parameter_types.get(parameter_id)
+        if param_type is None:
+            raise Exception("Unknown parameter: {param_id}")
+        return param_type
 
     def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
         ds = self.datasets.get(id)
@@ -85,38 +95,44 @@ class Context:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
 
-        assert node.context == self
-        node.register_params()
-
     def get_node(self, id: str) -> Node:
         return self.nodes[id]
 
-    def get_param(self, id: str, required: bool = True) -> Optional[Parameter]:
-        if id not in self.params:
-            if not required:
-                return None
-            raise Exception('Param %s not found' % id)
-        return self.params[id]
+    def add_global_parameter(self, parameter: Parameter):
+        if parameter.local_id in self.global_parameters:
+            raise Exception(f"Global parameter {parameter.local_id} already defined")
+        self.global_parameters[parameter.local_id] = parameter
 
-    def get_param_value(self, id: str, required: bool = True) -> Any:
-        param = self.get_param(id, required=required)
+    def get_parameter(self, id: str, required: bool = True) -> Optional[Parameter]:
+        try:
+            node_id, param_name = id.split('.', 1)
+        except ValueError:
+            param = self.global_parameters.get(id)
+        else:
+            param = self.nodes[node_id].get_parameter(param_name, required=required)
+        if param is None and required:
+            raise Exception(f"Parameter {id} not found")
+        return param
+
+    def get_parameter_value(self, id: str, required: bool = True) -> Any:
+        param = self.get_parameter(id, required=required)
         if param is None:
             return None
         return param.value
 
-    def set_param_value(self, id: str, value: Any):
-        param = self.params.get(id)
+    def set_parameter_value(self, id: str, value: Any):
+        param = self.global_parameters.get(id)
         if param is None:
-            raise Exception('Param %s not found' % id)
+            raise Exception(f"Parameter {id} not found")
         param.set(value)
 
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
         self.scenarios[scenario.id] = scenario
 
-    def add_custom_scenario(self, scenario: CustomScenario):
-        self.add_scenario(scenario)
+    def set_custom_scenario(self, scenario: CustomScenario):
         assert self.custom_scenario is None
+        self.add_scenario(scenario)
         self.custom_scenario = scenario
 
     def get_scenario(self, id) -> Scenario:
@@ -126,12 +142,11 @@ class Context:
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
         assert len(root_nodes) == 1
-        return root_nodes[0].compute()
+        return root_nodes[0].compute(self)
 
     def activate_scenario(self, scenario: Scenario):
-        assert scenario.context == self
         # Set the new parameters
-        scenario.activate()
+        scenario.activate(self)
         self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:
@@ -141,18 +156,27 @@ class Context:
         raise Exception("No default scenario found")
 
     def generate_baseline_values(self):
+        assert self.active_scenario
         old_scenario = self.active_scenario
 
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
         for node in self.nodes.values():
-            node.baseline_values = node.get_output()
-
+            node.generate_baseline_values(self)
         self.activate_scenario(old_scenario)
 
-    def print_params(self):
-        for param_id, param in self.params.items():
-            print('%s: %s' % (param_id, param.value))
+    def get_all_parameters(self):
+        """Return global and node-specific parameters."""
+        for param in self.global_parameters.values():
+            yield param
+        for node in self.nodes.values():
+            for param in node.get_parameters():
+                yield param
+
+    def print_all_parameters(self):
+        """Print global and node-specific parameters."""
+        for param in self.get_all_parameters():
+            print('%s: %s' % (param.global_id, param.value))
 
     def pull_datasets(self):
         self.dataset_repo.pull_datasets()

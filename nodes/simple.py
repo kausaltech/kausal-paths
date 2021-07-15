@@ -1,4 +1,3 @@
-from re import T
 from params.param import BoolParameter, NumberParameter
 from typing import List
 import pandas as pd
@@ -6,9 +5,9 @@ import pint
 from .context import unit_registry
 import numpy as np
 
-from common.i18n import gettext_lazy as _
+from common.i18n import TranslatedString
 from .constants import FORECAST_COLUMN, VALUE_COLUMN
-from .node import Node
+from .node import Context, Node
 from .exceptions import NodeError
 
 
@@ -16,23 +15,25 @@ EMISSION_UNIT = 'kg'
 
 
 class SimpleNode(Node):
-    allowed_params = [
+    allowed_parameters = [
         BoolParameter(
-            id='fill_gaps_using_input_dataset', label='Fill in gaps in computation using input dataset',
-            value=False, is_customizable=False
+            local_id='fill_gaps_using_input_dataset',
+            label=TranslatedString("Fill in gaps in computation using input dataset"),
+            is_customizable=False
         ),
         BoolParameter(
-            id='replace_output_using_input_dataset', label='Replace output using input dataset',
-            value=False, is_customizable=False
+            local_id='replace_output_using_input_dataset',
+            label=TranslatedString("Replace output using input dataset"),
+            is_customizable=False
         )
     ]
 
-    def replace_output_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+    def replace_output_using_input_dataset(self, context: Context, df: pd.DataFrame) -> pd.DataFrame:
         # If we have also data from an input dataset, we only fill in the gaps from the
         # calculated data.
         df = df.dropna()
 
-        data_df = self.get_input_dataset()
+        data_df = self.get_input_dataset(context)
         if data_df is None:
             return df
 
@@ -52,8 +53,8 @@ class SimpleNode(Node):
         data_df[FORECAST_COLUMN] = data_df[FORECAST_COLUMN].astype(bool)
         return data_df
 
-    def fill_gaps_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
-        data_df = self.get_input_dataset()
+    def fill_gaps_using_input_dataset(self, context: Context, df: pd.DataFrame) -> pd.DataFrame:
+        data_df = self.get_input_dataset(context)
         if data_df is None:
             return df
 
@@ -68,7 +69,7 @@ class SimpleNode(Node):
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
 
-    def add_nodes(self, df: pd.DataFrame, nodes: List[Node]):
+    def add_nodes(self, context: Context, df: pd.DataFrame, nodes: List[Node]):
         if self.debug:
             print('%s: input dataset:' % self.id)
             if df is not None:
@@ -76,7 +77,7 @@ class AdditiveNode(SimpleNode):
             else:
                 print('\tNo input dataset')
         for node in nodes:
-            node_df = node.get_output(self)
+            node_df = node.get_output(context, self)
             if node_df is None:
                 continue
 
@@ -102,8 +103,8 @@ class AdditiveNode(SimpleNode):
 
         return df
 
-    def compute(self):
-        df = self.get_input_dataset()
+    def compute(self, context: Context):
+        df = self.get_input_dataset(context)
 
         if df is not None:
             if not isinstance(df, pd.DataFrame):
@@ -113,10 +114,10 @@ class AdditiveNode(SimpleNode):
 
             df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
 
-            if df.index.max() < self.get_target_year():
+            if df.index.max() < self.get_target_year(context):
                 last_year = df.index.max()
                 last_val = df.loc[last_year]
-                new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
+                new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year(context) + 1))
                 df = df.reindex(new_index)
                 df.iloc[-1] = last_val
                 dt = df.dtypes[VALUE_COLUMN]
@@ -125,11 +126,11 @@ class AdditiveNode(SimpleNode):
                 df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
                 df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
-        if self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False):
-            df = self.add_nodes(None, self.input_nodes)
-            df = self.fill_gaps_using_input_dataset(df)
+        if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
+            df = self.add_nodes(context, None, self.input_nodes)
+            df = self.fill_gaps_using_input_dataset(context, df)
         else:
-            df = self.add_nodes(df, self.input_nodes)
+            df = self.add_nodes(context, df, self.input_nodes)
 
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
         return df
@@ -147,11 +148,11 @@ class MultiplicativeNode(AdditiveNode):
     Multiplication and addition is determined based on the input node units.
     """
 
-    def compute(self):
+    def compute(self, context: Context):
         additive_nodes = []
         multiply_nodes = []
         for node in self.input_nodes:
-            if self.is_compatible_unit(node.unit, self.unit):
+            if self.is_compatible_unit(context, node.unit, self.unit):
                 additive_nodes.append(node)
             else:
                 multiply_nodes.append(node)
@@ -161,11 +162,11 @@ class MultiplicativeNode(AdditiveNode):
 
         n1, n2 = multiply_nodes
         output_unit = n1.unit * n2.unit
-        if not self.is_compatible_unit(output_unit, self.unit):
+        if not self.is_compatible_unit(context, output_unit, self.unit):
             raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
 
-        df1 = n1.get_output()
-        df2 = n2.get_output()
+        df1 = n1.get_output(context)
+        df2 = n2.get_output(context)
         df = df1.copy()
 
         if self.debug:
@@ -179,13 +180,13 @@ class MultiplicativeNode(AdditiveNode):
 
         df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
-        df = self.add_nodes(df, additive_nodes)
-        fill_gaps = self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
+        df = self.add_nodes(context, df, additive_nodes)
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(df)
-        replace_output = self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
+            df = self.fill_gaps_using_input_dataset(context, df)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(df)
+            df = self.replace_output_using_input_dataset(context, df)
         if self.debug:
             print('%s: Output:' % self.id)
             self.print_pint_df(df)
@@ -211,26 +212,26 @@ class Activity(AdditiveNode):
 
 
 class FixedMultiplierNode(SimpleNode):
-    allowed_params = [
-        NumberParameter(id='multiplier'),
-    ] + SimpleNode.allowed_params
+    allowed_parameters = [
+        NumberParameter(local_id='multiplier'),
+    ] + SimpleNode.allowed_parameters
 
-    def compute(self):
+    def compute(self, context: Context):
         if len(self.input_nodes) != 1:
             raise NodeError(self, 'FixedMultiplier needs exactly one input node')
 
         node = self.input_nodes[0]
 
-        df = node.get_output()
-        multiplier = self.get_param_value('multiplier', local=True)
+        df = node.get_output(context)
+        multiplier = self.get_parameter_value('multiplier')
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue
             df[col] *= multiplier
 
-        replace_output = self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(df)
+            df = self.replace_output_using_input_dataset(context, df)
 
         return df
 

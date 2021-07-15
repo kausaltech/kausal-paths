@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Optional, TYPE_CHECKING
-from dataclasses import dataclass
-
 import orjson
 from common.i18n import TranslatedString
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from nodes import Node
 
@@ -16,45 +16,73 @@ class ValidationError(Exception):
             msg_str = ': %s' % msg
         else:
             msg_str = ''
-        super().__init__("[Param %s]: Parameter validation failed%s" % (param.id, msg_str))
+        super().__init__("[Param %s]: Parameter validation failed%s" % (param.local_id, msg_str))
 
 
 @dataclass
 class Parameter:
-    id: str
+    local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
     label: Optional[TranslatedString] = None
     description: Optional[TranslatedString] = None
     # Set if this parameter is bound to a specific node
     node: Optional[Node] = None
     is_customized: bool = False
-    is_customizable: Optional[bool] = None
+    is_customizable: bool = True
+    # Maps a scenario ID to the value of this parameter in that scenario
+    scenario_settings: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        assert '.' not in self.local_id
 
     def set(self, value: Any):
         self.value = self.clean(value)
+
+    def reset_to_scenario_setting(self, scenario):
+        if scenario.id in self.scenario_settings:
+            setting = self.scenario_settings[scenario.id]
+            self.set(setting)
+            self.is_customized = False
 
     def get(self) -> Any:
         return self.value
 
     def calculate_hash(self) -> bytes:
-        s = orjson.dumps({'id': self.id, 'value': self.value})
+        s = orjson.dumps({'id': self.global_id, 'value': self.value})
         h = hashlib.md5(s)
         return h.digest()
 
     def clean(self, value: Any) -> Any:
         raise NotImplementedError('Implement in subclass')
 
-    @property
-    def node_relative_id(self):
-        return self.id.split('.')[-1]
+    def add_scenario_setting(self, scenario, value):
+        """
+        Add the given value as the setting for the given scenario.
 
-    def set_node(self, node: Node):
-        assert '.' not in self.id
-        global_id = f'{node.id}.{self.id}'
-        self.id = global_id
+        `scenario` can be an instance of `Scenario` or a string that is a scenario ID.
+        """
+        from nodes.scenario import Scenario
+        if isinstance(scenario, Scenario):
+            scenario_id = scenario.id
+        else:
+            scenario_id = scenario
+
+        if scenario_id in self.scenario_settings:
+            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario_id} already exists")
+        self.scenario_settings[scenario_id] = value
+
+    def get_scenario_setting(self, scenario):
+        return self.scenario_settings.get(scenario.id)
+
+    @property
+    def global_id(self):
+        if self.node is None:
+            return self.local_id
+        return f'{self.node.id}.{self.local_id}'
+
+    def set_node(self, node):
+        if self.node is not None:
+            raise Exception(f"Node for parameter {self.global_id} already set")
         self.node = node
-        # By default node parameters are customizable
-        if self.is_customizable is None:
-            self.is_customizable = True
 
 
 @dataclass
@@ -66,6 +94,7 @@ class NumberParameter(Parameter):
     unit: Optional[str] = None
 
     def __post_init__(self):
+        super().__post_init__()
         if self.unit is not None and isinstance(self.unit, str):
             from nodes.context import unit_registry
             self.unit = unit_registry(self.unit).units

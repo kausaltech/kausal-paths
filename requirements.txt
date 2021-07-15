@@ -220,6 +220,8 @@ packaging==20.9
     #   dvc
     #   pint
     #   pytest
+pandas-stubs==1.1.0.11
+    # via -r requirements.in
 pandas==1.2.4
     # via
     #   -r requirements.in

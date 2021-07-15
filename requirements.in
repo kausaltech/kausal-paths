@@ -1,5 +1,6 @@
 psycopg2-binary
 pandas
+pandas-stubs
 python-dotenv
 wagtail
 django==3.2.*

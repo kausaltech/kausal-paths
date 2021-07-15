@@ -9,8 +9,8 @@ class AdditiveAction(ActionNode):
     """Simple action that produces an additive change to a value."""
     no_effect_value = 0
 
-    def compute_effect(self):
-        df = self.get_input_dataset()
+    def compute_effect(self, context):
+        df = self.get_input_dataset(context)
         if not self.is_enabled():
             df[VALUE_COLUMN] = 0.0
             df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
@@ -20,12 +20,12 @@ class AdditiveAction(ActionNode):
 class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
-    allowed_params: list[Parameter] = [
+    allowed_parameters: list[Parameter] = [
         PercentageParameter('target_year_ratio', min_value=0),
     ]
 
-    def add_cumulatively(self, df):
-        target_year = self.get_target_year()
+    def add_cumulatively(self, context, df):
+        target_year = self.get_target_year(context)
         df = df.reindex(range(df.index.min(), target_year + 1))
         df[FORECAST_COLUMN] = True
 
@@ -38,7 +38,7 @@ class CumulativeAdditiveAction(ActionNode):
                 val = val.pint.m
             val = val.fillna(0).cumsum()
 
-            target_year_ratio = self.get_param_value('target_year_ratio', local=True, required=False)
+            target_year_ratio = self.get_parameter_value('target_year_ratio', required=False)
             if target_year_ratio is not None:
                 val *= target_year_ratio / 100
 
@@ -49,25 +49,25 @@ class CumulativeAdditiveAction(ActionNode):
 
         return df
 
-    def compute_effect(self):
-        df = self.get_input_dataset()
-        return self.add_cumulatively(df)
+    def compute_effect(self, context):
+        df = self.get_input_dataset(context)
+        return self.add_cumulatively(context, df)
 
 
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
-    allowed_params = CumulativeAdditiveAction.allowed_params + [
+    allowed_parameters = CumulativeAdditiveAction.allowed_parameters + [
         NumberParameter('target_year_level')
     ]
 
     """Cumulative additive action where a yearly target is set and the effect is linear."""
-    def compute_effect(self):
-        df = self.get_input_dataset()
+    def compute_effect(self, context):
+        df = self.get_input_dataset(context)
         start_year = df.index.min()
         end_year = df.index.max()
         df = df.reindex(range(start_year, end_year + 1))
         df[FORECAST_COLUMN] = True
 
-        target_year_level = self.get_param_value('target_year_level', local=True, required=False)
+        target_year_level = self.get_parameter_value('target_year_level', required=False)
         if target_year_level is not None:
             if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
@@ -78,7 +78,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
                 continue
             dt = df.dtypes[col]
             df[col] = df[col].pint.m.interpolate(method='linear').diff().fillna(0).astype(dt)
-        return self.add_cumulatively(df)
+        return self.add_cumulatively(context, df)
 
 
 class EmissionReductionAction(ActionNode):
@@ -86,7 +86,7 @@ class EmissionReductionAction(ActionNode):
 
     no_effect_value = 0
 
-    def compute_effect(self):
-        df = self.get_input_dataset()
+    def compute_effect(self, context):
+        df = self.get_input_dataset(context)
         df[VALUE_COLUMN] = 0 - df[VALUE_COLUMN]
         return df
