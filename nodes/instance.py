@@ -90,7 +90,7 @@ class InstanceLoader:
 
         unit = config.get('unit')
         if unit is None:
-            unit = getattr(node_class, 'unit')
+            unit = getattr(node_class, 'unit', None)
         if unit:
             unit = self.context.unit_registry(unit).units
 
