@@ -22,7 +22,6 @@ load_dotenv()
 
 loader = InstanceLoader.from_yaml('configs/tampere.yaml')
 context = loader.context
-context.print_graph()
 
 page = list(loader.instance.pages.values())[0]
 
@@ -56,7 +55,11 @@ parser.add_argument('--check', action='store_true', help='perform sanity checkin
 parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
+parser.add_argument('--print-graph', action='store_true', help='print the graph')
 args = parser.parse_args()
+
+if args.print_graph:
+    context.print_graph()
 
 if args.skip_cache:
     context.skip_cache = True
@@ -83,7 +86,6 @@ if args.baseline:
 
 if args.check:
     for node_id, node in context.nodes.items():
-        node.check()
         df = node.get_output(context)
         na_count = df.isna().sum().sum()
         if na_count:

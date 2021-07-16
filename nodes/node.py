@@ -241,7 +241,7 @@ class Node:
                 raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
                     s.pint.units, node_str, self.unit
                 ))
-        return s.astype(pt)
+        return s.astype(float).astype(pt)
 
     def get_descendant_nodes(self, proper=False) -> List[Node]:
         # Depth-first traversal
