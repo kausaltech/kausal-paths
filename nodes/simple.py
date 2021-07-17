@@ -245,18 +245,18 @@ class PopulationAttributableFractionNode(AdditiveNode):
     and fraction of population exposed.
     """
 
-    def compute(self):
+    def compute(self, context: Context):
 
         if len(self.input_nodes) != 2:
             raise NodeError(self, "Must receive exactly two inputs in this order: relative risk and fraction exposed")
 
         n1, n2 = self.input_nodes
         output_unit = n1.unit * n2.unit
-        if not self.is_compatible_unit(output_unit, self.unit):
+        if not self.is_compatible_unit(context, output_unit, self.unit):
             raise NodeError(self, "Inputs must in a unit compatible with '%s'" % self.unit)
 
-        df1 = n1.get_output()
-        df2 = n2.get_output()
+        df1 = n1.get_output(context)
+        df2 = n2.get_output(context)
         df = df1.copy()
 
         if self.debug:
@@ -272,10 +272,10 @@ class PopulationAttributableFractionNode(AdditiveNode):
 
 #        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
-        fill_gaps = self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
+        fill_gaps = False # self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
         if fill_gaps:
             df = self.fill_gaps_using_input_dataset(df)
-        replace_output = self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
+        replace_output = False # self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset(df)
         if self.debug:

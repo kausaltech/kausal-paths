@@ -12,3 +12,4 @@ __pycache__/
 /.direnv/
 /.envrc
 /tags
+db.sqlite3

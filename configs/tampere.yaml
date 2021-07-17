@@ -669,17 +669,32 @@ instance:
       unit: m
       historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5], ]
       forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-#      output_nodes:
-#        - paf_cvd_mortality
 
     - id: paf_cvd_mortality
       name: Väestösyyosuus
       name_en: Population attributable fraction
       type: simple.PopulationAttributableFractionNode
       unit: m**2
-      input_nodes:
+      input_nodes: 
         - rr_cvd_mortality
         - pm_exposed_fraction
+
+    - id: disease_burden
+      name: Tautitaakka
+      name_en: Disease burden
+      type: simple.AdditiveNode
+      unit: kg
+      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5], ]
+      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+
+#    - id: attributable_disease_burden
+#      name: Kohdentuva tautitaakka
+#      name_en: Attributable disease burden
+#      type: simple.MultiplicativeNode
+#      unit: kg m**2
+#      input_nodes:
+#        - paf_cvd_mortality
+#        - disease_burden
 
 
 #    - id: pm_emission_factor # FIXIT: This is not a simple time series
