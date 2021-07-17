@@ -265,8 +265,8 @@ class PopulationAttributableFractionNode(AdditiveNode):
             print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
             self.print_pint_df(df2)
         
-        r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1 * unit_registry('meter')) # FIXIT should be unitless, not meters
-        df[VALUE_COLUMN] = np.where(r>0, r/(r + 1 * unit_registry('meter ** 2')),r)
+        r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1 * unit_registry('DALY')) # FIXIT should be unitless, not meters
+        df[VALUE_COLUMN] = np.where(r>0, r/(r + 1 * unit_registry('meter')),r)
 
         df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
 

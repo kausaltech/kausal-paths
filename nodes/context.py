@@ -27,6 +27,7 @@ unit_registry.define('kt = kilotonne')
 unit_registry.define('Mkm = gigameters')
 # We also need population
 unit_registry.define('person = [population] = cap')
+unit_registry.define('DALY = [disease_burden] = _ = YLL = YLD = QALY')
 unit_registry.define(pint.unit.UnitDefinition(
     'percent', '%', (), pint.converters.ScaleConverter(0.01)
 ))

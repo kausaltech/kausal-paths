@@ -7,7 +7,8 @@ IMPACT_COLUMN = 'Impact'
 EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'
 KNOWN_QUANTITIES = [
-    'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita', 'fuel_consumption', 'ratio'
+    'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita',
+    'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden'
 ]
 ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage']
 

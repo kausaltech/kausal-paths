@@ -223,6 +223,8 @@ class Node:
             unit_a = context.unit_registry(unit_a).units
         if isinstance(unit_b, str):
             unit_b = context.unit_registry(unit_b).units
+        if unit_a is None or unit_b is None: # FIXIT: This did not help with problems but did not cause errors either.
+            return True
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True

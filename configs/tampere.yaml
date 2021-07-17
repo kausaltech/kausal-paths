@@ -625,24 +625,26 @@ instance:
         multiplier: -1
       unit: GWh
 
-    - id: pm_emission
-      name: Pienhiukkaspäästö
-      name_en: Fine particle emission
+    - id: pm_emissions
+      name: Pienhiukkaspäästöt
+      name_en: Fine particle emissions
       type: simple.AdditiveNode
+      quantity: emissions
       unit: ug/m**3
-      historical_values: [[2018, 1], [2019, 1], [2020, 1], ]
+      historical_values: [[2018, 1], [2019, 1], [2020, 1]]
       forecast_values: [[2021, 1], [2022, 1], [2023, 1], [2024, 1], [2025, 1], [2026, 1], [2027, 1], [2028, 1], [2029, 1], [2030, 1]]
 
     - id: pm_exposure
       name: Pienhiukkasaltistus
       name_en: Fine particle exposure
       type: simple.FixedMultiplierNode
+      quantity: exposure
       unit: ug/m**3
       params:
         - id: multiplier
           value: 1.1
       input_nodes:
-        - pm_emission
+        - pm_emissions
       output_nodes:
         - rr_cvd_mortality
 
@@ -650,48 +652,60 @@ instance:
       name: Pienhiukkasten annosvaste
       name_en: Fine particle exposure-response function
       type: simple.AdditiveNode
-      unit: m**4/ug
-      historical_values: [[2018, 1.06], [2019, 1.06], [2020, 1.06], ]
+      quantity: exposure-response
+      unit: DALY*m**3/ug
+#      unit: m**4/ug
+      historical_values: [[2018, 1.06], [2019, 1.06], [2020, 1.06]]
       forecast_values: [[2021, 1.06], [2022, 1.06], [2023, 1.06], [2024, 1.06], [2025, 1.06], [2026, 1.06], [2027, 1.06], [2028, 1.06], [2029, 1.06], [2030, 1.06]]
 
     - id: rr_cvd_mortality
       name: Sydänkuolleisuuden suhteellinen riski
       name_en: Relative risk of cardiovascular mortality
       type: simple.MultiplicativeNode
-      unit: m
+#      quantity: disease_burden
+      quantity: ratio
+#      quantity: mileage
+      unit: DALY
       input_nodes:
         - pm_erf
 
-    - id: pm_exposed_fraction
-      name: Altistuneiden osuus
-      name_en: Exposed fraction
-      type: simple.AdditiveNode
-      unit: m
-      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5], ]
-      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+#    - id: pm_exposed_fraction
+#      name: Altistuneiden osuus
+#      name_en: Exposed fraction
+#      type: simple.AdditiveNode
+#      quantity: ratio
+##      quantity: mileage
+#      unit: 1/DALY
+#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
+#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
 
-    - id: paf_cvd_mortality
-      name: Väestösyyosuus
-      name_en: Population attributable fraction
-      type: simple.PopulationAttributableFractionNode
-      unit: m**2
-      input_nodes: 
-        - rr_cvd_mortality
-        - pm_exposed_fraction
+#    - id: paf_cvd_mortality
+#      name: Väestösyyosuus
+#      name_en: Population attributable fraction
+#      type: simple.PopulationAttributableFractionNode
+#      quantity: ratio
+##      quantity: mileage
+#      unit: None
+#      input_nodes: 
+#        - rr_cvd_mortality
+#        - pm_exposed_fraction
 
-    - id: disease_burden
-      name: Tautitaakka
-      name_en: Disease burden
-      type: simple.AdditiveNode
-      unit: kg
-      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5], ]
-      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+#    - id: disease_burden
+#      name: Tautitaakka
+#      name_en: Disease burden
+#      type: simple.AdditiveNode
+#      quantity: disease_burden
+#      unit: DALY/m
+##      unit: 1 / m**2
+#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
+#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
 
 #    - id: attributable_disease_burden
 #      name: Kohdentuva tautitaakka
 #      name_en: Attributable disease burden
 #      type: simple.MultiplicativeNode
-#      unit: kg m**2
+#      quantity: disease_burden
+#      unit: DALY
 #      input_nodes:
 #        - paf_cvd_mortality
 #        - disease_burden
