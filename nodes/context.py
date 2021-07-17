@@ -81,7 +81,7 @@ class Context:
         if ds is None:
             if not self.dataset_repo.has_dataset(id):
                 raise Exception('Dataset %s not found in DVC repo' % id)
-            ds = self.dataset_repo.load_dataset(id)
+            ds = self.dataset_repo.load_dataset(id, skip_pull_if_exists=True)
             self.dvc_datasets[id] = ds
         return ds
 

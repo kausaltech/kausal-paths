@@ -36,8 +36,8 @@ class Node:
     # if the node has an established visualisation color
     color: Optional[str]
 
-    # output unit (from pint)
-    unit: pint.Unit
+    # output unit (from pint, can be None for dimensionless quantities)
+    unit: Optional[pint.Unit]
     # output quantity (like 'energy' or 'emissions')
     quantity: Optional[str]
 
@@ -64,7 +64,7 @@ class Node:
     __post_init__: Callable[[Node], None]
 
     def __init__(
-        self, id, name, description=None, color=None, unit=None, quantity=None, target_year_goal=None,
+        self, id, name, quantity, description=None, color=None, unit=None, target_year_goal=None,
         input_datasets: List[Dataset] = None,
     ):
         if input_datasets is None:
@@ -75,7 +75,8 @@ class Node:
         self.description = description
         self.color = color
         self.unit = unit
-        self.quantity = quantity
+        if not hasattr(self, 'quantity') or quantity is not None:  # Could be set on the class-level
+            self.quantity = quantity
         self.target_year_goal = target_year_goal
         self.input_dataset_instances = input_datasets
         self.input_nodes = []
@@ -83,6 +84,9 @@ class Node:
         self.baseline_values = None
         self.parameters = {}
         self.content = None
+
+        if self.quantity not in KNOWN_QUANTITIES:
+            raise Exception(f"Quantity {self.quantity} is unknown")
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -224,6 +228,9 @@ class Node:
         return True
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
+        if self.unit is None:
+            return s
+
         pt = pint_pandas.PintType(self.unit)
         if hasattr(s, 'pint'):
             if not self.unit.is_compatible_with(s.pint.units):
@@ -234,7 +241,7 @@ class Node:
                 raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
                     s.pint.units, node_str, self.unit
                 ))
-        return s.astype(pt)
+        return s.astype(float).astype(pt)
 
     def get_descendant_nodes(self, proper=False) -> List[Node]:
         # Depth-first traversal
@@ -284,12 +291,6 @@ class Node:
             return None
         # FIXME: Format RichTextField?
         return self.content.body
-
-    def check(self):
-        if self.quantity is None:
-            raise NodeError(self, 'No quantity set')
-        if self.quantity not in KNOWN_QUANTITIES:
-            raise NodeError(self, 'Quantity %s is unknown' % self.quantity)
 
     def add_input_node(self, node):
         if node in self.input_nodes:

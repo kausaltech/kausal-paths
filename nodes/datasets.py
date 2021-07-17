@@ -165,7 +165,7 @@ class Dataset:
     @classmethod
     def from_fixed_values(
         kls, id: str,
-        unit: pint.Unit,
+        unit: Optional[pint.Unit],
         historical: List[Tuple[int, float]] = None,
         forecast: List[Tuple[int, float]] = None,
     ) -> Dataset:
@@ -194,11 +194,12 @@ class Dataset:
         df = df.set_index(YEAR_COLUMN)
 
         # Ensure value column has right units
-        pt = pint_pandas.PintType(unit)
-        for col in df.columns:
-            if col == FORECAST_COLUMN:
-                continue
-            df[col] = df[col].astype(float).astype(pt)
+        if unit is not None:
+            pt = pint_pandas.PintType(unit)
+            for col in df.columns:
+                if col == FORECAST_COLUMN:
+                    continue
+                df[col] = df[col].astype(float).astype(pt)
 
         ds = Dataset(id=id)
         ds.fixed_data = df
