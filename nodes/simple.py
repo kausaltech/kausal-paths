@@ -196,6 +196,64 @@ class MultiplicativeNode(AdditiveNode):
         return df
 
 
+class Multiple2Node(AdditiveNode):
+    """Multiply nodes together WITHOUT potentially adding other input nodes.
+    """
+
+    def compute(self, context: Context):
+        multiply_nodes = self.input_nodes
+#        print(self.input_nodes)
+#        for node in self.input_nodes:
+#            if self.is_compatible_unit(context, node.unit, self.unit):
+#                additive_nodes.append(node)
+#            else:
+#                multiply_nodes.append(node)
+
+        if len(multiply_nodes) != 2:
+            raise NodeError(self, "Must receive exactly two multiplicative inputs")
+
+        n1, n2 = multiply_nodes
+        output_unit = n1.unit * n2.unit
+        print('output_unit')
+        print(type(output_unit))
+        print(output_unit)
+        print('self_unit')
+        print(type(self.unit))
+        print(self.unit)
+        if not self.is_compatible_unit(context, output_unit, self.unit):
+            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
+
+        df1 = n1.get_output(context)
+        df2 = n2.get_output(context)
+        df = df1.copy()
+
+        if self.debug:
+            print('%s: Multiply input from node 1 (%s):' % (self.id, n1.id))
+            self.print_pint_df(df1)
+            print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
+            self.print_pint_df(df2)
+
+        df[VALUE_COLUMN] *= df2[VALUE_COLUMN]
+        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
+
+#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit) # FIXIT
+
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
+        if fill_gaps:
+            df = self.fill_gaps_using_input_dataset(context, df)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(context, df)
+        if self.debug:
+            print('%s: Output:' % self.id)
+            self.print_pint_df(df)
+
+        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+        print(df)
+
+        return df
+
+
 class EmissionFactorActivity(MultiplicativeNode):
     """Multiply an activity by an emission factor."""
     quantity = 'emissions'
@@ -265,12 +323,12 @@ class PopulationAttributableFractionNode(AdditiveNode):
             print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
             self.print_pint_df(df2)
         
-        r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1 * unit_registry('DALY')) # FIXIT should be unitless, not meters
-        df[VALUE_COLUMN] = np.where(r>0, r/(r + 1 * unit_registry('meter')),r)
+        r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1)
+        df[VALUE_COLUMN] = np.where(r>0, r/(r + 1),r)
 
         df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
 
-#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
+#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit) # FIXIT Not clear why this does not work.
 
         fill_gaps = False # self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
         if fill_gaps:
