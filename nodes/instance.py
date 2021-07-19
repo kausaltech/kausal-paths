@@ -90,9 +90,13 @@ class InstanceLoader:
 
         unit = config.get('unit')
         if unit is None:
-            unit = getattr(node_class, 'unit', None)
+            unit = getattr(node_class, 'unit')
         if unit:
             unit = self.context.unit_registry(unit).units
+
+        quantity = config.get('quantity')
+        if quantity is None:
+            quantity = getattr(node_class, 'quantity')
 
         # If the graph doesn't specify input datasets, the node
         # might.
@@ -122,7 +126,7 @@ class InstanceLoader:
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             unit=unit,
-            quantity=config.get('quantity'),
+            quantity=quantity,
             target_year_goal=config.get('target_year_goal'),
             input_datasets=datasets,
         )
