@@ -202,24 +202,13 @@ class Multiple2Node(AdditiveNode):
 
     def compute(self, context: Context):
         multiply_nodes = self.input_nodes
-#        print(self.input_nodes)
-#        for node in self.input_nodes:
-#            if self.is_compatible_unit(context, node.unit, self.unit):
-#                additive_nodes.append(node)
-#            else:
-#                multiply_nodes.append(node)
 
         if len(multiply_nodes) != 2:
             raise NodeError(self, "Must receive exactly two multiplicative inputs")
 
         n1, n2 = multiply_nodes
         output_unit = n1.unit * n2.unit
-        print('output_unit')
-        print(type(output_unit))
-        print(output_unit)
-        print('self_unit')
-        print(type(self.unit))
-        print(self.unit)
+
         if not self.is_compatible_unit(context, output_unit, self.unit):
             raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
 
@@ -236,7 +225,7 @@ class Multiple2Node(AdditiveNode):
         df[VALUE_COLUMN] *= df2[VALUE_COLUMN]
         df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
 
-#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit) # FIXIT
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
         fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
@@ -249,7 +238,6 @@ class Multiple2Node(AdditiveNode):
             self.print_pint_df(df)
 
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-        print(df)
 
         return df
 
@@ -324,11 +312,15 @@ class PopulationAttributableFractionNode(AdditiveNode):
             self.print_pint_df(df2)
         
         r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1)
-        df[VALUE_COLUMN] = np.where(r>0, r/(r + 1),r)
+
+        if min(r)>=0: # NOTE! PROBLEMS OCCUR WITH HORMESIS
+            df[VALUE_COLUMN] = r/(r + 1)
+        else: 
+            df[VALUE_COLUMN] = r
 
         df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
 
-#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit) # FIXIT Not clear why this does not work.
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
         fill_gaps = False # self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
         if fill_gaps:

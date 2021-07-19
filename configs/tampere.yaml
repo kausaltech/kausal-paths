@@ -662,7 +662,7 @@ instance:
       name_en: Relative risk of cardiovascular mortality
       type: simple.Multiple2Node
       quantity: ratio
-      unit: m/m # needs something that cancels out
+      unit: dimensionless
       input_nodes:
         - pm_erf
 
@@ -671,7 +671,7 @@ instance:
       name_en: Exposed fraction
       type: simple.AdditiveNode
       quantity: ratio
-      unit: m/m
+      unit: dimensionless
       historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
       forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
 
@@ -680,7 +680,7 @@ instance:
       name_en: Population attributable fraction
       type: simple.PopulationAttributableFractionNode
       quantity: ratio
-      unit: m/m
+      unit: dimensionless
       input_nodes: 
         - rr_cvd_mortality
         - pm_exposed_fraction
