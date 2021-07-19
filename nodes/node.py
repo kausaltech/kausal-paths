@@ -36,8 +36,8 @@ class Node:
     # if the node has an established visualisation color
     color: Optional[str]
 
-    # output unit (from pint, can be None for dimensionless quantities)
-    unit: Optional[pint.Unit]
+    # output unit (from pint, for dimensionless quantities, give something that cancels out, e.g. m/m)
+    unit: pint.Unit
     # output quantity (like 'energy' or 'emissions')
     quantity: Optional[str]
 
@@ -223,8 +223,6 @@ class Node:
             unit_a = context.unit_registry(unit_a).units
         if isinstance(unit_b, str):
             unit_b = context.unit_registry(unit_b).units
-        if unit_a is None or unit_b is None: # FIXIT: This did not help with problems but did not cause errors either.
-            return True
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True
