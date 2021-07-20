@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 import os
 
 from typing import Any, Dict, Optional, TYPE_CHECKING
@@ -138,6 +139,10 @@ class Context:
     def get_scenario(self, id) -> Scenario:
         return self.scenarios[id]
 
+    def export_scenario(self, id):
+        scenario = self.get_scenario(id)
+        return scenario.export(self)
+
     def compute(self):
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
@@ -149,6 +154,15 @@ class Context:
         scenario.activate(self)
         self.active_scenario = scenario
 
+    @contextmanager
+    def temp_activate_scenario(self, scenario):
+        """Activate the given scenario, do something and finally activate the previously active scenario."""
+        assert self.active_scenario
+        old_scenario = self.active_scenario
+        self.activate_scenario(scenario)
+        yield
+        self.activate_scenario(old_scenario)
+
     def get_default_scenario(self) -> Scenario:
         for scenario in self.scenarios.values():
             if scenario.default:
@@ -156,14 +170,10 @@ class Context:
         raise Exception("No default scenario found")
 
     def generate_baseline_values(self):
-        assert self.active_scenario
-        old_scenario = self.active_scenario
-
-        scenario = self.scenarios['baseline']
-        self.activate_scenario(scenario)
-        for node in self.nodes.values():
-            node.generate_baseline_values(self)
-        self.activate_scenario(old_scenario)
+        baseline_scenario = self.get_scenario('baseline')
+        with self.temp_activate_scenario(baseline_scenario):
+            for node in self.nodes.values():
+                node.generate_baseline_values(self)
 
     def get_all_parameters(self):
         """Return global and node-specific parameters."""

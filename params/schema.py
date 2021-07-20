@@ -1,13 +1,13 @@
-from typing import Any
+from typing import Any, List
 import graphene
 from graphql.error import GraphQLError
-
-from paths.graphql_helpers import GQLInfo
 
 from . import (
     BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter,
     ValidationError
 )
+from nodes.scenario import ScenarioExport
+from paths.graphql_helpers import GQLInfo
 
 
 class ResolveDefaultValueMixin:
@@ -77,6 +77,19 @@ class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
 
     value = graphene.String()
     default_value = graphene.String()
+
+
+class ScenarioExportType(graphene.ObjectType):
+    data = graphene.String()
+    filename = graphene.String()
+
+    @staticmethod
+    def resolve_data(root: ScenarioExport, info: GQLInfo):
+        return root.to_json()
+
+    @staticmethod
+    def resolve_filename(root: ScenarioExport, info: GQLInfo):
+        return root.json_filename
 
 
 class SetParameterMutation(graphene.Mutation):
@@ -193,6 +206,7 @@ class Mutations(graphene.ObjectType):
 class Query(graphene.ObjectType):
     parameters = graphene.List(ParameterInterface)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
+    scenario_export = graphene.Field(ScenarioExportType, id=graphene.ID(required=True))
 
     def resolve_parameters(root, info: GQLInfo):
         instance = info.context.instance
@@ -204,6 +218,13 @@ class Query(graphene.ObjectType):
             return instance.context.get_parameter(id)
         except KeyError:
             raise GraphQLError(f"Parameter {id} does not exist")
+
+    def resolve_scenario_export(root, info: GQLInfo, id):
+        context = info.context.instance.context
+        try:
+            return context.export_scenario(id)
+        except KeyError:
+            raise GraphQLError(f"Scenario {id} does not exist")
 
 
 types = [
