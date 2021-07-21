@@ -648,23 +648,12 @@ instance:
       output_nodes:
         - rr_cvd_mortality
 
-    - id: pm_erf
-      name: Pienhiukkasten annosvaste
-      name_en: Fine particle exposure-response function
-      type: simple.AdditiveNode
-      quantity: exposure-response
-      unit: m**3/ug
-      historical_values: [[2018, 1.06], [2019, 1.06], [2020, 1.06]]
-      forecast_values: [[2021, 1.06], [2022, 1.06], [2023, 1.06], [2024, 1.06], [2025, 1.06], [2026, 1.06], [2027, 1.06], [2028, 1.06], [2029, 1.06], [2030, 1.06]]
-
     - id: rr_cvd_mortality
       name: Sydänkuolleisuuden suhteellinen riski
       name_en: Relative risk of cardiovascular mortality
       type: simple.RelativeRiskNode
       quantity: ratio
       unit: dimensionless
-#      input_nodes:
-#        - pm_erf
       params:
         - id: exposure_response_param1
           value: 0.008959741 m**3/microgram

@@ -223,22 +223,19 @@ class RelativeRiskNode(AdditiveNode):
 #        if not self.is_compatible_unit(context, output_unit, self.unit):
 #            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
 
-        df = input_node.get_output(context).copy()
+        df = input_node.get_output(context)
 
         if self.debug:
             print('%s: Parameter input from node 1 (%s):' % (self.id, n1.id))
             self.print_pint_df(df1)
-        print(df[VALUE_COLUMN])
-        print(beta)
 
         for col in df.columns: # Why use for loop if we only want to mutate VALUE_COLUMN?
             if col == FORECAST_COLUMN:
                 continue
-            df[col] = np.exp((beta * (df[col] - threshold)).astype(float)) # Should be exp() but fails.
-            df[col] *= unit_registry('m/m')
+            df[col] = ((beta * (df[col] - threshold))) #.astype(float)) # Should be exp() but fails.
+            df[col] = np.exp(df[col].astype(float)) #).apply(lambda x: unit_registry.Quantity(x))
 
 #        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-        print(df[VALUE_COLUMN])
 
 #        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
@@ -298,6 +295,8 @@ class Multiple2Node(AdditiveNode):
             self.print_pint_df(df)
 
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+        print(self.id)
+        print(df[VALUE_COLUMN])
 
         return df
 
