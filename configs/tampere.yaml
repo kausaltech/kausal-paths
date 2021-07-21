@@ -660,11 +660,16 @@ instance:
     - id: rr_cvd_mortality
       name: Sydänkuolleisuuden suhteellinen riski
       name_en: Relative risk of cardiovascular mortality
-      type: simple.Multiple2Node
+      type: simple.RelativeRiskNode
       quantity: ratio
       unit: dimensionless
-      input_nodes:
-        - pm_erf
+#      input_nodes:
+#        - pm_erf
+      params:
+        - id: exposure_response_param1
+          value: 0.008959741 m**3/microgram
+        - id: exposure_response_param2
+          value: 0 microgram/m**3
 
     - id: pm_exposed_fraction
       name: Altistuneiden osuus

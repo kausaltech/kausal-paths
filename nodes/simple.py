@@ -1,9 +1,12 @@
+from logging import log
+from types import FunctionType
 from params.param import BoolParameter, NumberParameter
-from typing import List
+from typing import Dict, List
 import pandas as pd
 import pint
 from .context import unit_registry
 import numpy as np
+import math
 
 from common.i18n import TranslatedString
 from .constants import FORECAST_COLUMN, VALUE_COLUMN
@@ -195,6 +198,63 @@ class MultiplicativeNode(AdditiveNode):
 
         return df
 
+#############################33
+# Health-related constants and classes
+
+class RelativeRiskNode(AdditiveNode):
+    """Applies a function with one input node and parameters.
+    """
+    allowed_parameters = [
+        NumberParameter(local_id='exposure_response_param1'),
+        NumberParameter(local_id='exposure_response_param2'),
+    ] + SimpleNode.allowed_parameters
+
+    def compute(self, context: Context):
+
+        if len(self.input_nodes) != 1:
+            raise NodeError(self, "Must receive exactly one input")
+        
+        input_node = self.input_nodes[0]
+        beta = unit_registry(self.get_parameter_value('exposure_response_param1'))
+        threshold = unit_registry(self.get_parameter_value('exposure_response_param2'))
+
+#        output_unit = input_node.unit #* beta.unit
+
+#        if not self.is_compatible_unit(context, output_unit, self.unit):
+#            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
+
+        df = input_node.get_output(context).copy()
+
+        if self.debug:
+            print('%s: Parameter input from node 1 (%s):' % (self.id, n1.id))
+            self.print_pint_df(df1)
+        print(df[VALUE_COLUMN])
+        print(beta)
+
+        for col in df.columns: # Why use for loop if we only want to mutate VALUE_COLUMN?
+            if col == FORECAST_COLUMN:
+                continue
+            df[col] = np.exp((beta * (df[col] - threshold)).astype(float)) # Should be exp() but fails.
+            df[col] *= unit_registry('m/m')
+
+#        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
+        print(df[VALUE_COLUMN])
+
+#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
+
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
+        if fill_gaps:
+            df = self.fill_gaps_using_input_dataset(context, df)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(context, df)
+        if self.debug:
+            print('%s: Output:' % self.id)
+            self.print_pint_df(df)
+
+        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+
+        return df
 
 class Multiple2Node(AdditiveNode):
     """Multiply nodes together WITHOUT potentially adding other input nodes.
