@@ -44,11 +44,9 @@ class ActionNode(Node):
 
     def compute_impact(self, context: Context, target_node: Node) -> pd.DataFrame:
         # Determine the impact of this action in the target node
-        enabled = self.is_enabled()
-        self.enabled_param.set(False)
-        disabled_df = target_node.get_output(context)
+        with self.enabled_param.temp_set(False):
+            disabled_df = target_node.get_output(context)
         assert disabled_df is not None and VALUE_COLUMN in disabled_df.columns
-        self.enabled_param.set(enabled)
         df = target_node.get_output(context)
         df['ValueWithoutAction'] = disabled_df[VALUE_COLUMN]
         df['Impact'] = df[VALUE_COLUMN] - df['ValueWithoutAction']

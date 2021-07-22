@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import orjson
-from common.i18n import TranslatedString
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, TYPE_CHECKING
+
+from common.i18n import TranslatedString
 
 if TYPE_CHECKING:
     from nodes import Node
@@ -34,13 +36,22 @@ class Parameter:
     def __post_init__(self):
         assert '.' not in self.local_id
 
-    def set(self, value: Any):
+    def set(self, value: Any, set_customized=True):
         self.value = self.clean(value)
+        if set_customized:
+            self.is_customized = True
+
+    @contextmanager
+    def temp_set(self, value: Any):
+        old_value = self.value
+        self.set(value, set_customized=False)
+        yield
+        self.set(old_value, set_customized=False)
 
     def reset_to_scenario_setting(self, scenario):
         if scenario.id in self.scenario_settings:
             setting = self.scenario_settings[scenario.id]
-            self.set(setting)
+            self.set(setting, set_customized=False)
             self.is_customized = False
 
     def get(self) -> Any:

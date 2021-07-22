@@ -313,7 +313,7 @@ class InstanceLoader:
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
             param = param_type(**pc)
-            param.set(param_val)
+            param.set(param_val, set_customized=False)
             context.add_global_parameter(param)
 
     @classmethod

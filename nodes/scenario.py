@@ -78,7 +78,6 @@ class SessionSettingsScenario(Scenario):
                 continue
 
             param.set(val)
-            param.is_customized = True
 
 
 class ScenarioExport:
