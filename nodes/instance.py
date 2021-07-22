@@ -13,7 +13,7 @@ from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
-from nodes.scenario import CustomScenario, Scenario
+from nodes.scenario import Scenario, SessionSettingsScenario
 from pages.base import ActionPage, EmissionPage, Page
 
 from . import Context, Dataset
@@ -254,10 +254,23 @@ class InstanceLoader:
             self.context.add_scenario(scenario)
 
         self.context.set_custom_scenario(
-            CustomScenario(
+            SessionSettingsScenario(
                 id='custom',
                 name=_('Custom'),
                 base_scenario=default_scenario,
+                notified_nodes=self.context.nodes.values(),
+            )
+        )
+
+        def imported_scenario_settings_getter(session):
+            return session.get('imported_scenario', {}).get('settings', {})
+
+        self.context.set_imported_scenario(
+            SessionSettingsScenario(
+                id='imported',
+                name=_('Imported'),
+                base_scenario=default_scenario,
+                settings_getter=imported_scenario_settings_getter,
                 notified_nodes=self.context.nodes.values(),
             )
         )

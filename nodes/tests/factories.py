@@ -9,7 +9,7 @@ from nodes.datasets import Dataset
 from nodes.instance import Instance
 from nodes.node import Node
 from nodes.simple import SimpleNode
-from nodes.scenario import CustomScenario, Scenario
+from nodes.scenario import Scenario, SessionSettingsScenario
 
 
 class ContextFactory(Factory):
@@ -80,8 +80,8 @@ class ScenarioFactory(Factory):
     notified_nodes: List[Node] = []
 
 
-class CustomScenarioFactory(ScenarioFactory):
+class SessionSettingsScenarioFactory(ScenarioFactory):
     class Meta:
-        model = CustomScenario
+        model = SessionSettingsScenario
 
     base_scenario = SubFactory(ScenarioFactory)

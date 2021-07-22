@@ -14,7 +14,7 @@ from params.discover import discover_parameter_types
 
 if TYPE_CHECKING:
     from .node import Node
-    from .scenario import CustomScenario, Scenario
+    from .scenario import Scenario, SessionSettingsScenario
 
 
 unit_registry = pint.UnitRegistry(preprocessors=[
@@ -44,7 +44,8 @@ class Context:
     # Node-specific parameters are managed by the node.
     global_parameters: dict[str, Parameter]
     scenarios: dict[str, Scenario]
-    custom_scenario: CustomScenario
+    custom_scenario: SessionSettingsScenario
+    imported_scenario: SessionSettingsScenario
     target_year: int
     unit_registry: pint.UnitRegistry
     dataset_repo: dvc_pandas.Repository
@@ -64,6 +65,7 @@ class Context:
         self.global_parameters = {}
         self.scenarios = {}
         self.custom_scenario = None
+        self.imported_scenario = None
         self.target_year = target_year
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
@@ -131,17 +133,22 @@ class Context:
         assert scenario.id not in self.scenarios
         self.scenarios[scenario.id] = scenario
 
-    def set_custom_scenario(self, scenario: CustomScenario):
+    def set_custom_scenario(self, scenario: SessionSettingsScenario):
         assert self.custom_scenario is None
         self.add_scenario(scenario)
         self.custom_scenario = scenario
 
+    def set_imported_scenario(self, scenario: SessionSettingsScenario):
+        assert self.imported_scenario is None
+        self.add_scenario(scenario)
+        self.imported_scenario = scenario
+
     def get_scenario(self, id) -> Scenario:
         return self.scenarios[id]
 
-    def export_scenario(self, id):
+    def export_scenario(self, id, name, session):
         scenario = self.get_scenario(id)
-        return scenario.export(self)
+        return scenario.export(name, self, session)
 
     def compute(self):
         all_nodes = self.nodes.values()
@@ -149,19 +156,19 @@ class Context:
         assert len(root_nodes) == 1
         return root_nodes[0].compute(self)
 
-    def activate_scenario(self, scenario: Scenario):
+    def activate_scenario(self, scenario: Scenario, session=None):
         # Set the new parameters
-        scenario.activate(self)
+        scenario.activate(self, session)
         self.active_scenario = scenario
 
     @contextmanager
-    def temp_activate_scenario(self, scenario):
+    def temp_activate_scenario(self, scenario, session=None):
         """Activate the given scenario, do something and finally activate the previously active scenario."""
         assert self.active_scenario
         old_scenario = self.active_scenario
-        self.activate_scenario(scenario)
+        self.activate_scenario(scenario, session)
         yield
-        self.activate_scenario(old_scenario)
+        self.activate_scenario(old_scenario, session)
 
     def get_default_scenario(self) -> Scenario:
         for scenario in self.scenarios.values():

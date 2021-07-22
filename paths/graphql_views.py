@@ -44,15 +44,10 @@ class InstanceMiddleware:
                 except KeyError:
                     del session['active_scenario']
 
-            # Tell the custom scenario about the user setting so that
-            # it can locate the customized parameters.
-            if context.custom_scenario is not None:
-                context.custom_scenario.set_session(session)
-
             if scenario is None:
                 scenario = context.get_default_scenario()
 
-            context.activate_scenario(scenario)
+            context.activate_scenario(scenario, session)
 
             info.context.instance = instance
         return next(root, info, **kwargs)

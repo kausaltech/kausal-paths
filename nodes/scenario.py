@@ -1,53 +1,62 @@
 import json
 import logging
-from dataclasses import dataclass, field, InitVar
-from typing import List, Optional
-
 import sentry_sdk
 
 from common.i18n import TranslatedString
-from nodes.node import Node
-from params.param import Parameter
 
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class Scenario:
-    id: str
-    name: TranslatedString
+    def __init__(self, id: str, name: TranslatedString, default=False, all_actions_enabled=False, notified_nodes=None):
+        if notified_nodes is None:
+            notified_nodes = []
 
-    default: bool = False
-    all_actions_enabled: bool = False
-    # Nodes that will be notified of this scenario's creation
-    notified_nodes: List[Node] = field(default_factory=list)
+        self.id = id
+        self.name = name
+        self.default = default
+        self.all_actions_enabled = all_actions_enabled
 
-    def __post_init__(self):
-        for node in self.notified_nodes:
+        for node in notified_nodes:
             node.on_scenario_created(self)
 
-    def activate(self, context):
+    def activate(self, context, session=None):
         """Resets each parameter in the context to its setting for this scenario if it has one."""
         for param in context.get_all_parameters():
             param.reset_to_scenario_setting(self)
 
-    def export(self, context):
+    def export(self, name, context, session):
         customized_parameters = [p for p in context.get_all_parameters() if p.is_customized]
-        return ScenarioExport(self, customized_parameters, context)
+        return ScenarioExport(self, name, customized_parameters, context, session)
 
 
-@dataclass
-class CustomScenario(Scenario):
-    base_scenario: Optional[Scenario] = None
-    session = None
+class SessionSettingsScenario(Scenario):
+    """
+    Activating a SessionSettingsScenario first activates a base scenario and then sets parameters to values given in the
+    user's session.
+    """
+    def __init__(
+        self, id: str, name: TranslatedString, base_scenario: Scenario, settings_getter=None, notified_nodes=None
+    ):
+        """
+        `settings_getter` is a function mapping a session to the parameter settings. If `None`, uses the dict key
+        `'settings'`.
+        """
+        if settings_getter is None:
+            def settings_getter(session):
+                return session.get('settings', {})
 
-    def set_session(self, session):
-        self.session = session
+        super().__init__(id, name, default=False, all_actions_enabled=False, notified_nodes=notified_nodes)
+        self.base_scenario = base_scenario
+        self.settings_getter = settings_getter
 
-    def activate(self, context):
-        self.base_scenario.activate(context)
-        settings = self.session.get('settings', {})
+    def activate(self, context, session=None):
+        if session is None:
+            raise ValueError("SessionSettingsScenario cannot be activated without a session")
+
+        self.base_scenario.activate(context, session)
+        settings = self.settings_getter(session)
         for param_id, val in list(settings.items()):
             param = context.get_parameter(param_id, required=False)
             is_valid = True
@@ -65,7 +74,7 @@ class CustomScenario(Scenario):
 
             if not is_valid:
                 del settings[param_id]
-                self.session.modified = True
+                session.modified = True
                 continue
 
             param.set(val)
@@ -73,20 +82,23 @@ class CustomScenario(Scenario):
 
 
 class ScenarioExport:
-    def __init__(self, scenario, parameters, context):
+    def __init__(self, scenario, name, parameters, context, session):
         """
         Export the values of all the given parameters, whether they are customized or not in the scenario.
 
         Filter them before if you only care about customized parameters.
         """
-        self.scenario = scenario
-        with context.temp_activate_scenario(scenario):
+        self.name = name
+        with context.temp_activate_scenario(scenario, session):
             self.settings = {p.global_id: p.value for p in parameters}
 
     @property
     def json_filename(self):
-        scenario_id = self.scenario.id
-        return f'{scenario_id}.json'
+        return f'{self.name}.json'
 
     def to_json(self):
-        return json.dumps(self.settings)
+        result = {
+            'name': self.name,
+            'settings': self.settings,
+        }
+        return json.dumps(result)

@@ -1,5 +1,6 @@
 from typing import Any, List
 import graphene
+import json
 from graphql.error import GraphQLError
 
 from . import (
@@ -144,8 +145,7 @@ class SetParameterMutation(graphene.Mutation):
         session_settings = session.setdefault('settings', {})
         session_settings[id] = value
 
-        context.custom_scenario.set_session(session)
-        context.activate_scenario(context.custom_scenario)
+        context.activate_scenario(context.custom_scenario, session)
         session['active_scenario'] = context.custom_scenario.id
         # Explicitly mark session as modified because we might only have modified `session['settings']`, not `session`
         session.modified = True
@@ -192,21 +192,41 @@ class ActivateScenarioMutation(graphene.Mutation):
             raise GraphQLError("Scenario '%s' not found" % id, [info])
 
         session['active_scenario'] = scenario.id
-        context.activate_scenario(scenario)
+        context.activate_scenario(scenario, session)
 
         return dict(ok=True, active_scenario=scenario)
+
+
+class ImportScenarioMutation(graphene.Mutation):
+    class Arguments:
+        data = graphene.String(required=True)
+
+    ok = graphene.Boolean()
+    scenario = graphene.Field('nodes.schema.ScenarioType')
+
+    def mutate(root, info: GQLInfo, data):
+        context = info.context.instance.context
+        session = info.context.session
+        session['imported_scenario'] = json.loads(data)
+        session.modified = True
+        return dict(ok=True, scenario=context.imported_scenario)
 
 
 class Mutations(graphene.ObjectType):
     set_parameter = SetParameterMutation.Field()
     reset_parameter = ResetParameterMutation.Field()
     activate_scenario = ActivateScenarioMutation.Field()
+    import_scenario = ImportScenarioMutation.Field()
 
 
 class Query(graphene.ObjectType):
     parameters = graphene.List(ParameterInterface)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
-    scenario_export = graphene.Field(ScenarioExportType, id=graphene.ID(required=True))
+    scenario_export = graphene.Field(
+        ScenarioExportType,
+        id=graphene.ID(required=True),
+        name=graphene.String(required=True)
+    )
 
     def resolve_parameters(root, info: GQLInfo):
         instance = info.context.instance
@@ -219,10 +239,11 @@ class Query(graphene.ObjectType):
         except KeyError:
             raise GraphQLError(f"Parameter {id} does not exist")
 
-    def resolve_scenario_export(root, info: GQLInfo, id):
+    def resolve_scenario_export(root, info: GQLInfo, id, name):
         context = info.context.instance.context
+        session = info.context.session
         try:
-            return context.export_scenario(id)
+            return context.export_scenario(id, name, session)
         except KeyError:
             raise GraphQLError(f"Scenario {id} does not exist")
 
