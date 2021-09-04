@@ -21,21 +21,6 @@ instance:
       name_en: Net emissions from food consumption5
       target_year_goal: 2
 
-    #
-    # Food items
-    #
-#    - id: grain_emissions
-#      name: Viljatuotteiden päästöt
-#      name_en: Grain emissions
-#      part_of: net_emissions
-#      color: '#668EC9'
-#      target_year_goal: 1
-
-#      color: '#E8B455'
-#      color: '#E8B455'
-#      color: '#397368'
-#      color: '#ABC872'
-
     - id: other_emissions
       name: Muut
       name_en: Other foods
@@ -79,10 +64,6 @@ instance:
       column: Local trains
       part_of: other_emissions
 
-      #
-      # Other emission sources
-      #
-
   nodes:
     - id: population
       type: finland.Population
@@ -115,7 +96,223 @@ instance:
       output_nodes:
         - grain_emissions
 
-# kala, hedelmät ja marjat, palkokasvit ja pähkinät, lihat, maitotuotteet, kasvikset, kaurajuoma
+    - id: fish_emissions
+      name: Kalan päästöt
+      name_en: Fish emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#E8B455'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 5.2681 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
+      output_nodes:
+        - net_emissions
+
+    - id: fish_consumption
+      name: Kalaan kulutus
+      name_en: Fish consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - fish_emissions
+
+    - id: fruit_emissions
+      name: Hedelmien ja marjojen päästöt
+      name_en: Fruit and berry emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#397368'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 1.0626
+      output_nodes:
+        - net_emissions
+
+    - id: fruit_consumption
+      name: Hedelmien ja marjojen kulutus
+      name_en: Fruit and berry consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - fruit_emissions
+
+    - id: meat_emissions
+      name: Lihan päästöt
+      name_en: Meat emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#ABC872'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 19.2005
+      output_nodes:
+        - net_emissions
+
+    - id: meat_consumption
+      name: Lihan kulutus
+      name_en: Meat consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - meat_emissions
+
+    - id: legume_emissions
+      name: Palkokasvien ja pähkinöiden päästöt
+      name_en: Legume and nut emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#ABC872'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 3.2852
+      output_nodes:
+        - net_emissions
+
+    - id: legume_consumption
+      name: Palkokasvien ja pähkinöiden kulutus
+      name_en: Legume and nut consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - legume_emissions
+
+    - id: milk_emissions
+      name: Maitotuotteiden päästöt
+      name_en: Milk and dairy emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#ABC872'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 2.1613
+      output_nodes:
+        - net_emissions
+
+    - id: milk_consumption
+      name: maitotuotteiden kulutus
+      name_en: Milk and dairy consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - milk_emissions
+
+    - id: vegetable_emissions
+      name: Vihannesten päästöt
+      name_en: Vegetable emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#ABC872'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 1.7156
+      output_nodes:
+        - net_emissions
+
+    - id: vegetable_consumption
+      name: Vihannesten kulutus
+      name_en: Vegetable consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - vegetable_emissions
+
+    - id: oatdrink_emissions
+      name: Kaurajuoman päästöt
+      name_en: Oatdrink emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#ABC872'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 1.2928
+      output_nodes:
+        - net_emissions
+
+    - id: oatdrink_consumption
+      name: Kaurajuoman kulutus
+      name_en: Oatdrink consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - oatdrink_emissions
+
+    - id: domestic_fish_emissions
+      name: Kotimaisen kalan päästöt
+      name_en: Domestic fish emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#ABC872'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 3.5422
+      output_nodes:
+        - net_emissions
+
+    - id: domestic_fish_consumption
+      name: Kotimaisen kalan kulutus
+      name_en: Domestic fish consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt 
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - domestic_fish_emissions
+
+################
 
     - id: district_heating_emissions
       name: Kaukolämmön päästöt
