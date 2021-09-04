@@ -314,157 +314,28 @@ instance:
 
 ################
 
-    - id: district_heating_emissions
-      name: Kaukolämmön päästöt
-      name_en: District heating emissions
-      type: simple.EmissionFactorActivity
-      unit: kt
-      quantity: emissions
-      output_nodes:
-        - net_emissions
+#    - id: other_electricity_consumption_per_capita
+#      name: Sähkönkulutus asukasta kohti
+#      name_en: Electricity consumption per capita
+#      type: simple.AdditiveNode
+#      unit: kWh/person
+#      quantity: per_capita
+#      input_datasets:
+#        - id: tampere/scenarios/activity/bau
+#          column: Other electricity consumption per capita
+#      output_nodes:
+#        - other_electricity_consumption
 
-    - id: district_heating_consumption
-      name: Kaukolämmön kulutus
-      name_en: District heat consumption
-      unit: GWh
-      quantity: energy
-      type: simple.Activity
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: District heating
-          dropna: true
-      output_nodes:
-        - district_heating_emissions
-
-    - id: district_heating_emission_factor
-      name: Kaukolämmön päästökerroin
-      name_en: District heating emission factor
-      type: simple.AdditiveNode
-      unit: g/kWh
-      quantity: emission_factor
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: District heating utility method
-          dropna: true
-      output_nodes:
-        - district_heating_emissions
-
-      #
-      # ----------- Electricity use ------------
-      #
-    - id: other_electricity_consumption_per_capita
-      name: Sähkönkulutus asukasta kohti
-      name_en: Electricity consumption per capita
-      type: simple.AdditiveNode
-      unit: kWh/person
-      quantity: per_capita
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Other electricity consumption per capita
-      output_nodes:
-        - other_electricity_consumption
-
-    - id: other_electricity_consumption
-      name: Muu sähkönkulutus
-      name_en: Other electricity consumption
-      type: simple.PerCapitaActivity
-      unit: GWh
-      quantity: energy
-      input_nodes:
-        - population
-      output_nodes:
-        - other_electricity_consumption_emissions
-
-    - id: other_electricity_consumption_emissions
-      name: Muun sähkönkulutuksen päästöt
-      name_en: Other electricity consumption emissions
-      type: simple.EmissionFactorActivity
-      unit: kt
-      params:
-        replace_output_using_input_dataset: true
-      input_datasets:
-        - id: tampere/scenarios/emissions/bau
-          column: Other power consumption
-          forecast_from: 2019
-          max_year: 2018
-      input_nodes:
-        - other_electricity_consumption_emission_factor
-      output_nodes:
-        - electricity_consumption_emissions
-
-    - id: electricity_production_emission_factor
-      name: Sähköntuotannon päästökerroin
-      name_en: Electricity production emission factor
-      type: simple.AdditiveNode
-      unit: g/kWh
-      quantity: emission_factor
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Other power consumption
-          max_year: 2019
-
-    - id: other_electricity_consumption_emission_factor
-      name: Kulutussähkön päästökerroin
-      name_en: Electricity consumption emission factor
-      type: simple.FixedMultiplierNode
-      unit: g/kWh
-      quantity: emission_factor
-      description_en: We assume an 5 % higher emission factor for other electricity consumption.
-      input_nodes:
-        - electricity_production_emission_factor
-      params:
-        - id: multiplier
-          value: .95
-
-    #
-    # Transport nodes
-    #
-
-    - id: electricity_consumption_emissions
-      name: Sähkön kulutuksen päästöt
-      name_en: Electricity consumption emissions
-      type: simple.SectorEmissions
-      unit: kt
-      color: '#F4D240'
-      output_nodes:
-        - net_emissions
-
-    - id: tram_kilometers
-      name: Ratikkasuorite
-      name_en: Tram kilometers
-      type: simple.Activity
-      quantity: mileage
-      unit: Mkm
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Tram
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - tram_emissions
-
-    - id: tram_emission_factor
-      name: Ratikan päästökerroin
-      name_en: Tram emission factor
-      quantity: emission_factor
-      type: simple.AdditiveNode
-      unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Trams
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - tram_emissions
-
-    - id: tram_emissions
-      name: Ratikkaliikenteen päästöt
-      name_en: Tram emissions
-      type: simple.EmissionFactorActivity
-      unit: kt
-      quantity: emissions
-      output_nodes:
-        - net_emissions
+#    - id: other_electricity_consumption
+#      name: Muu sähkönkulutus
+#      name_en: Other electricity consumption
+#      type: simple.PerCapitaActivity
+#      unit: GWh
+#      quantity: energy
+#      input_nodes:
+#        - population
+#      output_nodes:
+#        - other_electricity_consumption_emissions
 
     - id: pm_emissions
       name: Pienhiukkaspäästöt
@@ -556,67 +427,37 @@ instance:
   #
 
   actions:
-    # - id: reduce_heating_emissions
-    #   name: Vähennetään lämmityksen päästöjä
-    #   type: simple.EmissionReductionAction
-    #   output_nodes:
-    #     - other_emissions
-    #   input_datasets:
-    #     - id: tampere/scenarios/diff
-    #       column: Heating total
 
-    - id: naistenlahti3
-      name: Naistenlahti 3 -biovoimalaitos
-      name_en: Naistenlahti 3 bio thermal plant
-      type: simple.CumulativeAdditiveAction
-      quantity: emission_factor
-      output_nodes:
-        - district_heating_emission_factor
-      forecast_values: [[2022, -23], [2023, -23]]
-      unit: g/kWh
+#    - id: naistenlahti3
+#      name: Naistenlahti 3 -biovoimalaitos
+#      name_en: Naistenlahti 3 bio thermal plant
+#      type: simple.CumulativeAdditiveAction
+#      quantity: emission_factor
+#      output_nodes:
+#        - district_heating_emission_factor
+#      forecast_values: [[2022, -23], [2023, -23]]
+#      unit: g/kWh
 
-    - id: cleaner_electricity_production
-      name: Kansallinen sähköntuotanto puhdistuu
-      name_en: Shift to low-carbon in national electricity production
-      decision_level: nation
-      quantity: emission_factor
+    - id: fish_consumption_change
+      name: Kalan kulutus muuttuu
+      name_en: Fish consumption change
+#      decision_level: nation
+      quantity: mass
       output_nodes:
-        - electricity_production_emission_factor
+        - fish_consumption
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -80]]
-      unit: g/kWh
+      forecast_values: [[2019, 0], [2030, -1000]]
+      unit: kt
       params:
         - id: target_year_level
           values:
-            default: -61
-          min_value: -80
+            default: -500
+          min_value: -2000
           max_value: 0
-          step: 1
-          unit: g/kWh
-          description: Sähköntuotannon päästökertoimen muutos
-          description_en: Change in electricity production emission factor
-
-    - id: converting_street_lighting_to_led
-      name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
-      name_en: Converting street lighting to LED lamps
-      type: simple.LinearCumulativeAdditiveAction
-      unit: GWh
-      quantity: energy
-      forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
-      output_nodes:
-        - other_electricity_consumption
-
-    - id: tram_phase_1
-      name: Ratikan rakennusvaihe 1 (2019-2022)
-      name_en: Tram construction phase 1 (2019-2022)
-      type: simple.CumulativeAdditiveAction
-      unit: Mkm
-      quantity: mileage
-      output_nodes: 
-        - tram_kilometers
-      forecast_values: 
-        - id: tram_kilometers
-          values: [[2021, 0.7], [2022, 0.7]]
+          step: 10
+          unit: kt
+          description: Kalan kulutuksen muutos
+          description_en: Change in fish consumption
 
   pages:
     - id: home
@@ -630,10 +471,10 @@ instance:
       name: Nykykehitys
       name_en: Baseline
       params:
-        - id: naistenlahti3.enabled
+        - id: fish_consumption_change.enabled
           value: true
-        - id: cleaner_electricity_production.enabled
-          value: true
+#        - id: cleaner_electricity_production.enabled
+#          value: true
 
     - id: default
       default: true
