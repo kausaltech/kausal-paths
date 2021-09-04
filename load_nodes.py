@@ -20,7 +20,7 @@ if True:
 
 load_dotenv()
 
-loader = InstanceLoader.from_yaml('configs/tampere.yaml')
+loader = InstanceLoader.from_yaml('configs/ilmastoruoka.yaml') 
 context = loader.context
 
 page = list(loader.instance.pages.values())[0]

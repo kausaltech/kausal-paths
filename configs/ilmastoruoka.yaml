@@ -1,0 +1,445 @@
+instance:
+  id: ilmastoruoka
+  default_language: fi
+  dataset_repo: https://github.com/kausaltech/dvctest.git
+  name: Suomen ilmastoruokaohjelma
+  name_en: Finnish climate food program
+  target_year: 2030
+  reference_year: 1990
+  minimum_historical_year: 2010
+  maximum_historical_year: 2018
+  emission_dataset: tampere/scenarios/emissions/bau
+  emission_unit: kt
+  emission_forecast_from: 2019
+  params:
+    - id: municipality_name
+      value: Tampere
+
+  emission_sectors:
+    - id: net_emissions
+      name: Ruoankulutuksen kokonaispäästöt
+      name_en: Net emissions from food consumption5
+      target_year_goal: 2
+
+    #
+    # Food items
+    #
+#    - id: grain_emissions
+#      name: Viljatuotteiden päästöt
+#      name_en: Grain emissions
+#      part_of: net_emissions
+#      color: '#668EC9'
+#      target_year_goal: 1
+
+#      color: '#E8B455'
+#      color: '#E8B455'
+#      color: '#397368'
+#      color: '#ABC872'
+
+    - id: other_emissions
+      name: Muut
+      name_en: Other foods
+      part_of: net_emissions
+      color: '#668EC9'
+      target_year_goal: 115
+
+    - id: alcohol_emissions
+      name: Alkoholijuomat
+      name_en: Alcohol drinks
+      column: Trucks and lorries
+      part_of: other_emissions
+    - id: drink_emissions
+      name: Juomat
+      name_en: Drinks
+      column: Motorbikes
+      part_of: other_emissions
+    - id: egg_emissions
+      name: Muna
+      name_en: Egg
+      column: Local trains
+      part_of: other_emissions
+    - id: fat_emissions
+      name: Ravintorasvat
+      name_en: Fats
+      column: Local trains
+      part_of: other_emissions
+    - id: spice_emissions
+      name: Mausteet
+      name_en: Spices
+      column: Local trains
+      part_of: other_emissions
+    - id: potato_emissions
+      name: Perunat
+      name_en: Potato
+      column: Local trains
+      part_of: other_emissions
+    - id: sugar_emissions
+      name: Sokerit ja makeiset
+      name_en: Sugar and sweets
+      column: Local trains
+      part_of: other_emissions
+
+      #
+      # Other emission sources
+      #
+
+  nodes:
+    - id: population
+      type: finland.Population
+      name: Väestö
+
+    - id: grain_emissions
+      name: Viljan päästöt
+      name_en: Grain emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt
+      color: '#AD3963'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
+      output_nodes:
+        - net_emissions
+
+    - id: grain_consumption
+      name: Viljan kulutus
+      name_en: Grain consumption
+      type: simple.AdditiveNode
+      quantity: mass
+      unit: kt # FIXIT Does dvctest not know the unit in the data?
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - grain_emissions
+
+# kala, hedelmät ja marjat, palkokasvit ja pähkinät, lihat, maitotuotteet, kasvikset, kaurajuoma
+
+    - id: district_heating_emissions
+      name: Kaukolämmön päästöt
+      name_en: District heating emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      quantity: emissions
+      output_nodes:
+        - net_emissions
+
+    - id: district_heating_consumption
+      name: Kaukolämmön kulutus
+      name_en: District heat consumption
+      unit: GWh
+      quantity: energy
+      type: simple.Activity
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: District heating
+          dropna: true
+      output_nodes:
+        - district_heating_emissions
+
+    - id: district_heating_emission_factor
+      name: Kaukolämmön päästökerroin
+      name_en: District heating emission factor
+      type: simple.AdditiveNode
+      unit: g/kWh
+      quantity: emission_factor
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: District heating utility method
+          dropna: true
+      output_nodes:
+        - district_heating_emissions
+
+      #
+      # ----------- Electricity use ------------
+      #
+    - id: other_electricity_consumption_per_capita
+      name: Sähkönkulutus asukasta kohti
+      name_en: Electricity consumption per capita
+      type: simple.AdditiveNode
+      unit: kWh/person
+      quantity: per_capita
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: Other electricity consumption per capita
+      output_nodes:
+        - other_electricity_consumption
+
+    - id: other_electricity_consumption
+      name: Muu sähkönkulutus
+      name_en: Other electricity consumption
+      type: simple.PerCapitaActivity
+      unit: GWh
+      quantity: energy
+      input_nodes:
+        - population
+      output_nodes:
+        - other_electricity_consumption_emissions
+
+    - id: other_electricity_consumption_emissions
+      name: Muun sähkönkulutuksen päästöt
+      name_en: Other electricity consumption emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      params:
+        replace_output_using_input_dataset: true
+      input_datasets:
+        - id: tampere/scenarios/emissions/bau
+          column: Other power consumption
+          forecast_from: 2019
+          max_year: 2018
+      input_nodes:
+        - other_electricity_consumption_emission_factor
+      output_nodes:
+        - electricity_consumption_emissions
+
+    - id: electricity_production_emission_factor
+      name: Sähköntuotannon päästökerroin
+      name_en: Electricity production emission factor
+      type: simple.AdditiveNode
+      unit: g/kWh
+      quantity: emission_factor
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Other power consumption
+          max_year: 2019
+
+    - id: other_electricity_consumption_emission_factor
+      name: Kulutussähkön päästökerroin
+      name_en: Electricity consumption emission factor
+      type: simple.FixedMultiplierNode
+      unit: g/kWh
+      quantity: emission_factor
+      description_en: We assume an 5 % higher emission factor for other electricity consumption.
+      input_nodes:
+        - electricity_production_emission_factor
+      params:
+        - id: multiplier
+          value: .95
+
+    #
+    # Transport nodes
+    #
+
+    - id: electricity_consumption_emissions
+      name: Sähkön kulutuksen päästöt
+      name_en: Electricity consumption emissions
+      type: simple.SectorEmissions
+      unit: kt
+      color: '#F4D240'
+      output_nodes:
+        - net_emissions
+
+    - id: tram_kilometers
+      name: Ratikkasuorite
+      name_en: Tram kilometers
+      type: simple.Activity
+      quantity: mileage
+      unit: Mkm
+      input_datasets:
+        - id: tampere/scenarios/activity/bau
+          column: Tram
+          min_year: 2016
+          dropna: true
+      output_nodes:
+        - tram_emissions
+
+    - id: tram_emission_factor
+      name: Ratikan päästökerroin
+      name_en: Tram emission factor
+      quantity: emission_factor
+      type: simple.AdditiveNode
+      unit: g/km
+      input_datasets:
+        - id: tampere/scenarios/emission_factors/bau
+          column: Trams
+          min_year: 2016
+          dropna: true
+      output_nodes:
+        - tram_emissions
+
+    - id: tram_emissions
+      name: Ratikkaliikenteen päästöt
+      name_en: Tram emissions
+      type: simple.EmissionFactorActivity
+      unit: kt
+      quantity: emissions
+      output_nodes:
+        - net_emissions
+
+    - id: pm_emissions
+      name: Pienhiukkaspäästöt
+      name_en: Fine particle emissions
+      type: simple.AdditiveNode
+      quantity: emissions
+      unit: ug/m**3
+      historical_values: [[2018, 1], [2019, 1], [2020, 1]]
+      forecast_values: [[2021, 1], [2022, 1], [2023, 1], [2024, 1], [2025, 1], [2026, 1], [2027, 1], [2028, 1], [2029, 1], [2030, 1]]
+
+    - id: pm_exposure
+      name: Pienhiukkasaltistus
+      name_en: Fine particle exposure
+      type: simple.FixedMultiplierNode
+      quantity: exposure
+      unit: ug/m**3
+      params:
+        - id: multiplier
+          value: 1.1
+      input_nodes:
+        - pm_emissions
+      output_nodes:
+        - rr_cvd_mortality
+
+    - id: rr_cvd_mortality
+      name: Sydänkuolleisuuden suhteellinen riski
+      name_en: Relative risk of cardiovascular mortality
+      type: simple.RelativeRiskNode
+      quantity: ratio
+      unit: dimensionless
+      params:
+        - id: exposure_response_param1
+          value: 0.008959741 m**3/microgram
+        - id: exposure_response_param2
+          value: 0 microgram/m**3
+
+    - id: pm_exposed_fraction
+      name: Altistuneiden osuus
+      name_en: Exposed fraction
+      type: simple.AdditiveNode
+      quantity: ratio
+      unit: dimensionless
+      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
+      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+
+    - id: paf_cvd_mortality
+      name: Väestösyyosuus
+      name_en: Population attributable fraction
+      type: simple.PopulationAttributableFractionNode
+      quantity: ratio
+      unit: dimensionless
+      input_nodes: 
+        - rr_cvd_mortality
+        - pm_exposed_fraction
+
+    - id: disease_burden
+      name: Tautitaakka
+      name_en: Disease burden
+      type: simple.AdditiveNode
+      quantity: disease_burden
+      unit: DALY
+      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
+      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+
+    - id: attributable_disease_burden
+      name: Kohdentuva tautitaakka
+      name_en: Attributable disease burden
+      type: simple.Multiple2Node
+      quantity: disease_burden
+      unit: DALY
+      input_nodes:
+        - paf_cvd_mortality
+        - disease_burden
+
+
+#    - id: pm_emission_factor # FIXIT: This is not a simple time series
+#      name: Pienhiukkasten päästökerroin
+#      name_en: Fine particle emission factor
+#      type: simple.AdditiveNode
+#      unit: ug/m**3
+#      input_datasests:
+#        - id: vtt/lipasto/car_unit_emissions
+#          column: PM
+#      output_nodes:
+#        - pm_exposure
+
+  #
+  # ------- ACTIONS --------
+  #
+
+  actions:
+    # - id: reduce_heating_emissions
+    #   name: Vähennetään lämmityksen päästöjä
+    #   type: simple.EmissionReductionAction
+    #   output_nodes:
+    #     - other_emissions
+    #   input_datasets:
+    #     - id: tampere/scenarios/diff
+    #       column: Heating total
+
+    - id: naistenlahti3
+      name: Naistenlahti 3 -biovoimalaitos
+      name_en: Naistenlahti 3 bio thermal plant
+      type: simple.CumulativeAdditiveAction
+      quantity: emission_factor
+      output_nodes:
+        - district_heating_emission_factor
+      forecast_values: [[2022, -23], [2023, -23]]
+      unit: g/kWh
+
+    - id: cleaner_electricity_production
+      name: Kansallinen sähköntuotanto puhdistuu
+      name_en: Shift to low-carbon in national electricity production
+      decision_level: nation
+      quantity: emission_factor
+      output_nodes:
+        - electricity_production_emission_factor
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -80]]
+      unit: g/kWh
+      params:
+        - id: target_year_level
+          values:
+            default: -61
+          min_value: -80
+          max_value: 0
+          step: 1
+          unit: g/kWh
+          description: Sähköntuotannon päästökertoimen muutos
+          description_en: Change in electricity production emission factor
+
+    - id: converting_street_lighting_to_led
+      name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+      name_en: Converting street lighting to LED lamps
+      type: simple.LinearCumulativeAdditiveAction
+      unit: GWh
+      quantity: energy
+      forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+      output_nodes:
+        - other_electricity_consumption
+
+    - id: tram_phase_1
+      name: Ratikan rakennusvaihe 1 (2019-2022)
+      name_en: Tram construction phase 1 (2019-2022)
+      type: simple.CumulativeAdditiveAction
+      unit: Mkm
+      quantity: mileage
+      output_nodes: 
+        - tram_kilometers
+      forecast_values: 
+        - id: tram_kilometers
+          values: [[2021, 0.7], [2022, 0.7]]
+
+  pages:
+    - id: home
+      name: Hiilineutraali Tampere 2030 -päästöskenaario
+      path: '/'
+      type: emission
+      node: net_emissions
+
+  scenarios:
+    - id: baseline
+      name: Nykykehitys
+      name_en: Baseline
+      params:
+        - id: naistenlahti3.enabled
+          value: true
+        - id: cleaner_electricity_production.enabled
+          value: true
+
+    - id: default
+      default: true
+      name: Hiilineutraali Tampere 2030 -tiekartta
+      name_en: Carbon-neutral Tampere 2030 roadmap
+      all_actions_enabled: true

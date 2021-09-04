@@ -107,7 +107,7 @@ MIDDLEWARE = [
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
 ]
 
-INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
+INSTANCE_LOADER_CONFIG = 'configs/ilmastoruoka.yaml'
 
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
