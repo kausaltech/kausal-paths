@@ -64,26 +64,39 @@ instance:
       column: Local trains
       part_of: other_emissions
 
+    - id: grain_emissions
+      name: Viljatuotteiden päästöt
+      name_en: Grain emissions
+      part_of: net_emissions
+      color: '#AD3963'
+      target_year_goal: 50
+
+    - id: fish_emissions
+      name: Kalan päästöt
+      name_en: Fish emissions
+      part_of: net_emissions
+      color: '#E8B455'
+      target_year_goal: 50
+
   nodes:
     - id: population
       type: finland.Population
       name: Väestö
 
-    - id: grain_emissions
-      name: Viljan päästöt
-      name_en: Grain emissions
+    - id: other_grain_emissions
+      name: Muiden viljatuotteiden päästöt
+      name_en: Other grain emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#AD3963'
       target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
-        - net_emissions
+        - grain_emissions
 
-    - id: grain_consumption
+    - id: other_grain_consumption
       name: Viljan kulutus
       name_en: Grain consumption
       type: simple.AdditiveNode
@@ -94,25 +107,24 @@ instance:
           column: District heating
           dropna: true
       output_nodes:
-        - grain_emissions
+        - other_grain_emissions
 
-    - id: fish_emissions
-      name: Kalan päästöt
-      name_en: Fish emissions
+    - id: imported_fish_emissions
+      name: Tuontikalan päästöt
+      name_en: Imported fish emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#E8B455'
       target_year_goal: 1
       params: 
         - id: multiplier
           value: 5.2681 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
-        - net_emissions
+        - fish_emissions
 
-    - id: fish_consumption
-      name: Kalaan kulutus
-      name_en: Fish consumption
+    - id: imported_fish_consumption
+      name: Tuontikalan kulutus
+      name_en: Imported fish consumption
       type: simple.AdditiveNode
       quantity: mass
       unit: kt 
@@ -121,7 +133,7 @@ instance:
           column: District heating
           dropna: true
       output_nodes:
-        - fish_emissions
+        - imported_fish_emissions
 
     - id: fruit_emissions
       name: Hedelmien ja marjojen päästöt
@@ -183,7 +195,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC872'
+      color: '#ABC862'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -204,13 +216,13 @@ instance:
       output_nodes:
         - legume_emissions
 
-    - id: milk_emissions
+    - id: dairy_emissions
       name: Maitotuotteiden päästöt
       name_en: Milk and dairy emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC872'
+      color: '#ABC852'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -218,7 +230,7 @@ instance:
       output_nodes:
         - net_emissions
 
-    - id: milk_consumption
+    - id: dairy_consumption
       name: maitotuotteiden kulutus
       name_en: Milk and dairy consumption
       type: simple.AdditiveNode
@@ -229,7 +241,7 @@ instance:
           column: District heating
           dropna: true
       output_nodes:
-        - milk_emissions
+        - dairy_emissions
 
     - id: vegetable_emissions
       name: Vihannesten päästöt
@@ -237,7 +249,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC872'
+      color: '#ABC842'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -264,13 +276,12 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC872'
       target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.2928
       output_nodes:
-        - net_emissions
+        - grain_emissions
 
     - id: oatdrink_consumption
       name: Kaurajuoman kulutus
@@ -291,13 +302,12 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC872'
       target_year_goal: 1
       params: 
         - id: multiplier
           value: 3.5422
       output_nodes:
-        - net_emissions
+        - fish_emissions
 
     - id: domestic_fish_consumption
       name: Kotimaisen kalan kulutus
@@ -438,26 +448,186 @@ instance:
 #      forecast_values: [[2022, -23], [2023, -23]]
 #      unit: g/kWh
 
-    - id: fish_consumption_change
+    - id: grain_consumption_change
+      name: Viljojen kulutus muuttuu
+      name_en: Grain consumption change
+      quantity: mass
+      output_nodes:
+        - other_grain_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Viljan kulutuksen muutos
+          description_en: Change in grain consumption
+
+    - id: imported_fish_consumption_change
       name: Kalan kulutus muuttuu
       name_en: Fish consumption change
 #      decision_level: nation
       quantity: mass
       output_nodes:
-        - fish_consumption
+        - imported_fish_consumption
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -1000]]
+      forecast_values: [[2019, 0], [2030, -500]]
       unit: kt
       params:
         - id: target_year_level
           values:
-            default: -500
-          min_value: -2000
+            default: -400
+          min_value: -1000
           max_value: 0
           step: 10
           unit: kt
           description: Kalan kulutuksen muutos
           description_en: Change in fish consumption
+
+    - id: fruit_consumption_change
+      name: Hedelmien ja marjonen kulutus muuttuu
+      name_en: Fruit and berry consumption change
+      quantity: mass
+      output_nodes:
+        - fruit_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Hedelmien ja marjojen kulutuksen muutos
+          description_en: Change in fruit and berry consumption
+
+    - id: meat_consumption_change
+      name: Lihan kulutus muuttuu
+      name_en: Meat consumption change
+      quantity: mass
+      output_nodes:
+        - meat_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Lihan kulutuksen muutos
+          description_en: Change in meat consumption
+
+    - id: legume_consumption_change
+      name: Palkokasvien ja pähkinöiden kulutus muuttuu
+      name_en: Legume and nut consumption change
+      quantity: mass
+      output_nodes:
+        - legume_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Palkokasvien ja pähkinöiden kulutuksen muutos
+          description_en: Change in legume and nut consumption
+
+    - id: dairy_consumption_change
+      name: Maitotuotteiden kulutus muuttuu
+      name_en: Dairy product consumption change
+      quantity: mass
+      output_nodes:
+        - dairy_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Maitotuotteiden kulutuksen muutos
+          description_en: Change in dairy consumption
+
+    - id: vegetable_consumption_change
+      name: Vihannesten kulutus muuttuu
+      name_en: Vegetable consumption change
+      quantity: mass
+      output_nodes:
+        - vegetable_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Vihannesten kulutuksen muutos
+          description_en: Change in vegetable consumption
+
+    - id: oatdrink_consumption_change
+      name: Kaurajuoman kulutus muuttuu
+      name_en: Oatdrink consumption change
+      quantity: mass
+      output_nodes:
+        - oatdrink_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Kaurajuoman kulutuksen muutos
+          description_en: Change in oatdrink consumption
+
+    - id: domestic_fish_consumption_change
+      name: Kotimaisen kalan kulutus muuttuu
+      name_en: Domestic fish consumption change
+      quantity: mass
+      output_nodes:
+        - domestic_fish_consumption
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, -500]]
+      unit: kt
+      params:
+        - id: target_year_level
+          values:
+            default: -400
+          min_value: -1000
+          max_value: 0
+          step: 10
+          unit: kt
+          description: Kotimaisen kalan kulutuksen muutos
+          description_en: Change in domestic fish consumption
 
   pages:
     - id: home
@@ -471,7 +641,7 @@ instance:
       name: Nykykehitys
       name_en: Baseline
       params:
-        - id: fish_consumption_change.enabled
+        - id: imported_fish_consumption_change.enabled
           value: true
 #        - id: cleaner_electricity_production.enabled
 #          value: true
