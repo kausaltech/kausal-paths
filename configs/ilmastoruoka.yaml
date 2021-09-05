@@ -18,7 +18,7 @@ instance:
   emission_sectors:
     - id: net_emissions
       name: Ruoankulutuksen kokonaispäästöt
-      name_en: Net emissions from food consumption5
+      name_en: Net emissions from food consumption
       target_year_goal: 2
 
     - id: other_emissions
@@ -195,7 +195,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC862'
+      color: '#BBC862'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -222,7 +222,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC852'
+      color: '#CBC852'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -249,7 +249,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt
-      color: '#ABC842'
+      color: '#DBC842'
       target_year_goal: 1
       params: 
         - id: multiplier
