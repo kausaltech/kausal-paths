@@ -22,9 +22,12 @@ class ActionNode(BaseActionNode):
     def compute_effect(self, context: Context) -> pd.DataFrame:
         df = self.get_input_dataset(context)
         sec_id = self.get_parameter_value('panorama_id')
-        print(sec_id)
-        df = df.set_index(['NyckelID', 'År']).loc[sec_id]
-        val = df['Panorama potential (kton utsläppsminskning)']
+        df = df.set_index(['NyckelID', 'År'])
+        if sec_id not in df.index:
+            print('WARNING: Node %s not found in KPR input data (%s)' % (self.id, sec_id))
+            val = pd.Series([0, 0], index=[2020, 2021])
+        else:
+            val = df.loc[sec_id]['Panorama potential (kton utsläppsminskning)']
         df = pd.DataFrame(val.values, index=val.index.astype(int), columns=[VALUE_COLUMN])
         df[VALUE_COLUMN] = -df[VALUE_COLUMN]
         df[FORECAST_COLUMN] = True
