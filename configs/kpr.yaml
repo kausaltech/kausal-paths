@@ -1118,4 +1118,10 @@ instance:
     name: Nettonollutsläpp 2045
     all_actions_enabled: true
     default: true
+  pages:
+  - id: home
+    name: Sveriges Panorama
+    path: /
+    type: emission
+    node: net_emissions
 
