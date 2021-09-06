@@ -11,10 +11,11 @@ instance:
   - id: net_emissions
     name: Sveriges växthusgasutsläpp
     type: simple.SectorEmissions
-    unit: Mt
+    unit: kt
   - id: transport
     output_nodes:
     - net_emissions
+    color: '#56C38E'
     params:
       panorama_id: b541b91c-5de1-41e3-8f4c-b8953d98732f
     name: Transport
@@ -57,6 +58,7 @@ instance:
   - id: industri
     output_nodes:
     - net_emissions
+    color: '#336D94'
     params:
       panorama_id: 9ab9786f-1a21-4c25-8cbe-c839b9054c91
     name: Industri
@@ -113,6 +115,7 @@ instance:
   - id: jordbruk
     output_nodes:
     - net_emissions
+    color: '#C88217'
     params:
       panorama_id: 90500c5e-9ec7-4f81-9a7a-dc016716bc28
     name: Jordbruk
@@ -141,6 +144,7 @@ instance:
   - id: energi
     output_nodes:
     - net_emissions
+    color: '#F4CE73'
     params:
       panorama_id: 052256c3-71e6-44eb-befe-0eb8165fec33
     name: Energi
@@ -162,6 +166,7 @@ instance:
   - id: ovrigt_9170
     output_nodes:
     - net_emissions
+    color: '#D46262'
     params:
       panorama_id: 9170cca1-3b7b-4e8f-97f6-e41e527fed66
     name: Övrigt

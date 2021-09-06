@@ -7,7 +7,7 @@ from common.i18n import TranslatedString
 
 
 class SectorEmissions(BaseSectorEmissions):
-    unit = 'Mt'
+    unit = 'kt'
     input_datasets = [
         'kpr/emission_statistics',
     ]
