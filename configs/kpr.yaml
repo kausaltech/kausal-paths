@@ -1,0 +1,1121 @@
+instance:
+  id: kpr
+  default_language: sv
+  dataset_repo:
+    url: https://github.com/kausaltech/dvctest.git
+    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
+  name: Panorama
+  target_year: 2045
+  reference_year: 1990
+  nodes:
+  - id: net_emissions
+    name: Sveriges växthusgasutsläpp
+    type: simple.SectorEmissions
+    unit: Mt
+  - id: transport
+    output_nodes:
+    - net_emissions
+    params:
+      panorama_id: b541b91c-5de1-41e3-8f4c-b8953d98732f
+    name: Transport
+    type: kpr.SectorEmissions
+  - id: persontransporter
+    output_nodes:
+    - transport
+    params:
+      panorama_id: 24011a29-2639-443b-b170-933c8eb7a2fe
+    name: Persontransporter
+    type: kpr.SectorEmissions
+  - id: godstransporter
+    output_nodes:
+    - transport
+    params:
+      panorama_id: 7848756d-2936-4d81-8b78-00a6840f74c4
+    name: Godstransporter
+    type: kpr.SectorEmissions
+  - id: inrikes-sjofart
+    output_nodes:
+    - transport
+    params:
+      panorama_id: ca351d4d-6e77-4e41-af47-1f62dea103f7
+    name: Inrikes sjöfart
+    type: kpr.SectorEmissions
+  - id: inrikes-flyg
+    output_nodes:
+    - transport
+    params:
+      panorama_id: 8322feba-c803-4d94-aacc-dc3bc0989865
+    name: Inrikes Flyg
+    type: kpr.SectorEmissions
+  - id: militara-transporter
+    output_nodes:
+    - transport
+    params:
+      panorama_id: e85864e0-c80f-4f6b-9152-405ac6439ca8
+    name: Militära transporter
+    type: kpr.SectorEmissions
+  - id: industri
+    output_nodes:
+    - net_emissions
+    params:
+      panorama_id: 9ab9786f-1a21-4c25-8cbe-c839b9054c91
+    name: Industri
+    type: kpr.SectorEmissions
+  - id: jarn-och-stal
+    output_nodes:
+    - industri
+    params:
+      panorama_id: 9760e2c6-7db9-4ff8-835d-b3b7a7104462
+    name: Järn och stål
+    type: kpr.SectorEmissions
+  - id: cement-och-mineral
+    output_nodes:
+    - industri
+    params:
+      panorama_id: d2565f68-86d4-4228-adbd-221235200524
+    name: Cement och mineral
+    type: kpr.SectorEmissions
+  - id: raffinaderier
+    output_nodes:
+    - industri
+    params:
+      panorama_id: d4522b50-b450-4fa3-8773-f4107e3c9bad
+    name: Raffinaderier
+    type: kpr.SectorEmissions
+  - id: kemi
+    output_nodes:
+    - industri
+    params:
+      panorama_id: ed35e2e2-4226-46cf-a3b6-34574abf5468
+    name: Kemi
+    type: kpr.SectorEmissions
+  - id: pappers-och-massa
+    output_nodes:
+    - industri
+    params:
+      panorama_id: c7eb88f9-c0b9-4ba6-8820-3a9ddec40413
+    name: Pappers- och massa
+    type: kpr.SectorEmissions
+  - id: metaller
+    output_nodes:
+    - industri
+    params:
+      panorama_id: 5622bc50-b455-4460-95f1-65a95daf30f1
+    name: Metaller
+    type: kpr.SectorEmissions
+  - id: ovrigt
+    output_nodes:
+    - industri
+    params:
+      panorama_id: 83e887bc-8683-48e9-a108-2cb84342babc
+    name: Övrigt
+    type: kpr.SectorEmissions
+  - id: jordbruk
+    output_nodes:
+    - net_emissions
+    params:
+      panorama_id: 90500c5e-9ec7-4f81-9a7a-dc016716bc28
+    name: Jordbruk
+    type: kpr.SectorEmissions
+  - id: jordbruksmark
+    output_nodes:
+    - jordbruk
+    params:
+      panorama_id: e76e785c-1887-44dc-9f96-658481e6963c
+    name: Jordbruksmark
+    type: kpr.SectorEmissions
+  - id: djurs-matsmaltning
+    output_nodes:
+    - jordbruk
+    params:
+      panorama_id: 72ee8754-5827-42e0-81b0-32778570d201
+    name: Djurs matsmältning
+    type: kpr.SectorEmissions
+  - id: lagring-av-godsel
+    output_nodes:
+    - jordbruk
+    params:
+      panorama_id: 58245f65-5f4a-445e-80a7-a0b2ba2ea256
+    name: Lagring av gödsel
+    type: kpr.SectorEmissions
+  - id: energi
+    output_nodes:
+    - net_emissions
+    params:
+      panorama_id: 052256c3-71e6-44eb-befe-0eb8165fec33
+    name: Energi
+    type: kpr.SectorEmissions
+  - id: el-och-fjarrvarmeproduktion
+    output_nodes:
+    - energi
+    params:
+      panorama_id: 533f5a8e-3fd3-4bf7-a961-ab636f3dafac
+    name: El- och fjärrvärmeproduktion
+    type: kpr.SectorEmissions
+  - id: lokal-uppvarmning
+    output_nodes:
+    - energi
+    params:
+      panorama_id: a754180d-cd45-47fc-a19d-065dd70abbc5
+    name: Lokal uppvärmning
+    type: kpr.SectorEmissions
+  - id: ovrigt_9170
+    output_nodes:
+    - net_emissions
+    params:
+      panorama_id: 9170cca1-3b7b-4e8f-97f6-e41e527fed66
+    name: Övrigt
+    type: kpr.SectorEmissions
+  - id: losningsmedel-och-produktanvandning
+    output_nodes:
+    - ovrigt_9170
+    params:
+      panorama_id: a7ef820b-d39b-47b7-aafe-05e564eb13d0
+    name: Lösningsmedel och produktanvändning
+    type: kpr.SectorEmissions
+  - id: arbetsmaskiner
+    output_nodes:
+    - ovrigt_9170
+    params:
+      panorama_id: c4c05600-9afa-49d2-9600-475d18296ca9
+    name: Arbetsmaskiner
+    type: kpr.SectorEmissions
+  - id: avfall
+    output_nodes:
+    - ovrigt_9170
+    params:
+      panorama_id: 1eb6432d-1753-4b8a-b707-d28a200fc804
+    name: Avfall
+    type: kpr.SectorEmissions
+  actions:
+  - id: ccs-i-avfallsforbranning
+    name: CCS i avfallsförbränning
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: Lösningen innebär att använda teknik för att fånga in koldioxid vid
+      avfallsförbränningsanläggningar och på så vis ta bort de direkta utsläppen från
+      förbränningen. Avfall innehåller både fossilt och förnybart material, därför
+      kan denna lösning bidra till att binda förnybart koldioxid och därmed bidra
+      med ett negativt nettoutsläpp.
+    params:
+      panorama_id: 432cd22b-f359-4d83-95c4-ecc5467a3569
+  - id: spillvarme-i-fjarrvarmenat
+    name: Spillvärme i fjärrvärmenät
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: Lösningen innebär att spillvärme från olika källor kan användas för
+      att ersätta värme från avfallsförbränning.
+    params:
+      panorama_id: 5a152a3a-4bb2-4060-89b6-351f8e9d4e91
+  - id: minskad-andel-fossilt-avfall
+    name: Minskad andel fossilt avfall
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: Lösningen innebär att andelen förnybart i det avfall som förbränns
+      för energiåtervinning ökar. Lösningen påverkas av hur mycket av det fossila
+      avfallet som materialåtervinns samt hur stor andel av det avfall som uppstår
+      som är förnybart.
+    params:
+      panorama_id: cb778118-3ac7-4afd-b8cb-bf6229f750f7
+  - id: vindkraft
+    name: Vindkraft
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: Lösningen innebär att vindkraft ersätter el som tidigare har producerats
+      med avfallsförbränning. Utsläppen minskar eftersom vindkraften inte innebär
+      några direkta utsläpp av växthusgaser.
+    params:
+      panorama_id: ecdfd990-3765-4461-8ec8-7042ce45482f
+  - id: biobransle-for-el-och-varmeproduktion
+    name: Biobränsle för el och värmeproduktion
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: Lösningen innebär att fossila bränslen som används för värme- och
+      elproduktion ersätts med biobränslen. I utsläppsstatistiken räknas inte växthusgasutsläpp
+      från förnybara bränslen, så utsläppen minskar lika mycket som utsläppen skulle
+      ha varit från motsvarande mängd fossila bränslen.
+    params:
+      panorama_id: 5883352e-ce77-4fe8-ab19-7eae93a3cb2c
+  - id: torv-som-ersatts-med-biobransle
+    name: Torv som ersatts med biobränsle
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: 'Lösningen innebär att torv som används som bränsle i värme- och
+      kraftvärmeverk ersätts med biobränsle. Torv räknas inte som ett förnybart bränsle
+      trots att det inte är fossilt, eftersom inlagringen av kol i torv sker under
+      en betydligt längre tidsperiod jämfört med biobränslen.
+
+
+      Torv har goda förbränningstekniska egenskaper och kombineras därför ofta med
+      andra bränslen. Därför kan det finnas utmaningar med att ersätta torven som
+      bränsle.'
+    params:
+      panorama_id: e518a89f-ca49-467e-8e6f-a6d581c84aad
+  - id: ccs-fasta-biobranslen
+    name: CCS fasta biobränslen
+    output_nodes:
+    - el-och-fjarrvarmeproduktion
+    type: kpr.ActionNode
+    description: Lösningen innebär att man samlar in koldioxiden som uppstår vid förbränning
+      av fasta biobränslen. Eftersom den insamlade koldioxiden är av förnybart ursprung
+      innebär det att åtgärden leder till negativa utsläpp.
+    params:
+      panorama_id: 8e523029-7f40-46d2-9fb8-3b5fb5690710
+  - id: biobranslen-i-alla-byggnader
+    name: Biobränslen i alla byggnader
+    output_nodes:
+    - lokal-uppvarmning
+    type: kpr.ActionNode
+    description: Lösningen innebär att oljepannor i bostäder och lokaler ersätts med
+      biobränslepannor som eldas med exempelvis ved eller träpellets.
+    params:
+      panorama_id: 756607fb-eba2-450b-b5da-6d0488094011
+  - id: varmepumpar-i-lokaler
+    name: Värmepumpar i lokaler
+    output_nodes:
+    - lokal-uppvarmning
+    type: kpr.ActionNode
+    description: Lösningen innebär att oljepannor byts ut till någon typ av värmepump,
+      exempelvis luftvärmepump eller bergvärmepump.
+    params:
+      panorama_id: af7d78e4-5e32-4b49-9a52-b7fc9bc026de
+  - id: byte-till-fjarrvarme-i-alla-byggnader
+    name: Byte till fjärrvärme i alla byggnader
+    output_nodes:
+    - lokal-uppvarmning
+    type: kpr.ActionNode
+    description: Lösningen innebär att oljepannor ersätts med fjärrvärme. Fjärrvärme
+      har generellt sett liten klimatpåverkan och i den här lösningen antar vi att
+      utsläppsminskningen vid byte till fjärrvärme blir 100 procent. Detta eftersom
+      utsläppet inte längre sker i huset, utan i den anläggning där fjärrvärmen produceras.
+    params:
+      panorama_id: afc3c572-32f6-48a4-acff-0bec9843bd19
+  - id: biogas-i-kommersiella-lokaler
+    name: Biogas i kommersiella lokaler
+    output_nodes:
+    - lokal-uppvarmning
+    type: kpr.ActionNode
+    description: Lösningen innebär att lokaler som värms upp med naturgas konverteras
+      till biogas eller något annat uppvärmningssätt.
+    params:
+      panorama_id: 7b496ac2-bb74-4841-9019-258efca72726
+  - id: produktion-med-vatgas
+    name: Produktion med vätgas
+    output_nodes:
+    - jarn-och-stal
+    type: kpr.ActionNode
+    description: Den största källan till klimatutsläpp från järn- och stålindustrin
+      är kopplade till reduktion av järnmalm med kol. Med en så kallad direktreduktion
+      skulle emellertid vätgas kunna användas för att skilja järnet från syret, utan
+      att använda kol. Slutprodukten blir då järn och vatten istället för järn och
+      koldioxid.
+    params:
+      panorama_id: 39ed2cca-dcc1-4f68-9f6c-09fa849634e9
+  - id: biobransle-istallet-for-kol
+    name: Biobränsle istället för kol
+    output_nodes:
+    - jarn-och-stal
+    type: kpr.ActionNode
+    description: 'Kol kan bytas ut mot Biokol och användas för reduktion vid järnsvampstillverkning.
+      Naturgas och gasol till bränsleeldade ugnar kan bytas mot biogas.
+
+
+      Potentialbedömningen kommer från rapporten: Vägval för klimatet,  Delrapport
+      1,  IVA 2019'
+    params:
+      panorama_id: bc6c4328-a600-4d36-9d7e-942707fdb201
+  - id: elektrifiering-av-produktion
+    name: Elektrifiering av produktion
+    output_nodes:
+    - jarn-och-stal
+    type: kpr.ActionNode
+    description: "Elektrifiering innebär att fossilbränsleugnar ersätts av elektriska.\
+      \ För tillämpningar i temperaturområden över 1000 grader behövs emellertid mer\
+      \ forskning. \n\nPotentialbedömningen kommer från rapporten: Vägval för klimatet,\
+      \  Delrapport 1,  IVA 2019"
+    params:
+      panorama_id: e535ade9-55b1-4084-9db6-60b912d2fa6e
+  - id: ccs-koldioxidfangare
+    name: CCS - koldioxidfångare
+    output_nodes:
+    - cement-och-mineral
+    type: kpr.ActionNode
+    description: 'Carbon Capture and Storage (CCS) är en teknik där koldioxid från
+      större punktutsläpp av koldioxid, såsom kolkraftverk, gaskraftverk, stålverk
+      och cementindustrier, avskiljs från rökgaser och lagras i geologiska formationer
+      djupt under markytan eller havsbottnen.
+
+
+      Cementbranschens färdplan för fossilfri konkurrenskraft visar att CCS har den
+      största potentialen för att minska branschens växthusgasutsläpp.
+
+
+      Potentialbedömningen kommer från rapporten: Färdplan cement, för ett klimatneutralt
+      betongbyggande.'
+    params:
+      panorama_id: 9525b61c-7017-4450-9f1b-0bb5185d3d11
+  - id: elektrifierad-produktion
+    name: Elektrifierad produktion
+    output_nodes:
+    - cement-och-mineral
+    type: kpr.ActionNode
+    description: 'Tekniken innebär att man ersätter termiska processer med elektrifierade
+      processer. I projektet CemZero har Cementa har tillsammans med Vattenfall undersökt
+      möjligheten att elektrifiera cementindustrins processer. Åtgärden skulle kunna
+      ta bort en tredjedel av utsläppen.
+
+
+      Potentialbedömningen kommer från rapporten: Färdplan cement, för ett klimatneutralt
+      betongbyggande.'
+    params:
+      panorama_id: 4dd150ae-774f-47a3-8fcf-33a6569400e6
+  - id: biobransle-for-produktion
+    name: Biobränsle för produktion
+    output_nodes:
+    - cement-och-mineral
+    type: kpr.ActionNode
+    description: 'Lösningen innebär att fossila bränslen ersätts av förnybara bränslen.
+      Främst genom att kol ersätts med förädlat avfallsbaserat bränsle.
+
+
+      Potentialbedömningen kommer från rapporten: Färdplan cement, för ett klimatneutralt
+      betongbyggande.'
+    params:
+      panorama_id: b87f7f67-e2b4-42ba-b07c-a6725be4bfa8
+  - id: optimerad-betonganvandning
+    name: Optimerad betonganvändning
+    output_nodes:
+    - cement-och-mineral
+    type: kpr.ActionNode
+    description: 'Lösningen innebär att använda nya cementsorter, betongsammansättning
+      med lägre andel cement, användning av alternativa bindemedel och klimatoptimering
+      av design.
+
+
+      Potentialbedömningen kommer från rapporten: Färdplan för Klimatneutral konkurrenskraft
+      - Betongbranschen.'
+    params:
+      panorama_id: 2a4883b2-cc5d-49ee-bcd5-0a5dbacc360d
+  - id: fran-betongstal-till-trastomme-i-flerbostadshus
+    name: Från betong/stål till trästomme i flerbostadshus
+    output_nodes:
+    - cement-och-mineral
+    type: kpr.ActionNode
+    description: Lösningen innebär att betong som byggnadsmaterial i flerbostadshus
+      kan ersättas med träkonstruktioner som har lägre klimatpåverkan.
+    params:
+      panorama_id: 7cc67162-940e-4c33-9cf0-080bb0091834
+  - id: fornybara-ravaror
+    name: Förnybara råvaror
+    output_nodes:
+    - raffinaderier
+    type: kpr.ActionNode
+    description: 'Tekniken innebär att man ersätter fossil råolja med förnybara restprodukter
+      från skogen, lantbruket och andra industrier.
+
+
+      Potentialbedömningen kommer från Preems hållbarhetsredovisning.'
+    params:
+      panorama_id: ba14da6e-ce94-4e87-89dc-f8456d739b28
+  - id: ccs-koldioxidfangare_d104
+    name: CCS - koldioxidfångare
+    output_nodes:
+    - raffinaderier
+    type: kpr.ActionNode
+    description: 'Carbon Capture and Storage (CCS) är en teknik där koldioxid från
+      större punktutsläpp av koldioxid, såsom kolkraftverk, gaskraftverk, stålverk
+      och cementindustrier, avskiljs från rökgaser och lagras i geologiska formationer
+      djupt under markytan eller havsbottnen.
+
+
+      Potentialbedömningen kommer från Preems hållbarhets-redovisning.'
+    params:
+      panorama_id: d104ca5c-74c3-43ab-bdef-2aa771d330e4
+  - id: fornybar-vatgas
+    name: Förnybar vätgas
+    output_nodes:
+    - raffinaderier
+    type: kpr.ActionNode
+    description: 'Vätgas är en viktig komponent i raffinering och behövs i än högre
+      grad vid raffinering av vissa förnybara råvaror. Idag produceras vätgas från
+      naturgas, något som är en starkt bidragande orsak till utsläppen från raffinaderier.
+      Vätgasen kan dock produceras på alternativa sätt, exempelvis genom elektrolys
+      med förnybar el som insatsenergi. Det minskar utsläppen med drygt 10 kilo koldioxid
+      per varje kilo producerad vätgas.
+
+
+      Preem har planerat att bygga en elektrolysanläggning som skulle kunna producera
+      omkring 30 000 ton vätgas varje år, vilket motsvarar 300 000 ton minskade koldioxidutsläpp.'
+    params:
+      panorama_id: 06feb2c7-ad9b-4c17-9fdf-18e1e8d8fd8d
+  - id: fornybara-ravaror_a75b
+    name: Förnybara råvaror
+    output_nodes:
+    - kemi
+    type: kpr.ActionNode
+    description: 'Genom att använda biobaserade råvaror i produktionsprocessen kan
+      kemiindustrin bidra till en utvecklad bioekonomi och en större andel biobaserade
+      material och produkter. Biobaserad råvara kan till exempel komma från rapsolja,
+      halm, flis, alger, sockerrör samt avfall från skogsindustri och jordbruk. Potentialbedömningen
+      kommer från rapporten: Vägval för klimatet,  Delrapport 1, IVA 2019.'
+    params:
+      panorama_id: a75bde07-3933-44b7-a30f-9364e0345df8
+  - id: okad-plastatervinning
+    name: Ökad plaståtervinning
+    output_nodes:
+    - kemi
+    type: kpr.ActionNode
+    description: 'Genom resurseffektiva och cirkulära materialflöden kan ett slutet
+      kretslopp för plast skapas. Därigenom kan samma fossila råvara användas gång
+      på gång och behovet av ny fossil råvara minska. Över tid förutses även en ökad
+      andel biobaserad plast bli en del av kretsloppet. Den mekaniska återvinning
+      som tillämpas i nuläget förväntas att öka och med införandet av kemisk återvinning
+      i så kallade returraffinaderier kan även den plast som inte lämpar sig för mekanisk
+      återvinning tas om hand och upparbetas till ny råvara. I princip skulle därmed
+      all plast kunna återvinnas till nya produkter.
+
+
+      Potentialbedömningen kommer från rapporten: Vägval för klimatet,  Delrapport
+      1,  IVA 2019.'
+    params:
+      panorama_id: 25a10ef8-72eb-4efd-a57d-560e22e0b359
+  - id: ccs-koldioxidfangare_e798
+    name: CCS - koldioxidfångare
+    output_nodes:
+    - kemi
+    type: kpr.ActionNode
+    description: 'Carbon Capture and Storage (CCS) är en teknik där koldioxid från
+      större punktutsläpp av koldioxid, såsom kolkraftverk, gaskraftverk, stålverk
+      och cementindustrier, avskiljs från rökgaser och lagras i geologiska formationer
+      djupt under markytan eller havsbottnen.
+
+
+      Genom Carbon Capture and Usage (CCU) kan koldioxid återvinnas och användas som
+      råvara vid produktion istället för att släppas ut.
+
+
+      Potentialbedömningen kommer från rapporten: Vägval för klimatet,  Delrapport
+      1,  IVA 2019.'
+    params:
+      panorama_id: e7982c86-1d8b-4298-b244-94ab2ad2eb98
+  - id: biobransle-for-pappers-och-massaindustrin
+    name: Biobränsle för pappers- och massaindustrin
+    output_nodes:
+    - pappers-och-massa
+    type: kpr.ActionNode
+    description: 'Inom massa- och pappersindustrin används eldningsolja, naturgas
+      och propan. Eldningsoljan används framförallt i mesaugnarna och skulle kunna
+      bytas ut mot pellets eller fasta biobränslen. Biogas skulle kunna ersätta naturgas
+      och propan.
+
+
+      Potentialbedömningen kommer från rapporten: Färdplan IVA del 1 samt Skogsindustrierna.'
+    params:
+      panorama_id: 610e5ba1-f2bb-4822-a9ee-06aba36217f3
+  - id: elektrifiering-av-produktion_0da8
+    name: Elektrifiering av produktion
+    output_nodes:
+    - pappers-och-massa
+    type: kpr.ActionNode
+    description: 'Elektrifiering innebär att de fossila bränslena byts mot fossilfri
+      eldrift. Skogsindustrin använder redan idag mycket el och cirka 40 procent av
+      den el, motsvarande 5–6 TWh, som används i processerna genereras inom industrin
+      och är fossilfri. Det är möjligt att elektrifiera processerna ytterligare.
+
+
+      Potentialbedömningen kommer från rapporten: Färdplan IVA del 1 samt Skogsindustrierna.'
+    params:
+      panorama_id: 0da80601-a872-4d9e-878d-6b0da1e7241b
+  - id: biobransle-for-metallindustrin
+    name: Biobränsle för metallindustrin
+    output_nodes:
+    - metaller
+    type: kpr.ActionNode
+    description: 'Lösningen innebär att metallindustrin ersätter fossila bränslen
+      med biobränslen.
+
+
+      Potentialbedömningen kommer från rapporten: Vägval för klimatet,  Delrapport
+      1,  IVA 2019.'
+    params:
+      panorama_id: 1dd3f404-d7cb-4d36-94fd-43fe4f4cbbd4
+  - id: inerta-anoder
+    name: Inerta anoder
+    output_nodes:
+    - metaller
+    type: kpr.ActionNode
+    description: 'Idag används en kolstång som anod vid elektrolysen i aluminiumprocessen.
+      Kolstången släpper vid reaktionen med aluminium ifrån sig koldioxid. Med inerta
+      anoder slipper man denna reaktion och det enda som avges är syre. Kolanoder
+      minskar dessutom i omfång under processen och måste ersättas, vilket inerta
+      anoder inte gör. Att ersätta anoderna mot inerta anoder ger enbart en ökad engångskostnad
+      för tillfället när dessa ersätts. Potentialbedömningen kommer från: Sektorsunderlag
+      industri. Ett underlag till Färdplan 2050.'
+    params:
+      panorama_id: 2c8c73ca-99ad-444d-a071-355ca871a399
+  - id: okad-atervinning
+    name: Ökad återvinning
+    output_nodes:
+    - metaller
+    type: kpr.ActionNode
+    description: 'Metaller är 100 procent återvinningsbara
+
+      och det finns en fungerande marknad för metallskrot, elektronikskrot och bilbatterier.
+
+
+      Potentialbedömningen kommer från: Sektorsunderlag industri. Ett underlag till
+      Färdplan 2050.'
+    params:
+      panorama_id: ef3f977c-d7e5-4d7c-9d4e-a9f6774a3e41
+  - id: kvarvarande-utslapp
+    name: Kvarvarande utsläpp
+    output_nodes:
+    - metaller
+    type: kpr.ActionNode
+    params:
+      panorama_id: ffec0e4e-a916-4039-ada4-36f6adad9038
+  - id: biobransle-for-ovriga-industrier
+    name: Biobränsle för övriga industrier
+    output_nodes:
+    - ovrigt
+    type: kpr.ActionNode
+    description: 'För att minska utsläppen krävs främst att de fossila bränslen som
+      förbränns inom industrin idag byts mot fossilfria bränslen eller el.
+
+
+      Potentialbedömningen kommer från rapporten: Vägval för klimatet,  Delrapport
+      1,  IVA 2019.'
+    params:
+      panorama_id: 3cc0566b-23c6-441c-8699-6c69ea208c46
+  - id: elektrifiering
+    name: Elektrifiering
+    output_nodes:
+    - ovrigt
+    type: kpr.ActionNode
+    description: 'För att minska utsläppen krävs främst att de fossila bränslen som
+      förbränns inom industrin idag byts mot fossilfria bränslen eller el.
+
+
+      Potentialbedömningen kommer från rapporten: Vägval för klimatet,  Delrapport
+      1,  IVA 2019.'
+    params:
+      panorama_id: e674a331-00e8-4ae3-97d5-660f2c8b643f
+  - id: forandrad-och-preciserad-godselgiva
+    name: Förändrad och preciserad gödselgiva
+    output_nodes:
+    - jordbruksmark
+    type: kpr.ActionNode
+    description: Ett exempel på förändrad gödselgiva är övergång från fastgödsel och
+      djupströ till flytgödsel vilket minskar främst lustgas (och även ammoniak).
+      Andra exempel är myllning eller injektion vid spridning av flytgödsel,  ökad
+      andel gröngödsel. Precisionsgödsling innebär att man anpassar fördelningen av
+      gödsel efter fältets och grödans varierande behov för att öka kväveeffektiviteten
+      vilket också ger ökad skörd. Potentialen är baserad på rapporten "Minskade utsläpp
+      av växthusgaser från jordbruket med ökad produktion? Scenarier till 2045 för
+      utsläpp och upptag av växthusgaser inom jordbrukssektorn".
+    params:
+      panorama_id: 763b13aa-99b9-4bf9-873c-351326d46b15
+  - id: nitrifikationshamare
+    name: Nitrifikationshämare
+    output_nodes:
+    - jordbruksmark
+    type: kpr.ActionNode
+    description: Genom inblandning av så kallade nitrifikationshämmare till gödsel
+      går det att minska utsläppen av lustgas från jordbruksmark. Det är ett kemiskt
+      medel som hindrar mikroorganismernas omvandling av ammonium till nitrat och
+      som minskar bildningen av lustgas. Potentialen är baserad på rapporten "Minskade
+      utsläpp av växthusgaser från jordbruket med ökad produktion? Scenarier till
+      2045 för utsläpp och upptag av växthusgaser inom jordbrukssektorn".
+    params:
+      panorama_id: 4bf0e406-b049-4339-a1bf-b721c584e330
+  - id: kvarvarande-utslapp_19ec
+    name: Kvarvarande utsläpp
+    output_nodes:
+    - jordbruksmark
+    type: kpr.ActionNode
+    description: "Här finns kvarvarande utsläpp kvar i Panorama. Utsläpp som inte\
+      \ kommer kunna komma ner till noll. \n\nI Sverige har vi ett klimatmål om nettonollutsläpp\
+      \ år 2045 i det klimatpolitiska ramverket som beslutades år 2017. Nettonollutsläpp\
+      \ inbegriper att jordbruket fortfarande kommer ha utsläpp och därför finns det\
+      \ kvarvarande utsläpp i denna sektor i Panorama. Hur stora dessa kvarvarande\
+      \ utsläpp är beror på den nulägesbedömning av potential för de lösningar för\
+      \ utsläppsminskning som tagits med och kvarvarande utsläpp är det som blivit\
+      \ kvar. \n\nAtt inte ha några nettoutsläpp av växthusgaser betyder i det här\
+      \ fallet att utsläppen av växthusgaser från verksamheter i Sverige ska vara\
+      \ minst 85 procent lägre år 2045 än utsläppen år 1990. De kvarvarande utsläppen\
+      \ ned till noll kan kompenseras genom så kallade kompletterande åtgärder. Dessa\
+      \ åtgärder kan även bidra till negativa nettoutsläpp efter 2045."
+    params:
+      panorama_id: 19ec349a-3572-4d5f-857d-606aa98b310d
+  - id: effektivare-vaxtforadling-och-odlingssystem
+    name: Effektivare växtförädling och odlingssystem
+    output_nodes:
+    - jordbruksmark
+    type: kpr.ActionNode
+    description: Effektivare växtförädling och odlingssystem innebär bättre sorter
+      inom växtförädling, ökad bördighet, en god markstruktur, ett effektivare utnyttjande
+      av växtnäring, ett bra utsäde och väl fungerande integrerat växtskydd. Här ingår
+      även minskade produktionsförluster i produktionsledet. Dränering och bevattningslösningar
+      som ger effektivare system kan också ingå i denna lösning. Lösningens potential
+      är en egen uppskattning baserad på ett flertal rapporter, framför allt Lantmännens
+      rapport "Framtidens jordbruk".
+    params:
+      panorama_id: 99d7f56f-9671-4776-b826-4b060a38f1a9
+  - id: minskat-lustgasutslapp-genom-atervatning
+    name: Minskat lustgasutsläpp genom återvätning
+    output_nodes:
+    - jordbruksmark
+    type: kpr.ActionNode
+    description: Med återvätning avses en höjning av grundvattennivån på organogena
+      jordar till en nivå där nedbrytning av organiskt material bromsas eller helt
+      upphör. Ofta rör det sig om att återställa dikningsåtgärder som en gång vidtogs
+      för att få tillgång till ny odlingsmark. Effekten av återvätning inkluderar
+      här effekten av minskade utsläpp av lustgas, vilket inkluderas i jordbrukssektorn.
+      Lösningens potential är en egen uppskattning baserad på ett flertal rapporter.
+    params:
+      panorama_id: 8eb8985d-cbb9-495a-8e95-373907a05a20
+  - id: kvarvarande-utslapp_d540
+    name: Kvarvarande utsläpp
+    output_nodes:
+    - djurs-matsmaltning
+    type: kpr.ActionNode
+    params:
+      panorama_id: d540e0cd-4e97-4c84-afa4-484113cf0d76
+  - id: fodertillsatser
+    name: Fodertillsatser
+    output_nodes:
+    - djurs-matsmaltning
+    type: kpr.ActionNode
+    description: Genom fodertillsatser som hämmar enzymernas nedbrytning till metan
+      i idisslares magar kan utsläppen av metan minska. Det holländska bolaget Royal
+      DSM har utvecklat en tillsats som minskar utsläppen med 27-40 procent.
+    params:
+      panorama_id: 6e436004-0978-48d7-bd2c-c5911821170b
+  - id: forandrad-produktion
+    name: Förändrad produktion
+    output_nodes:
+    - djurs-matsmaltning
+    type: kpr.ActionNode
+    description: Genom en förändring i vad som produceras kan klimatpåverkan minska
+      jämfört med nuvarande produktionsnivåer. Exempelvis kan produktion av nötkött
+      begränsas och ersättas med produktion av jordbruksprodukter med mindre klimatpåverkan.
+    params:
+      panorama_id: 5dadd8c4-9a06-41cc-b3b8-c5fd9222bb97
+  - id: okad-resursefektivitet
+    name: Ökad resursefektivitet
+    output_nodes:
+    - djurs-matsmaltning
+    type: kpr.ActionNode
+    description: Ökad resurseffektivitet på animaliesidan gör att  nuvarande produktionsnivåer
+      produceras med lägre klimatpåverkan. Exempel är åtgärder som ger ökad djurhälsa.
+      Andra åtgärder är avel, då det finns skillnader mellan djurindivider i hur mycket
+      metan de producerar. Dessutom en effektivare foderstat, tex betydelsen av förhållandet
+      mellan grovfoder och kraftfoder. Även att kombinera produktion av mjölk och
+      kött har potential att minska utsläppen.
+    params:
+      panorama_id: 99469463-1127-49a2-9e58-5e5c4ef25b86
+  - id: tackning-av-godselbrunnar
+    name: Täckning av gödselbrunnar
+    output_nodes:
+    - lagring-av-godsel
+    type: kpr.ActionNode
+    description: "Genom täckning av gödselbrunnar vid lagring av gödsel kan utsläppen\
+      \ begränsas. I Sverige lagras den största andelen stallgödsel som flytgödsel.\
+      \ I flytgödselbehållare uppstår en syrefri miljö där metan kan bildas. Från\
+      \ lagrad fastgödsel har utsläpp av lustgas den största påverkan på klimatet.\
+      \ \n\nTäckning av flytgödselbehållare är en effektiv åtgärd för att minska ammoniakavgången\
+      \ och därmed även till att den indirekta lustgasavgången minskar. Det finns\
+      \ olika typer av täckningar, med ett halmsvämtäcke som är den vanligaste täckningen\
+      \ men även så pågår försök där plastduk används vilket gett lägre metangasförluster\
+      \ än motsvarande behållare med halmsvämtäcke eller helt utan täckning. \n\n\
+      Täckning är effektivt även vid lagring av fastgödsel och även då minskar plastduk\
+      \ av fastgödselhögen effektivt lustgasutsläppen  då den förhindrar att syre\
+      \ tränger in i fastgödseln och därmed att ammonium ombildas till nitrat med\
+      \ risk för lustgasutsläpp"
+    params:
+      panorama_id: a804470b-8bd1-4bcb-8cb5-7c4e6354e179
+  - id: rotning-till-biogas
+    name: Rötning till biogas
+    output_nodes:
+    - lagring-av-godsel
+    type: kpr.ActionNode
+    description: 'Rötning till biogas är en lösning för att minska utsläppen från
+      lagring av stallgödsel. Biogasproduktion från stallgödsel ger en minskad klimatpåverkan
+      och samtidigt produceras biogas som minskar beroendet av fossila bränslen.
+
+
+      I Sverige produceras årligen ca 25 miljoner ton stallgödsel varav största delen
+      är nötkreaturs- och svingödsel. Genom att röta stallgödsel i en biogasanläggning
+      kan en stor mängd av den metan som bildas tas tillvara (istället för att avgå
+      till atmosfären) och samtidigt kan förluster av kväve i form av lustgas minskas.  Vid
+      biogasproduktion fås också en biprodukt i form av rötrester som är näringsrika
+      vilka kan utnyttjas som gödselmedel och därmed ersätta mineralgödsel. Metanutsläppen
+      blir avsevärt mindre vid lagring av rötresterna jämfört med lagring av orötad
+      stallgödsel. Detta ger minskade utsläpp från både lagring och spridning av gödseln
+      samtidigt som kväveutnyttjandegraden ökar, vilket leder att till ett minskat
+      behov av mineralgödsel.'
+    params:
+      panorama_id: 2325e8a1-7813-4c43-9d46-4704cd46baa1
+  - id: kvarvarande-utslapp_c856
+    name: Kvarvarande utsläpp
+    output_nodes:
+    - lagring-av-godsel
+    type: kpr.ActionNode
+    params:
+      panorama_id: c856c156-a0f8-4089-899d-70f6bccbb220
+  - id: okad-andel-kollektivtrafik
+    name: Ökad andel kollektivtrafik
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: En ökad andel kollektivtrafik innebär att det sker en överflyttning
+      från personbilstransporter till järnväg, spårväg, buss och tunnelbana. Det bidrar
+      inte bara till minskad klimatpåverkan utan också ökad social hållbarhet genom
+      en livfullare och tryggare stadsmiljö med ökad tillgänglighet.Potentialen är
+      baserad på scenario D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 93c348c5-d71b-4370-a0fa-c1cde0b8537c
+  - id: okad-andel-gang-och-cykel
+    name: Ökad andel gång och cykel
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: En ökad andel gång- och cykeltrafik innebär att fler går eller cyklar
+      istället för att transportera sig med bil. Om andelen gång- och cykeltrafik
+      ökar och biltrafiken minskar bidrar det inte bara till minskad klimatpåverkan
+      utan också ökad social hållbarhet genom en livfullare och tryggare stadsmiljö
+      med ökad tillgänglighet. Det ska dock betonas att ökad cykling främst leder
+      till minskade utsläpp om den ersätter resor som annars hade gjorts med bil.
+      Potentialen är baserad på scenario D1 i Trafikverkets rapport Scenarier för
+      att nå klimatmålen.
+    params:
+      panorama_id: e802822e-a5f8-428e-b77c-b9b2bb8c536d
+  - id: overflyttning-till-jarnvag
+    name: Överflyttning till järnväg
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: Transporter på järnväg ger låga utsläpp av koldioxid. En lösning
+      är därför att det sker en överflyttning från persontransporter med bil till
+      ökade persontransporter med tåg. Potentialen är baserad på scenario D1 i Trafikverkets
+      rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 6c8c5112-7935-4d94-b5ca-960c5f31b3d5
+  - id: okad-andel-resfria-moten
+    name: Ökad andel resfria möten
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: En ökad andel resfria möten och tjänster bidrar till ett minskat
+      resbehov. Genom dagens teknik finns det till exempel stor potential till att
+      organisera möten via datorer och nätverk.
+    params:
+      panorama_id: 9f79979e-69dd-49ef-b7b9-b808f3503ad4
+  - id: effektivare-persontransporter
+    name: Effektivare persontransporter
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: För att minska transporternas miljöpåverkan behöver den transportinfrastruktur
+      - vägar, järnvägar, hamnar och flygplatser - och det transportsystem som redan
+      finns, användas så effektivt som möjligt. Genom att fler personer samåker kan
+      transporterna bli effektivare. Potentialen är baserad på scenario D1 i Trafikverkets
+      rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 0f65ba32-be91-4b5f-97d6-ac0b5959efe9
+  - id: forbattrad-fordonsteknik
+    name: Förbättrad fordonsteknik
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: Förbättrad energieffektivitet är en viktig lösning för att minska
+      utsläppen. Genom att förbättra energieffektiviteten med 20 procent kan växthusgasutsläppen
+      från bilar minska med 2,5 miljoner ton koldioxidekvivalenter. Potentialen är
+      baserad på scenario D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 22ebc4de-cb52-4bcd-8901-806b655dfbda
+  - id: biodrivmedel-for-personbil
+    name: Biodrivmedel för personbil
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: "Biodrivmedel är drivmedel som är producerade av biomassa, exempelvis\
+      \ åkergrödor, matavfall eller restprodukter från skogsindustrin. Eftersom biomassan\
+      \ har ackumulerat koldioxid från atmosfären under sin tillväxt räknas utsläppen\
+      \ från biodrivmedel som noll i klimatstatistiken.\n\nPotentialen är baserad\
+      \ på scenario D2 i Trafikverkets rapport Scenarier för att nå klimatmålen. \n\
+      https://www.trafikverket.se/for-dig-i-branschen/Planera-och-utreda/Planer-och-beslutsunderlag/inriktningsplanering/kunskapsunderlag/scenarier-for-att-na-klimatmalet-och-paverkan-pa-vagtrafiken/"
+    params:
+      panorama_id: bb824c15-5e79-4af4-821a-6236aebd9de5
+  - id: overgang-till-elbil
+    name: Övergång till elbil
+    output_nodes:
+    - persontransporter
+    type: kpr.ActionNode
+    description: 'Elbilar ger inga utsläpp av växthusgaser vid körning eftersom ingen
+      förbränning av drivmedel sker. Vi antar att varje elbil ersätter en konventionell
+      bensin eller dieselbil. Vi har beräknat att en konventionell bil släppte ut
+      i genomsnitt 2,13 ton koldioxidekvivalenter per år år 2010.
+
+
+      Potentialen är baserad på Power Circles prognos för laddbara fordon.'
+    params:
+      panorama_id: 5e655b0b-b2ac-4fd3-9e7d-9af99101cbdd
+  - id: overflyttning-av-fraktat-gods-till-jarnvag
+    name: Överflyttning av fraktat gods till järnväg
+    output_nodes:
+    - godstransporter
+    type: kpr.ActionNode
+    description: Lösningen innebär att fler godstransporter sker med järnväg. Vi har
+      antagit att ett ökat godstransportarbete med järnväg ersätter lastbilar. Potentialen
+      är baserad på scenario D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 600dd440-8aec-47a7-a7ac-a85824801a06
+  - id: overflyttning-av-fraktat-gods-till-sjofart
+    name: Överflyttning av fraktat gods till sjöfart
+    output_nodes:
+    - godstransporter
+    type: kpr.ActionNode
+    description: Lösningen innebär att inrikes godstransporter flyttas över från lastbil
+      till sjöfart. Vi har antagit att ett ökat godstransportarbete med sjöfart ersätter
+      lastbilstransporter. Potentialen är baserad på scenario D1 i Trafikverkets rapport
+      Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: a52be706-fbbd-4c37-b2f7-dcd16126f3bf
+  - id: okad-fyllnadsgrad-for-tunga-lastbilar
+    name: Ökad fyllnadsgrad för tunga lastbilar
+    output_nodes:
+    - godstransporter
+    type: kpr.ActionNode
+    description: Lösningen innebär att mängden gods per lastbil ökar. På så sätt kan
+      samma godstransportarbete (tonkilometer) utföras med mindre trafikarbete (fordonskilometer).
+      På så sätt kan utsläppen minska. Det kan exempelvis ske genom att man använder
+      längre och tyngre fordon eller genom bättre samordning av godstransporter och
+      undvika tomma returlaster där det är möjligt. Potentialen är baserad på scenario
+      D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 2eeca050-33e3-4c9b-ba26-c954806d52fe
+  - id: energieffektiva-tunga-lastbilar
+    name: Energieffektiva tunga lastbilar
+    output_nodes:
+    - godstransporter
+    type: kpr.ActionNode
+    description: En förbättrad energieffektivitet hos fordonen innebär att samma transportarbete
+      kan utföras med en mindre mängd bränsle, vilket leder till minskade utsläpp.
+      Energieffektivitet kan uppnås genom utveckling av fordonsteknik, men också med
+      hjälp av eco-driving och sänkt hastighet. Potentialen är baserad på scenario
+      D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: de99d1e0-f1f5-48e7-bf99-d4eb5b90276c
+  - id: biodrivmedel-for-tunga-lastbilar
+    name: Biodrivmedel för tunga lastbilar
+    output_nodes:
+    - godstransporter
+    type: kpr.ActionNode
+    description: Biodrivmedel minskar utsläppen från transporter tack vare försumbara
+      växthusgasutsläpp vid förbränning enligt metoden för att rapportera växthusgasutsläpp.
+      Att ersätta fossila drivmedel med biodrivmedel kan därför minska utsläppen från
+      godstransporter. Potentialen är baserad på scenario D1 i Trafikverkets rapport
+      Scenarier för att nå klimatmålen.
+    params:
+      panorama_id: 1a8f84dc-03ba-4fb7-b648-921bd3aedd58
+  - id: elektrifiering-av-tunga-lastbilar
+    name: Elektrifiering av tunga lastbilar
+    output_nodes:
+    - godstransporter
+    type: kpr.ActionNode
+    description: Lastbilar som drivs helt eller delvis med el ger upphov till mindre
+      utsläpp av växthusgaser än om de skulle köras på fossila drivmedel. Diagrammet
+      visar hur mycket transportarbete som behöver ske med el istället för fossila
+      drivmedel. Anledningen till det är att en kWh el kan utföra mer transportarbete
+      än motsvarande mängd fossilt drivmedel eftersom verkningsgraden i en elmotor
+      är högre. Potentialen är baserad på scenario D1 i Trafikverkets rapport Scenarier
+      för att nå klimatmålen.
+    params:
+      panorama_id: eb1a93ce-670a-4030-8f1e-3842cc851fb1
+  - id: elektrifiering-av-inrikes-sjofart
+    name: Elektrifiering av inrikes sjöfart
+    output_nodes:
+    - inrikes-sjofart
+    type: kpr.ActionNode
+    description: Lösningen innebär att fossila drivmedel ersätts med el.
+    params:
+      panorama_id: 54772091-98f8-46ff-95b8-135279e17c3f
+  - id: biodrivmedel-inrikes-sjofart
+    name: Biodrivmedel inrikes sjöfart
+    output_nodes:
+    - inrikes-sjofart
+    type: kpr.ActionNode
+    description: Lösningen innebär att fossila drivmedel ersätts med hållbart producerade
+      biodrivmedel som bidrar till minskade utsläpp av växthusgaser.
+    params:
+      panorama_id: bf7cd1ef-b757-47f9-8290-649cb0572607
+  - id: energieffektiva-fartyg
+    name: Energieffektiva fartyg
+    output_nodes:
+    - inrikes-sjofart
+    type: kpr.ActionNode
+    description: Lösningen innebär att energieffektiviteten hos fartyg ökar, vilket
+      innebär att utsläppen per varje utfört transportarbete (persontransport och
+      godstransport) blir mindre.
+    params:
+      panorama_id: 24c03233-c271-4738-87c7-84bb3bf2895b
+  - id: klimateffektivt-fossilt-bransle-for-inrikes-sjofart
+    name: Klimateffektivt fossilt bränsle för inrikes sjöfart
+    output_nodes:
+    - inrikes-sjofart
+    type: kpr.ActionNode
+    description: 'Lösningen innebär att konventionell fossil eldningsolja som används
+      inom sjöfarten byts ut mot flytande naturgas (LNG). Naturgas är ett renare bränsle
+      som förutom att minska klimatpåverkan med omkring 15 procent också minskar utsläppen
+      av stoft, sot, kväveoxider och svavel.
+
+
+      Potentialbedömningen är baserad på IVL:s rapport Environmental assessment of
+      Sweden-related LNG fleet in the Baltic Sea and
+
+      the North Sea.'
+    params:
+      panorama_id: 78b71ff3-5767-41ba-8b5b-6b4a2cdffc88
+  - id: biodrivmedel-for-inrikes-flyg
+    name: Biodrivmedel för inrikes flyg
+    output_nodes:
+    - inrikes-flyg
+    type: kpr.ActionNode
+    description: 'Lösningen innebär att fossilt flygbränsle ersätts med hållbart producerade
+      biobränslen.
+
+
+      Potentialbedömningen bygger på utredningen "Biojet för flyget" som ligger till
+      grund för den reduktionsplikt som regeringen har implementerat för flygbränsle.'
+    params:
+      panorama_id: a0bbea7a-f25c-41f7-b89d-aaa50130d82f
+  - id: energieffektiva-flygplan
+    name: Energieffektiva flygplan
+    output_nodes:
+    - inrikes-flyg
+    type: kpr.ActionNode
+    description: Lösningen innebär att flygplan blir mer energieffektiva, vilket innebär
+      att mindre bränsle går åt till att utföra samma trafikarbete.
+    params:
+      panorama_id: 72069bbc-71b9-4615-ab96-40a0661a0c90
+  - id: overflyttning-fran-flyg-till-jarnvag
+    name: Överflyttning från flyg till järnväg
+    output_nodes:
+    - inrikes-flyg
+    type: kpr.ActionNode
+    description: Inrikes persontransporter med flyg kan i många fall ersättas med
+      tåg.
+    params:
+      panorama_id: 3fe430e1-2046-4c8b-91d5-42e725ab0b4f
+  - id: biodrivmedel-for-militara-transporter
+    name: Biodrivmedel för militära transporter
+    output_nodes:
+    - militara-transporter
+    type: kpr.ActionNode
+    description: Lösningen innebär att fossila drivmedel ersätts med hållbart producerade
+      biodrivmedel, vilket minskar utsläppen. Vår bedömning är att biodrivmedel är
+      den lösning som har bäst potential för militära transporter eftersom elektrifiering
+      sannolikt inte kommer att bidra med utsläppsminskning till 2030 inom militära
+      transporter.
+    params:
+      panorama_id: a6913772-19ea-4751-8ed6-91e62a0f0d8f
+  - id: ersattning-av-fluorerade-gaser
+    name: Ersättning av fluorerade gaser
+    output_nodes:
+    - losningsmedel-och-produktanvandning
+    type: kpr.ActionNode
+    description: Lösningen innebär att fluorerade gaser ersätts med gaser som har
+      lägre klimatpåverkan eller ingen klimatpåverkan alls.
+    params:
+      panorama_id: ec09f9e4-3a45-44df-8352-6edea561b73b
+  - id: destruering-av-f-gaser
+    name: Destruering av F-gaser
+    output_nodes:
+    - losningsmedel-och-produktanvandning
+    type: kpr.ActionNode
+    description: Lösningen innebär att f-gaser destrueras i samband med skrotning
+      eller service av produkter så att de inte bidrar med någon klimatpåverkan.
+    params:
+      panorama_id: 476d805b-b1a3-4f5f-9919-2bf8867a1229
+  - id: ersattning-av-losningsmedel
+    name: Ersättning av lösningsmedel
+    output_nodes:
+    - losningsmedel-och-produktanvandning
+    type: kpr.ActionNode
+    description: Lösningen innebär att lösningsmedel som ger upphov till växthusgasutsläpp
+      ersätts med andra alternativ som inte ger lika stor växthusgaspåverkan.
+    params:
+      panorama_id: f3b71ea0-de34-4790-a5f7-92160df11d0f
+  - id: minskad-anvandning-av-losningsmedel
+    name: Minskad användning av lösningsmedel
+    output_nodes:
+    - losningsmedel-och-produktanvandning
+    type: kpr.ActionNode
+    description: Lösningen innebär att övrig produktanvändning som ger upphov till
+      växthusgasutsläpp ersätts med andra produkter vilket minskar växthusgasutsläppen.
+      Exempel på övriga produkter är paraffin, smörjmedel, fyrverkerier och tobaksrökning.
+    params:
+      panorama_id: 5fd0294d-0f23-4bbe-8989-27cd0f011a62
+  - id: biodrivmedel-for-arbetsmaskiner
+    name: Biodrivmedel för arbetsmaskiner
+    output_nodes:
+    - arbetsmaskiner
+    type: kpr.ActionNode
+    description: Lösningen innebär att fossila drivmedel som används till arbetsmaskiner
+      ersätts med biodrivmedel. Potentialen för det är stor, eftersom det finns biodiesel
+      som kan användas i dieselmotorer utan att några modifieringar är nödvändiga.
+      Biodiesel blandas också in i vanlig diesel för att minska dess klimatpåverkan.
+    params:
+      panorama_id: 0c3869df-f23e-4378-933c-85fc2ba54ffc
+  - id: forbattrad-energieffektivitet
+    name: Förbättrad energieffektivitet
+    output_nodes:
+    - arbetsmaskiner
+    type: kpr.ActionNode
+    description: Lösningen innebär att arbetsmaskiner effektiviseras genom hybridisering,
+      alltså att bränslebaserade system kombineras med elektriska dito som ökar effektiviteten
+      och minskar utsläppen.
+    params:
+      panorama_id: f3bf6655-6338-4eed-87ff-3f863ecd7500
+  - id: elektrifiering-av-arbetsmaskiner
+    name: Elektrifiering av arbetsmaskiner
+    output_nodes:
+    - arbetsmaskiner
+    type: kpr.ActionNode
+    description: Lösningen innebär att bränsledrivna arbetsmaskiner ersätts med eldrivna
+      som är mer effektiva och inte bidrar med några direkta utsläpp av växthusgaser.
+    params:
+      panorama_id: 5766e4cf-bfb7-4c5a-8249-62dc233a45e9
+  - id: minskat-lackage
+    name: Minskat läckage
+    output_nodes:
+    - avfall
+    type: kpr.ActionNode
+    description: Lösningen innebär att läckaget av växthusgaser från nedbrytning av
+      organiskt avfall minskas. Den främsta utsläppskällan är metan från avfallsdeponier.
+    params:
+      panorama_id: a0426e4e-a637-404d-99d4-1cd3e001951f
+  - id: effektivare-behandling
+    name: Effektivare behandling
+    output_nodes:
+    - avfall
+    type: kpr.ActionNode
+    description: Lösningen innebär att metoderna för behandling av avfall blir mer
+      effektiva vilket minskar utsläppen av växthusgaser.
+    params:
+      panorama_id: b69b93d5-c86f-478e-8c9a-20dfbecdc001
+  scenarios:
+  - id: baseline
+    name: Baseline
+  - id: default
+    name: Nettonollutsläpp 2045
+    all_actions_enabled: true
+    default: true
+
