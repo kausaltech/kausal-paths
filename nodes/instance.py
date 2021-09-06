@@ -270,7 +270,8 @@ class InstanceLoader:
         instance = self.instance
         instance.pages = {}
 
-        for pc in self.config['pages']:
+        pages = self.config.get('pages', [])
+        for pc in pages:
             assert pc['id'] not in instance.pages
             page_type = pc.pop('type')
             if page_type == 'emission':

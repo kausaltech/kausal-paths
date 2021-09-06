@@ -20,7 +20,22 @@ if True:
 
 load_dotenv()
 
-loader = InstanceLoader.from_yaml('configs/tampere.yaml')
+parser = argparse.ArgumentParser(description='Execute the computational graph')
+parser.add_argument('--config', type=str, help='config yaml file')
+parser.add_argument('--baseline', action='store_true', help='generate baseline scenario values')
+parser.add_argument('--scenario', type=str, help='select scenario')
+parser.add_argument('--param', action='append', type=str, help='set a parameter')
+parser.add_argument('--list-params', action='store_true', help='list parameters')
+parser.add_argument('--debug', action='store_true', help='enable debug messages and disable cache')
+parser.add_argument('--check', action='store_true', help='perform sanity checking')
+parser.add_argument('--skip-cache', action='store_true', help='skip caching')
+parser.add_argument('--node', type=str, nargs='+', help='compute node')
+parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
+parser.add_argument('--print-graph', action='store_true', help='print the graph')
+args = parser.parse_args()
+
+
+loader = InstanceLoader.from_yaml(args.config or 'configs/tampere.yaml')
 context = loader.context
 
 page = list(loader.instance.pages.values())[0]
@@ -45,18 +60,7 @@ def print_metric(metric):
         print(val)
 
 
-parser = argparse.ArgumentParser(description='Execute the computational graph')
-parser.add_argument('--baseline', action='store_true', help='generate baseline scenario values')
-parser.add_argument('--scenario', type=str, help='select scenario')
-parser.add_argument('--param', action='append', type=str, help='set a parameter')
-parser.add_argument('--list-params', action='store_true', help='list parameters')
-parser.add_argument('--debug', action='store_true', help='enable debug messages and disable cache')
-parser.add_argument('--check', action='store_true', help='perform sanity checking')
-parser.add_argument('--skip-cache', action='store_true', help='skip caching')
-parser.add_argument('--node', type=str, nargs='+', help='compute node')
-parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
-parser.add_argument('--print-graph', action='store_true', help='print the graph')
-args = parser.parse_args()
+
 
 if args.print_graph:
     context.print_graph()
