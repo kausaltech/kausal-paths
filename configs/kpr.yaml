@@ -6,12 +6,15 @@ instance:
     commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
   name: Panorama
   target_year: 2045
-  reference_year: 1990
+  minimum_historical_year: 2010
+  maximum_historical_year: 2019
+  reference_year: 2010
   nodes:
   - id: net_emissions
     name: Sveriges växthusgasutsläpp
     type: simple.SectorEmissions
     unit: kt
+    target_year_goal: 0
   - id: transport
     output_nodes:
     - net_emissions
