@@ -451,20 +451,20 @@ instance:
     - id: grain_consumption_change
       name: Viljojen kulutus muuttuu
       name_en: Grain consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
         - other_grain_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kg/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt
+            default: 0
+          min_value: 0
+          max_value: 140
+          step: 1
+          unit: kg
           description: Viljan kulutuksen muutos
           description_en: Change in grain consumption
 
@@ -481,10 +481,10 @@ instance:
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
+            default: 0
+          min_value: -31
+          max_value: 60
+          step: 1
           unit: kt
           description: Kalan kulutuksen muutos
           description_en: Change in fish consumption
