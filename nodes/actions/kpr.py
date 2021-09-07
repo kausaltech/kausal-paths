@@ -54,5 +54,6 @@ class ActionNode(BaseActionNode):
         df[VALUE_COLUMN] = df[VALUE_COLUMN].interpolate()
         df *= self.get_parameter_value('panorama_reduction_mton') * 1000
         df[FORECAST_COLUMN] = True
+        df.loc[df.index < 2020, FORECAST_COLUMN] = False
 
         return df
