@@ -9,7 +9,7 @@ instance:
   minimum_historical_year: 2010
   maximum_historical_year: 2018
   emission_dataset: tampere/scenarios/emissions/bau
-  emission_unit: kt
+  emission_unit: kt/day
   emission_forecast_from: 2019
   params:
     - id: municipality_name
@@ -88,7 +88,7 @@ instance:
       name_en: Other grain emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -101,7 +101,7 @@ instance:
       name_en: Grain consumption per person
       type: simple.AdditiveNode
       quantity: per_capita
-      unit: g/person
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -114,7 +114,7 @@ instance:
       name_en: Grain consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t # FIXIT Does dvctest not know the unit in the data?
+      unit: t/day # FIXIT Does dvctest not know the unit in the data?
       input_nodes:
         - population
       output_nodes:
@@ -136,7 +136,7 @@ instance:
       name_en: Imported fish emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -149,7 +149,7 @@ instance:
       name_en: Imported fish consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -162,7 +162,7 @@ instance:
       name_en: Fruit and berry emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       color: '#397368'
       target_year_goal: 1
       params: 
@@ -176,7 +176,7 @@ instance:
       name_en: Fruit and berry consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -189,7 +189,7 @@ instance:
       name_en: Meat emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       color: '#ABC872'
       target_year_goal: 1
       params: 
@@ -203,7 +203,7 @@ instance:
       name_en: Meat consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -216,7 +216,7 @@ instance:
       name_en: Legume and nut emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       color: '#BBC862'
       target_year_goal: 1
       params: 
@@ -230,7 +230,7 @@ instance:
       name_en: Legume and nut consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -243,7 +243,7 @@ instance:
       name_en: Milk and dairy emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       color: '#CBC852'
       target_year_goal: 1
       params: 
@@ -257,7 +257,7 @@ instance:
       name_en: Milk and dairy consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -270,7 +270,7 @@ instance:
       name_en: Vegetable emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       color: '#DBC842'
       target_year_goal: 1
       params: 
@@ -284,7 +284,7 @@ instance:
       name_en: Vegetable consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -297,7 +297,7 @@ instance:
       name_en: Oatdrink emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/d
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -310,7 +310,7 @@ instance:
       name_en: Oatdrink consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -323,7 +323,7 @@ instance:
       name_en: Domestic fish emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt
+      unit: kt/a
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -336,7 +336,7 @@ instance:
       name_en: Domestic fish consumption
       type: simple.AdditiveNode
       quantity: mass
-      unit: kt 
+      unit: kt/a 
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
@@ -478,7 +478,7 @@ instance:
         - other_grain_consumption_per_capita
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: g/person
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
@@ -486,7 +486,7 @@ instance:
           min_value: 0
           max_value: 140
           step: 1
-          unit: g/person
+          unit: g/day/person
           description: Viljan kulutuksen muutos
           description_en: Change in grain consumption
 
@@ -499,7 +499,7 @@ instance:
         - imported_fish_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -507,7 +507,7 @@ instance:
           min_value: -31
           max_value: 60
           step: 1
-          unit: kt
+          unit: kt/a
           description: Kalan kulutuksen muutos
           description_en: Change in fish consumption
 
@@ -519,7 +519,7 @@ instance:
         - fruit_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -527,7 +527,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Hedelmien ja marjojen kulutuksen muutos
           description_en: Change in fruit and berry consumption
 
@@ -539,7 +539,7 @@ instance:
         - meat_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -547,7 +547,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Lihan kulutuksen muutos
           description_en: Change in meat consumption
 
@@ -559,7 +559,7 @@ instance:
         - legume_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -567,7 +567,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Palkokasvien ja pähkinöiden kulutuksen muutos
           description_en: Change in legume and nut consumption
 
@@ -579,7 +579,7 @@ instance:
         - dairy_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -587,7 +587,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Maitotuotteiden kulutuksen muutos
           description_en: Change in dairy consumption
 
@@ -599,7 +599,7 @@ instance:
         - vegetable_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -607,7 +607,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Vihannesten kulutuksen muutos
           description_en: Change in vegetable consumption
 
@@ -619,7 +619,7 @@ instance:
         - oatdrink_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -627,7 +627,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Kaurajuoman kulutuksen muutos
           description_en: Change in oatdrink consumption
 
@@ -639,7 +639,7 @@ instance:
         - domestic_fish_consumption
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt
+      unit: kt/a
       params:
         - id: target_year_level
           values:
@@ -647,7 +647,7 @@ instance:
           min_value: -1000
           max_value: 0
           step: 10
-          unit: kt
+          unit: kt/a
           description: Kotimaisen kalan kulutuksen muutos
           description_en: Change in domestic fish consumption
 
