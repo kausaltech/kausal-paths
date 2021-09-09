@@ -754,11 +754,11 @@ instance:
       params:
         - id: imported_fish_consumption_change.enabled
           value: true
-#        - id: cleaner_electricity_production.enabled
-#          value: true
 
     - id: default
       default: true
-      name: Hiilineutraali Tampere 2030 -tiekartta
-      name_en: Carbon-neutral Tampere 2030 roadmap
+      name: Liha puoleen
+      name_en: Cut meat consumption to a half
       all_actions_enabled: true
+        - id: grain_consumption_change.enabled
+          value: 269
