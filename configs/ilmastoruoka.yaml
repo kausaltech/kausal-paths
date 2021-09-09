@@ -96,7 +96,7 @@ instance:
       output_nodes:
         - grain_emissions
 
-    - id: other_grain_consumption_per_capita
+    - id: other_grain_consumption_per_person
       name: Viljan kulutus per henkilö
       name_en: Grain consumption per person
       type: simple.AdditiveNode
@@ -147,15 +147,26 @@ instance:
     - id: imported_fish_consumption
       name: Tuontikalan kulutus
       name_en: Imported fish consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - imported_fish_emissions
+
+    - id: imported_fish_consumption_per_person
+      name: Tuontikalan kulutus per henkilö
+      name_en: Imported fish consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - imported_fish_emissions
+        - imported_fish_consumption
 
     - id: fruit_emissions
       name: Hedelmien ja marjojen päästöt
@@ -174,15 +185,26 @@ instance:
     - id: fruit_consumption
       name: Hedelmien ja marjojen kulutus
       name_en: Fruit and berry consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - fruit_emissions
+
+    - id: fruit_consumption_per_person
+      name: Hedelmien ja marjojen kulutus per henkilö
+      name_en: Fruit and berry consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - fruit_emissions
+        - fruit_consumption
 
     - id: meat_emissions
       name: Lihan päästöt
@@ -201,15 +223,26 @@ instance:
     - id: meat_consumption
       name: Lihan kulutus
       name_en: Meat consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - meat_emissions
+
+    - id: meat_consumption_per_person
+      name: Lihan kulutus per henkilö
+      name_en: Meat consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - meat_emissions
+        - meat_consumption
 
     - id: legume_emissions
       name: Palkokasvien ja pähkinöiden päästöt
@@ -228,15 +261,26 @@ instance:
     - id: legume_consumption
       name: Palkokasvien ja pähkinöiden kulutus
       name_en: Legume and nut consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - legume_emissions
+
+    - id: legume_consumption_per_person
+      name: Palkokasvien ja pähkinöiden kulutus per henkilö
+      name_en: Legume and nut consumption per henkilö
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - legume_emissions
+        - legume_consumption
 
     - id: dairy_emissions
       name: Maitotuotteiden päästöt
@@ -253,17 +297,28 @@ instance:
         - net_emissions
 
     - id: dairy_consumption
-      name: maitotuotteiden kulutus
+      name: Maitotuotteiden kulutus
       name_en: Milk and dairy consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - dairy_emissions
+
+    - id: dairy_consumption_per_person
+      name: Maitotuotteiden kulutus per henkilö
+      name_en: Milk and dairy consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - dairy_emissions
+        - dairy_consumption
 
     - id: vegetable_emissions
       name: Vihannesten päästöt
@@ -282,15 +337,26 @@ instance:
     - id: vegetable_consumption
       name: Vihannesten kulutus
       name_en: Vegetable consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - vegetable_emissions
+
+    - id: vegetable_consumption_per_person
+      name: Vihannesten kulutus per henkilö
+      name_en: Vegetable consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - vegetable_emissions
+        - vegetable_consumption
 
     - id: oatdrink_emissions
       name: Kaurajuoman päästöt
@@ -308,15 +374,26 @@ instance:
     - id: oatdrink_consumption
       name: Kaurajuoman kulutus
       name_en: Oatdrink consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - oatdrink_emissions
+
+    - id: oatdrink_consumption_per_person
+      name: Kaurajuoman kulutus per henkilö
+      name_en: Oatdrink consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - oatdrink_emissions
+        - oatdrink_consumption
 
     - id: domestic_fish_emissions
       name: Kotimaisen kalan päästöt
@@ -334,19 +411,30 @@ instance:
     - id: domestic_fish_consumption
       name: Kotimaisen kalan kulutus
       name_en: Domestic fish consumption
-      type: simple.AdditiveNode
+      type: simple.PerCapitaActivity
       quantity: mass
-      unit: kt/a 
+      unit: t/a
+      input_nodes:
+        - population
+      output_nodes:
+        - domestic_fish_emissions
+
+    - id: domestic_fish_consumption_per_person
+      name: Kotimaisen kalan kulutus per henkilö
+      name_en: Domestic fish consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
           dropna: true
       output_nodes:
-        - domestic_fish_emissions
+        - domestic_fish_consumption
 
 ################
 
-#    - id: other_electricity_consumption_per_capita
+#    - id: other_electricity_consumption_per_person
 #      name: Sähkönkulutus asukasta kohti
 #      name_en: Electricity consumption per capita
 #      type: simple.AdditiveNode
@@ -475,9 +563,9 @@ instance:
       name_en: Grain consumption change
       quantity: per_capita
       output_nodes:
-        - other_grain_consumption_per_capita
+        - other_grain_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
+      forecast_values: [[2019, 0], [2030, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -494,12 +582,12 @@ instance:
       name: Kalan kulutus muuttuu
       name_en: Fish consumption change
 #      decision_level: nation
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - imported_fish_consumption
+        - imported_fish_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
@@ -507,153 +595,154 @@ instance:
           min_value: -31
           max_value: 60
           step: 1
-          unit: kt/a
+          unit: g/day/person
           description: Kalan kulutuksen muutos
           description_en: Change in fish consumption
 
     - id: fruit_consumption_change
       name: Hedelmien ja marjonen kulutus muuttuu
       name_en: Fruit and berry consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - fruit_consumption
+        - fruit_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt/a
+            default: 0
+          min_value: 0
+          max_value: 180
+          step: 1
+          unit: g/day/person
           description: Hedelmien ja marjojen kulutuksen muutos
           description_en: Change in fruit and berry consumption
 
     - id: meat_consumption_change
       name: Lihan kulutus muuttuu
       name_en: Meat consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - meat_consumption
+        - meat_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
+            default: 0
+          min_value: -142
           max_value: 0
-          step: 10
-          unit: kt/a
+          step: 1
+          unit: g/day/person
           description: Lihan kulutuksen muutos
           description_en: Change in meat consumption
 
     - id: legume_consumption_change
       name: Palkokasvien ja pähkinöiden kulutus muuttuu
       name_en: Legume and nut consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - legume_consumption
+        - legume_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt/a
+            default: 0
+          min_value: 0
+          max_value: 210
+          step: 1
+          unit: g/day/person
           description: Palkokasvien ja pähkinöiden kulutuksen muutos
           description_en: Change in legume and nut consumption
 
     - id: dairy_consumption_change
       name: Maitotuotteiden kulutus muuttuu
       name_en: Dairy product consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - dairy_consumption
+        - dairy_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt/a
+            default: 0
+          min_value: -488
+          max_value: 40
+          step: 1
+          unit: g/day/person
           description: Maitotuotteiden kulutuksen muutos
           description_en: Change in dairy consumption
 
     - id: vegetable_consumption_change
       name: Vihannesten kulutus muuttuu
       name_en: Vegetable consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - vegetable_consumption
+        - vegetable_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt/a
+            default: 0
+          min_value: 0
+          max_value: 210
+          step: 1
+          unit: g/day/person
           description: Vihannesten kulutuksen muutos
           description_en: Change in vegetable consumption
 
     - id: oatdrink_consumption_change
       name: Kaurajuoman kulutus muuttuu
       name_en: Oatdrink consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - oatdrink_consumption
+        - oatdrink_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt/a
+            default: 0
+          min_value: 0
+          max_value: 580
+          step: 1
+          unit: g/day/person
           description: Kaurajuoman kulutuksen muutos
           description_en: Change in oatdrink consumption
 
     - id: domestic_fish_consumption_change
       name: Kotimaisen kalan kulutus muuttuu
       name_en: Domestic fish consumption change
-      quantity: mass
+      quantity: per_capita
       output_nodes:
-        - domestic_fish_consumption
+        - domestic_fish_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -500]]
-      unit: kt/a
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
       params:
         - id: target_year_level
           values:
-            default: -400
-          min_value: -1000
-          max_value: 0
-          step: 10
-          unit: kt/a
+            default: 0
+          min_value: -10
+          max_value: 20
+          step: 1
+          unit: g/day/person
           description: Kotimaisen kalan kulutuksen muutos
           description_en: Change in domestic fish consumption
 
   pages:
     - id: home
-      name: Hiilineutraali Tampere 2030 -päästöskenaario
+      name: Ilmastoruokaohjelman päästö- ja vaikutusarviot
+#      name_en: Climate emission and impact estimates of the Climate Food Program
       path: '/'
       type: emission
       node: net_emissions
