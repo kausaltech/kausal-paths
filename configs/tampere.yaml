@@ -1,7 +1,9 @@
 instance:
   id: tampere
   default_language: fi
-  dataset_repo: https://github.com/kausaltech/dvctest.git
+  dataset_repo:
+    url: https://github.com/kausaltech/dvctest.git
+    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
   target_year: 2030

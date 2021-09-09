@@ -90,9 +90,13 @@ class InstanceLoader:
 
         unit = config.get('unit')
         if unit is None:
-            unit = getattr(node_class, 'unit', None)
+            unit = getattr(node_class, 'unit')
         if unit:
             unit = self.context.unit_registry(unit).units
+
+        quantity = config.get('quantity')
+        if quantity is None:
+            quantity = getattr(node_class, 'quantity')
 
         # If the graph doesn't specify input datasets, the node
         # might.
@@ -122,7 +126,7 @@ class InstanceLoader:
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             unit=unit,
-            quantity=config.get('quantity'),
+            quantity=quantity,
             target_year_goal=config.get('target_year_goal'),
             input_datasets=datasets,
         )
@@ -266,7 +270,8 @@ class InstanceLoader:
         instance = self.instance
         instance.pages = {}
 
-        for pc in self.config['pages']:
+        pages = self.config.get('pages', [])
+        for pc in pages:
             assert pc['id'] not in instance.pages
             page_type = pc.pop('type')
             if page_type == 'emission':
@@ -313,7 +318,10 @@ class InstanceLoader:
                 raise Exception('static_datasets and dataset_repo may not be specified at the same time')
             dataset_repo = dvc_pandas.StaticRepository(static_datasets)
         else:
-            dataset_repo = dvc_pandas.Repository(repo_url=self.config['dataset_repo'])
+            dataset_repo_config = self.config['dataset_repo']
+            repo_url = dataset_repo_config['url']
+            commit = dataset_repo_config.get('commit')
+            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, commit=commit)
         target_year = self.config['target_year']
         self.context = Context(dataset_repo, target_year)
 

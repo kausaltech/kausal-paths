@@ -36,7 +36,7 @@ class Node:
     # if the node has an established visualisation color
     color: Optional[str]
 
-    # output unit (from pint, for dimensionless quantities, give something that cancels out, e.g. m/m)
+    # output unit (from pint)
     unit: pint.Unit
     # output quantity (like 'energy' or 'emissions')
     quantity: Optional[str]
@@ -67,6 +67,9 @@ class Node:
         self, id, name, quantity, description=None, color=None, unit=None, target_year_goal=None,
         input_datasets: List[Dataset] = None,
     ):
+        if quantity not in KNOWN_QUANTITIES:
+            raise Exception(f"Quantity {quantity} is unknown")
+
         if input_datasets is None:
             input_datasets = []
 
@@ -75,8 +78,7 @@ class Node:
         self.description = description
         self.color = color
         self.unit = unit
-        if not hasattr(self, 'quantity') or quantity is not None:  # Could be set on the class-level
-            self.quantity = quantity
+        self.quantity = quantity
         self.target_year_goal = target_year_goal
         self.input_dataset_instances = input_datasets
         self.input_nodes = []
@@ -84,9 +86,6 @@ class Node:
         self.baseline_values = None
         self.parameters = {}
         self.content = None
-
-        if self.quantity not in KNOWN_QUANTITIES:
-            raise Exception(f"Quantity {self.quantity} is unknown")
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -228,9 +227,6 @@ class Node:
         return True
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
-        if self.unit is None:
-            return s
-
         pt = pint_pandas.PintType(self.unit)
         if hasattr(s, 'pint'):
             if not self.unit.is_compatible_with(s.pint.units):

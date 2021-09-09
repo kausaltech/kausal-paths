@@ -165,10 +165,11 @@ class Dataset:
     @classmethod
     def from_fixed_values(
         kls, id: str,
-        unit: Optional[pint.Unit],
+        unit: pint.Unit,
         historical: List[Tuple[int, float]] = None,
         forecast: List[Tuple[int, float]] = None,
     ) -> Dataset:
+        """Use `dimensionless` for `unit` if the quantities should be dimensionless."""
         if historical:
             hdf = pd.DataFrame(historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
             hdf[FORECAST_COLUMN] = False
@@ -194,12 +195,11 @@ class Dataset:
         df = df.set_index(YEAR_COLUMN)
 
         # Ensure value column has right units
-        if unit is not None:
-            pt = pint_pandas.PintType(unit)
-            for col in df.columns:
-                if col == FORECAST_COLUMN:
-                    continue
-                df[col] = df[col].astype(float).astype(pt)
+        pt = pint_pandas.PintType(unit)
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            df[col] = df[col].astype(float).astype(pt)
 
         ds = Dataset(id=id)
         ds.fixed_data = df

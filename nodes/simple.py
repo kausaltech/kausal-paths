@@ -21,12 +21,12 @@ class SimpleNode(Node):
     allowed_parameters = [
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
-            label=TranslatedString("Fill in gaps in computation using input dataset"),
+            label=TranslatedString(en="Fill in gaps in computation using input dataset"),
             is_customizable=False
         ),
         BoolParameter(
             local_id='replace_output_using_input_dataset',
-            label=TranslatedString("Replace output using input dataset"),
+            label=TranslatedString(en="Replace output using input dataset"),
             is_customizable=False
         )
     ]
