@@ -571,8 +571,6 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: 0
           max_value: 140
           step: 1
@@ -581,8 +579,8 @@ instance:
           description_en: Change in grain consumption
 
     - id: imported_fish_consumption_change
-      name: Kalan kulutus muuttuu
-      name_en: Fish consumption change
+      name: Tuontikalan kulutus muuttuu
+      name_en: Imported fish consumption change
 #      decision_level: nation
       quantity: per_capita
       output_nodes:
@@ -592,14 +590,30 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: -31
           max_value: 60
           step: 1
           unit: g/day/person
-          description: Kalan kulutuksen muutos
-          description_en: Change in fish consumption
+          description: Tuontikalan kulutuksen muutos
+          description_en: Change in imported fish consumption
+
+    - id: domestic_fish_consumption_change
+      name: Kotimaisen kalan kulutus muuttuu
+      name_en: Domestic fish consumption change
+      quantity: per_capita
+      output_nodes:
+        - domestic_fish_consumption_per_person
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2019, 0], [2030, 0]]
+      unit: g/day/person
+      params:
+        - id: target_year_level
+          min_value: -10
+          max_value: 40
+          step: 1
+          unit: g/day/person
+          description: Kotimaisen kalan kulutuksen muutos
+          description_en: Change in domestic fish consumption
 
     - id: fruit_consumption_change
       name: Hedelmien ja marjonen kulutus muuttuu
@@ -612,8 +626,6 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: 0
           max_value: 180
           step: 1
@@ -632,8 +644,6 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: -142
           max_value: 0
           step: 1
@@ -652,8 +662,6 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: 0
           max_value: 210
           step: 1
@@ -672,8 +680,6 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: -488
           max_value: 40
           step: 1
@@ -692,8 +698,6 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: 0
           max_value: 210
           step: 1
@@ -712,34 +716,12 @@ instance:
       unit: g/day/person
       params:
         - id: target_year_level
-          values:
-            default: 0
           min_value: 0
           max_value: 580
           step: 1
           unit: g/day/person
           description: Kaurajuoman kulutuksen muutos
           description_en: Change in oatdrink consumption
-
-    - id: domestic_fish_consumption_change
-      name: Kotimaisen kalan kulutus muuttuu
-      name_en: Domestic fish consumption change
-      quantity: per_capita
-      output_nodes:
-        - domestic_fish_consumption_per_person
-      type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
-      unit: g/day/person
-      params:
-        - id: target_year_level
-          values:
-            default: 0
-          min_value: -10
-          max_value: 20
-          step: 1
-          unit: g/day/person
-          description: Kotimaisen kalan kulutuksen muutos
-          description_en: Change in domestic fish consumption
 
   pages:
     - id: home
@@ -752,33 +734,166 @@ instance:
   scenarios:
     - id: baseline
       name: Nykykehitys
-      name_en: Baseline
+      name_en: Current consumption
       params:
-        - id: imported_fish_consumption_change.enabled
-          value: true
+        - id: grain_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: imported_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: domestic_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: fruit_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: legume_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: meat_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: dairy_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: vegetable_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: oatdrink_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
 
     - id: default
-      default: true
       name: Liha puoleen
       name_en: Cut meat consumption to a half
+      default: true
       all_actions_enabled: true
-#      params:
-#        - id: grain_consumption_change.enabled
-#          value: 133
-#        - id: imported_fish_consumption_change.enabled
-#          value: 0
-#        - id: domestic_fish_consumption_change.enabled
-#          value: 0
-#        - id: fruit_consumption_change.enabled
-#          value: 170
-#        - id: legume_consumption_change.enabled
-#          value: 54
-#        - id: meat_consumption_change.enabled
-#          value: -72
-#        - id: dairy_consumption_change.enabled
-#          value: -1
-#        - id: vegetable_consumption_change.enabled
-#          value: 160
-#        - id: oatdrink_consumption_change.enabled
-#          value: 0
+      params:
+        - id: grain_consumption_change.target_year_level
+          value: 133
+          unit: g/day/person
+        - id: imported_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: domestic_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: fruit_consumption_change.target_year_level
+          value: 170
+          unit: g/day/person
+        - id: legume_consumption_change.target_year_level
+          value: 54
+          unit: g/day/person
+        - id: meat_consumption_change.target_year_level
+          value: -72
+          unit: g/day/person
+        - id: dairy_consumption_change.target_year_level
+          value: -1
+          unit: g/day/person
+        - id: vegetable_consumption_change.target_year_level
+          value: 160
+          unit: g/day/person
+        - id: oatdrink_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+
+    - id: meat_to_third
+      name: Liha kolmasosaan
+      name_en: Cut meat consumption to one third
+      all_actions_enabled: true
+      params:
+        - id: grain_consumption_change.target_year_level
+          value: 135
+          unit: g/day/person
+        - id: imported_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: domestic_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: fruit_consumption_change.target_year_level
+          value: 172
+          unit: g/day/person
+        - id: legume_consumption_change.target_year_level
+          value: 59
+          unit: g/day/person
+        - id: meat_consumption_change.target_year_level
+          value: -95
+          unit: g/day/person
+        - id: dairy_consumption_change.target_year_level
+          value: -15
+          unit: g/day/person
+        - id: vegetable_consumption_change.target_year_level
+          value: 169
+          unit: g/day/person
+        - id: oatdrink_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+
+    - id: fishy
+      name: Kalaisa ruokavalio
+      name_en: Fish-based diet
+      all_actions_enabled: true
+      params:
+        - id: grain_consumption_change.target_year_level
+          value: 124
+          unit: g/day/person
+        - id: imported_fish_consumption_change.target_year_level
+          value: 22
+          unit: g/day/person
+        - id: domestic_fish_consumption_change.target_year_level
+          value: 30
+          unit: g/day/person
+        - id: fruit_consumption_change.target_year_level
+          value: 69
+          unit: g/day/person
+        - id: legume_consumption_change.target_year_level
+          value: 133
+          unit: g/day/person
+        - id: meat_consumption_change.target_year_level
+          value: -142
+          unit: g/day/person
+        - id: dairy_consumption_change.target_year_level
+          value: 32
+          unit: g/day/person
+        - id: vegetable_consumption_change.target_year_level
+          value: 210
+          unit: g/day/person
+        - id: oatdrink_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+
+    - id: vegan
+      name: Vegaani ruokaalio
+      name_en: Vegan diet
+      all_actions_enabled: true
+      params:
+        - id: grain_consumption_change.target_year_level
+          value: 132
+          unit: g/day/person
+        - id: imported_fish_consumption_change.target_year_level
+          value: -21
+          unit: g/day/person
+        - id: domestic_fish_consumption_change.target_year_level
+          value: -10
+          unit: g/day/person
+        - id: fruit_consumption_change.target_year_level
+          value: 87
+          unit: g/day/person
+        - id: legume_consumption_change.target_year_level
+          value: 207
+          unit: g/day/person
+        - id: meat_consumption_change.target_year_level
+          value: -142
+          unit: g/day/person
+        - id: dairy_consumption_change.target_year_level
+          value: -488
+          unit: g/day/person
+        - id: vegetable_consumption_change.target_year_level
+          value: 196
+          unit: g/day/person
+        - id: oatdrink_consumption_change.target_year_level
+          value: 572
+          unit: g/day/person
 
