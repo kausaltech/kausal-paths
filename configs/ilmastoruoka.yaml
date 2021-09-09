@@ -96,18 +96,40 @@ instance:
       output_nodes:
         - grain_emissions
 
-    - id: other_grain_consumption
-      name: Viljan kulutus
-      name_en: Grain consumption
+    - id: other_grain_consumption_per_capita
+      name: Viljan kulutus per henkilö
+      name_en: Grain consumption per person
       type: simple.AdditiveNode
-      quantity: mass
-      unit: kt # FIXIT Does dvctest not know the unit in the data?
+      quantity: per_capita
+      unit: g/person
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: District heating
-          dropna: true
+          dropna: false
+      output_nodes:
+        - other_grain_consumption
+
+    - id: other_grain_consumption
+      name: Viljan kulutus
+      name_en: Grain consumption
+      type: simple.PerCapitaActivity
+      quantity: mass
+      unit: t # FIXIT Does dvctest not know the unit in the data?
+      input_nodes:
+        - population
       output_nodes:
         - other_grain_emissions
+
+#    - id: other_electricity_consumption
+#      name: Muu sähkönkulutus
+#      name_en: Other electricity consumption
+#      type: simple.PerCapitaActivity
+#      unit: GWh
+#      quantity: energy
+#      input_nodes:
+#        - population
+#      output_nodes:
+#        - other_electricity_consumption_emissions
 
     - id: imported_fish_emissions
       name: Tuontikalan päästöt
@@ -453,10 +475,10 @@ instance:
       name_en: Grain consumption change
       quantity: per_capita
       output_nodes:
-        - other_grain_consumption
+        - other_grain_consumption_per_capita
       type: simple.LinearCumulativeAdditiveAction
       forecast_values: [[2019, 0], [2030, -500]]
-      unit: kg/person
+      unit: g/person
       params:
         - id: target_year_level
           values:
@@ -464,7 +486,7 @@ instance:
           min_value: 0
           max_value: 140
           step: 1
-          unit: kg
+          unit: g/person
           description: Viljan kulutuksen muutos
           description_en: Change in grain consumption
 
