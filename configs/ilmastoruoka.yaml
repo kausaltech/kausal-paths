@@ -760,5 +760,6 @@ instance:
       name: Liha puoleen
       name_en: Cut meat consumption to a half
       all_actions_enabled: true
+      params:
         - id: grain_consumption_change.enabled
           value: 269
