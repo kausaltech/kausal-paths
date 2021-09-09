@@ -653,7 +653,7 @@ instance:
     - id: rr_cvd_mortality
       name: Sydänkuolleisuuden suhteellinen riski
       name_en: Relative risk of cardiovascular mortality
-      type: simple.RelativeRiskNode
+      type: health.RelativeRiskNode
       quantity: ratio
       unit: dimensionless
       params:
@@ -674,7 +674,7 @@ instance:
     - id: paf_cvd_mortality
       name: Väestösyyosuus
       name_en: Population attributable fraction
-      type: simple.PopulationAttributableFractionNode
+      type: health.PopulationAttributableFractionNode
       quantity: ratio
       unit: dimensionless
       input_nodes: 

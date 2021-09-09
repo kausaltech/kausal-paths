@@ -1,7 +1,9 @@
 instance:
   id: ilmastoruoka
   default_language: fi
-  dataset_repo: https://github.com/kausaltech/dvctest.git
+  dataset_repo:
+    url: https://github.com/kausaltech/dvctest.git
+#    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
   name: Suomen ilmastoruokaohjelma
   name_en: Finnish climate food program
   target_year: 2030
@@ -483,7 +485,7 @@ instance:
     - id: rr_cvd_mortality
       name: Sydänkuolleisuuden suhteellinen riski
       name_en: Relative risk of cardiovascular mortality
-      type: simple.RelativeRiskNode
+      type: health.RelativeRiskNode
       quantity: ratio
       unit: dimensionless
       params:
@@ -504,7 +506,7 @@ instance:
     - id: paf_cvd_mortality
       name: Väestösyyosuus
       name_en: Population attributable fraction
-      type: simple.PopulationAttributableFractionNode
+      type: health.PopulationAttributableFractionNode
       quantity: ratio
       unit: dimensionless
       input_nodes: 
@@ -760,6 +762,23 @@ instance:
       name: Liha puoleen
       name_en: Cut meat consumption to a half
       all_actions_enabled: true
-      params:
-        - id: grain_consumption_change.enabled
-          value: 269
+#      params:
+#        - id: grain_consumption_change.enabled
+#          value: 133
+#        - id: imported_fish_consumption_change.enabled
+#          value: 0
+#        - id: domestic_fish_consumption_change.enabled
+#          value: 0
+#        - id: fruit_consumption_change.enabled
+#          value: 170
+#        - id: legume_consumption_change.enabled
+#          value: 54
+#        - id: meat_consumption_change.enabled
+#          value: -72
+#        - id: dairy_consumption_change.enabled
+#          value: -1
+#        - id: vegetable_consumption_change.enabled
+#          value: 160
+#        - id: oatdrink_consumption_change.enabled
+#          value: 0
+
