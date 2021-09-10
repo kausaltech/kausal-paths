@@ -2,8 +2,10 @@ instance:
   id: ilmastoruoka
   default_language: fi
   dataset_repo:
-    url: https://github.com/kausaltech/dvctest.git
-#    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
+    url: git@github.com:kausaltech/dvctest.git
+    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
+#    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
+#    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
   name: Suomen ilmastoruokaohjelma
   name_en: Finnish climate food program
   target_year: 2030
@@ -105,9 +107,9 @@ instance:
       quantity: per_capita
       unit: g/day/person
       input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: District heating
-          dropna: false
+        - id: ilmastoruoka/consumption
+          column: Vegetable
+          dropna: true
       output_nodes:
         - other_grain_consumption
 
@@ -121,17 +123,6 @@ instance:
         - population
       output_nodes:
         - other_grain_emissions
-
-#    - id: other_electricity_consumption
-#      name: Muu sähkönkulutus
-#      name_en: Other electricity consumption
-#      type: simple.PerCapitaActivity
-#      unit: GWh
-#      quantity: energy
-#      input_nodes:
-#        - population
-#      output_nodes:
-#        - other_electricity_consumption_emissions
 
     - id: imported_fish_emissions
       name: Tuontikalan päästöt
