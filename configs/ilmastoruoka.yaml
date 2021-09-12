@@ -442,19 +442,20 @@ instance:
       name: Nettoterveysvaikutus
       name_en: Net health impact
       type: simple.AdditiveNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: ton/a
       color: '#345678'
 
     - id: imported_fish_health_impact
       name: Tuontikalan terveysvaikutus
       name_en: Imported fish health impact
       type: simple.FixedMultiplierNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: DALY/a
       params:
         - id: multiplier
-          value: 2.0
+          value: 0.71582 
+          unit: DALY/ton
       input_nodes:
         - imported_fish_consumption
       output_nodes:
@@ -464,11 +465,12 @@ instance:
       name: Kotimaisen kkalan terveysvaikutus
       name_en: Domestic fish health impact
       type: simple.FixedMultiplierNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: DALY/a
       params:
         - id: multiplier
-          value: 2.0
+          value: 0.71582
+          unit: DALY/ton
       input_nodes:
         - domestic_fish_consumption
       output_nodes:
@@ -478,8 +480,8 @@ instance:
       name: Kalan terveysvaikutus
       name_en: Fish health impact
       type: simple.AdditiveNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: ton/a
       output_nodes:
         - net_health_impact
 
@@ -487,11 +489,12 @@ instance:
       name: Hedelmien ja marjojen terveysvaikutus
       name_en: Fruit and berries health impact
       type: simple.FixedMultiplierNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: DALY/a
       params:
         - id: multiplier
-          value: 2.0
+          value: 0.12104030 
+          unit: DALY/ton
       input_nodes:
         - fruit_consumption
       output_nodes:
@@ -501,11 +504,12 @@ instance:
       name: Vihannesten terveysvaikutus
       name_en: Vegetable health impact
       type: simple.FixedMultiplierNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: DALY/a
       params:
         - id: multiplier
-          value: 2.0
+          value: 0.07252568 
+          unit: DALY/ton
       input_nodes:
         - vegetable_consumption
       output_nodes:
@@ -515,11 +519,12 @@ instance:
       name: Lihan terveysvaikutus
       name_en: Meat health impact
       type: simple.FixedMultiplierNode
-      quantity: emissions
-      unit: kt/d
+      quantity: disease_burden
+      unit: DALY/a
       params:
         - id: multiplier
-          value: 2.0
+          value: 0 
+          unit: DALY/ton
       input_nodes:
         - meat_consumption
       output_nodes:
