@@ -3,7 +3,7 @@ instance:
   default_language: fi
   dataset_repo:
     url: git@github.com:kausaltech/dvctest.git
-    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
+#    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
 #    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
 #    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
 #    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
@@ -13,12 +13,16 @@ instance:
   reference_year: 2010
   minimum_historical_year: 2010
   maximum_historical_year: 2020
-  emission_dataset: ilmastoruoka/consumption
-  emission_unit: kt/day
+  emission_dataset: ilmastoruoka/emissions
+  emission_unit: kt/a
   emission_forecast_from: 2021
   params:
     - id: municipality_name
       value: Tampere
+
+  # FIXME: Emissions are calculated as g/day/person. Then, they
+  # are multiplied by fake population in excel before uploading to dvctest.
+  # Fetch real population and use that.
 
   emission_sectors:
     - id: net_emissions
@@ -58,23 +62,24 @@ instance:
       name_en: Spices
       column: Spices
       part_of: other_emissions
-    - id: potato_emissions
-      name: Perunat
-      name_en: Potato
-      column: Potato
-      part_of: other_emissions
     - id: sugar_emissions
       name: Sokerit ja makeiset
       name_en: Sugar and sweets
       column: Sugar and sweets
       part_of: other_emissions
 
-    - id: grain_emissions
-      name: Viljatuotteiden päästöt
-      name_en: Grain emissions
+    - id: plant_emissions
+      name: Kasvipäästöt
+      name_en: Plant emissions
       part_of: net_emissions
-      color: '#AD3963'
+      color: '#AD5963'
       target_year_goal: 50
+
+    - id: potato_emissions
+      name: Perunat
+      name_en: Potato
+      column: Potato
+      part_of: plant_emissions
 
     - id: fish_emissions
       name: Kalan päästöt
@@ -88,9 +93,9 @@ instance:
       type: finland.Population
       name: Väestö
 
-    - id: other_grain_emissions
-      name: Muiden viljatuotteiden päästöt
-      name_en: Other grain emissions
+    - id: grain_emissions
+      name: Viljatuotteiden päästöt
+      name_en: Grain emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
@@ -99,9 +104,9 @@ instance:
         - id: multiplier
           value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
-        - grain_emissions
+        - plant_emissions
 
-    - id: other_grain_consumption_per_person
+    - id: grain_consumption_per_person
       name: Viljan kulutus per henkilö
       name_en: Grain consumption per person
       type: simple.AdditiveNode
@@ -109,22 +114,22 @@ instance:
       unit: g/day/person
       input_datasets:
         - id: ilmastoruoka/consumption
-          column: Vegetable
+          column: Grain
           forecast_from: 2021
           dropna: true
       output_nodes:
-        - other_grain_consumption
+        - grain_consumption
 
-    - id: other_grain_consumption
+    - id: grain_consumption
       name: Viljan kulutus
       name_en: Grain consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/day # FIXIT Does dvctest not know the unit in the data?
+      unit: kt/a # FIXIT Does dvctest not know the unit in the data?
       input_nodes:
         - population
       output_nodes:
-        - other_grain_emissions
+        - grain_emissions
 
     - id: imported_fish_emissions
       name: Tuontikalan päästöt
@@ -135,7 +140,7 @@ instance:
       target_year_goal: 1
       params: 
         - id: multiplier
-          value: 5.2681 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
+          value: 7.8562 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
         - fish_emissions
 
@@ -144,7 +149,7 @@ instance:
       name_en: Imported fish consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -176,14 +181,14 @@ instance:
         - id: multiplier
           value: 1.0626
       output_nodes:
-        - net_emissions
+        - plant_emissions
 
     - id: fruit_consumption
       name: Hedelmien ja marjojen kulutus
       name_en: Fruit and berry consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -222,7 +227,7 @@ instance:
       name_en: Meat consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -254,14 +259,14 @@ instance:
         - id: multiplier
           value: 3.2852
       output_nodes:
-        - net_emissions
+        - plant_emissions
 
     - id: legume_consumption
       name: Palkokasvien ja pähkinöiden kulutus
       name_en: Legume and nut consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -300,7 +305,7 @@ instance:
       name_en: Milk and dairy consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -332,14 +337,14 @@ instance:
         - id: multiplier
           value: 1.7156
       output_nodes:
-        - net_emissions
+        - plant_emissions
 
     - id: vegetable_consumption
       name: Vihannesten kulutus
       name_en: Vegetable consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -364,20 +369,20 @@ instance:
       name_en: Oatdrink emissions
       type: simple.FixedMultiplierNode
       quantity: emissions
-      unit: kt/d
+      unit: kt/a
       target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.2928
       output_nodes:
-        - grain_emissions
+        - plant_emissions
 
     - id: oatdrink_consumption
       name: Kaurajuoman kulutus
       name_en: Oatdrink consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -406,7 +411,7 @@ instance:
       target_year_goal: 1
       params: 
         - id: multiplier
-          value: 3.5422
+          value: 7.8562
       output_nodes:
         - fish_emissions
 
@@ -415,7 +420,7 @@ instance:
       name_en: Domestic fish consumption
       type: simple.PerCapitaActivity
       quantity: mass
-      unit: t/a
+      unit: kt/a
       input_nodes:
         - population
       output_nodes:
@@ -436,19 +441,19 @@ instance:
         - domestic_fish_consumption
 
 ################
-# Health impacts
+# health benefits
 
     - id: net_health_impact
-      name: Nettoterveysvaikutus
-      name_en: Net health impact
+      name: Nettoterveyshyöty
+      name_en: Net health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
       unit: ton/a
       color: '#345678'
 
     - id: imported_fish_health_impact
-      name: Tuontikalan terveysvaikutus
-      name_en: Imported fish health impact
+      name: Tuontikalan terveyshyöty
+      name_en: Imported fish health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a
@@ -462,8 +467,8 @@ instance:
         - fish_health_impact
 
     - id: domestic_fish_health_impact
-      name: Kotimaisen kkalan terveysvaikutus
-      name_en: Domestic fish health impact
+      name: Kotimaisen kkalan terveyshyöty
+      name_en: Domestic fish health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a
@@ -477,8 +482,8 @@ instance:
         - fish_health_impact
 
     - id: fish_health_impact
-      name: Kalan terveysvaikutus
-      name_en: Fish health impact
+      name: Kalan terveyshyöty
+      name_en: Fish health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
       unit: ton/a
@@ -486,8 +491,8 @@ instance:
         - net_health_impact
 
     - id: fruit_health_impact
-      name: Hedelmien ja marjojen terveysvaikutus
-      name_en: Fruit and berries health impact
+      name: Hedelmien ja marjojen terveyshyöty
+      name_en: Fruit and berries health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a
@@ -501,8 +506,8 @@ instance:
         - net_health_impact
 
     - id: vegetable_health_impact
-      name: Vihannesten terveysvaikutus
-      name_en: Vegetable health impact
+      name: Vihannesten terveyshyöty
+      name_en: Vegetable health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a
@@ -516,14 +521,14 @@ instance:
         - net_health_impact
 
     - id: meat_health_impact
-      name: Lihan terveysvaikutus
-      name_en: Meat health impact
+      name: Lihan terveyshyöty
+      name_en: Meat health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a
       params:
         - id: multiplier
-          value: 0 
+          value: -1
           unit: DALY/ton
       input_nodes:
         - meat_consumption
@@ -626,9 +631,9 @@ instance:
       name_en: Grain consumption change
       quantity: per_capita
       output_nodes:
-        - other_grain_consumption_per_person
+        - grain_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2028, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -647,7 +652,7 @@ instance:
       output_nodes:
         - imported_fish_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2026, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -665,7 +670,7 @@ instance:
       output_nodes:
         - domestic_fish_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2023, 0], [2030, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -683,7 +688,7 @@ instance:
       output_nodes:
         - fruit_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2028, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -701,7 +706,7 @@ instance:
       output_nodes:
         - meat_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2023, 0], [2028, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -719,7 +724,7 @@ instance:
       output_nodes:
         - legume_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2020, 0], [2027, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -737,7 +742,7 @@ instance:
       output_nodes:
         - dairy_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2030, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -755,7 +760,7 @@ instance:
       output_nodes:
         - vegetable_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2030, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -773,7 +778,7 @@ instance:
       output_nodes:
         - oatdrink_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2026, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
