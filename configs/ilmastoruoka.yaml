@@ -104,7 +104,7 @@ instance:
     - id: grain_emissions
       name: Viljatuotteiden päästöt
       name_en: Grain emissions
-      type: simple.FixedMultiplierNode
+      type: simple.FixedMultiplierNode # EmissionFactorActivity
       quantity: emissions
       unit: kt/a
       target_year_goal: 1
@@ -113,6 +113,19 @@ instance:
           value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
         - plant_emissions
+
+#    - id: grain_emission_factor # FIXME: When time, replace hard-coded multiplires with dataset.
+#      name: Viljatuotteiden päästökerroin
+#      name_en: Grain emission factor
+#      type: simple.AdditiveNode
+#      quantity: emission_factor
+#      unit: dimensionless
+#      input_datasets:
+#        - id: ilmastoruoka/emission_factor
+#          column: Grain
+#          forecast_from: 2021
+#          dropna: true
+#      output_nodes: grain_emissions
 
     - id: grain_consumption_per_person
       name: Viljan kulutus per henkilö
@@ -456,7 +469,7 @@ instance:
       name_en: Net health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
-      unit: ton/a
+      unit: kt/a
       color: '#345678'
 
     - id: imported_fish_health_impact
@@ -467,8 +480,8 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 0.71582 
-          unit: DALY/ton
+          value: 715.82 
+          unit: DALY/kt
       input_nodes:
         - imported_fish_consumption
       output_nodes:
@@ -482,8 +495,8 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 0.71582
-          unit: DALY/ton
+          value: 715.82
+          unit: DALY/kt
       input_nodes:
         - domestic_fish_consumption
       output_nodes:
@@ -494,7 +507,7 @@ instance:
       name_en: Fish health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
-      unit: ton/a
+      unit: kt/a
       output_nodes:
         - net_health_impact
 
@@ -506,8 +519,8 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 0.12104030 
-          unit: DALY/ton
+          value: 121.04030 
+          unit: DALY/kt
       input_nodes:
         - fruit_consumption
       output_nodes:
@@ -521,8 +534,8 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 0.07252568 
-          unit: DALY/ton
+          value: 72.52568 
+          unit: DALY/kt
       input_nodes:
         - vegetable_consumption
       output_nodes:
@@ -536,8 +549,8 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: -1
-          unit: DALY/ton
+          value: -164.290
+          unit: DALY/kt
       input_nodes:
         - meat_consumption
       output_nodes:
@@ -805,6 +818,13 @@ instance:
       type: emission
       node: net_emissions
 
+#    - id: health
+#      name: Ilmastoruokaohjelman terveysvaikutusarviot
+#      name_en: Climate emission and impact estimates of the Climate Food Program
+#      path: '/health/'
+#      type: emission
+#      node: net_health_impact
+
   scenarios:
     - id: baseline
       name: Nykykehitys
@@ -840,7 +860,7 @@ instance:
 
     - id: default
       name: Liha puoleen
-      name_en: Cut meat consumption to a half
+      name_en: Half meat consumption
       default: true
       all_actions_enabled: true
       params:
@@ -874,7 +894,7 @@ instance:
 
     - id: meat_to_third
       name: Liha kolmasosaan
-      name_en: Cut meat consumption to one third
+      name_en: One third meat consumption
       all_actions_enabled: true
       params:
         - id: grain_consumption_change.target_year_level
