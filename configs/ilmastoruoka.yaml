@@ -28,14 +28,14 @@ instance:
     - id: net_emissions
       name: Ruoankulutuksen kokonaispäästöt
       name_en: Net emissions from food consumption
-      target_year_goal: 2
+      target_year_goal: 6000
 
     - id: other_emissions
       name: Muut
       name_en: Other foods
       part_of: net_emissions
       color: '#668EC9'
-      target_year_goal: 115
+      target_year_goal: 1000
 
     - id: alcohol_emissions
       name: Alkoholijuomat
@@ -73,7 +73,7 @@ instance:
       name_en: Plant emissions
       part_of: net_emissions
       color: '#AD5963'
-      target_year_goal: 50
+      target_year_goal: 5000
 
     - id: potato_emissions
       name: Perunat
@@ -86,12 +86,20 @@ instance:
       name_en: Fish emissions
       part_of: net_emissions
       color: '#E8B455'
-      target_year_goal: 50
+      target_year_goal: 600
 
   nodes:
     - id: population
-      type: finland.Population
-      name: Väestö
+      name: Suomen väestö
+      name_en: Population in Finland
+      type: simple.AdditiveNode
+      quantity: population
+      unit: person
+      input_datasets:
+        - id: ilmastoruoka/emissions
+          column: Population
+          forecast_from: 2021
+          dropna: true
 
     - id: grain_emissions
       name: Viljatuotteiden päästöt
