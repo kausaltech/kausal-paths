@@ -691,7 +691,7 @@ instance:
       output_nodes:
         - domestic_fish_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2023, 0], [2030, 0]]
+      forecast_values: [[2022, 0], [2030, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -727,7 +727,7 @@ instance:
       output_nodes:
         - meat_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2023, 0], [2028, 0]]
+      forecast_values: [[2022, 0], [2028, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
@@ -745,7 +745,7 @@ instance:
       output_nodes:
         - legume_consumption_per_person
       type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2020, 0], [2027, 0]]
+      forecast_values: [[2022, 0], [2027, 0]]
       unit: g/day/person
       params:
         - id: target_year_level
