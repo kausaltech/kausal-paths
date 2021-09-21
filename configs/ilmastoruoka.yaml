@@ -9,9 +9,9 @@ instance:
 #    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
   name: Suomen ilmastoruokaohjelma
   name_en: Finnish climate food program
-  target_year: 2030
-  reference_year: 2010
-  minimum_historical_year: 2010
+  target_year: 2035
+  reference_year: 2017
+  minimum_historical_year: 2017
   maximum_historical_year: 2020
   emission_dataset: ilmastoruoka/emissions
   emission_unit: kt/a
@@ -29,15 +29,13 @@ instance:
       name: Ruoankulutuksen kokonaispäästöt
       name_en: Net emissions from food consumption
       target_year_goal: 6000
-      description: Tulosten mukaan ravintotaseella korjatun ruokavalion ilmastovaikutukset ovat vain hieman suuremmat kuin ruoankäyttötutkimuksiin perustuvan nykyisen ruokavalion. Kaikkien vaihtoehtoisten ruokavalioiden ilmastovaikutukset ovat alhaisemmat kuin nykyisen ruokavalion ilmastovaikutukset. Ruokavalioiden ilmastovaikutukset myös vähenevät, kun lihan määrä ruokavalioissa pienenee. Liha puoleen –ruokavaliossa ilmastovaikutus väheni 13 %, liha kolmasosaan –ruokavaliossa 19 %, kalaisassa ruokavaliossa 30 % ja vegaanisessa ruokavaliossa 37 % verrattuna nykyiseen ruokavalioon (ruoankäyttötutkimuksiin perustuva keskimääräinen ruokavalio).
 
     - id: other_emissions
-      name: Muut
+      name: Muut päästöt
       name_en: Other foods
       part_of: net_emissions
       color: '#668EC9'
       target_year_goal: 1000
-      description: Muut päästöt sisältävät sellaisia ruoka-aineita, joiden saantia ei voi sivustolla muuttaa. Ne kuitenkin esitetään kokonaisuuden hahmottamiseksi.
 
     - id: alcohol_emissions
       name: Alkoholijuomat
@@ -86,7 +84,6 @@ instance:
       part_of: net_emissions
       color: '#AD5963'
       target_year_goal: 5000
-      description: Kasvituotteiden päästöt näytetään yhtenä kokonaisuutena kokonaispäästöjen yhteydessä.
 
     - id: potato_emissions
       name: Perunat
@@ -113,7 +110,6 @@ instance:
           column: Population
           forecast_from: 2021
           dropna: true
-      description: Väestökehitys perustuu tilastokeskuksen väestötietoon ja ennusteeseen, joka on tehty 2019.
 
     - id: grain_emissions
       name: Viljatuotteiden päästöt
@@ -127,7 +123,6 @@ instance:
           value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
         - plant_emissions
-      description: Suomessa syötyjen viljatuotteiden päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
 #    - id: grain_emission_factor # FIXME: When time, replace hard-coded multiplires with dataset.
 #      name: Viljatuotteiden päästökerroin
@@ -155,7 +150,6 @@ instance:
           dropna: true
       output_nodes:
         - grain_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: grain_consumption
       name: Viljan kulutus
@@ -180,7 +174,6 @@ instance:
           value: 7.8562 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
       output_nodes:
         - fish_emissions
-      description: Suomessa syödyn, ulkomailta tuodun kalan päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: imported_fish_consumption
       name: Tuontikalan kulutus
@@ -206,7 +199,6 @@ instance:
           dropna: true
       output_nodes:
         - imported_fish_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: fruit_emissions
       name: Hedelmien ja marjojen päästöt
@@ -221,7 +213,6 @@ instance:
           value: 1.0626
       output_nodes:
         - plant_emissions
-      description: Suomessa syötyjen hedelmien päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: fruit_consumption
       name: Hedelmien ja marjojen kulutus
@@ -247,7 +238,6 @@ instance:
           dropna: true
       output_nodes:
         - fruit_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: meat_emissions
       name: Lihan päästöt
@@ -262,7 +252,6 @@ instance:
           value: 19.2005
       output_nodes:
         - net_emissions
-      description: Suomessa syötyjen lihatuotteiden päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: meat_consumption
       name: Lihan kulutus
@@ -288,7 +277,6 @@ instance:
           dropna: true
       output_nodes:
         - meat_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: legume_emissions
       name: Palkokasvien ja pähkinöiden päästöt
@@ -303,7 +291,6 @@ instance:
           value: 3.2852
       output_nodes:
         - plant_emissions
-      description: Suomessa syötyjen palkokasvien ja pähkinöiden päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: legume_consumption
       name: Palkokasvien ja pähkinöiden kulutus
@@ -329,7 +316,6 @@ instance:
           dropna: true
       output_nodes:
         - legume_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: dairy_emissions
       name: Maitotuotteiden päästöt
@@ -344,7 +330,6 @@ instance:
           value: 2.1613
       output_nodes:
         - net_emissions
-      description: Suomessa syötyjen maitotuotteiden päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: dairy_consumption
       name: Maitotuotteiden kulutus
@@ -370,7 +355,6 @@ instance:
           dropna: true
       output_nodes:
         - dairy_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: vegetable_emissions
       name: Vihannesten päästöt
@@ -385,7 +369,6 @@ instance:
           value: 1.7156
       output_nodes:
         - plant_emissions
-      description: Suomessa syötyjen vihannesten päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: vegetable_consumption
       name: Vihannesten kulutus
@@ -411,7 +394,6 @@ instance:
           dropna: true
       output_nodes:
         - vegetable_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: oatdrink_emissions
       name: Kaurajuoman päästöt
@@ -425,7 +407,6 @@ instance:
           value: 1.2928
       output_nodes:
         - plant_emissions
-      description: Suomessa juotujen kaurajuomavalmisteiden päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: oatdrink_consumption
       name: Kaurajuoman kulutus
@@ -451,7 +432,6 @@ instance:
           dropna: true
       output_nodes:
         - oatdrink_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
     - id: domestic_fish_emissions
       name: Kotimaisen kalan päästöt
@@ -465,7 +445,6 @@ instance:
           value: 7.8562
       output_nodes:
         - fish_emissions
-      description: Suomessa syödyn kotimaisen kalan päästöt. Arvio perustuu kulutusmääriin ja päästökertoimeen.
 
     - id: domestic_fish_consumption
       name: Kotimaisen kalan kulutus
@@ -491,7 +470,6 @@ instance:
           dropna: true
       output_nodes:
         - domestic_fish_consumption
-      description: Kulutustiedot on saatu Finravinto 2017 -tutkimuksesta. (Valsta ym., THL raportti 12/2018 http://urn.fi/URN:ISBN:978-952-343-238-3)
 
 ################
 # health benefits
@@ -503,7 +481,6 @@ instance:
       quantity: disease_burden
       unit: kt/a
       color: '#345678'
-      description: Ruokavalion terveyshyödyt yhteensä verrattuna perusskenaarioon, jossa ruokavalio pysyy nykyisellään.
 
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
@@ -519,7 +496,6 @@ instance:
         - imported_fish_consumption
       output_nodes:
         - fish_health_impact
-      description: Tuontikalan terveyshyödyt verrattuna perusskenaarioon, jossa ruokavalio pysyy nykyisellään.
 
     - id: domestic_fish_health_impact
       name: Kotimaisen kalan terveyshyöty
@@ -535,7 +511,6 @@ instance:
         - domestic_fish_consumption
       output_nodes:
         - fish_health_impact
-      description: Kotimaisen kalan terveyshyödyt verrattuna perusskenaarioon, jossa ruokavalio pysyy nykyisellään.
 
     - id: fish_health_impact
       name: Kalan terveyshyöty
@@ -560,7 +535,6 @@ instance:
         - fruit_consumption
       output_nodes:
         - net_health_impact
-      description: Hedelmien ja marjojen terveyshyödyt verrattuna perusskenaarioon, jossa ruokavalio pysyy nykyisellään.
 
     - id: vegetable_health_impact
       name: Vihannesten terveyshyöty
@@ -576,7 +550,6 @@ instance:
         - vegetable_consumption
       output_nodes:
         - net_health_impact
-      description: Vihannesten terveyshyödyt verrattuna perusskenaarioon, jossa ruokavalio pysyy nykyisellään.
 
     - id: meat_health_impact
       name: Lihan terveyshyöty
@@ -592,7 +565,6 @@ instance:
         - meat_consumption
       output_nodes:
         - net_health_impact
-      description: Lihankulutuksen vähentämisen terveyshyödyt verrattuna perusskenaarioon, jossa ruokavalio pysyy nykyisellään.
 
 #    - id: pm_emissions
 #      name: Pienhiukkaspäästöt
@@ -906,9 +878,43 @@ instance:
           unit: g/day/person
 
     - id: default
+      name: Kolmanneksen vähennys lihalle
+      name_en: Third reduction for meat consumption
+      default: true
+      all_actions_enabled: true
+      params:
+        - id: grain_consumption_change.target_year_level
+          value: 89
+          unit: g/day/person
+        - id: imported_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: domestic_fish_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+        - id: fruit_consumption_change.target_year_level
+          value: 113
+          unit: g/day/person
+        - id: legume_consumption_change.target_year_level
+          value: 36
+          unit: g/day/person
+        - id: meat_consumption_change.target_year_level
+          value: -48
+          unit: g/day/person
+        - id: dairy_consumption_change.target_year_level
+          value: -1
+          unit: g/day/person
+        - id: vegetable_consumption_change.target_year_level
+          value: 107
+          unit: g/day/person
+        - id: oatdrink_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+
+    - id: meat_to_half
       name: Liha puoleen
       name_en: Half meat consumption
-      default: true
+      default: false
       all_actions_enabled: true
       params:
         - id: grain_consumption_change.target_year_level
