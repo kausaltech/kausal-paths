@@ -34,7 +34,7 @@ instance:
       name: Muut päästöt
       name_en: Other foods
       part_of: net_emissions
-      color: '#668EC9'
+      color: '#72A0C1'
       target_year_goal: 1000
 
     - id: alcohol_emissions
@@ -82,20 +82,21 @@ instance:
       name: Kasvituotteiden päästöt
       name_en: Plant emissions
       part_of: net_emissions
-      color: '#AD5963'
+      color: '#8DB600'
       target_year_goal: 5000
 
     - id: potato_emissions
       name: Perunat
       name_en: Potato
       column: Potato
+      color: '#CC9966'
       part_of: plant_emissions
 
     - id: fish_emissions
       name: Kalan päästöt
       name_en: Fish emissions
       part_of: net_emissions
-      color: '#E8B455'
+      color: '#A6A6A6'
       target_year_goal: 600
 
   nodes:
@@ -117,6 +118,7 @@ instance:
       type: simple.FixedMultiplierNode # EmissionFactorActivity
       quantity: emissions
       unit: kt/a
+      color: '#996515'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -168,6 +170,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
+      color: '#FA8072'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -206,7 +209,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      color: '#397368'
+      color: '#4F86F7'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -245,7 +248,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      color: '#ABC872'
+      color: '#CB4154'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -284,7 +287,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      color: '#BBC862'
+      color: '#3B7A57'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -323,7 +326,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      color: '#CBC852'
+      color: '#FFD300'
       target_year_goal: 1
       params: 
         - id: multiplier
@@ -362,7 +365,7 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      color: '#DBC842'
+      color: '#7BB661'
       target_year_goal: 1
       params: 
         - id: multiplier

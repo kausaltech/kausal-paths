@@ -266,6 +266,15 @@ class FixedMultiplierNode(SimpleNode):
         NumberParameter(local_id='multiplier'),
     ] + SimpleNode.allowed_parameters
 
+#    def get_parameter_value(self, id: str, required: bool = True):
+#        param = self.get_parameter(id, required=required)
+#        if param is None:
+#            return None
+#        if param.unit is None:
+#            return param.value
+#        from nodes.context import unit_registry
+#        return param.value * unit_registry(param.unit).units
+
     def compute(self, context: Context):
         if len(self.input_nodes) != 1:
             raise NodeError(self, 'FixedMultiplier needs exactly one input node')
