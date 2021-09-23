@@ -52,6 +52,8 @@ class ActionNode(BaseActionNode):
 
         df.loc[context.target_year, VALUE_COLUMN] = -1.0
         df[VALUE_COLUMN] = df[VALUE_COLUMN].interpolate()
+        if not self.is_enabled():
+            df.loc[df.index >= 2020, VALUE_COLUMN] = 0
         df *= self.get_parameter_value('panorama_reduction_mton') * 1000
         df[FORECAST_COLUMN] = True
         df.loc[df.index < 2020, FORECAST_COLUMN] = False
