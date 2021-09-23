@@ -18,7 +18,7 @@ instance:
   - id: transport
     output_nodes:
     - net_emissions
-    color: '#56C38E'
+    color: '#60B748'
     params:
       panorama_id: b541b91c-5de1-41e3-8f4c-b8953d98732f
     name: Transport
@@ -61,7 +61,7 @@ instance:
   - id: industri
     output_nodes:
     - net_emissions
-    color: '#336D94'
+    color: '#3395CC'
     params:
       panorama_id: 9ab9786f-1a21-4c25-8cbe-c839b9054c91
     name: Industri
@@ -118,7 +118,7 @@ instance:
   - id: jordbruk
     output_nodes:
     - net_emissions
-    color: '#C88217'
+    color: '#6E3688'
     params:
       panorama_id: 90500c5e-9ec7-4f81-9a7a-dc016716bc28
     name: Jordbruk
@@ -147,7 +147,7 @@ instance:
   - id: energi
     output_nodes:
     - net_emissions
-    color: '#F4CE73'
+    color: '#FFAA00'
     params:
       panorama_id: 052256c3-71e6-44eb-befe-0eb8165fec33
     name: Energi
@@ -169,7 +169,7 @@ instance:
   - id: ovrigt_9170
     output_nodes:
     - net_emissions
-    color: '#D46262'
+    color: '#F75252'
     params:
       panorama_id: 9170cca1-3b7b-4e8f-97f6-e41e527fed66
     name: Övrigt
