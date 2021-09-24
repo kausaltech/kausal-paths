@@ -13,10 +13,39 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN
 from .node import Context, Node
 from .exceptions import NodeError
 
-from .simple import AdditiveNode, SimpleNode
+from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 
 #############################33
 # Health-related constants and classes
+
+class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
+    allowed_parameters = [
+        NumberParameter(local_id='health_factor'),
+    ] + FixedMultiplierNode.allowed_parameters
+
+    quantity = 'disease_burden'
+    unit = 'DALY/a'
+
+    def compute(self, context: Context):
+        if len(self.input_nodes) != 1:
+            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
+
+        node = self.input_nodes[0]
+
+        df = node.get_output(context)
+        multiplier = self.get_parameter_value('health_factor')
+        multiplier = multiplier * unit_registry('DALY/kt').units
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            df[col] *= multiplier
+
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(context, df)
+
+        return df
+
 
 class RelativeRiskNode(AdditiveNode):
     """Applies a function with one input node and parameters.

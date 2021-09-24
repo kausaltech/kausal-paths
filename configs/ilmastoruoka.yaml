@@ -482,19 +482,16 @@ instance:
       name_en: Net health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
-      unit: kt/a
+      unit: DALY/a
       color: '#345678'
 
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
       name_en: Imported fish health benefit
-      type: simple.FixedMultiplierNode
-      quantity: disease_burden
-      unit: DALY/a
+      type: health.FixedMultiplierHealthImpactNode
       params:
-        - id: multiplier
-          value: 715.82 
-          unit: DALY/kt
+        - id: health_factor
+          value: 715.82 # Multiplier must always be in units -DALY/kt of food (benefits are positive numbers)
       input_nodes:
         - imported_fish_consumption
       output_nodes:
@@ -503,13 +500,10 @@ instance:
     - id: domestic_fish_health_impact
       name: Kotimaisen kalan terveyshyöty
       name_en: Domestic fish health benefit
-      type: simple.FixedMultiplierNode
-      quantity: disease_burden
-      unit: DALY/a
+      type: health.FixedMultiplierHealthImpactNode
       params:
-        - id: multiplier
+        - id: health_factor
           value: 715.82
-          unit: DALY/kt
       input_nodes:
         - domestic_fish_consumption
       output_nodes:
@@ -520,20 +514,17 @@ instance:
       name_en: Fish health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
-      unit: kt/a
+      unit: DALY/a
       output_nodes:
         - net_health_impact
 
     - id: fruit_health_impact
       name: Hedelmien ja marjojen terveyshyöty
       name_en: Fruit and berries health benefit
-      type: simple.FixedMultiplierNode
-      quantity: disease_burden
-      unit: DALY/a
+      type: health.FixedMultiplierHealthImpactNode
       params:
-        - id: multiplier
+        - id: health_factor
           value: 121.04030 
-          unit: DALY/kt
       input_nodes:
         - fruit_consumption
       output_nodes:
@@ -542,13 +533,10 @@ instance:
     - id: vegetable_health_impact
       name: Vihannesten terveyshyöty
       name_en: Vegetable health benefit
-      type: simple.FixedMultiplierNode
-      quantity: disease_burden
-      unit: DALY/a
+      type: health.FixedMultiplierHealthImpactNode
       params:
-        - id: multiplier
+        - id: health_factor
           value: 72.52568 
-          unit: DALY/kt
       input_nodes:
         - vegetable_consumption
       output_nodes:
@@ -557,13 +545,10 @@ instance:
     - id: meat_health_impact
       name: Lihan terveyshyöty
       name_en: Meat health benefit
-      type: simple.FixedMultiplierNode
-      quantity: disease_burden
-      unit: DALY/a
+      type: health.FixedMultiplierHealthImpactNode
       params:
-        - id: multiplier
+        - id: health_factor
           value: -164.290
-          unit: DALY/kt
       input_nodes:
         - meat_consumption
       output_nodes:
@@ -1015,7 +1000,7 @@ instance:
           unit: g/day/person
 
     - id: vegan
-      name: Vegaani ruokaalio
+      name: Vegaani ruokavalio
       name_en: Vegan diet
       all_actions_enabled: true
       params:
