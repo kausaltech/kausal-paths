@@ -516,6 +516,14 @@ instance:
       output_nodes:
         - domestic_fish_consumption_per_person
 
+#    - id: p_illness
+#      name: OVA Sairaiden todennäköisyys
+#      name_en: OVA Probability of illness
+#      type: health.DataOvariable
+#      quantity: concentration
+#      unit: mg/kg
+#      baseline_values: pd.DataFrame({'response':['campylobacter infection','giardia infection','norovirus infection'], VALUE_COLUMN:[1,1,1]}).set_index('response')
+
 ################
 # health benefits
 

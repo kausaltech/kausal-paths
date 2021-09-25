@@ -7,6 +7,7 @@ import pint
 from .context import unit_registry
 import numpy as np
 import math
+import copy
 
 from common.i18n import TranslatedString
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
@@ -112,110 +113,56 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
         return df
 
 
-#class RelativeRiskNode(AdditiveNode):
-#    """Applies a function with one input node and parameters.
-#    """
-#    allowed_parameters = [
-#        NumberParameter(local_id='exposure_response_param1'),
-#        NumberParameter(local_id='exposure_response_param2'),
-#    ] + SimpleNode.allowed_parameters
-#
-#    def compute(self, context: Context):
-#
-#        if len(self.input_nodes) != 1:
-#            raise NodeError(self, "Must receive exactly one input")
-#        
-#        input_node = self.input_nodes[0]
-#        beta = unit_registry(self.get_parameter_value('exposure_response_param1'))
-#        threshold = unit_registry(self.get_parameter_value('exposure_response_param2'))
-#
-#        output_unit = input_node.unit #* beta.unit
-#
-#        if not self.is_compatible_unit(context, output_unit, self.unit):
-#            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
-#
-#        df = input_node.get_output(context)
-#
-#        if self.debug:
-#            print('%s: Parameter input from node 1 (%s):' % (self.id, n1.id))
-#            self.print_pint_df(df1)
-#
-#        for col in df.columns: # Why use for loop if we only want to mutate VALUE_COLUMN?
-#            if col == FORECAST_COLUMN:
-#                continue
-#            df[col] = ((beta * (df[col] - threshold))) #.astype(float)) # Should be exp() but fails.
-#            df[col] = np.exp(df[col].astype(float)) #).apply(lambda x: unit_registry.Quantity(x))
-#
-#        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-#
-#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
-#
-#        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
-#        if fill_gaps:
-#            df = self.fill_gaps_using_input_dataset(context, df)
-#        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-#        if replace_output:
-#            df = self.replace_output_using_input_dataset(context, df)
-#        if self.debug:
-#            print('%s: Output:' % self.id)
-#            self.print_pint_df(df)
-#
-#        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-#
-#        return df
+# Relative risk (RR) is the risk of an exposed individual compared with a counterfactual
+# unexposed individual using the modelled exposures. 
 
-class ExposureNode(AdditiveNode):
-    quantity = 'exposure'
-    """Simple addition of exposure"""
-    pass
+class Rr(Ovariable):
+    quantity = 'RR'
 
-class PopulationAttributableFractionNode(AdditiveNode):
-    """Calculate population attributable fraction (PAF) from relative risk (RR)
-    and fraction of population exposed.
-    """
+    def compute(self):
+        for node in self.input_nodes:
+            if node.quantity == 'ERF':
+                erf = node
+            if node.quantity == 'body_weight':
+                bw = node
+            if node.quantity == 'exposure':
+                exposure = node
+                
+        dose = exposure.scale_exposure(erf, bw)
 
-    def compute(self, context: Context):
+        out = pd.DataFrame()
 
-        if len(self.input_nodes) != 2:
-            raise NodeError(self, "Must receive exactly two inputs in this order: relative risk and fraction exposed")
+        relative_functions = ['RR','Relative Hill']
 
-        n1, n2 = self.input_nodes
-        output_unit = n1.unit * n2.unit
-        if not self.is_compatible_unit(context, output_unit, self.unit):
-            raise NodeError(self, "Inputs must in a unit compatible with '%s'" % self.unit)
+        for func in relative_functions:
+            param1 = copy.deepcopy(erf)
+            param1.content = param1.content.loc[(func,'param1')] # The er_function must be the first and observation the second level
+            param2 = copy.deepcopy(erf)
+            param2.content = param2.content.loc[(func,'param2')]
 
-        df1 = n1.get_output(context)
-        df2 = n2.get_output(context)
-        df = df1.copy()
+            if func == 'RR':
+                rr = param1
+                threshold = param2
 
-        if self.debug:
-            print('%s: Multiply input from node 1 (%s):' % (self.id, n1.id))
-            self.print_pint_df(df1)
-            print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
-            self.print_pint_df(df2)
+                dose2 = (dose - threshold)#.dropna()
+                
+                dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0
+
+                out1 = (rr.log() * dose2).exp() #.dropna()
+                out = out.append(out1.content.reset_index())
+
+            if func == 'Relative Hill':
+                Imax = param1
+                ed50 = param2
+
+                out2 = (dose * Imax) / (dose + ed50) + 1
+
+                out = out.append(out2.content.reset_index())
+
+        keep = set(out.columns) - {0}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
         
-        r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1)
+        self.content = out
 
-        if min(r)>=0: # NOTE! PROBLEMS OCCUR WITH HORMESIS
-            df[VALUE_COLUMN] = r/(r + 1)
-        else: 
-            df[VALUE_COLUMN] = r
-
-        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
-
-        fill_gaps = False # self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
-        if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(df)
-        replace_output = False # self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
-        if replace_output:
-            df = self.replace_output_using_input_dataset(df)
-        if self.debug:
-            print('%s: Output:' % self.id)
-            self.print_pint_df(df)
-
-        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-
-        return df
-
+        return self
+    
