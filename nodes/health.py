@@ -9,15 +9,79 @@ import numpy as np
 import math
 
 from common.i18n import TranslatedString
-from .constants import FORECAST_COLUMN, VALUE_COLUMN
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
 from .node import Context, Node
 from .exceptions import NodeError
 
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
+from .ovariable import Ovariable
 
 #############################33
 # Health-related constants and classes
 
+# Ovariable with no input nodes, just data
+
+class DataOvariable(Ovariable, AdditiveNode):
+    pass
+
+# Exposure is the intensity of contact with the environment by the target population.
+
+class Exposure(Ovariable):
+    
+    quantity = 'exposure'
+    scaled = False
+
+    def compute(self, context: Context):
+        for node in self.input_nodes:
+            if node.quantity == 'consumption':
+                consumption = node
+            if node.quantity == 'concentration':
+                concentration = node
+
+        output_unit = consumption.unit * concentration.unit
+        if not self.is_compatible_unit(context, output_unit, self.unit):
+            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
+        consumption.content = consumption.get_output(context)
+        concentration.content = concentration.get_output(context)
+
+        exposure = consumption * concentration
+        exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to(self.unit)
+
+        return exposure
+    
+    # scale_exposure() scales the exposure by logarithmic function or body weight.
+    # The information about how to scale comes from exposure-response function.
+    # Thus, er-function and body weight must be provided.
+
+    def scale_exposure(self, erf, bw):
+        if self.scaled == True:
+            return self
+
+        exposure = self
+        
+        out = exposure + erf * 0
+        out.content = out.content.copy().query("observation == 'param1'").droplevel('observation')
+
+        out = out.merge(bw).content.reset_index()
+        out[VALUE_COLUMN] = np.where(
+            out['scaling'] == 'BW',
+            out[VALUE_x] / out[VALUE_y],
+            out[VALUE_x])
+
+        out[VALUE_COLUMN] = np.where(
+            out['scaling'] == 'Log10',
+            np.log10(out[VALUE_COLUMN]),
+            out[VALUE_COLUMN])
+
+        keep = set(out.columns)- {0,VALUE_x,VALUE_y}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
+
+        self.content_orig = self.content
+        self.content = out
+        self.scaled = True
+
+        return self
+        
 class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
     allowed_parameters = [
         NumberParameter(local_id='health_factor'),
@@ -35,6 +99,7 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
         df = node.get_output(context)
         multiplier = self.get_parameter_value('health_factor')
         multiplier = multiplier * unit_registry('DALY/kt').units
+
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue
@@ -47,57 +112,57 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
         return df
 
 
-class RelativeRiskNode(AdditiveNode):
-    """Applies a function with one input node and parameters.
-    """
-    allowed_parameters = [
-        NumberParameter(local_id='exposure_response_param1'),
-        NumberParameter(local_id='exposure_response_param2'),
-    ] + SimpleNode.allowed_parameters
-
-    def compute(self, context: Context):
-
-        if len(self.input_nodes) != 1:
-            raise NodeError(self, "Must receive exactly one input")
-        
-        input_node = self.input_nodes[0]
-        beta = unit_registry(self.get_parameter_value('exposure_response_param1'))
-        threshold = unit_registry(self.get_parameter_value('exposure_response_param2'))
-
+#class RelativeRiskNode(AdditiveNode):
+#    """Applies a function with one input node and parameters.
+#    """
+#    allowed_parameters = [
+#        NumberParameter(local_id='exposure_response_param1'),
+#        NumberParameter(local_id='exposure_response_param2'),
+#    ] + SimpleNode.allowed_parameters
+#
+#    def compute(self, context: Context):
+#
+#        if len(self.input_nodes) != 1:
+#            raise NodeError(self, "Must receive exactly one input")
+#        
+#        input_node = self.input_nodes[0]
+#        beta = unit_registry(self.get_parameter_value('exposure_response_param1'))
+#        threshold = unit_registry(self.get_parameter_value('exposure_response_param2'))
+#
 #        output_unit = input_node.unit #* beta.unit
-
+#
 #        if not self.is_compatible_unit(context, output_unit, self.unit):
 #            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
-
-        df = input_node.get_output(context)
-
-        if self.debug:
-            print('%s: Parameter input from node 1 (%s):' % (self.id, n1.id))
-            self.print_pint_df(df1)
-
-        for col in df.columns: # Why use for loop if we only want to mutate VALUE_COLUMN?
-            if col == FORECAST_COLUMN:
-                continue
-            df[col] = ((beta * (df[col] - threshold))) #.astype(float)) # Should be exp() but fails.
-            df[col] = np.exp(df[col].astype(float)) #).apply(lambda x: unit_registry.Quantity(x))
-
+#
+#        df = input_node.get_output(context)
+#
+#        if self.debug:
+#            print('%s: Parameter input from node 1 (%s):' % (self.id, n1.id))
+#            self.print_pint_df(df1)
+#
+#        for col in df.columns: # Why use for loop if we only want to mutate VALUE_COLUMN?
+#            if col == FORECAST_COLUMN:
+#                continue
+#            df[col] = ((beta * (df[col] - threshold))) #.astype(float)) # Should be exp() but fails.
+#            df[col] = np.exp(df[col].astype(float)) #).apply(lambda x: unit_registry.Quantity(x))
+#
 #        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-
+#
 #        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
-
-        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
-        if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(context, df)
-        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-        if replace_output:
-            df = self.replace_output_using_input_dataset(context, df)
-        if self.debug:
-            print('%s: Output:' % self.id)
-            self.print_pint_df(df)
-
-        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-
-        return df
+#
+#        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
+#        if fill_gaps:
+#            df = self.fill_gaps_using_input_dataset(context, df)
+#        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+#        if replace_output:
+#            df = self.replace_output_using_input_dataset(context, df)
+#        if self.debug:
+#            print('%s: Output:' % self.id)
+#            self.print_pint_df(df)
+#
+#        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+#
+#        return df
 
 class ExposureNode(AdditiveNode):
     quantity = 'exposure'

@@ -20,6 +20,10 @@ instance:
     - id: municipality_name
       value: Tampere
 
+  # FIXME: Emissions are calculated as g/day/person. Then, they
+  # are multiplied by fake population in excel before uploading to dvctest.
+  # Fetch real population and use that.
+
   emission_sectors:
     - id: net_emissions
       name: Ruoankulutuksen kokonaispäästöt
@@ -469,6 +473,48 @@ instance:
           dropna: true
       output_nodes:
         - domestic_fish_consumption
+
+    - id: consumption
+      name: OVA Saanti
+      name_en: OVA Consumption
+      type: health.DataOvariable
+      quantity: consumption
+      unit: g/day/person
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - exposure
+
+    - id: concentration
+      name: OVA Pitoisuus
+      name_en: OVA Concentration
+      type: health.DataOvariable
+      quantity: concentration
+      unit: mg/kg
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Domestic fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - exposure
+
+    - id: exposure
+      name: OVA Altistus
+      name_en: OVA Exposure
+      type: health.Exposure
+      quantity: exposure
+      unit: mg/day/person
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Domestic fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - domestic_fish_consumption_per_person
 
 ################
 # health benefits

@@ -4,12 +4,17 @@ FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
 IMPACT_COLUMN = 'Impact'
+FORECAST_x = 'Forecast_x'
+FORECAST_y = 'Forecast_y'
+VALUE_x = 'Value_x'
+VALUE_y = 'Value_y'
+
 EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'
 KNOWN_QUANTITIES = [
     'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita',
     'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden',
-    'mass'
+    'mass', 'consumption', 'concentration'
 ]
 ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage','mass']
 
