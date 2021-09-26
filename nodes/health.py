@@ -119,9 +119,10 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
 class Rr(Ovariable):
     quantity = 'RR'
 
-    def compute(self):
+    def compute(self, context: Context):
         for node in self.input_nodes:
-            if node.quantity == 'ERF':
+            print(node.quantity)
+            if node.quantity == 'exposure-response':
                 erf = node
             if node.quantity == 'body_weight':
                 bw = node
@@ -166,3 +167,122 @@ class Rr(Ovariable):
 
         return self
     
+## Population attributable fraction PAF
+
+class PopulationAttributableFraction(Ovariable):
+    quantity = 'fraction'
+    
+    def compute(self, context):
+        for node in self.input_nodes:
+            if node.quantity == 'exposure-response':
+                erf = node # Is there a risk of assigning to a global variable?
+            if node.quantity == 'exposure':
+                exposure = node
+            if node.quantity == 'fraction':
+                frexposed = node
+            if node.quantity == 'incidence':
+                incidence = node
+            if node.quantity == 'ratio':
+                rr = node
+            if node.quantity == 'probability':
+                p_illness = node
+            if node.quantity == 'body_weight':
+                bw = node
+
+        dose = exposure.scale_exposure(erf, bw)
+        
+        er_function_list = list(set(exposure.content.reset_index().er_function))
+
+        out = pd.DataFrame()
+
+        for func in er_function_list:
+            param1 = copy.deepcopy(erf) # FIXIT Do we actually need deepcopy here?
+            param1.content = param1.content.loc[(func,'ERF')]
+            param2 = copy.deepcopy(erf)
+            param2.content = param2.content.loc[(func,'Threshold')]
+
+            if func == 'UR':
+                k = param1
+                threshold = param2
+                dose2 = (dose - threshold)#.dropna()
+                dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0
+                out1 = (k * dose2 * frexposed / incidence)#.dropna()
+                out = out.append(out1.content.reset_index())
+
+            if func == 'Step':
+                upper = param1
+                lower = param2
+                out2 = (dose >= lower) * (dose <= upper) * -1 + 1
+                out2 = out2 * frexposed / incidence
+                out = out.append(out2.content.reset_index())
+
+            if func == 'RR' or func == 'Relative Hill':
+                r = frexposed * (rr - 1)
+                out3 = (r > 0) * (r/(r + 1)) + (r <= 0) * r
+                out = out.append(out3.content.reset_index())
+
+            if func == 'beta poisson approximation':
+                out4 = ((dose/param2 + 1)**(param1 * -1) * -1 + 1) * frexposed
+                out4 = (out4 / incidence * p_illness)#.dropna() # dropna is needed before an index with NaN is used for merging
+                out = out.append(out4.content.reset_index())
+
+            if func == 'exact beta poisson':
+                out5 = ((param1/(param1 + param2) * dose * -1).exp() * -1 + 1) * frexposed
+                out5 = out5 / incidence * p_illness
+                out = out.append(out5.content.reset_index())
+
+            if func == 'exponential':
+                k = param1
+                out6 = ((k * dose * -1).exp() * -1 + 1) * frexposed
+                out6 = out6 / incidence * p_illness
+                out = out.append(out6.content.reset_index())
+
+        #keep = set(out.columns[out.notna().any()]) # remove indices that are empty
+        #fill = set(out.columns[out.isna().any()]) # fill indices that have some empty locations
+        #out = fillna(out, list(fill.intersection(keep) - {VALUE_COLUMN}))
+
+        keep = set(out.columns)- {'scaling','matrix','exposure','exposure_unit','er_function',0}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
+        self.content = out
+
+        return self
+
+# BoD is the current (observed) burden of disease (measured in disability-adjusted life years or DALYs).
+
+class DiseaseBurden(Ovariable):
+    quantity = 'disease_burden'
+    
+    def compute(self, context):
+        for node in self.input_nodes:
+            if node.quantity == 'incidence':
+                incidence = node
+            if node.quantity == 'population':
+                population = node
+            if node.quantity == 'disease_burden':
+                case_burden = node
+        print(incidence.content)
+        out = incidence * population # * case_burden
+        print(out)
+        self.content = out
+
+        return self
+
+# bod_attr is the burden of disease that can be attributed to the exposure of interest.
+
+class AttributableDiseaseBurden(Ovariable):
+    quantity = 'disease_burden'
+    
+    def compute(self, context):
+        for node in self.input_nodes:
+            if node.quantity == 'disease_burden':
+                bod = node
+            if node.quantity == 'fraction':
+                paf = node
+
+        out = bod * paf
+        self.content = out
+    
+        return self
+    
+#bod_attr = Bod_attr(input_nodes = [bod, paf], name = 'bod_attr').compute()
+#bod_attr.content

@@ -14,7 +14,8 @@ BASELINE_VALUE_COLUMN = 'BaselineValue'
 KNOWN_QUANTITIES = [
     'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita',
     'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden',
-    'mass', 'consumption', 'concentration'
+    'mass', 'consumption', 'concentration', 'body_weight', 'incidence', 'fraction',
+    'probability'
 ]
 ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage','mass']
 
