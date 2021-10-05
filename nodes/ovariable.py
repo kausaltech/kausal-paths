@@ -108,10 +108,9 @@ class Ovariable(SimpleNode):
             if node.quantity == quantity:
                 out = node
                 count =+ 1
-        if count == 0:
-            raise exception("Node type not found" )
-        if count > 1:
-            raise exception("Too many nodes")
+        if count ==0:
+            print(quantity)
+        assert count == 1
 
         out.content = out.get_output(context)
 

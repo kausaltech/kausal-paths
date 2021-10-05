@@ -61,7 +61,7 @@ class Exposure(Ovariable):
     # All ovariables must have contents calculated.
 
     def scale_exposure(self, erf, bw):
-        if self.scaled == True:
+        if 'er_function' in self.content.index.names:
             return self
 
         exposure = self
@@ -90,7 +90,6 @@ class Exposure(Ovariable):
 
         self.content_orig = self.content
         self.content = out
-        self.scaled = True
 
         return self
         
@@ -124,16 +123,19 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode): # Needed for pre-ova
         return df
 
 
-# Relative risk (RR) is the risk of an exposed individual compared with a counterfactual
-# unexposed individual using the modelled exposures. 
-
 class ExposureResponseFunction(Ovariable):
     quantity = 'exposure-response'
 
     def compute(self, context: Context):
         df = pd.DataFrame([
-            ['None','cardiovascular disease','RR','param1',False, 20],
-            ['None','cardiovascular disease','RR','param2', False, 0]],
+            ['None','cardiovascular disease','RR','param1',False, 200],
+            ['None','cardiovascular disease','RR','param2',False, 0],
+            ['None','cerebrovascular disease','Relative Hill','param1',False, 2],
+            ['None','cerebrovascular disease','Relative Hill','param2',False, 0.2],
+            ['None','dioxin','Step','param1',False, 20],
+            ['None','dioxin','Step','param2',False, 0],
+            ['None','cancer','UR','param1',False, 2000],
+            ['None','cancer','UR','param2', False, 0.2]],
             columns=['scaling','Response','er_function','observation', FORECAST_COLUMN,VALUE_COLUMN]
         ).set_index(['er_function','observation','scaling','Response'])
 
@@ -141,21 +143,18 @@ class ExposureResponseFunction(Ovariable):
 
         return df
 
+# Relative risk (RR) is the risk of an exposed individual compared with a counterfactual
+# unexposed individual using the modelled exposures. 
+
 class RelativeRisk(Ovariable):
     quantity = 'ratio'
+    unit = 'dimensionless'
 
     def compute(self, context: Context):
-#        for node in self.input_nodes:
-#            if node.quantity == 'exposure-response':
-#                erf = node
-#            if node.quantity == 'body_weight':
-#                bw = node
-#            if node.quantity == 'exposure':
-#                exposure = node
                 
         param1 = self.prepare_ovariable(context, quantity='exposure-response',
             query="observation == 'param1'", drop=['observation'])
-         
+
         param2 = self.prepare_ovariable(context, quantity='exposure-response',
             query="observation == 'param2'", drop = ['observation']) 
         
@@ -169,13 +168,10 @@ class RelativeRisk(Ovariable):
         relative_functions = list(set(relative_functions) & {'RR','Relative Hill'})
 
         for func in relative_functions:
-#            param1 = copy.deepcopy(erf)
-#            param1.content = param1.content.loc[(func,'param1')] # The er_function must be the first and observation the second level
-#            param2 = copy.deepcopy(erf)
-#            param2.content = param2.content.loc[(func,'param2')]
 
             if func == 'RR':
                 beta = param1 ** -1 #FIXME This is stupid parameterization
+                beta.content = beta.content.query("er_function == 'RR'")
 
                 threshold = param2
 
@@ -184,6 +180,8 @@ class RelativeRisk(Ovariable):
                 dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0 FIXME: Not if scaling: Log10
 
                 out1 = beta * dose2
+#                print(beta.content)
+#                print(out1.content)
                 out1.content[VALUE_COLUMN] = out1.content[VALUE_COLUMN].pint.m_as('')
 
                 out1 = out1.exp()
@@ -191,6 +189,7 @@ class RelativeRisk(Ovariable):
 
             if func == 'Relative Hill':
                 Imax = param1
+                Imax.content = Imax.content.query("er_function == 'Relative Hill'")
                 Imax.content[VALUE_COLUMN] = Imax.content[VALUE_COLUMN].pint.m
 
                 ed50 = param2
@@ -209,80 +208,82 @@ class RelativeRisk(Ovariable):
 
 class PopulationAttributableFraction(Ovariable):
     quantity = 'fraction'
+    unit = 'dimensionless'
     
     def compute(self, context):
-        for node in self.input_nodes:
-            if node.quantity == 'exposure-response':
-                erf = node # Is there a risk of assigning to a global variable?
-            if node.quantity == 'exposure':
-                exposure = node
-            if node.quantity == 'fraction':
-                frexposed = node
-            if node.quantity == 'incidence':
-                incidence = node
-            if node.quantity == 'ratio':
-                rr = node
-            if node.quantity == 'probability':
-                p_illness = node
-            if node.quantity == 'body_weight':
-                bw = node
+        param1 = self.prepare_ovariable(context, 'exposure-response',
+            query="observation == 'param1'", drop='observation')
+        param2 = self.prepare_ovariable(context, 'exposure-response',
+            query="observation == 'param2'", drop='observation')
+        exposure = self.prepare_ovariable(context, 'exposure')
+        frexposed = self.prepare_ovariable(context, 'fraction')
+        incidence = self.prepare_ovariable(context, 'incidence')
+        rr = self.prepare_ovariable(context, 'ratio')
+        p_illness = self.prepare_ovariable(context, 'probability')
+        bw = self.prepare_ovariable(context, 'body_weight')
 
-        erf.content = erf.get_output(context) 
-
-        dose = exposure.scale_exposure(erf, bw)
-        
-        er_function_list = list(set(exposure.content.reset_index().er_function))
+        exposure = exposure.scale_exposure(param1, bw)
+        er_function_list = list(set(exposure.content.reset_index()['er_function']))
+        if 'RR' in er_function_list:
+            er_function_list = list(set(er_function_list) - {'Relative Hill'}) # You don't want to do twice
 
         out = pd.DataFrame()
 
         for func in er_function_list:
-            param1 = copy.deepcopy(erf) # FIXME Do we actually need deepcopy here?
-            param1.content = param1.content.loc[(func,'ERF')]
-            param2 = copy.deepcopy(erf)
-            param2.content = param2.content.loc[(func,'Threshold')]
 
             if func == 'UR':
-                k = param1
+                k = copy.deepcopy(param1)
+                k.content = k.content.query("er_function == 'UR'")
+                k = k ** -1
+
                 threshold = param2
-                dose2 = (dose - threshold)#.dropna()
+
+                dose2 = (exposure - threshold)
                 dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0
-                out1 = (k * dose2 * frexposed / incidence)#.dropna()
-                out = out.append(out1.content.reset_index())
+                out3 = (k * dose2 * frexposed / incidence)
+                out = out.append(out3.content.reset_index())
 
             if func == 'Step':
-                upper = param1
+                upper = copy.deepcopy(param1)
+                upper.content = upper.content.query("er_function == 'Step'")
+
                 lower = param2
-                out2 = (dose >= lower) * (dose <= upper) * -1 + 1
+                out2 = (exposure >= lower) * (exposure <= upper) * -1 + 1
                 out2 = out2 * frexposed / incidence
                 out = out.append(out2.content.reset_index())
 
             if func == 'RR' or func == 'Relative Hill':
                 r = frexposed * (rr - 1)
-                out3 = (r > 0) * (r/(r + 1)) + (r <= 0) * r
+
+                out3 = (r/(r + 1)) # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result  
+                # is smaller than 0, we should use r instead. It can be converted from the result:
+                # r/(r+1)=a <=> r=a/(1-a)
+                out3.content[VALUE_COLUMN] = np.where(out3.content[VALUE_COLUMN]<0,
+                    out3.content[VALUE_COLUMN] / (1 - out3.content[VALUE_COLUMN]),
+                    out3.content[VALUE_COLUMN])
+
                 out = out.append(out3.content.reset_index())
 
             if func == 'beta poisson approximation':
-                out4 = ((dose/param2 + 1)**(param1 * -1) * -1 + 1) * frexposed
+                out4 = ((exposure/param2 + 1)**(param1 * -1) * -1 + 1) * frexposed
                 out4 = (out4 / incidence * p_illness)#.dropna() # dropna is needed before an index with NaN is used for merging
                 out = out.append(out4.content.reset_index())
 
             if func == 'exact beta poisson':
-                out5 = ((param1/(param1 + param2) * dose * -1).exp() * -1 + 1) * frexposed
+                out5 = ((param1/(param1 + param2) * exposure * -1).exp() * -1 + 1) * frexposed
                 out5 = out5 / incidence * p_illness
                 out = out.append(out5.content.reset_index())
 
             if func == 'exponential':
                 k = param1
-                out6 = ((k * dose * -1).exp() * -1 + 1) * frexposed
+                out6 = ((k * exposure * -1).exp() * -1 + 1) * frexposed
                 out6 = out6 / incidence * p_illness
                 out = out.append(out6.content.reset_index())
 
-        #keep = set(out.columns[out.notna().any()]) # remove indices that are empty
-        #fill = set(out.columns[out.isna().any()]) # fill indices that have some empty locations
-        #out = fillna(out, list(fill.intersection(keep) - {VALUE_COLUMN}))
-
         keep = set(out.columns)- {'scaling','matrix','exposure','exposure_unit','er_function',0}
         out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
+#        print(out) # Why does print() break the instance?
+#        self.print_pint_df(out)
 
         return out
 
@@ -292,17 +293,13 @@ class DiseaseBurden(Ovariable):
     quantity = 'disease_burden'
     
     def compute(self, context):
-        for node in self.input_nodes:
-            if node.quantity == 'incidence':
-                incidence = node
-            if node.quantity == 'population':
-                population = node
-            if node.quantity == 'disease_burden':
-                case_burden = node
-        print(incidence.content)
-        out = incidence * population # * case_burden
+        incidence = self.prepare_ovariable(context, 'incidence')
+        population = self.prepare_ovariable(context, 'population')
+        case_burden = self.prepare_ovariable(context, 'disease_burden')
+        
+        out = incidence * population * case_burden
 
-        return out
+        return out.content
 
 # bod_attr is the burden of disease that can be attributed to the exposure of interest.
 
@@ -310,15 +307,10 @@ class AttributableDiseaseBurden(Ovariable):
     quantity = 'disease_burden'
     
     def compute(self, context):
-        for node in self.input_nodes:
-            if node.quantity == 'disease_burden':
-                bod = node
-            if node.quantity == 'fraction':
-                paf = node
+        bod = self.prepare_ovariable(context, 'disease_burden')
+        paf = self.prepare_ovariable(context, 'fraction')
 
         out = bod * paf
     
-        return out
+        return out.content
     
-#bod_attr = Bod_attr(input_nodes = [bod, paf], name = 'bod_attr').compute()
-#bod_attr.content

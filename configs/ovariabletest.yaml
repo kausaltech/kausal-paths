@@ -30,7 +30,7 @@ instance:
     - id: population
       name: Suomen väestö
       name_en: Population in Finland
-      type: simple.AdditiveNode
+      type: health.DataOvariable
       quantity: population
       unit: person
       input_datasets:
@@ -112,11 +112,6 @@ instance:
       type: health.Exposure
       quantity: exposure
       unit: mg/day/person
-#      input_datasets:
-#        - id: ilmastoruoka/consumption
-#          column: Domestic fish
-#          forecast_from: 2021
-#          dropna: true
       output_nodes:
         - meat_consumption_per_person
 
@@ -132,7 +127,7 @@ instance:
           forecast_from: 2021
           dropna: true
 
-    - id: bw
+    - id: body_weight
       name: Ruumiinpaino
       name_ en: Body weight
       type: health.DataOvariable
@@ -148,7 +143,7 @@ instance:
       name: Altistuneiden osuus
       name_ en: Fraction exposed
       type: health.DataOvariable
-      quantity: ratio
+      quantity: fraction
       unit: dimensionless
       input_datasets:
         - id: ilmastoruoka/consumption
@@ -156,34 +151,20 @@ instance:
           forecast_from: 2021
           dropna: true
 
-    - id: erf
+    - id: exposure_response_function
       name: Annosvaste
       name_ en: Exposure-response function
       type: health.ExposureResponseFunction
       unit: mg/day/person
 
-    - id: rr
+    - id: relative_risk
       name: Riskisuhde
       name_en: Risk ratio
       type: health.RelativeRisk
-      quantity: ratio
-      unit: dimensionless
       input_nodes:
         - exposure
-        - erf
-        - bw
-
-    - id: rr2
-      name: Riskisuhde
-      name_en: Risk ratio
-      type: health.DataOvariable
-      quantity: ratio
-      unit: dimensionless
-      input_datasets:
-        - id: ilmastoruoka/consumption
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
+        - exposure_response_function
+        - body_weight
 
     - id: incidence
       name: Ilmaantuvuus
@@ -197,32 +178,30 @@ instance:
           forecast_from: 2021
           dropna: true
 
-#    - id: population_attributable_fraction
-#      name: Väestösyyosuus
-#      name_en: Population attributable fraction
-#      type: health.PopulationAttributableFraction
-#      quantity: fraction
-#      unit: dimensionless
-#      input_nodes:
-#        - exposure
-#        - erf
-#        - rr
-#        - frexposed
-#        - p_illness
-#        - incidence
-#        - bw
-
-    - id: population_attributable_fraction2
+    - id: population_attributable_fraction
       name: Väestösyyosuus
-      name_ en: Population attributable fraction
-      type: health.DataOvariable
-      quantity: disease_burden
-      unit: DALY
-      input_datasets:
-        - id: ilmastoruoka/emission_factor
-          column: Potato
-          forecast_from: 2021
-          dropna: true
+      name_en: Population attributable fraction
+      type: health.PopulationAttributableFraction
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - relative_risk
+        - frexposed
+        - p_illness
+        - incidence
+        - body_weight
+
+#    - id: population_attributable_fraction2
+#      name: Väestösyyosuus
+#      name_ en: Population attributable fraction
+#      type: health.DataOvariable
+#      quantity: disease_burden
+#      unit: DALY
+#      input_datasets:
+#        - id: ilmastoruoka/emission_factor
+#          column: Potato
+#          forecast_from: 2021
+#          dropna: true
 
     - id: case_burden
       name: Tapaustaakka
@@ -236,28 +215,27 @@ instance:
           forecast_from: 2021
           dropna: true
 
-#    - id: disease_burden
-#      name: Kokonaistautitaakka
-#      name_ en: Total disease burden
-#      type: health.DiseaseBurden
-#      quantity: disease_burden
-#      unit: DALY/a
-#      input_nodes:
-#        - incidence
-#        - population
-#        - case_burden
-
     - id: disease_burden
       name: Kokonaistautitaakka
       name_ en: Total disease burden
-      type: health.DataOvariable
-      quantity: disease_burden
-      unit: DALY
-      input_datasets:
-        - id: ilmastoruoka/consumption
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
+      type: health.DiseaseBurden
+      unit: DALY/a
+      input_nodes:
+        - incidence
+        - population
+        - case_burden
+
+#    - id: disease_burden
+#      name: Kokonaistautitaakka
+#      name_ en: Total disease burden
+#      type: health.DataOvariable
+#      quantity: disease_burden
+#      unit: DALY
+#      input_datasets:
+#        - id: ilmastoruoka/consumption
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
 
 ################
 # health benefits
