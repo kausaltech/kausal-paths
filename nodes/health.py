@@ -1,5 +1,8 @@
-from logging import log
+from logging import exception, log
 from types import FunctionType
+
+import dvc_pandas
+from pint.registry import ContextCacheOverlay
 from params.param import BoolParameter, NumberParameter
 from typing import Dict, List
 import pandas as pd
@@ -15,7 +18,7 @@ from .node import Context, Node
 from .exceptions import NodeError
 
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
-from .ovariable import Ovariable
+from .ovariable import Ovariable, Ovariable2
 
 #############################33
 # Health-related constants and classes
@@ -46,36 +49,44 @@ class Exposure(Ovariable):
         concentration.content = concentration.get_output(context)
 
         exposure = consumption * concentration
-        exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to(self.unit)
+        df = exposure.content
 
-        return exposure
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+
+        return df
     
     # scale_exposure() scales the exposure by logarithmic function or body weight.
     # The information about how to scale comes from exposure-response function.
     # Thus, er-function and body weight must be provided.
+    # All ovariables must have contents calculated.
 
     def scale_exposure(self, erf, bw):
         if self.scaled == True:
             return self
 
         exposure = self
-        
-        out = exposure + erf * 0
-        out.content = out.content.copy().query("observation == 'param1'").droplevel('observation')
 
-        out = out.merge(bw).content.reset_index()
+        out = copy.deepcopy(erf)
+        out.content[VALUE_COLUMN] = out.content[VALUE_COLUMN].pint.m
+        out = out * 0
+
+        out = out + exposure
+
+        out = out.merge(bw).reset_index()
+
         out[VALUE_COLUMN] = np.where(
             out['scaling'] == 'BW',
             out[VALUE_x] / out[VALUE_y],
             out[VALUE_x])
 
-        out[VALUE_COLUMN] = np.where(
-            out['scaling'] == 'Log10',
-            np.log10(out[VALUE_COLUMN]),
-            out[VALUE_COLUMN])
+# FIXME log10 not defined for all inputs
+#        out[VALUE_COLUMN] = np.where(
+#            out['scaling'] == 'Log10',
+#            np.log10(out[VALUE_COLUMN]),
+#            out[VALUE_COLUMN])
 
-        keep = set(out.columns)- {0,VALUE_x,VALUE_y}
-        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
+        keep = set(out.columns)- {0,VALUE_x,VALUE_y, FORECAST_x, FORECAST_y}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
 
         self.content_orig = self.content
         self.content = out
@@ -83,7 +94,7 @@ class Exposure(Ovariable):
 
         return self
         
-class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
+class FixedMultiplierHealthImpactNode(FixedMultiplierNode): # Needed for pre-ovariable nodes
     allowed_parameters = [
         NumberParameter(local_id='health_factor'),
     ] + FixedMultiplierNode.allowed_parameters
@@ -116,56 +127,83 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):
 # Relative risk (RR) is the risk of an exposed individual compared with a counterfactual
 # unexposed individual using the modelled exposures. 
 
-class Rr(Ovariable):
-    quantity = 'RR'
+class ExposureResponseFunction(Ovariable):
+    quantity = 'exposure-response'
 
     def compute(self, context: Context):
-        for node in self.input_nodes:
-            print(node.quantity)
-            if node.quantity == 'exposure-response':
-                erf = node
-            if node.quantity == 'body_weight':
-                bw = node
-            if node.quantity == 'exposure':
-                exposure = node
+        df = pd.DataFrame([
+            ['None','cardiovascular disease','RR','param1',False, 20],
+            ['None','cardiovascular disease','RR','param2', False, 0]],
+            columns=['scaling','Response','er_function','observation', FORECAST_COLUMN,VALUE_COLUMN]
+        ).set_index(['er_function','observation','scaling','Response'])
+
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+
+        return df
+
+class RelativeRisk(Ovariable):
+    quantity = 'ratio'
+
+    def compute(self, context: Context):
+#        for node in self.input_nodes:
+#            if node.quantity == 'exposure-response':
+#                erf = node
+#            if node.quantity == 'body_weight':
+#                bw = node
+#            if node.quantity == 'exposure':
+#                exposure = node
                 
-        dose = exposure.scale_exposure(erf, bw)
-
-        out = pd.DataFrame()
-
-        relative_functions = ['RR','Relative Hill']
+        param1 = self.prepare_ovariable(context, quantity='exposure-response',
+            query="observation == 'param1'", drop=['observation'])
+         
+        param2 = self.prepare_ovariable(context, quantity='exposure-response',
+            query="observation == 'param2'", drop = ['observation']) 
+        
+        bw = self.prepare_ovariable(context, 'body_weight')
+        
+        exposure = self.prepare_ovariable(context, 'exposure')
+        exposure = exposure.scale_exposure(param1, bw)
+        
+        df = pd.DataFrame()
+        relative_functions = exposure.content.reset_index().er_function
+        relative_functions = list(set(relative_functions) & {'RR','Relative Hill'})
 
         for func in relative_functions:
-            param1 = copy.deepcopy(erf)
-            param1.content = param1.content.loc[(func,'param1')] # The er_function must be the first and observation the second level
-            param2 = copy.deepcopy(erf)
-            param2.content = param2.content.loc[(func,'param2')]
+#            param1 = copy.deepcopy(erf)
+#            param1.content = param1.content.loc[(func,'param1')] # The er_function must be the first and observation the second level
+#            param2 = copy.deepcopy(erf)
+#            param2.content = param2.content.loc[(func,'param2')]
 
             if func == 'RR':
-                rr = param1
+                beta = param1 ** -1 #FIXME This is stupid parameterization
+
                 threshold = param2
 
-                dose2 = (dose - threshold)#.dropna()
+                dose2 = exposure - threshold
                 
-                dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0
+                dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0 FIXME: Not if scaling: Log10
 
-                out1 = (rr.log() * dose2).exp() #.dropna()
-                out = out.append(out1.content.reset_index())
+                out1 = beta * dose2
+                out1.content[VALUE_COLUMN] = out1.content[VALUE_COLUMN].pint.m_as('')
+
+                out1 = out1.exp()
+                df = df.append(out1.content.reset_index())
 
             if func == 'Relative Hill':
                 Imax = param1
+                Imax.content[VALUE_COLUMN] = Imax.content[VALUE_COLUMN].pint.m
+
                 ed50 = param2
 
-                out2 = (dose * Imax) / (dose + ed50) + 1
+                out2 = (exposure * Imax) / (exposure + ed50) + 1
 
-                out = out.append(out2.content.reset_index())
+                df = df.append(out2.content.reset_index())
 
-        keep = set(out.columns) - {0}
-        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
-        
-        self.content = out
+        keep = set(df.columns) - {'er_function','scaling'}
+        df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
 
-        return self
+        return df
     
 ## Population attributable fraction PAF
 
@@ -189,6 +227,8 @@ class PopulationAttributableFraction(Ovariable):
             if node.quantity == 'body_weight':
                 bw = node
 
+        erf.content = erf.get_output(context) 
+
         dose = exposure.scale_exposure(erf, bw)
         
         er_function_list = list(set(exposure.content.reset_index().er_function))
@@ -196,7 +236,7 @@ class PopulationAttributableFraction(Ovariable):
         out = pd.DataFrame()
 
         for func in er_function_list:
-            param1 = copy.deepcopy(erf) # FIXIT Do we actually need deepcopy here?
+            param1 = copy.deepcopy(erf) # FIXME Do we actually need deepcopy here?
             param1.content = param1.content.loc[(func,'ERF')]
             param2 = copy.deepcopy(erf)
             param2.content = param2.content.loc[(func,'Threshold')]
@@ -243,9 +283,8 @@ class PopulationAttributableFraction(Ovariable):
 
         keep = set(out.columns)- {'scaling','matrix','exposure','exposure_unit','er_function',0}
         out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
-        self.content = out
 
-        return self
+        return out
 
 # BoD is the current (observed) burden of disease (measured in disability-adjusted life years or DALYs).
 
@@ -262,10 +301,8 @@ class DiseaseBurden(Ovariable):
                 case_burden = node
         print(incidence.content)
         out = incidence * population # * case_burden
-        print(out)
-        self.content = out
 
-        return self
+        return out
 
 # bod_attr is the burden of disease that can be attributed to the exposure of interest.
 
@@ -280,9 +317,8 @@ class AttributableDiseaseBurden(Ovariable):
                 paf = node
 
         out = bod * paf
-        self.content = out
     
-        return self
+        return out
     
 #bod_attr = Bod_attr(input_nodes = [bod, paf], name = 'bod_attr').compute()
 #bod_attr.content

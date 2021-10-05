@@ -112,11 +112,11 @@ instance:
       type: health.Exposure
       quantity: exposure
       unit: mg/day/person
-      input_datasets:
-        - id: ilmastoruoka/consumption
-          column: Domestic fish
-          forecast_from: 2021
-          dropna: true
+#      input_datasets:
+#        - id: ilmastoruoka/consumption
+#          column: Domestic fish
+#          forecast_from: 2021
+#          dropna: true
       output_nodes:
         - meat_consumption_per_person
 
@@ -159,27 +159,21 @@ instance:
     - id: erf
       name: Annosvaste
       name_ en: Exposure-response function
-      type: health.DataOvariable
-      quantity: exposure-response
-      unit: dimensionless
-      input_datasets:
-        - id: ilmastoruoka/consumption
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
-
-#    - id: rr
-#      name: Riskisuhde
-#      name_en: Risk ratio
-#      type: health.Rr
-#      quantity: ratio
-#      unit: dimensionless
-#      input_nodes:
-#        - exposure
-#        - erf
-#        - bw
+      type: health.ExposureResponseFunction
+      unit: mg/day/person
 
     - id: rr
+      name: Riskisuhde
+      name_en: Risk ratio
+      type: health.RelativeRisk
+      quantity: ratio
+      unit: dimensionless
+      input_nodes:
+        - exposure
+        - erf
+        - bw
+
+    - id: rr2
       name: Riskisuhde
       name_en: Risk ratio
       type: health.DataOvariable
@@ -218,7 +212,7 @@ instance:
 #        - incidence
 #        - bw
 
-    - id: population_attributable_fraction
+    - id: population_attributable_fraction2
       name: Väestösyyosuus
       name_ en: Population attributable fraction
       type: health.DataOvariable
