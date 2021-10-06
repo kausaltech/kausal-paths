@@ -164,8 +164,7 @@ class RelativeRisk(Ovariable):
         exposure = exposure.scale_exposure(param1, bw)
         
         df = pd.DataFrame()
-        relative_functions = exposure.content.reset_index().er_function
-        relative_functions = list(set(relative_functions) & {'RR','Relative Hill'})
+        relative_functions = exposure.content.reset_index().er_function.unique()
 
         for func in relative_functions:
 
@@ -187,7 +186,7 @@ class RelativeRisk(Ovariable):
                 out1 = out1.exp()
                 df = df.append(out1.content.reset_index())
 
-            if func == 'Relative Hill':
+            elif func == 'Relative Hill':
                 Imax = param1
                 Imax.content = Imax.content.query("er_function == 'Relative Hill'")
                 Imax.content[VALUE_COLUMN] = Imax.content[VALUE_COLUMN].pint.m
