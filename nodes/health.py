@@ -30,31 +30,27 @@ class DataOvariable(Ovariable, AdditiveNode):
 
 # Exposure is the intensity of contact with the environment by the target population.
 
+
 class Exposure(Ovariable):
-    
+
     quantity = 'exposure'
     scaled = False
 
     def compute(self, context: Context):
-        for node in self.input_nodes:
-            if node.quantity == 'consumption':
-                consumption = node
-            if node.quantity == 'concentration':
-                concentration = node
+        consumption = self.prepare_ovariable(context, 'consumption')
+        concentration = self.prepare_ovariable(context, 'concentration')
 
-        output_unit = consumption.unit * concentration.unit
-        if not self.is_compatible_unit(context, output_unit, self.unit):
-            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
-        consumption.content = consumption.get_output(context)
-        concentration.content = concentration.get_output(context)
+#        output_unit = consumption.unit * concentration.unit # We don't need this because that is done with clean_computing() anyway.
+#        if not self.is_compatible_unit(context, output_unit, self.unit):
+#            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
 
         exposure = consumption * concentration
-        df = exposure.content
+        self.print_pint_df(concentration.content[0:3])
+        self.print_pint_df(consumption.content[0:3])
+        self.print_pint_df(exposure.content[0:3])
 
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        return self.clean_computing(exposure)
 
-        return df
-    
     # scale_exposure() scales the exposure by logarithmic function or body weight.
     # The information about how to scale comes from exposure-response function.
     # Thus, er-function and body weight must be provided.
@@ -85,14 +81,14 @@ class Exposure(Ovariable):
 #            np.log10(out[VALUE_COLUMN]),
 #            out[VALUE_COLUMN])
 
-        keep = set(out.columns)- {0,VALUE_x,VALUE_y, FORECAST_x, FORECAST_y}
+        keep = set(out.columns)- {0, VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
         out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
 
         self.content_orig = self.content
         self.content = out
 
         return self
-        
+
 class FixedMultiplierHealthImpactNode(FixedMultiplierNode): # Needed for pre-ovariable nodes
     allowed_parameters = [
         NumberParameter(local_id='health_factor'),
@@ -128,20 +124,18 @@ class ExposureResponseFunction(Ovariable):
 
     def compute(self, context: Context):
         df = pd.DataFrame([
-            ['None','cardiovascular disease','RR','param1',False, 200],
-            ['None','cardiovascular disease','RR','param2',False, 0],
-            ['None','cerebrovascular disease','Relative Hill','param1',False, 2],
-            ['None','cerebrovascular disease','Relative Hill','param2',False, 0.2],
-            ['None','dioxin','Step','param1',False, 20],
-            ['None','dioxin','Step','param2',False, 0],
-            ['None','cancer','UR','param1',False, 2000],
-            ['None','cancer','UR','param2', False, 0.2]],
-            columns=['scaling','Response','er_function','observation', FORECAST_COLUMN,VALUE_COLUMN]
-        ).set_index(['er_function','observation','scaling','Response'])
+            ['None', 'cardiovascular disease', 'RR', 'param1', False, 200],
+            ['None', 'cardiovascular disease', 'RR', 'param2', False, 0],
+            ['None', 'cerebrovascular disease', 'Relative Hill', 'param1', False, 2],
+            ['None', 'cerebrovascular disease', 'Relative Hill', 'param2', False, 0.2],
+            ['None', 'dioxin', 'Step', 'param1', False, 20],
+            ['None', 'dioxin', 'Step', 'param2', False, 0],
+            ['None', 'cancer', 'UR', 'param1', False, 2000],
+            ['None', 'cancer', 'UR', 'param2', False, 0.2]],
+            columns=['scaling', 'Response', 'er_function', 'observation', FORECAST_COLUMN, VALUE_COLUMN]
+        ).set_index(['er_function', 'observation', 'scaling', 'Response'])
 
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-
-        return df
+        return self.clean_computing(df)
 
 # Relative risk (RR) is the risk of an exposed individual compared with a counterfactual
 # unexposed individual using the modelled exposures. 
@@ -152,10 +146,12 @@ class RelativeRisk(Ovariable):
 
     def compute(self, context: Context):
                 
-        param1 = self.prepare_ovariable(context, quantity='exposure-response',
+        param1=self.prepare_ovariable(
+            context, quantity='exposure-response',
             query="observation == 'param1'", drop=['observation'])
 
-        param2 = self.prepare_ovariable(context, quantity='exposure-response',
+        param2=self.prepare_ovariable(
+            context, quantity='exposure-response',
             query="observation == 'param2'", drop = ['observation']) 
         
         bw = self.prepare_ovariable(context, 'body_weight')
@@ -176,7 +172,7 @@ class RelativeRisk(Ovariable):
                 threshold = param2
 
                 dose2 = exposure - threshold
-                
+
                 dose2.content = np.clip(dose2.content, 0, None) # Smallest allowed value is 0 FIXME: Not if scaling: Log10
 
                 out1 = beta * dose2
@@ -198,11 +194,10 @@ class RelativeRisk(Ovariable):
 
                 df = df.append(out2.content.reset_index())
 
-        keep = set(df.columns) - {'er_function','scaling'}
+        keep = set(df.columns) - {'er_function', 'scaling'}
         df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
 
-        return df
+        return self.clean_computing(df)
     
 ## Population attributable fraction PAF
 
@@ -282,10 +277,8 @@ class PopulationAttributableFraction(Ovariable):
 
         keep = set(out.columns)- {'scaling','matrix','exposure','exposure_unit','er_function',0}
         out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
-#        print(out) # Why does print() break the instance?
-#        self.print_pint_df(out)
 
-        return out
+        return self.clean_computing(out)
 
 # BoD is the current (observed) burden of disease (measured in disability-adjusted life years or DALYs).
 
@@ -298,8 +291,15 @@ class DiseaseBurden(Ovariable):
         case_burden = self.prepare_ovariable(context, 'disease_burden')
         
         out = incidence * population * case_burden
+        output_unit = incidence.unit * population.unit * case_burden.unit
+        print(output_unit)
 
-        return out.content
+        self.print_pint_df(incidence.content[0:2])
+        self.print_pint_df(population.content[0:2])
+        self.print_pint_df(case_burden.content[0:2])
+        self.print_pint_df(out.content[0:2])
+
+        return  self.clean_computing(out)
 
 # bod_attr is the burden of disease that can be attributed to the exposure of interest.
 
@@ -312,5 +312,5 @@ class AttributableDiseaseBurden(Ovariable):
 
         out = bod * paf
     
-        return out.content
+        return self.clean_computing(out)
     

@@ -171,7 +171,7 @@ instance:
       name_ en: Incidence
       type: health.DataOvariable
       quantity: incidence
-      unit: dimensionless
+      unit: 1/100000/person/a
       input_datasets:
         - id: ilmastoruoka/emission_factor
           column: Drinks
@@ -219,7 +219,7 @@ instance:
       name: Kokonaistautitaakka
       name_ en: Total disease burden
       type: health.DiseaseBurden
-      unit: DALY/a
+      unit: person # FIXME
       input_nodes:
         - incidence
         - population

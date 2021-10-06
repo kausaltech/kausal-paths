@@ -123,6 +123,15 @@ class Ovariable(SimpleNode):
             
         return out
 
+    def clean_computing(self, output):
+        if isinstance(output, Ovariable):
+            df = output.content
+        else:
+            df = output
+
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        return df
+        
     def merge(self, other): # Self and other must have content calculated.
         
         def add_temporary_index(self):
