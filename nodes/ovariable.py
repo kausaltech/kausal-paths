@@ -1,9 +1,9 @@
-#from __future__ import annotations
+# from __future__ import annotations
 
-#import hashlib
-#import os
-#import inspect
-#from types import FunctionType
+# import hashlib
+# import os
+# import inspect
+# from types import FunctionType
 from logging import exception
 from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 
@@ -12,7 +12,7 @@ import numpy as np
 import pint
 import pint_pandas
 
-import copy 
+import copy
 
 from common.i18n import TranslatedString
 from nodes.constants import FORECAST_COLUMN, KNOWN_QUANTITIES, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
@@ -27,6 +27,7 @@ from .simple import AdditiveNode, SimpleNode
 if TYPE_CHECKING:
     from pages.models import NodeContent
 
+
 class OvaOps():
     content: pd.DataFrame
 
@@ -36,79 +37,80 @@ class OvaOps():
     def clean(self):
         df = self.content.reset_index()
         if FORECAST_x in df.columns:
-            df[FORECAST_COLUMN] = df[FORECAST_x]  | df[FORECAST_y]
-        keep = set(df.columns)- {0,VALUE_x,VALUE_y,FORECAST_x,FORECAST_y}
-        df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN,FORECAST_COLUMN}))
+            df[FORECAST_COLUMN] = df[FORECAST_x] | df[FORECAST_y]
+        keep = set(df.columns) - {0, VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
+        df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
 #        self.content = df
 
-        return Ovariable2(content = df)
+        return Ovariable2(content=df)
 
     def __add__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] + self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __sub__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] - self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __mul__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] * self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __truediv__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] / self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __mod__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] % self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __pow__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] ** self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __floordiv__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] // self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __lt__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] < self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __le__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] <= self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __gt__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] > self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __ge__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] >= self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __eq__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] == self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
 
     def __ne__(self):
         self.content[VALUE_COLUMN] = self.content[VALUE_x] != self.content[VALUE_y]
-        return self.clean()    
+        return self.clean()
+
 
 class Ovariable(SimpleNode):
     # content is the dataframe with the estimates
     content: Optional[pd.DataFrame]
-    
+
     # quantity: what the ovariable measures, e.g. exposure, exposure_response, disease_burden
     quantity: Optional[str]
-    
+
     def prepare_ovariable(self, context: Context, quantity, query: str = None, drop: List = None):
         count = 0
         for node in self.input_nodes:
             if node.quantity == quantity:
                 out = node
-                count =+ 1
-        if count ==0:
+                count += 1
+        if count == 0:
             print(quantity)
         assert count == 1
 
@@ -120,7 +122,7 @@ class Ovariable(SimpleNode):
 
         if drop is not None:
             out.content = out.content.droplevel(drop)
-            
+
         return out
 
     def clean_computing(self, output):
@@ -131,9 +133,9 @@ class Ovariable(SimpleNode):
 
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         return df
-        
-    def merge(self, other): # Self and other must have content calculated.
-        
+
+    def merge(self, other):  # Self and other must have content calculated.
+
         def add_temporary_index(self):
             tst = self.index.to_frame().assign(temporary=1)
             tst = pd.MultiIndex.from_frame(tst)
@@ -144,31 +146,31 @@ class Ovariable(SimpleNode):
         if isinstance(other, Ovariable) or isinstance(other, OvaOps):
             df2 = other.content
         else:
-            df2 = pd.DataFrame([other],columns = [VALUE_COLUMN])
-            
+            df2 = pd.DataFrame([other], columns=[VALUE_COLUMN])
+
         df1 = add_temporary_index(df1)
         df2 = add_temporary_index(df2)
 
-        out = df1.merge(df2, left_index = True, right_index = True)
+        out = df1.merge(df2, left_index=True, right_index=True)
         out.index = out.index.droplevel(['temporary'])
-        
+
         return out
-    
+
     def clean(self):
-#        df = self.content.reset_index()
-#        if FORECAST_x in df.columns:
-#            df[FORECAST_COLUMN] = df[FORECAST_x]  | df[FORECAST_y]
-#        keep = set(df.columns)- {0,VALUE_x,VALUE_y,FORECAST_x,FORECAST_y}
-#        df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN,FORECAST_COLUMN}))
-#        self.content = df
-#        return OvaOps(content=self)
+        #        df = self.content.reset_index()
+        #        if FORECAST_x in df.columns:
+        #            df[FORECAST_COLUMN] = df[FORECAST_x]  | df[FORECAST_y]
+        #        keep = set(df.columns)- {0,VALUE_x,VALUE_y,FORECAST_x,FORECAST_y}
+        #        df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN,FORECAST_COLUMN}))
+        #        self.content = df
+        #        return OvaOps(content=self)
         raise exception('Do not use Ovariable.clean()')
 
     def __add__(self, other):
         out = self.merge(other)
         out = OvaOps(out).__add__()
         return out
-    
+
     def __sub__(self, other):
         out = self.merge(other)
         out = OvaOps(out).__sub__()
@@ -231,18 +233,18 @@ class Ovariable(SimpleNode):
         return out
 
     def log(self):
-        self.content[VALUE_COLUMN] =  np.log(self.content[VALUE_COLUMN])
+        self.content[VALUE_COLUMN] = np.log(self.content[VALUE_COLUMN])
         return self
-    
+
     def log10(self):
-        self.content[VALUE_COLUMN] =  np.log10(self.content[VALUE_COLUMN])
+        self.content[VALUE_COLUMN] = np.log10(self.content[VALUE_COLUMN])
         return self
-    
+
     def exp(self):
-        self.content[VALUE_COLUMN] =  np.exp(self.content[VALUE_COLUMN])
+        self.content[VALUE_COLUMN] = np.exp(self.content[VALUE_COLUMN])
         return self
+
 
 class Ovariable2(Ovariable):
     def __init__(self, content):
         self.content = content
-

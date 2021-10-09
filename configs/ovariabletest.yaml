@@ -82,8 +82,8 @@ instance:
       name: OVA Saanti
       name_en: OVA Consumption
       type: health.DataOvariable
-      quantity: consumption
-      unit: g/day/person
+      quantity: ingestion
+      unit: g/d/person
       input_datasets:
         - id: ilmastoruoka/consumption
           column: Fish
@@ -96,8 +96,8 @@ instance:
       name: OVA Pitoisuus
       name_en: OVA Concentration
       type: health.DataOvariable
-      quantity: concentration
-      unit: mg/kg
+      quantity: mass_concentration
+      unit: ppm
       input_datasets:
         - id: ilmastoruoka/consumption
           column: Domestic fish
@@ -110,8 +110,8 @@ instance:
       name: OVA Altistus
       name_en: OVA Exposure
       type: health.Exposure
-      quantity: exposure
-      unit: mg/day/person
+      quantity: ingestion
+      unit: ug/d/person
       output_nodes:
         - meat_consumption_per_person
 
@@ -171,10 +171,10 @@ instance:
       name_ en: Incidence
       type: health.DataOvariable
       quantity: incidence
-      unit: 1/100000/person/a
+      unit: case/_100000py
       input_datasets:
-        - id: ilmastoruoka/emission_factor
-          column: Drinks
+        - id: ilmastoruoka/consumption
+          column: Cooking
           forecast_from: 2021
           dropna: true
 
@@ -207,8 +207,8 @@ instance:
       name: Tapaustaakka
       name_ en: Case burden
       type: health.DataOvariable
-      quantity: disease_burden
-      unit: DALY
+      quantity: case_burden
+      unit: DALY/case
       input_datasets:
         - id: ilmastoruoka/consumption
           column: Cooking
@@ -219,23 +219,11 @@ instance:
       name: Kokonaistautitaakka
       name_ en: Total disease burden
       type: health.DiseaseBurden
-      unit: person # FIXME
+      unit: cap
       input_nodes:
         - incidence
         - population
         - case_burden
-
-#    - id: disease_burden
-#      name: Kokonaistautitaakka
-#      name_ en: Total disease burden
-#      type: health.DataOvariable
-#      quantity: disease_burden
-#      unit: DALY
-#      input_datasets:
-#        - id: ilmastoruoka/consumption
-#          column: Cooking
-#          forecast_from: 2021
-#          dropna: true
 
 ################
 # health benefits

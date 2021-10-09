@@ -13,11 +13,11 @@ EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'
 KNOWN_QUANTITIES = [
     'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita',
-    'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden',
-    'mass', 'consumption', 'concentration', 'body_weight', 'incidence', 'fraction',
-    'probability'
+    'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
+    'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
+    'probability', 'ingestion'
 ]
-ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage','mass']
+ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage', 'mass']
 
 
 class DecisionLevel(Enum):
