@@ -59,6 +59,8 @@ CACHES = {
 
 SECRET_KEY = env('SECRET_KEY')
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 # Application definition
 
@@ -92,13 +94,14 @@ INSTALLED_APPS = [
     'django_extensions',
 
     'pages',
-
+    'nodes',
 ]
 
 MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -106,9 +109,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
 ]
-
-INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
-
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
 
@@ -148,6 +148,10 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'
+INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     # Match localhost with optional port
@@ -220,6 +224,9 @@ WAGTAIL_PASSWORD_RESET_ENABLED = True
 # e.g. in notification emails. Don't include '/admin' or a trailing slash
 BASE_URL = 'http://example.com'
 
+
+INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
+
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
 f = os.path.join(BASE_DIR, "local_settings.py")
@@ -264,3 +271,6 @@ if SENTRY_DSN:
 if 'DATABASES' in locals():
     if DATABASES['default']['ENGINE'] in ('django.db.backends.postgresql', 'django.contrib.gis.db.backends.postgis'):
         DATABASES['default']['CONN_MAX_AGE'] = 600
+
+CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
+CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)

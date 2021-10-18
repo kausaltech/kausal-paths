@@ -1,3 +1,5 @@
+# pylint: disable=no-self-argument
+
 import graphene
 from pages.base import ActionPage, EmissionPage
 from graphql.type import (
@@ -10,6 +12,7 @@ from params.schema import (
     Mutations as ParamsMutations,
     types as params_types
 )
+from paths.graphql_helpers import GQLInfo, ensure_instance
 
 
 class UnitType(graphene.ObjectType):
@@ -85,10 +88,12 @@ class Query(NodesQuery, ParamsQuery):
         id=graphene.String(required=False)
     )
 
+    @ensure_instance
     def resolve_pages(root, info):
         instance = info.context.instance
         return list(instance.pages.values())
 
+    @ensure_instance
     def resolve_page(root, info, path=None, id=None):
         instance = info.context.instance
         all_pages = list(instance.pages.values())
@@ -118,9 +123,28 @@ class LocaleDirective(GraphQLDirective):
         )
 
 
+class InstanceDirective(GraphQLDirective):
+    def __init__(self):
+        super().__init__(
+            name='instance',
+            description='Select the Paths instance for the request',
+            args={
+                'hostname': GraphQLArgument(
+                    type_=GraphQLString,
+                    description='Hostname'
+                ),
+                'identifier': GraphQLArgument(
+                    type_=GraphQLString,
+                    description='Instance identifier'
+                )
+            },
+            locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION]
+        )
+
+
 schema = graphene.Schema(
     query=Query,
-    directives=specified_directives + [LocaleDirective()],
+    directives=specified_directives + [LocaleDirective(), InstanceDirective()],
     types=[
         ActionPageType,
         EmissionPageType,

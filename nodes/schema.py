@@ -1,8 +1,9 @@
 import graphene
 from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
+from nodes.models import InstanceConfig
 
-from paths.graphql_helpers import GQLInfo
+from paths.graphql_helpers import GQLInfo, ensure_instance
 from pages.models import NodePage, InstanceContent
 from pages.base import Metric
 
@@ -12,14 +13,24 @@ from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VA
 from .scenario import Scenario
 
 
+class InstanceHostname(graphene.ObjectType):
+    hostname = graphene.String()
+    base_path = graphene.String()
+
+
 class InstanceType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
+    owner = graphene.String()
+    default_language = graphene.String()
+    supported_languages = graphene.List(graphene.String)
+    base_path = graphene.String()
     target_year = graphene.Int()
     reference_year = graphene.Int()
     minimum_historical_year = graphene.Int()
     maximum_historical_year = graphene.Int()
 
+    hostname = graphene.Field(InstanceHostname, hostname=graphene.String())
     lead_title = graphene.String()
     lead_paragraph = graphene.String()
 
@@ -34,6 +45,10 @@ class InstanceType(graphene.ObjectType):
         if obj is None:
             return None
         return obj.lead_paragraph
+
+    def resolve_hostname(root, info, hostname):
+        return InstanceConfig.objects.get(identifier=root.id)\
+            .hostnames.filter(hostname__iexact=hostname).first()
 
 
 class YearlyValue(graphene.ObjectType):
@@ -188,25 +203,31 @@ class Query(graphene.ObjectType):
     scenarios = graphene.List(ScenarioType)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
 
+    @ensure_instance
     def resolve_instance(root, info: GQLInfo):
         return info.context.instance
 
+    @ensure_instance
     def resolve_scenario(root, info, id):
         context = info.context.instance.context
         return context.get_scenario(id)
 
+    @ensure_instance
     def resolve_scenarios(root, info: GQLInfo):
         context = info.context.instance.context
         return list(context.scenarios.values())
 
+    @ensure_instance
     def resolve_node(root, info, id):
         instance = info.context.instance
         return instance.context.nodes.get(id)
 
+    @ensure_instance
     def resolve_nodes(root, info):
         instance = info.context.instance
         return instance.context.nodes.values()
 
+    @ensure_instance
     def resolve_actions(root, info):
         instance = info.context.instance
         return [n for n in instance.context.nodes.values() if isinstance(n, ActionNode)]

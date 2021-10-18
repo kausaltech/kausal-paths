@@ -26,10 +26,13 @@ logger = logging.getLogger(__name__)
 class Instance:
     id: str
     name: TranslatedString
+    owner: TranslatedString
+    default_language: str
     context: Context
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
+    supported_languages: list[str] = None
 
     pages: Optional[Dict[str, Page]] = None
     content_refreshed_at: Optional[datetime] = field(init=False)
@@ -40,6 +43,11 @@ class Instance:
 
     def __post_init__(self):
         self.content_refreshed_at = None
+        if not self.supported_languages:
+            self.supported_languages = [self.default_language]
+        else:
+            if self.default_language not in self.supported_languages:
+                self.supported_languages.append(self.default_language)
 
     def refresh(self):
         """Reload the Django models that have the rich-text content related to nodes.
@@ -66,7 +74,7 @@ class Instance:
 class InstanceLoader:
     instance: Instance
 
-    def make_trans_string(self, config: Dict, attr: str, pop: bool = False):
+    def make_trans_string(self, config: Dict, attr: str, pop: bool = False, default_language=None):
         default = config.get(attr)
         if pop and default is not None:
             del config[attr]
@@ -82,7 +90,7 @@ class InstanceLoader:
                 del config[key]
         if not langs:
             return None
-        return TranslatedString(**langs)
+        return TranslatedString(**langs, default_language=default_language or self.instance.default_language)
 
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', None)
@@ -325,10 +333,14 @@ class InstanceLoader:
         target_year = self.config['target_year']
         self.context = Context(dataset_repo, target_year)
 
-        instance_attrs = ['reference_year', 'minimum_historical_year', 'maximum_historical_year']
+        instance_attrs = [
+            'reference_year', 'minimum_historical_year', 'maximum_historical_year',
+            'default_language', 'supported_languages'
+        ]
         self.instance = Instance(
             id=self.config['id'],
-            name=self.make_trans_string(self.config, 'name'),
+            name=self.make_trans_string(self.config, 'name', default_language=self.config['default_language']),
+            owner=self.make_trans_string(self.config, 'owner', default_language=self.config['default_language']),
             context=self.context,
             **{attr: self.config.get(attr) for attr in instance_attrs}
         )

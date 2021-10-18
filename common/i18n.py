@@ -12,23 +12,30 @@ except ImproperlyConfigured:
 
 
 class TranslatedString:
+    i18n: dict[str, str]
+    default_language: str
+
     def __init__(self, *args, **kwargs):
         self.i18n = {}
+        if 'default_language' in kwargs:
+            self.default_language = kwargs.pop('default_language')
+        else:
+            self.default_language = None
 
         if len(args) > 1:
             raise Exception('You can supply at most one default translation')
         if len(args) == 1:
-            if not DEFAULT_LANGUAGE:
+            if not self.default_language:
                 raise Exception('No default language found')
-            self.i18n[DEFAULT_LANGUAGE] = args[0]
+            self.i18n[self.default_language] = args[0]
+
+        if len(kwargs) == 1:
+            self.default_language = list(kwargs.keys())[0]
+
         self.i18n.update(kwargs)
 
     def __str__(self):
-        if DEFAULT_LANGUAGE is None:
-            return list(self.i18n.values())[0]
         lang = get_language()
         if lang not in self.i18n:
-            if not DEFAULT_LANGUAGE:
-                return self.i18n.values()[0]
-            return self.i18n[DEFAULT_LANGUAGE]
+            return self.i18n[self.default_language]
         return self.i18n[lang]
