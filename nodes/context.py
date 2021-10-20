@@ -187,9 +187,9 @@ class Context:
         if node is None:
             all_nodes = self.nodes.values()
             root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-            if len(root_nodes) != 1:
-                raise Exception('Too many root nodes: %s' % (', '.join([x.id for x in root_nodes])))
-            node = root_nodes[0]
+            for node in root_nodes:
+                self.print_graph(node, indent)
+            return
 
         if isinstance(node, self.Action):
             node_color = 'green'

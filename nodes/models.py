@@ -43,6 +43,27 @@ class InstanceConfig(models.Model):
         instance_cache[self.identifier] = instance
         return instance
 
+    def sync_nodes(self):
+        instance = self.get_instance()
+        node_configs = {n.identifier: n for n in self.nodes.all()}
+        found_nodes = set()
+        new_nodes = []
+        for node in instance.context.nodes.values():
+            node_config = node_configs.get(node.id)
+            if node_config is None:
+                new_nodes.append(node)
+            else:
+                found_nodes.add(node.id)
+
+        for node in new_nodes:
+            node_obj = NodeConfig(instance=self, identifier=node.id)
+            print("Creating node config for node %s" % node.id)
+            node_obj.save()
+
+        for node in node_configs.values():
+            if node.identifier not in found_nodes:
+                print("Node %s exists in database, but it's not found in node graph")
+
 
 class InstanceHostname(models.Model):
     instance = models.ForeignKey(
@@ -72,6 +93,9 @@ class NodeConfig(models.Model):
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
 
+    def has_matching_node(self):
+        instance = self.instance.get_instance()
+        return self.identifier in instance.nodes
 
 class NodeValue(models.Model):
     node = models.ForeignKey(

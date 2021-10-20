@@ -32,6 +32,7 @@ parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
+#parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
 
@@ -58,8 +59,6 @@ def print_metric(metric):
     vals = metric.get_forecast_values(context)
     for val in vals:
         print(val)
-
-
 
 
 if args.print_graph:
@@ -106,11 +105,14 @@ if args.check:
     import django
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
     django.setup()
+    from nodes.models import InstanceConfig
     from pages.models import NodeContent
     for nc in NodeContent.objects.all():
         if nc.node_id not in context.nodes:
             print('NodeContent exists for missing node %s' % nc.node_id)
 
+    instance_config = InstanceConfig.objects.get(identifier=loader.instance.id)
+    instance_config.sync_nodes()
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
@@ -121,7 +123,6 @@ for node_id in (args.node or []):
     node.print_output(context)
     if isinstance(node, ActionNode):
         node.print_impact(context, context.get_node('net_emissions'))
-
 
 if False:
     loader.context.dataset_repo.pull_datasets()
