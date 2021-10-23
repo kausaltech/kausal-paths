@@ -181,23 +181,40 @@ class Context:
     def pull_datasets(self):
         self.dataset_repo.pull_datasets()
 
-    def print_graph(self, node=None, indent=0):
-        from colored import fg, attr
+    def print_graph(self):
+        import inspect
 
-        if node is None:
-            all_nodes = self.nodes.values()
-            root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-            for node in root_nodes:
-                self.print_graph(node, indent)
-            return
-
-        if isinstance(node, self.Action):
-            node_color = 'green'
-        else:
+        def make_node_tree(node: Node, tree: Tree = None) -> Tree:
+            node_icon = ''
             node_color = 'yellow'
-        node_str = f"{fg(node_color)}{node.id} "
-        node_str += f"{fg('grey_50')}{str(type(node))} "
-        node_str += attr('reset')
-        print('  ' * indent + node_str)
-        for in_node in node.input_nodes:
-            self.print_graph(in_node, indent + 1)
+            if isinstance(node, self.Action):
+                node_color = 'green'
+            elif node.quantity == 'emissions':
+                node_color = 'magenta'
+                node_icon = '💨'
+            elif node.quantity == 'population':
+                node_icon = '👪'
+            if node_icon:
+                node_icon += ' '
+
+            node_class = type(node)
+            node_module = node_class.__module__
+            module_file = inspect.getabsfile(node_class)
+            line_nr = inspect.getsourcelines(node_class)[1]
+            link = 'file://%s#%d' % (module_file, line_nr)
+            node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
+            node_str = f'{node_icon}[{node_color}]{node.id} {node_class_str}'
+            if tree is None:
+                branch = Tree(node_str)
+            else:
+                branch = tree.add(node_str)
+            for in_node in node.input_nodes:
+                make_node_tree(in_node, branch)
+            return branch
+
+        tree = Tree('Nodes')
+        all_nodes = self.nodes.values()
+        root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
+        for node in root_nodes:
+            tree = make_node_tree(node, tree)
+            rich.print(tree)
