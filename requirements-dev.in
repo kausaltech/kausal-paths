@@ -1,0 +1,7 @@
+-c requirements.txt
+ipython
+pylint
+pip-tools
+pylint-django
+autopep8
+flake8
