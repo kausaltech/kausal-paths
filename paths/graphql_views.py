@@ -7,14 +7,14 @@ from graphql.language.ast import Variable
 from graphql.error import GraphQLError
 
 from nodes.models import Instance, InstanceConfig, InstanceHostname
-from .graphql_helpers import GQLContext, GQLInfo
+from .graphql_helpers import GQLContext, GQLInfo, GQLInstanceInfo
 
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
 
 class LocaleMiddleware:
-    def process_locale_directive(self, info: GQLInfo, directive):
+    def process_locale_directive(self, info: GQLInfo, directive) -> Optional[str]:
         for arg in directive.arguments:
             if arg.name.value == 'lang':
                 lang = arg.value.value
@@ -25,6 +25,7 @@ class LocaleMiddleware:
 
     def resolve(self, next, root, info: GQLInfo, **kwargs):
         if root is None:
+            lang = None
             operation = info.operation
             # First see if the locale directive is there. If not, fall back to
             # figuring out the locale from the request.
@@ -32,7 +33,8 @@ class LocaleMiddleware:
                 if directive.name.value == 'locale':
                     lang = self.process_locale_directive(info, directive)
                     break
-            else:
+
+            if lang is None:
                 lang = get_language_from_request(info.context)
 
             info.context.graphql_query_language = lang
@@ -44,7 +46,10 @@ class LocaleMiddleware:
 class InstanceMiddleware:
     def get_instance_by_identifier(self, queryset, identifier: str, info: GQLInfo = None) -> InstanceConfig:
         try:
-            instance = queryset.get(identifier=identifier)
+            if identifier.isnumeric():
+                instance = queryset.get(id=identifier)
+            else:
+                instance = queryset.get(identifier=identifier)
         except InstanceConfig.DoesNotExist:
             raise GraphQLError("Instance with identifier %s not found" % identifier, [info] if info else None)
         return instance
@@ -95,7 +100,7 @@ class InstanceMiddleware:
 
         return instance_config.get_instance()
 
-    def activate_instance(self, instance: Instance, info: GQLInfo):
+    def activate_instance(self, instance: Instance, info: GQLInstanceInfo):
         instance.refresh()
         context = instance.context
         session = info.context.session

@@ -5,3 +5,7 @@ pip-tools
 pylint-django
 autopep8
 flake8
+pandas-stubs
+graphene-stubs
+django-stubs
+types-orjson

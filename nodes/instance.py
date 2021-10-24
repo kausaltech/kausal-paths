@@ -1,22 +1,23 @@
+import re
 import importlib
 import logging
-from nodes.constants import DecisionLevel
-import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
 import dvc_pandas
+import pint
 import yaml
 
 from common.i18n import TranslatedString, gettext_lazy as _
+from nodes.constants import DecisionLevel
 from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
 from pages.base import ActionPage, EmissionPage, Page
 
-from . import Context, Dataset
+from . import Context, Dataset, DVCDataset, FixedDataset
 
 
 logger = logging.getLogger(__name__)
@@ -32,17 +33,17 @@ class Instance:
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
-    supported_languages: list[str] = None
+    supported_languages: Optional[list[str]] = None
 
     pages: Optional[Dict[str, Page]] = None
-    content_refreshed_at: Optional[datetime] = field(init=False)
+    modified_at: Optional[datetime] = field(init=False)
 
     @property
     def target_year(self) -> int:
         return self.context.target_year
 
     def __post_init__(self):
-        self.content_refreshed_at = None
+        self.modified_at = None
         if not self.supported_languages:
             self.supported_languages = [self.default_language]
         else:
@@ -59,7 +60,7 @@ class Instance:
         iobj = InstanceContent.objects.filter(identifier=self.id).first()
         if iobj is None:
             return
-        if self.content_refreshed_at is not None and self.content_refreshed_at >= iobj.modified_at:
+        if self.modified_at is not None and self.modified_at >= iobj.modified_at:
             return
 
         context = self.context
@@ -94,12 +95,12 @@ class InstanceLoader:
 
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', None)
-        datasets = []
+        datasets: list[Dataset] = []
 
         unit = config.get('unit')
         if unit is None:
             unit = getattr(node_class, 'unit')
-        if unit:
+        if unit and not isinstance(unit, pint.Unit):
             unit = self.context.unit_registry(unit).units
 
         quantity = config.get('quantity')
@@ -118,11 +119,15 @@ class InstanceLoader:
             else:
                 ds_id = ds.pop('id')
                 dc = ds
-            o = Dataset(id=ds_id, **dc)
+            ds_unit = dc.pop('unit', None)
+            if ds_unit is not None and not isinstance(ds_unit, pint.Unit):
+                ds_unit = self.context.unit_registry(ds_unit).units
+                assert isinstance(ds_unit, pint.Unit)
+            o = DVCDataset(id=ds_id, unit=ds_unit, **dc)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
-            datasets.append(Dataset.from_fixed_values(
+            datasets.append(FixedDataset(
                 id=config['id'], unit=unit,
                 historical=config.get('historical_values'),
                 forecast=config.get('forecast_values'),
@@ -189,7 +194,9 @@ class InstanceLoader:
         mod = importlib.import_module('nodes.simple')
         node_class = getattr(mod, 'SectorEmissions')
         dataset_id = self.config.get('emission_dataset')
-        unit = self.config.get('emission_unit')
+        emission_unit = self.config.get('emission_unit')
+        if emission_unit is not None:
+            emission_unit = self.context.unit_registry(emission_unit).units
 
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
@@ -203,8 +210,9 @@ class InstanceLoader:
                     id=dataset_id,
                     column=data_col,
                     forecast_from=self.config.get('emission_forecast_from'),
+                    unit=emission_unit,
                 )] if data_col else [],
-                unit=unit,
+                unit=emission_unit,
                 **ec
             )
             node = self.make_node(node_class, nc)

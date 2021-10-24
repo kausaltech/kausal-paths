@@ -27,6 +27,9 @@ class Node:
     id: str
     # output_metrics: Iterable[Metric]
 
+    # the id of the database row corresponding to this node
+    database_id: Optional[int]
+
     # name is the human-readable label for the Node instance
     name: Optional[TranslatedString]
 
@@ -74,10 +77,13 @@ class Node:
             input_datasets = []
 
         self.id = id
+        self.database_id = None
         self.name = name
         self.description = description
         self.color = color
         self.unit = unit
+        if unit is None:
+            raise NodeError(self, "Attempting to initialize node without a unit")
         self.quantity = quantity
         self.target_year_goal = target_year_goal
         self.input_dataset_instances = input_datasets
@@ -302,3 +308,23 @@ class Node:
         assert self.baseline_values is None
         assert context.active_scenario.id == 'baseline'
         self.baseline_values = self.get_output(context)
+
+    def serialize_input_data(self, context: Context):
+        if len(self.input_dataset_instances) != 1:
+            raise NodeError(self, 'Too many input datasets')
+        ds = self.input_dataset_instances[0]
+        df = ds.get_copy(context)
+        if not isinstance(df, pd.DataFrame) or FORECAST_COLUMN not in df.columns:
+            raise Exception('Dataset %s is not suitable for serialization')
+
+        unit = ds.get_unit(context)
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            if hasattr(df[col], 'pint'):
+                assert df[col].pint.units == unit
+                df[col] = df[col].pint.m
+        return dict(
+            unit=context.describe_unit(unit),
+            values=df.reset_index().to_dict('records')
+        )

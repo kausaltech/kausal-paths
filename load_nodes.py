@@ -4,6 +4,7 @@ from nodes.actions.action import ActionNode
 import sys
 from nodes.instance import InstanceLoader
 from common.perf import PerfCounter
+import rich.traceback
 
 
 if True:
@@ -17,6 +18,8 @@ if True:
         log.write(warnings.formatwarning(message, category, filename, lineno, line))
 
     warnings.showwarning = warn_with_traceback
+    # Pretty tracebacks
+    rich.traceback.install()
 
 load_dotenv()
 
@@ -111,8 +114,11 @@ if args.check:
         if nc.node_id not in context.nodes:
             print('NodeContent exists for missing node %s' % nc.node_id)
 
-    instance_config = InstanceConfig.objects.get(identifier=loader.instance.id)
-    instance_config.sync_nodes()
+    instance_obj = InstanceConfig.objects.filter(identifier=loader.instance.id).first()
+    if instance_obj is None:
+        print("Creating instance %s" % loader.instance.id)
+        instance_obj = InstanceConfig.create_for_instance(loader.instance)
+    instance_obj.sync_nodes()
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')

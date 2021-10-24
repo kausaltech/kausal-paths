@@ -35,7 +35,10 @@ class TranslatedString:
         self.i18n.update(kwargs)
 
     def __str__(self):
-        lang = get_language()
+        try:
+            lang = get_language()
+        except:
+            lang = None
         if lang not in self.i18n:
             return self.i18n[self.default_language]
         return self.i18n[lang]

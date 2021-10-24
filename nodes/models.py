@@ -1,8 +1,16 @@
+from __future__ import annotations
 import os
+from typing import Optional
 
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from modeltrans.fields import TranslationField
+import pandas as pd
+from nodes.context import Context
+from nodes.datasets import FixedDataset
+from nodes.node import Node
 
 from paths.utils import IdentifierField
 
@@ -26,12 +34,33 @@ class InstanceQuerySet(models.QuerySet):
 
 class InstanceConfig(models.Model):
     identifier = IdentifierField()
+    name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    i18n = TranslationField(fields=('name',))
 
     objects = models.Manager.from_queryset(InstanceQuerySet)()
+
+    # Type annotations
+    nodes: "models.manager.RelatedManager[NodeConfig]"
 
     class Meta:
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
+
+    @classmethod
+    def create_for_instance(cls, instance: Instance) -> InstanceConfig:
+        assert not cls.objects.filter(identifier=instance.id).exists()
+        return cls.objects.create(identifier=instance.id)
+
+    def update_instance_from_configs(self, instance: Instance):
+        for node_config in self.nodes.all():
+            node = instance.context.nodes.get(node_config.identifier)
+            if node is None:
+                continue
+            node_config.update_node_from_config(node, instance.context)
 
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
@@ -40,8 +69,13 @@ class InstanceConfig(models.Model):
         loader = InstanceLoader.from_yaml(config_fn)
         instance = loader.instance
         instance.context.generate_baseline_values()
+        self.update_instance_from_configs(instance)
         instance_cache[self.identifier] = instance
         return instance
+
+    @property
+    def default_language(self) -> str:
+        return self.get_instance().default_language
 
     def sync_nodes(self):
         instance = self.get_instance()
@@ -64,6 +98,11 @@ class InstanceConfig(models.Model):
             if node.identifier not in found_nodes:
                 print("Node %s exists in database, but it's not found in node graph")
 
+    def update_modified_at(self, save=True):
+        self.modified_at = timezone.now()
+        if save:
+            self.save(update_fields=['modified_at'])
+
 
 class InstanceHostname(models.Model):
     instance = models.ForeignKey(
@@ -79,28 +118,62 @@ class InstanceHostname(models.Model):
 
 class NodeConfig(models.Model):
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='nodes'
+        InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
     )
     identifier = IdentifierField()
+    name = models.CharField(max_length=200, null=True, blank=True)
 
     color = models.CharField(max_length=20, null=True, blank=True)
-    forecast_values = models.JSONField(null=True)
-    historical_values = models.JSONField(null=True)
-    params = models.JSONField(null=True)
+    forecast_values = models.JSONField(null=True, editable=False)
+    historical_values = models.JSONField(null=True, editable=False)
+    params = models.JSONField(null=True, editable=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    i18n = TranslationField(fields=('name',))
 
     class Meta:
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
 
-    def has_matching_node(self):
+    def get_node(self) -> Optional[Node]:
         instance = self.instance.get_instance()
-        return self.identifier in instance.nodes
+        return instance.context.nodes.get(self.identifier)
 
-class NodeValue(models.Model):
-    node = models.ForeignKey(
-        NodeConfig, on_delete=models.CASCADE, related_name='values',
-    )
-    year = models.PositiveIntegerField()
-    is_forecast = models.BooleanField()
-    value = models.FloatField()
+    def update_node_from_config(self, node: Node, context: Context):
+        node.database_id = self.pk
+
+        if self.forecast_values or self.historical_values:
+            assert len(node.input_dataset_instances) == 1
+            unit = node.input_dataset_instances[0].get_unit(context)
+            ds = FixedDataset(
+                id=node.id,
+                unit=unit,
+                historical=self.historical_values,
+                forecast=self.forecast_values,
+            )
+            node.input_dataset_instances = [ds]
+
+        # FIXME: Override params
+
+    def can_edit_data(self):
+        node = self.get_node()
+        if node is None:
+            return False
+        # FIXME
+        return True
+
+    def __str__(self) -> str:
+        node = self.get_node()
+        if node is None:
+            prefix = '⚠️ '
+            name = ''
+        else:
+            prefix = ''
+            name = node.name
+        if self.name:
+            name = self.name
+        return f'{prefix}{name}'
+

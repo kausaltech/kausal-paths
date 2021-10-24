@@ -3,7 +3,7 @@ from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
 from nodes.models import InstanceConfig
 
-from paths.graphql_helpers import GQLInfo, ensure_instance
+from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from pages.models import NodePage, InstanceContent
 from pages.base import Metric
 
@@ -204,30 +204,37 @@ class Query(graphene.ObjectType):
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
 
     @ensure_instance
-    def resolve_instance(root, info: GQLInfo):
+    def resolve_instance(root, info: GQLInstanceInfo):
         return info.context.instance
 
     @ensure_instance
-    def resolve_scenario(root, info, id):
+    def resolve_scenario(root, info: GQLInstanceInfo, id):
         context = info.context.instance.context
         return context.get_scenario(id)
 
     @ensure_instance
-    def resolve_scenarios(root, info: GQLInfo):
+    def resolve_scenarios(root, info: GQLInstanceInfo):
         context = info.context.instance.context
         return list(context.scenarios.values())
 
     @ensure_instance
-    def resolve_node(root, info, id):
+    def resolve_node(root, info: GQLInstanceInfo, id: str):
         instance = info.context.instance
+        nodes = instance.context.nodes
+        if id.isnumeric():
+            for node in nodes.values():
+                if node.database_id is not None and node.database_id == int(id):
+                    return node
+            return None
+
         return instance.context.nodes.get(id)
 
     @ensure_instance
-    def resolve_nodes(root, info):
+    def resolve_nodes(root, info: GQLInstanceInfo):
         instance = info.context.instance
         return instance.context.nodes.values()
 
     @ensure_instance
-    def resolve_actions(root, info):
+    def resolve_actions(root, info: GQLInstanceInfo):
         instance = info.context.instance
         return [n for n in instance.context.nodes.values() if isinstance(n, ActionNode)]

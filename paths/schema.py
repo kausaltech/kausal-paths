@@ -1,17 +1,14 @@
-# pylint: disable=no-self-argument
-
+import pint
 import graphene
-from pages.base import ActionPage, EmissionPage
-from graphql.type import (
-    DirectiveLocation, GraphQLArgument, GraphQLDirective, GraphQLNonNull,
-    GraphQLString, specified_directives
-)
+from graphql.type.definition import GraphQLArgument, GraphQLNonNull
+from graphql.type.directives import DirectiveLocation, GraphQLDirective, specified_directives
+from graphql.type.scalars import GraphQLID, GraphQLString
+
 from nodes.schema import Query as NodesQuery
-from params.schema import (
-    Query as ParamsQuery,
-    Mutations as ParamsMutations,
-    types as params_types
-)
+from pages.base import ActionPage, EmissionPage
+from params.schema import Mutations as ParamsMutations
+from params.schema import Query as ParamsQuery
+from params.schema import types as params_types
 from paths.graphql_helpers import GQLInfo, ensure_instance
 
 
@@ -21,17 +18,17 @@ class UnitType(graphene.ObjectType):
     html_short = graphene.String()
     html_long = graphene.String()
 
-    def resolve_short(root, info):
-        return root.format_babel('~P')
+    def resolve_short(self: pint.Unit, info):  # type: ignore
+        return self.format_babel('~P')
 
-    def resolve_long(root, info):
-        return root.format_babel('P')
+    def resolve_long(self: pint.Unit, info):  # type: ignore
+        return self.format_babel('P')
 
-    def resolve_html_short(root, info):
-        return root.format_babel('~H')
+    def resolve_html_short(self: pint.Unit, info):  # type: ignore
+        return self.format_babel('~H')
 
-    def resolve_html_long(root, info):
-        return root.format_babel('H')
+    def resolve_html_long(self: pint.Unit, info):  # type: ignore
+        return self.format_babel('H')
 
 
 class PageInterface(graphene.Interface):
@@ -40,12 +37,12 @@ class PageInterface(graphene.Interface):
     name = graphene.String()
 
     @classmethod
-    def resolve_type(cls, page, info):
-        if isinstance(page, EmissionPage):
+    def resolve_type(cls, instance, info):
+        if isinstance(instance, EmissionPage):
             return EmissionPageType
-        elif isinstance(page, ActionPage):
+        elif isinstance(instance, ActionPage):
             return ActionPageType
-        raise Exception(f"{page} has invalid type")
+        raise Exception(f"{instance} has invalid type")
 
 
 class EmissionSector(graphene.ObjectType):
@@ -134,7 +131,7 @@ class InstanceDirective(GraphQLDirective):
                     description='Hostname'
                 ),
                 'identifier': GraphQLArgument(
-                    type_=GraphQLString,
+                    type_=GraphQLID,
                     description='Instance identifier'
                 )
             },

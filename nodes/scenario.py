@@ -1,12 +1,15 @@
 import logging
 from dataclasses import dataclass, field, InitVar
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import sentry_sdk
 
 from common.i18n import TranslatedString
 from nodes.node import Node
 
+if TYPE_CHECKING:
+    from .context import Context
+    from django.contrib.sessions.backends.base import SessionBase
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +37,15 @@ class Scenario:
 @dataclass
 class CustomScenario(Scenario):
     base_scenario: Optional[Scenario] = None
-    session = None
+    session: 'Optional[SessionBase]' = None
 
     def set_session(self, session):
         self.session = session
 
-    def activate(self, context):
+    def activate(self, context: 'Context'):
+        assert self.base_scenario is not None
+        assert self.session is not None
+
         self.base_scenario.activate(context)
         settings = self.session.get('settings', {})
         for param_id, val in list(settings.items()):
@@ -47,13 +53,13 @@ class CustomScenario(Scenario):
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)
-                logger.error('parameter %s not found in context' % param_id)
+                logger.error('parameter %s not found in context', param_id)
                 is_valid = False
             else:
                 try:
                     val = param.clean(val)
                 except Exception as e:
-                    logger.error('parameter %s has invalid value: %s' % (param_id, val))
+                    logger.error('parameter %s has invalid value: %s', param_id, val)
                     is_valid = False
                     sentry_sdk.capture_exception(e)
 
@@ -62,5 +68,6 @@ class CustomScenario(Scenario):
                 self.session.modified = True
                 continue
 
+            assert param is not None
             param.set(val)
             param.is_customized = True

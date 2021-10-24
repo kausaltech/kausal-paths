@@ -489,6 +489,7 @@ instance:
         - id: tampere/scenarios/emission_factors/bau
           column: Bus street constant fuel share
           dropna: true
+          unit: g/km
       output_nodes:
         - bus_emissions_streets
 
@@ -582,7 +583,6 @@ instance:
     #
     # City machinery
     #
-   
     - id: city_machinery_emissions
       name: Kaupungin työkoneiden päästöt
       name_en: City machinery emissions
@@ -846,6 +846,7 @@ instance:
           column: Bus street difference to constant fuel share
           forecast_from: 2020
           dropna: true
+          unit: g/km
       output_nodes:
         - bus_emission_factor_streets
 

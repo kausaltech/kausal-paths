@@ -1,15 +1,19 @@
 from __future__ import annotations
-import os
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-import pint
-import pint_pandas
+import os
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import dvc_pandas
-from .datasets import Dataset
+import pint
+import pint_pandas
+import rich
+from rich.tree import Tree
+
 from common.cache import Cache
 from params import Parameter
 from params.discover import discover_parameter_types
+
+from .datasets import Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
     from .node import Node
@@ -32,7 +36,7 @@ unit_registry.define(pint.unit.UnitDefinition(
 ))
 unit_registry.default_format = '~P'
 pint.set_application_registry(unit_registry)
-pint_pandas.PintType.ureg = unit_registry
+pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
 
 class Context:
@@ -54,6 +58,7 @@ class Context:
 
     def __init__(self, dataset_repo, target_year):
         from nodes.actions import ActionNode
+
         # Avoid circular import
         self.Action = ActionNode
 
@@ -77,7 +82,7 @@ class Context:
         return param_type
 
     def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
-        ds = self.datasets.get(id)
+        ds = self.dvc_datasets.get(id)
         if ds is None:
             if not self.dataset_repo.has_dataset(id):
                 raise Exception('Dataset %s not found in DVC repo' % id)
@@ -87,7 +92,7 @@ class Context:
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets
-        ds = Dataset(**config)
+        ds = DVCDataset(**config)
         self.datasets[ds.id] = ds
 
     def add_node(self, node: Node):
@@ -181,7 +186,7 @@ class Context:
     def pull_datasets(self):
         self.dataset_repo.pull_datasets()
 
-    def print_graph(self):
+    def print_graph(self, include_datasets=False):
         import inspect
 
         def make_node_tree(node: Node, tree: Tree = None) -> Tree:
@@ -203,7 +208,16 @@ class Context:
             line_nr = inspect.getsourcelines(node_class)[1]
             link = 'file://%s#%d' % (module_file, line_nr)
             node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
-            node_str = f'{node_icon}[{node_color}]{node.id} {node_class_str}'
+            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} {node_class_str}'
+            if include_datasets:
+                for ds in node.input_dataset_instances:
+                    if isinstance(ds, FixedDataset):
+                        ds_icon = '⌨'
+                    elif isinstance(ds, DVCDataset):
+                        ds_icon = '🐼'
+                    else:
+                        ds_icon = '❓'
+                    node_str += '\n  %s %s (%s)' % (ds_icon, ds.id, ', '.join(ds.get_copy(self).columns))
             if tree is None:
                 branch = Tree(node_str)
             else:
@@ -218,3 +232,12 @@ class Context:
         for node in root_nodes:
             tree = make_node_tree(node, tree)
             rich.print(tree)
+
+    def describe_unit(self, unit: pint.Unit):
+        formats = dict(
+            short='~P',
+            long='P',
+            html_short='~H',
+            html_long='H',
+        )
+        return {k: unit.format_babel(v) for k, v in formats.items()}
