@@ -20,7 +20,7 @@ class TranslatedString:
         if 'default_language' in kwargs:
             self.default_language = kwargs.pop('default_language')
         else:
-            self.default_language = None
+            self.default_language = DEFAULT_LANGUAGE
 
         if len(args) > 1:
             raise Exception('You can supply at most one default translation')

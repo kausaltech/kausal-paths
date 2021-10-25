@@ -76,8 +76,8 @@ class InstanceMiddleware:
         raise GraphQLError("Invalid instance directive", [info])
 
     def process_instance_headers(self, context: GQLContext) -> Optional[InstanceConfig]:
-        identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
-        hostname = context.headers.get(settings.INSTANCE_HOSTNAME_HEADER)
+        identifier = context.META.get(settings.INSTANCE_IDENTIFIER_HEADER)
+        hostname = context.META.get(settings.INSTANCE_HOSTNAME_HEADER)
         qs = InstanceConfig.objects.all()
         if identifier:
             return self.get_instance_by_identifier(qs, identifier)

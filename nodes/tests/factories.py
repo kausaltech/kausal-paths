@@ -1,4 +1,5 @@
 from factory import Factory, Sequence, SubFactory
+from factory.django import DjangoModelFactory
 from typing import List
 
 from common.i18n import TranslatedString
@@ -7,6 +8,7 @@ from nodes.actions.simple import AdditiveAction
 from nodes.context import Context, unit_registry
 from nodes.datasets import Dataset
 from nodes.instance import Instance
+from nodes.models import InstanceConfig
 from nodes.node import Node
 from nodes.simple import SimpleNode
 from nodes.scenario import CustomScenario, Scenario
@@ -20,12 +22,21 @@ class ContextFactory(Factory):
     target_year = 2030
 
 
+class InstanceConfigFactory(DjangoModelFactory):
+    class Meta:
+        model = InstanceConfig
+
+    identifier = 'test'
+
+
 class InstanceFactory(Factory):
     class Meta:
         model = Instance
 
     id = 'test'
-    name = 'test'
+    name = 'instance'
+    owner = 'owner'
+    default_language = 'fi'
     context = SubFactory(ContextFactory)
     reference_year = 1990
     minimum_historical_year = 2010

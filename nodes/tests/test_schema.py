@@ -1,9 +1,8 @@
 import pytest
-
-pytestmark = pytest.mark.django_db
-
 from nodes.tests.factories import NodeFactory
 from pages.base import Metric
+
+pytestmark = pytest.mark.django_db
 
 
 def test_instance_type(graphql_client_query_data, instance, instance_content):
