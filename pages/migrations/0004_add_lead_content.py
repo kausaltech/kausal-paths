@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instancecontent',
             name='lead_title',
-            field=models.CharField(default='', max_length=100, verbose_name='Lead title'),
+            field=models.CharField(default='', blank=True, max_length=100, verbose_name='Lead title'),
             preserve_default=False,
         ),
         migrations.AlterField(

@@ -1,7 +1,7 @@
 import graphene
 from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, NodeConfig
 
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from pages.models import NodePage, InstanceContent
@@ -35,13 +35,13 @@ class InstanceType(graphene.ObjectType):
     lead_paragraph = graphene.String()
 
     def resolve_lead_title(root, info):
-        obj = InstanceContent.objects.filter(identifier=root.id).first()
+        obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
         return obj.lead_title
 
     def resolve_lead_paragraph(root, info):
-        obj = InstanceContent.objects.filter(identifier=root.id).first()
+        obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
         return obj.lead_paragraph
@@ -175,6 +175,18 @@ class NodeType(graphene.ObjectType):
 
     def resolve_parameters(root, info):
         return [param for param in root.parameters.values() if param.is_customizable]
+
+    def resolve_short_description(root, info):
+        obj = NodeConfig.objects.filter(identifier=root.id).first()
+        if obj is None:
+            return None
+        return obj.short_description
+
+    def resolve_body(root, info):
+        obj = NodeConfig.objects.filter(identifier=root.id).first()
+        if obj is None:
+            return None
+        return obj.body
 
 
 class ScenarioType(graphene.ObjectType):

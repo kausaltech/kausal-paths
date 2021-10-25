@@ -5,8 +5,8 @@ from graphene_django.utils.testing import graphql_query
 from pytest_factoryboy import register
 
 from nodes.tests.factories import (
-    AdditiveActionFactory, ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceFactory,
-    InstanceConfigFactory, NodeFactory, ScenarioFactory, SimpleNodeFactory
+    AdditiveActionFactory, ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceConfigFactory,
+    InstanceFactory, NodeFactory, ScenarioFactory, SimpleNodeFactory
 )
 from pages.tests.factories import InstanceContentFactory
 from params.tests.factories import (
@@ -15,6 +15,7 @@ from params.tests.factories import (
 
 register(BoolParameterFactory)
 register(ContextFactory)
+register(InstanceConfigFactory)
 register(NumberParameterFactory)
 register(ParameterFactory)
 register(StringParameterFactory)
@@ -86,23 +87,18 @@ def custom_scenario(context, default_scenario):
 
 
 @pytest.fixture(autouse=True)
-def instance(context, instance_config):
+def instance(context):
     instance = InstanceFactory(context=context)
     from pages import global_instance
     global_instance.instance = instance
     import nodes
-    nodes.models.instance_cache = {instance_config.identifier: instance}
-    return global_instance.instance
+    nodes.models.instance_cache = {instance.id: instance}
+    return instance
 
 
 @pytest.fixture
 def instance_content(db, instance):
     return InstanceContentFactory(identifier=instance.id)
-
-
-@pytest.fixture
-def instance_config(db):
-    return InstanceConfigFactory()
 
 
 @pytest.fixture

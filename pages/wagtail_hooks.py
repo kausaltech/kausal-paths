@@ -15,8 +15,9 @@ class NodeEditHandler(ObjectList):
     def __init__(self, *args, **kwargs):
         panels = [
             FieldPanel('node_id', widget=Select()),
-            FieldPanel('short_description'),
-            FieldPanel('body'),
+            # The following fields have been moved to the nodes app
+            # FieldPanel('short_description'),
+            # FieldPanel('body'),
         ]
         if 'children' not in kwargs:
             kwargs['children'] = panels

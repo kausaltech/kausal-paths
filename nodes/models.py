@@ -11,6 +11,7 @@ import pandas as pd
 from nodes.context import Context
 from nodes.datasets import FixedDataset
 from nodes.node import Node
+from wagtail.core.fields import RichTextField
 
 from paths.utils import IdentifierField
 
@@ -35,6 +36,8 @@ class InstanceQuerySet(models.QuerySet):
 class InstanceConfig(models.Model):
     identifier = IdentifierField()
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
+    lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
+    lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -122,6 +125,12 @@ class NodeConfig(models.Model):
     )
     identifier = IdentifierField()
     name = models.CharField(max_length=200, null=True, blank=True)
+    short_description = RichTextField(
+        null=True, blank=True, verbose_name=_('Short description')
+    )
+    body = RichTextField(
+        null=True, blank=True, verbose_name=_('Body')
+    )
 
     color = models.CharField(max_length=20, null=True, blank=True)
     forecast_values = models.JSONField(null=True, editable=False)

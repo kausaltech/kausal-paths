@@ -1,11 +1,11 @@
 import pytest
-from nodes.tests.factories import NodeFactory
+from nodes.tests.factories import NodeConfigFactory, NodeFactory
 from pages.base import Metric
 
 pytestmark = pytest.mark.django_db
 
 
-def test_instance_type(graphql_client_query_data, instance, instance_content):
+def test_instance_type(graphql_client_query_data, instance, instance_config):
     data = graphql_client_query_data(
         '''
         query {
@@ -32,8 +32,8 @@ def test_instance_type(graphql_client_query_data, instance, instance_content):
             'referenceYear': instance.reference_year,
             'minimumHistoricalYear': instance.minimum_historical_year,
             'maximumHistoricalYear': instance.maximum_historical_year,
-            'leadTitle': instance_content.lead_title,
-            'leadParagraph': instance_content.lead_paragraph,
+            'leadTitle': instance_config.lead_title,
+            'leadParagraph': instance_config.lead_paragraph,
         }
     }
     assert data == expected
@@ -114,7 +114,8 @@ def test_forecast_metric_type(graphql_client_query_data, additive_action, contex
     assert data == expected
 
 
-def test_node_type(graphql_client_query_data, additive_action, context):
+def test_node_type(graphql_client_query_data, additive_action, instance_config):
+    node_config = NodeConfigFactory(instance=instance_config, identifier=additive_action.id)
     input_node = NodeFactory()
     additive_action.add_input_node(input_node)
     output_node = NodeFactory()
@@ -220,8 +221,8 @@ def test_node_type(graphql_client_query_data, additive_action, context):
                 '__typename': 'BoolParameterType',
                 'id': additive_action.enabled_param.global_id,
             }],
-            'shortDescription': None,  # TODO: Not implemented in schema yet
-            'body': None,  # TODO: Not set anywhere yet
+            'shortDescription': node_config.short_description,
+            'body': node_config.body,
         }
     }
     assert data == expected

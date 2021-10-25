@@ -28,9 +28,6 @@ class InstanceContent(models.Model):
     )
     modified_at = models.DateTimeField(editable=False, auto_now=True)
 
-    lead_title = models.CharField(max_length=100, verbose_name=_('Lead title'))
-    lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
-
     panels = [
         FieldPanel('lead_title'),
         FieldPanel('lead_paragraph'),
@@ -57,12 +54,6 @@ class NodeContent(models.Model):
     )
     node_id = models.CharField(
         max_length=100, unique=True, verbose_name=_('Node identifier')
-    )
-    short_description = RichTextField(
-        null=True, blank=True, verbose_name=_('Short description')
-    )
-    body = RichTextField(
-        null=True, blank=True, verbose_name=_('Body')
     )
 
     class Meta:

@@ -281,19 +281,6 @@ class Node:
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
 
-    @property
-    def short_description(self):
-        if self.content is not None:
-            # FIXME: Format RichTextField?
-            return self.content.short_description or self.description
-
-    @property
-    def body(self):
-        if self.content is None:
-            return None
-        # FIXME: Format RichTextField?
-        return self.content.body
-
     def add_input_node(self, node):
         if node in self.input_nodes:
             raise Exception(f"Node {node} already added to input nodes for {self.id}")

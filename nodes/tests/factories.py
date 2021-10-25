@@ -8,7 +8,7 @@ from nodes.actions.simple import AdditiveAction
 from nodes.context import Context, unit_registry
 from nodes.datasets import FixedDataset
 from nodes.instance import Instance
-from nodes.models import InstanceConfig
+from nodes.models import NodeConfig, InstanceConfig
 from nodes.node import Node
 from nodes.simple import SimpleNode
 from nodes.scenario import CustomScenario, Scenario
@@ -27,6 +27,8 @@ class InstanceConfigFactory(DjangoModelFactory):
         model = InstanceConfig
 
     identifier = 'test'
+    lead_title = "lead title"
+    lead_paragraph = "Lead paragraph"
 
 
 class InstanceFactory(Factory):
@@ -44,6 +46,17 @@ class InstanceFactory(Factory):
 
     # pages: Optional[Dict[str, Page]] = None
     # content_refreshed_at: Optional[datetime] = field(init=False)
+
+
+class NodeConfigFactory(DjangoModelFactory):
+    class Meta:
+        model = NodeConfig
+
+    instance = SubFactory(InstanceConfigFactory)
+    identifier = Sequence(lambda i: f'nodeconfig{i}')
+    name = "name"
+    short_description = "short description"
+    body = "body"
 
 
 class NodeFactory(Factory):
