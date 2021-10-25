@@ -6,7 +6,7 @@ from common.i18n import TranslatedString
 from nodes.actions import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context, unit_registry
-from nodes.datasets import Dataset
+from nodes.datasets import FixedDataset
 from nodes.instance import Instance
 from nodes.models import InstanceConfig
 from nodes.node import Node
@@ -57,7 +57,7 @@ class NodeFactory(Factory):
     unit = unit_registry('kWh').units
     quantity = 'energy'
     target_year_goal = 500.0
-    input_datasets = [Dataset.from_fixed_values(
+    input_datasets = [FixedDataset(
         id='test',
         unit='kWh',
         historical=[(2020, 1.23)],
