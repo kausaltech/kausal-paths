@@ -375,11 +375,8 @@ instance:
       type: simple.Activity
       quantity: mileage
       unit: Mkm
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Tram
-          min_year: 2016
-          dropna: true
+      historical_values: [[2010, 0], [2020, 0]]
+      forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
       output_nodes:
         - tram_emissions
 
@@ -866,6 +863,8 @@ instance:
         - id: naistenlahti3.enabled
           value: true
         - id: cleaner_electricity_production.enabled
+          value: true
+        - id: tram_phase_1.enabled
           value: true
 
     - id: default
