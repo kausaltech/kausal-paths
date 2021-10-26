@@ -375,7 +375,7 @@ instance:
       type: simple.Activity
       quantity: mileage
       unit: Mkm
-      historical_values: [[2010, 0], [2020, 0]]
+      historical_values: [[1990, 0], [2010, 0], [2011, 0], [2012, 0], [2013, 0], [2014, 0], [2015, 0], [2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0]]
       forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
       output_nodes:
         - tram_emissions
