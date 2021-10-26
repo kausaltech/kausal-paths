@@ -161,9 +161,9 @@ INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     # Match localhost with optional port
-    r'^https?://localhost(:\d+)?$',
+    r'^https?://([a-z0-9-_]+\.)+localhost(:\d+)?$',
     r'^https://([a-z0-9-_]+\.)*kausal\.tech$'
-]
+] 
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
 ]
