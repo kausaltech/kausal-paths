@@ -168,6 +168,7 @@ CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_PREFLIGHT_MAX_AGE = 3600
 
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
