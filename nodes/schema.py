@@ -125,7 +125,7 @@ class NodeType(graphene.ObjectType):
         return isinstance(root, ActionNode)
 
     @staticmethod
-    def resolve_descendant_nodes(root: Node, info: GQLInfo, proper=False):
+    def resolve_descendant_nodes(root: Node, info: GQLInfo, proper=True):
         info.context._upstream_node = root
         return root.get_descendant_nodes(proper)
 
