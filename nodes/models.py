@@ -105,7 +105,7 @@ class InstanceConfig(models.Model):
 
         for node in node_configs.values():
             if node.identifier not in found_nodes:
-                print("Node %s exists in database, but it's not found in node graph")
+                print("Node %s exists in database, but it's not found in node graph" % node.identifier)
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()
@@ -142,8 +142,7 @@ class NodeConfig(models.Model):
     )
 
     color = models.CharField(max_length=20, null=True, blank=True)
-    forecast_values = models.JSONField(null=True, editable=False)
-    historical_values = models.JSONField(null=True, editable=False)
+    input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -163,16 +162,9 @@ class NodeConfig(models.Model):
     def update_node_from_config(self, node: Node, context: Context):
         node.database_id = self.pk
 
-        if self.forecast_values or self.historical_values:
+        if self.input_data:
             assert len(node.input_dataset_instances) == 1
-            unit = node.input_dataset_instances[0].get_unit(context)
-            ds = FixedDataset(
-                id=node.id,
-                unit=unit,
-                historical=self.historical_values,
-                forecast=self.forecast_values,
-            )
-            node.input_dataset_instances = [ds]
+            node.replace_input_data(self.input_data)
 
         # FIXME: Override params
 

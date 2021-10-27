@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import os
+import io
 import inspect
+import json
 from types import FunctionType
 from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 
@@ -298,20 +300,38 @@ class Node:
 
     def serialize_input_data(self, context: Context):
         if len(self.input_dataset_instances) != 1:
-            raise NodeError(self, 'Too many input datasets')
+            datasets = [x.id for x in self.input_dataset_instances]
+            raise NodeError(self, 'Too many input datasets: %s' % ', '.join(datasets))
         ds = self.input_dataset_instances[0]
         df = ds.get_copy(context)
         if not isinstance(df, pd.DataFrame) or FORECAST_COLUMN not in df.columns:
             raise Exception('Dataset %s is not suitable for serialization')
 
-        unit = ds.get_unit(context)
+        try:
+            unit = ds.get_unit(context)
+        except Exception:
+            # FIXME: Make this more robust
+            unit = self.unit
+        units = {}
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue
             if hasattr(df[col], 'pint'):
                 assert df[col].pint.units == unit
                 df[col] = df[col].pint.m
-        return dict(
-            unit=context.describe_unit(unit),
-            values=df.reset_index().to_dict('records')
-        )
+            units[col] = str(unit)
+
+        d = json.loads(df.to_json(orient='table'))
+        fields = d['schema']['fields']
+        for field in fields:
+            if field['name'] in units:
+                field['unit'] = units[field['name']]
+        return d
+
+    def make_input_dataset(self, data: dict):
+        sio = io.StringIO(json.dumps(data))
+        df = pd.read_json(sio, orient='table')
+        print(df)
+
+    def replace_input_data(self, data: dict):
+        pass
