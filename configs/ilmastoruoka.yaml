@@ -2,7 +2,7 @@ instance:
   id: ilmastoruoka
   default_language: fi
   dataset_repo:
-    url: git@github.com:kausaltech/dvctest.git
+    url: https://github.com/kausaltech/dvctest.git
 #    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
 #    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
 #    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
