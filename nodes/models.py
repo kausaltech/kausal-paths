@@ -76,6 +76,12 @@ class InstanceConfig(models.Model):
         instance_cache[self.identifier] = instance
         return instance
 
+    def get_name(self) -> str:
+        if self.name:
+            return self.name
+        instance = self.get_instance()
+        return instance.name
+
     @property
     def default_language(self) -> str:
         return self.get_instance().default_language
@@ -105,6 +111,9 @@ class InstanceConfig(models.Model):
         self.modified_at = timezone.now()
         if save:
             self.save(update_fields=['modified_at'])
+
+    def __str__(self) -> str:
+        return self.get_name()
 
 
 class InstanceHostname(models.Model):
