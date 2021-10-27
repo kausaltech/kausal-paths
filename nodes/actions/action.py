@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Optional
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, DecisionLevel
-from nodes import Context, Node
+from nodes import Context, Node, NodeError
 from params import BoolParameter
 
 
@@ -47,7 +47,10 @@ class ActionNode(Node):
         enabled = self.is_enabled()
         self.enabled_param.set(False)
         disabled_df = target_node.get_output(context)
-        assert disabled_df is not None and VALUE_COLUMN in disabled_df.columns
+        if disabled_df is None:
+            raise NodeError(self, 'Output for node %s was null' % target_node.id)
+        if VALUE_COLUMN not in disabled_df.columns:
+            raise NodeError(self, 'Output for node %s did not contain the Value column' % target_node.id)
         self.enabled_param.set(enabled)
         df = target_node.get_output(context)
         df['ValueWithoutAction'] = disabled_df[VALUE_COLUMN]
