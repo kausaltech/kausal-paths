@@ -103,7 +103,6 @@ class InstanceMiddleware:
         return instance_config.get_instance()
 
     def activate_instance(self, instance: Instance, info: GQLInstanceInfo):
-        instance.refresh()
         context = instance.context
         session = info.context.session
 
@@ -146,3 +145,10 @@ class PathsGraphQLView(GraphQLView):
         if not (self.pretty or pretty) and not request.GET.get("pretty"):
             return orjson.dumps(d)
         return orjson.dumps(d, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS)
+
+    """
+    def execute_graphql_request(self, request, data, query, variables, operation_name, *args, **kwargs):
+        print('Query:\n%s\nVariables: %s' % (query, variables))
+        ret = super().execute_graphql_request(request, data, query, variables, operation_name, *args, **kwargs)
+        return ret
+    """

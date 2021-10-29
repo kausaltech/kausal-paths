@@ -50,27 +50,6 @@ class Instance:
             if self.default_language not in self.supported_languages:
                 self.supported_languages.append(self.default_language)
 
-    def refresh(self):
-        """Reload the Django models that have the rich-text content related to nodes.
-
-        Reload only happens if the Instance has been updated since the last refresh.
-        """
-        from pages.models import InstanceContent
-
-        iobj = InstanceContent.objects.filter(identifier=self.id).first()
-        if iobj is None:
-            return
-        if self.modified_at is not None and self.modified_at >= iobj.modified_at:
-            return
-
-        context = self.context
-        for pc in iobj.nodes.all():
-            if pc.node_id not in context.nodes:
-                logger.error('NodeContent exists for missing node ID: %s' % pc.node_id)
-                continue
-            node = context.nodes[pc.node_id]
-            node.content = pc
-
 
 class InstanceLoader:
     instance: Instance

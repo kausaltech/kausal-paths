@@ -108,7 +108,7 @@ class DVCDataset(Dataset):
                 if hasattr(df[col], 'pint'):
                     assert df[col].pint.units == self.unit
                 else:
-                    df[col] = df[col].astype(PintType(self.unit))
+                    df[col] = df[col].astype(float).astype(PintType(self.unit))
         context.cache.set(ds_hash, df)
         return df
 
@@ -173,8 +173,8 @@ class DVCDataset(Dataset):
         if VALUE_COLUMN in df.columns:
             s = df[VALUE_COLUMN]
             if hasattr(s, 'pint'):
-                self.unit = s.pint.units
-                return self.unit
+                unit = self.unit = s.pint.units
+                return unit
             raise Exception("Dataset %s does not have a unit" % self.id)
         else:
             raise Exception("Dataset %s does not have the value column" % self.id)

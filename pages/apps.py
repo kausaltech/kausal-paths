@@ -5,4 +5,6 @@ class PagesConfig(AppConfig):
     name = 'pages'
 
     def ready(self):
-        pass
+        from pages.schema import monkeypatch_grapple
+
+        monkeypatch_grapple()
