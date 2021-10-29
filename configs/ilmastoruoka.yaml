@@ -28,14 +28,13 @@ instance:
     - id: net_emissions
       name: Ruoankulutuksen kokonaispäästöt
       name_en: Net emissions from food consumption
-      target_year_goal: 6000
+      target_year_goal: 0
 
     - id: other_emissions
       name: Muut päästöt
       name_en: Other foods
       part_of: net_emissions
       color: '#72A0C1'
-      target_year_goal: 1000
 
     - id: alcohol_emissions
       name: Alkoholijuomat
@@ -83,7 +82,6 @@ instance:
       name_en: Plant emissions
       part_of: net_emissions
       color: '#8DB600'
-      target_year_goal: 5000
 
     - id: potato_emissions
       name: Perunat
@@ -97,7 +95,6 @@ instance:
       name_en: Fish emissions
       part_of: net_emissions
       color: '#A6A6A6'
-      target_year_goal: 600
 
   nodes:
     - id: population
@@ -119,7 +116,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#996515'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
@@ -171,7 +167,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#FA8072'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 7.8562 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
@@ -210,7 +205,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#4F86F7'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.0626
@@ -249,7 +243,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#CB4154'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 19.2005
@@ -288,7 +281,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#3B7A57'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 3.2852
@@ -327,7 +319,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#FFD300'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 2.1613
@@ -366,7 +357,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#7BB661'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.7156
@@ -404,7 +394,6 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.2928
@@ -442,7 +431,6 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 7.8562

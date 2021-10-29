@@ -35,7 +35,7 @@ parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
-#parser.add_argument('--sync', action='store_true', help='sync db to node contents')
+# parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
 
@@ -134,5 +134,5 @@ if False:
     loader.context.dataset_repo.pull_datasets()
     loader.context.print_all_parameters()
     loader.context.generate_baseline_values()
-    #for sector in page.get_sectors():
+    # for sector in page.get_sectors():
     #    print(sector)
