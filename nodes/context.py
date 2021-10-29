@@ -20,12 +20,16 @@ if TYPE_CHECKING:
     from .scenario import CustomScenario, Scenario
 
 
-unit_registry = pint.UnitRegistry(preprocessors=[
-    lambda s: s.replace('%', ' percent '),
-])
+unit_registry = pint.UnitRegistry(
+    preprocessors=[
+        lambda s: s.replace('%', ' percent '),
+    ],
+    on_redefinition='raise'
+)
 
 # By default, kt is knots, but here kilotonne is the most common
 # usage.
+del unit_registry._units['kt']
 unit_registry.define('kt = kilotonne')
 # Mega-kilometers is often used for mileage
 unit_registry.define('Mkm = gigameters')
@@ -144,11 +148,10 @@ class Context:
     def get_scenario(self, id) -> Scenario:
         return self.scenarios[id]
 
-    def compute(self):
+    def get_root_nodes(self) -> list[Node]:
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-        assert len(root_nodes) == 1
-        return root_nodes[0].compute(self)
+        return root_nodes
 
     def activate_scenario(self, scenario: Scenario):
         # Set the new parameters

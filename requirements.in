@@ -24,3 +24,5 @@ redis
 wagtailfontawesome
 django-modeltrans
 rich
+git+https://github.com/GrappleGQL/wagtail-grapple.git@e92abab64ea0dcacf68cd68ccd64a66c055e55f6
+Babel

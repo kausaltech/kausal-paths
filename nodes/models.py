@@ -1,22 +1,23 @@
 from __future__ import annotations
+
 import os
 from typing import Optional
 
 from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
-import pandas as pd
-from nodes.context import Context
-from nodes.datasets import FixedDataset
-from nodes.node import Node
 from wagtail.core.fields import RichTextField
+from wagtail.core.models import Page
+from wagtail.core.models.sites import Site
 
+from nodes.context import Context
+from nodes.node import Node
 from paths.utils import IdentifierField
 
 from .instance import Instance, InstanceLoader
-
 
 instance_cache: dict[str, Instance] = {}
 
@@ -38,6 +39,8 @@ class InstanceConfig(models.Model):
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
+    site_url = models.URLField(verbose_name=_('Site URL'), null=True)
+    site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -80,11 +83,15 @@ class InstanceConfig(models.Model):
         if self.name:
             return self.name
         instance = self.get_instance()
-        return instance.name
+        return str(instance.name)
 
     @property
     def default_language(self) -> str:
         return self.get_instance().default_language
+
+    @property
+    def root_page(self) -> Page:
+        return self.site.root_page
 
     def sync_nodes(self):
         instance = self.get_instance()
@@ -112,6 +119,42 @@ class InstanceConfig(models.Model):
         if save:
             self.save(update_fields=['modified_at'])
 
+    def get_outcome_nodes(self) -> list[NodeConfig]:
+        instance = self.get_instance()
+        root_nodes = instance.context.get_root_nodes()
+        pks = [node.database_id for node in root_nodes]
+        return self.nodes.filter(pk__in=pks)
+
+    def _create_default_pages(self) -> Page:
+        from pages.models import ActionListPage, OutcomePage
+
+        root_pages = Page.get_first_root_node().get_children()
+        try:
+            root_page = root_pages.get(slug=self.identifier)
+        except Page.DoesNotExist:
+            outcome_nodes = self.get_outcome_nodes()
+            root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
+                title=self.get_name(), slug=self.identifier, url_path='', outcome_node=outcome_nodes[0]
+            ))
+        action_list_pages = root_page.get_children().type(ActionListPage)
+        if not action_list_pages.exists():
+            root_page.add_child(instance=ActionListPage(
+                title=_("Actions"), show_in_menus=True, show_in_footer=True
+            ))
+        return root_page
+
+    def save(self, *args, **kwargs):
+        if self.site is None:
+            root_page = self._create_default_pages()
+            site = Site(site_name=self.get_name(), hostname=self.site_url, root_page=root_page)
+            site.save()
+            self.site = site
+        else:
+            # FIXME: Update Site and root page attributes
+            pass
+
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return self.get_name()
 
@@ -128,7 +171,7 @@ class InstanceHostname(models.Model):
         verbose_name_plural = _('Instance hostnames')
 
 
-class NodeConfig(models.Model):
+class NodeConfig(ClusterableModel):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
     )
@@ -137,8 +180,8 @@ class NodeConfig(models.Model):
     short_description = RichTextField(
         null=True, blank=True, verbose_name=_('Short description')
     )
-    body = RichTextField(
-        null=True, blank=True, verbose_name=_('Body')
+    description = RichTextField(
+        null=True, blank=True, verbose_name=_('Description')
     )
 
     color = models.CharField(max_length=20, null=True, blank=True)
@@ -186,4 +229,3 @@ class NodeConfig(models.Model):
         if self.name:
             name = self.name
         return f'{prefix}{name}'
-

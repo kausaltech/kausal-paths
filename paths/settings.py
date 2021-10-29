@@ -83,6 +83,7 @@ INSTALLED_APPS = [
 
     'taggit',
     'modelcluster',
+    'grapple',
     'graphene_django',
 
     'django.contrib.admin',
@@ -176,6 +177,9 @@ SESSION_COOKIE_SECURE = True
 GRAPHENE = {
     'SCHEMA': f'{PROJECT_NAME}.schema.schema',
 }
+GRAPPLE = {
+    'APPS': ['pages'],
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
@@ -262,6 +266,11 @@ if not locals().get('SECRET_KEY', ''):
             secret.close()
         except IOError:
             Exception('Please create a %s file with random characters to generate your secret key!' % secret_file)
+
+if DEBUG:
+    from rich.traceback import install
+    install()
+
 
 if SENTRY_DSN:
     import sentry_sdk

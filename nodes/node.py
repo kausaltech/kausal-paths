@@ -5,8 +5,7 @@ import os
 import io
 import inspect
 import json
-from types import FunctionType
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 import pint
@@ -20,9 +19,6 @@ from .context import Context
 from .datasets import Dataset
 from .exceptions import NodeError
 
-if TYPE_CHECKING:
-    from pages.models import NodeContent
-
 
 class Node:
     # identifier of the Node instance
@@ -33,10 +29,13 @@ class Node:
     database_id: Optional[int]
 
     # name is the human-readable label for the Node instance
-    name: Optional[TranslatedString]
+    name: Optional[Union[TranslatedString, str]]
 
-    # description for the Node instance
-    description: Optional[TranslatedString]
+    # Description for the Node instance
+    #
+    # This gets mapped to NodeType.short_description in the GraphQL schema and
+    # wrapped in a <p> tag.
+    description: Optional[Union[TranslatedString, str]]
 
     # if the node has an established visualisation color
     color: Optional[str]
@@ -65,12 +64,11 @@ class Node:
     baseline_values: Optional[pd.DataFrame]
 
     debug: bool = False
-    content: Optional[NodeContent]
     __post_init__: Callable[[Node], None]
 
     def __init__(
-        self, id, name, quantity, description=None, color=None, unit=None, target_year_goal=None,
-        input_datasets: List[Dataset] = None,
+        self, id: str, name, quantity: str, description, color: str = None,
+        unit=None, target_year_goal=None, input_datasets: List[Dataset] = None,
     ):
         if quantity not in KNOWN_QUANTITIES:
             raise Exception(f"Quantity {quantity} is unknown")
@@ -93,7 +91,6 @@ class Node:
         self.output_nodes = []
         self.baseline_values = None
         self.parameters = {}
-        self.content = None
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -247,14 +244,11 @@ class Node:
                 ))
         return s.astype(float).astype(pt)
 
-    def get_descendant_nodes(self, proper=False) -> List[Node]:
+    def get_downstream_nodes(self) -> List[Node]:
         # Depth-first traversal
         result = []
         closed = set()
-        if proper:
-            open = self.output_nodes.copy()
-        else:
-            open = [self]
+        open = self.output_nodes.copy()
         while open:
             current = open.pop()
             if current not in closed:
@@ -263,10 +257,10 @@ class Node:
                 open += current.output_nodes
         return result
 
-    def get_upstream_nodes(self, filter: FunctionType = None) -> List[Node]:
+    def get_upstream_nodes(self, filter: Callable[[Node], bool] = None) -> List[Node]:
         result = []
         closed = set()
-        open = [self]
+        open = self.input_nodes.copy()
         while open:
             current = open.pop()
             if current not in closed:
@@ -334,4 +328,5 @@ class Node:
         print(df)
 
     def replace_input_data(self, data: dict):
-        pass
+        if len(self.input_dataset_instances) == 1:
+            pass

@@ -1,15 +1,19 @@
-import pint
 import graphene
 from graphql.type.definition import GraphQLArgument, GraphQLNonNull
-from graphql.type.directives import DirectiveLocation, GraphQLDirective, specified_directives
+from graphql.type.directives import (
+    DirectiveLocation, GraphQLDirective, specified_directives
+)
 from graphql.type.scalars import GraphQLID, GraphQLString
+from django.utils.translation import get_language
+
+import pint
+from grapple.registry import registry as grapple_registry
 
 from nodes.schema import Query as NodesQuery
-from pages.base import ActionPage, EmissionPage
-from params.schema import Mutations as ParamsMutations
-from params.schema import Query as ParamsQuery
-from params.schema import types as params_types
-from paths.graphql_helpers import GQLInfo, ensure_instance
+from pages.schema import Query as PagesQuery
+from params.schema import (
+    Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
+)
 
 
 class UnitType(graphene.ObjectType):
@@ -19,86 +23,24 @@ class UnitType(graphene.ObjectType):
     html_long = graphene.String()
 
     def resolve_short(self: pint.Unit, info):  # type: ignore
-        return self.format_babel('~P')
+        lang = get_language()
+        return self.format_babel('~P', locale=lang)
 
     def resolve_long(self: pint.Unit, info):  # type: ignore
-        return self.format_babel('P')
+        lang = get_language()
+        return self.format_babel('P', locale=lang)
 
     def resolve_html_short(self: pint.Unit, info):  # type: ignore
-        return self.format_babel('~H')
+        lang = get_language()
+        return self.format_babel('~H', locale=lang)
 
     def resolve_html_long(self: pint.Unit, info):  # type: ignore
-        return self.format_babel('H')
+        lang = get_language()
+        return self.format_babel('H', locale=lang)
 
 
-class PageInterface(graphene.Interface):
-    id = graphene.ID()
-    path = graphene.String()
-    name = graphene.String()
-
-    @classmethod
-    def resolve_type(cls, instance, info):
-        if isinstance(instance, EmissionPage):
-            return EmissionPageType
-        elif isinstance(instance, ActionPage):
-            return ActionPageType
-        raise Exception(f"{instance} has invalid type")
-
-
-class EmissionSector(graphene.ObjectType):
-    id = graphene.ID()
-    name = graphene.String()
-    color = graphene.String()
-    parent = graphene.Field(lambda: EmissionSector)
-    metric = graphene.Field('nodes.schema.ForecastMetricType')
-    node = graphene.Field('nodes.schema.NodeType')
-
-
-class EmissionPageType(graphene.ObjectType):
-    emission_sectors = graphene.List(
-        EmissionSector, id=graphene.ID()
-    )
-
-    class Meta:
-        interfaces = (PageInterface,)
-
-    @staticmethod
-    def resolve_emission_sectors(root: EmissionPage, info, id=None):
-        context = info.context.instance.context
-        all_sectors = root.get_sectors(context)
-        if id is not None:
-            all_sectors = list(filter(lambda x: x.id == id, all_sectors))
-        return all_sectors
-
-
-class ActionPageType(graphene.ObjectType):
-    action = graphene.Field('nodes.schema.NodeType')
-
-    class Meta:
-        interfaces = (PageInterface,)
-
-
-class Query(NodesQuery, ParamsQuery):
-    pages = graphene.List(PageInterface)
-    page = graphene.Field(
-        PageInterface, path=graphene.String(required=False),
-        id=graphene.String(required=False)
-    )
-
-    @ensure_instance
-    def resolve_pages(root, info):
-        instance = info.context.instance
-        return list(instance.pages.values())
-
-    @ensure_instance
-    def resolve_page(root, info, path=None, id=None):
-        instance = info.context.instance
-        all_pages = list(instance.pages.values())
-        if path:
-            for page in all_pages:
-                if page.path == path:
-                    return page
-        return None
+class Query(NodesQuery, ParamsQuery, PagesQuery):
+    pass
 
 
 class Mutations(ParamsMutations):
@@ -142,10 +84,6 @@ class InstanceDirective(GraphQLDirective):
 schema = graphene.Schema(
     query=Query,
     directives=specified_directives + [LocaleDirective(), InstanceDirective()],
-    types=[
-        ActionPageType,
-        EmissionPageType,
-        *params_types,
-    ],
+    types=params_types + list(grapple_registry.models.values()),
     mutation=Mutations,
 )
