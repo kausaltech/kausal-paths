@@ -282,7 +282,10 @@ class FixedMultiplierNode(SimpleNode):
         node = self.input_nodes[0]
 
         df = node.get_output(context)
-        multiplier = self.get_parameter_value('multiplier')
+        multiplier_param = self.get_parameter('multiplier')
+        multiplier = multiplier_param.value
+        if multiplier_param.unit:
+            multiplier = pint.Quantity(multiplier, multiplier_param.unit)
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue

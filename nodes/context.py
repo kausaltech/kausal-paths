@@ -212,7 +212,8 @@ class Context:
             line_nr = inspect.getsourcelines(node_class)[1]
             link = 'file://%s#%d' % (module_file, line_nr)
             node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
-            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} {node_class_str}'
+            unit_quantity = f'[orchid]({node.quantity}: {node.unit})'
+            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} {unit_quantity} {node_class_str}'
             if include_datasets:
                 for ds in node.input_dataset_instances:
                     if isinstance(ds, FixedDataset):

@@ -470,8 +470,7 @@ instance:
       name_en: Net health benefit
       type: simple.AdditiveNode
       quantity: disease_burden
-      unit: kt/a
-      color: '#345678'
+      unit: DALY/a
 
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
@@ -481,7 +480,7 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 715.82 
+          value: 715.82
           unit: DALY/kt
       input_nodes:
         - imported_fish_consumption
@@ -506,9 +505,10 @@ instance:
     - id: fish_health_impact
       name: Kalan terveyshyöty
       name_en: Fish health benefit
+      color: '#a6a6a6'
       type: simple.AdditiveNode
       quantity: disease_burden
-      unit: kt/a
+      unit: DALY/a
       output_nodes:
         - net_health_impact
 
@@ -530,6 +530,7 @@ instance:
     - id: vegetable_health_impact
       name: Vihannesten terveyshyöty
       name_en: Vegetable health benefit
+      color: '#8db600'
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a
@@ -545,6 +546,7 @@ instance:
     - id: meat_health_impact
       name: Lihan terveyshyöty
       name_en: Meat health benefit
+      color: '#cb4154'
       type: simple.FixedMultiplierNode
       quantity: disease_burden
       unit: DALY/a

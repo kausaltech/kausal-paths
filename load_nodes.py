@@ -109,10 +109,6 @@ if args.check:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
     django.setup()
     from nodes.models import InstanceConfig
-    from pages.models import NodeContent
-    for nc in NodeContent.objects.all():
-        if nc.node_id not in context.nodes:
-            print('NodeContent exists for missing node %s' % nc.node_id)
 
     instance_obj = InstanceConfig.objects.filter(identifier=loader.instance.id).first()
     if instance_obj is None:
