@@ -139,7 +139,7 @@ class InstanceConfig(models.Model):
         action_list_pages = root_page.get_children().type(ActionListPage)
         if not action_list_pages.exists():
             root_page.add_child(instance=ActionListPage(
-                title=_("Actions"), show_in_menus=True, show_in_footer=True
+                title=_("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
             ))
         return root_page
 
