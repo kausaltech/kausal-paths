@@ -179,7 +179,7 @@ class NodeType(graphene.ObjectType):
     def resolve_parameters(root, info):
         return [param for param in root.parameters.values() if param.is_customizable]
 
-    def resolve_short_description(root, info) -> Optional[str]:
+    def resolve_short_description(root, info: GQLInstanceInfo) -> Optional[str]:
         obj: NodeConfig = NodeConfig.objects.filter(identifier=root.id).first()
         if obj is not None and obj.short_description:
             return expand_db_html(obj.short_description)
@@ -187,11 +187,11 @@ class NodeType(graphene.ObjectType):
             return '<p>%s</p>' % root.description
         return None
 
-    def resolve_body(root, info):
+    def resolve_description(root, info: GQLInstanceInfo) -> Optional[str]:
         obj = NodeConfig.objects.filter(identifier=root.id).first()
-        if obj is None:
+        if obj is None or not obj.description:
             return None
-        return expand_db_html(obj.body)
+        return expand_db_html(obj.description)
 
 
 class ScenarioType(graphene.ObjectType):
