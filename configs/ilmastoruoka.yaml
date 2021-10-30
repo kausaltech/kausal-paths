@@ -477,6 +477,7 @@ instance:
       name_en: Imported fish health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
+      color: '#FA8072'
       unit: DALY/a
       params:
         - id: multiplier
@@ -492,6 +493,7 @@ instance:
       name_en: Domestic fish health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
+      color: '#A6A6A6'
       unit: DALY/a
       params:
         - id: multiplier
@@ -517,6 +519,7 @@ instance:
       name_en: Fruit and berries health benefit
       type: simple.FixedMultiplierNode
       quantity: disease_burden
+      color: '#4F86F7'
       unit: DALY/a
       params:
         - id: multiplier
