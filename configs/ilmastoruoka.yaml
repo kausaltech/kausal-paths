@@ -669,7 +669,7 @@ instance:
           max_value: 140
           step: 1
           unit: g/day/person
-          description: Viljan kulutuksen muutos
+          description: Viljan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in grain consumption
 
     - id: imported_fish_consumption_change
@@ -689,7 +689,7 @@ instance:
           max_value: 60
           step: 1
           unit: g/day/person
-          description: Tuontikalan kulutuksen muutos
+          description: Tuontikalan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in imported fish consumption
 
     - id: domestic_fish_consumption_change
@@ -708,7 +708,7 @@ instance:
           max_value: 40
           step: 1
           unit: g/day/person
-          description: Kotimaisen kalan kulutuksen muutos
+          description: Kotimaisen kalan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in domestic fish consumption
 
     - id: fruit_consumption_change
@@ -727,7 +727,7 @@ instance:
           max_value: 180
           step: 1
           unit: g/day/person
-          description: Hedelmien ja marjojen kulutuksen muutos
+          description: Hedelmien ja marjojen kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in fruit and berry consumption
 
     - id: meat_consumption_change
@@ -746,7 +746,7 @@ instance:
           max_value: 0
           step: 1
           unit: g/day/person
-          description: Lihan kulutuksen muutos
+          description: Lihan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in meat consumption
 
     - id: legume_consumption_change
@@ -765,7 +765,7 @@ instance:
           max_value: 210
           step: 1
           unit: g/day/person
-          description: Palkokasvien ja pähkinöiden kulutuksen muutos
+          description: Palkokasvien ja pähkinöiden kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in legume and nut consumption
 
     - id: dairy_consumption_change
@@ -784,7 +784,7 @@ instance:
           max_value: 40
           step: 1
           unit: g/day/person
-          description: Maitotuotteiden kulutuksen muutos
+          description: Maitotuotteiden kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in dairy consumption
 
     - id: vegetable_consumption_change
@@ -803,7 +803,7 @@ instance:
           max_value: 210
           step: 1
           unit: g/day/person
-          description: Vihannesten kulutuksen muutos
+          description: Vihannesten kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in vegetable consumption
 
     - id: oatdrink_consumption_change
@@ -822,7 +822,7 @@ instance:
           max_value: 580
           step: 1
           unit: g/day/person
-          description: Kaurajuoman kulutuksen muutos
+          description: Kaurajuoman kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in oatdrink consumption
 
   pages:

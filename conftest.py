@@ -5,7 +5,7 @@ from graphene_django.utils.testing import graphql_query
 from pytest_factoryboy import register
 
 from nodes.tests.factories import (
-    AdditiveActionFactory, ActionNodeFactory,  ContextFactory, CustomScenarioFactory, InstanceConfigFactory,
+    AdditiveActionFactory, ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceConfigFactory,
     InstanceFactory, NodeFactory, ScenarioFactory, SimpleNodeFactory
 )
 from pages.tests.factories import InstanceContentFactory
