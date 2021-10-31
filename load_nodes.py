@@ -2,7 +2,7 @@ import argparse
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 import sys
-from nodes.instance import InstanceLoader
+from nodes.instance import Instance, InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
 
@@ -23,7 +23,20 @@ if True:
 
 load_dotenv()
 
+django_initialized = False
+
+def init_django():
+    global django_initialized
+    if django_initialized:
+        return
+    import os
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
+    django.setup()
+    django_initialized = True
+
 parser = argparse.ArgumentParser(description='Execute the computational graph')
+parser.add_argument('--instance', type=str, help='instance identifier')
 parser.add_argument('--config', type=str, help='config yaml file')
 parser.add_argument('--baseline', action='store_true', help='generate baseline scenario values')
 parser.add_argument('--scenario', type=str, help='select scenario')
@@ -38,11 +51,21 @@ parser.add_argument('--print-graph', action='store_true', help='print the graph'
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
+if (args.instance and args.config) or (not args.instance and not args.config):
+    print('Specify either "--instance" or "--config"')
+    exit(1)
 
-loader = InstanceLoader.from_yaml(args.config or 'configs/tampere.yaml')
-context = loader.context
+if args.instance:
+    init_django()
+    from nodes.models import InstanceConfig
+    instance_obj: InstanceConfig = InstanceConfig.objects.get(identifier=args.instance)
+    instance = instance_obj.get_instance()
+    context = instance.context
 
-page = list(loader.instance.pages.values())[0]
+if args.config:
+    loader = InstanceLoader.from_yaml(args.config)
+    context = loader.context
+    instance = loader.instance
 
 
 def print_metric(metric):
@@ -104,16 +127,13 @@ if args.check:
                 print('Node %s baseline forecast has NaN values:' % node.id)
                 node.print_pint_df(node.baseline_values)
 
-    import os
-    import django
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
-    django.setup()
+    init_django()
     from nodes.models import InstanceConfig
 
-    instance_obj = InstanceConfig.objects.filter(identifier=loader.instance.id).first()
+    instance_obj = InstanceConfig.objects.filter(identifier=instance.id).first()
     if instance_obj is None:
-        print("Creating instance %s" % loader.instance.id)
-        instance_obj = InstanceConfig.create_for_instance(loader.instance)
+        print("Creating instance %s" % instance.id)
+        instance_obj = InstanceConfig.create_for_instance(instance)
     instance_obj.sync_nodes()
 
 for param_arg in (args.param or []):
