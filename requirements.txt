@@ -35,7 +35,7 @@ attrs==21.2.0
     # via
     #   aiohttp
     #   pytest
-babel==2.9.1
+babel==2.8.1
     # via -r requirements.in
 backcall==0.2.0
     # via ipython
@@ -177,7 +177,7 @@ inflection==0.5.1
     # via pytest-factoryboy
 iniconfig==1.1.1
     # via pytest
-ipython==7.28.0
+ipython==7.29.0
     # via -r requirements.in
 jedi==0.18.0
     # via ipython
@@ -208,7 +208,7 @@ openpyxl==3.0.9
     # via tablib
 orjson==3.6.4
     # via -r requirements.in
-packaging==21.0
+packaging==21.2
     # via
     #   dvc
     #   pint
@@ -425,7 +425,7 @@ webencodings==0.5.1
     # via html5lib
 willow==1.4
     # via wagtail
-wrapt==1.13.2
+wrapt==1.13.3
     # via aiobotocore
 xlrd==2.0.1
     # via tablib
