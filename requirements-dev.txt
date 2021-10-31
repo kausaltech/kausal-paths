@@ -35,7 +35,7 @@ flake8==4.0.1
     # via -r requirements-dev.in
 graphene-stubs==0.15
     # via -r requirements-dev.in
-ipython==7.28.0
+ipython==7.29.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
@@ -151,7 +151,7 @@ wcwidth==0.2.5
     #   prompt-toolkit
 wheel==0.37.0
     # via pip-tools
-wrapt==1.13.2
+wrapt==1.13.3
     # via
     #   -c requirements.txt
     #   astroid

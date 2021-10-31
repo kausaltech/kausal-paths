@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+import io
+import json
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 import orjson
 
@@ -199,8 +201,8 @@ class FixedDataset(Dataset):
 
     # Use `dimensionless` for `unit` if the quantities should be dimensionless.
     unit: pint.Unit
-    historical: List[Tuple[int, float]] | None
-    forecast: List[Tuple[int, float]] | None
+    historical: Optional[List[Tuple[int, float]]]
+    forecast: Optional[List[Tuple[int, float]]]
 
     def _fixed_multi_values_to_df(self, data):
         series = []
@@ -249,6 +251,37 @@ class FixedDataset(Dataset):
             df[col] = df[col].astype(float).astype(pt)
 
         self.df = df
+
+    def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+        assert self.df is not None
+        return self.df
+
+    def hash_data(self, context: Context) -> dict[str, Any]:
+        return dict(hash=int(pd.util.hash_pandas_object(self.df).sum()))
+
+    def get_unit(self, context: Context) -> pint.Unit:
+        return self.unit
+
+
+@dataclass
+class JSONDataset(Dataset):
+    data: dict
+    unit: pint.Unit
+
+    def __post_init__(self):
+        super().__post_init__()
+        sio = io.StringIO(json.dumps(self.data))
+        df = pd.read_json(sio, orient='table')
+        units = []
+        for f in self.data['schema']['fields']:
+            unit = f.get('unit')
+            if unit:
+                pt = pint_pandas.PintType(unit)
+                df[f['name']] = df[f['name']].astype(float).astype(pt)
+                units.append(pt.units)
+        self.df = df
+        if len(units) == 1:
+            self.unit = units[0]
 
     def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
         assert self.df is not None

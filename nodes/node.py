@@ -7,16 +7,17 @@ import inspect
 import json
 from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 import pint
 import pint_pandas
 
 from common.i18n import TranslatedString
-from nodes.constants import FORECAST_COLUMN, KNOWN_QUANTITIES, VALUE_COLUMN
+from nodes.constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, KNOWN_QUANTITIES, MILEAGE_QUANTITY, VALUE_COLUMN
 from params import Parameter
 
 from .context import Context
-from .datasets import Dataset
+from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
 
 
@@ -62,6 +63,9 @@ class Node:
 
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
+
+    # Cache last historical year
+    _last_historical_year: Optional[int]
 
     debug: bool = False
     __post_init__: Callable[[Node], None]
@@ -142,6 +146,27 @@ class Node:
         if len(datasets) != 1:
             raise NodeError(self, 'Expected only 1 input dataset, got %d' % len(datasets))
         return datasets[0]
+
+    def get_last_historical_year(self, context: Context) -> Optional[int]:
+        year = getattr(self, '_last_historical_year', None)
+        if year is not None:
+            return year
+
+        if len(self.input_dataset_instances) != 1:
+            return None
+        ds = self.input_dataset_instances[0]
+        df = ds.get_copy(context)
+        if FORECAST_COLUMN not in df:
+            return None
+
+        year = df[~df[FORECAST_COLUMN]].index.max()
+        if np.isnan(year):
+            year = None
+        else:
+            year = int(year)
+
+        self._last_historical_year = year
+        return year
 
     def calculate_hash(self, context: Context) -> bytes:
         h = hashlib.md5()
@@ -274,6 +299,21 @@ class Node:
         """Called when a scenario is created with this node among the nodes to be notified."""
         pass
 
+    def get_icon(self) -> Optional[str]:
+        from nodes.actions import ActionNode
+        if isinstance(self, ActionNode):
+            return '⚒'
+        elif self.quantity == EMISSION_QUANTITY:
+            return '💨'
+        elif self.quantity == ENERGY_QUANTITY:
+            return '⚡'
+        elif self.quantity == MILEAGE_QUANTITY:
+            return '🚗'
+        elif self.quantity == EMISSION_FACTOR_QUANTITY:
+            return '✖'
+        else:
+            return None
+
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
 
@@ -322,11 +362,29 @@ class Node:
                 field['unit'] = units[field['name']]
         return d
 
-    def make_input_dataset(self, data: dict):
-        sio = io.StringIO(json.dumps(data))
-        df = pd.read_json(sio, orient='table')
-        print(df)
+    def validate_input_data(self, data: dict, context: Context):
+        return self._make_input_dataset(data, context)
 
-    def replace_input_data(self, data: dict):
-        if len(self.input_dataset_instances) == 1:
-            pass
+    def _make_input_dataset(self, data: dict, context: Context):
+        sio = io.StringIO(json.dumps(data))
+        old = self.serialize_input_data(context)
+        old['data'] = data['data']
+        df = pd.read_json(sio, orient='table')
+        return old
+
+    def replace_input_data(self, data: dict, context: Context):
+        if len(self.input_dataset_instances) != 1:
+            raise NodeError(self, "Can't replace data for node with %d input datasets" % len(self.input_dataset_instances))
+
+        d = self._make_input_dataset(data, context)
+        old_ds = self.input_dataset_instances[0]
+        try:
+            unit = old_ds.get_unit(context)
+        except Exception:
+            # FIXME: Make this more robust
+            unit = self.unit
+        self.input_dataset_instances[0] = JSONDataset(
+            id=old_ds.id, data=d, unit=unit
+        )
+
+        self._last_historical_year = None

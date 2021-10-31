@@ -74,8 +74,8 @@ class InstanceConfig(models.Model):
         config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
         loader = InstanceLoader.from_yaml(config_fn)
         instance = loader.instance
-        instance.context.generate_baseline_values()
         self.update_instance_from_configs(instance)
+        instance.context.generate_baseline_values()
         instance_cache[self.identifier] = instance
         return instance
 
@@ -207,7 +207,7 @@ class NodeConfig(ClusterableModel):
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1
-            node.replace_input_data(self.input_data)
+            node.replace_input_data(self.input_data, context)
 
         # FIXME: Override params
 
@@ -220,12 +220,16 @@ class NodeConfig(ClusterableModel):
 
     def __str__(self) -> str:
         node = self.get_node()
+        prefix = ''
         if node is None:
             prefix = '⚠️ '
             name = ''
         else:
-            prefix = ''
-            name = node.name
+            icon = node.get_icon()
+            if icon is not None:
+                prefix = f'{icon} '
+            name = str(node.name)
+
         if self.name:
             name = self.name
         return f'{prefix}{name}'

@@ -6,12 +6,21 @@ VALUE_COLUMN = 'Value'
 IMPACT_COLUMN = 'Impact'
 EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'
-KNOWN_QUANTITIES = [
-    'emissions', 'energy', 'emission_factor', 'mileage', 'population', 'per_capita',
-    'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden',
-    'mass'
+
+#
+# Quantities
+#
+EMISSION_QUANTITY = 'emissions'
+ENERGY_QUANTITY = 'energy'
+MILEAGE_QUANTITY = 'mileage'
+EMISSION_FACTOR_QUANTITY = 'emission_factor'
+ACTIVITY_QUANTITIES = [EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'mass']
+
+KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
+    'emission_factor', 'population', 'per_capita', 'fuel_consumption',
+    'ratio', 'exposure', 'exposure-response', 'disease_burden',
 ]
-ACTIVITY_QUANTITIES = ['emissions', 'energy', 'mileage','mass']
+
 
 
 class DecisionLevel(Enum):
