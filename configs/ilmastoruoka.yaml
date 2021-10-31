@@ -20,6 +20,10 @@ instance:
     - id: municipality_name
       value: Tampere
 
+  # FIXME: Emissions are calculated as g/day/person. Then, they
+  # are multiplied by fake population in excel before uploading to dvctest.
+  # Fetch real population and use that.
+
   emission_sectors:
     - id: net_emissions
       name: Ruoankulutuksen kokonaispäästöt
@@ -467,16 +471,18 @@ instance:
       type: simple.AdditiveNode
       quantity: disease_burden
       unit: DALY/a
-      color: '#345678'
 
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
       name_en: Imported fish health benefit
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
       color: '#FA8072'
+      unit: DALY/a
       params:
-        - id: health_factor
-          value: 715.82 # Multiplier must always be in units -DALY/kt of food (benefits are positive numbers)
+        - id: multiplier
+          value: 715.82
+          unit: DALY/kt
       input_nodes:
         - imported_fish_consumption
       output_nodes:
@@ -485,11 +491,14 @@ instance:
     - id: domestic_fish_health_impact
       name: Kotimaisen kalan terveyshyöty
       name_en: Domestic fish health benefit
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
       color: '#A6A6A6'
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 715.82
+          unit: DALY/kt
       input_nodes:
         - domestic_fish_consumption
       output_nodes:
@@ -508,11 +517,14 @@ instance:
     - id: fruit_health_impact
       name: Hedelmien ja marjojen terveyshyöty
       name_en: Fruit and berries health benefit
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
       color: '#4F86F7'
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 121.04030 
+          unit: DALY/kt
       input_nodes:
         - fruit_consumption
       output_nodes:
@@ -521,11 +533,14 @@ instance:
     - id: vegetable_health_impact
       name: Vihannesten terveyshyöty
       name_en: Vegetable health benefit
-      type: health.FixedMultiplierHealthImpactNode
       color: '#8db600'
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 72.52568 
+          unit: DALY/kt
       input_nodes:
         - vegetable_consumption
       output_nodes:
@@ -535,10 +550,13 @@ instance:
       name: Lihan terveyshyöty
       name_en: Meat health benefit
       color: '#cb4154'
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: -164.290
+          unit: DALY/kt
       input_nodes:
         - meat_consumption
       output_nodes:
@@ -990,7 +1008,7 @@ instance:
           unit: g/day/person
 
     - id: vegan
-      name: Vegaani ruokavalio
+      name: Vegaani ruokaalio
       name_en: Vegan diet
       all_actions_enabled: true
       params:
@@ -1021,3 +1039,4 @@ instance:
         - id: oatdrink_consumption_change.target_year_level
           value: 572
           unit: g/day/person
+
