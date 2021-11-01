@@ -134,7 +134,9 @@ if args.check:
     if instance_obj is None:
         print("Creating instance %s" % instance.id)
         instance_obj = InstanceConfig.create_for_instance(instance)
+
     instance_obj.sync_nodes()
+    instance_obj.create_default_content()
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')

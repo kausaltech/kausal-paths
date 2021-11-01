@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Optional
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.db import models
@@ -59,7 +60,7 @@ class InstanceConfig(models.Model):
     @classmethod
     def create_for_instance(cls, instance: Instance) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
-        return cls.objects.create(identifier=instance.id)
+        return cls.objects.create(identifier=instance.id, site_url=instance.site_url)
 
     def update_instance_from_configs(self, instance: Instance):
         for node_config in self.nodes.all():
@@ -143,14 +144,17 @@ class InstanceConfig(models.Model):
             ))
         return root_page
 
-    def save(self, *args, **kwargs):
-        if self.site is None:
+    def create_default_content(self):
+        if self.site is None and self.site_url is not None:
             root_page = self._create_default_pages()
-            site = Site(site_name=self.get_name(), hostname=self.site_url, root_page=root_page)
+            o = urlparse(self.site_url)
+            site = Site(site_name=self.get_name(), hostname=o.hostname, root_page=root_page)
             site.save()
             self.site = site
-        else:
-            # FIXME: Update Site and root page attributes
+
+    def save(self, *args, **kwargs):
+        if self.site is not None:
+            # TODO: Update Site and root page attributes
             pass
 
         super().save(*args, **kwargs)

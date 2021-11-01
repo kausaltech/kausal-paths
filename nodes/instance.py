@@ -30,6 +30,7 @@ class Instance:
     owner: TranslatedString
     default_language: str
     context: Context
+    site_url: Optional[str] = None
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
@@ -322,7 +323,7 @@ class InstanceLoader:
 
         instance_attrs = [
             'reference_year', 'minimum_historical_year', 'maximum_historical_year',
-            'default_language', 'supported_languages'
+            'default_language', 'supported_languages', 'site_url',
         ]
         self.instance = Instance(
             id=self.config['id'],
