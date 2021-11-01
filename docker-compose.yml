@@ -24,6 +24,8 @@ services:
       args:
         - STATIC_ROOT=/srv/static
         - MEDIA_ROOT=/srv/media
+        - EXTRA_PYPI_INDEX
+        - EXTRA_INSTALLED_APPS_VERSIONS
     restart: always
     volumes:
       - paths_media:/srv/media
@@ -44,6 +46,8 @@ services:
       - OIDC_ISSUER_URL
       - OIDC_CLIENT_ID
       - OIDC_CLIENT_SECRET
+      - EXTRA_INSTALLED_APPS
+      - EXTRA_INSTALLED_APPS_URLS
     ports:
       - "${HOST_PORT:-127.0.0.1:8000}:8000"
       - "${UWSGI_SOCKET_PORT:-127.0.0.1:8001}:8001"
