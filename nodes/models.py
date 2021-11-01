@@ -71,11 +71,16 @@ class InstanceConfig(models.Model):
 
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
-            return instance_cache[self.identifier]
+            instance = instance_cache[self.identifier]
+            latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
+            if latest_node_edit <= instance.modified_at and self.modified_at <= instance.modified_at:
+                return instance
+
         config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
         loader = InstanceLoader.from_yaml(config_fn)
         instance = loader.instance
         self.update_instance_from_configs(instance)
+        instance.modified_at = timezone.now()
         instance.context.generate_baseline_values()
         instance_cache[self.identifier] = instance
         return instance
