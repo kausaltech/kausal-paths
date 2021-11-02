@@ -4,6 +4,11 @@ FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
 IMPACT_COLUMN = 'Impact'
+FORECAST_x = 'Forecast_x'
+FORECAST_y = 'Forecast_y'
+VALUE_x = 'Value_x'
+VALUE_y = 'Value_y'
+
 EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'
 
@@ -18,9 +23,10 @@ ACTIVITY_QUANTITIES = [EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'ma
 
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
     'emission_factor', 'population', 'per_capita', 'fuel_consumption',
-    'ratio', 'exposure', 'exposure-response', 'disease_burden',
+    'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
+    'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
+    'probability', 'ingestion'
 ]
-
 
 
 class DecisionLevel(Enum):

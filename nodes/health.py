@@ -1,5 +1,8 @@
-from logging import log
+from logging import exception, log
 from types import FunctionType
+
+import dvc_pandas
+from pint.registry import ContextCacheOverlay
 from params.param import BoolParameter, NumberParameter
 from typing import Dict, List
 import pandas as pd
@@ -7,121 +10,299 @@ import pint
 from .context import unit_registry
 import numpy as np
 import math
+import copy
 
 from common.i18n import TranslatedString
-from .constants import FORECAST_COLUMN, VALUE_COLUMN
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
 from .node import Context, Node
 from .exceptions import NodeError
 
-from .simple import AdditiveNode, SimpleNode
+from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
+from .ovariable import Ovariable, Ovariable2
 
-#############################33
+# ############################33
 # Health-related constants and classes
 
-class RelativeRiskNode(AdditiveNode):
-    """Applies a function with one input node and parameters.
-    """
-    allowed_parameters = [
-        NumberParameter(local_id='exposure_response_param1'),
-        NumberParameter(local_id='exposure_response_param2'),
-    ] + SimpleNode.allowed_parameters
+# Ovariable with no input nodes, just data
+
+
+class DataOvariable(Ovariable, AdditiveNode):
+    pass
+
+# Exposure is the intensity of contact with the environment by the target population.
+
+
+class Exposure(Ovariable):
+
+    quantity = 'ingestion'
+    scaled = False
 
     def compute(self, context: Context):
+        consumption = self.prepare_ovariable(context, 'ingestion')
+        concentration = self.prepare_ovariable(context, 'mass_concentration')
 
+        exposure = concentration * consumption
+
+        return self.clean_computing(exposure)
+
+    # scale_exposure() scales the exposure by logarithmic function or body weight.
+    # The information about how to scale comes from exposure-response function.
+    # Thus, er-function and body weight must be provided.
+    # All ovariables must have contents calculated.
+    # FIXME Is this a sensible thing to do, as then the units and dimensions may differ within node?
+
+    def scale_exposure(self, erf, bw):
+        if 'er_function' in self.content.index.names:
+            return self
+
+        out = copy.deepcopy(erf)
+        out.content[VALUE_COLUMN] = out.content[VALUE_COLUMN].pint.m
+        out = out * 0
+
+        out = out + self
+
+        out = out.merge(bw).reset_index()
+
+        out[VALUE_COLUMN] = np.where(
+            out['scaling'] == 'BW',
+            out[VALUE_x] / out[VALUE_y],
+            out[VALUE_x])
+
+# FIXME log10 not defined for all inputs
+#        out[VALUE_COLUMN] = np.where(
+#            out['scaling'] == 'Log10',
+#            np.log10(out[VALUE_COLUMN]),
+#            out[VALUE_COLUMN])
+
+        keep = set(out.columns) - {0, VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
+
+        self.content_orig = self.content
+        self.content = out
+
+        return self
+
+
+class FixedMultiplierHealthImpactNode(FixedMultiplierNode):  # Needed for pre-ovariable nodes
+    allowed_parameters = [
+        NumberParameter(local_id='health_factor'),
+    ] + FixedMultiplierNode.allowed_parameters
+
+    quantity = 'disease_burden'
+    unit = 'DALY/a'
+
+    def compute(self, context: Context):
         if len(self.input_nodes) != 1:
-            raise NodeError(self, "Must receive exactly one input")
-        
-        input_node = self.input_nodes[0]
-        beta = unit_registry(self.get_parameter_value('exposure_response_param1'))
-        threshold = unit_registry(self.get_parameter_value('exposure_response_param2'))
+            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
 
-#        output_unit = input_node.unit #* beta.unit
+        node = self.input_nodes[0]
 
-#        if not self.is_compatible_unit(context, output_unit, self.unit):
-#            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
+        df = node.get_output(context)
+        multiplier = self.get_parameter_value('health_factor')
+        multiplier = multiplier * unit_registry('DALY/kt').units
 
-        df = input_node.get_output(context)
-
-        if self.debug:
-            print('%s: Parameter input from node 1 (%s):' % (self.id, n1.id))
-            self.print_pint_df(df1)
-
-        for col in df.columns: # Why use for loop if we only want to mutate VALUE_COLUMN?
+        for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue
-            df[col] = ((beta * (df[col] - threshold))) #.astype(float)) # Should be exp() but fails.
-            df[col] = np.exp(df[col].astype(float)) #).apply(lambda x: unit_registry.Quantity(x))
+            df[col] *= multiplier
 
-#        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-
-#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
-
-        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
-        if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(context, df)
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset(context, df)
-        if self.debug:
-            print('%s: Output:' % self.id)
-            self.print_pint_df(df)
-
-        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
 
         return df
 
-class ExposureNode(AdditiveNode):
-    quantity = 'exposure'
-    """Simple addition of exposure"""
-    pass
 
-class PopulationAttributableFractionNode(AdditiveNode):
-    """Calculate population attributable fraction (PAF) from relative risk (RR)
-    and fraction of population exposed.
-    """
+class ExposureResponseFunction(Ovariable):
+    quantity = 'exposure-response'
+
+    def compute(self, context: Context):
+        df = pd.DataFrame([
+            ['None', 'cardiovascular disease', 'RR', 'param1', False, 200],
+            ['None', 'cardiovascular disease', 'RR', 'param2', False, 0],
+            ['None', 'cerebrovascular disease', 'Relative Hill', 'param1', False, 2],
+            ['None', 'cerebrovascular disease', 'Relative Hill', 'param2', False, 0.2],
+            ['None', 'dioxin', 'Step', 'param1', False, 20],
+            ['None', 'dioxin', 'Step', 'param2', False, 0],
+            ['None', 'cancer', 'UR', 'param1', False, 2000],
+            ['None', 'cancer', 'UR', 'param2', False, 0.2]],
+            columns=['scaling', 'Response', 'er_function', 'observation', FORECAST_COLUMN, VALUE_COLUMN]
+        ).set_index(['er_function', 'observation', 'scaling', 'Response'])
+
+        return self.clean_computing(df)
+
+# Relative risk (RR) is the risk of an exposed individual compared with a counterfactual
+# unexposed individual using the modelled exposures
+
+
+class RelativeRisk(Ovariable):
+    quantity = 'ratio'
+    unit = 'dimensionless'
 
     def compute(self, context: Context):
 
-        if len(self.input_nodes) != 2:
-            raise NodeError(self, "Must receive exactly two inputs in this order: relative risk and fraction exposed")
+        param1 = self.prepare_ovariable(
+            context, quantity='exposure-response',
+            query="observation == 'param1'", drop=['observation'])
 
-        n1, n2 = self.input_nodes
-        output_unit = n1.unit * n2.unit
-        if not self.is_compatible_unit(context, output_unit, self.unit):
-            raise NodeError(self, "Inputs must in a unit compatible with '%s'" % self.unit)
+        param2 = self.prepare_ovariable(
+            context, quantity='exposure-response',
+            query="observation == 'param2'", drop=['observation'])
 
-        df1 = n1.get_output(context)
-        df2 = n2.get_output(context)
-        df = df1.copy()
+        bw = self.prepare_ovariable(context, 'body_weight')
 
-        if self.debug:
-            print('%s: Multiply input from node 1 (%s):' % (self.id, n1.id))
-            self.print_pint_df(df1)
-            print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
-            self.print_pint_df(df2)
-        
-        r = df2[VALUE_COLUMN] * (df1[VALUE_COLUMN] - 1)
+        exposure = self.prepare_ovariable(context, 'ingestion')
+        exposure = exposure.scale_exposure(param1, bw)
 
-        if min(r)>=0: # NOTE! PROBLEMS OCCUR WITH HORMESIS
-            df[VALUE_COLUMN] = r/(r + 1)
-        else: 
-            df[VALUE_COLUMN] = r
+        df = pd.DataFrame()
+        relative_functions = set(exposure.content.reset_index().er_function)
+        relative_functions = sorted(relative_functions & {'RR', 'Relative Hill'})
 
-        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
+        for func in relative_functions:
 
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
+            if func == 'RR':
+                beta = param1 ** -1  # FIXME This is stupid parameterization
+                beta.content = beta.content.query("er_function == 'RR'")
 
-        fill_gaps = False # self.get_param_value('fill_gaps_using_input_dataset', local=True, required=False)
-        if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(df)
-        replace_output = False # self.get_param_value('replace_output_using_input_dataset', local=True, required=False)
-        if replace_output:
-            df = self.replace_output_using_input_dataset(df)
-        if self.debug:
-            print('%s: Output:' % self.id)
-            self.print_pint_df(df)
+                threshold = param2
 
-        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+                dose2 = exposure - threshold
 
-        return df
+                #  Smallest allowed value is 0 FIXME: Not if scaling: Log10
+                dose2.content = np.clip(dose2.content, 0, None)
+                out1 = beta * dose2
+                out1.content[VALUE_COLUMN] = out1.content[VALUE_COLUMN].pint.m_as('')
 
+                out1 = out1.exp()
+                df = df.append(out1.content.reset_index())
+
+            elif func == 'Relative Hill':
+                Imax = param1
+                Imax.content = Imax.content.query("er_function == 'Relative Hill'")
+                Imax.content[VALUE_COLUMN] = Imax.content[VALUE_COLUMN].pint.m
+
+                ed50 = param2
+
+                out2 = (exposure * Imax) / (exposure + ed50) + 1
+
+                df = df.append(out2.content.reset_index())
+
+        keep = set(df.columns) - {'er_function', 'scaling'}
+        df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
+
+        return self.clean_computing(df)
+
+# Population attributable fraction PAF
+
+
+class PopulationAttributableFraction(Ovariable):
+    quantity = 'fraction'
+    unit = 'dimensionless'
+
+    def compute(self, context):
+        param1 = self.prepare_ovariable(
+            context, 'exposure-response',
+            query="observation == 'param1'", drop='observation')
+        param2 = self.prepare_ovariable(
+            context, 'exposure-response',
+            query="observation == 'param2'", drop='observation')
+        exposure = self.prepare_ovariable(context, 'ingestion')
+        frexposed = self.prepare_ovariable(context, 'fraction')
+        incidence = self.prepare_ovariable(context, 'incidence')
+        rr = self.prepare_ovariable(context, 'ratio')
+        p_illness = self.prepare_ovariable(context, 'probability')
+        bw = self.prepare_ovariable(context, 'body_weight')
+
+        exposure = exposure.scale_exposure(param1, bw)
+        er_function_list = list(sorted(set(exposure.content.reset_index()['er_function'])))
+        if 'RR' in er_function_list:
+            er_function_list = list(sorted(set(er_function_list) - {'Relative Hill'}))
+            # You don't want to do twice
+
+        out = pd.DataFrame()
+
+        for func in er_function_list:
+
+            if func == 'UR':
+                k = copy.deepcopy(param1)
+                k.content = k.content.query("er_function == 'UR'")
+                k = k ** -1
+
+                threshold = param2
+
+                dose2 = (exposure - threshold)
+                dose2.content = np.clip(dose2.content, 0, None)  # Smallest allowed value is 0
+                out3 = (k * dose2 * frexposed / incidence)
+                out = out.append(out3.content.reset_index())
+
+            if func == 'Step':
+                upper = copy.deepcopy(param1)
+                upper.content = upper.content.query("er_function == 'Step'")
+
+                lower = param2
+                out2 = (exposure >= lower) * (exposure <= upper) * -1 + 1  # FIXME
+                out2 = out2 * frexposed / incidence
+                out = out.append(out2.content.reset_index())
+
+            if func == 'RR' or func == 'Relative Hill':
+                r = frexposed * (rr - 1)
+
+                out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+                # is smaller than 0, we should use r instead. It can be converted from the result:
+                # r/(r+1)=a <=> r=a/(1-a)
+                out3.content[VALUE_COLUMN] = np.where(
+                    out3.content[VALUE_COLUMN] < 0,
+                    out3.content[VALUE_COLUMN] / (1 - out3.content[VALUE_COLUMN]),
+                    out3.content[VALUE_COLUMN])
+
+                out = out.append(out3.content.reset_index())
+
+            if func == 'beta poisson approximation':
+                out4 = ((exposure / param2 + 1) ** (param1 * -1) * -1 + 1) * frexposed
+                out4 = (out4 / incidence * p_illness)
+                out = out.append(out4.content.reset_index())
+
+            if func == 'exact beta poisson':
+                out5 = ((param1 / (param1 + param2) * exposure * -1).exp() * -1 + 1) * frexposed
+                out5 = out5 / incidence * p_illness
+                out = out.append(out5.content.reset_index())
+
+            if func == 'exponential':
+                k = param1
+                out6 = ((k * exposure * -1).exp() * -1 + 1) * frexposed
+                out6 = out6 / incidence * p_illness
+                out = out.append(out6.content.reset_index())
+
+        keep = set(out.columns) - {'scaling', 'matrix', 'exposure', 'exposure_unit', 'er_function', 0}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN}))
+
+        return self.clean_computing(out)
+
+# BoD is the current (observed) burden of disease (measured in disability-adjusted life years or DALYs).
+
+
+class DiseaseBurden(Ovariable):
+    quantity = 'disease_burden'
+
+    def compute(self, context):
+        incidence = self.prepare_ovariable(context, 'incidence')
+        population = self.prepare_ovariable(context, 'population')
+        case_burden = self.prepare_ovariable(context, 'case_burden')
+
+        out = incidence * population * case_burden
+
+        return self.clean_computing(out)
+
+# bod_attr is the burden of disease that can be attributed to the exposure of interest.
+
+
+class AttributableDiseaseBurden(Ovariable):
+    quantity = 'disease_burden'
+
+    def compute(self, context):
+        bod = self.prepare_ovariable(context, 'disease_burden')
+        paf = self.prepare_ovariable(context, 'fraction')
+
+        out = bod * paf
+
+        return self.clean_computing(out)
