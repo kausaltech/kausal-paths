@@ -224,7 +224,8 @@ class NodeConfig(ClusterableModel):
         node = self.get_node()
         if node is None:
             return False
-        # FIXME
+        if len(node.input_dataset_instances) != 1:
+            return False
         return True
 
     def __str__(self) -> str:
