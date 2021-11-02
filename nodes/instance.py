@@ -15,7 +15,6 @@ from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
-from pages.base import ActionPage, EmissionPage, Page
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
@@ -36,7 +35,6 @@ class Instance:
     maximum_historical_year: Optional[int] = None
     supported_languages: Optional[list[str]] = None
 
-    pages: Optional[Dict[str, Page]] = None
     modified_at: Optional[datetime] = field(init=False)
 
     @property
@@ -115,6 +113,7 @@ class InstanceLoader:
 
         node = node_class(
             id=config['id'],
+            context=self.context,
             name=self.make_trans_string(config, 'name'),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
@@ -261,32 +260,6 @@ class InstanceLoader:
     def load_datasets(self, datasets):
         for ds in datasets:
             self.context.add_dataset(ds)
-
-    def setup_pages(self):
-        instance = self.instance
-        instance.pages = {}
-
-        pages = self.config.get('pages', [])
-        for pc in pages:
-            assert pc['id'] not in instance.pages
-            page_type = pc.pop('type')
-            if page_type == 'emission':
-                node_id = pc.pop('node')
-                node = self.context.get_node(node_id)
-                page = EmissionPage(**pc, node=node)
-            elif page_type == 'card':
-                raise Exception('Card page unsupported for now')
-            else:
-                raise Exception('Invalid page type: %s' % page_type)
-
-            instance.pages[pc['id']] = page
-
-        for node in self.context.nodes.values():
-            if not isinstance(node, ActionNode):
-                continue
-            page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
-            instance.pages[node.id] = page
-
     def setup_global_parameters(self):
         context = self.context
         for pc in self.config.get('params', []):
@@ -317,7 +290,7 @@ class InstanceLoader:
             dataset_repo_config = self.config['dataset_repo']
             repo_url = dataset_repo_config['url']
             commit = dataset_repo_config.get('commit')
-            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, commit=commit)
+            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, commit_id=commit)
         target_year = self.config['target_year']
         self.context = Context(dataset_repo, target_year)
 
@@ -343,7 +316,6 @@ class InstanceLoader:
         self.setup_edges()
         self.setup_global_parameters()
         self.setup_scenarios()
-        self.setup_pages()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

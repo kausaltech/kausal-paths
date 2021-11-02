@@ -15,10 +15,10 @@ class Population(Node):
     unit = 'person'
     quantity = 'population'
 
-    def compute(self, context):
-        muni_name = context.get_parameter_value('municipality_name')
+    def compute(self):
+        muni_name = self.context.get_parameter_value('municipality_name')
 
-        df_hist, df_forecast = self.get_input_datasets(context)
+        df_hist, df_forecast = self.get_input_datasets()
         df_hist = df_hist.xs(muni_name, level='Alue')
         df_forecast = df_forecast.xs(muni_name, level='Alue')
 

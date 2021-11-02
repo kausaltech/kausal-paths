@@ -14,7 +14,6 @@ from wagtail.core.fields import RichTextField
 from wagtail.core.models import Page
 from wagtail.core.models.sites import Site
 
-from nodes.context import Context
 from nodes.node import Node
 from paths.utils import IdentifierField
 
@@ -67,7 +66,7 @@ class InstanceConfig(models.Model):
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
-            node_config.update_node_from_config(node, instance.context)
+            node_config.update_node_from_config(node)
 
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
@@ -211,12 +210,12 @@ class NodeConfig(ClusterableModel):
         instance = self.instance.get_instance()
         return instance.context.nodes.get(self.identifier)
 
-    def update_node_from_config(self, node: Node, context: Context):
+    def update_node_from_config(self, node: Node):
         node.database_id = self.pk
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1
-            node.replace_input_data(self.input_data, context)
+            node.replace_input_data(self.input_data)
 
         # FIXME: Override params
 
