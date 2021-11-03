@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
+import pint
 from nodes import Node
 from nodes.constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
 
@@ -20,18 +21,19 @@ class Metric:
     id: str
     name: str
     df: pd.DataFrame
+    unit: Optional[pint.Unit] = None
     node: Optional[Node] = None
 
     @staticmethod
-    def from_node(node, context):
-        df = node.get_output(context)
+    def from_node(node: Node):
+        df = node.get_output()
         if df is None:
             return None
         if VALUE_COLUMN not in df.columns:
             return None
         if node.baseline_values is not None:
             df[BASELINE_VALUE_COLUMN] = node.baseline_values[VALUE_COLUMN]
-        return Metric(id=node.id, name=str(node.name), node=node, df=df)
+        return Metric(id=node.id, name=str(node.name), unit=node.unit, node=node, df=df)
 
     def split_df(self) -> Dict[str, List[YearlyValue]]:
         if hasattr(self, 'split_values'):
@@ -92,5 +94,11 @@ class Metric:
         return vals['baseline']
 
     @property
-    def unit(self):
-        return self.node.unit if self.node else None
+    def yearly_aggregate_unit(self) -> Optional[pint.Unit]:
+        if not self.unit:
+            return None
+        # Check if the unit as a time divisor
+        if self.unit.dimensionality.get('[time]') != -1:
+            return None
+        year_unit = self.unit._REGISTRY('year').units
+        return self.unit * year_unit

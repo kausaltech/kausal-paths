@@ -63,6 +63,7 @@ class ForecastMetricType(graphene.ObjectType):
     # output_node will be set if the node outputs multiple time-series
     output_node = graphene.Field(lambda: NodeType)
     unit = graphene.Field('paths.schema.UnitType')
+    yearly_aggregate_unit = graphene.Field('paths.schema.UnitType')
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
@@ -105,6 +106,7 @@ class NodeType(graphene.ObjectType):
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
+    aggregated_impact_unit = graphene.Field('paths.schema.UnitType')
 
     # TODO: input_datasets, baseline_values, context
     parameters = graphene.List('params.schema.ParameterInterface')
@@ -148,8 +150,7 @@ class NodeType(graphene.ObjectType):
 
     @staticmethod
     def resolve_metric(root: Node, info):
-        context = info.context.instance.context
-        return Metric.from_node(root, context)
+        return Metric.from_node(root)
 
     @staticmethod
     def resolve_impact_metric(root: Node, info, target_node_id: str = None):
@@ -171,10 +172,14 @@ class NodeType(graphene.ObjectType):
         if not isinstance(source_node, ActionNode):
             return None
 
-        df = source_node.compute_impact(context, target_node)
+        df = source_node.compute_impact(target_node)
         df = df[[IMPACT_COLUMN, FORECAST_COLUMN]]
         df = df.rename(columns={IMPACT_COLUMN: VALUE_COLUMN})
-        return Metric(id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df)
+        metric = Metric(
+            id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df,
+            unit=target_node.unit
+        )
+        return metric
 
     def resolve_parameters(root, info):
         return [param for param in root.parameters.values() if param.is_customizable]

@@ -166,7 +166,7 @@ class MultiplicativeNode(AdditiveNode):
         n1, n2 = multiply_nodes
         output_unit = n1.unit * n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
-            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
+            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s' (%s * %s)" % (self.unit, n1.id, n2.id))
 
         df1 = n1.get_output()
         df2 = n2.get_output()
