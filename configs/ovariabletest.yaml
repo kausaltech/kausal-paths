@@ -1,0 +1,394 @@
+instance:
+  id: ovariabletest
+  default_language: fi
+  dataset_repo:
+    url: git@github.com:kausaltech/dvctest.git
+#    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
+#    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
+#    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
+#    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
+  name: Suomen ilmastoruokaohjelma
+  name_en: Finnish climate food program
+  target_year: 2035
+  reference_year: 2017
+  minimum_historical_year: 2017
+  maximum_historical_year: 2020
+  emission_dataset: ilmastoruoka/emissions
+  emission_unit: kt/a
+  emission_forecast_from: 2021
+  params:
+    - id: municipality_name
+      value: Tampere
+
+  emission_sectors:
+    - id: net_emissions
+      name: Ruoankulutuksen kokonaispäästöt
+      name_en: Net emissions from food consumption
+      target_year_goal: 6000
+
+  nodes:
+    - id: population
+      name: Suomen väestö
+      name_en: Population in Finland
+      type: health.DataOvariable
+      quantity: population
+      unit: person
+      input_datasets:
+        - id: ilmastoruoka/emissions
+          column: Population
+          forecast_from: 2021
+          dropna: true
+
+    - id: meat_emissions
+      name: Lihan päästöt
+      name_en: Meat emissions
+      type: simple.FixedMultiplierNode
+      quantity: emissions
+      unit: kt/a
+      color: '#CB4154'
+      target_year_goal: 1
+      params: 
+        - id: multiplier
+          value: 19.2005
+      output_nodes:
+        - net_emissions
+
+    - id: meat_consumption
+      name: Lihan kulutus
+      name_en: Meat consumption
+      type: simple.PerCapitaActivity
+      quantity: mass
+      unit: kt/a
+      input_nodes:
+        - population
+      output_nodes:
+        - meat_emissions
+
+    - id: meat_consumption_per_person
+      name: Lihan kulutus per henkilö
+      name_en: Meat consumption per person
+      type: simple.AdditiveNode
+      quantity: per_capita
+      unit: g/day/person
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Meat
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - meat_consumption
+
+    - id: consumption
+      name: OVA Saanti
+      name_en: OVA Consumption
+      type: health.DataOvariable
+      quantity: ingestion
+      unit: g/d/person
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - exposure
+
+    - id: concentration
+      name: OVA Pitoisuus
+      name_en: OVA Concentration
+      type: health.DataOvariable
+      quantity: mass_concentration
+      unit: ppm
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Domestic fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - exposure
+
+    - id: exposure
+      name: OVA Altistus
+      name_en: OVA Exposure
+      type: health.Exposure
+      quantity: ingestion
+      unit: ug/d/person
+      output_nodes:
+        - meat_consumption_per_person
+
+    - id: p_illness
+      name: OVA Sairauden todennäköisyys
+      name_en: OVA Probability of illness
+      type: health.DataOvariable
+      quantity: probability
+      unit: dimensionless
+      input_datasets:
+        - id: ilmastoruoka/emission_factor
+          column: Drinks
+          forecast_from: 2021
+          dropna: true
+
+    - id: body_weight
+      name: Ruumiinpaino
+      name_ en: Body weight
+      type: health.DataOvariable
+      quantity: body_weight
+      unit: kg
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Alcohol
+          forecast_from: 2021
+          dropna: true
+
+    - id: frexposed
+      name: Altistuneiden osuus
+      name_ en: Fraction exposed
+      type: health.DataOvariable
+      quantity: fraction
+      unit: dimensionless
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: exposure_response_function
+      name: Annosvaste
+      name_ en: Exposure-response function
+      type: health.ExposureResponseFunction
+      unit: mg/day/person
+
+    - id: relative_risk
+      name: Riskisuhde
+      name_en: Risk ratio
+      type: health.RelativeRisk
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - body_weight
+
+    - id: incidence
+      name: Ilmaantuvuus
+      name_ en: Incidence
+      type: health.DataOvariable
+      quantity: incidence
+      unit: case/_100000py
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: population_attributable_fraction
+      name: Väestösyyosuus
+      name_en: Population attributable fraction
+      type: health.PopulationAttributableFraction
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - relative_risk
+        - frexposed
+        - p_illness
+        - incidence
+        - body_weight
+
+#    - id: population_attributable_fraction2
+#      name: Väestösyyosuus
+#      name_ en: Population attributable fraction
+#      type: health.DataOvariable
+#      quantity: disease_burden
+#      unit: DALY
+#      input_datasets:
+#        - id: ilmastoruoka/emission_factor
+#          column: Potato
+#          forecast_from: 2021
+#          dropna: true
+
+    - id: case_burden
+      name: Tapaustaakka
+      name_ en: Case burden
+      type: health.DataOvariable
+      quantity: case_burden
+      unit: DALY/case
+      input_datasets:
+        - id: ilmastoruoka/consumption
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: disease_burden
+      name: Kokonaistautitaakka
+      name_ en: Total disease burden
+      type: health.DiseaseBurden
+      unit: cap
+      input_nodes:
+        - incidence
+        - population
+        - case_burden
+
+################
+# health benefits
+
+    - id: net_health_impact
+      name: Nettoterveyshyöty
+      name_en: Net health benefit
+      type: simple.AdditiveNode
+      quantity: disease_burden
+      unit: DALY/a
+      color: '#345678'
+
+    - id: meat_health_impact
+      name: Lihan terveyshyöty
+      name_en: Meat health benefit
+      type: health.FixedMultiplierHealthImpactNode
+      params:
+        - id: health_factor
+          value: -164.290
+      input_nodes:
+        - meat_consumption
+      output_nodes:
+        - net_health_impact
+
+#    - id: pm_emissions
+#      name: Pienhiukkaspäästöt
+#      name_en: Fine particle emissions
+#      type: simple.AdditiveNode
+#      quantity: emissions
+#      unit: ug/m**3
+#      historical_values: [[2018, 1], [2019, 1], [2020, 1]]
+#      forecast_values: [[2021, 1], [2022, 1], [2023, 1], [2024, 1], [2025, 1], [2026, 1], [2027, 1], [2028, 1], [2029, 1], [2030, 1]]
+
+#    - id: pm_exposure
+#      name: Pienhiukkasaltistus
+#      name_en: Fine particle exposure
+#      type: simple.FixedMultiplierNode
+#      quantity: exposure
+#      unit: ug/m**3
+#      params:
+#        - id: multiplier
+#          value: 1.1
+#      input_nodes:
+#        - pm_emissions
+#      output_nodes:
+#        - rr_cvd_mortality
+
+#    - id: rr_cvd_mortality
+#      name: Sydänkuolleisuuden suhteellinen riski
+#      name_en: Relative risk of cardiovascular mortality
+#      type: health.RelativeRiskNode
+#      quantity: ratio
+#      unit: dimensionless
+#      params:
+#        - id: exposure_response_param1
+#          value: 0.008959741 m**3/microgram
+#        - id: exposure_response_param2
+#          value: 0 microgram/m**3
+
+#    - id: pm_exposed_fraction
+#      name: Altistuneiden osuus
+#      name_en: Exposed fraction
+#      type: simple.AdditiveNode
+#      quantity: ratio
+#      unit: dimensionless
+#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
+#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+
+#    - id: paf_cvd_mortality
+#      name: Väestösyyosuus
+#      name_en: Population attributable fraction
+#      type: health.PopulationAttributableFractionNode
+#      quantity: ratio
+#      unit: dimensionless
+#      input_nodes: 
+#        - rr_cvd_mortality
+#        - pm_exposed_fraction
+
+#    - id: disease_burden
+#      name: Tautitaakka
+#      name_en: Disease burden
+#      type: simple.AdditiveNode
+#      quantity: disease_burden
+#      unit: DALY
+#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
+#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
+
+#    - id: attributable_disease_burden
+#      name: Kohdentuva tautitaakka
+#      name_en: Attributable disease burden
+#      type: simple.Multiple2Node
+#      quantity: disease_burden
+#      unit: DALY
+#      input_nodes:
+#        - paf_cvd_mortality
+#        - disease_burden
+
+
+#    - id: pm_emission_factor # FIXIT: This is not a simple time series
+#      name: Pienhiukkasten päästökerroin
+#      name_en: Fine particle emission factor
+#      type: simple.AdditiveNode
+#      unit: ug/m**3
+#      input_datasests:
+#        - id: vtt/lipasto/car_unit_emissions
+#          column: PM
+#      output_nodes:
+#        - pm_exposure
+
+  #
+  # ------- ACTIONS --------
+  #
+
+  actions:
+
+    - id: meat_consumption_change
+      name: Lihan kulutus muuttuu
+      name_en: Meat consumption change
+      quantity: per_capita
+      output_nodes:
+        - meat_consumption_per_person
+      type: simple.LinearCumulativeAdditiveAction
+      forecast_values: [[2022, 0], [2028, 0]]
+      unit: g/day/person
+      description: Lihan ja lihatuotteiden kulutuksen muutos verrattuna nykytilaan.
+      params:
+        - id: target_year_level
+          min_value: -142
+          max_value: 0
+          step: 1
+          unit: g/day/person
+          description: Lihan kulutuksen muutos
+          description_en: Change in meat consumption
+
+  pages:
+    - id: home
+      name: Ilmastoruokaohjelman päästö- ja vaikutusarviot
+#      name_en: Climate emission and impact estimates of the Climate Food Program
+      path: '/'
+      type: emission
+      node: net_emissions
+
+#    - id: health
+#      name: Ilmastoruokaohjelman terveysvaikutusarviot
+#      name_en: Climate emission and impact estimates of the Climate Food Program
+#      path: '/health/'
+#      type: emission
+#      node: net_health_impact
+
+  scenarios:
+    - id: baseline
+      name: Nykykehitys
+      name_en: Current consumption
+      params:
+        - id: meat_consumption_change.target_year_level
+          value: 0
+          unit: g/day/person
+
+    - id: default
+      name: Kolmanneksen vähennys lihalle
+      name_en: Third reduction for meat consumption
+      default: true
+      all_actions_enabled: true
+      params:
+        - id: meat_consumption_change.target_year_level
+          value: -48
+          unit: g/day/person
+
