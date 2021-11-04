@@ -55,7 +55,8 @@ class Exposure(Ovariable):
         if 'er_function' in self.content.index.names:
             return self
 
-        out = copy.deepcopy(erf)
+        out = copy.copy(erf)
+        out.content = copy.copy(out.content)
         out.content[VALUE_COLUMN] = out.content[VALUE_COLUMN].pint.m
         out = out * 0
 
@@ -224,8 +225,8 @@ class PopulationAttributableFraction(Ovariable):
         for func in er_function_list:
 
             if func == 'UR':
-                k = copy.deepcopy(param1)
-                k.content = k.content.query("er_function == 'UR'")
+                k = copy.copy(param1)
+                k.content = k.content.copy().query("er_function == 'UR'")
                 k = k ** -1
 
                 threshold = param2
@@ -237,8 +238,8 @@ class PopulationAttributableFraction(Ovariable):
                 out = out.append(out1.content.reset_index())
 
             elif func == 'Step':
-                upper = copy.deepcopy(param1)
-                upper.content = upper.content.query("er_function == 'Step'")
+                upper = copy.copy(param1)
+                upper.content = upper.content.copy().query("er_function == 'Step'")
 
                 lower = param2
                 out2 = (exposure >= lower) * (exposure <= upper) * -1 + 1  # FIXME

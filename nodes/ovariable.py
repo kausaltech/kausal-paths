@@ -115,7 +115,7 @@ class Ovariable(SimpleNode):
         out.content = out.get_output()
 
         if query is not None:
-            out = copy.deepcopy(out)
+            out = copy.copy(out)
             out.content = out.content.query(query)
 
         if drop is not None:
