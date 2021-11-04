@@ -155,6 +155,7 @@ class InstanceConfig(models.Model):
             site = Site(site_name=self.get_name(), hostname=o.hostname, root_page=root_page)
             site.save()
             self.site = site
+            self.save(update_fields=['site'])
 
     def save(self, *args, **kwargs):
         if self.site is not None:
