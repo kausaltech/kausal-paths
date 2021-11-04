@@ -2,7 +2,7 @@ instance:
   id: ovariabletest
   default_language: fi
   dataset_repo:
-    url: git@github.com:kausaltech/dvctest.git
+    url: https://github.com/kausaltech/dvctest.git
 #    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
 #    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
 #    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
@@ -134,7 +134,7 @@ instance:
       quantity: body_weight
       unit: kg
       input_datasets:
-        - id: ilmastoruoka/consumption
+        - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Alcohol
           forecast_from: 2021
           dropna: true
@@ -146,7 +146,7 @@ instance:
       quantity: fraction
       unit: dimensionless
       input_datasets:
-        - id: ilmastoruoka/consumption
+        - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
           forecast_from: 2021
           dropna: true
@@ -173,7 +173,7 @@ instance:
       quantity: incidence
       unit: case/_100000py
       input_datasets:
-        - id: ilmastoruoka/consumption
+        - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
           forecast_from: 2021
           dropna: true
@@ -210,7 +210,7 @@ instance:
       quantity: case_burden
       unit: DALY/case
       input_datasets:
-        - id: ilmastoruoka/consumption
+        - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
           forecast_from: 2021
           dropna: true
@@ -247,92 +247,6 @@ instance:
         - meat_consumption
       output_nodes:
         - net_health_impact
-
-#    - id: pm_emissions
-#      name: Pienhiukkaspäästöt
-#      name_en: Fine particle emissions
-#      type: simple.AdditiveNode
-#      quantity: emissions
-#      unit: ug/m**3
-#      historical_values: [[2018, 1], [2019, 1], [2020, 1]]
-#      forecast_values: [[2021, 1], [2022, 1], [2023, 1], [2024, 1], [2025, 1], [2026, 1], [2027, 1], [2028, 1], [2029, 1], [2030, 1]]
-
-#    - id: pm_exposure
-#      name: Pienhiukkasaltistus
-#      name_en: Fine particle exposure
-#      type: simple.FixedMultiplierNode
-#      quantity: exposure
-#      unit: ug/m**3
-#      params:
-#        - id: multiplier
-#          value: 1.1
-#      input_nodes:
-#        - pm_emissions
-#      output_nodes:
-#        - rr_cvd_mortality
-
-#    - id: rr_cvd_mortality
-#      name: Sydänkuolleisuuden suhteellinen riski
-#      name_en: Relative risk of cardiovascular mortality
-#      type: health.RelativeRiskNode
-#      quantity: ratio
-#      unit: dimensionless
-#      params:
-#        - id: exposure_response_param1
-#          value: 0.008959741 m**3/microgram
-#        - id: exposure_response_param2
-#          value: 0 microgram/m**3
-
-#    - id: pm_exposed_fraction
-#      name: Altistuneiden osuus
-#      name_en: Exposed fraction
-#      type: simple.AdditiveNode
-#      quantity: ratio
-#      unit: dimensionless
-#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
-#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-
-#    - id: paf_cvd_mortality
-#      name: Väestösyyosuus
-#      name_en: Population attributable fraction
-#      type: health.PopulationAttributableFractionNode
-#      quantity: ratio
-#      unit: dimensionless
-#      input_nodes: 
-#        - rr_cvd_mortality
-#        - pm_exposed_fraction
-
-#    - id: disease_burden
-#      name: Tautitaakka
-#      name_en: Disease burden
-#      type: simple.AdditiveNode
-#      quantity: disease_burden
-#      unit: DALY
-#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
-#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-
-#    - id: attributable_disease_burden
-#      name: Kohdentuva tautitaakka
-#      name_en: Attributable disease burden
-#      type: simple.Multiple2Node
-#      quantity: disease_burden
-#      unit: DALY
-#      input_nodes:
-#        - paf_cvd_mortality
-#        - disease_burden
-
-
-#    - id: pm_emission_factor # FIXIT: This is not a simple time series
-#      name: Pienhiukkasten päästökerroin
-#      name_en: Fine particle emission factor
-#      type: simple.AdditiveNode
-#      unit: ug/m**3
-#      input_datasests:
-#        - id: vtt/lipasto/car_unit_emissions
-#          column: PM
-#      output_nodes:
-#        - pm_exposure
-
   #
   # ------- ACTIONS --------
   #

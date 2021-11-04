@@ -97,7 +97,7 @@ instance:
     - id: population
       name: Suomen väestö
       name_en: Population in Finland
-      type: simple.AdditiveNode
+      type: health.DataOvariable
       quantity: population
       unit: person
       input_datasets:
@@ -448,8 +448,10 @@ instance:
     - id: domestic_fish_consumption_per_person
       name: Kotimaisen kalan kulutus per henkilö
       name_en: Domestic fish consumption per person
-      type: simple.AdditiveNode
-      quantity: per_capita
+      type: health.DataOvariable
+      quantity: ingestion
+#      type: simple.AdditiveNode
+#      quantity: per_capita
       unit: g/day/person
       input_datasets:
         - id: ilmastoruoka/consumption
@@ -458,6 +460,129 @@ instance:
           dropna: true
       output_nodes:
         - domestic_fish_consumption
+
+######## OTHER HEALTH BENEFITS
+
+    - id: dioxin_concentration
+      name: Dioksiinipitoisuus
+      name_en: Dioxin concentration
+      type: health.DataOvariable
+      quantity: mass_concentration
+      unit: ppm
+      color: '#456789'
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Domestic fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - exposure
+
+    - id: exposure
+      name: Dioksiinialtistus
+      name_en: Dioxin exposure
+      type: health.Exposure
+      unit: mg/person/day
+      input_nodes:
+        - domestic_fish_consumption_per_person
+
+    - id: p_illness
+      name: OVA Sairauden todennäköisyys
+      name_en: OVA Probability of illness
+      type: health.DataOvariable
+      quantity: probability
+      unit: dimensionless
+      input_datasets:
+        - id: ilmastoruoka/emission_factor  # FIXME Get real data
+          column: Drinks
+          forecast_from: 2021
+          dropna: true
+
+    - id: body_weight
+      name: Ruumiinpaino
+      name_ en: Body weight
+      type: health.DataOvariable
+      quantity: body_weight
+      unit: kg
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Alcohol
+          forecast_from: 2021
+          dropna: true
+
+    - id: frexposed
+      name: Altistuneiden osuus
+      name_ en: Fraction exposed
+      type: health.DataOvariable
+      quantity: fraction
+      unit: dimensionless
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: exposure_response_function
+      name: Annosvaste
+      name_ en: Exposure-response function
+      type: health.ExposureResponseFunction  # FIXME Get real data
+      unit: mg/person/day
+
+    - id: relative_risk
+      name: Riskisuhde
+      name_en: Risk ratio
+      type: health.RelativeRisk
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - body_weight
+
+    - id: incidence
+      name: Ilmaantuvuus
+      name_ en: Incidence
+      type: health.DataOvariable
+      quantity: incidence
+      unit: case/_100000py
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: population_attributable_fraction
+      name: Väestösyyosuus
+      name_en: Population attributable fraction
+      type: health.PopulationAttributableFraction
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - relative_risk
+        - frexposed
+        - p_illness
+        - incidence
+        - body_weight
+
+    - id: case_burden
+      name: Tapaustaakka
+      name_ en: Case burden
+      type: health.DataOvariable
+      quantity: case_burden
+      unit: DALY/case
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: disease_burden
+      name: Kokonaistautitaakka
+      name_ en: Total disease burden
+      type: health.DiseaseBurden
+      unit: cap
+      input_nodes:
+        - incidence
+        - population
+        - case_burden
 
 ################
 # health benefits
@@ -544,91 +669,6 @@ instance:
         - meat_consumption
       output_nodes:
         - net_health_impact
-
-#    - id: pm_emissions
-#      name: Pienhiukkaspäästöt
-#      name_en: Fine particle emissions
-#      type: simple.AdditiveNode
-#      quantity: emissions
-#      unit: ug/m**3
-#      historical_values: [[2018, 1], [2019, 1], [2020, 1]]
-#      forecast_values: [[2021, 1], [2022, 1], [2023, 1], [2024, 1], [2025, 1], [2026, 1], [2027, 1], [2028, 1], [2029, 1], [2030, 1]]
-
-#    - id: pm_exposure
-#      name: Pienhiukkasaltistus
-#      name_en: Fine particle exposure
-#      type: simple.FixedMultiplierNode
-#      quantity: exposure
-#      unit: ug/m**3
-#      params:
-#        - id: multiplier
-#          value: 1.1
-#      input_nodes:
-#        - pm_emissions
-#      output_nodes:
-#        - rr_cvd_mortality
-
-#    - id: rr_cvd_mortality
-#      name: Sydänkuolleisuuden suhteellinen riski
-#      name_en: Relative risk of cardiovascular mortality
-#      type: health.RelativeRiskNode
-#      quantity: ratio
-#      unit: dimensionless
-#      params:
-#        - id: exposure_response_param1
-#          value: 0.008959741 m**3/microgram
-#        - id: exposure_response_param2
-#          value: 0 microgram/m**3
-
-#    - id: pm_exposed_fraction
-#      name: Altistuneiden osuus
-#      name_en: Exposed fraction
-#      type: simple.AdditiveNode
-#      quantity: ratio
-#      unit: dimensionless
-#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
-#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-
-#    - id: paf_cvd_mortality
-#      name: Väestösyyosuus
-#      name_en: Population attributable fraction
-#      type: health.PopulationAttributableFractionNode
-#      quantity: ratio
-#      unit: dimensionless
-#      input_nodes: 
-#        - rr_cvd_mortality
-#        - pm_exposed_fraction
-
-#    - id: disease_burden
-#      name: Tautitaakka
-#      name_en: Disease burden
-#      type: simple.AdditiveNode
-#      quantity: disease_burden
-#      unit: DALY
-#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
-#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-
-#    - id: attributable_disease_burden
-#      name: Kohdentuva tautitaakka
-#      name_en: Attributable disease burden
-#      type: simple.Multiple2Node
-#      quantity: disease_burden
-#      unit: DALY
-#      input_nodes:
-#        - paf_cvd_mortality
-#        - disease_burden
-
-
-#    - id: pm_emission_factor # FIXIT: This is not a simple time series
-#      name: Pienhiukkasten päästökerroin
-#      name_en: Fine particle emission factor
-#      type: simple.AdditiveNode
-#      unit: ug/m**3
-#      input_datasests:
-#        - id: vtt/lipasto/car_unit_emissions
-#          column: PM
-#      output_nodes:
-#        - pm_exposure
 
   #
   # ------- ACTIONS --------

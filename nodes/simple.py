@@ -116,8 +116,8 @@ class AdditiveNode(SimpleNode):
                 raise NodeError(self, "Input dataset doesn't have Value column")
 
             df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-            print(self.id)
-            self.print_pint_df(df[0:2])
+#            print(self.id)
+#            self.print_pint_df(df[0:2])
 
             if df.index.max() < self.get_target_year(context):
                 last_year = df.index.max()
