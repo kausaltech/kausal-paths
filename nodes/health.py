@@ -37,9 +37,9 @@ class Exposure(Ovariable):
     quantity = 'ingestion'
     scaled = False
 
-    def compute(self, context: Context):
-        consumption = self.prepare_ovariable(context, 'ingestion')
-        concentration = self.prepare_ovariable(context, 'mass_concentration')
+    def compute(self):
+        consumption = self.prepare_ovariable('ingestion')
+        concentration = self.prepare_ovariable('mass_concentration')
 
         exposure = concentration * consumption
 
@@ -91,13 +91,13 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):  # Needed for pre-ov
     quantity = 'disease_burden'
     unit = 'DALY/a'
 
-    def compute(self, context: Context):
+    def compute(self):
         if len(self.input_nodes) != 1:
             raise NodeError(self, 'FixedMultiplier needs exactly one input node')
 
         node = self.input_nodes[0]
 
-        df = node.get_output(context)
+        df = node.get_output()
         multiplier = self.get_parameter_value('health_factor')
         multiplier = multiplier * unit_registry('DALY/kt').units
 
@@ -108,7 +108,7 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):  # Needed for pre-ov
 
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(context, df)
+            df = self.replace_output_using_input_dataset(df)
 
         return df
 
@@ -116,7 +116,7 @@ class FixedMultiplierHealthImpactNode(FixedMultiplierNode):  # Needed for pre-ov
 class ExposureResponseFunction(Ovariable):
     quantity = 'exposure-response'
 
-    def compute(self, context: Context):
+    def compute(self):
         df = pd.DataFrame([
             ['None', 'cardiovascular disease', 'RR', 'param1', False, 200],
             ['None', 'cardiovascular disease', 'RR', 'param2', False, 0],
@@ -139,19 +139,19 @@ class RelativeRisk(Ovariable):
     quantity = 'ratio'
     unit = 'dimensionless'
 
-    def compute(self, context: Context):
+    def compute(self):
 
         param1 = self.prepare_ovariable(
-            context, quantity='exposure-response',
+            quantity='exposure-response',
             query="observation == 'param1'", drop=['observation'])
 
         param2 = self.prepare_ovariable(
-            context, quantity='exposure-response',
+            quantity='exposure-response',
             query="observation == 'param2'", drop=['observation'])
 
-        bw = self.prepare_ovariable(context, 'body_weight')
+        bw = self.prepare_ovariable('body_weight')
 
-        exposure = self.prepare_ovariable(context, 'ingestion')
+        exposure = self.prepare_ovariable('ingestion')
         exposure = exposure.scale_exposure(param1, bw)
 
         df = pd.DataFrame()
@@ -199,19 +199,19 @@ class PopulationAttributableFraction(Ovariable):
     quantity = 'fraction'
     unit = 'dimensionless'
 
-    def compute(self, context):
+    def compute(self):
         param1 = self.prepare_ovariable(
-            context, 'exposure-response',
+            'exposure-response',
             query="observation == 'param1'", drop='observation')
         param2 = self.prepare_ovariable(
-            context, 'exposure-response',
+            'exposure-response',
             query="observation == 'param2'", drop='observation')
-        exposure = self.prepare_ovariable(context, 'ingestion')
-        frexposed = self.prepare_ovariable(context, 'fraction')
-        incidence = self.prepare_ovariable(context, 'incidence')
-        rr = self.prepare_ovariable(context, 'ratio')
-        p_illness = self.prepare_ovariable(context, 'probability')
-        bw = self.prepare_ovariable(context, 'body_weight')
+        exposure = self.prepare_ovariable('ingestion')
+        frexposed = self.prepare_ovariable('fraction')
+        incidence = self.prepare_ovariable('incidence')
+        rr = self.prepare_ovariable('ratio')
+        p_illness = self.prepare_ovariable('probability')
+        bw = self.prepare_ovariable('body_weight')
 
         exposure = exposure.scale_exposure(param1, bw)
         er_function_list = list(sorted(set(exposure.content.reset_index()['er_function'])))
@@ -285,10 +285,10 @@ class PopulationAttributableFraction(Ovariable):
 class DiseaseBurden(Ovariable):
     quantity = 'disease_burden'
 
-    def compute(self, context):
-        incidence = self.prepare_ovariable(context, 'incidence')
-        population = self.prepare_ovariable(context, 'population')
-        case_burden = self.prepare_ovariable(context, 'case_burden')
+    def compute(self):
+        incidence = self.prepare_ovariable('incidence')
+        population = self.prepare_ovariable('population')
+        case_burden = self.prepare_ovariable('case_burden')
 
         out = population * incidence * case_burden
 
@@ -300,9 +300,9 @@ class DiseaseBurden(Ovariable):
 class AttributableDiseaseBurden(Ovariable):
     quantity = 'disease_burden'
 
-    def compute(self, context):
-        bod = self.prepare_ovariable(context, 'disease_burden')
-        paf = self.prepare_ovariable(context, 'fraction')
+    def compute(self):
+        bod = self.prepare_ovariable('disease_burden')
+        paf = self.prepare_ovariable('fraction')
 
         out = bod * paf
 

@@ -102,7 +102,7 @@ class Ovariable(SimpleNode):
     # quantity: what the ovariable measures, e.g. exposure, exposure_response, disease_burden
     quantity: Optional[str]
 
-    def prepare_ovariable(self, context: Context, quantity, query: str = None, drop: List = None):
+    def prepare_ovariable(self, quantity, query: str = None, drop: List = None):
         count = 0
         for node in self.input_nodes:
             if node.quantity == quantity:
@@ -112,7 +112,7 @@ class Ovariable(SimpleNode):
             print(quantity)
         assert count == 1
 
-        out.content = out.get_output(context)
+        out.content = out.get_output()
 
         if query is not None:
             out = copy.deepcopy(out)
