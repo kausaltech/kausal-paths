@@ -55,7 +55,6 @@ class InstanceMiddleware:
         return instance
 
     def get_instance_by_hostname(self, queryset, hostname: str, info: GQLInfo = None) -> InstanceConfig:
-        print('get by hostname %s' % hostname)
         try:
             instance = queryset.for_hostname(hostname).get()
         except InstanceConfig.DoesNotExist:
@@ -146,9 +145,14 @@ class PathsGraphQLView(GraphQLView):
             return orjson.dumps(d)
         return orjson.dumps(d, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS)
 
-    """
     def execute_graphql_request(self, request, data, query, variables, operation_name, *args, **kwargs):
-        print('Query:\n%s\nVariables: %s' % (query, variables))
+        if settings.DEBUG:
+            from rich.console import Console
+            from rich.syntax import Syntax
+
+            console = Console()
+            syntax = Syntax(query, "graphql")
+            console.print(syntax)
+
         ret = super().execute_graphql_request(request, data, query, variables, operation_name, *args, **kwargs)
         return ret
-    """
