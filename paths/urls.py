@@ -41,5 +41,5 @@ urlpatterns = [
         template_name='graphql-voyager.html',
     ), name='graphql-voyager'),
 
-    path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view(graphiql=True))),
+    path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view(graphiql=True)), name='graphql'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

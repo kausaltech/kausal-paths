@@ -1,22 +1,22 @@
+import re
 import importlib
 import logging
-from nodes.constants import DecisionLevel
-import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
 import dvc_pandas
+import pint
 import yaml
 
 from common.i18n import TranslatedString, gettext_lazy as _
+from nodes.constants import DecisionLevel
 from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
-from pages.base import ActionPage, EmissionPage, Page
 
-from . import Context, Dataset
+from . import Context, Dataset, DVCDataset, FixedDataset
 
 
 logger = logging.getLogger(__name__)
@@ -26,47 +26,34 @@ logger = logging.getLogger(__name__)
 class Instance:
     id: str
     name: TranslatedString
+    owner: TranslatedString
+    default_language: str
     context: Context
+    site_url: Optional[str] = None
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
+    supported_languages: Optional[list[str]] = None
 
-    pages: Optional[Dict[str, Page]] = None
-    content_refreshed_at: Optional[datetime] = field(init=False)
+    modified_at: Optional[datetime] = field(init=False)
 
     @property
     def target_year(self) -> int:
         return self.context.target_year
 
     def __post_init__(self):
-        self.content_refreshed_at = None
-
-    def refresh(self):
-        """Reload the Django models that have the rich-text content related to nodes.
-
-        Reload only happens if the Instance has been updated since the last refresh.
-        """
-        from pages.models import InstanceContent
-
-        iobj = InstanceContent.objects.filter(identifier=self.id).first()
-        if iobj is None:
-            return
-        if self.content_refreshed_at is not None and self.content_refreshed_at >= iobj.modified_at:
-            return
-
-        context = self.context
-        for pc in iobj.nodes.all():
-            if pc.node_id not in context.nodes:
-                logger.error('NodeContent exists for missing node ID: %s' % pc.node_id)
-                continue
-            node = context.nodes[pc.node_id]
-            node.content = pc
+        self.modified_at = None
+        if not self.supported_languages:
+            self.supported_languages = [self.default_language]
+        else:
+            if self.default_language not in self.supported_languages:
+                self.supported_languages.append(self.default_language)
 
 
 class InstanceLoader:
     instance: Instance
 
-    def make_trans_string(self, config: Dict, attr: str, pop: bool = False):
+    def make_trans_string(self, config: Dict, attr: str, pop: bool = False, default_language=None):
         default = config.get(attr)
         if pop and default is not None:
             del config[attr]
@@ -82,16 +69,16 @@ class InstanceLoader:
                 del config[key]
         if not langs:
             return None
-        return TranslatedString(**langs)
+        return TranslatedString(**langs, default_language=default_language or self.instance.default_language)
 
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', None)
-        datasets = []
+        datasets: list[Dataset] = []
 
         unit = config.get('unit')
         if unit is None:
             unit = getattr(node_class, 'unit')
-        if unit:
+        if unit and not isinstance(unit, pint.Unit):
             unit = self.context.unit_registry(unit).units
 
         quantity = config.get('quantity')
@@ -110,11 +97,15 @@ class InstanceLoader:
             else:
                 ds_id = ds.pop('id')
                 dc = ds
-            o = Dataset(id=ds_id, **dc)
+            ds_unit = dc.pop('unit', None)
+            if ds_unit is not None and not isinstance(ds_unit, pint.Unit):
+                ds_unit = self.context.unit_registry(ds_unit).units
+                assert isinstance(ds_unit, pint.Unit)
+            o = DVCDataset(id=ds_id, unit=ds_unit, **dc)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
-            datasets.append(Dataset.from_fixed_values(
+            datasets.append(FixedDataset(
                 id=config['id'], unit=unit,
                 historical=config.get('historical_values'),
                 forecast=config.get('forecast_values'),
@@ -122,6 +113,7 @@ class InstanceLoader:
 
         node = node_class(
             id=config['id'],
+            context=self.context,
             name=self.make_trans_string(config, 'name'),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
@@ -181,7 +173,9 @@ class InstanceLoader:
         mod = importlib.import_module('nodes.simple')
         node_class = getattr(mod, 'SectorEmissions')
         dataset_id = self.config.get('emission_dataset')
-        unit = self.config.get('emission_unit')
+        emission_unit = self.config.get('emission_unit')
+        if emission_unit is not None:
+            emission_unit = self.context.unit_registry(emission_unit).units
 
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
@@ -195,8 +189,9 @@ class InstanceLoader:
                     id=dataset_id,
                     column=data_col,
                     forecast_from=self.config.get('emission_forecast_from'),
+                    unit=emission_unit,
                 )] if data_col else [],
-                unit=unit,
+                unit=emission_unit,
                 **ec
             )
             node = self.make_node(node_class, nc)
@@ -265,32 +260,6 @@ class InstanceLoader:
     def load_datasets(self, datasets):
         for ds in datasets:
             self.context.add_dataset(ds)
-
-    def setup_pages(self):
-        instance = self.instance
-        instance.pages = {}
-
-        pages = self.config.get('pages', [])
-        for pc in pages:
-            assert pc['id'] not in instance.pages
-            page_type = pc.pop('type')
-            if page_type == 'emission':
-                node_id = pc.pop('node')
-                node = self.context.get_node(node_id)
-                page = EmissionPage(**pc, node=node)
-            elif page_type == 'card':
-                raise Exception('Card page unsupported for now')
-            else:
-                raise Exception('Invalid page type: %s' % page_type)
-
-            instance.pages[pc['id']] = page
-
-        for node in self.context.nodes.values():
-            if not isinstance(node, ActionNode):
-                continue
-            page = ActionPage(id=node.id, name=node.name, path='/actions/%s' % node.id, action=node)
-            instance.pages[node.id] = page
-
     def setup_global_parameters(self):
         context = self.context
         for pc in self.config.get('params', []):
@@ -321,14 +290,18 @@ class InstanceLoader:
             dataset_repo_config = self.config['dataset_repo']
             repo_url = dataset_repo_config['url']
             commit = dataset_repo_config.get('commit')
-            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, commit=commit)
+            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, commit_id=commit)
         target_year = self.config['target_year']
         self.context = Context(dataset_repo, target_year)
 
-        instance_attrs = ['reference_year', 'minimum_historical_year', 'maximum_historical_year']
+        instance_attrs = [
+            'reference_year', 'minimum_historical_year', 'maximum_historical_year',
+            'default_language', 'supported_languages', 'site_url',
+        ]
         self.instance = Instance(
             id=self.config['id'],
-            name=self.make_trans_string(self.config, 'name'),
+            name=self.make_trans_string(self.config, 'name', default_language=self.config['default_language']),
+            owner=self.make_trans_string(self.config, 'owner', default_language=self.config['default_language']),
             context=self.context,
             **{attr: self.config.get(attr) for attr in instance_attrs}
         )
@@ -343,7 +316,6 @@ class InstanceLoader:
         self.setup_edges()
         self.setup_global_parameters()
         self.setup_scenarios()
-        self.setup_pages()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

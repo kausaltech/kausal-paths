@@ -1,14 +1,12 @@
 psycopg2-binary
 pandas
-pandas-stubs
 python-dotenv
 wagtail
-django==3.2.*
+django
 django-environ
 django-cors-headers
 graphene-django
 graphene-django-optimizer
-graphene-stubs
 sentry_sdk
 djangorestframework
 django-extensions
@@ -22,7 +20,10 @@ factory-boy
 pytest-django
 pytest-factoryboy
 orjson
-types-orjson
 redis
 wagtailfontawesome
-django-stubs
+django-modeltrans
+rich
+git+https://github.com/GrappleGQL/wagtail-grapple.git@e92abab64ea0dcacf68cd68ccd64a66c055e55f6
+# pint does not support Babel >= 2.9 yet
+Babel<2.9

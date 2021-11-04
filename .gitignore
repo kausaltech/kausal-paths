@@ -12,4 +12,7 @@ __pycache__/
 /.direnv/
 /.envrc
 /tags
+/Attic
 db.sqlite3
+/mysite/
+.DS_Store

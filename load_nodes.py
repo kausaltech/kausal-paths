@@ -2,8 +2,9 @@ import argparse
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 import sys
-from nodes.instance import InstanceLoader
+from nodes.instance import Instance, InstanceLoader
 from common.perf import PerfCounter
+import rich.traceback
 
 
 if True:
@@ -17,10 +18,27 @@ if True:
         log.write(warnings.formatwarning(message, category, filename, lineno, line))
 
     warnings.showwarning = warn_with_traceback
+    # Pretty tracebacks
+    rich.traceback.install()
 
 load_dotenv()
 
+django_initialized = False
+
+
+def init_django():
+    global django_initialized
+    if django_initialized:
+        return
+    import os
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
+    django.setup()
+    django_initialized = True
+
+
 parser = argparse.ArgumentParser(description='Execute the computational graph')
+parser.add_argument('--instance', type=str, help='instance identifier')
 parser.add_argument('--config', type=str, help='config yaml file')
 parser.add_argument('--baseline', action='store_true', help='generate baseline scenario values')
 parser.add_argument('--scenario', type=str, help='select scenario')
@@ -32,13 +50,27 @@ parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
+# parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
+if (args.instance and args.config) or (not args.instance and not args.config):
+    print('Specify either "--instance" or "--config"')
+    exit(1)
 
-loader = InstanceLoader.from_yaml(args.config or 'configs/tampere.yaml')
-context = loader.context
+if args.instance:
+    init_django()
+    from nodes.models import InstanceConfig
+    instance_obj: InstanceConfig = InstanceConfig.objects.get(identifier=args.instance)
+    instance = instance_obj.get_instance()
+    context = instance.context
 
-page = list(loader.instance.pages.values())[0]
+if args.config:
+    loader = InstanceLoader.from_yaml(args.config)
+    context = loader.context
+    instance = loader.instance
+
+if args.pull_datasets:
+    context.pull_datasets()
 
 
 def print_metric(metric):
@@ -60,16 +92,11 @@ def print_metric(metric):
         print(val)
 
 
-
-
 if args.print_graph:
     context.print_graph()
 
 if args.skip_cache:
     context.skip_cache = True
-
-if args.pull_datasets:
-    context.pull_datasets()
 
 if args.scenario:
     context.activate_scenario(context.get_scenario(args.scenario))
@@ -90,7 +117,7 @@ if args.baseline:
 
 if args.check:
     for node_id, node in context.nodes.items():
-        df = node.get_output(context)
+        df = node.get_output()
         na_count = df.isna().sum().sum()
         if na_count:
             print('Node %s has NaN values:' % node.id)
@@ -102,15 +129,16 @@ if args.check:
                 print('Node %s baseline forecast has NaN values:' % node.id)
                 node.print_pint_df(node.baseline_values)
 
-    import os
-    import django
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
-    django.setup()
-    from pages.models import NodeContent
-    for nc in NodeContent.objects.all():
-        if nc.node_id not in context.nodes:
-            print('NodeContent exists for missing node %s' % nc.node_id)
+    init_django()
+    from nodes.models import InstanceConfig
 
+    instance_obj = InstanceConfig.objects.filter(identifier=instance.id).first()
+    if instance_obj is None:
+        print("Creating instance %s" % instance.id)
+        instance_obj = InstanceConfig.create_for_instance(instance)
+
+    instance_obj.sync_nodes()
+    instance_obj.create_default_content()
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
@@ -118,14 +146,13 @@ for param_arg in (args.param or []):
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
-    node.print_output(context)
+    node.print_output()
     if isinstance(node, ActionNode):
         node.print_impact(context, context.get_node('net_emissions'))
-
 
 if False:
     loader.context.dataset_repo.pull_datasets()
     loader.context.print_all_parameters()
     loader.context.generate_baseline_values()
-    #for sector in page.get_sectors():
+    # for sector in page.get_sectors():
     #    print(sector)

@@ -9,5 +9,3 @@ class InstanceContentFactory(DjangoModelFactory):
         model = InstanceContent
 
     identifier = Sequence(lambda i: f'instance-content{i}')
-    lead_title = "lead title"
-    lead_paragraph = "Lead paragraph"

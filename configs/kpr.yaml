@@ -6,15 +6,19 @@ instance:
     commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
   name: Panorama
   target_year: 2045
-  reference_year: 1990
+  minimum_historical_year: 2010
+  maximum_historical_year: 2019
+  reference_year: 2010
   nodes:
   - id: net_emissions
     name: Sveriges växthusgasutsläpp
     type: simple.SectorEmissions
-    unit: Mt
+    unit: kt
+    target_year_goal: 0
   - id: transport
     output_nodes:
     - net_emissions
+    color: '#60B748'
     params:
       panorama_id: b541b91c-5de1-41e3-8f4c-b8953d98732f
     name: Transport
@@ -57,6 +61,7 @@ instance:
   - id: industri
     output_nodes:
     - net_emissions
+    color: '#3395CC'
     params:
       panorama_id: 9ab9786f-1a21-4c25-8cbe-c839b9054c91
     name: Industri
@@ -113,6 +118,7 @@ instance:
   - id: jordbruk
     output_nodes:
     - net_emissions
+    color: '#6E3688'
     params:
       panorama_id: 90500c5e-9ec7-4f81-9a7a-dc016716bc28
     name: Jordbruk
@@ -141,6 +147,7 @@ instance:
   - id: energi
     output_nodes:
     - net_emissions
+    color: '#FFAA00'
     params:
       panorama_id: 052256c3-71e6-44eb-befe-0eb8165fec33
     name: Energi
@@ -162,6 +169,7 @@ instance:
   - id: ovrigt_9170
     output_nodes:
     - net_emissions
+    color: '#F75252'
     params:
       panorama_id: 9170cca1-3b7b-4e8f-97f6-e41e527fed66
     name: Övrigt
@@ -200,6 +208,7 @@ instance:
       med ett negativt nettoutsläpp.
     params:
       panorama_id: 432cd22b-f359-4d83-95c4-ecc5467a3569
+      panorama_reduction_mton: 0.73
   - id: spillvarme-i-fjarrvarmenat
     name: Spillvärme i fjärrvärmenät
     output_nodes:
@@ -209,6 +218,7 @@ instance:
       att ersätta värme från avfallsförbränning.
     params:
       panorama_id: 5a152a3a-4bb2-4060-89b6-351f8e9d4e91
+      panorama_reduction_mton: 0.54
   - id: minskad-andel-fossilt-avfall
     name: Minskad andel fossilt avfall
     output_nodes:
@@ -220,6 +230,7 @@ instance:
       som är förnybart.
     params:
       panorama_id: cb778118-3ac7-4afd-b8cb-bf6229f750f7
+      panorama_reduction_mton: 0.88
   - id: vindkraft
     name: Vindkraft
     output_nodes:
@@ -230,6 +241,7 @@ instance:
       några direkta utsläpp av växthusgaser.
     params:
       panorama_id: ecdfd990-3765-4461-8ec8-7042ce45482f
+      panorama_reduction_mton: 1.495
   - id: biobransle-for-el-och-varmeproduktion
     name: Biobränsle för el och värmeproduktion
     output_nodes:
@@ -241,6 +253,7 @@ instance:
       ha varit från motsvarande mängd fossila bränslen.
     params:
       panorama_id: 5883352e-ce77-4fe8-ab19-7eae93a3cb2c
+      panorama_reduction_mton: 0.41
   - id: torv-som-ersatts-med-biobransle
     name: Torv som ersatts med biobränsle
     output_nodes:
@@ -257,6 +270,7 @@ instance:
       bränsle.'
     params:
       panorama_id: e518a89f-ca49-467e-8e6f-a6d581c84aad
+      panorama_reduction_mton: 0.3
   - id: ccs-fasta-biobranslen
     name: CCS fasta biobränslen
     output_nodes:
@@ -267,6 +281,7 @@ instance:
       innebär det att åtgärden leder till negativa utsläpp.
     params:
       panorama_id: 8e523029-7f40-46d2-9fb8-3b5fb5690710
+      panorama_reduction_mton: 0.204
   - id: biobranslen-i-alla-byggnader
     name: Biobränslen i alla byggnader
     output_nodes:
@@ -276,6 +291,7 @@ instance:
       biobränslepannor som eldas med exempelvis ved eller träpellets.
     params:
       panorama_id: 756607fb-eba2-450b-b5da-6d0488094011
+      panorama_reduction_mton: 0.1
   - id: varmepumpar-i-lokaler
     name: Värmepumpar i lokaler
     output_nodes:
@@ -285,6 +301,7 @@ instance:
       exempelvis luftvärmepump eller bergvärmepump.
     params:
       panorama_id: af7d78e4-5e32-4b49-9a52-b7fc9bc026de
+      panorama_reduction_mton: 0.2
   - id: byte-till-fjarrvarme-i-alla-byggnader
     name: Byte till fjärrvärme i alla byggnader
     output_nodes:
@@ -296,6 +313,7 @@ instance:
       utsläppet inte längre sker i huset, utan i den anläggning där fjärrvärmen produceras.
     params:
       panorama_id: afc3c572-32f6-48a4-acff-0bec9843bd19
+      panorama_reduction_mton: 0.2
   - id: biogas-i-kommersiella-lokaler
     name: Biogas i kommersiella lokaler
     output_nodes:
@@ -305,6 +323,7 @@ instance:
       till biogas eller något annat uppvärmningssätt.
     params:
       panorama_id: 7b496ac2-bb74-4841-9019-258efca72726
+      panorama_reduction_mton: 0.3
   - id: produktion-med-vatgas
     name: Produktion med vätgas
     output_nodes:
@@ -317,6 +336,7 @@ instance:
       koldioxid.
     params:
       panorama_id: 39ed2cca-dcc1-4f68-9f6c-09fa849634e9
+      panorama_reduction_mton: 5.0
   - id: biobransle-istallet-for-kol
     name: Biobränsle istället för kol
     output_nodes:
@@ -330,6 +350,7 @@ instance:
       1,  IVA 2019'
     params:
       panorama_id: bc6c4328-a600-4d36-9d7e-942707fdb201
+      panorama_reduction_mton: 0.75
   - id: elektrifiering-av-produktion
     name: Elektrifiering av produktion
     output_nodes:
@@ -341,6 +362,7 @@ instance:
       \  Delrapport 1,  IVA 2019"
     params:
       panorama_id: e535ade9-55b1-4084-9db6-60b912d2fa6e
+      panorama_reduction_mton: 0.49
   - id: ccs-koldioxidfangare
     name: CCS - koldioxidfångare
     output_nodes:
@@ -360,6 +382,7 @@ instance:
       betongbyggande.'
     params:
       panorama_id: 9525b61c-7017-4450-9f1b-0bb5185d3d11
+      panorama_reduction_mton: 1.36
   - id: elektrifierad-produktion
     name: Elektrifierad produktion
     output_nodes:
@@ -375,6 +398,7 @@ instance:
       betongbyggande.'
     params:
       panorama_id: 4dd150ae-774f-47a3-8fcf-33a6569400e6
+      panorama_reduction_mton: 0.87
   - id: biobransle-for-produktion
     name: Biobränsle för produktion
     output_nodes:
@@ -388,6 +412,7 @@ instance:
       betongbyggande.'
     params:
       panorama_id: b87f7f67-e2b4-42ba-b07c-a6725be4bfa8
+      panorama_reduction_mton: 0.43
   - id: optimerad-betonganvandning
     name: Optimerad betonganvändning
     output_nodes:
@@ -402,6 +427,7 @@ instance:
       - Betongbranschen.'
     params:
       panorama_id: 2a4883b2-cc5d-49ee-bcd5-0a5dbacc360d
+      panorama_reduction_mton: 0.15
   - id: fran-betongstal-till-trastomme-i-flerbostadshus
     name: Från betong/stål till trästomme i flerbostadshus
     output_nodes:
@@ -411,6 +437,7 @@ instance:
       kan ersättas med träkonstruktioner som har lägre klimatpåverkan.
     params:
       panorama_id: 7cc67162-940e-4c33-9cf0-080bb0091834
+      panorama_reduction_mton: 0.09
   - id: fornybara-ravaror
     name: Förnybara råvaror
     output_nodes:
@@ -423,6 +450,7 @@ instance:
       Potentialbedömningen kommer från Preems hållbarhetsredovisning.'
     params:
       panorama_id: ba14da6e-ce94-4e87-89dc-f8456d739b28
+      panorama_reduction_mton: 0.518
   - id: ccs-koldioxidfangare_d104
     name: CCS - koldioxidfångare
     output_nodes:
@@ -437,6 +465,7 @@ instance:
       Potentialbedömningen kommer från Preems hållbarhets-redovisning.'
     params:
       panorama_id: d104ca5c-74c3-43ab-bdef-2aa771d330e4
+      panorama_reduction_mton: 1.52
   - id: fornybar-vatgas
     name: Förnybar vätgas
     output_nodes:
@@ -454,6 +483,7 @@ instance:
       omkring 30 000 ton vätgas varje år, vilket motsvarar 300 000 ton minskade koldioxidutsläpp.'
     params:
       panorama_id: 06feb2c7-ad9b-4c17-9fdf-18e1e8d8fd8d
+      panorama_reduction_mton: 0.31
   - id: fornybara-ravaror_a75b
     name: Förnybara råvaror
     output_nodes:
@@ -466,6 +496,7 @@ instance:
       kommer från rapporten: Vägval för klimatet,  Delrapport 1, IVA 2019.'
     params:
       panorama_id: a75bde07-3933-44b7-a30f-9364e0345df8
+      panorama_reduction_mton: 0.43
   - id: okad-plastatervinning
     name: Ökad plaståtervinning
     output_nodes:
@@ -485,6 +516,7 @@ instance:
       1,  IVA 2019.'
     params:
       panorama_id: 25a10ef8-72eb-4efd-a57d-560e22e0b359
+      panorama_reduction_mton: 0.3
   - id: ccs-koldioxidfangare_e798
     name: CCS - koldioxidfångare
     output_nodes:
@@ -504,6 +536,7 @@ instance:
       1,  IVA 2019.'
     params:
       panorama_id: e7982c86-1d8b-4298-b244-94ab2ad2eb98
+      panorama_reduction_mton: 0.7
   - id: biobransle-for-pappers-och-massaindustrin
     name: Biobränsle för pappers- och massaindustrin
     output_nodes:
@@ -518,6 +551,7 @@ instance:
       Potentialbedömningen kommer från rapporten: Färdplan IVA del 1 samt Skogsindustrierna.'
     params:
       panorama_id: 610e5ba1-f2bb-4822-a9ee-06aba36217f3
+      panorama_reduction_mton: 0.79
   - id: elektrifiering-av-produktion_0da8
     name: Elektrifiering av produktion
     output_nodes:
@@ -532,6 +566,7 @@ instance:
       Potentialbedömningen kommer från rapporten: Färdplan IVA del 1 samt Skogsindustrierna.'
     params:
       panorama_id: 0da80601-a872-4d9e-878d-6b0da1e7241b
+      panorama_reduction_mton: 0.1
   - id: biobransle-for-metallindustrin
     name: Biobränsle för metallindustrin
     output_nodes:
@@ -545,6 +580,7 @@ instance:
       1,  IVA 2019.'
     params:
       panorama_id: 1dd3f404-d7cb-4d36-94fd-43fe4f4cbbd4
+      panorama_reduction_mton: 0.104
   - id: inerta-anoder
     name: Inerta anoder
     output_nodes:
@@ -559,6 +595,7 @@ instance:
       industri. Ett underlag till Färdplan 2050.'
     params:
       panorama_id: 2c8c73ca-99ad-444d-a071-355ca871a399
+      panorama_reduction_mton: 0.192
   - id: okad-atervinning
     name: Ökad återvinning
     output_nodes:
@@ -573,6 +610,7 @@ instance:
       Färdplan 2050.'
     params:
       panorama_id: ef3f977c-d7e5-4d7c-9d4e-a9f6774a3e41
+      panorama_reduction_mton: 0.15
   - id: kvarvarande-utslapp
     name: Kvarvarande utsläpp
     output_nodes:
@@ -580,6 +618,7 @@ instance:
     type: kpr.ActionNode
     params:
       panorama_id: ffec0e4e-a916-4039-ada4-36f6adad9038
+      panorama_reduction_mton: 0.34
   - id: biobransle-for-ovriga-industrier
     name: Biobränsle för övriga industrier
     output_nodes:
@@ -593,6 +632,7 @@ instance:
       1,  IVA 2019.'
     params:
       panorama_id: 3cc0566b-23c6-441c-8699-6c69ea208c46
+      panorama_reduction_mton: 1.12
   - id: elektrifiering
     name: Elektrifiering
     output_nodes:
@@ -606,6 +646,7 @@ instance:
       1,  IVA 2019.'
     params:
       panorama_id: e674a331-00e8-4ae3-97d5-660f2c8b643f
+      panorama_reduction_mton: 0.55
   - id: forandrad-och-preciserad-godselgiva
     name: Förändrad och preciserad gödselgiva
     output_nodes:
@@ -621,6 +662,7 @@ instance:
       utsläpp och upptag av växthusgaser inom jordbrukssektorn".
     params:
       panorama_id: 763b13aa-99b9-4bf9-873c-351326d46b15
+      panorama_reduction_mton: 0.24
   - id: nitrifikationshamare
     name: Nitrifikationshämare
     output_nodes:
@@ -634,6 +676,7 @@ instance:
       2045 för utsläpp och upptag av växthusgaser inom jordbrukssektorn".
     params:
       panorama_id: 4bf0e406-b049-4339-a1bf-b721c584e330
+      panorama_reduction_mton: 0.16
   - id: kvarvarande-utslapp_19ec
     name: Kvarvarande utsläpp
     output_nodes:
@@ -653,6 +696,7 @@ instance:
       \ åtgärder kan även bidra till negativa nettoutsläpp efter 2045."
     params:
       panorama_id: 19ec349a-3572-4d5f-857d-606aa98b310d
+      panorama_reduction_mton: 2.34
   - id: effektivare-vaxtforadling-och-odlingssystem
     name: Effektivare växtförädling och odlingssystem
     output_nodes:
@@ -667,6 +711,7 @@ instance:
       rapport "Framtidens jordbruk".
     params:
       panorama_id: 99d7f56f-9671-4776-b826-4b060a38f1a9
+      panorama_reduction_mton: 0.48
   - id: minskat-lustgasutslapp-genom-atervatning
     name: Minskat lustgasutsläpp genom återvätning
     output_nodes:
@@ -680,6 +725,7 @@ instance:
       Lösningens potential är en egen uppskattning baserad på ett flertal rapporter.
     params:
       panorama_id: 8eb8985d-cbb9-495a-8e95-373907a05a20
+      panorama_reduction_mton: 0.16
   - id: kvarvarande-utslapp_d540
     name: Kvarvarande utsläpp
     output_nodes:
@@ -687,6 +733,7 @@ instance:
     type: kpr.ActionNode
     params:
       panorama_id: d540e0cd-4e97-4c84-afa4-484113cf0d76
+      panorama_reduction_mton: 1.31
   - id: fodertillsatser
     name: Fodertillsatser
     output_nodes:
@@ -697,6 +744,7 @@ instance:
       DSM har utvecklat en tillsats som minskar utsläppen med 27-40 procent.
     params:
       panorama_id: 6e436004-0978-48d7-bd2c-c5911821170b
+      panorama_reduction_mton: 0.9
   - id: forandrad-produktion
     name: Förändrad produktion
     output_nodes:
@@ -707,6 +755,7 @@ instance:
       begränsas och ersättas med produktion av jordbruksprodukter med mindre klimatpåverkan.
     params:
       panorama_id: 5dadd8c4-9a06-41cc-b3b8-c5fd9222bb97
+      panorama_reduction_mton: 0.45
   - id: okad-resursefektivitet
     name: Ökad resursefektivitet
     output_nodes:
@@ -720,6 +769,7 @@ instance:
       kött har potential att minska utsläppen.
     params:
       panorama_id: 99469463-1127-49a2-9e58-5e5c4ef25b86
+      panorama_reduction_mton: 0.3
   - id: tackning-av-godselbrunnar
     name: Täckning av gödselbrunnar
     output_nodes:
@@ -740,6 +790,7 @@ instance:
       \ risk för lustgasutsläpp"
     params:
       panorama_id: a804470b-8bd1-4bcb-8cb5-7c4e6354e179
+      panorama_reduction_mton: 0.18
   - id: rotning-till-biogas
     name: Rötning till biogas
     output_nodes:
@@ -762,6 +813,7 @@ instance:
       behov av mineralgödsel.'
     params:
       panorama_id: 2325e8a1-7813-4c43-9d46-4704cd46baa1
+      panorama_reduction_mton: 0.18
   - id: kvarvarande-utslapp_c856
     name: Kvarvarande utsläpp
     output_nodes:
@@ -769,6 +821,7 @@ instance:
     type: kpr.ActionNode
     params:
       panorama_id: c856c156-a0f8-4089-899d-70f6bccbb220
+      panorama_reduction_mton: 0.24
   - id: okad-andel-kollektivtrafik
     name: Ökad andel kollektivtrafik
     output_nodes:
@@ -781,6 +834,7 @@ instance:
       baserad på scenario D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: 93c348c5-d71b-4370-a0fa-c1cde0b8537c
+      panorama_reduction_mton: 0.864
   - id: okad-andel-gang-och-cykel
     name: Ökad andel gång och cykel
     output_nodes:
@@ -796,6 +850,7 @@ instance:
       att nå klimatmålen.
     params:
       panorama_id: e802822e-a5f8-428e-b77c-b9b2bb8c536d
+      panorama_reduction_mton: 0.648
   - id: overflyttning-till-jarnvag
     name: Överflyttning till järnväg
     output_nodes:
@@ -807,6 +862,7 @@ instance:
       rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: 6c8c5112-7935-4d94-b5ca-960c5f31b3d5
+      panorama_reduction_mton: 0.648
   - id: okad-andel-resfria-moten
     name: Ökad andel resfria möten
     output_nodes:
@@ -817,6 +873,7 @@ instance:
       organisera möten via datorer och nätverk.
     params:
       panorama_id: 9f79979e-69dd-49ef-b7b9-b808f3503ad4
+      panorama_reduction_mton: 0.617
   - id: effektivare-persontransporter
     name: Effektivare persontransporter
     output_nodes:
@@ -829,6 +886,7 @@ instance:
       rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: 0f65ba32-be91-4b5f-97d6-ac0b5959efe9
+      panorama_reduction_mton: 0.309
   - id: forbattrad-fordonsteknik
     name: Förbättrad fordonsteknik
     output_nodes:
@@ -840,6 +898,7 @@ instance:
       baserad på scenario D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: 22ebc4de-cb52-4bcd-8901-806b655dfbda
+      panorama_reduction_mton: 1.029
   - id: biodrivmedel-for-personbil
     name: Biodrivmedel för personbil
     output_nodes:
@@ -853,6 +912,7 @@ instance:
       https://www.trafikverket.se/for-dig-i-branschen/Planera-och-utreda/Planer-och-beslutsunderlag/inriktningsplanering/kunskapsunderlag/scenarier-for-att-na-klimatmalet-och-paverkan-pa-vagtrafiken/"
     params:
       panorama_id: bb824c15-5e79-4af4-821a-6236aebd9de5
+      panorama_reduction_mton: 0.309
   - id: overgang-till-elbil
     name: Övergång till elbil
     output_nodes:
@@ -867,6 +927,7 @@ instance:
       Potentialen är baserad på Power Circles prognos för laddbara fordon.'
     params:
       panorama_id: 5e655b0b-b2ac-4fd3-9e7d-9af99101cbdd
+      panorama_reduction_mton: 5.864
   - id: overflyttning-av-fraktat-gods-till-jarnvag
     name: Överflyttning av fraktat gods till järnväg
     output_nodes:
@@ -877,6 +938,7 @@ instance:
       är baserad på scenario D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: 600dd440-8aec-47a7-a7ac-a85824801a06
+      panorama_reduction_mton: 0.143
   - id: overflyttning-av-fraktat-gods-till-sjofart
     name: Överflyttning av fraktat gods till sjöfart
     output_nodes:
@@ -888,6 +950,7 @@ instance:
       Scenarier för att nå klimatmålen.
     params:
       panorama_id: a52be706-fbbd-4c37-b2f7-dcd16126f3bf
+      panorama_reduction_mton: 0.143
   - id: okad-fyllnadsgrad-for-tunga-lastbilar
     name: Ökad fyllnadsgrad för tunga lastbilar
     output_nodes:
@@ -901,6 +964,7 @@ instance:
       D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: 2eeca050-33e3-4c9b-ba26-c954806d52fe
+      panorama_reduction_mton: 0.669
   - id: energieffektiva-tunga-lastbilar
     name: Energieffektiva tunga lastbilar
     output_nodes:
@@ -913,6 +977,7 @@ instance:
       D1 i Trafikverkets rapport Scenarier för att nå klimatmålen.
     params:
       panorama_id: de99d1e0-f1f5-48e7-bf99-d4eb5b90276c
+      panorama_reduction_mton: 1.433
   - id: biodrivmedel-for-tunga-lastbilar
     name: Biodrivmedel för tunga lastbilar
     output_nodes:
@@ -925,6 +990,7 @@ instance:
       Scenarier för att nå klimatmålen.
     params:
       panorama_id: 1a8f84dc-03ba-4fb7-b648-921bd3aedd58
+      panorama_reduction_mton: 1.552
   - id: elektrifiering-av-tunga-lastbilar
     name: Elektrifiering av tunga lastbilar
     output_nodes:
@@ -939,6 +1005,7 @@ instance:
       för att nå klimatmålen.
     params:
       panorama_id: eb1a93ce-670a-4030-8f1e-3842cc851fb1
+      panorama_reduction_mton: 0.836
   - id: elektrifiering-av-inrikes-sjofart
     name: Elektrifiering av inrikes sjöfart
     output_nodes:
@@ -947,6 +1014,7 @@ instance:
     description: Lösningen innebär att fossila drivmedel ersätts med el.
     params:
       panorama_id: 54772091-98f8-46ff-95b8-135279e17c3f
+      panorama_reduction_mton: 0.16944
   - id: biodrivmedel-inrikes-sjofart
     name: Biodrivmedel inrikes sjöfart
     output_nodes:
@@ -956,6 +1024,7 @@ instance:
       biodrivmedel som bidrar till minskade utsläpp av växthusgaser.
     params:
       panorama_id: bf7cd1ef-b757-47f9-8290-649cb0572607
+      panorama_reduction_mton: 0.39536
   - id: energieffektiva-fartyg
     name: Energieffektiva fartyg
     output_nodes:
@@ -966,6 +1035,7 @@ instance:
       godstransport) blir mindre.
     params:
       panorama_id: 24c03233-c271-4738-87c7-84bb3bf2895b
+      panorama_reduction_mton: 0.08472
   - id: klimateffektivt-fossilt-bransle-for-inrikes-sjofart
     name: Klimateffektivt fossilt bränsle för inrikes sjöfart
     output_nodes:
@@ -983,6 +1053,7 @@ instance:
       the North Sea.'
     params:
       panorama_id: 78b71ff3-5767-41ba-8b5b-6b4a2cdffc88
+      panorama_reduction_mton: 0.05648
   - id: biodrivmedel-for-inrikes-flyg
     name: Biodrivmedel för inrikes flyg
     output_nodes:
@@ -996,6 +1067,7 @@ instance:
       grund för den reduktionsplikt som regeringen har implementerat för flygbränsle.'
     params:
       panorama_id: a0bbea7a-f25c-41f7-b89d-aaa50130d82f
+      panorama_reduction_mton: 0.2862
   - id: energieffektiva-flygplan
     name: Energieffektiva flygplan
     output_nodes:
@@ -1005,6 +1077,7 @@ instance:
       att mindre bränsle går åt till att utföra samma trafikarbete.
     params:
       panorama_id: 72069bbc-71b9-4615-ab96-40a0661a0c90
+      panorama_reduction_mton: 0.13356
   - id: overflyttning-fran-flyg-till-jarnvag
     name: Överflyttning från flyg till järnväg
     output_nodes:
@@ -1014,6 +1087,7 @@ instance:
       tåg.
     params:
       panorama_id: 3fe430e1-2046-4c8b-91d5-42e725ab0b4f
+      panorama_reduction_mton: 0.05274
   - id: biodrivmedel-for-militara-transporter
     name: Biodrivmedel för militära transporter
     output_nodes:
@@ -1026,6 +1100,7 @@ instance:
       transporter.
     params:
       panorama_id: a6913772-19ea-4751-8ed6-91e62a0f0d8f
+      panorama_reduction_mton: 0.184
   - id: ersattning-av-fluorerade-gaser
     name: Ersättning av fluorerade gaser
     output_nodes:
@@ -1035,6 +1110,7 @@ instance:
       lägre klimatpåverkan eller ingen klimatpåverkan alls.
     params:
       panorama_id: ec09f9e4-3a45-44df-8352-6edea561b73b
+      panorama_reduction_mton: 0.8892
   - id: destruering-av-f-gaser
     name: Destruering av F-gaser
     output_nodes:
@@ -1044,6 +1120,7 @@ instance:
       eller service av produkter så att de inte bidrar med någon klimatpåverkan.
     params:
       panorama_id: 476d805b-b1a3-4f5f-9919-2bf8867a1229
+      panorama_reduction_mton: 0.0988
   - id: ersattning-av-losningsmedel
     name: Ersättning av lösningsmedel
     output_nodes:
@@ -1053,6 +1130,7 @@ instance:
       ersätts med andra alternativ som inte ger lika stor växthusgaspåverkan.
     params:
       panorama_id: f3b71ea0-de34-4790-a5f7-92160df11d0f
+      panorama_reduction_mton: 0.1596
   - id: minskad-anvandning-av-losningsmedel
     name: Minskad användning av lösningsmedel
     output_nodes:
@@ -1063,6 +1141,7 @@ instance:
       Exempel på övriga produkter är paraffin, smörjmedel, fyrverkerier och tobaksrökning.
     params:
       panorama_id: 5fd0294d-0f23-4bbe-8989-27cd0f011a62
+      panorama_reduction_mton: 0.3724
   - id: biodrivmedel-for-arbetsmaskiner
     name: Biodrivmedel för arbetsmaskiner
     output_nodes:
@@ -1074,6 +1153,7 @@ instance:
       Biodiesel blandas också in i vanlig diesel för att minska dess klimatpåverkan.
     params:
       panorama_id: 0c3869df-f23e-4378-933c-85fc2ba54ffc
+      panorama_reduction_mton: 1.65
   - id: forbattrad-energieffektivitet
     name: Förbättrad energieffektivitet
     output_nodes:
@@ -1084,6 +1164,7 @@ instance:
       och minskar utsläppen.
     params:
       panorama_id: f3bf6655-6338-4eed-87ff-3f863ecd7500
+      panorama_reduction_mton: 0.66
   - id: elektrifiering-av-arbetsmaskiner
     name: Elektrifiering av arbetsmaskiner
     output_nodes:
@@ -1093,6 +1174,7 @@ instance:
       som är mer effektiva och inte bidrar med några direkta utsläpp av växthusgaser.
     params:
       panorama_id: 5766e4cf-bfb7-4c5a-8249-62dc233a45e9
+      panorama_reduction_mton: 0.99
   - id: minskat-lackage
     name: Minskat läckage
     output_nodes:
@@ -1102,6 +1184,7 @@ instance:
       organiskt avfall minskas. Den främsta utsläppskällan är metan från avfallsdeponier.
     params:
       panorama_id: a0426e4e-a637-404d-99d4-1cd3e001951f
+      panorama_reduction_mton: 0.8205
   - id: effektivare-behandling
     name: Effektivare behandling
     output_nodes:
@@ -1111,6 +1194,7 @@ instance:
       effektiva vilket minskar utsläppen av växthusgaser.
     params:
       panorama_id: b69b93d5-c86f-478e-8c9a-20dfbecdc001
+      panorama_reduction_mton: 0.2735
   scenarios:
   - id: baseline
     name: Baseline
@@ -1118,4 +1202,10 @@ instance:
     name: Nettonollutsläpp 2045
     all_actions_enabled: true
     default: true
+  pages:
+  - id: home
+    name: Sveriges Panorama
+    path: /
+    type: emission
+    node: net_emissions
 

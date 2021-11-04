@@ -25,6 +25,7 @@ env = environ.Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
+    EXTRA_INSTALLED_APPS=(list, []),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
     CACHE_URL=(str, 'locmemcache://'),
     MEDIA_ROOT=(environ.Path(), root('media')),
@@ -59,6 +60,8 @@ CACHES = {
 
 SECRET_KEY = env('SECRET_KEY')
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 # Application definition
 
@@ -80,6 +83,7 @@ INSTALLED_APPS = [
 
     'taggit',
     'modelcluster',
+    'grapple',
     'graphene_django',
 
     'django.contrib.admin',
@@ -92,23 +96,25 @@ INSTALLED_APPS = [
     'django_extensions',
 
     'pages',
-
+    'nodes',
 ]
+
+EXTRA_INSTALLED_APPS: list[str] = env.list('EXTRA_INSTALLED_APPS')  # type:ignore
+INSTALLED_APPS += EXTRA_INSTALLED_APPS
 
 MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
+    'paths.middleware.AdminMiddleware',
 ]
-
-INSTANCE_LOADER_CONFIG = 'configs/ilmastoruoka.yaml'
-
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
 
@@ -121,6 +127,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
+                'django.template.context_processors.i18n',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'wagtail.contrib.settings.context_processors.settings',
@@ -149,21 +156,30 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'
+INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     # Match localhost with optional port
-    r'^https?://localhost(:\d+)?$',
+    r'^https?://([a-z0-9-_]+\.)+localhost(:\d+)?$',
     r'^https://([a-z0-9-_]+\.)*kausal\.tech$'
 ]
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_PREFLIGHT_MAX_AGE = 3600
+CORS_ALLOW_ALL_ORIGINS = True
 
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
 
 GRAPHENE = {
     'SCHEMA': f'{PROJECT_NAME}.schema.schema',
+}
+GRAPPLE = {
+    'APPS': ['pages'],
 }
 
 # Internationalization
@@ -191,9 +207,9 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
-STATICFILES_DIRS = [
-    # os.path.join(PROJECT_DIR, 'static'),
-]
+# STATICFILES_DIRS = [
+#     os.path.join(PROJECT_DIR, 'static'),
+# ]
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
@@ -219,6 +235,9 @@ WAGTAIL_PASSWORD_RESET_ENABLED = True
 # Base URL to use when referring to full URLs within the Wagtail admin backend -
 # e.g. in notification emails. Don't include '/admin' or a trailing slash
 BASE_URL = 'http://example.com'
+
+
+INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
@@ -249,6 +268,11 @@ if not locals().get('SECRET_KEY', ''):
         except IOError:
             Exception('Please create a %s file with random characters to generate your secret key!' % secret_file)
 
+if DEBUG:
+    from rich.traceback import install
+    install()
+
+
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
@@ -264,3 +288,6 @@ if SENTRY_DSN:
 if 'DATABASES' in locals():
     if DATABASES['default']['ENGINE'] in ('django.db.backends.postgresql', 'django.contrib.gis.db.backends.postgis'):
         DATABASES['default']['CONN_MAX_AGE'] = 600
+
+CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
+CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)

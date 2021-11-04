@@ -122,8 +122,8 @@ class ExposureResponseFunction(Ovariable):
             ['None', 'cardiovascular disease', 'RR', 'param2', False, 0],
             ['None', 'cerebrovascular disease', 'Relative Hill', 'param1', False, 2],
             ['None', 'cerebrovascular disease', 'Relative Hill', 'param2', False, 0.2],
-            ['None', 'dioxin', 'Step', 'param1', False, 20],
-            ['None', 'dioxin', 'Step', 'param2', False, 0],
+            # ['None', 'dioxin', 'Step', 'param1', False, 20],
+            # ['None', 'dioxin', 'Step', 'param2', False, 0],
             ['None', 'cancer', 'UR', 'param1', False, 2000],
             ['None', 'cancer', 'UR', 'param2', False, 0.2]],
             columns=['scaling', 'Response', 'er_function', 'observation', FORECAST_COLUMN, VALUE_COLUMN]
@@ -231,11 +231,12 @@ class PopulationAttributableFraction(Ovariable):
                 threshold = param2
 
                 dose2 = (exposure - threshold)
-                dose2.content = np.clip(dose2.content, 0, None)  # Smallest allowed value is 0
-                out3 = (k * dose2 * frexposed / incidence)
-                out = out.append(out3.content.reset_index())
+                # FIXME clip removes the pint unit. Figure out something else.
+                # dose2.content = np.clip(dose2.content, 0, None)  # Smallest allowed value is 0
+                out1 = (k * dose2 * frexposed / incidence)
+                out = out.append(out1.content.reset_index())
 
-            if func == 'Step':
+            elif func == 'Step':
                 upper = copy.deepcopy(param1)
                 upper.content = upper.content.query("er_function == 'Step'")
 
@@ -244,7 +245,7 @@ class PopulationAttributableFraction(Ovariable):
                 out2 = out2 * frexposed / incidence
                 out = out.append(out2.content.reset_index())
 
-            if func == 'RR' or func == 'Relative Hill':
+            elif func == 'RR' or func == 'Relative Hill':
                 r = frexposed * (rr - 1)
 
                 out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
@@ -257,17 +258,17 @@ class PopulationAttributableFraction(Ovariable):
 
                 out = out.append(out3.content.reset_index())
 
-            if func == 'beta poisson approximation':
+            elif func == 'beta poisson approximation':
                 out4 = ((exposure / param2 + 1) ** (param1 * -1) * -1 + 1) * frexposed
                 out4 = (out4 / incidence * p_illness)
                 out = out.append(out4.content.reset_index())
 
-            if func == 'exact beta poisson':
+            elif func == 'exact beta poisson':
                 out5 = ((param1 / (param1 + param2) * exposure * -1).exp() * -1 + 1) * frexposed
                 out5 = out5 / incidence * p_illness
                 out = out.append(out5.content.reset_index())
 
-            if func == 'exponential':
+            elif func == 'exponential':
                 k = param1
                 out6 = ((k * exposure * -1).exp() * -1 + 1) * frexposed
                 out6 = out6 / incidence * p_illness
@@ -289,7 +290,7 @@ class DiseaseBurden(Ovariable):
         population = self.prepare_ovariable(context, 'population')
         case_burden = self.prepare_ovariable(context, 'case_burden')
 
-        out = incidence * population * case_burden
+        out = population * incidence * case_burden
 
         return self.clean_computing(out)
 

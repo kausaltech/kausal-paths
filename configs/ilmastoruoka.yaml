@@ -2,11 +2,12 @@ instance:
   id: ilmastoruoka
   default_language: fi
   dataset_repo:
-    url: git@github.com:kausaltech/dvctest.git
+    url: https://github.com/kausaltech/dvctest.git
 #    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
 #    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
 #    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
 #    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
+  site_url: https://ilmastoruoka.test.kausal.tech
   name: Suomen ilmastoruokaohjelma
   name_en: Finnish climate food program
   target_year: 2035
@@ -24,14 +25,13 @@ instance:
     - id: net_emissions
       name: Ruoankulutuksen kokonaispäästöt
       name_en: Net emissions from food consumption
-      target_year_goal: 6000
+      target_year_goal: 0
 
     - id: other_emissions
       name: Muut päästöt
       name_en: Other foods
       part_of: net_emissions
       color: '#72A0C1'
-      target_year_goal: 1000
 
     - id: alcohol_emissions
       name: Alkoholijuomat
@@ -79,7 +79,6 @@ instance:
       name_en: Plant emissions
       part_of: net_emissions
       color: '#8DB600'
-      target_year_goal: 5000
 
     - id: potato_emissions
       name: Perunat
@@ -93,13 +92,12 @@ instance:
       name_en: Fish emissions
       part_of: net_emissions
       color: '#A6A6A6'
-      target_year_goal: 600
 
   nodes:
     - id: population
       name: Suomen väestö
       name_en: Population in Finland
-      type: simple.AdditiveNode
+      type: health.DataOvariable
       quantity: population
       unit: person
       input_datasets:
@@ -115,7 +113,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#996515'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.8514 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
@@ -167,7 +164,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#FA8072'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 7.8562 # FIXIT Does not accept unit kg/kg. Is this because quantities differ?
@@ -206,7 +202,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#4F86F7'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.0626
@@ -245,7 +240,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#CB4154'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 19.2005
@@ -284,7 +278,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#3B7A57'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 3.2852
@@ -323,7 +316,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#FFD300'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 2.1613
@@ -362,7 +354,6 @@ instance:
       quantity: emissions
       unit: kt/a
       color: '#7BB661'
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.7156
@@ -400,7 +391,6 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 1.2928
@@ -438,7 +428,6 @@ instance:
       type: simple.FixedMultiplierNode
       quantity: emissions
       unit: kt/a
-      target_year_goal: 1
       params: 
         - id: multiplier
           value: 7.8562
@@ -459,8 +448,10 @@ instance:
     - id: domestic_fish_consumption_per_person
       name: Kotimaisen kalan kulutus per henkilö
       name_en: Domestic fish consumption per person
-      type: simple.AdditiveNode
-      quantity: per_capita
+      type: health.DataOvariable
+      quantity: ingestion
+#      type: simple.AdditiveNode
+#      quantity: per_capita
       unit: g/day/person
       input_datasets:
         - id: ilmastoruoka/consumption
@@ -469,6 +460,129 @@ instance:
           dropna: true
       output_nodes:
         - domestic_fish_consumption
+
+######## OTHER HEALTH BENEFITS
+
+    - id: dioxin_concentration
+      name: Dioksiinipitoisuus
+      name_en: Dioxin concentration
+      type: health.DataOvariable
+      quantity: mass_concentration
+      unit: ppm
+      color: '#456789'
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Domestic fish
+          forecast_from: 2021
+          dropna: true
+      output_nodes:
+        - exposure
+
+    - id: exposure
+      name: Dioksiinialtistus
+      name_en: Dioxin exposure
+      type: health.Exposure
+      unit: mg/person/day
+      input_nodes:
+        - domestic_fish_consumption_per_person
+
+    - id: p_illness
+      name: OVA Sairauden todennäköisyys
+      name_en: OVA Probability of illness
+      type: health.DataOvariable
+      quantity: probability
+      unit: dimensionless
+      input_datasets:
+        - id: ilmastoruoka/emission_factor  # FIXME Get real data
+          column: Drinks
+          forecast_from: 2021
+          dropna: true
+
+    - id: body_weight
+      name: Ruumiinpaino
+      name_ en: Body weight
+      type: health.DataOvariable
+      quantity: body_weight
+      unit: kg
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Alcohol
+          forecast_from: 2021
+          dropna: true
+
+    - id: frexposed
+      name: Altistuneiden osuus
+      name_ en: Fraction exposed
+      type: health.DataOvariable
+      quantity: fraction
+      unit: dimensionless
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: exposure_response_function
+      name: Annosvaste
+      name_ en: Exposure-response function
+      type: health.ExposureResponseFunction  # FIXME Get real data
+      unit: mg/person/day
+
+    - id: relative_risk
+      name: Riskisuhde
+      name_en: Risk ratio
+      type: health.RelativeRisk
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - body_weight
+
+    - id: incidence
+      name: Ilmaantuvuus
+      name_ en: Incidence
+      type: health.DataOvariable
+      quantity: incidence
+      unit: case/_100000py
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: population_attributable_fraction
+      name: Väestösyyosuus
+      name_en: Population attributable fraction
+      type: health.PopulationAttributableFraction
+      input_nodes:
+        - exposure
+        - exposure_response_function
+        - relative_risk
+        - frexposed
+        - p_illness
+        - incidence
+        - body_weight
+
+    - id: case_burden
+      name: Tapaustaakka
+      name_ en: Case burden
+      type: health.DataOvariable
+      quantity: case_burden
+      unit: DALY/case
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
+    - id: disease_burden
+      name: Kokonaistautitaakka
+      name_ en: Total disease burden
+      type: health.DiseaseBurden
+      unit: cap
+      input_nodes:
+        - incidence
+        - population
+        - case_burden
 
 ################
 # health benefits
@@ -484,6 +598,7 @@ instance:
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
       name_en: Imported fish health benefit
+      color: '#FA8072'
       type: health.FixedMultiplierHealthImpactNode
       params:
         - id: health_factor
@@ -496,6 +611,7 @@ instance:
     - id: domestic_fish_health_impact
       name: Kotimaisen kalan terveyshyöty
       name_en: Domestic fish health benefit
+      color: '#A6A6A6'
       type: health.FixedMultiplierHealthImpactNode
       params:
         - id: health_factor
@@ -508,6 +624,7 @@ instance:
     - id: fish_health_impact
       name: Kalan terveyshyöty
       name_en: Fish health benefit
+      color: '#a6a6a6'
       type: simple.AdditiveNode
       quantity: disease_burden
       unit: DALY/a
@@ -517,6 +634,7 @@ instance:
     - id: fruit_health_impact
       name: Hedelmien ja marjojen terveyshyöty
       name_en: Fruit and berries health benefit
+      color: '#4F86F7'
       type: health.FixedMultiplierHealthImpactNode
       params:
         - id: health_factor
@@ -529,6 +647,7 @@ instance:
     - id: vegetable_health_impact
       name: Vihannesten terveyshyöty
       name_en: Vegetable health benefit
+      color: '#8db600'
       type: health.FixedMultiplierHealthImpactNode
       params:
         - id: health_factor
@@ -541,6 +660,7 @@ instance:
     - id: meat_health_impact
       name: Lihan terveyshyöty
       name_en: Meat health benefit
+      color: '#cb4154'
       type: health.FixedMultiplierHealthImpactNode
       params:
         - id: health_factor
@@ -549,91 +669,6 @@ instance:
         - meat_consumption
       output_nodes:
         - net_health_impact
-
-#    - id: pm_emissions
-#      name: Pienhiukkaspäästöt
-#      name_en: Fine particle emissions
-#      type: simple.AdditiveNode
-#      quantity: emissions
-#      unit: ug/m**3
-#      historical_values: [[2018, 1], [2019, 1], [2020, 1]]
-#      forecast_values: [[2021, 1], [2022, 1], [2023, 1], [2024, 1], [2025, 1], [2026, 1], [2027, 1], [2028, 1], [2029, 1], [2030, 1]]
-
-#    - id: pm_exposure
-#      name: Pienhiukkasaltistus
-#      name_en: Fine particle exposure
-#      type: simple.FixedMultiplierNode
-#      quantity: exposure
-#      unit: ug/m**3
-#      params:
-#        - id: multiplier
-#          value: 1.1
-#      input_nodes:
-#        - pm_emissions
-#      output_nodes:
-#        - rr_cvd_mortality
-
-#    - id: rr_cvd_mortality
-#      name: Sydänkuolleisuuden suhteellinen riski
-#      name_en: Relative risk of cardiovascular mortality
-#      type: health.RelativeRiskNode
-#      quantity: ratio
-#      unit: dimensionless
-#      params:
-#        - id: exposure_response_param1
-#          value: 0.008959741 m**3/microgram
-#        - id: exposure_response_param2
-#          value: 0 microgram/m**3
-
-#    - id: pm_exposed_fraction
-#      name: Altistuneiden osuus
-#      name_en: Exposed fraction
-#      type: simple.AdditiveNode
-#      quantity: ratio
-#      unit: dimensionless
-#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
-#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-
-#    - id: paf_cvd_mortality
-#      name: Väestösyyosuus
-#      name_en: Population attributable fraction
-#      type: health.PopulationAttributableFractionNode
-#      quantity: ratio
-#      unit: dimensionless
-#      input_nodes: 
-#        - rr_cvd_mortality
-#        - pm_exposed_fraction
-
-#    - id: disease_burden
-#      name: Tautitaakka
-#      name_en: Disease burden
-#      type: simple.AdditiveNode
-#      quantity: disease_burden
-#      unit: DALY
-#      historical_values: [[2018, 0.5], [2019, 0.5], [2020, 0.5]]
-#      forecast_values: [[2021, 0.5], [2022, 0.5], [2023, 0.5], [2024, 0.5], [2025, 0.5], [2026, 0.5], [2027, 0.5], [2028, 0.5], [2029, 0.5], [2030, 0.5]]
-
-#    - id: attributable_disease_burden
-#      name: Kohdentuva tautitaakka
-#      name_en: Attributable disease burden
-#      type: simple.Multiple2Node
-#      quantity: disease_burden
-#      unit: DALY
-#      input_nodes:
-#        - paf_cvd_mortality
-#        - disease_burden
-
-
-#    - id: pm_emission_factor # FIXIT: This is not a simple time series
-#      name: Pienhiukkasten päästökerroin
-#      name_en: Fine particle emission factor
-#      type: simple.AdditiveNode
-#      unit: ug/m**3
-#      input_datasests:
-#        - id: vtt/lipasto/car_unit_emissions
-#          column: PM
-#      output_nodes:
-#        - pm_exposure
 
   #
   # ------- ACTIONS --------
@@ -657,7 +692,7 @@ instance:
           max_value: 140
           step: 1
           unit: g/day/person
-          description: Viljan kulutuksen muutos
+          description: Viljan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in grain consumption
 
     - id: imported_fish_consumption_change
@@ -677,7 +712,7 @@ instance:
           max_value: 60
           step: 1
           unit: g/day/person
-          description: Tuontikalan kulutuksen muutos
+          description: Tuontikalan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in imported fish consumption
 
     - id: domestic_fish_consumption_change
@@ -696,7 +731,7 @@ instance:
           max_value: 40
           step: 1
           unit: g/day/person
-          description: Kotimaisen kalan kulutuksen muutos
+          description: Kotimaisen kalan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in domestic fish consumption
 
     - id: fruit_consumption_change
@@ -715,7 +750,7 @@ instance:
           max_value: 180
           step: 1
           unit: g/day/person
-          description: Hedelmien ja marjojen kulutuksen muutos
+          description: Hedelmien ja marjojen kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in fruit and berry consumption
 
     - id: meat_consumption_change
@@ -734,7 +769,7 @@ instance:
           max_value: 0
           step: 1
           unit: g/day/person
-          description: Lihan kulutuksen muutos
+          description: Lihan kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in meat consumption
 
     - id: legume_consumption_change
@@ -753,7 +788,7 @@ instance:
           max_value: 210
           step: 1
           unit: g/day/person
-          description: Palkokasvien ja pähkinöiden kulutuksen muutos
+          description: Palkokasvien ja pähkinöiden kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in legume and nut consumption
 
     - id: dairy_consumption_change
@@ -772,7 +807,7 @@ instance:
           max_value: 40
           step: 1
           unit: g/day/person
-          description: Maitotuotteiden kulutuksen muutos
+          description: Maitotuotteiden kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in dairy consumption
 
     - id: vegetable_consumption_change
@@ -791,7 +826,7 @@ instance:
           max_value: 210
           step: 1
           unit: g/day/person
-          description: Vihannesten kulutuksen muutos
+          description: Vihannesten kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in vegetable consumption
 
     - id: oatdrink_consumption_change
@@ -810,7 +845,7 @@ instance:
           max_value: 580
           step: 1
           unit: g/day/person
-          description: Kaurajuoman kulutuksen muutos
+          description: Kaurajuoman kulutuksen muutos (g per henkilö per päivä)
           description_en: Change in oatdrink consumption
 
   pages:

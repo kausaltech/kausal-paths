@@ -2,24 +2,23 @@ from __future__ import annotations
 
 import hashlib
 import os
+import io
 import inspect
-from types import FunctionType
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
+import json
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Union, overload
 
+import numpy as np
 import pandas as pd
 import pint
 import pint_pandas
 
 from common.i18n import TranslatedString
-from nodes.constants import FORECAST_COLUMN, KNOWN_QUANTITIES, VALUE_COLUMN
+from nodes.constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, KNOWN_QUANTITIES, MILEAGE_QUANTITY, VALUE_COLUMN
 from params import Parameter
 
 from .context import Context
-from .datasets import Dataset
+from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
-
-if TYPE_CHECKING:
-    from pages.models import NodeContent
 
 
 class Node:
@@ -27,11 +26,17 @@ class Node:
     id: str
     # output_metrics: Iterable[Metric]
 
-    # name is the human-readable label for the Node instance
-    name: Optional[TranslatedString]
+    # the id of the database row corresponding to this node
+    database_id: Optional[int]
 
-    # description for the Node instance
-    description: Optional[TranslatedString]
+    # name is the human-readable label for the Node instance
+    name: Optional[Union[TranslatedString, str]]
+
+    # Description for the Node instance
+    #
+    # This gets mapped to NodeType.short_description in the GraphQL schema and
+    # wrapped in a <p> tag.
+    description: Optional[Union[TranslatedString, str]]
 
     # if the node has an established visualisation color
     color: Optional[str]
@@ -59,13 +64,17 @@ class Node:
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
 
+    # Cache last historical year
+    _last_historical_year: Optional[int]
+    context: Context
+
     debug: bool = False
-    content: Optional[NodeContent]
     __post_init__: Callable[[Node], None]
 
     def __init__(
-        self, id, name, quantity, description=None, color=None, unit=None, target_year_goal=None,
-        input_datasets: List[Dataset] = None
+        self, id: str, context: Context, name, quantity: str, description,
+        color: str = None, unit=None, target_year_goal=None,
+        input_datasets: List[Dataset] = None,
     ):
         if quantity not in KNOWN_QUANTITIES:
             raise Exception(f"Quantity {quantity} is unknown")
@@ -74,10 +83,14 @@ class Node:
             input_datasets = []
 
         self.id = id
+        self.context = context
+        self.database_id = None
         self.name = name
         self.description = description
         self.color = color
         self.unit = unit
+        if unit is None:
+            raise NodeError(self, "Attempting to initialize node without a unit")
         self.quantity = quantity
         self.target_year_goal = target_year_goal
         self.input_dataset_instances = input_datasets
@@ -85,7 +98,6 @@ class Node:
         self.output_nodes = []
         self.baseline_values = None
         self.parameters = {}
-        self.content = None
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -120,32 +132,66 @@ class Node:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         self.parameters[local_id].set(value)
 
-    def get_input_datasets(self, context: Context) -> List[Union[pd.DataFrame, pd.Series]]:
+    def get_input_datasets(self) -> List[Union[pd.DataFrame, pd.Series]]:
         dfs = []
         for ds in self.input_dataset_instances:
-            df = ds.get_copy(context)
+            df = ds.get_copy(self.context)
             if df.index.duplicated().any():
                 raise NodeError(self, "Input dataset has duplicate index rows")
             dfs.append(df)
         return dfs
 
-    def get_input_dataset(self, context: Context) -> Optional[Union[pd.DataFrame, pd.Series]]:
+    @overload
+    def get_input_dataset(self, required: Literal[True]) -> Union[pd.DataFrame, pd.Series]: ...
+
+    @overload
+    def get_input_dataset(self) -> Union[pd.DataFrame, pd.Series]: ...
+
+    @overload
+    def get_input_dataset(self, required: Literal[False]) -> Optional[Union[pd.DataFrame, pd.Series]]: ...
+
+    def get_input_dataset(self, required: bool = True):
         """Gets the first (and only) dataset if it exists."""
-        datasets = self.get_input_datasets(context)
+        datasets = self.get_input_datasets()
         if not datasets:
+            if required:
+                raise NodeError(self, 'No input datasets, but node requires one')
             return None
         if len(datasets) != 1:
             raise NodeError(self, 'Expected only 1 input dataset, got %d' % len(datasets))
-        return datasets[0]
+        df = datasets[0]
+        assert isinstance(df, pd.DataFrame)
+        return df
 
-    def calculate_hash(self, context: Context) -> bytes:
+    def get_last_historical_year(self) -> Optional[int]:
+        year = getattr(self, '_last_historical_year', None)
+        if year is not None:
+            return year
+
+        if len(self.input_dataset_instances) != 1:
+            return None
+        ds = self.input_dataset_instances[0]
+        df = ds.get_copy(self.context)
+        if FORECAST_COLUMN not in df:
+            return None
+
+        year = df[~df[FORECAST_COLUMN]].index.max()
+        if np.isnan(year):
+            year = None
+        else:
+            year = int(year)
+
+        self._last_historical_year = year
+        return year
+
+    def calculate_hash(self) -> bytes:
         h = hashlib.md5()
         for node in self.input_nodes:
-            h.update(node.calculate_hash(context))
+            h.update(node.calculate_hash())
         for param in self.parameters.values():
             h.update(param.calculate_hash())
         for ds in self.input_dataset_instances:
-            h.update(ds.calculate_hash(context))
+            h.update(ds.calculate_hash(self.context))
         for klass in type(self).mro():
             try:
                 mod_mtime = os.path.getmtime(inspect.getfile(klass))
@@ -154,12 +200,12 @@ class Node:
             h.update(str(mod_mtime).encode('utf8'))
         return h.digest()
 
-    def get_output(self, context: Context, target_node: Node = None) -> pd.DataFrame:
-        node_hash = self.calculate_hash(context).hex()
-        out = context.cache.get(node_hash)
-        if out is None or self.debug or context.skip_cache:
+    def get_output(self, target_node: Node = None) -> pd.DataFrame:
+        node_hash = self.calculate_hash().hex()
+        out = self.context.cache.get(node_hash)
+        if out is None or self.debug or self.context.skip_cache:
             try:
-                out = self.compute(context)
+                out = self.compute()
             except Exception as e:
                 print('Exception when computing node %s' % self.id)
                 raise e
@@ -169,8 +215,7 @@ class Node:
         else:
             cache_hit = True
 
-        if out is None:
-            return None
+        assert out is not None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
         if FORECAST_COLUMN in out.columns:
@@ -178,7 +223,7 @@ class Node:
                 raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
-            context.cache.set(node_hash, out)
+            self.context.cache.set(node_hash, out)
 
         # If a node has multiple outputs, we can specify only one series
         # to include.
@@ -192,8 +237,8 @@ class Node:
 
         return out.copy()
 
-    def print_output(self, context: Context):
-        df = self.get_output(context)
+    def print_output(self):
+        df = self.get_output()
         if self.baseline_values is not None and VALUE_COLUMN in df.columns:
             df['Baseline'] = self.baseline_values[VALUE_COLUMN]
         self.print_pint_df(df)
@@ -211,17 +256,17 @@ class Node:
             out[col] = df[col]
         print(out)
 
-    def get_target_year(self, context: Context) -> int:
-        return context.target_year
+    def get_target_year(self) -> int:
+        return self.context.target_year
 
-    def compute(self, context: Context) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame:
         raise Exception('Implement in subclass')
 
-    def is_compatible_unit(self, context: Context, unit_a: Union[str, pint.Unit], unit_b: Union[str, pint.Unit]):
+    def is_compatible_unit(self, unit_a: Union[str, pint.Unit], unit_b: Union[str, pint.Unit]):
         if isinstance(unit_a, str):
-            unit_a = context.unit_registry(unit_a).units
+            unit_a = self.context.unit_registry(unit_a).units
         if isinstance(unit_b, str):
-            unit_b = context.unit_registry(unit_b).units
+            unit_b = self.context.unit_registry(unit_b).units
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True
@@ -246,14 +291,11 @@ class Node:
         s = s.astype(node_pt)
         return s
 
-    def get_descendant_nodes(self, proper=False) -> List[Node]:
+    def get_downstream_nodes(self) -> List[Node]:
         # Depth-first traversal
         result = []
         closed = set()
-        if proper:
-            open = self.output_nodes.copy()
-        else:
-            open = [self]
+        open = self.output_nodes.copy()
         while open:
             current = open.pop()
             if current not in closed:
@@ -262,10 +304,10 @@ class Node:
                 open += current.output_nodes
         return result
 
-    def get_upstream_nodes(self, filter: FunctionType = None) -> List[Node]:
+    def get_upstream_nodes(self, filter: Callable[[Node], bool] = None) -> List[Node]:
         result = []
         closed = set()
-        open = [self]
+        open = self.input_nodes.copy()
         while open:
             current = open.pop()
             if current not in closed:
@@ -279,21 +321,23 @@ class Node:
         """Called when a scenario is created with this node among the nodes to be notified."""
         pass
 
+    def get_icon(self) -> Optional[str]:
+        from nodes.actions import ActionNode
+        if isinstance(self, ActionNode):
+            return '⚒'
+        elif self.quantity == EMISSION_QUANTITY:
+            return '💨'
+        elif self.quantity == ENERGY_QUANTITY:
+            return '⚡'
+        elif self.quantity == MILEAGE_QUANTITY:
+            return '🚗'
+        elif self.quantity == EMISSION_FACTOR_QUANTITY:
+            return '✖'
+        else:
+            return None
+
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
-
-    @property
-    def short_description(self):
-        if self.content is not None:
-            # FIXME: Format RichTextField?
-            return self.content.short_description or self.description
-
-    @property
-    def body(self):
-        if self.content is None:
-            return None
-        # FIXME: Format RichTextField?
-        return self.content.body
 
     def add_input_node(self, node):
         if node in self.input_nodes:
@@ -305,7 +349,64 @@ class Node:
             raise Exception(f"Node {node} already added to output nodes for {self.id}")
         self.output_nodes.append(node)
 
-    def generate_baseline_values(self, context):
+    def generate_baseline_values(self):
         assert self.baseline_values is None
-        assert context.active_scenario.id == 'baseline'
-        self.baseline_values = self.get_output(context)
+        assert self.context.active_scenario.id == 'baseline'
+        self.baseline_values = self.get_output()
+
+    def serialize_input_data(self):
+        if len(self.input_dataset_instances) != 1:
+            datasets = [x.id for x in self.input_dataset_instances]
+            raise NodeError(self, 'Too many input datasets: %s' % ', '.join(datasets))
+        ds = self.input_dataset_instances[0]
+        df = ds.get_copy(self.context)
+        if not isinstance(df, pd.DataFrame) or FORECAST_COLUMN not in df.columns:
+            raise Exception('Dataset %s is not suitable for serialization')
+
+        try:
+            unit = ds.get_unit(self.context)
+        except Exception:
+            # FIXME: Make this more robust
+            unit = self.unit
+        units = {}
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            if hasattr(df[col], 'pint'):
+                assert df[col].pint.units == unit
+                df[col] = df[col].pint.m
+            units[col] = str(unit)
+
+        d = json.loads(df.to_json(orient='table'))
+        fields = d['schema']['fields']
+        for field in fields:
+            if field['name'] in units:
+                field['unit'] = units[field['name']]
+        return d
+
+    def validate_input_data(self, data: dict):
+        return self._make_input_dataset(data)
+
+    def _make_input_dataset(self, data: dict):
+        sio = io.StringIO(json.dumps(data))
+        old = self.serialize_input_data()
+        old['data'] = data['data']
+        df = pd.read_json(sio, orient='table')
+        return old
+
+    def replace_input_data(self, data: dict):
+        if len(self.input_dataset_instances) != 1:
+            raise NodeError(self, "Can't replace data for node with %d input datasets" % len(self.input_dataset_instances))
+
+        d = self._make_input_dataset(data)
+        old_ds = self.input_dataset_instances[0]
+        try:
+            unit = old_ds.get_unit(self.context)
+        except Exception:
+            # FIXME: Make this more robust
+            unit = self.unit
+        self.input_dataset_instances[0] = JSONDataset(
+            id=old_ds.id, data=d, unit=unit
+        )
+
+        self._last_historical_year = None

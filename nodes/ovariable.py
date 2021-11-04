@@ -40,8 +40,6 @@ class OvaOps():
             df[FORECAST_COLUMN] = df[FORECAST_x] | df[FORECAST_y]
         keep = set(df.columns) - {0, VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
         df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
-#        self.content = df
-
         return Ovariable2(content=df)
 
     def __add__(self):
@@ -248,3 +246,7 @@ class Ovariable(SimpleNode):
 class Ovariable2(Ovariable):
     def __init__(self, content):
         self.content = content
+        if hasattr(content[VALUE_COLUMN], 'pint'):
+            self.unit = content[VALUE_COLUMN].pint.units
+        else:
+            self.unit = "dimensionless"

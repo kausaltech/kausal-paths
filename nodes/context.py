@@ -1,27 +1,35 @@
 from __future__ import annotations
-import os
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-import pint
-import pint_pandas
+import os
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import dvc_pandas
-from .datasets import Dataset
+import pint
+import pint_pandas
+import rich
+from rich.tree import Tree
+
 from common.cache import Cache
 from params import Parameter
 from params.discover import discover_parameter_types
+
+from .datasets import Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
     from .node import Node
     from .scenario import CustomScenario, Scenario
 
 
-unit_registry = pint.UnitRegistry(preprocessors=[
-    lambda s: s.replace('%', ' percent '),
-])
+unit_registry = pint.UnitRegistry(
+    preprocessors=[
+        lambda s: s.replace('%', ' percent '),
+    ],
+    on_redefinition='raise'
+)
 
 # By default, kt is knots, but here kilotonne is the most common
 # usage.
+del unit_registry._units['kt']
 unit_registry.define('kt = kilotonne')
 # Mega-kilometers is often used for mileage
 unit_registry.define('Mkm = gigameters')
@@ -43,7 +51,7 @@ unit_registry.define(pint.unit.UnitDefinition(
 ))
 unit_registry.default_format = '~P'
 pint.set_application_registry(unit_registry)
-pint_pandas.PintType.ureg = unit_registry
+pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
 
 class Context:
@@ -65,6 +73,7 @@ class Context:
 
     def __init__(self, dataset_repo, target_year):
         from nodes.actions import ActionNode
+
         # Avoid circular import
         self.Action = ActionNode
 
@@ -88,7 +97,7 @@ class Context:
         return param_type
 
     def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
-        ds = self.datasets.get(id)
+        ds = self.dvc_datasets.get(id)
         if ds is None:
             if not self.dataset_repo.has_dataset(id):
                 raise Exception('Dataset %s not found in DVC repo' % id)
@@ -98,7 +107,7 @@ class Context:
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets
-        ds = Dataset(**config)
+        ds = DVCDataset(**config)
         self.datasets[ds.id] = ds
 
     def add_node(self, node: Node):
@@ -149,11 +158,10 @@ class Context:
     def get_scenario(self, id) -> Scenario:
         return self.scenarios[id]
 
-    def compute(self):
+    def get_root_nodes(self) -> list[Node]:
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-        assert len(root_nodes) == 1
-        return root_nodes[0].compute(self)
+        return root_nodes
 
     def activate_scenario(self, scenario: Scenario):
         # Set the new parameters
@@ -173,7 +181,7 @@ class Context:
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
         for node in self.nodes.values():
-            node.generate_baseline_values(self)
+            node.generate_baseline_values()
         self.activate_scenario(old_scenario)
 
     def get_all_parameters(self):
@@ -192,23 +200,59 @@ class Context:
     def pull_datasets(self):
         self.dataset_repo.pull_datasets()
 
-    def print_graph(self, node=None, indent=0):
-        from colored import fg, attr
+    def print_graph(self, include_datasets=False):
+        import inspect
 
-        if node is None:
-            all_nodes = self.nodes.values()
-            root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
-            if len(root_nodes) > 20:
-                raise Exception('Too many root nodes: %s' % (', '.join([x.id for x in root_nodes])))
-            node = root_nodes[0]
-
-        if isinstance(node, self.Action):
-            node_color = 'green'
-        else:
+        def make_node_tree(node: Node, tree: Tree = None) -> Tree:
+            node_icon = ''
             node_color = 'yellow'
-        node_str = f"{fg(node_color)}{node.id} "
-        node_str += f"{fg('grey_50')}{str(type(node))} "
-        node_str += attr('reset')
-        print('  ' * indent + node_str)
-        for in_node in node.input_nodes:
-            self.print_graph(in_node, indent + 1)
+            if isinstance(node, self.Action):
+                node_color = 'green'
+            elif node.quantity == 'emissions':
+                node_color = 'magenta'
+                node_icon = '💨'
+            elif node.quantity == 'population':
+                node_icon = '👪'
+            if node_icon:
+                node_icon += ' '
+
+            node_class = type(node)
+            node_module = node_class.__module__
+            module_file = inspect.getabsfile(node_class)
+            line_nr = inspect.getsourcelines(node_class)[1]
+            link = 'file://%s#%d' % (module_file, line_nr)
+            node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
+            unit_quantity = f'[orchid]({node.quantity}: {node.unit})'
+            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} {unit_quantity} {node_class_str}'
+            if include_datasets:
+                for ds in node.input_dataset_instances:
+                    if isinstance(ds, FixedDataset):
+                        ds_icon = '⌨'
+                    elif isinstance(ds, DVCDataset):
+                        ds_icon = '🐼'
+                    else:
+                        ds_icon = '❓'
+                    node_str += '\n  %s %s (%s)' % (ds_icon, ds.id, ', '.join(ds.get_copy(self).columns))
+            if tree is None:
+                branch = Tree(node_str)
+            else:
+                branch = tree.add(node_str)
+            for in_node in node.input_nodes:
+                make_node_tree(in_node, branch)
+            return branch
+
+        tree = Tree('Nodes')
+        all_nodes = self.nodes.values()
+        root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
+        for node in root_nodes:
+            tree = make_node_tree(node, tree)
+            rich.print(tree)
+
+    def describe_unit(self, unit: pint.Unit):
+        formats = dict(
+            short='~P',
+            long='P',
+            html_short='~H',
+            html_long='H',
+        )
+        return {k: unit.format_babel(v) for k, v in formats.items()}

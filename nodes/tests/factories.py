@@ -1,12 +1,14 @@
 from factory import Factory, Sequence, SubFactory
+from factory.django import DjangoModelFactory
 from typing import List
 
 from common.i18n import TranslatedString
 from nodes.actions import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context, unit_registry
-from nodes.datasets import Dataset
+from nodes.datasets import FixedDataset
 from nodes.instance import Instance
+from nodes.models import NodeConfig, InstanceConfig
 from nodes.node import Node
 from nodes.simple import SimpleNode
 from nodes.scenario import CustomScenario, Scenario
@@ -20,12 +22,23 @@ class ContextFactory(Factory):
     target_year = 2030
 
 
+class InstanceConfigFactory(DjangoModelFactory):
+    class Meta:
+        model = InstanceConfig
+
+    identifier = 'test'
+    lead_title = "lead title"
+    lead_paragraph = "Lead paragraph"
+
+
 class InstanceFactory(Factory):
     class Meta:
         model = Instance
 
     id = 'test'
-    name = 'test'
+    name = 'instance'
+    owner = 'owner'
+    default_language = 'fi'
     context = SubFactory(ContextFactory)
     reference_year = 1990
     minimum_historical_year = 2010
@@ -33,6 +46,17 @@ class InstanceFactory(Factory):
 
     # pages: Optional[Dict[str, Page]] = None
     # content_refreshed_at: Optional[datetime] = field(init=False)
+
+
+class NodeConfigFactory(DjangoModelFactory):
+    class Meta:
+        model = NodeConfig
+
+    instance = SubFactory(InstanceConfigFactory)
+    identifier = Sequence(lambda i: f'nodeconfig{i}')
+    name = "name"
+    short_description = "short description"
+    body = "body"
 
 
 class NodeFactory(Factory):
@@ -46,7 +70,7 @@ class NodeFactory(Factory):
     unit = unit_registry('kWh').units
     quantity = 'energy'
     target_year_goal = 500.0
-    input_datasets = [Dataset.from_fixed_values(
+    input_datasets = [FixedDataset(
         id='test',
         unit='kWh',
         historical=[(2020, 1.23)],
