@@ -5,7 +5,7 @@ instance:
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
-    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
+    commit: bb440022ab9ff6096005e88621c73b8d65ee01cc
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
   owner: Tampereen kaupunki
@@ -15,7 +15,7 @@ instance:
   minimum_historical_year: 2010
   maximum_historical_year: 2018
   emission_dataset: tampere/scenarios/emissions/bau
-  emission_unit: kt
+  emission_unit: kt/a
   emission_forecast_from: 2019
   params:
     - id: municipality_name
@@ -160,7 +160,7 @@ instance:
       name: Kaukolämmön päästöt
       name_en: District heating emissions
       type: simple.EmissionFactorActivity
-      unit: kt
+      unit: kt/a
       quantity: emissions
       output_nodes:
         - building_heating_emissions
@@ -168,7 +168,7 @@ instance:
     - id: district_heating_consumption
       name: Kaukolämmön kulutus
       name_en: District heat consumption
-      unit: GWh
+      unit: GWh/a
       quantity: energy
       type: simple.Activity
       input_datasets:
@@ -193,7 +193,7 @@ instance:
 
     - id: oil_heating_emissions
       type: simple.EmissionFactorActivity
-      unit: kt
+      unit: kt/a
       quantity: emissions
       name: Öljylämmityksen päästöt
       name_en: Oil heating emissions
@@ -201,7 +201,7 @@ instance:
         - separate_heating_emissions
 
     - id: oil_heating_energy_use
-      unit: GWh
+      unit: GWh/a
       quantity: energy
       type: simple.Activity
       name: Öljylämmityksen energiankulutus
@@ -231,7 +231,7 @@ instance:
       #
     - id: geothermal_heating_emissions
       type: simple.EmissionFactorActivity
-      unit: kt
+      unit: kt/a
       quantity: emissions
       name: Maalämmön päästöt
       name_en: Geothermal heating emissions
@@ -241,7 +241,7 @@ instance:
         - electric_heating_emissions
 
     - id: geothermal_heating_electricity_use
-      unit: GWh
+      unit: GWh/a
       quantity: energy
       type: simple.Activity
       name: Maalämmön sähkönkulutus
@@ -255,7 +255,7 @@ instance:
 
     - id: direct_electric_heating_emissions
       type: simple.EmissionFactorActivity
-      unit: kt
+      unit: kt/a
       quantity: emissions
       name: Suorasähkölämmityksen päästöt
       name_en: Direct electric heating emissions
@@ -267,7 +267,7 @@ instance:
     - id: direct_electric_heating_electricity_use
       quantity: energy
       type: simple.Activity
-      unit: GWh
+      unit: GWh/a
       name: Suorasähkölämmityksen sähkönkulutus
       name_en: Direct electric heating electricity consumption
       input_datasets:
@@ -284,7 +284,7 @@ instance:
       name: Sähkönkulutus asukasta kohti
       name_en: Electricity consumption per capita
       type: simple.AdditiveNode
-      unit: kWh/person
+      unit: kWh/person/a
       quantity: per_capita
       input_datasets:
         - id: tampere/scenarios/activity/bau
@@ -296,7 +296,7 @@ instance:
       name: Muu sähkönkulutus
       name_en: Other electricity consumption
       type: simple.PerCapitaActivity
-      unit: GWh
+      unit: GWh/a
       quantity: energy
       input_nodes:
         - population
@@ -307,7 +307,7 @@ instance:
       name: Muun sähkönkulutuksen päästöt
       name_en: Other electricity consumption emissions
       type: simple.EmissionFactorActivity
-      unit: kt
+      unit: kt/a
       params:
         replace_output_using_input_dataset: true
       input_datasets:
@@ -365,7 +365,7 @@ instance:
       name: Sähkön kulutuksen päästöt
       name_en: Electricity consumption emissions
       type: simple.SectorEmissions
-      unit: kt
+      unit: kt/a
       color: '#F4D240'
       output_nodes:
         - net_emissions
@@ -375,7 +375,7 @@ instance:
       name_en: Tram kilometers
       type: simple.Activity
       quantity: mileage
-      unit: Mkm
+      unit: Mkm/a
       historical_values: [[2020, 0]]
       forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
       output_nodes:
@@ -386,7 +386,7 @@ instance:
       name_en: Car kilometers (streets)
       type: simple.Activity
       quantity: mileage
-      unit: Mkm
+      unit: Mkm/a
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: Private car street
@@ -400,7 +400,7 @@ instance:
       name_en: Car kilometers (roads)
       type: simple.Activity
       quantity: mileage
-      unit: Mkm
+      unit: Mkm/a
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: Private car road
@@ -414,7 +414,7 @@ instance:
       name_en: Bus kilometers (streets)
       type: simple.Activity
       quantity: mileage
-      unit: Mkm
+      unit: Mkm/a
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: Bus street
@@ -428,7 +428,7 @@ instance:
       name_en: Bus kilometers (roads)
       type: simple.Activity
       quantity: mileage
-      unit: Mkm
+      unit: Mkm/a
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: Bus road
@@ -508,7 +508,7 @@ instance:
       name: Ratikkaliikenteen päästöt
       name_en: Tram emissions
       type: simple.EmissionFactorActivity
-      unit: kt
+      unit: kt/a
       quantity: emissions
       output_nodes:
         - transportation_emissions
@@ -518,7 +518,7 @@ instance:
       name_en: Private car emissions (roads)
       type: simple.EmissionFactorActivity
       quantity: emissions
-      unit: kt
+      unit: kt/a
       output_nodes:
         - car_emissions
 
@@ -527,7 +527,7 @@ instance:
       name_en: Private car emissions (streets)
       type: simple.EmissionFactorActivity
       quantity: emissions
-      unit: kt
+      unit: kt/a
       output_nodes:
         - car_emissions
 
@@ -535,7 +535,7 @@ instance:
       name: Henkilöautoliikenteen päästöt
       name_en: Private car emissions
       type: simple.SectorEmissions
-      unit: kt
+      unit: kt/a
       params:
         fill_gaps_using_input_dataset: true
       input_datasets:
@@ -550,7 +550,7 @@ instance:
       name_en: Bus emissions (roads)
       type: simple.EmissionFactorActivity
       quantity: emissions
-      unit: kt
+      unit: kt/a
       output_nodes:
         - bus_emissions
 
@@ -559,7 +559,7 @@ instance:
       name_en: Bus emissions (streets)
       type: simple.EmissionFactorActivity
       quantity: emissions
-      unit: kt
+      unit: kt/a
       output_nodes:
         - bus_emissions
 
@@ -567,7 +567,7 @@ instance:
       name: Bussiliikenteen päästöt
       name_en: Bus emissions
       type: simple.SectorEmissions
-      unit: kt
+      unit: kt/a
       quantity: emissions
       params:
         fill_gaps_using_input_dataset: true
@@ -586,7 +586,7 @@ instance:
       name_en: City machinery emissions
       type: simple.EmissionFactorActivity
       quantity: emissions
-      unit: kt
+      unit: kt/a
       input_datasets:
         - id: tampere/scenarios/emissions/bau
           column: Industry without city machinery
@@ -598,7 +598,7 @@ instance:
       name_en: City machinery fuel consumption
       type: simple.Activity
       quantity: fuel_consumption
-      unit: l
+      unit: l/a
       input_datasets:
         - id: tampere/scenarios/activity/bau
           column: City machinery fuel consumption
@@ -626,7 +626,7 @@ instance:
         - other_electricity_consumption
       params:
         multiplier: -1
-      unit: GWh
+      unit: GWh/a
 
 
   #
@@ -666,6 +666,7 @@ instance:
     - id: private_building_energy_renovation
       name: Korjausrakentaminen yksityisissä kiinteistöissä
       name_en: Energy renovation of privately owned buildings
+      unit: GWh/a
       type: simple.LinearCumulativeAdditiveAction
       quantity: energy
       output_nodes:
@@ -679,11 +680,11 @@ instance:
           values: [[2020, 0], [2030, -12.65]]
         - id: direct_electric_heating_electricity_use
           values: [[2020, 0], [2030, 10.01]]
-      unit: GWh
 
     - id: distributed_renewable_energy
       name: Hajautettu uusiutuva energia
       name_en: Distributed renewable energy production
+      unit: GWh/a
       type: simple.LinearCumulativeAdditiveAction
       quantity: energy
       output_nodes:
@@ -696,15 +697,15 @@ instance:
           min_value: 0
           max_value: 850
           step: 1
-          unit: GWh
+          unit: GWh/a
           description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
           description_en: PV energy production in 2030
-      unit: GWh
 
     - id: oil_heated_private_buildings_to_geothermal
       name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
       name_en: Private oil heated buildings to geothermal
       type: simple.CumulativeAdditiveAction
+      unit: GWh/a
       quantity: energy
       output_nodes:
         - oil_heating_energy_use
@@ -714,12 +715,12 @@ instance:
           values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025, -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030, -5.73]]
         - id: geothermal_heating_electricity_use
           values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10], [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
-      unit: GWh
 
     - id: oil_heated_municipal_buildings_to_heat_pump
       name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
       type: simple.LinearCumulativeAdditiveAction
       quantity: energy
+      unit: GWh/a
       output_nodes:
         - oil_heating_energy_use
         - direct_electric_heating_electricity_use
@@ -728,7 +729,6 @@ instance:
           values: [[2020, 0], [2025, -3.674]]
         - id: direct_electric_heating_electricity_use
           values: [[2020, 0], [2025, 1.468]]
-      unit: GWh
 
     - id: cleaner_electricity_production
       name: Kansallinen sähköntuotanto puhdistuu
@@ -755,7 +755,7 @@ instance:
       name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
       name_en: Converting street lighting to LED lamps
       type: simple.LinearCumulativeAdditiveAction
-      unit: GWh
+      unit: GWh/a
       quantity: energy
       forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
       output_nodes:
@@ -765,7 +765,7 @@ instance:
       name: Ratikan rakennusvaihe 1 (2019-2022)
       name_en: Tram construction phase 1 (2019-2022)
       type: simple.CumulativeAdditiveAction
-      unit: Mkm
+      unit: Mkm/a
       quantity: mileage
       output_nodes: 
         - tram_kilometers
@@ -783,7 +783,7 @@ instance:
       name: Ratikan rakennusvaihe 2 (2023-2025)
       name_en: Tram construction phase 2 (2023-2025)
       type: simple.CumulativeAdditiveAction
-      unit: Mkm
+      unit: Mkm/a
       quantity: mileage
       output_nodes: 
         - tram_kilometers
@@ -801,7 +801,7 @@ instance:
       name: Ratikan rakennusvaihe 3 (2028-2030)
       name_en: Tram construction phase 3 (2028-2030)
       type: simple.CumulativeAdditiveAction
-      unit: Mkm
+      unit: Mkm/a
       quantity: mileage
       output_nodes: 
         - tram_kilometers

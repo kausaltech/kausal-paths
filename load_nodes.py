@@ -25,6 +25,7 @@ load_dotenv()
 
 django_initialized = False
 
+
 def init_django():
     global django_initialized
     if django_initialized:
@@ -34,6 +35,7 @@ def init_django():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
     django.setup()
     django_initialized = True
+
 
 parser = argparse.ArgumentParser(description='Execute the computational graph')
 parser.add_argument('--instance', type=str, help='instance identifier')
@@ -67,6 +69,9 @@ if args.config:
     context = loader.context
     instance = loader.instance
 
+if args.pull_datasets:
+    context.pull_datasets()
+
 
 def print_metric(metric):
     print(metric)
@@ -93,9 +98,6 @@ if args.print_graph:
 if args.skip_cache:
     context.skip_cache = True
 
-if args.pull_datasets:
-    context.pull_datasets()
-
 if args.scenario:
     context.activate_scenario(context.get_scenario(args.scenario))
 
@@ -115,7 +117,7 @@ if args.baseline:
 
 if args.check:
     for node_id, node in context.nodes.items():
-        df = node.get_output(context)
+        df = node.get_output()
         na_count = df.isna().sum().sum()
         if na_count:
             print('Node %s has NaN values:' % node.id)
@@ -144,7 +146,7 @@ for param_arg in (args.param or []):
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
-    node.print_output(context)
+    node.print_output()
     if isinstance(node, ActionNode):
         node.print_impact(context, context.get_node('net_emissions'))
 

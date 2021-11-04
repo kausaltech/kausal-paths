@@ -181,7 +181,7 @@ class Context:
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
         for node in self.nodes.values():
-            node.generate_baseline_values(self)
+            node.generate_baseline_values()
         self.activate_scenario(old_scenario)
 
     def get_all_parameters(self):

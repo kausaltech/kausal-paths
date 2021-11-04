@@ -31,12 +31,12 @@ class SimpleNode(Node):
         )
     ]
 
-    def replace_output_using_input_dataset(self, context: Context, df: pd.DataFrame) -> pd.DataFrame:
+    def replace_output_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
         # If we have also data from an input dataset, we only fill in the gaps from the
         # calculated data.
         df = df.dropna()
 
-        data_df = self.get_input_dataset(context)
+        data_df = self.get_input_dataset(required=False)
         if data_df is None:
             return df
 
@@ -56,8 +56,8 @@ class SimpleNode(Node):
         data_df[FORECAST_COLUMN] = data_df[FORECAST_COLUMN].astype(bool)
         return data_df
 
-    def fill_gaps_using_input_dataset(self, context: Context, df: pd.DataFrame) -> pd.DataFrame:
-        data_df = self.get_input_dataset(context)
+    def fill_gaps_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+        data_df = self.get_input_dataset(required=False)
         if data_df is None:
             return df
 
@@ -72,7 +72,7 @@ class SimpleNode(Node):
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
 
-    def add_nodes(self, context: Context, df: pd.DataFrame, nodes: List[Node]):
+    def add_nodes(self, df: pd.DataFrame, nodes: List[Node]):
         if self.debug:
             print('%s: input dataset:' % self.id)
             if df is not None:
@@ -80,7 +80,7 @@ class AdditiveNode(SimpleNode):
             else:
                 print('\tNo input dataset')
         for node in nodes:
-            node_df = node.get_output(context, self)
+            node_df = node.get_output(self)
             if node_df is None:
                 continue
 
@@ -106,8 +106,8 @@ class AdditiveNode(SimpleNode):
 
         return df
 
-    def compute(self, context: Context):
-        df = self.get_input_dataset(context)
+    def compute(self):
+        df = self.get_input_dataset(required=False)
 
         if df is not None:
             if not isinstance(df, pd.DataFrame):
@@ -119,10 +119,10 @@ class AdditiveNode(SimpleNode):
 #            print(self.id)
 #            self.print_pint_df(df[0:2])
 
-            if df.index.max() < self.get_target_year(context):
+            if df.index.max() < self.get_target_year():
                 last_year = df.index.max()
                 last_val = df.loc[last_year]
-                new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year(context) + 1))
+                new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
                 df = df.reindex(new_index)
                 df.iloc[-1] = last_val
                 dt = df.dtypes[VALUE_COLUMN]
@@ -132,10 +132,10 @@ class AdditiveNode(SimpleNode):
                 df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes(context, None, self.input_nodes)
-            df = self.fill_gaps_using_input_dataset(context, df)
+            df = self.add_nodes(None, self.input_nodes)
+            df = self.fill_gaps_using_input_dataset(df)
         else:
-            df = self.add_nodes(context, df, self.input_nodes)
+            df = self.add_nodes(df, self.input_nodes)
 
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
         return df
@@ -153,11 +153,11 @@ class MultiplicativeNode(AdditiveNode):
     Multiplication and addition is determined based on the input node units.
     """
 
-    def compute(self, context: Context):
+    def compute(self):
         additive_nodes = []
         multiply_nodes = []
         for node in self.input_nodes:
-            if self.is_compatible_unit(context, node.unit, self.unit):
+            if self.is_compatible_unit(node.unit, self.unit):
                 additive_nodes.append(node)
             else:
                 multiply_nodes.append(node)
@@ -167,11 +167,11 @@ class MultiplicativeNode(AdditiveNode):
 
         n1, n2 = multiply_nodes
         output_unit = n1.unit * n2.unit
-        if not self.is_compatible_unit(context, output_unit, self.unit):
-            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
+        if not self.is_compatible_unit(output_unit, self.unit):
+            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s' (%s * %s)" % (self.unit, n1.id, n2.id))
 
-        df1 = n1.get_output(context)
-        df2 = n2.get_output(context)
+        df1 = n1.get_output()
+        df2 = n2.get_output()
         df = df1.copy()
 
         if self.debug:
@@ -185,13 +185,13 @@ class MultiplicativeNode(AdditiveNode):
 
         df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
-        df = self.add_nodes(context, df, additive_nodes)
+        df = self.add_nodes(df, additive_nodes)
         fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(context, df)
+            df = self.fill_gaps_using_input_dataset(df)
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(context, df)
+            df = self.replace_output_using_input_dataset(df)
         if self.debug:
             print('%s: Output:' % self.id)
             self.print_pint_df(df)
@@ -205,7 +205,7 @@ class Multiple2Node(AdditiveNode):
     """Multiply nodes together WITHOUT potentially adding other input nodes.
     """
 
-    def compute(self, context: Context):
+    def compute(self):
         multiply_nodes = self.input_nodes
 
         if len(multiply_nodes) != 2:
@@ -214,11 +214,11 @@ class Multiple2Node(AdditiveNode):
         n1, n2 = multiply_nodes
         output_unit = n1.unit * n2.unit
 
-        if not self.is_compatible_unit(context, output_unit, self.unit):
+        if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
 
-        df1 = n1.get_output(context)
-        df2 = n2.get_output(context)
+        df1 = n1.get_output()
+        df2 = n2.get_output()
         df = df1.copy()
 
         if self.debug:
@@ -234,10 +234,10 @@ class Multiple2Node(AdditiveNode):
 
         fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(context, df)
+            df = self.fill_gaps_using_input_dataset(df)
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(context, df)
+            df = self.replace_output_using_input_dataset(df)
         if self.debug:
             print('%s: Output:' % self.id)
             self.print_pint_df(df)
@@ -267,13 +267,22 @@ class FixedMultiplierNode(SimpleNode):
         NumberParameter(local_id='multiplier'),
     ] + SimpleNode.allowed_parameters
 
-    def compute(self, context: Context):
+#    def get_parameter_value(self, id: str, required: bool = True):
+#        param = self.get_parameter(id, required=required)
+#        if param is None:
+#            return None
+#        if param.unit is None:
+#            return param.value
+#        from nodes.context import unit_registry
+#        return param.value * unit_registry(param.unit).units
+
+    def compute(self):
         if len(self.input_nodes) != 1:
             raise NodeError(self, 'FixedMultiplier needs exactly one input node')
 
         node = self.input_nodes[0]
 
-        df = node.get_output(context)
+        df = node.get_output()
         multiplier_param = self.get_parameter('multiplier')
         multiplier = multiplier_param.value
         if multiplier_param.unit:
@@ -285,6 +294,6 @@ class FixedMultiplierNode(SimpleNode):
 
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(context, df)
+            df = self.replace_output_using_input_dataset(df)
 
         return df
