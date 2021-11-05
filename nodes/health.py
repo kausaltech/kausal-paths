@@ -291,13 +291,9 @@ class DiseaseBurden(Ovariable):
         population = self.prepare_ovariable('population')
         case_burden = self.prepare_ovariable('case_burden')
 
-        out = population * incidence * case_burden
         print('incidence', incidence.unit)
         print(incidence.print_pint_df(incidence.content[0:2]))
-        print('case_burden', case_burden.unit)
-        print(case_burden.print_pint_df(case_burden.content[0:4]))
-        print('out', out.unit)
-        print(out.print_pint_df(out.content[0:3]))
+        out = population * incidence * case_burden
 
         return self.clean_computing(out)
 
@@ -310,8 +306,6 @@ class AttributableDiseaseBurden(Ovariable):
     def compute(self):
         bod = self.prepare_ovariable('disease_burden')
         paf = self.prepare_ovariable('fraction')
-        print(bod.print_pint_df(bod.content[0:2]))
-        print(paf.print_pint_df(paf.content[0:2]))
 
         out = bod * paf
 

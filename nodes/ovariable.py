@@ -120,8 +120,6 @@ class Ovariable(SimpleNode):
 
         if drop is not None:
             out.content = out.content.droplevel(drop)
-        print(out.id, out.unit)
-        print(out.print_pint_df(out.content[0:2]))
 
         return out  # FIXME return ovariableFrame
 

@@ -542,7 +542,7 @@ instance:
       name_ en: Incidence
       type: health.DataOvariable
       quantity: incidence
-      unit: 1/a
+      unit: case/_100000py
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -567,7 +567,7 @@ instance:
       name_ en: Case burden
       type: health.DataOvariable
       quantity: case_burden
-      unit: DALY/person
+      unit: DALY/case
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -578,7 +578,7 @@ instance:
       name: Kokonaistautitaakka
       name_ en: Total disease burden
       type: health.DiseaseBurden
-      unit: cap
+      unit: DALY/a
       input_nodes:
         - incidence
         - population
@@ -588,7 +588,7 @@ instance:
       name: Kohdentuva tautitaakka
       name_en: Attributable disease burden
       type: health.AttributableDiseaseBurden
-      unit: cap
+      unit: DALY/a
       input_nodes:
         - disease_burden
         - population_attributable_fraction
