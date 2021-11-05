@@ -485,6 +485,7 @@ instance:
       unit: mg/person/day
       input_nodes:
         - domestic_fish_consumption_per_person
+        - exposure_response_function
 
     - id: p_illness
       name: Sairauden todennäköisyys
