@@ -284,6 +284,7 @@ class Node:
                     s.pint.units, node_str, self.unit
                 ))
         else:
+            print(node_pt)
             s_pt = None
         s = s.astype(float)
         if s_pt is not None:

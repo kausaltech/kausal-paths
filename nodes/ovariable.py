@@ -112,7 +112,7 @@ class Ovariable(SimpleNode):
             print(quantity)
         assert count == 1
 
-        out.content = out.get_output()
+        out.content = out.get_output()  # FIXME Use dataframe, not node, as ovariable
 
         if query is not None:
             out = copy.copy(out)
@@ -120,26 +120,31 @@ class Ovariable(SimpleNode):
 
         if drop is not None:
             out.content = out.content.droplevel(drop)
+        print(out.id, out.unit)
+        print(out.print_pint_df(out.content[0:2]))
 
-        return out
+        return out  # FIXME return ovariableFrame
 
-    def clean_computing(self, output):
+    def clean_computing(self, output):  # FIXME clean_computing(self, node)
+        # Make this a function of ovariableFrame
         if isinstance(output, Ovariable):
             df = output.content
         else:
             df = output
 
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        # FIXME node.ensure_output_unit(self[VALUE_COLUMN])
         return df
 
     def merge(self, other):  # Self and other must have content calculated.
+        # FIXME make this a function for ovariableFrame
 
         def add_temporary_index(self):
             tst = self.index.to_frame().assign(temporary=1)
             tst = pd.MultiIndex.from_frame(tst)
             return self.set_index(tst)
 
-        df1 = self.content
+        df1 = self.content  # FIXME Make ovariable a dataframe
 
         if isinstance(other, Ovariable) or isinstance(other, OvaOps):
             df2 = other.content
@@ -164,7 +169,8 @@ class Ovariable(SimpleNode):
         #        return OvaOps(content=self)
         raise exception('Do not use Ovariable.clean()')
 
-    def __add__(self, other):
+    # FIXME Make all these functions of ovariableFrame
+    def __add__(self, other):  # FIXME Assign __add__ function to FUN attribute to simplify OvaOps.
         out = self.merge(other)
         out = OvaOps(out).__add__()
         return out

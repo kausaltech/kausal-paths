@@ -487,8 +487,8 @@ instance:
         - domestic_fish_consumption_per_person
 
     - id: p_illness
-      name: OVA Sairauden todennäköisyys
-      name_en: OVA Probability of illness
+      name: Sairauden todennäköisyys
+      name_en: Probability of illness
       type: health.DataOvariable
       quantity: probability
       unit: dimensionless
@@ -542,7 +542,7 @@ instance:
       name_ en: Incidence
       type: health.DataOvariable
       quantity: incidence
-      unit: case/_100000py
+      unit: 1/a
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -567,7 +567,7 @@ instance:
       name_ en: Case burden
       type: health.DataOvariable
       quantity: case_burden
-      unit: DALY/case
+      unit: DALY/person
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -583,6 +583,15 @@ instance:
         - incidence
         - population
         - case_burden
+
+    - id: attributable_disease_burden
+      name: Kohdentuva tautitaakka
+      name_en: Attributable disease burden
+      type: health.AttributableDiseaseBurden
+      unit: cap
+      input_nodes:
+        - disease_burden
+        - population_attributable_fraction
 
 ################
 # health benefits
