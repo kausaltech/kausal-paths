@@ -46,7 +46,6 @@ class Ovariable(SimpleNode):
         of = out.get_output()
 
         if query is not None:
-            #    out = copy.copy(out)
             of = of.query(query)
 
         if drop is not None:
@@ -87,7 +86,7 @@ class OvariableFrame(pd.DataFrame):
         df = self.reset_index()
         if FORECAST_x in df.columns:
             df[FORECAST_COLUMN] = df[FORECAST_x] | df[FORECAST_y]
-        keep = set(df.columns) - {0, VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
+        keep = set(df.columns) - {0, 'index', VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
         df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
         return OvariableFrame(df)
 
@@ -170,17 +169,29 @@ class OvariableFrame(pd.DataFrame):
         self[VALUE_COLUMN] = self[VALUE_x] != self[VALUE_y]
         return self.clean()
 
-    def log(self):
-        self[VALUE_COLUMN] = np.log(self[VALUE_COLUMN])
-        return self.clean()
+    def exp(self):
+        s = self[VALUE_COLUMN]
+        assert s.pint.units.dimensionless
+        s = np.exp(s.pint.m)
+        s = pd.Series(s, dtype='pint[dimensionless]')
+        self[VALUE_COLUMN] = s
+        return self
 
     def log10(self):
-        self[VALUE_COLUMN] = np.log10(self[VALUE_COLUMN])
-        return self.clean()
+        s = self[VALUE_COLUMN]
+        assert s.pint.units.dimensionless
+        s = np.log10(s.pint.m)
+        s = pd.Series(s, dtype='pint[dimensionless]')
+        self[VALUE_COLUMN] = s
+        return self
 
-    def exp(self):
-        self[VALUE_COLUMN] = np.exp(self[VALUE_COLUMN])
-        return self.clean()
+    def log(self):
+        s = self[VALUE_COLUMN]
+        assert s.pint.units.dimensionless
+        s = np.log(s.pint.m)
+        s = pd.Series(s, dtype='pint[dimensionless]')
+        self[VALUE_COLUMN] = s
+        return self
 
 #    def clean_computing(self, node):
 #        self[VALUE_COLUMN] = node.ensure_output_unit(self[VALUE_COLUMN])

@@ -2,7 +2,9 @@ from logging import exception, log
 from types import FunctionType
 
 import dvc_pandas
+from graphene.types.scalars import Float, Int
 from pint.registry import ContextCacheOverlay
+from pint_pandas.pint_array import PintArray
 from params.param import BoolParameter, NumberParameter
 from typing import Dict, List
 import pandas as pd
@@ -40,14 +42,18 @@ class Exposure(Ovariable):
     def compute(self):
         consumption = self.prepare_ovariable('ingestion')
         concentration = self.prepare_ovariable('mass_concentration')
+        bw = self.prepare_ovariable('body_weight')
         er_function = self.prepare_ovariable('exposure-response',
-            query = 'observation=="param1"', drop = ['observation', 'Response'])
+            query='observation=="param1"', drop=['observation', 'Response'])
 
         exposure = concentration * consumption
 
-        er_function = er_function * 0
-        er_function.print_pint_df()
-        exposure = exposure + er_function
+        # scale_exposure leads to dtype object, which causes problems in ensure_pint_unit
+
+        # Somehow it is due to er_function, maybe pint.m but not clear. Also, this error may relate to the cause:
+        # pint_array.py:648: UnitStrippedWarning: The unit of the quantity is stripped when downcasting to ndarray.
+        # exposure = self.scale_exposure(exposure, er_function, bw)
+        # This was because er_function was defined by rows and not by pd.Series. This was fixed.
 
         return self.clean_computing(exposure)
 
@@ -56,16 +62,13 @@ class Exposure(Ovariable):
     # Thus, er-function and body weight must be provided.
     # FIXME Is this a sensible thing to do, as then the units and dimensions may differ within node?
 
-    def scale_exposure(self, erf, bw):
-        exposure = OvariableFrame(self.get_output())
-        if 'er_function' in exposure.index.names:
-            return exposure
-
-        out = erf.copy()
-        out[VALUE_COLUMN] = out[VALUE_COLUMN].pint.m
-        out = out * 0
-
-        out = out + exposure
+    def scale_exposure(self, exposure, er_function, bw):
+        out = OvariableFrame(er_function.copy())
+#        out[VALUE_COLUMN] = out[VALUE_COLUMN].pint.m
+        out = out * unit_registry.Quantity('0 * cap * d / mg') + 1
+        tst = out.merge(exposure)[0:4]
+        #out = out * exposure
+        # FIXME Does not work atm
 
         out = out.merge(bw).reset_index()
 
@@ -74,18 +77,13 @@ class Exposure(Ovariable):
             out[VALUE_x] / out[VALUE_y],
             out[VALUE_x])
 
-# FIXME log10 not defined for all inputs
-#        out[VALUE_COLUMN] = np.where(
-#            out['scaling'] == 'Log10',
-#            np.log10(out[VALUE_COLUMN]),
-#            out[VALUE_COLUMN])
+        # FIXME log10 not defined for all inputs
+        #        out[VALUE_COLUMN] = np.where(
+        #            out['scaling'] == 'Log10',
+        #            np.log10(out[VALUE_COLUMN]),
+        #            out[VALUE_COLUMN])
 
-        keep = set(out.columns) - {0, VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
-        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
-
-        # self_orig = self
-
-        return out.clean()
+        return OvariableFrame(out).clean()
 
 
 class FixedMultiplierHealthImpactNode(FixedMultiplierNode):  # Needed for pre-ovariable nodes
@@ -122,17 +120,14 @@ class ExposureResponseFunction(Ovariable):
     quantity = 'exposure-response'
 
     def compute(self):
-        df = pd.DataFrame([
-            ['None', 'cardiovascular disease', 'RR', 'param1', False, 200],
-            ['None', 'cardiovascular disease', 'RR', 'param2', False, 0],
-            # ['None', 'cerebrovascular disease', 'Relative Hill', 'param1', False, 2],
-            # ['None', 'cerebrovascular disease', 'Relative Hill', 'param2', False, 0.2],
-            # ['None', 'dioxin', 'Step', 'param1', False, 20],
-            # ['None', 'dioxin', 'Step', 'param2', False, 0],
-            ['None', 'cancer', 'UR', 'param1', False, 2000],
-            ['None', 'cancer', 'UR', 'param2', False, 0.2]],
-            columns=['scaling', 'Response', 'er_function', 'observation', FORECAST_COLUMN, VALUE_COLUMN]
-        ).set_index(['er_function', 'observation', 'scaling', 'Response'])
+        df = pd.DataFrame({
+            'scaling': pd.Series(['None']*4),
+            'Response': pd.Series(['CVD']*2 + ['Cancer']*2),
+            'er_function': pd.Series(['RR']*2 + ['UR']*2),
+            'observation': pd.Series(['param1', 'param2']*2),
+            FORECAST_COLUMN: pd.Series([False]*4),
+            VALUE_COLUMN: pd.Series([200., 0., 2000.1, 0.2], dtype='pint[mg/person/d]')
+        }).set_index(['er_function', 'Response', 'observation', 'scaling'])
 
         return self.clean_computing(df)
 
@@ -150,14 +145,25 @@ class RelativeRisk(Ovariable):
             quantity='exposure-response',
             query="observation == 'param1'", drop=['observation'])
 
+        """
+        A possible atlernative for parameterization
+        er_function = er_function.reset_index()
+        param_names = er_function.observation.unique()
+
+        parameters = {elem: pd.DataFrame for elem in param_names}
+
+        for key in parameters.keys():
+            of = er_function[:][er_function.observation == key]
+            index_list = list(set(of.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
+            of = of.set_index(index_list).droplevel('observation')
+            parameters[key] = OvariableFrame(of)
+        """
+
         param2 = self.prepare_ovariable(
             quantity='exposure-response',
             query="observation == 'param2'", drop=['observation'])
 
-        bw = self.prepare_ovariable('body_weight')
-
         exposure = self.prepare_ovariable('ingestion')
-        # exposure = self.scale_exposure(exposure, param1, bw)  # FIXME Think a new solution to scaling
 
         df = pd.DataFrame()
 #        relative_functions = set(self.get_output().reset_index().er_function)   # Contains also unused functions
@@ -166,19 +172,19 @@ class RelativeRisk(Ovariable):
         for func in relative_functions:
 
             if func == 'RR':
-                beta = param1.query("er_function == 'RR'")
-                beta = 1 / beta  # FIXME This is stupid parameterization
+                beta = OvariableFrame(param1.query("er_function == 'RR'"))
+                beta = beta ** -1  # FIXME This is stupid parameterization
 
                 threshold = param2
 
                 dose2 = exposure - threshold
 
                 #  Smallest allowed value is 0 FIXME: Not if scaling: Log10
-                dose2 = np.clip(dose2, 0, None)
-                out1 = beta * dose2
-                out1[VALUE_COLUMN] = out1[VALUE_COLUMN].pint.m_as('')
+                dose2[VALUE_COLUMN] = np.clip(dose2[VALUE_COLUMN], 0, None)
 
-                out1 = OvariableFrame(out1).exp()
+                out1 = beta * dose2
+
+                out1 = out1.exp()
                 df = df.append(out1.reset_index())
 
             elif func == 'Relative Hill':
@@ -194,7 +200,6 @@ class RelativeRisk(Ovariable):
 
         keep = set(df.columns) - {'er_function', 'scaling'}
         df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
-        OvariableFrame(df).print_pint_df()
 
         return self.clean_computing(df)
 
@@ -219,8 +224,11 @@ class PopulationAttributableFraction(Ovariable):
         p_illness = self.prepare_ovariable('probability')
         bw = self.prepare_ovariable('body_weight')
 
-        # exposure = self.scale_exposure(exposure, param1, bw)
-        er_function_list = list(sorted(set(exposure.reset_index()['er_function'])))
+#        param1 = param1 * 1.00001 # Integers cause trouble with ** -1
+
+        # er_function_list = list(sorted(set(exposure.reset_index()['er_function'])))
+        er_function_list = ['RR', 'UR']
+
         if 'RR' in er_function_list:
             er_function_list = list(sorted(set(er_function_list) - {'Relative Hill'}))
             # You don't want to do twice
@@ -230,8 +238,7 @@ class PopulationAttributableFraction(Ovariable):
         for func in er_function_list:
 
             if func == 'UR':
-                k = copy.copy(param1)
-                k = k.copy().query("er_function == 'UR'")
+                k = OvariableFrame(param1.query("er_function == 'UR'"))
                 k = k ** -1
 
                 threshold = param2
@@ -294,10 +301,8 @@ class DiseaseBurden(Ovariable):
     def compute(self):
         incidence = self.prepare_ovariable('incidence')
         population = self.prepare_ovariable('population')
-        case_burden = self.prepare_ovariable('case_burden')
+        case_burden = self.prepare_ovariable('disease_burden')
 
-        print('incidence', incidence.unit)
-        print(incidence.print_pint_df(incidence[0:2]))
         out = population * incidence * case_burden
 
         return self.clean_computing(out)

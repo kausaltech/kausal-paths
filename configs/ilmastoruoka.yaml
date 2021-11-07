@@ -486,6 +486,7 @@ instance:
       input_nodes:
         - domestic_fish_consumption_per_person
         - exposure_response_function
+        - body_weight
 
     - id: p_illness
       name: Sairauden todennäköisyys
@@ -543,7 +544,7 @@ instance:
       name_ en: Incidence
       type: health.DataOvariable
       quantity: incidence
-      unit: case/_100000py
+      unit: 1/person
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -567,8 +568,8 @@ instance:
       name: Tapaustaakka
       name_ en: Case burden
       type: health.DataOvariable
-      quantity: case_burden
-      unit: DALY/case
+      quantity: disase_burden
+      unit: DALY
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -579,7 +580,7 @@ instance:
       name: Kokonaistautitaakka
       name_ en: Total disease burden
       type: health.DiseaseBurden
-      unit: DALY/a
+      unit: person
       input_nodes:
         - incidence
         - population
@@ -589,7 +590,7 @@ instance:
       name: Kohdentuva tautitaakka
       name_en: Attributable disease burden
       type: health.AttributableDiseaseBurden
-      unit: DALY/a
+      unit: person
       input_nodes:
         - disease_burden
         - population_attributable_fraction
