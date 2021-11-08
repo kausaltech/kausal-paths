@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field, InitVar
 from typing import TYPE_CHECKING, List, Optional
@@ -42,7 +44,12 @@ class CustomScenario(Scenario):
     def set_session(self, session):
         self.session = session
 
-    def activate(self, context: 'Context'):
+    def reset(self, context: Context):
+        self.session['settings'] = {}
+        self.session.modified = True
+        self.base_scenario.activate(context)
+
+    def activate(self, context: Context):
         assert self.base_scenario is not None
         assert self.session is not None
 
@@ -64,9 +71,8 @@ class CustomScenario(Scenario):
                     sentry_sdk.capture_exception(e)
 
             if not is_valid:
-                del settings[param_id]
-                self.session.modified = True
-                continue
+                self.reset(context)
+                return
 
             assert param is not None
             param.set(val)
