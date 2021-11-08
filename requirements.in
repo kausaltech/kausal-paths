@@ -27,3 +27,6 @@ rich
 git+https://github.com/GrappleGQL/wagtail-grapple.git@e92abab64ea0dcacf68cd68ccd64a66c055e55f6
 # pint does not support Babel >= 2.9 yet
 Babel<2.9
+ruamel.yaml
+aiobotocore[boto3]<2.0
+pygments-graphql
