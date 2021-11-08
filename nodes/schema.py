@@ -63,7 +63,7 @@ class ForecastMetricType(graphene.ObjectType):
     # output_node will be set if the node outputs multiple time-series
     output_node = graphene.Field(lambda: NodeType)
     unit = graphene.Field('paths.schema.UnitType')
-    yearly_aggregate_unit = graphene.Field('paths.schema.UnitType')
+    yearly_cumulative_unit = graphene.Field('paths.schema.UnitType')
     historical_values = graphene.List(YearlyValue)
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
