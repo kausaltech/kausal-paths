@@ -1,23 +1,22 @@
-import re
 import importlib
 import logging
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
 import dvc_pandas
 import pint
+from ruamel.yaml import YAML as RuamelYAML
 import yaml
 
 from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.constants import DecisionLevel
-from nodes.actions import ActionNode
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
 
 from . import Context, Dataset, DVCDataset, FixedDataset
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ class Instance:
     owner: TranslatedString
     default_language: str
     context: Context
+    yaml_file_path: Optional[str] = None
     site_url: Optional[str] = None
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
@@ -49,9 +49,19 @@ class Instance:
             if self.default_language not in self.supported_languages:
                 self.supported_languages.append(self.default_language)
 
+    def update_dataset_repo_commit(self, commit_id: str):
+        assert self.yaml_file_path
+        yaml_obj = RuamelYAML()
+        with open(self.yaml_file_path, 'r', encoding='utf8') as f:
+            data = yaml_obj.load(f)
+        data['instance']['dataset_repo']['commit'] = commit_id
+        with open(self.yaml_file_path, 'w', encoding='utf8') as f:
+            yaml_obj.dump(data, f)
+
 
 class InstanceLoader:
     instance: Instance
+    yaml_file_path: Optional[str] = None
 
     def make_trans_string(self, config: Dict, attr: str, pop: bool = False, default_language=None):
         default = config.get(attr)
@@ -260,6 +270,7 @@ class InstanceLoader:
     def load_datasets(self, datasets):
         for ds in datasets:
             self.context.add_dataset(ds)
+
     def setup_global_parameters(self):
         context = self.context
         for pc in self.config.get('params', []):
@@ -275,10 +286,11 @@ class InstanceLoader:
 
     @classmethod
     def from_yaml(cls, filename):
-        data = yaml.load(open(filename, 'r'), Loader=yaml.Loader)
-        return cls(data['instance'])
+        print(filename)
+        data = yaml.load(open(filename, 'r', encoding='utf8'), Loader=yaml.Loader)
+        return cls(data['instance'], yaml_file_path=filename)
 
-    def __init__(self, config):
+    def __init__(self, config: dict, yaml_file_path: str = None):
         self.config = config
 
         static_datasets = self.config.get('static_datasets')
@@ -305,6 +317,8 @@ class InstanceLoader:
             context=self.context,
             **{attr: self.config.get(attr) for attr in instance_attrs}
         )
+        self.context.instance = self.instance
+        self.instance.yaml_file_path = yaml_file_path
 
         self.load_datasets(self.config.get('datasets', []))
         # Store input and output node configs for each created node, to be used in setup_edges().

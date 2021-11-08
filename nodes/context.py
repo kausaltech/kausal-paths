@@ -17,6 +17,7 @@ from .datasets import Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
     from .node import Node
+    from .instance import Instance
     from .scenario import CustomScenario, Scenario
 
 
@@ -60,8 +61,11 @@ class Context:
     supported_parameter_types: dict[str, type]
     cache: Cache
     skip_cache: bool = False
+    instance: Instance
 
-    def __init__(self, dataset_repo, target_year):
+    def __init__(
+        self, dataset_repo: dvc_pandas.Repository, target_year: int,
+    ):
         from nodes.actions import ActionNode
 
         # Avoid circular import
@@ -79,6 +83,7 @@ class Context:
         self.active_scenario = None
         self.supported_parameter_types = discover_parameter_types()
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
+        self.instance = None  # will be set later
 
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
@@ -114,12 +119,14 @@ class Context:
         self.global_parameters[parameter.local_id] = parameter
 
     def get_parameter(self, id: str, required: bool = True) -> Optional[Parameter]:
+        param = None
         try:
             node_id, param_name = id.split('.', 1)
         except ValueError:
             param = self.global_parameters.get(id)
         else:
-            param = self.nodes[node_id].get_parameter(param_name, required=required)
+            if node_id in self.nodes:
+                param = self.nodes[node_id].get_parameter(param_name, required=required)
         if param is None and required:
             raise Exception(f"Parameter {id} not found")
         return param
@@ -189,6 +196,7 @@ class Context:
 
     def pull_datasets(self):
         self.dataset_repo.pull_datasets()
+        self.instance.update_dataset_repo_commit(self.dataset_repo.commit_id)
 
     def print_graph(self, include_datasets=False):
         import inspect
