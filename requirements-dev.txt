@@ -22,7 +22,7 @@ decorator==5.1.0
     # via
     #   -c requirements.txt
     #   ipython
-django==3.2.8
+django==3.2.9
     # via
     #   -c requirements.txt
     #   django-stubs
@@ -39,7 +39,7 @@ ipython==7.29.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
-isort==5.9.3
+isort==5.10.1
     # via pylint
 jedi==0.18.0
     # via
@@ -61,7 +61,7 @@ mypy==0.910
     #   graphene-stubs
 mypy-extensions==0.4.3
     # via mypy
-pandas-stubs==1.2.0.35
+pandas-stubs==1.2.0.37
     # via -r requirements-dev.in
 parso==0.8.2
     # via
@@ -81,7 +81,7 @@ pip-tools==6.4.0
     # via -r requirements-dev.in
 platformdirs==2.4.0
     # via pylint
-prompt-toolkit==3.0.21
+prompt-toolkit==3.0.22
     # via
     #   -c requirements.txt
     #   ipython

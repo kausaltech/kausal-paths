@@ -6,17 +6,22 @@
 #
 aiobotocore[boto3]==1.4.2
     # via
+    #   -r requirements.in
     #   dvc
+    #   dvc-pandas
     #   s3fs
-aiohttp==3.7.4.post0
+aiohttp==3.8.0
     # via
     #   aiobotocore
     #   aiohttp-retry
     #   fsspec
+    #   s3fs
 aiohttp-retry==2.4.6
     # via dvc
 aioitertools==0.8.0
     # via aiobotocore
+aiosignal==1.2.0
+    # via aiohttp
 aniso8601==7.0.0
     # via graphene
 anyascii==0.3.0
@@ -27,7 +32,7 @@ appdirs==1.4.4
     #   dvc-pandas
 asgiref==3.4.1
     # via django
-async-timeout==3.0.1
+async-timeout==4.0.0
     # via aiohttp
 atpublic==2.3
     # via flufl.lock
@@ -55,10 +60,10 @@ certifi==2021.10.8
     #   sentry-sdk
 cffi==1.15.0
     # via pygit2
-chardet==4.0.0
-    # via aiohttp
 charset-normalizer==2.0.7
-    # via requests
+    # via
+    #   aiohttp
+    #   requests
 colorama==0.4.4
     # via
     #   dvc
@@ -77,7 +82,7 @@ diskcache==5.2.1
     # via dvc
 distro==1.6.0
     # via dvc
-django==3.2.8
+django==3.2.9
     # via
     #   -r requirements.in
     #   django-cors-headers
@@ -95,7 +100,7 @@ django-cors-headers==3.10.0
     # via -r requirements.in
 django-environ==0.8.1
     # via -r requirements.in
-django-extensions==3.1.3
+django-extensions==3.1.5
     # via -r requirements.in
 django-filter==2.4.0
     # via wagtail
@@ -117,9 +122,9 @@ draftjs-exporter==2.1.7
     # via wagtail
 dulwich==0.20.26
     # via dvc
-dvc[s3]==2.8.2
+dvc[s3]==2.8.3
     # via dvc-pandas
-dvc-pandas==0.0.10
+dvc-pandas==0.0.12
     # via -r requirements.in
 et-xmlfile==1.1.0
     # via openpyxl
@@ -127,13 +132,19 @@ factory-boy==3.2.1
     # via
     #   -r requirements.in
     #   pytest-factoryboy
-faker==9.7.1
+faker==9.8.0
     # via factory-boy
+fasteners==0.16.3
+    # via dvc-pandas
 flatten-dict==0.4.2
     # via dvc
 flufl.lock==6.0
     # via dvc
-fsspec[http]==2021.10.1
+frozenlist==1.2.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec[http]==2021.11.0
     # via
     #   dvc
     #   s3fs
@@ -187,7 +198,7 @@ jmespath==0.10.0
     #   botocore
 l18n==2020.6.1
     # via wagtail
-mailchecker==4.0.13
+mailchecker==4.0.16
     # via python-benedict
 matplotlib-inline==0.1.3
     # via ipython
@@ -199,7 +210,7 @@ nanotime==0.5.2
     # via dvc
 networkx==2.6.3
     # via dvc
-numpy==1.21.3
+numpy==1.21.4
     # via
     #   pandas
     #   pyarrow
@@ -247,7 +258,7 @@ promise==2.3
     #   graphene-django
     #   graphql-core
     #   graphql-relay
-prompt-toolkit==3.0.21
+prompt-toolkit==3.0.22
     # via ipython
 psutil==5.8.0
     # via
@@ -257,13 +268,13 @@ psycopg2-binary==2.9.1
     # via -r requirements.in
 ptyprocess==0.7.0
     # via pexpect
-py==1.10.0
+py==1.11.0
     # via pytest
 pyarrow==6.0.0
     # via dvc-pandas
 pyasn1==0.4.8
     # via dvc
-pycparser==2.20
+pycparser==2.21
     # via cffi
 pydot==1.4.2
     # via dvc
@@ -272,7 +283,10 @@ pygit2==1.7.0
 pygments==2.10.0
     # via
     #   ipython
+    #   pygments-graphql
     #   rich
+pygments-graphql==1.0.0
+    # via -r requirements.in
 pygtrie==2.4.2
     # via dvc
 pyparsing==2.4.7
@@ -323,27 +337,28 @@ requests==2.26.0
     #   python-benedict
     #   python-fsutil
     #   wagtail
-rich==10.12.0
+rich==10.13.0
     # via
     #   -r requirements.in
     #   dvc
-ruamel.yaml==0.17.16
+ruamel.yaml==0.17.17
     # via
+    #   -r requirements.in
     #   dvc
     #   dvc-pandas
 ruamel.yaml.clib==0.2.6
     # via ruamel.yaml
 rx==1.6.1
     # via graphql-core
-s3fs==2021.10.1
+s3fs==2021.11.0
     # via dvc
 s3transfer==0.4.2
     # via boto3
-scipy==1.7.1
+scipy==1.7.2
     # via -r requirements.in
 sentry-sdk==1.4.3
     # via -r requirements.in
-shortuuid==1.0.1
+shortuuid==1.0.7
     # via dvc
 shtab==1.4.2
     # via dvc
@@ -352,6 +367,7 @@ singledispatch==3.7.0
 six==1.16.0
     # via
     #   configobj
+    #   fasteners
     #   flatten-dict
     #   graphene
     #   graphene-django
@@ -365,7 +381,7 @@ six==1.16.0
     #   singledispatch
 smmap==5.0.0
     # via gitdb
-soupsieve==2.2.1
+soupsieve==2.3
     # via beautifulsoup4
 sqlparse==0.4.2
     # via django
@@ -392,7 +408,7 @@ traitlets==5.1.1
     #   matplotlib-inline
 typing-extensions==3.10.0.2
     # via
-    #   aiohttp
+    #   async-timeout
     #   dvc
     #   gitpython
 unidecode==1.3.2
@@ -435,7 +451,7 @@ xlwt==1.3.0
     # via tablib
 xmltodict==0.12.0
     # via python-benedict
-yarl==1.7.0
+yarl==1.7.2
     # via aiohttp
 zc.lockfile==2.0
     # via dvc

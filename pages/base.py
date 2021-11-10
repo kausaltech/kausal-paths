@@ -94,7 +94,7 @@ class Metric:
         return vals['baseline']
 
     @property
-    def yearly_aggregate_unit(self) -> Optional[pint.Unit]:
+    def yearly_cumulative_unit(self) -> Optional[pint.Unit]:
         if not self.unit:
             return None
         # Check if the unit as a time divisor

@@ -1,11 +1,11 @@
 instance:
   id: tampere
   default_language: fi
-  supported_languages: ['en']
+  supported_languages: [en]
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
-    commit: bb440022ab9ff6096005e88621c73b8d65ee01cc
+    commit: 05c2887841bdb6f9612e13fec08c3021690743a8
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
   owner: Tampereen kaupunki
@@ -18,615 +18,617 @@ instance:
   emission_unit: kt/a
   emission_forecast_from: 2019
   params:
-    - id: municipality_name
-      value: Tampere
+  - id: municipality_name
+    value: Tampere
   emission_sectors:
-    - id: net_emissions
-      name: Kokonaispäästöt (scope 2)
-      name_en: Net emissions (scope 2)
-      target_year_goal: 260
+  - id: net_emissions
+    name: Kokonaispäästöt (scope 2)
+    name_en: Net emissions (scope 2)
+    target_year_goal: 260
 
     #
     # Transportation
     #
-    - id: transportation_emissions
-      name: Liikenteen päästöt
-      name_en: Transportation emissions
-      part_of: net_emissions
-      color: '#668EC9'
-      target_year_goal: 115
+  - id: transportation_emissions
+    name: Liikenteen päästöt
+    name_en: Transportation emissions
+    part_of: net_emissions
+    color: '#668EC9'
+    target_year_goal: 115
 
-    - id: van_emissions
-      name: Pakettiautojen päästöt
-      name_en: Van emissions
-      column: Vans
-      part_of: transportation_emissions
-    - id: truck_emissions
-      name: Kuorma-autot
-      name_en: Trucks and lorries
-      column: Trucks and lorries
-      part_of: transportation_emissions
-    - id: motorbike_emissions
-      name: Moottoripyörät yms.
-      name_en: Motorbikes etc.
-      column: Motorbikes
-      part_of: transportation_emissions
-    - id: local_train_emissions
-      name: Lähijunien päästöt
-      name_en: Local train emissions
-      column: Local trains
-      part_of: transportation_emissions
+  - id: van_emissions
+    name: Pakettiautojen päästöt
+    name_en: Van emissions
+    column: Vans
+    part_of: transportation_emissions
+  - id: truck_emissions
+    name: Kuorma-autot
+    name_en: Trucks and lorries
+    column: Trucks and lorries
+    part_of: transportation_emissions
+  - id: motorbike_emissions
+    name: Moottoripyörät yms.
+    name_en: Motorbikes etc.
+    column: Motorbikes
+    part_of: transportation_emissions
+  - id: local_train_emissions
+    name: Lähijunien päästöt
+    name_en: Local train emissions
+    column: Local trains
+    part_of: transportation_emissions
 
     #
     # Heating
     #
-    - id: building_heating_emissions
-      name: Rakennusten lämmityksen päästöt
-      name_en: Building heating emissions
-      part_of: net_emissions
-      color: '#AD3963'
+  - id: building_heating_emissions
+    name: Rakennusten lämmityksen päästöt
+    name_en: Building heating emissions
+    part_of: net_emissions
+    color: '#AD3963'
 
-    - id: separate_heating_emissions
-      name: Erillislämmityksen päästöt
-      name_en: Separate heating emissions
-      part_of: building_heating_emissions
-    - id: gas_heating_emissions
-      part_of: separate_heating_emissions
-      name: Kaasulämmityksen päästöt
-      name_en: Gas heating emissions
-      column: Gas heating
+  - id: separate_heating_emissions
+    name: Erillislämmityksen päästöt
+    name_en: Separate heating emissions
+    part_of: building_heating_emissions
+  - id: gas_heating_emissions
+    part_of: separate_heating_emissions
+    name: Kaasulämmityksen päästöt
+    name_en: Gas heating emissions
+    column: Gas heating
 
-    - id: electric_heating_emissions
-      name: Sähkölämmityksen päästöt
-      name_en: Electric heating emissions
-      part_of: building_heating_emissions
+  - id: electric_heating_emissions
+    name: Sähkölämmityksen päästöt
+    name_en: Electric heating emissions
+    part_of: building_heating_emissions
 
       #
       # Other emission sources
       #
 
-    - id: industry_and_machinery_emissions
-      name: Teollisuuden ja työkoneiden päästöt
-      name_en: Industry and machinery emissions
-      part_of: net_emissions
+  - id: industry_and_machinery_emissions
+    name: Teollisuuden ja työkoneiden päästöt
+    name_en: Industry and machinery emissions
+    part_of: net_emissions
     #  column: Industry without city machinery
-      color: '#E8B455'
+    color: '#E8B455'
 
-    - id: industry_emissions
-      name: Teollisuuden päästöt ilman kaupungin työkoneita
-      name_en: Industry emissions without city machinery
-      part_of: industry_and_machinery_emissions
-      column: Industry without city machinery
-      color: '#E8B455'
+  - id: industry_emissions
+    name: Teollisuuden päästöt ilman kaupungin työkoneita
+    name_en: Industry emissions without city machinery
+    part_of: industry_and_machinery_emissions
+    column: Industry without city machinery
+    color: '#E8B455'
 
-    - id: waste_treatment_emissions
-      name: Jätehuollon päästöt
-      name_en: Waste treatment
-      part_of: net_emissions
-      color: '#397368'
+  - id: waste_treatment_emissions
+    name: Jätehuollon päästöt
+    name_en: Waste treatment
+    part_of: net_emissions
+    color: '#397368'
 
-    - id: solid_waste_treatment_emissions
-      name: Kiinteän jätteen käsittelyn päästöt
-      name_en: Solid waste treatment
-      column: Solid waste treatment
-      part_of: waste_treatment_emissions
+  - id: solid_waste_treatment_emissions
+    name: Kiinteän jätteen käsittelyn päästöt
+    name_en: Solid waste treatment
+    column: Solid waste treatment
+    part_of: waste_treatment_emissions
 
-    - id: waste_water_treatment_emissions
-      name: Jäteveden puhdistuksen päästöt
-      name_en: Waste water treatment
-      column: Waste water treatment
-      part_of: waste_treatment_emissions
+  - id: waste_water_treatment_emissions
+    name: Jäteveden puhdistuksen päästöt
+    name_en: Waste water treatment
+    column: Waste water treatment
+    part_of: waste_treatment_emissions
 
-    - id: agriculture_emissions
-      name_en: Agriculture
-      name: Maatalouden päästöt
-      part_of: net_emissions
-      color: '#ABC872'
+  - id: agriculture_emissions
+    name_en: Agriculture
+    name: Maatalouden päästöt
+    part_of: net_emissions
+    color: '#ABC872'
 
-    - id: cattle_digestion_emissions
-      name_en: Cattle digestion
-      name: Eläinten ruoansulatus
-      part_of: agriculture_emissions
-      column: Cattle digestion
+  - id: cattle_digestion_emissions
+    name_en: Cattle digestion
+    name: Eläinten ruoansulatus
+    part_of: agriculture_emissions
+    column: Cattle digestion
 
-    - id: manure_treatment_emissions
-      name_en: Manure treatment
-      name: Lannankäsittely
-      part_of: agriculture_emissions
-      column: Manure treatment
+  - id: manure_treatment_emissions
+    name_en: Manure treatment
+    name: Lannankäsittely
+    part_of: agriculture_emissions
+    column: Manure treatment
 
-    - id: field_crops_emissions
-      name_en: Field crops
-      name: Peltoviljelyn päästöt
-      part_of: agriculture_emissions
-      column: Field crops
+  - id: field_crops_emissions
+    name_en: Field crops
+    name: Peltoviljelyn päästöt
+    part_of: agriculture_emissions
+    column: Field crops
 
     #
     # Electricity emissions
     #
 
-    - id: industrial_electricity_consumption_emissions
-      name_en: Industrial electricity consumption
-      name: Teollisuuden sähkön kulutuksen päästöt
-      part_of: electricity_consumption_emissions
-      column: Power consumption industry
+  - id: industrial_electricity_consumption_emissions
+    name_en: Industrial electricity consumption
+    name: Teollisuuden sähkön kulutuksen päästöt
+    part_of: electricity_consumption_emissions
+    column: Power consumption industry
 
   nodes:
-    - id: population
-      type: finland.Population
-      name: Väestö
+  - id: population
+    type: finland.Population
+    name: Väestö
 
-    - id: district_heating_emissions
-      name: Kaukolämmön päästöt
-      name_en: District heating emissions
-      type: simple.EmissionFactorActivity
-      unit: kt/a
-      quantity: emissions
-      output_nodes:
-        - building_heating_emissions
+  - id: district_heating_emissions
+    name: Kaukolämmön päästöt
+    name_en: District heating emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - building_heating_emissions
 
-    - id: district_heating_consumption
-      name: Kaukolämmön kulutus
-      name_en: District heat consumption
-      unit: GWh/a
-      quantity: energy
-      type: simple.Activity
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: District heating
-          dropna: true
-      output_nodes:
-        - district_heating_emissions
+  - id: district_heating_consumption
+    name: Kaukolämmön kulutus
+    name_en: District heat consumption
+    unit: GWh/a
+    quantity: energy
+    type: simple.Activity
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: District heating
+      dropna: true
+    output_nodes:
+    - district_heating_emissions
 
-    - id: district_heating_emission_factor
-      name: Kaukolämmön päästökerroin
-      name_en: District heating emission factor
-      type: simple.AdditiveNode
-      unit: g/kWh
-      quantity: emission_factor
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: District heating utility method
-          dropna: true
-      output_nodes:
-        - district_heating_emissions
+  - id: district_heating_emission_factor
+    name: Kaukolämmön päästökerroin
+    name_en: District heating emission factor
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: District heating utility method
+      dropna: true
+    output_nodes:
+    - district_heating_emissions
 
-    - id: oil_heating_emissions
-      type: simple.EmissionFactorActivity
-      unit: kt/a
-      quantity: emissions
-      name: Öljylämmityksen päästöt
-      name_en: Oil heating emissions
-      output_nodes:
-        - separate_heating_emissions
+  - id: oil_heating_emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    name: Öljylämmityksen päästöt
+    name_en: Oil heating emissions
+    output_nodes:
+    - separate_heating_emissions
 
-    - id: oil_heating_energy_use
-      unit: GWh/a
-      quantity: energy
-      type: simple.Activity
-      name: Öljylämmityksen energiankulutus
-      name_en: Oil heating energy consumption
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Total oil heating
-          dropna: true
-      output_nodes:
-        - oil_heating_emissions
+  - id: oil_heating_energy_use
+    unit: GWh/a
+    quantity: energy
+    type: simple.Activity
+    name: Öljylämmityksen energiankulutus
+    name_en: Oil heating energy consumption
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Total oil heating
+      dropna: true
+    output_nodes:
+    - oil_heating_emissions
 
-    - id: oil_heating_emission_factor
-      type: simple.AdditiveNode
-      unit: g/kWh
-      quantity: emission_factor
-      name: Lämmitysöljyn päästökerroin
-      name_en: Heating oil emission factor
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Oil heating
-          dropna: true
-      output_nodes:
-        - oil_heating_emissions
+  - id: oil_heating_emission_factor
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    name: Lämmitysöljyn päästökerroin
+    name_en: Heating oil emission factor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Oil heating
+      dropna: true
+    output_nodes:
+    - oil_heating_emissions
 
       #
       # ----------- geothermal --------------
       #
-    - id: geothermal_heating_emissions
-      type: simple.EmissionFactorActivity
-      unit: kt/a
-      quantity: emissions
-      name: Maalämmön päästöt
-      name_en: Geothermal heating emissions
-      input_nodes:
-        - electric_heating_emission_factor
-      output_nodes:
-        - electric_heating_emissions
+  - id: geothermal_heating_emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    name: Maalämmön päästöt
+    name_en: Geothermal heating emissions
+    input_nodes:
+    - electric_heating_emission_factor
+    output_nodes:
+    - electric_heating_emissions
 
-    - id: geothermal_heating_electricity_use
-      unit: GWh/a
-      quantity: energy
-      type: simple.Activity
-      name: Maalämmön sähkönkulutus
-      name_en: Geothermal heating electricity consumption
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Geothermal heating residential
-          dropna: true
-      output_nodes:
-        - geothermal_heating_emissions
+  - id: geothermal_heating_electricity_use
+    unit: GWh/a
+    quantity: energy
+    type: simple.Activity
+    name: Maalämmön sähkönkulutus
+    name_en: Geothermal heating electricity consumption
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Geothermal heating residential
+      dropna: true
+    output_nodes:
+    - geothermal_heating_emissions
 
-    - id: direct_electric_heating_emissions
-      type: simple.EmissionFactorActivity
-      unit: kt/a
-      quantity: emissions
-      name: Suorasähkölämmityksen päästöt
-      name_en: Direct electric heating emissions
-      input_nodes:
-        - electric_heating_emission_factor
-      output_nodes:
-        - electric_heating_emissions
+  - id: direct_electric_heating_emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    name: Suorasähkölämmityksen päästöt
+    name_en: Direct electric heating emissions
+    input_nodes:
+    - electric_heating_emission_factor
+    output_nodes:
+    - electric_heating_emissions
 
-    - id: direct_electric_heating_electricity_use
-      quantity: energy
-      type: simple.Activity
-      unit: GWh/a
-      name: Suorasähkölämmityksen sähkönkulutus
-      name_en: Direct electric heating electricity consumption
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Electric heating total
-          dropna: true
-      output_nodes:
-        - direct_electric_heating_emissions
+  - id: direct_electric_heating_electricity_use
+    quantity: energy
+    type: simple.Activity
+    unit: GWh/a
+    name: Suorasähkölämmityksen sähkönkulutus
+    name_en: Direct electric heating electricity consumption
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Electric heating total
+      dropna: true
+    output_nodes:
+    - direct_electric_heating_emissions
 
       #
       # ----------- Electricity use ------------
       #
-    - id: other_electricity_consumption_per_capita
-      name: Sähkönkulutus asukasta kohti
-      name_en: Electricity consumption per capita
-      type: simple.AdditiveNode
-      unit: kWh/person/a
-      quantity: per_capita
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Other electricity consumption per capita
-      output_nodes:
-        - other_electricity_consumption
+  - id: other_electricity_consumption_per_capita
+    name: Sähkönkulutus asukasta kohti
+    name_en: Electricity consumption per capita
+    type: simple.AdditiveNode
+    unit: kWh/person/a
+    quantity: per_capita
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Other electricity consumption per capita
+    output_nodes:
+    - other_electricity_consumption
 
-    - id: other_electricity_consumption
-      name: Muu sähkönkulutus
-      name_en: Other electricity consumption
-      type: simple.PerCapitaActivity
-      unit: GWh/a
-      quantity: energy
-      input_nodes:
-        - population
-      output_nodes:
-        - other_electricity_consumption_emissions
+  - id: other_electricity_consumption
+    name: Muu sähkönkulutus
+    name_en: Other electricity consumption
+    type: simple.PerCapitaActivity
+    unit: GWh/a
+    quantity: energy
+    input_nodes:
+    - population
+    output_nodes:
+    - other_electricity_consumption_emissions
 
-    - id: other_electricity_consumption_emissions
-      name: Muun sähkönkulutuksen päästöt
-      name_en: Other electricity consumption emissions
-      type: simple.EmissionFactorActivity
-      unit: kt/a
-      params:
-        replace_output_using_input_dataset: true
-      input_datasets:
-        - id: tampere/scenarios/emissions/bau
-          column: Other power consumption
-          forecast_from: 2019
-          max_year: 2018
-      input_nodes:
-        - other_electricity_consumption_emission_factor
-      output_nodes:
-        - electricity_consumption_emissions
+  - id: other_electricity_consumption_emissions
+    name: Muun sähkönkulutuksen päästöt
+    name_en: Other electricity consumption emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    params:
+      replace_output_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Other power consumption
+      forecast_from: 2019
+      max_year: 2018
+    input_nodes:
+    - other_electricity_consumption_emission_factor
+    output_nodes:
+    - electricity_consumption_emissions
 
-    - id: electricity_production_emission_factor
-      name: Sähköntuotannon päästökerroin
-      name_en: Electricity production emission factor
-      type: simple.AdditiveNode
-      unit: g/kWh
-      quantity: emission_factor
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Other power consumption
-          max_year: 2019
+  - id: electricity_production_emission_factor
+    name: Sähköntuotannon päästökerroin
+    name_en: Electricity production emission factor
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Other power consumption
+      max_year: 2019
 
-    - id: electric_heating_emission_factor
-      name: Lämmityssähkön päästökerroin
-      name_en: Heating electricity emission factor
-      type: simple.FixedMultiplierNode
-      unit: g/kWh
-      quantity: emission_factor
-      description_en: We assume an 8 % higher emission factor for heating electricity.
-      input_nodes:
-        - electricity_production_emission_factor
-      params:
-        - id: multiplier
-          value: 1.08
+  - id: electric_heating_emission_factor
+    name: Lämmityssähkön päästökerroin
+    name_en: Heating electricity emission factor
+    type: simple.FixedMultiplierNode
+    unit: g/kWh
+    quantity: emission_factor
+    description_en: We assume an 8 % higher emission factor for heating electricity.
+    input_nodes:
+    - electricity_production_emission_factor
+    params:
+    - id: multiplier
+      value: 1.08
 
-    - id: other_electricity_consumption_emission_factor
-      name: Kulutussähkön päästökerroin
-      name_en: Electricity consumption emission factor
-      type: simple.FixedMultiplierNode
-      unit: g/kWh
-      quantity: emission_factor
-      description_en: We assume an 5 % higher emission factor for other electricity consumption.
-      input_nodes:
-        - electricity_production_emission_factor
-      params:
-        - id: multiplier
-          value: .95
+  - id: other_electricity_consumption_emission_factor
+    name: Kulutussähkön päästökerroin
+    name_en: Electricity consumption emission factor
+    type: simple.FixedMultiplierNode
+    unit: g/kWh
+    quantity: emission_factor
+    description_en: We assume an 5 % higher emission factor for other electricity
+      consumption.
+    input_nodes:
+    - electricity_production_emission_factor
+    params:
+    - id: multiplier
+      value: .95
 
     #
     # Transport nodes
     #
 
-    - id: electricity_consumption_emissions
-      name: Sähkön kulutuksen päästöt
-      name_en: Electricity consumption emissions
-      type: simple.SectorEmissions
-      unit: kt/a
-      color: '#F4D240'
-      output_nodes:
-        - net_emissions
+  - id: electricity_consumption_emissions
+    name: Sähkön kulutuksen päästöt
+    name_en: Electricity consumption emissions
+    type: simple.SectorEmissions
+    unit: kt/a
+    color: '#F4D240'
+    output_nodes:
+    - net_emissions
 
-    - id: tram_kilometers
-      name: Ratikkasuorite
-      name_en: Tram kilometers
-      type: simple.Activity
-      quantity: mileage
-      unit: Mkm/a
-      historical_values: [[2020, 0]]
-      forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
-      output_nodes:
-        - tram_emissions
+  - id: tram_kilometers
+    name: Ratikkasuorite
+    name_en: Tram kilometers
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    historical_values: [[2020, 0]]
+    forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026,
+        0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
+    output_nodes:
+    - tram_emissions
 
-    - id: car_kilometers_streets
-      name: Henkilöautosuorite (katuajo)
-      name_en: Car kilometers (streets)
-      type: simple.Activity
-      quantity: mileage
-      unit: Mkm/a
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Private car street
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - car_emissions_streets
+  - id: car_kilometers_streets
+    name: Henkilöautosuorite (katuajo)
+    name_en: Car kilometers (streets)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Private car street
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - car_emissions_streets
 
-    - id: car_kilometers_roads
-      name: Henkilöautosuorite (maantieajo)
-      name_en: Car kilometers (roads)
-      type: simple.Activity
-      quantity: mileage
-      unit: Mkm/a
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Private car road
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - car_emissions_roads
+  - id: car_kilometers_roads
+    name: Henkilöautosuorite (maantieajo)
+    name_en: Car kilometers (roads)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Private car road
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - car_emissions_roads
 
-    - id: bus_kilometers_streets
-      name: Bussisuorite (katuajo)
-      name_en: Bus kilometers (streets)
-      type: simple.Activity
-      quantity: mileage
-      unit: Mkm/a
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Bus street
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - bus_emissions_streets
+  - id: bus_kilometers_streets
+    name: Bussisuorite (katuajo)
+    name_en: Bus kilometers (streets)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Bus street
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - bus_emissions_streets
 
-    - id: bus_kilometers_roads
-      name: Bussisuorite (maantieajo)
-      name_en: Bus kilometers (roads)
-      type: simple.Activity
-      quantity: mileage
-      unit: Mkm/a
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: Bus road
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - bus_emissions_roads
+  - id: bus_kilometers_roads
+    name: Bussisuorite (maantieajo)
+    name_en: Bus kilometers (roads)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Bus road
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - bus_emissions_roads
 
-    - id: tram_emission_factor
-      name: Ratikan päästökerroin
-      name_en: Tram emission factor
-      quantity: emission_factor
-      type: simple.AdditiveNode
+  - id: tram_emission_factor
+    name: Ratikan päästökerroin
+    name_en: Tram emission factor
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Trams
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - tram_emissions
+
+  - id: car_emission_factor_streets
+    name: Henkilöautoilun päästökerroin (katuajo)
+    name_en: Car emission factor (streets)
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Private car street
+      dropna: true
+    output_nodes:
+    - car_emissions_streets
+
+  - id: car_emission_factor_roads
+    name: Henkilöautoilun päästökerroin (maantieajo)
+    name_en: Car emission factor (roads)
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Private car road
+      dropna: true
+    output_nodes:
+    - car_emissions_roads
+
+  - id: bus_emission_factor_streets
+    name: Bussin päästökerroin (katuajo)
+    name_en: Bus emission factor (streets)
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus street constant fuel share
+      dropna: true
       unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Trams
-          min_year: 2016
-          dropna: true
-      output_nodes:
-        - tram_emissions
+    output_nodes:
+    - bus_emissions_streets
 
-    - id: car_emission_factor_streets
-      name: Henkilöautoilun päästökerroin (katuajo)
-      name_en: Car emission factor (streets)
-      quantity: emission_factor
-      type: simple.AdditiveNode
-      unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Private car street
-          dropna: true
-      output_nodes:
-        - car_emissions_streets
+  - id: bus_emission_factor_roads
+    name: Bussin päästökerroin (maantieajo)
+    name_en: Bus emission factor (roads)
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus road
+      dropna: true
+    output_nodes:
+    - bus_emissions_roads
 
-    - id: car_emission_factor_roads
-      name: Henkilöautoilun päästökerroin (maantieajo)
-      name_en: Car emission factor (roads)
-      quantity: emission_factor
-      type: simple.AdditiveNode
-      unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Private car road
-          dropna: true
-      output_nodes:
-        - car_emissions_roads
+  - id: tram_emissions
+    name: Ratikkaliikenteen päästöt
+    name_en: Tram emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - transportation_emissions
 
-    - id: bus_emission_factor_streets
-      name: Bussin päästökerroin (katuajo)
-      name_en: Bus emission factor (streets)
-      type: simple.AdditiveNode
-      quantity: emission_factor
-      unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Bus street constant fuel share
-          dropna: true
-          unit: g/km
-      output_nodes:
-        - bus_emissions_streets
+  - id: car_emissions_roads
+    name: Henkilöautoliikenteen päästöt (maantieajo)
+    name_en: Private car emissions (roads)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - car_emissions
 
-    - id: bus_emission_factor_roads
-      name: Bussin päästökerroin (maantieajo)
-      name_en: Bus emission factor (roads)
-      type: simple.AdditiveNode
-      quantity: emission_factor
-      unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Bus road
-          dropna: true
-      output_nodes:
-        - bus_emissions_roads
+  - id: car_emissions_streets
+    name: Henkilöautoliikenteen päästöt (katuajo)
+    name_en: Private car emissions (streets)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - car_emissions
 
-    - id: tram_emissions
-      name: Ratikkaliikenteen päästöt
-      name_en: Tram emissions
-      type: simple.EmissionFactorActivity
-      unit: kt/a
-      quantity: emissions
-      output_nodes:
-        - transportation_emissions
+  - id: car_emissions
+    name: Henkilöautoliikenteen päästöt
+    name_en: Private car emissions
+    type: simple.SectorEmissions
+    unit: kt/a
+    params:
+      fill_gaps_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Private cars
+      forecast_from: 2019
+    output_nodes:
+    - transportation_emissions
 
-    - id: car_emissions_roads
-      name: Henkilöautoliikenteen päästöt (maantieajo)
-      name_en: Private car emissions (roads)
-      type: simple.EmissionFactorActivity
-      quantity: emissions
-      unit: kt/a
-      output_nodes:
-        - car_emissions
+  - id: bus_emissions_roads
+    name: Bussiliikenteen päästöt (maantieajo)
+    name_en: Bus emissions (roads)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - bus_emissions
 
-    - id: car_emissions_streets
-      name: Henkilöautoliikenteen päästöt (katuajo)
-      name_en: Private car emissions (streets)
-      type: simple.EmissionFactorActivity
-      quantity: emissions
-      unit: kt/a
-      output_nodes:
-        - car_emissions
+  - id: bus_emissions_streets
+    name: Bussiliikenteen päästöt (katuajo)
+    name_en: Bus emissions (streets)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - bus_emissions
 
-    - id: car_emissions
-      name: Henkilöautoliikenteen päästöt
-      name_en: Private car emissions
-      type: simple.SectorEmissions
-      unit: kt/a
-      params:
-        fill_gaps_using_input_dataset: true
-      input_datasets:
-        - id: tampere/scenarios/emissions/bau
-          column: Private cars
-          forecast_from: 2019
-      output_nodes:
-        - transportation_emissions
-
-    - id: bus_emissions_roads
-      name: Bussiliikenteen päästöt (maantieajo)
-      name_en: Bus emissions (roads)
-      type: simple.EmissionFactorActivity
-      quantity: emissions
-      unit: kt/a
-      output_nodes:
-        - bus_emissions
-
-    - id: bus_emissions_streets
-      name: Bussiliikenteen päästöt (katuajo)
-      name_en: Bus emissions (streets)
-      type: simple.EmissionFactorActivity
-      quantity: emissions
-      unit: kt/a
-      output_nodes:
-        - bus_emissions
-
-    - id: bus_emissions
-      name: Bussiliikenteen päästöt
-      name_en: Bus emissions
-      type: simple.SectorEmissions
-      unit: kt/a
-      quantity: emissions
-      params:
-        fill_gaps_using_input_dataset: true
-      input_datasets:
-        - id: tampere/scenarios/emissions/bau
-          column: Buses
-          forecast_from: 2019
-      output_nodes:
-        - transportation_emissions
+  - id: bus_emissions
+    name: Bussiliikenteen päästöt
+    name_en: Bus emissions
+    type: simple.SectorEmissions
+    unit: kt/a
+    quantity: emissions
+    params:
+      fill_gaps_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Buses
+      forecast_from: 2019
+    output_nodes:
+    - transportation_emissions
 
     #
     # City machinery
     #
-    - id: city_machinery_emissions
-      name: Kaupungin työkoneiden päästöt
-      name_en: City machinery emissions
-      type: simple.EmissionFactorActivity
-      quantity: emissions
-      unit: kt/a
-      input_datasets:
-        - id: tampere/scenarios/emissions/bau
-          column: Industry without city machinery
-      output_nodes:
-        - industry_and_machinery_emissions
+  - id: city_machinery_emissions
+    name: Kaupungin työkoneiden päästöt
+    name_en: City machinery emissions
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Industry without city machinery
+    output_nodes:
+    - industry_and_machinery_emissions
 
-    - id: city_machinery_fuel_consumption
-      name: Kaupunkin työkoneiden polttoaineenkulutus
-      name_en: City machinery fuel consumption
-      type: simple.Activity
-      quantity: fuel_consumption
-      unit: l/a
-      input_datasets:
-        - id: tampere/scenarios/activity/bau
-          column: City machinery fuel consumption
-      output_nodes:
-        - city_machinery_emissions
+  - id: city_machinery_fuel_consumption
+    name: Kaupunkin työkoneiden polttoaineenkulutus
+    name_en: City machinery fuel consumption
+    type: simple.Activity
+    quantity: fuel_consumption
+    unit: l/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: City machinery fuel consumption
+    output_nodes:
+    - city_machinery_emissions
 
-    - id: city_machinery_emission_factor
-      name: Dieselin päästökerroin
-      name_en: Diesel emission factor
-      type: simple.AdditiveNode
-      quantity: emission_factor
-      unit: g/l
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Machinery
-      output_nodes:
-        - city_machinery_emissions
+  - id: city_machinery_emission_factor
+    name: Dieselin päästökerroin
+    name_en: Diesel emission factor
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/l
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Machinery
+    output_nodes:
+    - city_machinery_emissions
 
-    - id: renewable_electricity_consumption_reduction
-      name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
-      name_en: Decrease in purchased energy due to renewable electricity production
-      quantity: energy
-      type: simple.FixedMultiplierNode
-      output_nodes:
-        - other_electricity_consumption
-      params:
-        multiplier: -1
-      unit: GWh/a
+  - id: renewable_electricity_consumption_reduction
+    name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
+    name_en: Decrease in purchased energy due to renewable electricity production
+    quantity: energy
+    type: simple.FixedMultiplierNode
+    output_nodes:
+    - other_electricity_consumption
+    params:
+      multiplier: -1
+    unit: GWh/a
 
 
   #
@@ -643,234 +645,238 @@ instance:
     #     - id: tampere/scenarios/diff
     #       column: Heating total
 
-    - id: naistenlahti3
-      name: Naistenlahti 3 -biovoimalaitos
-      name_en: Naistenlahti 3 bio thermal plant
-      type: simple.CumulativeAdditiveAction
-      quantity: emission_factor
-      output_nodes:
-        - district_heating_emission_factor
-      forecast_values: [[2022, -23], [2023, -23]]
+  - id: naistenlahti3
+    name: Naistenlahti 3 -biovoimalaitos
+    name_en: Naistenlahti 3 bio thermal plant
+    type: simple.CumulativeAdditiveAction
+    quantity: emission_factor
+    output_nodes:
+    - district_heating_emission_factor
+    forecast_values: [[2022, -23], [2023, -23]]
+    unit: g/kWh
+
+  - id: other_renewable_district_heating
+    name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
+    name_en: Increase share of renewables in district heat production
+    type: simple.CumulativeAdditiveAction
+    quantity: energy
+    output_nodes:
+    - district_heating_emission_factor
+    forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
+      [2029, -14], [2030, -6]]
+    unit: g/kWh
+
+  - id: private_building_energy_renovation
+    name: Korjausrakentaminen yksityisissä kiinteistöissä
+    name_en: Energy renovation of privately owned buildings
+    unit: GWh/a
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    output_nodes:
+    - district_heating_consumption
+    - other_electricity_consumption
+    - direct_electric_heating_electricity_use
+    forecast_values:
+    - id: district_heating_consumption
+      values: [[2020, 0], [2030, -239]]
+    - id: other_electricity_consumption
+      values: [[2020, 0], [2030, -12.65]]
+    - id: direct_electric_heating_electricity_use
+      values: [[2020, 0], [2030, 10.01]]
+
+  - id: distributed_renewable_energy
+    name: Hajautettu uusiutuva energia
+    name_en: Distributed renewable energy production
+    unit: GWh/a
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    output_nodes:
+    - renewable_electricity_consumption_reduction
+    forecast_values: [[2019, 0], [2020, 0.2], [2030, -850]]
+    params:
+    - id: target_year_level
+      values:
+        default: 17
+      min_value: 0
+      max_value: 850
+      step: 1
+      unit: GWh/a
+      description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+      description_en: PV energy production in 2030
+
+  - id: oil_heated_private_buildings_to_geothermal
+    name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
+    name_en: Private oil heated buildings to geothermal
+    type: simple.CumulativeAdditiveAction
+    unit: GWh/a
+    quantity: energy
+    output_nodes:
+    - oil_heating_energy_use
+    - geothermal_heating_electricity_use
+    forecast_values:
+    - id: oil_heating_energy_use
+      values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025,
+          -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030,
+          -5.73]]
+    - id: geothermal_heating_electricity_use
+      values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10],
+        [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
+
+  - id: oil_heated_municipal_buildings_to_heat_pump
+    name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    unit: GWh/a
+    output_nodes:
+    - oil_heating_energy_use
+    - direct_electric_heating_electricity_use
+    forecast_values:
+    - id: oil_heating_energy_use
+      values: [[2020, 0], [2025, -3.674]]
+    - id: direct_electric_heating_electricity_use
+      values: [[2020, 0], [2025, 1.468]]
+
+  - id: cleaner_electricity_production
+    name: Kansallinen sähköntuotanto puhdistuu
+    name_en: Shift to low-carbon in national electricity production
+    decision_level: nation
+    quantity: emission_factor
+    output_nodes:
+    - electricity_production_emission_factor
+    type: simple.LinearCumulativeAdditiveAction
+    forecast_values: [[2019, 0], [2030, -80]]
+    unit: g/kWh
+    params:
+    - id: target_year_level
+      values:
+        default: -61
+      min_value: -80
+      max_value: 0
+      step: 1
       unit: g/kWh
+      description: Sähköntuotannon päästökertoimen muutos
+      description_en: Change in electricity production emission factor
 
-    - id: other_renewable_district_heating
-      name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
-      name_en: Increase share of renewables in district heat production
-      type: simple.CumulativeAdditiveAction
-      quantity: energy
-      output_nodes:
-        - district_heating_emission_factor
-      forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [2029, -14], [2030, -6]]
-      unit: g/kWh
+  - id: converting_street_lighting_to_led
+    name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+    name_en: Converting street lighting to LED lamps
+    type: simple.LinearCumulativeAdditiveAction
+    unit: GWh/a
+    quantity: energy
+    forecast_values: [[2019, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+    output_nodes:
+    - other_electricity_consumption
 
-    - id: private_building_energy_renovation
-      name: Korjausrakentaminen yksityisissä kiinteistöissä
-      name_en: Energy renovation of privately owned buildings
-      unit: GWh/a
-      type: simple.LinearCumulativeAdditiveAction
-      quantity: energy
-      output_nodes:
-        - district_heating_consumption
-        - other_electricity_consumption
-        - direct_electric_heating_electricity_use
-      forecast_values:
-        - id: district_heating_consumption
-          values: [[2020, 0], [2030, -239]]
-        - id: other_electricity_consumption
-          values: [[2020, 0], [2030, -12.65]]
-        - id: direct_electric_heating_electricity_use
-          values: [[2020, 0], [2030, 10.01]]
+  - id: tram_phase_1
+    name: Ratikan rakennusvaihe 1 (2019-2022)
+    name_en: Tram construction phase 1 (2019-2022)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2021, 0.7], [2022, 0.7]]
+    - id: car_kilometers_streets
+      values: [[2021, -2.95], [2022, -2.95]]
+    - id: bus_kilometers_streets
+      values: [[2021, -0.48], [2022, -0.36]]
 
-    - id: distributed_renewable_energy
-      name: Hajautettu uusiutuva energia
-      name_en: Distributed renewable energy production
-      unit: GWh/a
-      type: simple.LinearCumulativeAdditiveAction
-      quantity: energy
-      output_nodes:
-        - renewable_electricity_consumption_reduction
-      forecast_values: [[2019, 0], [2020, 0.2], [2030, -850]]
-      params:
-        - id: target_year_level
-          values:
-            default: 17
-          min_value: 0
-          max_value: 850
-          step: 1
-          unit: GWh/a
-          description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
-          description_en: PV energy production in 2030
+  - id: tram_phase_2
+    name: Ratikan rakennusvaihe 2 (2023-2025)
+    name_en: Tram construction phase 2 (2023-2025)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2024, 0.535], [2025, 0.535]]
+    - id: car_kilometers_streets
+      values: [[2024, -2.35], [2025, -2.35]]
+    - id: bus_kilometers_streets
+      values: [[2025, -0.71]]
 
-    - id: oil_heated_private_buildings_to_geothermal
-      name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
-      name_en: Private oil heated buildings to geothermal
-      type: simple.CumulativeAdditiveAction
-      unit: GWh/a
-      quantity: energy
-      output_nodes:
-        - oil_heating_energy_use
-        - geothermal_heating_electricity_use
-      forecast_values:
-        - id: oil_heating_energy_use
-          values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025, -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030, -5.73]]
-        - id: geothermal_heating_electricity_use
-          values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10], [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
+  - id: tram_phase_3
+    name: Ratikan rakennusvaihe 3 (2028-2030)
+    name_en: Tram construction phase 3 (2028-2030)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2029, 0.325], [2030, 0.325]]
+    - id: car_kilometers_streets
+      values: [[2029, -4.3], [2030, -4.3]]
+    - id: bus_kilometers_streets
+      values: [[2030, 0]]
 
-    - id: oil_heated_municipal_buildings_to_heat_pump
-      name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
-      type: simple.LinearCumulativeAdditiveAction
-      quantity: energy
-      unit: GWh/a
-      output_nodes:
-        - oil_heating_energy_use
-        - direct_electric_heating_electricity_use
-      forecast_values:
-        - id: oil_heating_energy_use
-          values: [[2020, 0], [2025, -3.674]]
-        - id: direct_electric_heating_electricity_use
-          values: [[2020, 0], [2025, 1.468]]
-
-    - id: cleaner_electricity_production
-      name: Kansallinen sähköntuotanto puhdistuu
-      name_en: Shift to low-carbon in national electricity production
-      decision_level: nation
-      quantity: emission_factor
-      output_nodes:
-        - electricity_production_emission_factor
-      type: simple.LinearCumulativeAdditiveAction
-      forecast_values: [[2019, 0], [2030, -80]]
-      unit: g/kWh
-      params:
-        - id: target_year_level
-          values:
-            default: -61
-          min_value: -80
-          max_value: 0
-          step: 1
-          unit: g/kWh
-          description: Sähköntuotannon päästökertoimen muutos
-          description_en: Change in electricity production emission factor
-
-    - id: converting_street_lighting_to_led
-      name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
-      name_en: Converting street lighting to LED lamps
-      type: simple.LinearCumulativeAdditiveAction
-      unit: GWh/a
-      quantity: energy
-      forecast_values: [[2019, 0], [2025, -4.2]] # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
-      output_nodes:
-        - other_electricity_consumption
-
-    - id: tram_phase_1
-      name: Ratikan rakennusvaihe 1 (2019-2022)
-      name_en: Tram construction phase 1 (2019-2022)
-      type: simple.CumulativeAdditiveAction
-      unit: Mkm/a
-      quantity: mileage
-      output_nodes: 
-        - tram_kilometers
-        - car_kilometers_streets
-        - bus_kilometers_streets
-      forecast_values: 
-        - id: tram_kilometers
-          values: [[2021, 0.7], [2022, 0.7]]
-        - id: car_kilometers_streets
-          values: [[2021, -2.95], [2022, -2.95]]
-        - id: bus_kilometers_streets
-          values: [[2021, -0.48], [2022, -0.36]]
-
-    - id: tram_phase_2
-      name: Ratikan rakennusvaihe 2 (2023-2025)
-      name_en: Tram construction phase 2 (2023-2025)
-      type: simple.CumulativeAdditiveAction
-      unit: Mkm/a
-      quantity: mileage
-      output_nodes: 
-        - tram_kilometers
-        - car_kilometers_streets
-        - bus_kilometers_streets
-      forecast_values: 
-        - id: tram_kilometers
-          values: [[2024, 0.535], [2025, 0.535]]
-        - id: car_kilometers_streets
-          values: [[2024, -2.35], [2025, -2.35]]
-        - id: bus_kilometers_streets
-          values: [[2025, -0.71]]
-
-    - id: tram_phase_3
-      name: Ratikan rakennusvaihe 3 (2028-2030)
-      name_en: Tram construction phase 3 (2028-2030)
-      type: simple.CumulativeAdditiveAction
-      unit: Mkm/a
-      quantity: mileage
-      output_nodes: 
-        - tram_kilometers
-        - car_kilometers_streets
-        - bus_kilometers_streets
-      forecast_values: 
-        - id: tram_kilometers
-          values: [[2029, 0.325], [2030, 0.325]]
-        - id: car_kilometers_streets
-          values: [[2029, -4.3], [2030, -4.3]]
-        - id: bus_kilometers_streets
-          values: [[2030, 0]]
-
-    - id: renewable_diesel_in_city_machinery
-      name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
-      name_en: Renewable diesel in city machinery
-      type: simple.LinearCumulativeAdditiveAction
-      unit: g/l
-      quantity: emission_factor
-      output_nodes:
-        - city_machinery_emission_factor
+  - id: renewable_diesel_in_city_machinery
+    name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
+    name_en: Renewable diesel in city machinery
+    type: simple.LinearCumulativeAdditiveAction
+    unit: g/l
+    quantity: emission_factor
+    output_nodes:
+    - city_machinery_emission_factor
       #  - city_machinery_fuel_consumption
-      forecast_values:
-        - id: city_machinery_emission_factor
+    forecast_values:
+    - id: city_machinery_emission_factor
         #  quantity: emission_factor
         #  unit: g/l
-          values: [[2021, 0], [2030, -2689]]
+      values: [[2021, 0], [2030, -2689]]
         #- id: city_machinery_fuel_consumption # TODO An action should be able to have several output nodes with different units
         #  quantity: fuel_consumption
         #  unit: l
         #  values: [[2021, 0], [2030, 64000]]
 
-    - id: energy_conversion_in_buses
-      name: Bussiliikenteen käyttövoimamuutos
-      name_en: Energy conversion in buses
-      type: simple.AdditiveAction
-      quantity: emission_factor
+  - id: energy_conversion_in_buses
+    name: Bussiliikenteen käyttövoimamuutos
+    name_en: Energy conversion in buses
+    type: simple.AdditiveAction
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus street difference to constant fuel share
+      forecast_from: 2020
+      dropna: true
       unit: g/km
-      input_datasets:
-        - id: tampere/scenarios/emission_factors/bau
-          column: Bus street difference to constant fuel share
-          forecast_from: 2020
-          dropna: true
-          unit: g/km
-      output_nodes:
-        - bus_emission_factor_streets
+    output_nodes:
+    - bus_emission_factor_streets
 
 
   pages:
-    - id: home
-      name: Hiilineutraali Tampere 2030 -päästöskenaario
-      path: '/'
-      type: emission
-      node: net_emissions
+  - id: home
+    name: Hiilineutraali Tampere 2030 -päästöskenaario
+    path: /
+    type: emission
+    node: net_emissions
 
   scenarios:
-    - id: baseline
-      name: Nykykehitys
-      name_en: Baseline
-      params:
-        - id: naistenlahti3.enabled
-          value: true
-        - id: cleaner_electricity_production.enabled
-          value: true
-        - id: tram_phase_1.enabled
-          value: true
+  - id: baseline
+    name: Nykykehitys
+    name_en: Baseline
+    params:
+    - id: naistenlahti3.enabled
+      value: true
+    - id: cleaner_electricity_production.enabled
+      value: true
+    - id: tram_phase_1.enabled
+      value: true
 
-    - id: default
-      default: true
-      name: Hiilineutraali Tampere 2030 -tiekartta
-      name_en: Carbon-neutral Tampere 2030 roadmap
-      all_actions_enabled: true
+  - id: default
+    default: true
+    name: Hiilineutraali Tampere 2030 -tiekartta
+    name_en: Carbon-neutral Tampere 2030 roadmap
+    all_actions_enabled: true
