@@ -568,7 +568,7 @@ instance:
       name: Tapaustaakka
       name_ en: Case burden
       type: health.DataOvariable
-      quantity: disase_burden
+      quantity: disease_burden
       unit: DALY
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data

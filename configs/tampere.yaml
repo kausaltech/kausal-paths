@@ -5,7 +5,7 @@ instance:
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
-    commit: 05c2887841bdb6f9612e13fec08c3021690743a8
+#    commit: 05c2887841bdb6f9612e13fec08c3021690743a8
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
   owner: Tampereen kaupunki
