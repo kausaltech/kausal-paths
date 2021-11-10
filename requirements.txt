@@ -8,12 +8,14 @@ aiobotocore[boto3]==1.4.2
     # via
     #   -r requirements.in
     #   dvc
+    #   dvc-pandas
     #   s3fs
 aiohttp==3.8.0
     # via
     #   aiobotocore
     #   aiohttp-retry
     #   fsspec
+    #   s3fs
 aiohttp-retry==2.4.6
     # via dvc
 aioitertools==0.8.0
@@ -120,9 +122,9 @@ draftjs-exporter==2.1.7
     # via wagtail
 dulwich==0.20.26
     # via dvc
-dvc[s3]==2.8.2
+dvc[s3]==2.8.3
     # via dvc-pandas
-dvc-pandas==0.0.11
+dvc-pandas==0.0.12
     # via -r requirements.in
 et-xmlfile==1.1.0
     # via openpyxl
@@ -142,7 +144,7 @@ frozenlist==1.2.0
     # via
     #   aiohttp
     #   aiosignal
-fsspec[http]==2021.10.1
+fsspec[http]==2021.11.0
     # via
     #   dvc
     #   s3fs
@@ -348,7 +350,7 @@ ruamel.yaml.clib==0.2.6
     # via ruamel.yaml
 rx==1.6.1
     # via graphql-core
-s3fs==2021.10.1
+s3fs==2021.11.0
     # via dvc
 s3transfer==0.4.2
     # via boto3
@@ -356,7 +358,7 @@ scipy==1.7.2
     # via -r requirements.in
 sentry-sdk==1.4.3
     # via -r requirements.in
-shortuuid==1.0.2
+shortuuid==1.0.7
     # via dvc
 shtab==1.4.2
     # via dvc

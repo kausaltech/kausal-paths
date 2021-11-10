@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
