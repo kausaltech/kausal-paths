@@ -68,7 +68,7 @@ instance:
       name: Lihan kulutus per henkilö
       name_en: Meat consumption per person
       type: simple.AdditiveNode
-      quantity: per_capita
+      quantity: ingestion
       unit: g/day/person
       input_datasets:
         - id: ilmastoruoka/consumption
@@ -78,28 +78,17 @@ instance:
       output_nodes:
         - meat_consumption
 
-    - id: consumption
-      name: OVA Saanti
-      name_en: OVA Consumption
-      type: health.DataOvariable
-      quantity: ingestion
-      unit: g/d/person
-      input_datasets:
-        - id: ilmastoruoka/consumption
-          column: Fish
-          forecast_from: 2021
-          dropna: true
-      output_nodes:
-        - exposure
+######## OTHER HEALTH BENEFITS
 
-    - id: concentration
-      name: OVA Pitoisuus
-      name_en: OVA Concentration
+    - id: dioxin_concentration
+      name: Dioksiinipitoisuus
+      name_en: Dioxin concentration
       type: health.DataOvariable
       quantity: mass_concentration
       unit: ppm
+      color: '#456789'
       input_datasets:
-        - id: ilmastoruoka/consumption
+        - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Domestic fish
           forecast_from: 2021
           dropna: true
@@ -107,22 +96,23 @@ instance:
         - exposure
 
     - id: exposure
-      name: OVA Altistus
-      name_en: OVA Exposure
+      name: Dioksiinialtistus
+      name_en: Dioxin exposure
       type: health.Exposure
-      quantity: ingestion
-      unit: ug/d/person
-      output_nodes:
+      unit: mg/person/day
+      input_nodes:
         - meat_consumption_per_person
+        - exposure_response_function
+        - body_weight
 
     - id: p_illness
-      name: OVA Sairauden todennäköisyys
-      name_en: OVA Probability of illness
+      name: Sairauden todennäköisyys
+      name_en: Probability of illness
       type: health.DataOvariable
       quantity: probability
       unit: dimensionless
       input_datasets:
-        - id: ilmastoruoka/emission_factor
+        - id: ilmastoruoka/emission_factor  # FIXME Get real data
           column: Drinks
           forecast_from: 2021
           dropna: true
@@ -154,8 +144,8 @@ instance:
     - id: exposure_response_function
       name: Annosvaste
       name_ en: Exposure-response function
-      type: health.ExposureResponseFunction
-      unit: mg/day/person
+      type: health.ExposureResponseFunction  # FIXME Get real data
+      unit: mg/person/day
 
     - id: relative_risk
       name: Riskisuhde
@@ -171,7 +161,7 @@ instance:
       name_ en: Incidence
       type: health.DataOvariable
       quantity: incidence
-      unit: case/_100000py
+      unit: 1/person
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Cooking
@@ -191,6 +181,158 @@ instance:
         - incidence
         - body_weight
 
+#    - id: case_burden
+#      name: Tapaustaakka
+#      name_ en: Case burden
+#      type: health.DataOvariable
+#      quantity: disase_burden
+#      unit: DALY
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
+
+    - id: disease_burden
+      name: Kokonaistautitaakka
+      name_ en: Total disease burden
+      type: health.DataOvariable
+      quantity: disease_burden
+      unit: person
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+#      type: health.DiseaseBurden
+#      unit: person
+#      input_nodes:
+#        - incidence
+#        - population
+#        - case_burden
+
+#    - id: attributable_disease_burden
+#      name: Kohdentuva tautitaakka
+#      name_en: Attributable disease burden
+#      type: health.AttributableDiseaseBurden
+#      unit: person
+#      input_nodes:
+#        - disease_burden
+#        - population_attributable_fraction
+
+#    - id: consumption
+#      name: OVA Saanti
+#      name_en: OVA Consumption
+#      type: health.DataOvariable
+#      quantity: ingestion
+#      unit: g/d/person
+#      input_datasets:
+#        - id: ilmastoruoka/consumption
+#          column: Fish
+#          forecast_from: 2021
+#          dropna: true
+#      output_nodes:
+#        - exposure
+#
+#    - id: concentration
+#      name: OVA Pitoisuus
+#      name_en: OVA Concentration
+#      type: health.DataOvariable
+#      quantity: mass_concentration
+#      unit: ppm
+#      input_datasets:
+#        - id: ilmastoruoka/consumption
+#          column: Domestic fish
+#          forecast_from: 2021
+#          dropna: true
+#      output_nodes:
+#        - exposure
+#
+#    - id: exposure
+#      name: OVA Altistus
+#      name_en: OVA Exposure
+#      type: health.Exposure
+#      quantity: ingestion
+#      unit: ug/d/person
+#      output_nodes:
+#        - meat_consumption_per_person
+#
+#    - id: p_illness
+#      name: OVA Sairauden todennäköisyys
+#      name_en: OVA Probability of illness
+#      type: health.DataOvariable
+#      quantity: probability
+#      unit: dimensionless
+#      input_datasets:
+#        - id: ilmastoruoka/emission_factor
+#          column: Drinks
+#          forecast_from: 2021
+#          dropna: true
+#
+#    - id: body_weight
+#      name: Ruumiinpaino
+#      name_ en: Body weight
+#      type: health.DataOvariable
+#      quantity: body_weight
+#      unit: kg
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Alcohol
+#          forecast_from: 2021
+#          dropna: true
+#
+#    - id: frexposed
+#      name: Altistuneiden osuus
+#      name_ en: Fraction exposed
+#      type: health.DataOvariable
+#      quantity: fraction
+#      unit: dimensionless
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
+#
+#    - id: exposure_response_function
+#      name: Annosvaste
+#      name_ en: Exposure-response function
+#      type: health.ExposureResponseFunction
+#      unit: mg/day/person
+#
+#    - id: relative_risk
+#      name: Riskisuhde
+#      name_en: Risk ratio
+#      type: health.RelativeRisk
+#      input_nodes:
+#        - exposure
+#        - exposure_response_function
+#        - body_weight
+#
+#    - id: incidence
+#      name: Ilmaantuvuus
+#      name_ en: Incidence
+#      type: health.DataOvariable
+#      quantity: incidence
+#      unit: case/_100000py
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
+#
+#    - id: population_attributable_fraction
+#      name: Väestösyyosuus
+#      name_en: Population attributable fraction
+#      type: health.PopulationAttributableFraction
+#      input_nodes:
+#        - exposure
+#        - exposure_response_function
+#        - relative_risk
+#        - frexposed
+#        - p_illness
+#        - incidence
+#        - body_weight
+#
 #    - id: population_attributable_fraction2
 #      name: Väestösyyosuus
 #      name_ en: Population attributable fraction
@@ -202,28 +344,28 @@ instance:
 #          column: Potato
 #          forecast_from: 2021
 #          dropna: true
-
-    - id: case_burden
-      name: Tapaustaakka
-      name_ en: Case burden
-      type: health.DataOvariable
-      quantity: case_burden
-      unit: DALY/case
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
-
-    - id: disease_burden
-      name: Kokonaistautitaakka
-      name_ en: Total disease burden
-      type: health.DiseaseBurden
-      unit: cap
-      input_nodes:
-        - incidence
-        - population
-        - case_burden
+#
+#    - id: case_burden
+#      name: Tapaustaakka
+#      name_ en: Case burden
+#      type: health.DataOvariable
+#      quantity: case_burden
+#      unit: DALY/case
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
+#
+#    - id: disease_burden
+#      name: Kokonaistautitaakka
+#      name_ en: Total disease burden
+#      type: health.DiseaseBurden
+#      unit: cap
+#      input_nodes:
+#        - incidence
+#        - population
+#        - case_burden
 
 ################
 # health benefits
