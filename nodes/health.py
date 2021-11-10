@@ -67,7 +67,7 @@ class Exposure(Ovariable):
 #        out[VALUE_COLUMN] = out[VALUE_COLUMN].pint.m
         out = out * unit_registry.Quantity('0 * cap * d / mg') + 1
         tst = out.merge(exposure)[0:4]
-        #out = out * exposure
+        # out = out * exposure
         # FIXME Does not work atm
 
         out = out.merge(bw).reset_index()
@@ -121,11 +121,11 @@ class ExposureResponseFunction(Ovariable):
 
     def compute(self):
         df = pd.DataFrame({
-            'scaling': pd.Series(['None']*4),
-            'Response': pd.Series(['CVD']*2 + ['Cancer']*2),
-            'er_function': pd.Series(['RR']*2 + ['UR']*2),
-            'observation': pd.Series(['param1', 'param2']*2),
-            FORECAST_COLUMN: pd.Series([False]*4),
+            'scaling': pd.Series(['None'] * 4),
+            'Response': pd.Series(['CVD'] * 2 + ['Cancer'] * 2),
+            'er_function': pd.Series(['RR'] * 2 + ['UR'] * 2),
+            'observation': pd.Series(['param1', 'param2'] * 2),
+            FORECAST_COLUMN: pd.Series([False] * 4),
             VALUE_COLUMN: pd.Series([200., 0., 2000.1, 0.2], dtype='pint[mg/person/d]')
         }).set_index(['er_function', 'Response', 'observation', 'scaling'])
 
