@@ -16,7 +16,7 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 
@@ -25,11 +25,16 @@ from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
 from .graphql_views import PathsGraphQLView
+from users.views import change_admin_instance
 
 
 urlpatterns = [
     path('django-admin/', admin.site.urls),
-
+    re_path(
+        r'^admin/change-admin-instance/(?:(?P<instance_id>\d+)/)?$',
+        change_admin_instance,
+        name='change-admin-instance'
+    ),
     path('admin/', include(wagtailadmin_urls)),
     path('documents/', include(wagtaildocs_urls)),
 
