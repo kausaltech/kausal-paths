@@ -62,6 +62,8 @@ SECRET_KEY = env('SECRET_KEY')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+AUTH_USER_MODEL = 'users.User'
+
 
 # Application definition
 
@@ -70,6 +72,7 @@ INSTALLED_APPS = [
     'wagtail.contrib.redirects',
     'wagtail.embeds',
     'wagtail.sites',
+    'users',  # must be before wagtail.users
     'wagtail.users',
     'wagtail.snippets',
     'wagtail.documents',
