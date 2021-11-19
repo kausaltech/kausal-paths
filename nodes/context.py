@@ -12,6 +12,7 @@ from rich.tree import Tree
 from common.cache import Cache
 from params import Parameter
 from params.discover import discover_parameter_types
+from params.storage import SettingStorage
 
 from .datasets import Dataset, DVCDataset, FixedDataset
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from .node import Node
     from .instance import Instance
     from .scenario import CustomScenario, Scenario
+    from params.storage import Param
 
 
 unit_registry = pint.UnitRegistry(
@@ -62,6 +64,7 @@ class Context:
     cache: Cache
     skip_cache: bool = False
     instance: Instance
+    setting_storage: Optional[SettingStorage]
 
     def __init__(
         self, dataset_repo: dvc_pandas.Repository, target_year: int,

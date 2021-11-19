@@ -138,17 +138,18 @@ class Node:
             df = ds.get_copy(self.context)
             if df.index.duplicated().any():
                 raise NodeError(self, "Input dataset has duplicate index rows")
+            assert isinstance(df, pd.DataFrame)
             dfs.append(df)
         return dfs
 
     @overload
-    def get_input_dataset(self, required: Literal[True]) -> Union[pd.DataFrame, pd.Series]: ...
+    def get_input_dataset(self, required: Literal[True]) -> pd.DataFrame: ...
 
     @overload
-    def get_input_dataset(self) -> Union[pd.DataFrame, pd.Series]: ...
+    def get_input_dataset(self) -> pd.DataFrame: ...
 
     @overload
-    def get_input_dataset(self, required: Literal[False]) -> Optional[Union[pd.DataFrame, pd.Series]]: ...
+    def get_input_dataset(self, required: Literal[False]) -> Optional[pd.DataFrame]: ...
 
     def get_input_dataset(self, required: bool = True):
         """Gets the first (and only) dataset if it exists."""

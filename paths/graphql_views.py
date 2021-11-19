@@ -7,6 +7,7 @@ from graphql.language.ast import Variable
 from graphql.error import GraphQLError
 
 from nodes.models import Instance, InstanceConfig, InstanceHostname
+from params.storage import SessionStorage
 from .graphql_helpers import GQLContext, GQLInfo, GQLInstanceInfo
 
 
@@ -103,19 +104,19 @@ class InstanceMiddleware:
 
     def activate_instance(self, instance: Instance, info: GQLInstanceInfo):
         context = instance.context
-        session = info.context.session
-
+        context.setting_storage = storage = SessionStorage(instance=instance, session=info.context.session)
+        active_scenario_id = storage.get_active_scenario()
         scenario = None
-        if 'active_scenario' in session:
+        if active_scenario_id:
             try:
-                scenario = context.get_scenario(session['active_scenario'])
+                scenario = context.get_scenario(active_scenario_id)
             except KeyError:
-                del session['active_scenario']
+                storage.set_active_scenario(None)
 
         # Tell the custom scenario about the user setting so that
         # it can locate the customized parameters.
         if context.custom_scenario is not None:
-            context.custom_scenario.set_session(session)
+            context.custom_scenario.set_storage(storage)
 
         if scenario is None:
             scenario = context.get_default_scenario()

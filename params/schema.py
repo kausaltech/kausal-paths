@@ -2,7 +2,7 @@ from typing import Any
 import graphene
 from graphql.error import GraphQLError
 
-from paths.graphql_helpers import GQLInfo
+from paths.graphql_helpers import GQLInfo, GQLInstanceInfo
 
 from . import (
     BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter,
@@ -89,7 +89,7 @@ class SetParameterMutation(graphene.Mutation):
     ok = graphene.Boolean()
     parameter = graphene.Field(ParameterInterface)
 
-    def mutate(root, info: GQLInfo, id, number_value=None, bool_value=None, string_value=None):
+    def mutate(root, info: GQLInstanceInfo, id, number_value=None, bool_value=None, string_value=None):
         context = info.context.instance.context
         try:
             param = context.get_parameter(id)
@@ -127,15 +127,11 @@ class SetParameterMutation(graphene.Mutation):
         except ValidationError as e:
             raise GraphQLError(str(e), [info])
 
-        session = info.context.session
-        session_settings = session.setdefault('settings', {})
-        session_settings[id] = value
-
-        context.custom_scenario.set_session(session)
+        setting_storage = info.context.instance.context.setting_storage
+        assert setting_storage is not None
+        setting_storage.set_param(id, value)
+        setting_storage.set_active_scenario(context.custom_scenario.id)
         context.activate_scenario(context.custom_scenario)
-        session['active_scenario'] = context.custom_scenario.id
-        # Explicitly mark session as modified because we might only have modified `session['settings']`, not `session`
-        session.modified = True
 
         return SetParameterMutation(ok=True, parameter=param)
 
@@ -146,21 +142,24 @@ class ResetParameterMutation(graphene.Mutation):
 
     ok = graphene.Boolean()
 
-    def mutate(root, info: GQLInfo, id=None):
+    def mutate(root, info: GQLInstanceInfo, id: str = None):
         context = info.context.instance.context
-        session = info.context.session
+        storage = context.setting_storage
+        assert storage is not None
         if id is None:
             # Reset all parameters to defaults
-            session.pop('params', None)
+            storage.reset()
         else:
-            params = session.get('params', {})
-            params.pop(id, None)
+            storage.reset_param(id)
 
-        params = session.get('params', {})
-        if not params:
-            session['active_scenario'] = context.get_default_scenario().id
+        customized_params = storage.get_customized_param_values()
+        if not customized_params:
+            # If we no longer have customized parameters, activate the default scenario
+            default_scenario_id = context.get_default_scenario().id
+            active_scenario_id = storage.get_active_scenario()
+            if active_scenario_id is not None and active_scenario_id != default_scenario_id:
+                storage.set_active_scenario(None)
 
-        info.context.session.modified = True
         return ResetParameterMutation(ok=True)
 
 
@@ -171,14 +170,14 @@ class ActivateScenarioMutation(graphene.Mutation):
     ok = graphene.Boolean()
     active_scenario = graphene.Field('nodes.schema.ScenarioType')
 
-    def mutate(root, info: GQLInfo, id):
+    def mutate(root, info: GQLInstanceInfo, id):
         context = info.context.instance.context
-        session = info.context.session
         scenario = context.scenarios.get(id)
         if scenario is None:
             raise GraphQLError("Scenario '%s' not found" % id, [info])
 
-        session['active_scenario'] = scenario.id
+        assert context.setting_storage is not None
+        context.setting_storage.set_active_scenario(scenario.id)
         context.activate_scenario(scenario)
 
         return dict(ok=True, active_scenario=scenario)
@@ -194,11 +193,11 @@ class Query(graphene.ObjectType):
     parameters = graphene.List(ParameterInterface)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
 
-    def resolve_parameters(root, info: GQLInfo):
+    def resolve_parameters(root, info: GQLInstanceInfo):
         instance = info.context.instance
         return instance.context.parameters.values()
 
-    def resolve_parameter(root, info: GQLInfo, id):
+    def resolve_parameter(root, info: GQLInstanceInfo, id):
         instance = info.context.instance
         try:
             return instance.context.get_parameter(id)

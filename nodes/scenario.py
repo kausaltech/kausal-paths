@@ -11,12 +11,11 @@ from nodes.node import Node
 
 if TYPE_CHECKING:
     from .context import Context
-    from django.contrib.sessions.backends.base import SessionBase
+    from params.storage import SettingStorage
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class Scenario:
     id: str
     name: TranslatedString
@@ -26,36 +25,45 @@ class Scenario:
     # Nodes that will be notified of this scenario's creation
     notified_nodes: List[Node] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __init__(
+        self, id: str, name: TranslatedString, default: bool = False,
+        all_actions_enabled: bool = False, notified_nodes: Optional[List[Node]] = None,
+    ):
+        self.id = id
+        self.name = name
+        self.default = default
+        self.all_actions_enabled = all_actions_enabled
+        self.notified_nodes = notified_nodes or []
         for node in self.notified_nodes:
             node.on_scenario_created(self)
 
-    def activate(self, context):
+    def activate(self, context: Context):
         """Resets each parameter in the context to its setting for this scenario if it has one."""
         for param in context.get_all_parameters():
             param.reset_to_scenario_setting(self)
 
 
-@dataclass
 class CustomScenario(Scenario):
-    base_scenario: Optional[Scenario] = None
-    session: 'Optional[SessionBase]' = None
+    base_scenario: Scenario
+    storage: SettingStorage
 
-    def set_session(self, session):
-        self.session = session
+    def __init__(
+        self, *args, base_scenario: Scenario, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.base_scenario = base_scenario
+
+    def set_storage(self, storage: SettingStorage):
+        self.storage = storage
 
     def reset(self, context: Context):
-        self.session['settings'] = {}
-        self.session.modified = True
+        self.storage.reset()
         self.base_scenario.activate(context)
 
     def activate(self, context: Context):
-        assert self.base_scenario is not None
-        assert self.session is not None
-
         self.base_scenario.activate(context)
-        settings = self.session.get('settings', {})
-        for param_id, val in list(settings.items()):
+        params = self.storage.get_customized_param_values()
+        for param_id, val in list(params.items()):
             param = context.get_parameter(param_id, required=False)
             is_valid = True
             if param is None:
