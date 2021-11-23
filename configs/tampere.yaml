@@ -358,10 +358,6 @@ instance:
     - id: multiplier
       value: .95
 
-    #
-    # Transport nodes
-    #
-
   - id: electricity_consumption_emissions
     name: Sähkön kulutuksen päästöt
     name_en: Electricity consumption emissions
@@ -370,6 +366,10 @@ instance:
     color: '#F4D240'
     output_nodes:
     - net_emissions
+
+    #
+    # Transport nodes
+    #
 
   - id: tram_kilometers
     name: Ratikkasuorite
@@ -589,9 +589,9 @@ instance:
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
-    input_datasets:
+    input_datasets:  # There is no data about this in the input database. Parameter should be removed?
     - id: tampere/scenarios/emissions/bau
-      column: Industry without city machinery
+      column: Industry without city machinery  # Wrong column, luckily data is not used.
     output_nodes:
     - industry_and_machinery_emissions
 
