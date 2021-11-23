@@ -33,7 +33,7 @@ class Ovariable(SimpleNode):
     # quantity: what the ovariable measures, e.g. exposure, exposure_response, disease_burden
     quantity: Optional[str]
 
-    def prepare_ovariable(self, quantity, query: str = None, drop: List = None):
+    def get_input(self, quantity, query: str = None, drop: List = None):
         count = 0
         for node in self.input_nodes:
             if node.quantity == quantity:

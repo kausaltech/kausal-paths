@@ -40,10 +40,10 @@ class Exposure(Ovariable):
     scaled = False
 
     def compute(self):
-        consumption = self.prepare_ovariable('ingestion')
-        concentration = self.prepare_ovariable('mass_concentration')
-        bw = self.prepare_ovariable('body_weight')
-        er_function = self.prepare_ovariable(
+        consumption = self.get_input('ingestion')
+        concentration = self.get_input('mass_concentration')
+        bw = self.get_input('body_weight')
+        er_function = self.get_input(
             'exposure-response',
             query='observation=="param1"',
             drop=['observation', 'Response'])
@@ -143,7 +143,7 @@ class RelativeRisk(Ovariable):
 
     def compute(self):
 
-        param1 = self.prepare_ovariable(
+        param1 = self.get_input(
             quantity='exposure-response',
             query="observation == 'param1'", drop=['observation'])
 
@@ -161,11 +161,11 @@ class RelativeRisk(Ovariable):
             parameters[key] = OvariableFrame(of)
         """
 
-        param2 = self.prepare_ovariable(
+        param2 = self.get_input(
             quantity='exposure-response',
             query="observation == 'param2'", drop=['observation'])
 
-        exposure = self.prepare_ovariable('ingestion')
+        exposure = self.get_input('ingestion')
 
         df = pd.DataFrame()
 #        relative_functions = set(self.get_output().reset_index().er_function)   # Contains also unused functions
@@ -213,18 +213,18 @@ class PopulationAttributableFraction(Ovariable):
     unit = 'dimensionless'
 
     def compute(self):
-        param1 = self.prepare_ovariable(
+        param1 = self.get_input(
             'exposure-response',
             query="observation == 'param1'", drop='observation')
-        param2 = self.prepare_ovariable(
+        param2 = self.get_input(
             'exposure-response',
             query="observation == 'param2'", drop='observation')
-        exposure = self.prepare_ovariable('ingestion')
-        frexposed = self.prepare_ovariable('fraction')
-        incidence = self.prepare_ovariable('incidence')
-        rr = self.prepare_ovariable('ratio')
-        p_illness = self.prepare_ovariable('probability')
-        bw = self.prepare_ovariable('body_weight')
+        exposure = self.get_input('ingestion')
+        frexposed = self.get_input('fraction')
+        incidence = self.get_input('incidence')
+        rr = self.get_input('ratio')
+        p_illness = self.get_input('probability')
+        bw = self.get_input('body_weight')
 
 #        param1 = param1 * 1.00001 # Integers cause trouble with ** -1
 
@@ -301,9 +301,9 @@ class DiseaseBurden(Ovariable):
     quantity = 'disease_burden'
 
     def compute(self):
-        incidence = self.prepare_ovariable('incidence')
-        population = self.prepare_ovariable('population')
-        case_burden = self.prepare_ovariable('disease_burden')
+        incidence = self.get_input('incidence')
+        population = self.get_input('population')
+        case_burden = self.get_input('disease_burden')
 
         out = population * incidence * case_burden
 
@@ -316,8 +316,8 @@ class AttributableDiseaseBurden(Ovariable):
     quantity = 'disease_burden'
 
     def compute(self):
-        bod = self.prepare_ovariable('disease_burden')
-        paf = self.prepare_ovariable('fraction')
+        bod = self.get_input('disease_burden')
+        paf = self.get_input('fraction')
 
         out = bod * paf
 
