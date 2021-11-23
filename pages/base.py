@@ -43,7 +43,7 @@ class Metric:
             self.split_values = None
             return None
 
-        df = self.df.copy()
+        df = self.df.copy().dropna()
         for col in df.columns:
             if hasattr(df[col], 'pint'):
                 df[col] = df[col].pint.m
