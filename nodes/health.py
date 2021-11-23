@@ -43,8 +43,10 @@ class Exposure(Ovariable):
         consumption = self.prepare_ovariable('ingestion')
         concentration = self.prepare_ovariable('mass_concentration')
         bw = self.prepare_ovariable('body_weight')
-        er_function = self.prepare_ovariable('exposure-response',
-            query='observation=="param1"', drop=['observation', 'Response'])
+        er_function = self.prepare_ovariable(
+            'exposure-response',
+            query='observation=="param1"',
+            drop=['observation', 'Response'])
 
         exposure = concentration * consumption
 
