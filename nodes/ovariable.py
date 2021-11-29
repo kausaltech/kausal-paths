@@ -54,13 +54,15 @@ class Ovariable(SimpleNode):
         return OvariableFrame(of)
 
     def clean_computing(self, of):
+        print(self.id)
+        self.print_pint_df(of[0:3])
         of[VALUE_COLUMN] = self.ensure_output_unit(of[VALUE_COLUMN])
         return OvariableFrame(of)
 
 
 class OvariableFrame(pd.DataFrame):
 
-    def merge(self, other):
+    def do_inner_join(self, other):
         assert VALUE_COLUMN in self.columns  # Cannot be in a merged format
 
         def add_temporary_index(self):
@@ -81,6 +83,15 @@ class OvariableFrame(pd.DataFrame):
         out.index = out.index.droplevel(['temporary'])
 
         return out
+
+    def aggregate_by_column(self, groupby, fun):
+        self = self.groupby(groupby)
+        if fun == 'sum':
+            self = self.sum()
+        else:
+            self = self.mean()
+        self[FORECAST_COLUMN] = self[FORECAST_COLUMN].mask(self[FORECAST_COLUMN] > 0, 1).astype('boolean')
+        return self
 
     def clean(self):
         df = self.reset_index()
@@ -105,67 +116,67 @@ class OvariableFrame(pd.DataFrame):
         print(out)
 
     def __add__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] + self[VALUE_y]
         return self.clean()
 
     def __sub__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] - self[VALUE_y]
         return self.clean()
 
     def __mul__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] * self[VALUE_y]
         return self.clean()
 
     def __truediv__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] / self[VALUE_y]
         return self.clean()
 
     def __mod__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] % self[VALUE_y]
         return self.clean()
 
     def __pow__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] ** self[VALUE_y]
         return self.clean()
 
     def __floordiv__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] // self[VALUE_y]
         return self.clean()
 
     def __lt__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] < self[VALUE_y]
         return self.clean()
 
     def __le__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] <= self[VALUE_y]
         return self.clean()
 
     def __gt__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] > self[VALUE_y]
         return self.clean()
 
     def __ge__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] >= self[VALUE_y]
         return self.clean()
 
     def __eq__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] == self[VALUE_y]
         return self.clean()
 
     def __ne__(self, other):
-        self = self.merge(other)
+        self = self.do_inner_join(other)
         self[VALUE_COLUMN] = self[VALUE_x] != self[VALUE_y]
         return self.clean()
 

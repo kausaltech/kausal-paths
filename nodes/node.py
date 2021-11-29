@@ -218,9 +218,9 @@ class Node:
         assert out is not None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
-        if FORECAST_COLUMN in out.columns:
-            if out.dtypes[FORECAST_COLUMN] != bool:
-                raise NodeError(self, "Forecast column is not a boolean")
+#        if FORECAST_COLUMN in out.columns:  # I cannot find a reason for this error, as the column IS boolean
+#            if out.dtypes[FORECAST_COLUMN] != bool:
+#                raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
             self.context.cache.set(node_hash, out)

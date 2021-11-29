@@ -212,6 +212,83 @@ class PopulationAttributableFraction(Ovariable):
     quantity = 'fraction'
     unit = 'dimensionless'
 
+    def new_compute(self):
+        erf = self.get_input('exposure-response')
+        param2 = self.get_input(
+            'exposure-response',
+            query="observation == 'param2'", drop='observation')
+        exposure = self.get_input('ingestion')
+        frexposed = self.get_input('fraction')
+        incidence = self.get_input('incidence')
+        rr = self.get_input('ratio')
+        p_illness = self.get_input('probability')
+        bw = self.get_input('body_weight')
+
+        of = erf.do_inner_join(exposure).reset_index()
+
+#        er_function_list = list(sorted(set(of.reset_index()['er_function'])))
+
+        out = pd.DataFrame()
+
+        for row in of.index:
+            # FIXME Tähän scale_exposure
+
+            # FIXME Tähän yksikön tarkistus. ERF-dataan annetaan altistuksen yksikkö ilman log-muunnosta.
+
+            if of['er_function'].loc[row] == 'UR':
+                k = OvariableFrame(of.loc[row])
+                k = k ** -1
+
+                threshold = param2
+
+                dose2 = (exposure - threshold)
+                # FIXME clip removes the pint unit. Figure out something else.
+                # dose2 = np.clip(dose2, 0, None)  # Smallest allowed value is 0
+                out1 = (k * dose2 * frexposed / incidence)
+                out = out.append(out1.reset_index())
+
+            if of['er_function'].loc[row] == 'Step':
+                upper = OvariableFrame(of.loc[row])
+
+                lower = param2
+                out2 = (exposure >= lower) * (exposure <= upper) * -1 + 1  # FIXME
+                out2 = out2 * frexposed / incidence
+                out = out.append(out2.reset_index())
+
+            elif of['er_function'].loc[row] == 'RR' or of['er_function'].loc[row] == 'Relative Hill':
+                r = frexposed * (rr - 1)
+
+                out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+                # is smaller than 0, we should use r instead. It can be converted from the result:
+                # r/(r+1)=a <=> r=a/(1-a)
+                out3[VALUE_COLUMN] = np.where(
+                    out3[VALUE_COLUMN] < 0,
+                    out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
+                    out3[VALUE_COLUMN])
+
+                out = out.append(out3.reset_index())
+
+            elif of['er_function'].loc[row] == 'beta poisson approximation':
+                out4 = ((exposure / param2 + 1) ** (erf * -1) * -1 + 1) * frexposed
+                out4 = (out4 / incidence * p_illness)
+                out = out.append(out4.reset_index())
+
+            elif of['er_function'].loc[row] == 'exact beta poisson':
+                out5 = ((erf / (erf + param2) * exposure * -1).exp() * -1 + 1) * frexposed
+                out5 = out5 / incidence * p_illness
+                out = out.append(out5.reset_index())
+
+            elif of['er_function'].loc[row] == 'exponential':
+                k = erf
+                out6 = ((k * exposure * -1).exp() * -1 + 1) * frexposed
+                out6 = out6 / incidence * p_illness
+                out = out.append(out6.reset_index())
+
+        keep = set(out.columns) - {'scaling', 'matrix', 'exposure', 'exposure_unit', 'er_function', 0}
+        out = out[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
+
+        return self.clean_computing(out)
+
     def compute(self):
         param1 = self.get_input(
             'exposure-response',
@@ -320,5 +397,9 @@ class AttributableDiseaseBurden(Ovariable):
         paf = self.get_input('fraction')
 
         out = bod * paf
+        print('attributable disease burden')
+        print(out.dtypes[FORECAST_COLUMN])
+        self.print_pint_df(out[0:3])
+        out = out.aggregate_by_column(groupby='Year', fun='sum')
 
         return self.clean_computing(out)

@@ -16,3 +16,4 @@ __pycache__/
 db.sqlite3
 /mysite/
 .DS_Store
+/data/

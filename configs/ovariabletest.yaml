@@ -226,10 +226,12 @@ instance:
     - id: meat_health_impact
       name: Lihan terveyshyöty
       name_en: Meat health benefit
+      quantity: disease_burden
+      unit: DALY/a
       color: '#cb4154'
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
       params:
-        - id: health_factor
+        - id: multiplier
           value: -164.290
       input_nodes:
         - meat_consumption
