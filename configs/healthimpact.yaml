@@ -1,5 +1,5 @@
 instance:
-  id: ilmastoruoka
+  id: healthimpact
   default_language: fi
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
@@ -7,9 +7,9 @@ instance:
 #    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
 #    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
 #    commit: 5c277e7d504dcf219209f902751f8448fd6648ef
-  site_url: https://ilmastoruoka.test.kausal.tech
-  name: Suomen ilmastoruokaohjelma
-  name_en: Finnish climate food program
+  site_url: https://healthimpact.test.kausal.tech
+  name: Tautitaakkalaskenta
+  name_en: Health impact assessment with disease burden
   target_year: 2035
   reference_year: 2017
   minimum_historical_year: 2017
