@@ -97,7 +97,7 @@ instance:
     - id: population
       name: Suomen väestö
       name_en: Population in Finland
-      type: health.DataOvariable
+      type: simple.AdditiveNode
       quantity: population
       unit: person
       input_datasets:
@@ -448,10 +448,8 @@ instance:
     - id: domestic_fish_consumption_per_person
       name: Kotimaisen kalan kulutus per henkilö
       name_en: Domestic fish consumption per person
-      type: health.DataOvariable
-      quantity: ingestion
-#      type: simple.AdditiveNode
-#      quantity: per_capita
+      type: simple.AdditiveNode
+      quantity: per_capita
       unit: g/day/person
       input_datasets:
         - id: ilmastoruoka/consumption
@@ -460,140 +458,6 @@ instance:
           dropna: true
       output_nodes:
         - domestic_fish_consumption
-
-######## OTHER HEALTH BENEFITS
-
-    - id: dioxin_concentration
-      name: Dioksiinipitoisuus
-      name_en: Dioxin concentration
-      type: health.DataOvariable
-      quantity: mass_concentration
-      unit: ppm
-      color: '#456789'
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Domestic fish
-          forecast_from: 2021
-          dropna: true
-      output_nodes:
-        - exposure
-
-    - id: exposure
-      name: Dioksiinialtistus
-      name_en: Dioxin exposure
-      type: health.Exposure
-      unit: mg/person/day
-      input_nodes:
-        - domestic_fish_consumption_per_person
-        - exposure_response_function
-        - body_weight
-
-    - id: p_illness
-      name: Sairauden todennäköisyys
-      name_en: Probability of illness
-      type: health.DataOvariable
-      quantity: probability
-      unit: dimensionless
-      input_datasets:
-        - id: ilmastoruoka/emission_factor  # FIXME Get real data
-          column: Drinks
-          forecast_from: 2021
-          dropna: true
-
-    - id: body_weight
-      name: Ruumiinpaino
-      name_ en: Body weight
-      type: health.DataOvariable
-      quantity: body_weight
-      unit: kg
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Alcohol
-          forecast_from: 2021
-          dropna: true
-
-    - id: frexposed
-      name: Altistuneiden osuus
-      name_ en: Fraction exposed
-      type: health.DataOvariable
-      quantity: fraction
-      unit: dimensionless
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
-
-    - id: exposure_response_function
-      name: Annosvaste
-      name_ en: Exposure-response function
-      type: health.ExposureResponseFunction  # FIXME Get real data
-      unit: mg/person/day
-
-    - id: relative_risk
-      name: Riskisuhde
-      name_en: Risk ratio
-      type: health.RelativeRisk
-      input_nodes:
-        - exposure
-        - exposure_response_function
-        - body_weight
-
-    - id: incidence
-      name: Ilmaantuvuus
-      name_ en: Incidence
-      type: health.DataOvariable
-      quantity: incidence
-      unit: 1/person
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
-
-    - id: population_attributable_fraction
-      name: Väestösyyosuus
-      name_en: Population attributable fraction
-      type: health.PopulationAttributableFraction
-      input_nodes:
-        - exposure
-        - exposure_response_function
-        - relative_risk
-        - frexposed
-        - p_illness
-        - incidence
-        - body_weight
-
-    - id: case_burden
-      name: Tapaustaakka
-      name_ en: Case burden
-      type: health.DataOvariable
-      quantity: disease_burden
-      unit: DALY
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
-
-    - id: disease_burden
-      name: Kokonaistautitaakka
-      name_ en: Total disease burden
-      type: health.DiseaseBurden
-      unit: person
-      input_nodes:
-        - incidence
-        - population
-        - case_burden
-
-    - id: attributable_disease_burden
-      name: Kohdentuva tautitaakka
-      name_en: Attributable disease burden
-      type: health.AttributableDiseaseBurden
-      unit: person
-      input_nodes:
-        - disease_burden
-        - population_attributable_fraction
 
 ################
 # health benefits
@@ -609,10 +473,12 @@ instance:
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
       name_en: Imported fish health benefit
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
       color: '#FA8072'
-      type: health.FixedMultiplierHealthImpactNode
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 715.82 # Multiplier must always be in units -DALY/kt of food (benefits are positive numbers)
       input_nodes:
         - imported_fish_consumption
@@ -622,10 +488,12 @@ instance:
     - id: domestic_fish_health_impact
       name: Kotimaisen kalan terveyshyöty
       name_en: Domestic fish health benefit
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
       color: '#A6A6A6'
-      type: health.FixedMultiplierHealthImpactNode
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 715.82
       input_nodes:
         - domestic_fish_consumption
@@ -645,10 +513,12 @@ instance:
     - id: fruit_health_impact
       name: Hedelmien ja marjojen terveyshyöty
       name_en: Fruit and berries health benefit
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
       color: '#4F86F7'
-      type: health.FixedMultiplierHealthImpactNode
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 121.04030 
       input_nodes:
         - fruit_consumption
@@ -659,9 +529,11 @@ instance:
       name: Vihannesten terveyshyöty
       name_en: Vegetable health benefit
       color: '#8db600'
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: 72.52568 
       input_nodes:
         - vegetable_consumption
@@ -672,9 +544,11 @@ instance:
       name: Lihan terveyshyöty
       name_en: Meat health benefit
       color: '#cb4154'
-      type: health.FixedMultiplierHealthImpactNode
+      type: simple.FixedMultiplierNode
+      quantity: disease_burden
+      unit: DALY/a
       params:
-        - id: health_factor
+        - id: multiplier
           value: -164.290
       input_nodes:
         - meat_consumption
