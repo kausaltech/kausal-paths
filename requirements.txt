@@ -124,7 +124,7 @@ dulwich==0.20.26
     # via dvc
 dvc[s3]==2.8.3
     # via dvc-pandas
-dvc-pandas==0.0.12
+dvc-pandas==0.0.13
     # via -r requirements.in
 et-xmlfile==1.1.0
     # via openpyxl
