@@ -455,6 +455,7 @@ instance:
       type: simple.AdditiveNode
       quantity: disease_burden
       unit: DALY/a
+      color: '#345678'
 
     - id: imported_fish_health_impact
       name: Tuontikalan terveyshyöty
@@ -465,7 +466,7 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 715.82
+          value: 715.82 # Multiplier must always be in units -DALY/kt of food (benefits are positive numbers)
           unit: DALY/kt
       input_nodes:
         - imported_fish_consumption
@@ -523,7 +524,7 @@ instance:
       unit: DALY/a
       params:
         - id: multiplier
-          value: 72.52568 
+          value: 72.52568
           unit: DALY/kt
       input_nodes:
         - vegetable_consumption
@@ -907,7 +908,7 @@ instance:
           unit: g/day/person
 
     - id: vegan
-      name: Vegaani ruokaalio
+      name: Vegaani ruokavalio
       name_en: Vegan diet
       all_actions_enabled: true
       params:

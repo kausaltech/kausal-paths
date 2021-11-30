@@ -28,17 +28,17 @@ instance:
       target_year_goal: 0
 
   nodes:
-#    - id: population
-#      name: Suomen väestö
-#      name_en: Population in Finland
-#      type: health.DataOvariable
-#      quantity: population
-#      unit: person
-#      input_datasets:
-#        - id: ilmastoruoka/emissions
-#          column: Population
-#          forecast_from: 2021
-#          dropna: true
+    - id: population
+      name: Suomen väestö
+      name_en: Population in Finland
+      type: health.DataOvariable
+      quantity: population
+      unit: person
+      input_datasets:
+        - id: ilmastoruoka/emissions
+          column: Population
+          forecast_from: 2021
+          dropna: true
 
     - id: meat_emissions
       name: Lihan päästöt

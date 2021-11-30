@@ -198,6 +198,7 @@ class MultiplicativeNode(AdditiveNode):
 
         return df
 
+
 class Multiple2Node(AdditiveNode):
     """Multiply nodes together WITHOUT potentially adding other input nodes.
     """
@@ -240,8 +241,6 @@ class Multiple2Node(AdditiveNode):
             self.print_pint_df(df)
 
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-        print(self.id)
-        print(df[VALUE_COLUMN])
 
         return df
 
@@ -296,5 +295,3 @@ class FixedMultiplierNode(SimpleNode):
             df = self.replace_output_using_input_dataset(df)
 
         return df
-
-

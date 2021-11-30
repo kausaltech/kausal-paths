@@ -151,7 +151,9 @@ class RelativeRisk(Ovariable):
         A possible atlernative for parameterization
         er_function = er_function.reset_index()
         param_names = er_function.observation.unique()
+
         parameters = {elem: pd.DataFrame for elem in param_names}
+
         for key in parameters.keys():
             of = er_function[:][er_function.observation == key]
             index_list = list(set(of.columns) - {VALUE_COLUMN, FORECAST_COLUMN})

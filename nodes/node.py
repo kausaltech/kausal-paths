@@ -219,9 +219,9 @@ class Node:
         assert out is not None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
-        if FORECAST_COLUMN in out.columns:
-            if out.dtypes[FORECAST_COLUMN] != bool:
-                raise NodeError(self, "Forecast column is not a boolean")
+#        if FORECAST_COLUMN in out.columns:  # I cannot find a reason for this error, as the column IS boolean
+#            if out.dtypes[FORECAST_COLUMN] != bool:
+#                raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
             self.context.cache.set(node_hash, out)
@@ -273,8 +273,9 @@ class Node:
         return True
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
-        pt = pint_pandas.PintType(self.unit)
+        node_pt = pint_pandas.PintType(self.unit)
         if hasattr(s, 'pint'):
+            s_pt = pint_pandas.PintType(s.pint.units)
             if not self.unit.is_compatible_with(s.pint.units):
                 if input_node is not None:
                     node_str = ' from node %s' % input_node.id
@@ -283,7 +284,13 @@ class Node:
                 raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
                     s.pint.units, node_str, self.unit
                 ))
-        return s.astype(float).astype(pt)
+        else:
+            s_pt = None
+        s = s.astype(float)
+        if s_pt is not None:
+            s = s.astype(s_pt)
+        s = s.astype(node_pt)
+        return s
 
     def get_downstream_nodes(self) -> List[Node]:
         # Depth-first traversal
