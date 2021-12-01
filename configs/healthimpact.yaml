@@ -85,7 +85,7 @@ instance:
       name_en: Dioxin concentration
       type: health.DataOvariable
       quantity: mass_concentration
-      unit: ppm
+      unit: mg/kg
       color: '#456789'
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
@@ -102,7 +102,6 @@ instance:
       unit: mg/person/day
       input_nodes:
         - meat_consumption_per_person
-        - exposure_response_function
         - body_weight
 
     - id: p_illness
@@ -147,15 +146,6 @@ instance:
       type: health.ExposureResponseFunction  # FIXME Get real data
       unit: mg/person/day
 
-    - id: relative_risk
-      name: Riskisuhde
-      name_en: Risk ratio
-      type: health.RelativeRisk
-      input_nodes:
-        - exposure
-        - exposure_response_function
-        - body_weight
-
     - id: incidence
       name: Ilmaantuvuus
       name_ en: Incidence
@@ -175,11 +165,9 @@ instance:
       input_nodes:
         - exposure
         - exposure_response_function
-        - relative_risk
         - frexposed
         - p_illness
         - incidence
-        - body_weight
 
     - id: case_burden
       name: Tapaustaakka

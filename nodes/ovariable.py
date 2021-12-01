@@ -54,8 +54,6 @@ class Ovariable(SimpleNode):
         return OvariableFrame(of)
 
     def clean_computing(self, of):
-        print(self.id)
-        self.print_pint_df(of[0:3])
         of[VALUE_COLUMN] = self.ensure_output_unit(of[VALUE_COLUMN])
         return OvariableFrame(of)
 
