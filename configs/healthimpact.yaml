@@ -233,6 +233,7 @@ instance:
       params:
         - id: multiplier
           value: -164.290
+          unit: DALY/kt
       input_nodes:
         - meat_consumption
       output_nodes:

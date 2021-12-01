@@ -31,91 +31,43 @@ from .ovariable import Ovariable, OvariableFrame
 class DataOvariable(Ovariable, AdditiveNode):
     pass
 
-# Exposure is the intensity of contact with the environment by the target population.
+
+# Possible units for exposure:
+# mg/person       acute dose per person
+# mg/person/d     mass rate per person
+# mg/kg           acute dose per body weight
+# mg/kg/d         mass rate per body weight = fraction of body mass rate
+# ug/m**3         concentration in breathing air
+# ppm             mass concentration in breathing air
 
 
 class Exposure(Ovariable):
+    # Exposure is the intensity of contact with the environment by the target population.
 
     quantity = 'ingestion'
-    scaled = False
+    scaled = False  # This is probably not needed any more
+
+    def compute(self):
+        consumption = self.get_input('ingestion')  # This can be bolus (g/person) or rate (g/person/d)
+        concentration = self.get_input('mass_concentration')
+
+        exposure = concentration * consumption
+
+        return self.clean_computing(exposure)
+
+
+class ExposurePerBW(Exposure):
+    # Here exposure is scaled by body weight
+    # It is not clear how quantities and units are compatible, if ingestion can be mg/d or mg/kg/d
 
     def compute(self):
         consumption = self.get_input('ingestion')
         concentration = self.get_input('mass_concentration')
         bw = self.get_input('body_weight')
-        er_function = self.get_input(
-            'exposure-response',
-            query='observation=="param1"',
-            drop=['observation', 'Response'])
 
-        exposure = concentration * consumption
-
-        # scale_exposure leads to dtype object, which causes problems in ensure_pint_unit
-
-        # Somehow it is due to er_function, maybe pint.m but not clear. Also, this error may relate to the cause:
-        # pint_array.py:648: UnitStrippedWarning: The unit of the quantity is stripped when downcasting to ndarray.
-        # exposure = self.scale_exposure(exposure, er_function, bw)
-        # This was because er_function was defined by rows and not by pd.Series. This was fixed.
+        exposure = concentration * consumption / bw
 
         return self.clean_computing(exposure)
-
-    # scale_exposure() scales the exposure by logarithmic function or body weight.
-    # The information about how to scale comes from exposure-response function.
-    # Thus, er-function and body weight must be provided.
-    # FIXME Is this a sensible thing to do, as then the units and dimensions may differ within node?
-
-    def scale_exposure(self, exposure, er_function, bw):
-        out = OvariableFrame(er_function.copy())
-#        out[VALUE_COLUMN] = out[VALUE_COLUMN].pint.m
-        out = out * unit_registry.Quantity('0 * cap * d / mg') + 1
-        tst = out.merge(exposure)[0:4]
-        # out = out * exposure
-        # FIXME Does not work atm
-
-        out = out.merge(bw).reset_index()
-
-        out[VALUE_COLUMN] = np.where(
-            out['scaling'] == 'BW',
-            out[VALUE_x] / out[VALUE_y],
-            out[VALUE_x])
-
-        # FIXME log10 not defined for all inputs
-        #        out[VALUE_COLUMN] = np.where(
-        #            out['scaling'] == 'Log10',
-        #            np.log10(out[VALUE_COLUMN]),
-        #            out[VALUE_COLUMN])
-
-        return OvariableFrame(out).clean()
-
-
-class FixedMultiplierHealthImpactNode(FixedMultiplierNode):  # Needed for pre-ovariable nodes
-    allowed_parameters = [
-        NumberParameter(local_id='health_factor'),
-    ] + FixedMultiplierNode.allowed_parameters
-
-    quantity = 'disease_burden'
-    unit = 'DALY/a'
-
-    def compute(self):
-        if len(self.input_nodes) != 1:
-            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
-
-        node = self.input_nodes[0]
-
-        df = node.get_output()
-        multiplier = self.get_parameter_value('health_factor')
-        multiplier = multiplier * unit_registry('DALY/kt').units
-
-        for col in df.columns:
-            if col == FORECAST_COLUMN:
-                continue
-            df[col] *= multiplier
-
-        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-        if replace_output:
-            df = self.replace_output_using_input_dataset(df)
-
-        return df
 
 
 class ExposureResponseFunction(Ovariable):
@@ -205,81 +157,138 @@ class RelativeRisk(Ovariable):
 
         return self.clean_computing(df)
 
-# Population attributable fraction PAF
-
 
 class PopulationAttributableFraction(Ovariable):
+    # Population attributable fraction PAF
+
     quantity = 'fraction'
     unit = 'dimensionless'
 
-    def new_compute(self):
-        erf = self.get_input('exposure-response')
+    # scale_exposure() scales the exposure by logarithmic function or body weight.
+    # The information about how to scale comes from exposure-response function.
+    # Thus, er-function and body weight must be provided.
+    # FIXME Is this a sensible thing to do, as then the units and dimensions may differ within node?
+    # scale_exposure leads to dtype object, which causes problems in ensure_pint_unit
+    # Somehow it is due to er_function, maybe pint.m but not clear.
+
+    def scale_exposure(self, exposure, er_function, bw):
+        out = OvariableFrame(er_function.copy())
+#        out[VALUE_COLUMN] = out[VALUE_COLUMN].pint.m
+        out = out * unit_registry.Quantity('0 * cap * d / mg') + 1
+        tst = out.merge(exposure)[0:4]
+        # out = out * exposure
+        # FIXME Does not work atm
+
+        out = out.merge(bw).reset_index()
+
+        out[VALUE_COLUMN] = np.where(
+            out['scaling'] == 'BW',
+            out[VALUE_x] / out[VALUE_y],
+            out[VALUE_x])
+
+        # FIXME log10 not defined for all inputs
+        #        out[VALUE_COLUMN] = np.where(
+        #            out['scaling'] == 'Log10',
+        #            np.log10(out[VALUE_COLUMN]),
+        #            out[VALUE_COLUMN])
+
+        return OvariableFrame(out).clean()
+
+    def compute(self):
+        param1 = self.get_input(
+            'exposure-response',
+            query="observation =='param1'", drop='observation')
         param2 = self.get_input(
             'exposure-response',
             query="observation == 'param2'", drop='observation')
         exposure = self.get_input('ingestion')
         frexposed = self.get_input('fraction')
         incidence = self.get_input('incidence')
-        rr = self.get_input('ratio')
         p_illness = self.get_input('probability')
-        bw = self.get_input('body_weight')
 
-        of = erf.do_inner_join(exposure).reset_index()
+        def postprocess_relative(rr, frexposed):
+            r = frexposed * (rr - 1)
 
-#        er_function_list = list(sorted(set(of.reset_index()['er_function'])))
+            out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+            # is smaller than 0, we should use r instead. It can be converted from the result:
+            # r/(r+1)=a <=> r=a/(1-a)
+            out3[VALUE_COLUMN] = np.where(
+                out3[VALUE_COLUMN] < 0,
+                out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
+                out3[VALUE_COLUMN])
+
+            return out3
+
+        er_function_list = exposure.do_inner_join(param2).reset_index()
+
+        self.print_pint_df(er_function_list[0:5])
+
+        er_function_list = list(sorted(set(er_function_list['er_function'])))
 
         out = pd.DataFrame()
 
-        for row in of.index:
+        for func in er_function_list:
+
             # FIXME Tähän scale_exposure
 
             # FIXME Tähän yksikön tarkistus. ERF-dataan annetaan altistuksen yksikkö ilman log-muunnosta.
 
-            if of['er_function'].loc[row] == 'UR':
-                k = OvariableFrame(of.loc[row])
+            if func == 'UR':
+                k = OvariableFrame(param1.query("er_function == 'UR'"))
                 k = k ** -1
-
+                print("UR_k")
+                self.print_pint_df(k)
                 threshold = param2
-
                 dose2 = (exposure - threshold)
+                self.print_pint_df(dose2)
                 # FIXME clip removes the pint unit. Figure out something else.
                 # dose2 = np.clip(dose2, 0, None)  # Smallest allowed value is 0
                 out1 = (k * dose2 * frexposed / incidence)
+                self.print_pint_df(out1)
                 out = out.append(out1.reset_index())
 
-            if of['er_function'].loc[row] == 'Step':
-                upper = OvariableFrame(of.loc[row])
-
+            if func == 'Step':
+                upper = OvariableFrame(param1.query("er_function == 'Step"))
                 lower = param2
                 out2 = (exposure >= lower) * (exposure <= upper) * -1 + 1  # FIXME
                 out2 = out2 * frexposed / incidence
                 out = out.append(out2.reset_index())
 
-            elif of['er_function'].loc[row] == 'RR' or of['er_function'].loc[row] == 'Relative Hill':
-                r = frexposed * (rr - 1)
+            if func == 'RR':
+                beta = OvariableFrame(param1.query("er_function == 'RR'"))
+                beta = beta ** -1  # FIXME This is stupid parameterization
+                print("RR_beta")
+                self.print_pint_df(beta)
+                threshold = param2
+                dose2 = exposure - threshold
+                #  Smallest allowed value is 0 FIXME: Not if scaling: Log10
+                #  dose2[VALUE_COLUMN] = np.clip(dose2[VALUE_COLUMN], 0, None)
+                out1 = beta * dose2
+                out1 = out1.exp()
+                out1 = postprocess_relative(rr=out1, frexposed=frexposed)
+                out = out.append(out1.reset_index())
 
-                out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
-                # is smaller than 0, we should use r instead. It can be converted from the result:
-                # r/(r+1)=a <=> r=a/(1-a)
-                out3[VALUE_COLUMN] = np.where(
-                    out3[VALUE_COLUMN] < 0,
-                    out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
-                    out3[VALUE_COLUMN])
+            if func == 'Relative Hill':
+                Imax = OvariableFrame(param1.query("er_function == 'Relative Hill'"))
+                Imax[VALUE_COLUMN] = Imax[VALUE_COLUMN].pint.m
+                ed50 = param2
+                out2 = (exposure * Imax) / (exposure + ed50) + 1
+                out = out.append(out2.reset_index())
 
-                out = out.append(out3.reset_index())
-
-            elif of['er_function'].loc[row] == 'beta poisson approximation':
-                out4 = ((exposure / param2 + 1) ** (erf * -1) * -1 + 1) * frexposed
+            if func == 'beta poisson approximation':
+                p1 = OvariableFrame(param1.query("er_function == 'beta poisson approximation"))
+                out4 = ((exposure / param2 + 1) ** (p1 * -1) * -1 + 1) * frexposed
                 out4 = (out4 / incidence * p_illness)
                 out = out.append(out4.reset_index())
 
-            elif of['er_function'].loc[row] == 'exact beta poisson':
-                out5 = ((erf / (erf + param2) * exposure * -1).exp() * -1 + 1) * frexposed
+            if func == 'exact beta poisson':
+                p1 = OvariableFrame(param1.query("er_function == 'exact beta poisson'"))
+                out5 = ((p1 / (p1 + param2) * exposure * -1).exp() * -1 + 1) * frexposed
                 out5 = out5 / incidence * p_illness
                 out = out.append(out5.reset_index())
 
-            elif of['er_function'].loc[row] == 'exponential':
-                k = erf
+            if func == 'exponential':
+                k = OvariableFrame(param1.query("er_function == 'exponential'"))
                 out6 = ((k * exposure * -1).exp() * -1 + 1) * frexposed
                 out6 = out6 / incidence * p_illness
                 out = out.append(out6.reset_index())
@@ -289,7 +298,7 @@ class PopulationAttributableFraction(Ovariable):
 
         return self.clean_computing(out)
 
-    def compute(self):
+    def old_compute(self):
         param1 = self.get_input(
             'exposure-response',
             query="observation == 'param1'", drop='observation')
