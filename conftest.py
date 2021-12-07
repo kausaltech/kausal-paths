@@ -1,6 +1,7 @@
 import json
 import pytest
-from django.conf import settings
+from datetime import datetime
+from django.utils.timezone import make_aware, utc
 from graphene_django.utils.testing import graphql_query
 from pytest_factoryboy import register
 
@@ -8,7 +9,6 @@ from nodes.tests.factories import (
     AdditiveActionFactory, ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceConfigFactory,
     InstanceFactory, NodeFactory, ScenarioFactory, SimpleNodeFactory
 )
-from pages.tests.factories import InstanceContentFactory
 from params.tests.factories import (
     BoolParameterFactory, ParameterFactory, NumberParameterFactory, StringParameterFactory
 )
@@ -23,21 +23,21 @@ register(StringParameterFactory)
 
 @pytest.fixture
 def node(context):
-    node = NodeFactory()
+    node = NodeFactory(context=context)
     context.add_node(node)
     return node
 
 
 @pytest.fixture
 def action_node(context):
-    node = ActionNodeFactory()
+    node = ActionNodeFactory(context=context)
     context.add_node(node)
     return node
 
 
 @pytest.fixture
 def additive_action(context):
-    node = AdditiveActionFactory()
+    node = AdditiveActionFactory(context=context)
     context.add_node(node)
     return node
 
@@ -52,7 +52,7 @@ def scenario(context):
 
 @pytest.fixture
 def simple_node(context):
-    node = SimpleNodeFactory()
+    node = SimpleNodeFactory(context=context)
     context.add_node(node)
     return node
 
@@ -87,8 +87,12 @@ def custom_scenario(context, default_scenario):
 
 
 @pytest.fixture(autouse=True)
-def instance(context):
+def instance(context, default_scenario):
     instance = InstanceFactory(context=context)
+    # Replicate some code from InstanceConfig.get_instance
+    # FIXME: This is likely to break
+    instance.modified_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
+    # instance.context.generate_baseline_values()  # TODO
     from pages import global_instance
     global_instance.instance = instance
     import nodes
@@ -97,15 +101,12 @@ def instance(context):
 
 
 @pytest.fixture
-def instance_content(db, instance):
-    return InstanceContentFactory(identifier=instance.id)
-
-
-@pytest.fixture
-def graphql_client_query(client, instance_config):
+def graphql_client_query(client, instance_config, settings):
     def func(*args, **kwargs):
+        # In tests, only headers that start with `HTTP_` are used, but in production the header names are taken verbatim
+        assert not settings.INSTANCE_IDENTIFIER_HEADER.startswith('HTTP_')
         headers = {
-            settings.INSTANCE_IDENTIFIER_HEADER: instance_config.identifier,
+            'HTTP_' + settings.INSTANCE_IDENTIFIER_HEADER: instance_config.identifier,
         }
         return graphql_query(*args, **kwargs, client=client, graphql_url='/v1/graphql/', headers=headers)
     return func

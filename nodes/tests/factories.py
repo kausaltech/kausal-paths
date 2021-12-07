@@ -1,4 +1,6 @@
-from factory import Factory, Sequence, SubFactory
+from datetime import datetime
+from django.utils.timezone import make_aware, utc
+from factory import Factory, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
 from typing import List
 
@@ -30,6 +32,8 @@ class InstanceConfigFactory(DjangoModelFactory):
     lead_title = "lead title"
     lead_paragraph = "Lead paragraph"
 
+    modified_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
+
 
 class InstanceFactory(Factory):
     class Meta:
@@ -56,7 +60,10 @@ class NodeConfigFactory(DjangoModelFactory):
     identifier = Sequence(lambda i: f'nodeconfig{i}')
     name = "name"
     short_description = "short description"
-    body = "body"
+    description = "description"
+
+    created_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
+    modified_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
 
 
 class NodeFactory(Factory):
@@ -64,6 +71,7 @@ class NodeFactory(Factory):
         model = Node
 
     id = Sequence(lambda i: f'node{i}')
+    context = SubFactory(ContextFactory)
     name = TranslatedString('name')
     description = TranslatedString('description')
     color = 'pink'

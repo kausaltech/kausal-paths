@@ -3,12 +3,15 @@ import pytest
 from nodes.tests.factories import NodeFactory
 
 
-@pytest.mark.parametrize('proper', [True, False])
-def test_node_get_descendant_nodes(node, proper):
+def test_node_get_downstream_nodes(node):
     output_node = NodeFactory()
     node.add_output_node(output_node)
-    if proper:
-        expected = [output_node]
-    else:
-        expected = [node, output_node]
-    assert node.get_descendant_nodes(proper) == expected
+    expected = [output_node]
+    assert node.get_downstream_nodes() == expected
+
+
+def test_node_get_upstream_nodes(node):
+    input_node = NodeFactory()
+    node.add_input_node(input_node)
+    expected = [input_node]
+    assert node.get_upstream_nodes() == expected

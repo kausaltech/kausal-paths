@@ -42,8 +42,8 @@ class InstanceConfig(models.Model):
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    modified_at = models.DateTimeField(default=timezone.now)
 
     i18n = TranslationField(fields=('name',))
 
@@ -71,6 +71,8 @@ class InstanceConfig(models.Model):
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
             instance = instance_cache[self.identifier]
+            if not self.nodes.exists():
+                return instance
             latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
             if latest_node_edit <= instance.modified_at and self.modified_at <= instance.modified_at:
                 return instance
@@ -197,8 +199,8 @@ class NodeConfig(ClusterableModel):
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    modified_at = models.DateTimeField(default=timezone.now)
 
     i18n = TranslationField(fields=('name',))
 

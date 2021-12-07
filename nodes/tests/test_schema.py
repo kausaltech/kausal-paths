@@ -1,5 +1,6 @@
 import pytest
-from nodes.tests.factories import NodeConfigFactory, NodeFactory
+from django.utils.translation import get_language
+from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
 from pages.base import Metric
 
 pytestmark = pytest.mark.django_db
@@ -41,7 +42,7 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
 
 def test_forecast_metric_type(graphql_client_query_data, additive_action, context, baseline_scenario):
     context.generate_baseline_values()
-    metric = Metric.from_node(additive_action, context)
+    metric = Metric.from_node(additive_action)
     data = graphql_client_query_data(
         '''
         query($id: ID!) {
@@ -103,7 +104,7 @@ def test_forecast_metric_type(graphql_client_query_data, additive_action, contex
                 'outputNode': None,  # TODO
                 'unit': {
                     '__typename': 'UnitType',
-                    'short': metric.unit.format_babel('~P'),
+                    'short': metric.unit.format_babel('~P', locale=get_language()),
                 },
                 'historicalValues': expected_historical_values,
                 'forecastValues': expected_forecast_values,
@@ -120,6 +121,8 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
     additive_action.add_input_node(input_node)
     output_node = NodeFactory()
     additive_action.add_output_node(output_node)
+    upstream_action = ActionNodeFactory()
+    input_node.add_input_node(upstream_action)
     data = graphql_client_query_data(
         '''
         query($id: ID!) {
@@ -143,7 +146,11 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               __typename
               id
             }
-            descendantNodes {
+            downstreamNodes {
+              __typename
+              id
+            }
+            upstreamNodes {
               __typename
               id
             }
@@ -163,13 +170,15 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               __typename
               id
             }
-            description
+            aggregatedImpactUnit {
+              __typename
+            }
             parameters {
               __typename
               id
             }
             shortDescription
-            body
+            description
           }
         }
         ''',
@@ -196,16 +205,20 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'NodeType',
                 'id': output_node.id,
             }],
-            'descendantNodes': [{
-                '__typename': 'NodeType',
-                'id': additive_action.id,
-            }, {
+            'downstreamNodes': [{
                 '__typename': 'NodeType',
                 'id': output_node.id,
             }],
+            'upstreamNodes': [{
+                '__typename': 'NodeType',
+                'id': input_node.id,
+            }, {
+                '__typename': 'NodeType',
+                'id': upstream_action.id,
+            }],
             'upstreamActions': [{
                 '__typename': 'NodeType',
-                'id': additive_action.id,
+                'id': upstream_action.id,
             }],
             'metric': {
                 '__typename': 'ForecastMetricType',
@@ -216,13 +229,13 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'ForecastMetricType',
                 'id': f'{additive_action.id}-{additive_action.id}-impact',
             },
-            'description': f'<p>{additive_action.description}</p>',  # TODO: Does it make sense to add the p tag?
+            'aggregatedImpactUnit': None,  # TODO: No resolver for this exists yet
             'parameters': [{
                 '__typename': 'BoolParameterType',
                 'id': additive_action.enabled_param.global_id,
             }],
             'shortDescription': node_config.short_description,
-            'body': node_config.body,
+            'description': str(additive_action.description),
         }
     }
     assert data == expected
