@@ -1,5 +1,7 @@
 # Kausal Paths
 
+Kausal Paths is a tool for predicting the future emissions of cities based on historical emission data and various climate actions. Users can compare how emissions develop in different scenarios. Data is provided using a GraphQL API.
+
 ## Installation
 
 ### Development
