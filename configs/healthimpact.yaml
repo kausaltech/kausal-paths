@@ -118,7 +118,7 @@ instance:
 
     - id: body_weight
       name: Ruumiinpaino
-      name_ en: Body weight
+      name_en: Body weight
       type: health.DataOvariable
       quantity: body_weight
       unit: kg
@@ -130,7 +130,7 @@ instance:
 
     - id: frexposed
       name: Altistuneiden osuus
-      name_ en: Fraction exposed
+      name_en: Fraction exposed
       type: health.DataOvariable
       quantity: fraction
       unit: dimensionless
@@ -142,13 +142,13 @@ instance:
 
     - id: exposure_response_function
       name: Annosvaste
-      name_ en: Exposure-response function
+      name_en: Exposure-response function
       type: health.ExposureResponseFunction  # FIXME Get real data
       unit: mg/person/day
 
     - id: incidence
       name: Ilmaantuvuus
-      name_ en: Incidence
+      name_en: Incidence
       type: health.DataOvariable
       quantity: incidence
       unit: 1/person
@@ -171,7 +171,7 @@ instance:
 
     - id: case_burden
       name: Tapaustaakka
-      name_ en: Case burden
+      name_en: Case burden
       type: health.DataOvariable
       quantity: disease_burden
       unit: DALY
@@ -183,7 +183,7 @@ instance:
 
     - id: disease_burden
       name: Kokonaistautitaakka
-      name_ en: Total disease burden
+      name_en: Total disease burden
       type: health.DiseaseBurden
       unit: person
       input_nodes:

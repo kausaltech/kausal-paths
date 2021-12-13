@@ -187,6 +187,7 @@ class Node:
 
     def calculate_hash(self) -> bytes:
         h = hashlib.md5()
+        h.update(bytes(self.unit))
         for node in self.input_nodes:
             h.update(node.calculate_hash())
         for param in self.parameters.values():
