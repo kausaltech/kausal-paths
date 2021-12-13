@@ -185,7 +185,7 @@ instance:
       name: Kokonaistautitaakka
       name_en: Total disease burden
       type: health.DiseaseBurden
-      unit: person
+      unit: DALY
       input_nodes:
         - incidence
         - population
