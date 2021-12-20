@@ -452,13 +452,14 @@ instance:
     name: Paikallisjunan päästökerroin
     name_en: Local train emission factor
     quantity: emission_factor
-    type: simple.AdditiveNode
     unit: g/km
-    input_datasets:
-    - id: tampere/scenarios/emission_factors/bau
-      column: Local trains
-      min_year: 2016
-      dropna: true
+    type: simple.FixedMultiplierNode
+    params:
+    - id: multiplier
+      value: 6.5  # Derived from explicit emission factors of trains and electricity
+      unit: kWh/km
+    input_nodes:
+    - electricity_production_emission_factor
     output_nodes:
     - local_train_emissions
 
@@ -466,13 +467,14 @@ instance:
     name: Ratikan päästökerroin
     name_en: Tram emission factor
     quantity: emission_factor
-    type: simple.AdditiveNode
+    type: simple.FixedMultiplierNode
     unit: g/km
-    input_datasets:
-    - id: tampere/scenarios/emission_factors/bau
-      column: Trams
-      min_year: 2016
-      dropna: true
+    params:
+    - id: multiplier
+      value: 2.56  # Derived from explicit emission factors of trams and electricity
+      unit: kWh/km
+    input_nodes:
+    - electricity_production_emission_factor
     output_nodes:
     - tram_emissions
 
