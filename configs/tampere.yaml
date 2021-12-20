@@ -51,11 +51,6 @@ instance:
     name_en: Motorbikes etc.
     column: Motorbikes
     part_of: transportation_emissions
-  - id: local_train_emissions
-    name: Lähijunien päästöt
-    name_en: Local train emissions
-    column: Local trains
-    part_of: transportation_emissions
 
     #
     # Heating
@@ -371,6 +366,20 @@ instance:
     # Transport nodes
     #
 
+  - id: local_train_kilometers
+    name: Paikallisjunasuorite
+    name_en: Local train kilometers
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Local train
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - local_train_emissions
+  
   - id: tram_kilometers
     name: Ratikkasuorite
     name_en: Tram kilometers
@@ -439,6 +448,20 @@ instance:
     output_nodes:
     - bus_emissions_roads
 
+  - id: local_train_emission_factor
+    name: Paikallisjunan päästökerroin
+    name_en: Local train emission factor
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Local trains
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - local_train_emissions
+
   - id: tram_emission_factor
     name: Ratikan päästökerroin
     name_en: Tram emission factor
@@ -505,6 +528,15 @@ instance:
       dropna: true
     output_nodes:
     - bus_emissions_roads
+
+  - id: local_train_emissions
+    name: Lähijunien päästöt
+    name_en: Local train emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - transportation_emissions
 
   - id: tram_emissions
     name: Ratikkaliikenteen päästöt
