@@ -1,0 +1,185 @@
+#### Health impact data, compound-specific
+
+#### Exposure-response functions and unit conversions
+
+@context pm2_5_mortality
+    erf_param_ug_air = 0.007696104113612839 / (ug / m**3) # log(1.08)/10
+@end
+
+@context dioxin_cancer
+    period = lifetime
+@end
+
+@context vitaminD_deficiency
+    period = subchronic
+@end
+
+@context cvddeath
+    incidence = 20000 cases / (5 Mpy)
+@end
+
+@context ozone
+    [mass] / [mass] -> [breathing]: value * airdensity * 47.997 / 28.89
+    # Ozone molecular mass 47.997 g/mol, air 0.78 * 28.014 + 0.22 * 32.00 = 28.89 g/mol and 1.225 kg/m**3
+@end
+
+@context radon_lungcancer
+    becquerel / m ** 3 -> g / m ** 3: value * (3.8215 d * 2 * 222.0175763 g / avogadro_number)
+    m ** 3 / becquerel -> m ** 3 / g: value / (3.8215 d * 2 * 222.0175763 g / avogadro_number)
+    # Radon-222 has half-life of 3.8215 d and isotope mass 222.0175763 g/mol.
+    # The number of original atoms is activity * halflife * 2
+    period = lifetime
+    erf_param_bq_air = 0.0015987213636970735 / (Bq / m**3) # log(1.0016)
+@end
+
+@context microbes
+    cfu -> g: value * 10000 ** -3 * g # Nominal weight of 1 um**3 of water
+    rna_count -> g: value * (50 * (329.2 + 306.2 + 305.2 + 345.2) + 159) g / avogadro_number # Nominal weight of 200 bp rna
+    # Molecular weight of rna: (An x 329.2) + (Un x 306.2) + (Cn x 305.2) + (Gn x 345.2) + 159 (triphosphate)
+    period = acute
+@end
+
+#### Toxic equivalent quantities
+
+grams_toxic_equivalency_quantity = [TEQ] = g_teq
+_2378TCDD = NaN = TCDD
+_12378PeCDD = NaN = PeCDD
+_123478HxCDD = NaN = _123478HCDD
+_123678HxCDD = NaN = _123678HCDD
+_123789HxCDD = NaN = _123789HCDD
+_1234678HpCDD = NaN
+OCDD = NaN
+_2378TCDF = NaN
+_12378PeCDF = NaN
+_23478PeCDF = NaN
+_123478HxCDF = NaN = _123478HCDF
+_123678HxCDF = NaN = _123678HCDF
+_123789HxCDF = NaN = _123789HCDF
+_234678HxCDF = NaN = _234678HCDF
+_1234678HpCDF = NaN
+_1234789HpCDF = NaN
+OCDF = NaN
+_33_44_tetraCB = NaN = PCB77 = CoPCB77
+_344_5tetraCB = NaN = PCB81 = CoPCB81
+_33_44_5pentaCB = NaN = PCB126 = CoPCB126
+_33_44_55_hexaCB = NaN = PCB169 = CoPCB169
+_233_44_pentaCB = NaN = PCB105
+_2344_5pentaCB = NaN = PCB114
+_23_44_5pentaCB = NaN = PCB118
+_2_344_5pentaCB = NaN = PCB123
+_233_44_5hexaCB = NaN = PCB156
+_233_44_5_hexaCB = NaN = PCB157
+_23_44_55_hexaCB = NaN = PCB167
+_233_44_55_heptaCB = NaN = PCB189
+
+@context(_a=NaN) teq_who2005
+    [mass] -> [TEQ]: value * _a * g_teq / g
+    [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g
+    [mass] / [volume] -> [TEQ] / [volume]: value * _a * g_teq / g
+    [mass] / [time] -> [TEQ] / [time]: value * _a * g_teq / g
+
+    TCDD = 1
+    PeCDD = 1
+    _123478HxCDD = 0.1
+    _123678HxCDD = 0.1
+    _123789HxCDD = 0.1
+    _1234678HpCDD = 0.01
+    OCDD = 0.0003
+    _2378TCDF = 0.1
+    _12378PeCDF = 0.03
+    _23478PeCDF = 0.3
+    _123478HxCDF = 0.1
+    _123678HxCDF = 0.1
+    _123789HxCDF = 0.1
+    _234678HxCDF = 0.1
+    _1234678HpCDF = 0.01
+    _1234789HpCDF = 0.01
+    OCDF = 0.0003
+    PCB77 = 0.0001
+    PCB81 = 0.0003
+    PCB126 = 0.1
+    PCB169 = 0.03
+    PCB105 = 0.00003
+    PCB114 = 0.00003
+    PCB118 = 0.00003
+    PCB123 = 0.00003
+    PCB156 = 0.00003
+    PCB157 = 0.00003
+    PCB167 = 0.00003
+    PCB189 = 0.00003
+@end
+
+@context(_a=NaN) teq_who1998
+    [mass] -> [TEQ]: value * _a * g_teq / g
+    [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g
+    [mass] / [volume] -> [TEQ] / [volume]: value * _a * g_teq / g
+    [mass] / [time] -> [TEQ] / [time]: value * _a * g_teq / g
+
+    TCDD = 1
+    PeCDD = 1
+    _123478HxCDD = 0.1
+    _123678HxCDD = 0.1
+    _123789HxCDD = 0.1
+    _1234678HpCDD = 0.01
+    OCDD = 0.0001
+    _2378TCDF = 0.1
+    _12378PeCDF = 0.05
+    _23478PeCDF = 0.5
+    _123478HxCDF = 0.1
+    _123678HxCDF = 0.1
+    _123789HxCDF = 0.1
+    _234678HxCDF = 0.1
+    _1234678HpCDF = 0.01
+    _1234789HpCDF = 0.01
+    OCDF = 0.0001
+    PCB77 = 0.0001
+    PCB81 = 0.0001
+    PCB126 = 0.1
+    PCB169 = 0.01
+    PCB105 = 0.0001
+    PCB114 = 0.0005
+    PCB118 = 0.0001
+    PCB123 = 0.0001
+    PCB156 = 0.0005
+    PCB157 = 0.0005
+    PCB167 = 0.00001
+    PCB189 = 0.0001
+@end
+
+
+@context(_a=NaN) teq_eu_ied2014
+    [mass] -> [TEQ]: value * _a * g_teq / g
+    [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g
+    [mass] / [volume] -> [TEQ] / [volume]: value * _a * g_teq / g
+    [mass] / [time] -> [TEQ] / [time]: value * _a * g_teq / g
+
+    TCDD = 1
+    PeCDD = 0.5
+    _123478HxCDD = 0.1
+    _123678HxCDD = 0.1
+    _123789HxCDD = 0.1
+    _1234678HpCDD = 0.01
+    OCDD = 0.001
+    _2378TCDF = 0.1
+    _12378PeCDF = 0.05
+    _23478PeCDF = 0.5
+    _123478HxCDF = 0.1
+    _123678HxCDF = 0.1
+    _123789HxCDF = 0.1
+    _234678HxCDF = 0.1
+    _1234678HpCDF = 0.01
+    _1234789HpCDF = 0.01
+    OCDF = 0.001
+    PCB77 = 0
+    PCB81 = 0
+    PCB126 = 0
+    PCB169 = 0
+    PCB105 = 0
+    PCB114 = 0
+    PCB118 = 0
+    PCB123 = 0
+    PCB156 = 0
+    PCB157 = 0
+    PCB167 = 0
+    PCB189 = 0
+@end

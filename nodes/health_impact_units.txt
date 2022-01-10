@@ -1,0 +1,58 @@
+#### Health impact assessment, generic constants and conversions
+
+## Quantities
+
+[mass_concentration] = [mass] / [mass]
+capita = [population] = cap = person
+[persontime] = [population] * [time]  # Maybe not needed as a separate quantity
+[diseaseincidence] = [event] / [persontime]
+disability_adjusted_lifeyear = [disease_burden] = DALY = YLL = YLD
+[case_burden] = [disease_burden] / [case]
+incident = [event] = case
+
+[exposure] = [mass] / [mass] / [time]
+[breathing] = [mass] / [volume]
+[ingestion] = [mass] / [time]
+
+## Units
+
+per_100000py = 1e-5 * case / personyear
+personyear = cap * year = py
+quality_adjusted_lifeyear = -1 * DALY = QALY
+
+ppm = mg / kg
+ppb = ug / kg
+ppt = ng / kg
+
+erf_param_exposure = 0 mg / kg / d
+erf_param_invexposure = 0 kg * d / mg
+erf_param_scale = 0
+erf_param_bq_air = 0 / (Bq / m**3)
+erf_param_ug_air = 0 / (ug / m**3)
+
+colony_forming_unit = [] = cfu
+rna_count = [] = rna
+
+## Constants
+
+airdensity = 1.225 kg / m**3
+breathing_rate = 20 m**3 / d
+body_mass = 70 kg
+
+lifetime = 80 a / incident
+subchronic = 28 d / incident
+subacute = 7 d / incident
+acute = 1 d / incident
+period = acute
+incidence = 1 / period / person
+
+## Contexts
+
+@context healthunits
+    [mass] -> [ingestion]: value / (period * incident)
+    1 / [mass] -> 1 / [ingestion]: value * (period * incident)
+    [breathing] -> [exposure]: value * breathing_rate / body_mass
+    1 / [breathing] -> 1 / [exposure]: value / (breathing_rate / body_mass)
+    [ingestion] -> [exposure]: value / body_mass
+    1 / [ingestion] -> 1 / [exposure]: value * body_mass
+@end
