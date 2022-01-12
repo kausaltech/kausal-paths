@@ -32,6 +32,8 @@ instance:
   - id: transportation_emissions
     name: Liikenteen päästöt
     name_en: Transportation emissions
+    description: Liikennepäästölaskenta perustuu kolmeen perustekijään. Liikennesuoritteeseen ajoneuvotyypeittäin, liikenteen käyttövoimien päästökertoimiin eri ajoneuvoille ja käyttövoimajakaumiin ajoneuvotyypeittäin.
+    description_en: The traffic emission calculation is based on three basic factors. Mileage by vehicle type, emission factors for vehicle types with different propulsion, and propulsion distributions by vehicle type.
     part_of: net_emissions
     color: '#668EC9'
     target_year_goal: 115
@@ -69,11 +71,15 @@ instance:
     part_of: separate_heating_emissions
     name: Kaasulämmityksen päästöt
     name_en: Gas heating emissions
+    description: Kaasulämmityksen päästöt saadaan kertomalla maakaasun kulutus päästökertoimella.
+    description_en: Emissions from gas heating are calculated by multiplying the consumption of natural gas by the emission factor.
     column: Gas heating
 
   - id: electric_heating_emissions
     name: Sähkölämmityksen päästöt
     name_en: Electric heating emissions
+    description: Sähkölämmitys sisältää arviot sekä suorasähkölämmityksen että maalämmön päästöistä ja laskee ne yhteen.
+    description_en: Electric heating emissions include estimates of both direct electric heating and geothermal emissions.
     part_of: building_heating_emissions
 
       #
@@ -83,6 +89,8 @@ instance:
   - id: industry_and_machinery_emissions
     name: Teollisuuden ja työkoneiden päästöt
     name_en: Industry and machinery emissions
+    description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
+    description_en: The emission forecast for industry and machinery has been made by linearly extrapolating the emission development during 2010-2018.
     part_of: net_emissions
     #  column: Industry without city machinery
     color: '#E8B455'
@@ -90,6 +98,8 @@ instance:
   - id: industry_emissions
     name: Teollisuuden päästöt ilman kaupungin työkoneita
     name_en: Industry emissions without city machinery
+    description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa Teollisuuden ja työkoneiden päästöt.
+    description_en: The emission forecast for industry and machinery is described in more detail in the node Industry and machinery emissions.
     part_of: industry_and_machinery_emissions
     column: Industry without city machinery
     color: '#E8B455'
@@ -97,6 +107,8 @@ instance:
   - id: waste_treatment_emissions
     name: Jätehuollon päästöt
     name_en: Waste treatment
+    description: Jätehuollon päästöt sisältävät kiinteät jätteet, biojätteet ja jäteveden.
+    description_en: Emissions from waste management include solid waste, biowaste and wastewater.
     part_of: net_emissions
     color: '#397368'
 
@@ -115,6 +127,8 @@ instance:
   - id: agriculture_emissions
     name_en: Agriculture
     name: Maatalouden päästöt
+    description: Maatalouden päästöt perustuvat CO2-raportin päästötoteumaan eläinten ruoansulatuksen, lannan käsittelyn ja peltoviljelyn päästöistä.
+    description_en: Emissions from agriculture are based on the emission estimates of the CO2 Report on animal digestion, manure treatment and arable farming.
     part_of: net_emissions
     color: '#ABC872'
 
@@ -192,6 +206,8 @@ instance:
     quantity: emissions
     name: Öljylämmityksen päästöt
     name_en: Oil heating emissions
+    description: Öljylämmityksen päästöt lasketaan kertomalla lämmitysöljyn kulutus päästökertoimella.
+    description_en: Emissions from oil heating are calculated by multiplying the consumption of heating oil by the emission factor.
     output_nodes:
     - separate_heating_emissions
 
@@ -359,6 +375,8 @@ instance:
     type: simple.SectorEmissions
     unit: kt/a
     color: '#F4D240'
+    description: Sähkön päästölaskenta perustuu kahteen komponenttiin. Sähkön kulutus ja sähkön päästökerroin. Tässä on muu sähkönkulutus kuin lämmitys.
+    description_en: The calculation of electricity emissions is based on two components. Electricity consumption and the emission factor for electricity. This is electricity consumption other than heating.
     output_nodes:
     - net_emissions
 
@@ -675,6 +693,9 @@ instance:
     name_en: Naistenlahti 3 bio thermal plant
     type: simple.CumulativeAdditiveAction
     quantity: emission_factor
+    description: Naistenlahti 3 -voimalaitos pystyy käyttämään myös biopolttoainetta, ja polttoainevalinta onkin keskeinen päästöjä vähentävä tekijä.
+    description_en: The Naistenlahti 3 power plant is also able to use biofuel, and the choice of fuel is a key factor in reducing emissions.
+    long_description_en: <h2>Centralized renewable energy</h2><p>The action includes investments by Tampereen Sähkölaitos (the local energy company) that will reduce the district heating emission factor. As the emission factor for electricity generation is determined nationally, the measures do not directly affect electricity emissions.</p><p>Currently, the clearest measure is the investment in the Naistenlahti 3 power plant. This, too, can only be roughly distinguished from other plans to reduce the district heating emission factor. The final emission reduction from the district heating emission factor is due to measures that have not yet been further defined and have therefore been calculated as a lump sum. However, the emission reduction will materialize if Tampereen Sähkölaitos achieves emission reductions in line with its strategy. The magnitude is calculated in this total emission forecast slightly differently than if only the energy production of Tampereen Sähkölaitos is considered.</p><p>As a result, the emission reduction in district heating caused by Naistenlahti 3 is approx. 82 kt CO2e. In addition, approximately 99 kt of CO2e will be generated from other investments in reducing the emissions of Tampereen Sähkölaitos by 2030. This is only a rough estimate based on the company's own forecast of the district heating emission factor. The real impact of Naistenlahti 3 in reducing fossil emissions depends on the contribution of peat to combustion and the overall impact of adding wood fuel elsewhere.</p><p>The action also includes the connection of the City of Tampere's properties to district cooling as required. Connecting to district cooling reduces the building's electricity consumption, as cooling is not required with heat pumps. However, it is not known to what extent the properties will be connected and what the change in their consumption would be. Therefore, no emission reduction has yet been estimated for the action.</p>
     output_nodes:
     - district_heating_emission_factor
     forecast_values: [[2022, -23], [2023, -23]]
@@ -697,6 +718,8 @@ instance:
     unit: GWh/a
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
+    description: Keskeisimmät kohderyhmät energianeuvonnalle ovat yli 20 vuotta vanhat kerrostalot sekä öljy- ja sähkölämmitteiset pientalot.
+    description_en: The most important target groups for energy advice are apartment buildings that are more than 20 years old and detached houses that are heated by oil and electricity.
     output_nodes:
     - district_heating_consumption
     - other_electricity_consumption
@@ -715,6 +738,8 @@ instance:
     unit: GWh/a
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
+    description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
+    description_en: Photovoltaic production will be installed on the roofs of the buildings. According to the 2016 municipal review of renewable energy, the unused potential on the roofs of buildings is 800-900 GWh (does not take into account all restrictions).
     output_nodes:
     - renewable_electricity_consumption_reduction
     forecast_values: [[2019, 0], [2020, 0.2], [2030, -850]]
@@ -735,6 +760,8 @@ instance:
     type: simple.CumulativeAdditiveAction
     unit: GWh/a
     quantity: energy
+    description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
+    description_en: Private properties convert oil heating to geothermal energy. 95% of the required heat is produced at COP 3 level, the rest is direct electricity. Based on Juho Rinta-Rahko's assessment of the potential of renovation and energy consulting in Tampere. Some oil heating will remain in service buildings and industrial buildings.
     output_nodes:
     - oil_heating_energy_use
     - geothermal_heating_electricity_use
@@ -752,6 +779,8 @@ instance:
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
     unit: GWh/a
+    description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
+    description_en: The city's properties currently consume 367 378 l / y of oil, or about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced by water-air heat pumps with a COP of about 2.5 when they produce all the heat they need. Bio-oil has been thought to be held in reserve, but its share of energy consumption is insignificant.
     output_nodes:
     - oil_heating_energy_use
     - direct_electric_heating_electricity_use
@@ -788,6 +817,8 @@ instance:
     type: simple.LinearCumulativeAdditiveAction
     unit: GWh/a
     quantity: energy
+    description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus otetaan käyttöön vuoteen 2025 mennessä.
+    description_en: The city’s street lighting will be transformed into LEDs and intelligent light control will be deployed by 2025.
     forecast_values: [[2019, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
     output_nodes:
     - other_electricity_consumption
@@ -798,6 +829,8 @@ instance:
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
+    description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
+    description_en: The first construction phase of the tramway. Also learn more about local train traffic.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -816,6 +849,8 @@ instance:
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
+    description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava, jotta tämä olisi mielekäs.
+    description_en: The second construction phase of the tramway. The first phase of construction needs to be implemented for this action to make sense.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -834,6 +869,8 @@ instance:
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
+    description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe on toteutettava, jotta tämä olisi mielekäs.
+    description_en: The third construction phase of the tramway. The first and second construction phases need to be implemented for this action to make sense.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -852,6 +889,8 @@ instance:
     type: simple.LinearCumulativeAdditiveAction
     unit: g/l
     quantity: emission_factor
+    description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
+    description_en: The city’s own work machinery will move gradually to use renewable diesel so that in 2030 only it will be used.
     output_nodes:
     - city_machinery_emission_factor
       #  - city_machinery_fuel_consumption
@@ -887,6 +926,10 @@ instance:
     path: /
     type: emission
     node: net_emissions
+    lead_title: Tampereen päästöskenaariot
+    lead_title_en: Tampere emission scenarios
+    lead_paragraph: Tampereen päästöskenaariot visualisoi Tampereen kasvihuonekaasupäästöjen kehityksen. Voit tarkastella, mistä Tampereen kaupungin alueen päästöt syntyvät ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario, Hiilineutraali Tampere 2030 -tiekartan mukainen skenaario ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
+    lead_paragraph_en: Tampere's emission scenarios visualize the development of Tampere's greenhouse gas emissions. You can look at where emissions from the Tampere city area come from and how they are projected to change by 2030. There is a basic development scenario to choose from, a scenario according to the Carbon Neutral Tampere 2030 roadmap and a scenario that you can edit yourself. Further efforts are needed to become carbon neutral, and their adequacy will be assessed in the future using this tool.
 
   scenarios:
   - id: baseline
