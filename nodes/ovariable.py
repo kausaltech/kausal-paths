@@ -114,69 +114,121 @@ class OvariableFrame(pd.DataFrame):
         print(out)
 
     def __add__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] + self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] + self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] + other
+            return self
 
     def __sub__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] - self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] - self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] - other
+            return self
 
     def __mul__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] * self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] * self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] * other
+            return self
 
     def __truediv__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] / self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] / self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] / other
+            return self
 
     def __mod__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] % self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] % self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] % other
+            return self
 
     def __pow__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] ** self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] ** self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] ** other
+            return self
 
     def __floordiv__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] // self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] // self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] // other
+            return self
 
     def __lt__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] < self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] < self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] < other
+            return self
 
     def __le__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] <= self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] <= self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] <= other
+            return self
 
     def __gt__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] > self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] > self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] > other
+            return self
 
     def __ge__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] >= self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] >= self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] >= other
+            return self
 
     def __eq__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] == self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] == self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] == other
+            return self
 
     def __ne__(self, other):
-        self = self.do_inner_join(other)
-        self[VALUE_COLUMN] = self[VALUE_x] != self[VALUE_y]
-        return self.clean()
+        if isinstance(other, pd.DataFrame):
+            self = self.do_inner_join(other)
+            self[VALUE_COLUMN] = self[VALUE_x] != self[VALUE_y]
+            return self.clean()
+        else:
+            self[VALUE_COLUMN] = self[VALUE_COLUMN] != other
+            return self
 
     def exp(self):
         s = self[VALUE_COLUMN]
