@@ -1,6 +1,6 @@
 #### Health impact assessment, generic constants and conversions
 
-## Quantities
+#### Quantities
 
 [mass_concentration] = [mass] / [mass]
 capita = [population] = cap = person
@@ -14,15 +14,16 @@ incident = [event] = case
 [breathing] = [mass] / [volume]
 [ingestion] = [mass] / [time]
 
-## Units
+
+#### Units
 
 per_100000py = 1e-5 * case / personyear
 personyear = cap * year = py
 quality_adjusted_lifeyear = -1 * DALY = QALY
 
-ppm = mg / kg
-ppb = ug / kg
-ppt = ng / kg
+ppm = mg / kg  # parts per million
+ppb = ug / kg  # parts per billion
+ppt = ng / kg  # parts per trillion
 
 erf_param_exposure = 0 mg / kg / d
 erf_param_invexposure = 0 kg * d / mg
@@ -33,7 +34,8 @@ erf_param_ug_air = 0 / (ug / m**3)
 colony_forming_unit = [] = cfu
 rna_count = [] = rna
 
-## Constants
+
+#### Constants
 
 airdensity = 1.225 kg / m**3
 breathing_rate = 20 m**3 / d
@@ -45,14 +47,3 @@ subacute = 7 d / incident
 acute = 1 d / incident
 period = acute
 incidence = 1 / period / person
-
-## Contexts
-
-@context healthunits
-    [mass] -> [ingestion]: value / (period * incident)
-    1 / [mass] -> 1 / [ingestion]: value * (period * incident)
-    [breathing] -> [exposure]: value * breathing_rate / body_mass
-    1 / [breathing] -> 1 / [exposure]: value / (breathing_rate / body_mass)
-    [ingestion] -> [exposure]: value / body_mass
-    1 / [ingestion] -> 1 / [exposure]: value * body_mass
-@end
