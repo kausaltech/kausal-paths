@@ -6,14 +6,15 @@
 @context exposure_generic
     [mass] -> [ingestion]: value / (period * incident)
     1 / [mass] -> 1 / [ingestion]: value * (period * incident)
-    [breathing] -> [exposure]: value * breathing_rate / body_mass
-    1 / [breathing] -> 1 / [exposure]: value / (breathing_rate / body_mass)
+    [inhalation] -> [exposure]: value * inhalation_rate / body_mass
+    1 / [inhalation] -> 1 / [exposure]: value / (inhalation_rate / body_mass)
+    mg / capita / d -> [exposure]: value * capita / body_mass
     [ingestion] -> [exposure]: value / body_mass
     1 / [ingestion] -> 1 / [exposure]: value * body_mass
 @end
 
 @context ozone
-    [mass] / [mass] -> [breathing]: value * airdensity * 47.997 / 28.89
+    [mass] / [mass] -> [inhalation]: value * airdensity * 47.997 / 28.89
     # Ozone molecular mass 47.997 g/mol, air 0.78 * 28.014 + 0.22 * 32.00 = 28.89 g/mol and 1.225 kg/m**3
 @end
 
@@ -41,6 +42,11 @@
 @context dioxin_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
     period = lifetime
     erf_param_invexposure = 0.001 / (pg/kg/d)  # U.S.EPA 2004. https://cfpub.epa.gov/ncea/risk/recordisplay.cfm?deid=87843
+    erf_param_exposure = 0 pg/kg/d
+    er_function = 1  # unit risk (linear)
+    p_illness = 1
+    case_burden = 10 DALY/case
+    incidence = 0.2 /person/lifetime
 @end
 
 @context vitaminD_deficiency

@@ -11,7 +11,7 @@ disability_adjusted_lifeyear = [disease_burden] = DALY = YLL = YLD
 incident = [event] = case
 
 [exposure] = [mass] / [mass] / [time]
-[breathing] = [mass] / [volume]
+[inhalation] = [mass] / [volume]
 [ingestion] = [mass] / [time]
 
 
@@ -25,11 +25,14 @@ ppm = mg / kg  # parts per million
 ppb = ug / kg  # parts per billion
 ppt = ng / kg  # parts per trillion
 
+er_function = 0
+p_illness = 0
 erf_param_exposure = 0 mg / kg / d
 erf_param_invexposure = 0 kg * d / mg
 erf_param_scale = 0
 erf_param_bq_air = 0 / (Bq / m**3)
 erf_param_ug_air = 0 / (ug / m**3)
+case_burden = 0 DALY/case
 
 colony_forming_unit = [] = cfu
 rna_count = [] = rna
@@ -38,7 +41,7 @@ rna_count = [] = rna
 #### Constants
 
 airdensity = 1.225 kg / m**3
-breathing_rate = 20 m**3 / d
+inhalation_rate = 20 m**3 / d
 body_mass = 70 kg
 
 lifetime = 80 a / incident

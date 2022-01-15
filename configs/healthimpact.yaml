@@ -85,7 +85,7 @@ instance:
       name_en: Dioxin concentration
       type: health.DataOvariable
       quantity: mass_concentration
-      unit: mg/kg
+      unit: ng/kg
       color: '#456789'
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
@@ -99,34 +99,33 @@ instance:
       name: Dioksiinialtistus
       name_en: Dioxin exposure
       type: health.Exposure
-      unit: mg/person/day
+      unit: pg/person/day
       input_nodes:
         - meat_consumption_per_person
-        - body_weight
 
-    - id: p_illness
-      name: Sairauden todennäköisyys
-      name_en: Probability of illness
-      type: health.DataOvariable
-      quantity: probability
-      unit: dimensionless
-      input_datasets:
-        - id: ilmastoruoka/emission_factor  # FIXME Get real data
-          column: Drinks
-          forecast_from: 2021
-          dropna: true
+#    - id: fish_health
+#      name: Kalaterveys
+#      name_en: Fish health
+#      type: health.Healthtest
+#      quantity: disease_burden
+#      unit: DALY
+#      params:
+#        - id: erf_name
+#          value: dioxin_cancer
+#      input_nodes:
+#        - exposure
 
-    - id: body_weight
-      name: Ruumiinpaino
-      name_en: Body weight
-      type: health.DataOvariable
-      quantity: body_weight
-      unit: kg
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Alcohol
-          forecast_from: 2021
-          dropna: true
+#    - id: p_illness
+#      name: Sairauden todennäköisyys
+#      name_en: Probability of illness
+#      type: health.DataOvariable
+#      quantity: probability
+#      unit: dimensionless
+#      input_datasets:
+#        - id: ilmastoruoka/emission_factor  # FIXME Get real data
+#          column: Drinks
+#          forecast_from: 2021
+#          dropna: true
 
     - id: frexposed
       name: Altistuneiden osuus
@@ -140,23 +139,17 @@ instance:
           forecast_from: 2021
           dropna: true
 
-    - id: exposure_response_function
-      name: Annosvaste
-      name_en: Exposure-response function
-      type: health.ExposureResponseFunction  # FIXME Get real data
-      unit: mg/person/day
-
-    - id: incidence
-      name: Ilmaantuvuus
-      name_en: Incidence
-      type: health.DataOvariable
-      quantity: incidence
-      unit: 1/person
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
+#    - id: incidence
+#      name: Ilmaantuvuus
+#      name_en: Incidence
+#      type: health.DataOvariable
+#      quantity: incidence
+#      unit: 1/person
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
 
     - id: population_attributable_fraction
       name: Väestösyyosuus
@@ -164,38 +157,38 @@ instance:
       type: health.PopulationAttributableFraction
       input_nodes:
         - exposure
-        - exposure_response_function
+#        - exposure_response_function
         - frexposed
-        - p_illness
-        - incidence
+#        - p_illness
+#        - incidence
 
-    - id: case_burden
-      name: Tapaustaakka
-      name_en: Case burden
-      type: health.DataOvariable
-      quantity: disease_burden
-      unit: DALY
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
+#    - id: case_burden
+#      name: Tapaustaakka
+#      name_en: Case burden
+#      type: health.DataOvariable
+#      quantity: disease_burden
+#      unit: DALY
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
 
     - id: disease_burden
       name: Kokonaistautitaakka
       name_en: Total disease burden
       type: health.DiseaseBurden
-      unit: DALY
+      unit: DALY/a
       input_nodes:
-        - incidence
+#        - incidence
         - population
-        - case_burden
+#        - case_burden
 
     - id: attributable_disease_burden
       name: Kohdentuva tautitaakka
       name_en: Attributable disease burden
       type: health.AttributableDiseaseBurden
-      unit: person
+      unit: DALY/a
       input_nodes:
         - disease_burden
         - population_attributable_fraction

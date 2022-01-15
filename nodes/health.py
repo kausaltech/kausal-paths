@@ -56,20 +56,6 @@ class Exposure(Ovariable):
         return self.clean_computing(exposure)
 
 
-class ExposurePerBW(Exposure):
-    # Here exposure is scaled by body weight
-    # It is not clear how quantities and units are compatible, if ingestion can be mg/d or mg/kg/d
-
-    def compute(self):
-        consumption = self.get_input('ingestion')
-        concentration = self.get_input('mass_concentration')
-        bw = self.get_input('body_weight')
-
-        exposure = concentration * consumption / bw
-
-        return self.clean_computing(exposure)
-
-
 class ExposureResponseFunction(Ovariable):
     quantity = 'exposure-response'
 
@@ -123,12 +109,50 @@ class PopulationAttributableFraction(Ovariable):
         return OvariableFrame(out).clean()
 
     def compute(self):
-        param1 = self.get_input(
-            'exposure-response',
-            query="observation =='param1'", drop='observation')
-        param2 = self.get_input(
-            'exposure-response',
-            query="observation == 'param2'", drop='observation')
+        exposure = self.get_input('ingestion')
+        exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
+        frexposed = self.get_input('fraction')
+        erf_context = 'dioxin_cancer'
+
+        erf_type = unit_registry('er_function').to('dimensionless', erf_context)
+        p_illness = unit_registry('p_illness').to('dimensionless', erf_context)
+        incidence = unit_registry('incidence').to('case/personyear', erf_context)
+        period = unit_registry('period').to('d/incident', erf_context)
+
+        if erf_type == 1:  # unit risk
+            slope = unit_registry('erf_param_invexposure').to('kg d/mg', erf_context)
+            threshold = unit_registry('erf_param_exposure').to('mg/kg/d', erf_context)
+            target_population = unit_registry('1 person')
+            out = (exposure - threshold) * slope * frexposed * p_illness
+            out = (out / target_population / period) / incidence
+
+            self.print_pint_df(out)
+            print(p_illness)
+            print(incidence)
+
+        elif erf_type != 1:
+            out = exposure / exposure
+
+        def postprocess_relative(rr, frexposed):
+            r = frexposed * (rr - 1)
+
+            out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+            # is smaller than 0, we should use r instead. It can be converted from the result:
+            # r/(r+1)=a <=> r=a/(1-a)
+            out3[VALUE_COLUMN] = np.where(
+                out3[VALUE_COLUMN] < 0,
+                out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
+                out3[VALUE_COLUMN])
+
+        return self.clean_computing(out)
+
+    def compute_old(self):
+        param1 = 1  # self.get_input(
+        #    'exposure-response',
+        #    query="observation =='param1'", drop='observation')
+        param2 = 1  # self.get_input(
+        #    'exposure-response',
+        #    query="observation == 'param2'", drop='observation')
         exposure = self.get_input('ingestion')
         frexposed = self.get_input('fraction')
         incidence = self.get_input('incidence')
@@ -165,7 +189,7 @@ class PopulationAttributableFraction(Ovariable):
                 dose2 = (exposure - threshold)
                 # FIXME clip removes the pint unit. Figure out something else.
                 # dose2 = np.clip(dose2, 0, None)  # Smallest allowed value is 0
-                out1 = (k * dose2 * frexposed / incidence)
+                out1 = k * dose2 * frexposed  # / incidence
                 out = out.append(out1.reset_index())
 
             if func == 'Step':
@@ -224,9 +248,10 @@ class DiseaseBurden(Ovariable):
     quantity = 'disease_burden'
 
     def compute(self):
-        incidence = self.get_input('incidence')
+        erf_context = 'dioxin_cancer'
+        incidence = unit_registry('incidence').to('case/personyear', erf_context)
+        case_burden = unit_registry('case_burden').to('DALY/case', erf_context)
         population = self.get_input('population')
-        case_burden = self.get_input('disease_burden')
 
         out = population * incidence * case_burden
 
