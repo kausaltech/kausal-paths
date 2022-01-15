@@ -103,30 +103,6 @@ instance:
       input_nodes:
         - meat_consumption_per_person
 
-#    - id: fish_health
-#      name: Kalaterveys
-#      name_en: Fish health
-#      type: health.Healthtest
-#      quantity: disease_burden
-#      unit: DALY
-#      params:
-#        - id: erf_name
-#          value: dioxin_cancer
-#      input_nodes:
-#        - exposure
-
-#    - id: p_illness
-#      name: Sairauden todennäköisyys
-#      name_en: Probability of illness
-#      type: health.DataOvariable
-#      quantity: probability
-#      unit: dimensionless
-#      input_datasets:
-#        - id: ilmastoruoka/emission_factor  # FIXME Get real data
-#          column: Drinks
-#          forecast_from: 2021
-#          dropna: true
-
     - id: frexposed
       name: Altistuneiden osuus
       name_en: Fraction exposed
@@ -139,40 +115,13 @@ instance:
           forecast_from: 2021
           dropna: true
 
-#    - id: incidence
-#      name: Ilmaantuvuus
-#      name_en: Incidence
-#      type: health.DataOvariable
-#      quantity: incidence
-#      unit: 1/person
-#      input_datasets:
-#        - id: ilmastoruoka/consumption  # FIXME Get real data
-#          column: Cooking
-#          forecast_from: 2021
-#          dropna: true
-
     - id: population_attributable_fraction
       name: Väestösyyosuus
       name_en: Population attributable fraction
       type: health.PopulationAttributableFraction
       input_nodes:
         - exposure
-#        - exposure_response_function
         - frexposed
-#        - p_illness
-#        - incidence
-
-#    - id: case_burden
-#      name: Tapaustaakka
-#      name_en: Case burden
-#      type: health.DataOvariable
-#      quantity: disease_burden
-#      unit: DALY
-#      input_datasets:
-#        - id: ilmastoruoka/consumption  # FIXME Get real data
-#          column: Cooking
-#          forecast_from: 2021
-#          dropna: true
 
     - id: disease_burden
       name: Kokonaistautitaakka
@@ -180,9 +129,7 @@ instance:
       type: health.DiseaseBurden
       unit: DALY/a
       input_nodes:
-#        - incidence
         - population
-#        - case_burden
 
     - id: attributable_disease_burden
       name: Kohdentuva tautitaakka

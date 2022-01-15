@@ -56,63 +56,20 @@ class Exposure(Ovariable):
         return self.clean_computing(exposure)
 
 
-class ExposureResponseFunction(Ovariable):
-    quantity = 'exposure-response'
-
-    def compute(self):
-        df = pd.DataFrame({
-            'scaling': pd.Series(['None'] * 4),
-            'Response': pd.Series(['CVD'] * 2 + ['Cancer'] * 2),
-            'er_function': pd.Series(['RR'] * 2 + ['UR'] * 2),
-            'observation': pd.Series(['param1', 'param2'] * 2),
-            FORECAST_COLUMN: pd.Series([False] * 4),
-            VALUE_COLUMN: pd.Series([200., 0., 2000.1, 0.2], dtype='pint[mg/person/d]')
-        }).set_index(['er_function', 'Response', 'observation', 'scaling'])
-
-        return self.clean_computing(df)
-
-
 class PopulationAttributableFraction(Ovariable):
     # Population attributable fraction PAF
 
     quantity = 'fraction'
     unit = 'dimensionless'
 
-    # scale_exposure() scales the exposure by logarithmic function or body weight.
-    # The information about how to scale comes from exposure-response function.
-    # Thus, er-function and body weight must be provided.
-    # FIXME Is this a sensible thing to do, as then the units and dimensions may differ within node?
-    # scale_exposure leads to dtype object, which causes problems in ensure_pint_unit
-    # Somehow it is due to er_function, maybe pint.m but not clear.
-
-    def scale_exposure(self, exposure, er_function, bw):
-        out = OvariableFrame(er_function.copy())
-#        out[VALUE_COLUMN] = out[VALUE_COLUMN].pint.m
-        out = out * unit_registry.Quantity('0 * cap * d / mg') + 1
-        tst = out.merge(exposure)[0:4]
-        # out = out * exposure
-        # FIXME Does not work atm
-
-        out = out.merge(bw).reset_index()
-
-        out[VALUE_COLUMN] = np.where(
-            out['scaling'] == 'BW',
-            out[VALUE_x] / out[VALUE_y],
-            out[VALUE_x])
-
-        # FIXME log10 not defined for all inputs
-        #        out[VALUE_COLUMN] = np.where(
-        #            out['scaling'] == 'Log10',
-        #            np.log10(out[VALUE_COLUMN]),
-        #            out[VALUE_COLUMN])
-
-        return OvariableFrame(out).clean()
-
     def compute(self):
+        routes = ['exposure', 'ingestion', 'inhalation']
         exposure = self.get_input('ingestion')
         exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
         frexposed = self.get_input('fraction')
-        erf_context = 'dioxin_cancer'
+        erf_context = 'vitaminD_deficiency'
+#        erf_context = 'dioxin_cancer'
+        route = routes[unit_registry('route').to('dimensionless', erf_context).m]
 
         erf_type = unit_registry('er_function').to('dimensionless', erf_context)
         p_illness = unit_registry('p_illness').to('dimensionless', erf_context)
@@ -120,17 +77,22 @@ class PopulationAttributableFraction(Ovariable):
         period = unit_registry('period').to('d/incident', erf_context)
 
         if erf_type == 1:  # unit risk
-            slope = unit_registry('erf_param_invexposure').to('kg d/mg', erf_context)
-            threshold = unit_registry('erf_param_exposure').to('mg/kg/d', erf_context)
+            slope = unit_registry('erf_param_inv_' + route).to('kg d/mg', erf_context)
+            threshold = unit_registry('erf_param_' + route).to('mg/kg/d', erf_context)
             target_population = unit_registry('1 person')
             out = (exposure - threshold) * slope * frexposed * p_illness
             out = (out / target_population / period) / incidence
 
-            self.print_pint_df(out)
-            print(p_illness)
-            print(incidence)
+        elif erf_type == 2:  # step function
+            lower = unit_registry('erf_param_' + route).to('mg/kg/d', erf_context)
+            upper = unit_registry('erf_param2_' + route).to('mg/kg/d', erf_context)
+            target_population = unit_registry('1 person')
+            tmp = OvariableFrame(exposure.copy())  # Because >= is inplace, exposure cannot be used twice
+            out = (tmp >= lower) * 1
+            out = out * (exposure <= upper) * frexposed * p_illness
+            out = (out / target_population / period) / incidence
 
-        elif erf_type != 1:
+        else:
             out = exposure / exposure
 
         def postprocess_relative(rr, frexposed):

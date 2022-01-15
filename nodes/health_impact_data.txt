@@ -36,27 +36,32 @@
 #### Exposure-response functions
 
 @context pm2_5_mortality  # http://en.opasnet.org/w/ERF_of_outdoor_air_pollution
-    erf_param_ug_air = 0.007696104113612839 / (ug / m**3)  # log(1.08)/10 Chen & Hoek, 2020
+    erf_param_inhalation = 0.007696104113612839 / (ug / m**3)  # log(1.08)/10 Chen & Hoek, 2020
 @end
 
 @context dioxin_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
     period = lifetime
-    erf_param_invexposure = 0.001 / (pg/kg/d)  # U.S.EPA 2004. https://cfpub.epa.gov/ncea/risk/recordisplay.cfm?deid=87843
-    erf_param_exposure = 0 pg/kg/d
     er_function = 1  # unit risk (linear)
-    p_illness = 1
-    case_burden = 10 DALY/case
-    incidence = 0.2 /person/lifetime
+    erf_param_inv_exposure = 0.001 / (pg/kg/d)  # U.S.EPA 2004. https://cfpub.epa.gov/ncea/risk/recordisplay.cfm?deid=87843
+    erf_param_exposure = 0 pg/kg/d
+    incidence = 12998 / (55498 person) / lifetime  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
+    case_burden = 19.7 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
 @end
 
 @context vitaminD_deficiency
-    period = subchronic
+    period = yearly
+    route = 1  # ingestion
+    er_function = 2  # step function (0 between parameters, 1 otherwise)
+    erf_param_ingestion = 1000 pg / d  # http://en.opasnet.org/w/ERFs_of_vitamins
+    erf_param2_ingestion = 1300 pg / d
+    case_burden = 0.001 DALY / case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
+    mg / d -> mg / kg / d: value / body_mass
 @end
 
 # http://en.opasnet.org/w/ERF_for_long-term_indoor_exposure_to_radon_and_lung_cancer
 @context radon_lungcancer  # http://en.opasnet.org/w/ERFs_of_environmental_pollutants
     period = lifetime
-    erf_param_bq_air = 0.0015987213636970735 / (Bq / m**3)  # log(1.0016)  # Darby 2005 http://www.bmj.com/cgi/content/full/330/7485/223
+    erf_param_inhalation_bq = 0.0015987213636970735 / (Bq / m**3)  # log(1.0016)  # Darby 2005 http://www.bmj.com/cgi/content/full/330/7485/223
 @end
 
 
