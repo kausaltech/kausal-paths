@@ -97,7 +97,7 @@ class OvariableFrame(pd.DataFrame):
             df[FORECAST_COLUMN] = df[FORECAST_x] | df[FORECAST_y]
         keep = set(df.columns) - {0, 'index', VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
         df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
-        return OvariableFrame(df)
+        return OvariableFrame(df.copy())
 
     def print_pint_df(self):
         df = self
@@ -120,7 +120,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] + other
-            return self
+            return OvariableFrame(self.copy())
 
     def __sub__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -129,7 +129,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] - other
-            return self
+            return OvariableFrame(self.copy())
 
     def __mul__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -138,7 +138,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] * other
-            return self
+            return OvariableFrame(self.copy())
 
     def __truediv__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -147,7 +147,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] / other
-            return self
+            return OvariableFrame(self.copy())
 
     def __mod__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -156,7 +156,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] % other
-            return self
+            return OvariableFrame(self.copy())
 
     def __pow__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -165,7 +165,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] ** other
-            return self
+            return OvariableFrame(self.copy())
 
     def __floordiv__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -174,7 +174,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] // other
-            return self
+            return OvariableFrame(self.copy())
 
     def __lt__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -183,7 +183,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] < other
-            return self
+            return OvariableFrame(self.copy())
 
     def __le__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -192,7 +192,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] <= other
-            return self
+            return OvariableFrame(self.copy())
 
     def __gt__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -201,7 +201,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] > other
-            return self
+            return OvariableFrame(self.copy())
 
     def __ge__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -210,7 +210,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] >= other
-            return self
+            return OvariableFrame(self.copy())
 
     def __eq__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -219,7 +219,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] == other
-            return self
+            return OvariableFrame(self.copy())
 
     def __ne__(self, other):
         if isinstance(other, pd.DataFrame):
@@ -228,7 +228,7 @@ class OvariableFrame(pd.DataFrame):
             return self.clean()
         else:
             self[VALUE_COLUMN] = self[VALUE_COLUMN] != other
-            return self
+            return OvariableFrame(self.copy())
 
     def exp(self):
         s = self[VALUE_COLUMN]
@@ -236,7 +236,7 @@ class OvariableFrame(pd.DataFrame):
         s = np.exp(s.pint.m)
         s = pd.Series(s, dtype='pint[dimensionless]')
         self[VALUE_COLUMN] = s
-        return self
+        return OvariableFrame(self.copy())
 
     def log10(self):
         s = self[VALUE_COLUMN]
@@ -244,7 +244,7 @@ class OvariableFrame(pd.DataFrame):
         s = np.log10(s.pint.m)
         s = pd.Series(s, dtype='pint[dimensionless]')
         self[VALUE_COLUMN] = s
-        return self
+        return OvariableFrame(self.copy())
 
     def log(self):
         s = self[VALUE_COLUMN]
@@ -252,4 +252,4 @@ class OvariableFrame(pd.DataFrame):
         s = np.log(s.pint.m)
         s = pd.Series(s, dtype='pint[dimensionless]')
         self[VALUE_COLUMN] = s
-        return self
+        return OvariableFrame(self.copy())

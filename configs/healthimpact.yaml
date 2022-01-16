@@ -132,30 +132,51 @@ instance:
       name_en: PAF dioxin
       type: health.PopulationAttributableFraction
       params:
-        - id: erf_context
-          value: dioxin_cancer
+        - id: erf_contexts
+          value:
+            - dioxin_twi
+            - dioxin_cancer
       input_nodes:
         - dioxin_exposure
         - frexposed
 
-    - id: paf_pm2_5
-      name: Pienhiukkasten väestösyyosuus
-      name_en: Fine particle PAF
-      type: health.PopulationAttributableFraction
-      params:
-        - id: erf_context
-          value: pm2_5_mortality
-      input_nodes:
-        - pm2_5_exposure
-        - frexposed
+#    - id: paf_pm2_5
+#      name: Pienhiukkasten väestösyyosuus
+#      name_en: Fine particle PAF
+#      type: health.PopulationAttributableFraction
+#      params:
+#        - id: erf_contexts
+#          value:
+#            - pm2_5_mortality
+#      input_nodes:
+#        - pm2_5_exposure
+#        - frexposed
 
-    - id: disease_burden
-      name: Kokonaistautitaakka
-      name_en: Total disease burden
+    - id: dioxin_related_endpoints
+      name: Dioksiiniin liittyvät vasteet
+      name_en: Dioxin-related responses
       type: health.DiseaseBurden
+      params:
+        - id: erf_contexts
+          value:
+            - dioxin_twi
+            - dioxin_cancer
       unit: DALY/a
       input_nodes:
         - population
+
+#    - id: disease_burden_cvd_mortality
+#      name: Sydäntautikuolleisuuden tautitaakka
+#      name_en: Disease burden of CVD mortality
+#      type: health.DiseaseBurden
+#      params:
+#        - id: erf_contexts
+#          value:
+#            - pm2_5_mortality
+#            - dioxin_cancer
+#      unit: DALY/a
+#      input_nodes:
+#        - population
 
     - id: dioxin_disease_burden
       name: Dioksiinin tautitaakka
@@ -163,21 +184,21 @@ instance:
       type: health.AttributableDiseaseBurden
       unit: DALY/a
       input_nodes:
-        - disease_burden
+        - dioxin_related_endpoints
         - paf_dioxin
       output_nodes:
         - net_health_impact
 
-    - id: pm2_5_disease_burden
-      name: Pienhiukkasten tautitaakka
-      name_en: Fine particle disease burden
-      type: health.AttributableDiseaseBurden
-      unit: DALY/a
-      input_nodes:
-        - disease_burden
-        - paf_pm2_5
-      output_nodes:
-        - net_health_impact
+#    - id: pm2_5_disease_burden
+#      name: Pienhiukkasten tautitaakka
+#      name_en: Fine particle disease burden
+#      type: health.AttributableDiseaseBurden
+#      unit: DALY/a
+#      input_nodes:
+#        - disease_burden_cvd_mortality
+#        - paf_pm2_5
+#      output_nodes:
+#        - net_health_impact
 
 ################
 # health benefits

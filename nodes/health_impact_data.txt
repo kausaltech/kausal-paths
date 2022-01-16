@@ -57,6 +57,16 @@
     case_burden = 19.7 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
 @end
 
+@context dioxin_twi  # http://en.opasnet.org/w/ERF_of_dioxin
+    period = yearly
+    route = 0  # exposure
+    er_function = 2  # step function
+    erf_param_exposure = 0 pg/kg/week
+    erf_param2_exposure = 2 pg/kg/week  # EFSA dioxin recommendation 2018
+    incidence = 1 case / personyear  # nominal; everyone is exposed
+    case_burden = 0.0001 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
+@end
+
 @context omega3_chdmortality  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
     period = lifetime
     route = 1  # ingestion
@@ -66,6 +76,18 @@
     incidence = 18496 cases / (5533793 personyears)  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
     case_burden = 10 DALY/case  # http://fi.opasnet.org/fi/Goherr_assessment#Model_parameters
     mg / d -> mg / kg / d: value / body_mass
+@end
+
+@context omega3_breastcancer  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
+    period = lifetime
+    route = 1  # ingestion
+    er_function = 3  # relative risk
+    erf_param_inv_ingestion = -0.5129329439 d/g  # log(0.95)/(0.1 g/d)
+    erf_param_ingestion = 0 mg/d
+    incidence = 93.58 cases/per_100000py  # https://syoparekisteri.fi/tilastot/tautitilastot/?_inputs_&value_type="inc.rate"&submit=2&tabset_panel="2"&value_theme="theme_inc"&tabu="inc_ts1"&table_cells_selected=[]&language="fi"&in.subset.sites=["0L","24L"]&in.subset.sex="-1L"&in.subset.area="-1L"&table_view="v2"&table_rows_selected=null&table_columns_selected=null&
+    case_burden = 19.7 YLL/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
+    mg / d -> mg / kg / d: value / body_mass
+    d / mg -> kg d / mg: value * body_mass
 @end
 
 @context vitaminD_deficiency
