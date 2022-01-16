@@ -5,7 +5,7 @@ import dvc_pandas
 from graphene.types.scalars import Float, Int
 from pint.registry import ContextCacheOverlay
 from pint_pandas.pint_array import PintArray
-from params.param import BoolParameter, NumberParameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 from typing import Dict, List
 import pandas as pd
 import pint
@@ -32,19 +32,10 @@ class DataOvariable(Ovariable, AdditiveNode):
     pass
 
 
-# Possible units for exposure:
-# mg/person       acute dose per person
-# mg/person/d     mass rate per person
-# mg/kg           acute dose per body weight
-# mg/kg/d         mass rate per body weight = fraction of body mass rate
-# ug/m**3         concentration in breathing air
-# ppm             mass concentration in breathing air
-
-
 class Exposure(Ovariable):
     # Exposure is the intensity of contact with the environment by the target population.
 
-    quantity = 'ingestion'
+    quantity = 'exposure'
     scaled = False  # This is probably not needed any more
 
     def compute(self):
@@ -58,23 +49,45 @@ class Exposure(Ovariable):
 
 class PopulationAttributableFraction(Ovariable):
     # Population attributable fraction PAF
+    allowed_parameters = [
+        StringParameter(local_id='erf_context'),
+    ] + Ovariable.allowed_parameters
 
     quantity = 'fraction'
     unit = 'dimensionless'
 
     def compute(self):
         routes = ['exposure', 'ingestion', 'inhalation']
-        exposure = self.get_input('ingestion')
+        exposure = self.get_input('exposure')
         exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
         frexposed = self.get_input('fraction')
-        erf_context = 'vitaminD_deficiency'
-#        erf_context = 'dioxin_cancer'
+
+        # multiplier_param = self.get_parameter('multiplier')
+        # multiplier = multiplier_param.value
+#        erf_context = self.get_parameter('erf_context')
+#        erf_context = 'omega3_chdmortality'
+#        erf_context = 'pm2_5_mortality'
+#        erf_context = 'vitaminD_deficiency'
+        erf_context = 'dioxin_cancer'
         route = routes[unit_registry('route').to('dimensionless', erf_context).m]
 
         erf_type = unit_registry('er_function').to('dimensionless', erf_context)
         p_illness = unit_registry('p_illness').to('dimensionless', erf_context)
         incidence = unit_registry('incidence').to('case/personyear', erf_context)
         period = unit_registry('period').to('d/incident', erf_context)
+
+        def postprocess_relative(rr, frexposed):
+            r = frexposed * (rr - 1)
+            tmp = OvariableFrame(r.copy())  # OvariableFrame objecct cannot be used twice because of inplace
+            out3 = (tmp / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+            # is smaller than 0, we should use r instead. It can be converted from the result:
+            # r/(r+1)=a <=> r=a/(1-a)
+            out3[VALUE_COLUMN] = np.where(
+                out3[VALUE_COLUMN] < 0,
+                out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
+                out3[VALUE_COLUMN])
+
+            return out3
 
         if erf_type == 1:  # unit risk
             slope = unit_registry('erf_param_inv_' + route).to('kg d/mg', erf_context)
@@ -87,24 +100,32 @@ class PopulationAttributableFraction(Ovariable):
             lower = unit_registry('erf_param_' + route).to('mg/kg/d', erf_context)
             upper = unit_registry('erf_param2_' + route).to('mg/kg/d', erf_context)
             target_population = unit_registry('1 person')
-            tmp = OvariableFrame(exposure.copy())  # Because >= is inplace, exposure cannot be used twice
+            tmp = OvariableFrame(exposure.copy())
             out = (tmp >= lower) * 1
             out = out * (exposure <= upper) * frexposed * p_illness
             out = (out / target_population / period) / incidence
 
+        elif erf_type == 3:  # relative risk
+            beta = unit_registry('erf_param_inv_' + route).to('kg d /mg', erf_context)
+            threshold = unit_registry('erf_param_' + route).to('mg/kg/d', erf_context)
+            out = exposure - threshold
+            # out[VALUE_COLUMN] = np.where(  # FIXME
+            #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
+            #     out[VALUE_COLUMN] * 0,
+            #     out[VALUE_COLUMN])
+            out = (out * beta).exp()
+            out = postprocess_relative(rr=out, frexposed=frexposed)
+
+        elif erf_type == 4:  # Relative Hill
+            Imax = unit_registry('erf_param_scale').to('dimensionless', erf_context)
+            ed50 = unit_registry('erf_param_ingestion').to('mg/kg/d', erf_context)
+            tmp = OvariableFrame(exposure.copy())
+            self.print_pint_df(tmp * Imax)
+            out = (tmp * Imax) / (exposure + ed50) + 1
+            out = postprocess_relative(rr=out, frexposed=frexposed)
+
         else:
             out = exposure / exposure
-
-        def postprocess_relative(rr, frexposed):
-            r = frexposed * (rr - 1)
-
-            out3 = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
-            # is smaller than 0, we should use r instead. It can be converted from the result:
-            # r/(r+1)=a <=> r=a/(1-a)
-            out3[VALUE_COLUMN] = np.where(
-                out3[VALUE_COLUMN] < 0,
-                out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
-                out3[VALUE_COLUMN])
 
         return self.clean_computing(out)
 

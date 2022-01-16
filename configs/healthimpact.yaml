@@ -93,15 +93,27 @@ instance:
           forecast_from: 2021
           dropna: true
       output_nodes:
-        - exposure
+        - dioxin_exposure
 
-    - id: exposure
+    - id: dioxin_exposure
       name: Dioksiinialtistus
       name_en: Dioxin exposure
       type: health.Exposure
       unit: pg/person/day
       input_nodes:
         - meat_consumption_per_person
+
+    - id: pm25_exposure
+      name: Pienhiukkasaltistus
+      name_en: Fine particle exposure
+      type: health.DataOvariable
+      quantity: exposure
+      unit: ug/m**3
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Domestic fish
+          forecast_from: 2021
+          dropna: True
 
     - id: frexposed
       name: Altistuneiden osuus
@@ -115,12 +127,13 @@ instance:
           forecast_from: 2021
           dropna: true
 
-    - id: population_attributable_fraction
+    - id: paf_dioxin
       name: Väestösyyosuus
       name_en: Population attributable fraction
       type: health.PopulationAttributableFraction
+      erf_context: dioxin_cancer
       input_nodes:
-        - exposure
+        - dioxin_exposure
         - frexposed
 
     - id: disease_burden
@@ -138,7 +151,7 @@ instance:
       unit: DALY/a
       input_nodes:
         - disease_burden
-        - population_attributable_fraction
+        - paf_dioxin
 
 ################
 # health benefits

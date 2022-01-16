@@ -36,11 +36,20 @@
 #### Exposure-response functions
 
 @context pm2_5_mortality  # http://en.opasnet.org/w/ERF_of_outdoor_air_pollution
-    erf_param_inhalation = 0.007696104113612839 / (ug / m**3)  # log(1.08)/10 Chen & Hoek, 2020
+    period = yearly
+    route = 2  # inhalation
+    er_function = 3  # relative risk
+    erf_param_inv_inhalation = 0.007696104113612839 / (ug / m**3)  # log(1.08)/10 Chen & Hoek, 2020
+    erf_param_inhalation = 0 ug / m**3
+    mg / m**3 -> mg / kg / d: value * (inhalation_rate / body_mass)
+    m**3 / mg -> kg d / mg: value / (inhalation_rate / body_mass)
+    incidence = 18496 cases / (5533793 personyears)  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
+    case_burden = 10.6 DALY/case  # De Leeuw & Horàlek 2016/5 http://fi.opasnet.org/fi/Kiltova#PAQ2018
 @end
 
 @context dioxin_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
     period = lifetime
+    route = 0  # exposure
     er_function = 1  # unit risk (linear)
     erf_param_inv_exposure = 0.001 / (pg/kg/d)  # U.S.EPA 2004. https://cfpub.epa.gov/ncea/risk/recordisplay.cfm?deid=87843
     erf_param_exposure = 0 pg/kg/d
@@ -48,12 +57,23 @@
     case_burden = 19.7 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
 @end
 
+@context omega3_chdmortality  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
+    period = lifetime
+    route = 1  # ingestion
+    er_function = 4  # Relative Hill
+    erf_param_ingestion = 47 mg/d  # Cohen et al 2005 http://www.ncbi.nlm.nih.gov/pubmed/16242602
+    erf_param_scale = -0.17
+    incidence = 18496 cases / (5533793 personyears)  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
+    case_burden = 10 DALY/case  # http://fi.opasnet.org/fi/Goherr_assessment#Model_parameters
+    mg / d -> mg / kg / d: value / body_mass
+@end
+
 @context vitaminD_deficiency
-    period = yearly
+    period = yearly  # during summer, sunlight prevents deficiency
     route = 1  # ingestion
     er_function = 2  # step function (0 between parameters, 1 otherwise)
-    erf_param_ingestion = 1000 pg / d  # http://en.opasnet.org/w/ERFs_of_vitamins
-    erf_param2_ingestion = 1300 pg / d
+    erf_param_ingestion = 10 ug / d  # http://en.opasnet.org/w/ERFs_of_vitamins
+    erf_param2_ingestion = 100 ug / d
     case_burden = 0.001 DALY / case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
     mg / d -> mg / kg / d: value / body_mass
 @end

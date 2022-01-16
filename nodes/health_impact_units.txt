@@ -32,8 +32,9 @@ erf_param_inv_exposure = 0 kg * d / mg
 erf_param_ingestion = 0 mg/d
 erf_param2_ingestion = 0 mg / d
 erf_param_scale = 0
-erf_param_inhalation_bq = 0 / (Bq / m**3)
-erf_param_inhalation = 0 / (ug / m**3)
+erf_param_inhalation = 0 ug / m**3
+erf_param_inv_inhalation = 0 / (ug / m**3)
+erf_param_inv_inhalation_bq = 0 / (Bq / m**3)
 case_burden = 0 DALY/case
 
 colony_forming_unit = [] = cfu
