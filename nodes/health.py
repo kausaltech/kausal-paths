@@ -1,23 +1,23 @@
-from logging import exception, log
-from types import FunctionType
+# from logging import exception, log
+# from types import FunctionType
 
-import dvc_pandas
-from graphene.types.scalars import Float, Int
-from pint.registry import ContextCacheOverlay
-from pint_pandas.pint_array import PintArray
-from params.param import BoolParameter, NumberParameter, StringParameter
-from typing import Dict, List
+# import dvc_pandas
+# from graphene.types.scalars import Float, Int
+# from pint.registry import ContextCacheOverlay
+# from pint_pandas.pint_array import PintArray
+from params.param import StringParameter
+# from typing import Dict, List
 import pandas as pd
-import pint
+# import pint
 from .context import unit_registry
 import numpy as np
-import math
-import copy
+# import math
+# import copy
 
-from common.i18n import TranslatedString
+# from common.i18n import TranslatedString
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
-from .node import Context, Node
-from .exceptions import NodeError
+# from .node import Context, Node
+# from .exceptions import NodeError
 
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
@@ -61,14 +61,7 @@ class PopulationAttributableFraction(Ovariable):
         exposure = self.get_input('exposure')
         exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
         frexposed = self.get_input('fraction')
-
-        # multiplier_param = self.get_parameter('multiplier')
-        # multiplier = multiplier_param.value
-#        erf_context = self.get_parameter('erf_context')
-#        erf_context = 'omega3_chdmortality'
-#        erf_context = 'pm2_5_mortality'
-#        erf_context = 'vitaminD_deficiency'
-        erf_context = 'dioxin_cancer'
+        erf_context = self.get_parameter_value('erf_context')
         route = routes[unit_registry('route').to('dimensionless', erf_context).m]
 
         erf_type = unit_registry('er_function').to('dimensionless', erf_context)

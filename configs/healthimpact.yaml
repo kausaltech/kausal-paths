@@ -103,7 +103,7 @@ instance:
       input_nodes:
         - meat_consumption_per_person
 
-    - id: pm25_exposure
+    - id: pm2_5_exposure
       name: Pienhiukkasaltistus
       name_en: Fine particle exposure
       type: health.DataOvariable
@@ -128,12 +128,25 @@ instance:
           dropna: true
 
     - id: paf_dioxin
-      name: Väestösyyosuus
-      name_en: Population attributable fraction
+      name: Dioksiinin väestösyyosuus
+      name_en: PAF dioxin
       type: health.PopulationAttributableFraction
-      erf_context: dioxin_cancer
+      params:
+        - id: erf_context
+          value: dioxin_cancer
       input_nodes:
         - dioxin_exposure
+        - frexposed
+
+    - id: paf_pm2_5
+      name: Pienhiukkasten väestösyyosuus
+      name_en: Fine particle PAF
+      type: health.PopulationAttributableFraction
+      params:
+        - id: erf_context
+          value: pm2_5_mortality
+      input_nodes:
+        - pm2_5_exposure
         - frexposed
 
     - id: disease_burden
@@ -144,14 +157,27 @@ instance:
       input_nodes:
         - population
 
-    - id: attributable_disease_burden
-      name: Kohdentuva tautitaakka
-      name_en: Attributable disease burden
+    - id: dioxin_disease_burden
+      name: Dioksiinin tautitaakka
+      name_en: Dioxin disease burden
       type: health.AttributableDiseaseBurden
       unit: DALY/a
       input_nodes:
         - disease_burden
         - paf_dioxin
+      output_nodes:
+        - net_health_impact
+
+    - id: pm2_5_disease_burden
+      name: Pienhiukkasten tautitaakka
+      name_en: Fine particle disease burden
+      type: health.AttributableDiseaseBurden
+      unit: DALY/a
+      input_nodes:
+        - disease_burden
+        - paf_pm2_5
+      output_nodes:
+        - net_health_impact
 
 ################
 # health benefits
