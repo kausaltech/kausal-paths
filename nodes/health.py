@@ -255,6 +255,7 @@ class DiseaseBurden(Ovariable):
 
         indices = list(set(out.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         out = out.set_index(indices)
+        out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
 
         return self.clean_computing(out)
 
