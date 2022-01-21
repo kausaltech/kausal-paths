@@ -43,7 +43,7 @@ class InstanceConfig(models.Model):
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
 
     created_at = models.DateTimeField(default=timezone.now)
-    modified_at = models.DateTimeField(default=timezone.now)
+    modified_at = models.DateTimeField(auto_now=True)
 
     i18n = TranslationField(fields=('name',))
 
@@ -200,7 +200,7 @@ class NodeConfig(ClusterableModel):
     params = models.JSONField(null=True, editable=False)
 
     created_at = models.DateTimeField(default=timezone.now)
-    modified_at = models.DateTimeField(default=timezone.now)
+    modified_at = models.DateTimeField(auto_now=True)
 
     i18n = TranslationField(fields=('name',))
 
