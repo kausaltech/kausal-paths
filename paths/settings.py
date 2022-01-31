@@ -21,7 +21,8 @@ from django.utils.translation import gettext_lazy as _
 PROJECT_NAME = 'paths'
 
 root = environ.Path(__file__) - 2  # two folders back
-env = environ.Env(
+env = environ.FileAwareEnv(
+    ENV_FILE=(str, ''),
     DEBUG=(bool, False),
     SECRET_KEY=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
@@ -42,7 +43,9 @@ env = environ.Env(
 BASE_DIR = root()
 PROJECT_DIR = os.path.join(BASE_DIR, PROJECT_NAME)
 
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
+if env('ENV_FILE'):
+    environ.Env.read_env(env('ENV_FILE'))
+elif os.path.exists(os.path.join(BASE_DIR, '.env')):
     environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 DEBUG = env('DEBUG')
