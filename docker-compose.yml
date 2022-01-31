@@ -1,38 +1,25 @@
 version: '3.2'
 services:
   db:
-    container_name: paths-db
-    build:
-      context: .
-      dockerfile: ./docker/db/Dockerfile
-    restart: always
+    image: docker.kausal.tech/postgres
     environment:
       - POSTGRES_USER=paths
       - POSTGRES_PASSWORD
+      - POSTGRES_PASSWORD_FILE
     volumes:
       - db_data:/var/lib/postgresql/data/
 
   redis:
     image: redis:alpine
-    restart: always
 
   app:
-    container_name: paths
-    build:
-      context: .
-      dockerfile: docker/app/Dockerfile
-      args:
-        - STATIC_ROOT=/srv/static
-        - MEDIA_ROOT=/srv/media
-        - EXTRA_PYPI_INDEX
-        - EXTRA_INSTALLED_APPS_VERSIONS
-    restart: always
     volumes:
       - paths_media:/srv/media
       - paths_build_cache:/root/.cache
     environment:
-      - POSTGRES_PASSWORD
-      - DATABASE_URL=postgres://paths:${POSTGRES_PASSWORD}@db/paths
+      - DATABASE_URL
+      - DATABASE_URL_FILE
+      - ENV_FILE
       - REDIS_URL=redis://redis
       - STATIC_ROOT=/srv/static
       - MEDIA_ROOT=/srv/media
@@ -43,14 +30,9 @@ services:
       - INTERNAL_IPS
       - SENTRY_DSN
       - SECRET_KEY
-      - OIDC_ISSUER_URL
-      - OIDC_CLIENT_ID
-      - OIDC_CLIENT_SECRET
+      - SECRET_KEY_FILE
       - EXTRA_INSTALLED_APPS
       - EXTRA_INSTALLED_APPS_URLS
-    ports:
-      - "${HOST_PORT:-127.0.0.1:8000}:8000"
-      - "${UWSGI_SOCKET_PORT:-127.0.0.1:8001}:8001"
     depends_on:
       - db
       - redis

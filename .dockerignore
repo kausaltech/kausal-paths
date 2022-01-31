@@ -1,3 +1,8 @@
+/.direnv/
+/.env
+/local_settings.py
+/kausal_paths_extensions/
+
 # Django project
 /media/
 /static/
@@ -39,3 +44,4 @@ wheels/
 *.egg
 
 /data
+/kausal_paths_extensions

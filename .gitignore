@@ -17,3 +17,5 @@ db.sqlite3
 /mysite/
 .DS_Store
 /data/
+/kausal_paths_extensions
+/reset-db.sh

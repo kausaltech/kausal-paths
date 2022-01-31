@@ -1,0 +1,28 @@
+version: '3.2'
+services:
+  db:
+    container_name: paths-db
+    build:
+      context: .
+      dockerfile: ./docker/db/Dockerfile
+    restart: always
+
+  redis:
+    restart: always
+
+  app:
+    container_name: paths
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        - STATIC_ROOT=/srv/static
+        - MEDIA_ROOT=/srv/media
+        - EXTRA_PYPI_INDEX
+        - EXTRA_INSTALLED_APPS_VERSIONS
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://paths:${POSTGRES_PASSWORD}@db/paths
+    ports:
+      - "${HOST_PORT:-127.0.0.1:8000}:8000"
+      - "${UWSGI_SOCKET_PORT:-127.0.0.1:8001}:8001"
