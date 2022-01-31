@@ -1,9 +1,8 @@
-version: '3.2'
+version: '3.3'
 services:
   db:
-    image: docker.kausal.tech/postgres
     environment:
-      - POSTGRES_USER=paths
+      - POSTGRES_USER
       - POSTGRES_PASSWORD
       - POSTGRES_PASSWORD_FILE
     volumes:
