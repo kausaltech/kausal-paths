@@ -6,12 +6,18 @@ from graphene_django.views import GraphQLView
 from graphql.language.ast import Variable
 from graphql.error import GraphQLError
 
-from nodes.models import Instance, InstanceConfig, InstanceHostname
+from nodes.models import Instance, InstanceConfig
 from params.storage import SessionStorage
 from .graphql_helpers import GQLContext, GQLInfo, GQLInstanceInfo
 
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
+
+
+def _arg_value(arg, variable_vals):
+    if isinstance(arg.value, Variable):
+        return variable_vals.get(arg.value.name.value)
+    return arg.value.value
 
 
 class LocaleMiddleware:
@@ -65,16 +71,13 @@ class InstanceMiddleware:
 
     def process_instance_directive(self, info: GQLInfo, directive) -> InstanceConfig:
         qs = InstanceConfig.objects.all()
-        variable_vals = info.variable_values
-        for arg in directive.arguments:
-            if isinstance(arg.value, Variable):
-                val = variable_vals.get(arg.value.name.value)
-            else:
-                val = arg.value.value
-            if arg.name.value == 'identifier' and val:
-                return self.get_instance_by_identifier(qs, val, info)
-            if arg.name.value == 'hostname' and val:
-                return self.get_instance_by_hostname(qs, val, info)
+        arguments = {arg.name.value: _arg_value(arg, info.variable_values) for arg in directive.arguments}
+        identifier = arguments.get('identifier')
+        hostname = arguments.get('hostname')
+        if identifier:
+            return self.get_instance_by_identifier(qs, identifier, info)
+        if hostname:
+            return self.get_instance_by_hostname(qs, hostname, info)
         raise GraphQLError("Invalid instance directive", [info])
 
     def process_instance_headers(self, context: GQLContext) -> Optional[InstanceConfig]:
