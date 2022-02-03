@@ -25,7 +25,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
     'emission_factor', 'population', 'per_capita', 'fuel_consumption',
     'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
-    'probability', 'ingestion'
+    'probability', 'ingestion', 'monetary_amount'
 ]
 
 

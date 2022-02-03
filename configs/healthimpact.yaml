@@ -226,6 +226,33 @@ instance:
       output_nodes:
         - net_health_impact
 
+
+#### Costs
+
+    - id: led_lamp_change_costs
+      name: LED-lamppujen vaihdon kustannukset
+      name_en: Costs of changing LED lamps
+      type: costs.CostNode
+      unit: kEUR
+      color: '#cb4154'
+      params:
+        - id: investment_lifetime
+          value: 30
+          unit: year
+        - id: investment_cost
+          value: 200
+          unit: kEUR
+        - id: investment_year
+          value: 2024
+        - id: operation_cost
+          value: 40
+          unit: kEUR
+        - id: operation_year_start
+          value: 2025
+        - id: operation_year_end
+          value: 2045
+
+
   #
   # ------- ACTIONS --------
   #

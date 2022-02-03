@@ -43,6 +43,11 @@ colony_forming_unit = [] = cfu
 rna_count = [] = rna
 
 
+###### Monetary Units
+
+euro = [monetary_amount] = € = EUR
+
+
 #### Constants
 
 airdensity = 1.225 kg / m**3
