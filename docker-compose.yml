@@ -1,23 +1,39 @@
 version: '3.3'
 services:
   db:
+    # Set DB_IMAGE to specify the image name and tag for docker-compose push
+    image: ${DB_IMAGE-kausal-paths-postgres}
+    build:
+      context: .
+      dockerfile: ./docker/db/Dockerfile
+    restart: always
     environment:
-      - POSTGRES_USER
+      - POSTGRES_USER=paths
       - POSTGRES_PASSWORD
-      - POSTGRES_PASSWORD_FILE
     volumes:
       - db_data:/var/lib/postgresql/data/
 
   redis:
-    image: redis:alpine
+    image: ${REDIS_IMAGE-redis:6.0-alpine}
+    restart: always
 
   app:
+    # Set APP_IMAGE to specify the image name and tag for docker-compose push
+    image: ${APP_IMAGE-kausal-paths}
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        - STATIC_ROOT=/srv/static
+        - MEDIA_ROOT=/srv/media
+        - EXTRA_PYPI_INDEX
+        - EXTRA_INSTALLED_APPS_VERSIONS
+    restart: always
     volumes:
       - paths_media:/srv/media
       - paths_build_cache:/root/.cache
     environment:
       - DATABASE_URL
-      - DATABASE_URL_FILE
       - ENV_FILE
       - REDIS_URL=redis://redis
       - STATIC_ROOT=/srv/static
@@ -29,7 +45,6 @@ services:
       - INTERNAL_IPS
       - SENTRY_DSN
       - SECRET_KEY
-      - SECRET_KEY_FILE
       - EXTRA_INSTALLED_APPS
       - EXTRA_INSTALLED_APPS_URLS
     depends_on:
