@@ -42,6 +42,7 @@ case_burden = 0 DALY/case
 colony_forming_unit = [] = cfu
 rna_count = [] = rna
 
+@alias count = piece = pieces
 
 ###### Monetary Units
 

@@ -235,41 +235,40 @@ instance:
       type: simple.AdditiveNode
       quantity: monetary_amount
       unit: kEUR
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
+      historical_values: [[2017, 2298], [2018, 2298], [2019, 2298], [2020, 2298], [2021, 2329]]
+      forecast_values: [[2022, 2298], [2023, 2268], [2024, 2237], [2025, 2206], [2026, 2175],
+        [2027, 2143], [2028, 2112], [2029, 2081], [2030, 2048], [2031, 2048], [2032, 2048],
+        [2033, 2048], [2034, 2048], [2035, 2048]]
 
-    - id: led_lamp_change_costs
-      name: LED-lamppujen vaihdon kustannukset
-      name_en: Costs of changing LED lamps
+    - id: street_lighting_costs_with_led
+      name: Katuvalaistuksen kustannukset LED-valojen kanssa
+      name_en: Street lighting costs with LED
       type: costs.CostNode
       unit: kEUR
       color: '#cb4154'
       params:
         - id: investment_lifetime
-          value: 30
+          value: 25
           unit: year
         - id: investment_cost
-          value: 200
-          unit: kEUR
-        - id: investment_year
-          value: 2024
+          value: 350
+          unit: EUR / piece
         - id: operation_cost
-          value: 40
-          unit: kEUR
-        - id: operation_year_start
-          value: 2025
-        - id: operation_year_end
-          value: 2045
+          value: -23.5  # 25 - 1.5 difference between old and LED
+          unit: EUR / piece
+        - id: investment_years
+          value: [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029]
+        - id: investment_numbers
+          value: [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]
+          description: 2024 pilot project, 2029 full investment
+          unit: pieces
       input_nodes:
         - street_lighting_costs
-      input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Cooking
-          forecast_from: 2021
-          dropna: true
+#      input_datasets:
+#        - id: ilmastoruoka/consumption  # FIXME Get real data
+#          column: Cooking
+#          forecast_from: 2021
+#          dropna: true
 
 
   #
