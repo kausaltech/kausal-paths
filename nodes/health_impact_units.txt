@@ -45,7 +45,7 @@ rna_count = [] = rna
 
 ###### Monetary Units
 
-euro = [monetary_amount] = € = EUR
+euro = [monetary_amount] = EUR
 
 
 #### Constants

@@ -229,6 +229,18 @@ instance:
 
 #### Costs
 
+    - id: street_lighting_costs
+      name: Katuvalaistuksen kustannukset
+      name_en: Street lighting costs
+      type: simple.AdditiveNode
+      quantity: monetary_amount
+      unit: kEUR
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
+
     - id: led_lamp_change_costs
       name: LED-lamppujen vaihdon kustannukset
       name_en: Costs of changing LED lamps
@@ -251,6 +263,13 @@ instance:
           value: 2025
         - id: operation_year_end
           value: 2045
+      input_nodes:
+        - street_lighting_costs
+      input_datasets:
+        - id: ilmastoruoka/consumption  # FIXME Get real data
+          column: Cooking
+          forecast_from: 2021
+          dropna: true
 
 
   #
