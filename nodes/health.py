@@ -5,7 +5,7 @@
 # from graphene.types.scalars import Float, Int
 # from pint.registry import ContextCacheOverlay
 # from pint_pandas.pint_array import PintArray
-from params.param import StringParameter
+from params.param import NumberParameter, PercentageParameter, StringParameter
 # from typing import Dict, List
 import pandas as pd
 # import pint
@@ -15,7 +15,7 @@ import numpy as np
 # import copy
 
 # from common.i18n import TranslatedString
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
 # from .node import Context, Node
 # from .exceptions import NodeError
 
@@ -30,6 +30,112 @@ from .ovariable import Ovariable, OvariableFrame
 
 class DataOvariable(Ovariable, AdditiveNode):
     pass
+
+
+class MileageDataOvariable(Ovariable):
+    allowed_parameters = [
+        StringParameter(local_id='population_densities'),
+        StringParameter(local_id='emission_heights'),
+    ] + Ovariable.allowed_parameters
+
+    quantity = 'mileage'
+
+    def compute(self):
+        em_heights = self.get_parameter_value('emission_heights')
+        pop_densities = self.get_parameter_value('population_densities')
+        mileage = self.get_input_dataset()
+        df = pd.DataFrame()
+        for em_height in em_heights:
+            for pop_density in pop_densities:
+                df = df.append(mileage.assign(
+                    Emission_height=em_height,
+                    Population_density=pop_density
+                ))
+        df = df.reset_index().set_index(['Emission_height', 'Population_density', YEAR_COLUMN])
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        print('MileageDataOvariable: ' + self.id)
+        self.print_pint_df(df)
+
+        return df
+
+
+class EmissionByFactor(Ovariable):
+    allowed_parameters = [
+        StringParameter(local_id='emission_factor_contexts'),
+        StringParameter(local_id='pollutants'),
+    ] + Ovariable.allowed_parameters
+
+    quantity = 'emissions'
+
+    def compute(self):
+        ef_contexts = self.get_parameter_value('emission_factor_contexts')
+        pollutants = self.get_parameter_value('pollutants')
+        mileage = OvariableFrame(self.get_input('mileage'))
+
+        emission_factor = pd.DataFrame()
+        for ef_context in ef_contexts:
+            for pollutant in pollutants:
+                ef = unit_registry('emission_factor_km_' + pollutant).to('g/km', ef_context)
+                emission_factor = emission_factor.append(pd.DataFrame({
+                    'Vehicle': [ef_context],
+                    'Pollutant': [pollutant],
+                    FORECAST_COLUMN: [False],
+                    VALUE_COLUMN: [ef]
+                }))
+        emission_factor = OvariableFrame(emission_factor.set_index(['Vehicle', 'Pollutant']))
+
+        emission = mileage * emission_factor
+        grouping = ['Emission_height', 'Population_density', 'Pollutant', YEAR_COLUMN]
+        emission = emission.aggregate_by_column(grouping, 'sum')
+        emission[VALUE_COLUMN] = self.ensure_output_unit(emission[VALUE_COLUMN])
+        print('EmissionByFactor: ' + self.id)
+        self.print_pint_df(emission)
+
+        return emission
+
+
+class ExposureInhalation(Ovariable):
+    allowed_parameters = [
+        StringParameter(local_id='emission_heights'),
+        StringParameter(local_id='population_densities'),
+        StringParameter(local_id='pollutants'),
+    ] + Ovariable.allowed_parameters
+
+    quantity = 'exposure'
+
+    def compute(self):
+        em_heights = self.get_parameter_value('emission_heights')
+        pop_densities = self.get_parameter_value('population_densities')
+        pollutants = self.get_parameter_value('pollutants')
+        inhalation_rate = unit_registry('inhalation_rate')
+        emission = OvariableFrame(self.get_input('emissions'))
+        population = OvariableFrame(self.get_input('population'))
+        intake_fraction = pd.DataFrame()
+
+        for em_height in em_heights:
+            for pop_density in pop_densities:
+                contxt = 'if_' + em_height + '_' + pop_density
+                for pollutant in pollutants:
+                    value = unit_registry('intake_fraction_' + pollutant).to('ppm', contxt)
+                    intake_fraction = intake_fraction.append(pd.DataFrame({
+                        'Pollutant': [pollutant],
+                        'Emission_height': [em_height],
+                        'Population_density': [pop_density],
+                        FORECAST_COLUMN: [False],
+                        VALUE_COLUMN: [value]
+                    }))
+        indices = ['Pollutant', 'Emission_height', 'Population_density']
+        intake_fraction = OvariableFrame(intake_fraction.set_index(indices))
+
+        exposure = emission * intake_fraction * unit_registry('1 person/year')
+        exposure = exposure / (population * inhalation_rate)
+        grouping = ['Pollutant', YEAR_COLUMN]
+        exposure = exposure.aggregate_by_column(grouping, 'sum')
+        exposure[VALUE_COLUMN] = self.ensure_output_unit(exposure[VALUE_COLUMN])
+        print('ExposureInhalation: ' + self.id)
+        self.print_pint_df(exposure)
+
+        return exposure
 
 
 class Exposure(Ovariable):
@@ -130,8 +236,10 @@ class PopulationAttributableFraction(Ovariable):
 
         indices = list(set(output.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         output = output.set_index(indices)
-
-        return self.clean_computing(output)
+        output = self.clean_computing(output)
+        print('PopulationAttributableFraction: ' + self.id)
+        self.print_pint_df(output)
+        return output
 
     def compute_old(self):
         param1 = 1  # self.get_input(
@@ -256,8 +364,10 @@ class DiseaseBurden(Ovariable):
         indices = list(set(out.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         out = out.set_index(indices)
         out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
-
-        return self.clean_computing(out)
+        out = self.clean_computing(out)
+        print('DiseaseBurden: ' + self.id)
+        self.print_pint_df(out)
+        return out
 
 
 class AttributableDiseaseBurden(Ovariable):
@@ -272,4 +382,7 @@ class AttributableDiseaseBurden(Ovariable):
         out = bod * paf
         out = out.aggregate_by_column(groupby='Year', fun='sum')
 
-        return self.clean_computing(out)
+        out = self.clean_computing(out)
+        print('AttributableDiseaseBurden: ' + self.id)
+        self.print_pint_df(out)
+        return out

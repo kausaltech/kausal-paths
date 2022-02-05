@@ -103,17 +103,53 @@ instance:
       input_nodes:
         - meat_consumption_per_person
 
-    - id: pm2_5_exposure
-      name: Pienhiukkasaltistus
-      name_en: Fine particle exposure
-      type: health.DataOvariable
-      quantity: exposure
-      unit: ug/m**3
+    - id: passenger_car_mileage
+      name: Henkilöautokilometrit
+      name_en: Passenger car mileage
+      type: health.MileageDataOvariable
+      quantity: mileage
+      unit: Mkm
       input_datasets:
         - id: ilmastoruoka/consumption  # FIXME Get real data
           column: Domestic fish
           forecast_from: 2021
           dropna: True
+      params:
+        - id: population_densities
+          value: ['urban', 'rural']
+        - id: emission_heights
+          value: ['ground']
+
+    - id: passenger_car_pollutant_emissions
+      name: Henkilöautojen saastepäästöt
+      name_en: Passenger car pollutant emission
+      type: health.EmissionByFactor
+      unit: ton
+      input_nodes:
+        - passenger_car_mileage
+      params:
+        - id: emission_factor_contexts
+          value: ['passenger_car_average']
+        - id: pollutants
+          value: ['PM2_5', 'CO2', 'CO', 'NOx', 'N2O', 'NMVOC']
+
+
+    - id: pm2_5_exposure
+      name: Pienhiukkasaltistus
+      name_en: Fine particle exposure
+      type: health.ExposureInhalation
+      quantity: exposure
+      unit: ug/m**3
+      input_nodes:
+        - population
+        - passenger_car_pollutant_emissions
+      params:
+        - id: emission_heights
+          value: ['ground', 'low']
+        - id: population_densities
+          value: ['urban', 'rural']
+        - id: pollutants
+          value: ['PM2_5', 'NOx']
 
     - id: frexposed
       name: Altistuneiden osuus

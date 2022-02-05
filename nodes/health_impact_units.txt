@@ -24,6 +24,8 @@ ppm = mg / kg  # parts per million
 ppb = ug / kg  # parts per billion
 ppt = ng / kg  # parts per trillion
 
+## Exposure
+
 route = 0  # 0 ingestion, 1 inhalation
 er_function = 0
 p_illness = 1
@@ -43,6 +45,30 @@ colony_forming_unit = [] = cfu
 rna_count = [] = rna
 
 @alias count = piece = pieces
+
+## Emission factors
+
+emission_factor_km_CO2 = 0 g / km
+emission_factor_km_CO2e = 0 g / km
+emission_factor_km_PM2_5 = 0 g / km
+emission_factor_km_PM10 = 0 g / km
+emission_factor_km_NOx = 0 g / km
+emission_factor_km_CO = 0 g / km
+emission_factor_km_NMVOC = 0 g / km
+emission_factor_km_CH4 = 0 g / km
+emission_factor_km_N2O = 0 g / km
+emission_factor_km_SO2 = 0 g / km
+
+## Intake fractions
+
+intake_fraction_PM2_5 = 0 ppm
+intake_fraction_PM10 = 0 ppm
+intake_fraction_NOx = 0 ppm
+intake_fraction_NO2 = 0 ppm
+intake_fraction_CO = 0 ppm
+intake_fraction_EC = 0 ppm
+intake_fraction_NH3 = 0 ppm
+
 
 ###### Monetary Units
 

@@ -113,6 +113,130 @@
     incidence = 20000 cases / (5 Mpy)
 @end
 
+#### Emission factors
+
+@context passenger_car_average  # http://efdb.apps.eea.europa.eu/ Diesel Medium - Euro 5 - EC715/2007
+    emission_factor_km_CO2 = 0.398 g / km
+    emission_factor_km_PM2_5 = 0.0021 g / km
+    emission_factor_km_NOx = 0.55 g / km
+    emission_factor_km_CO = 0.04 g / km
+    emission_factor_km_NMVOC = 0.008 g / km
+    emission_factor_km_N2O = 0.004 g / km
+@end
+
+#### Intake fractions
+
+@context if_high_urban  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 11 ppm
+    intake_fraction_PM10 = 8.8 ppm
+    intake_fraction_NOx = 0.2 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_high_rural  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 1.6 ppm
+    intake_fraction_PM10 = 0.7 ppm
+    intake_fraction_NOx = 0.17 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_high_remote  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 0.1 ppm
+    intake_fraction_PM10 = 0.04 ppm
+    intake_fraction_NOx = 0.01 ppm
+    intake_fraction_NH3 = 0.1 ppm
+@end
+
+@context if_high_average  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 6.8 ppm
+    intake_fraction_PM10 = 5.0 ppm
+    intake_fraction_NOx = 0.18 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_low_urban  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 15 ppm
+    intake_fraction_PM10 = 13 ppm
+    intake_fraction_NOx = 0.2 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_low_rural  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 2.0 ppm
+    intake_fraction_PM10 = 1.1 ppm
+    intake_fraction_NOx = 0.17 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_low_remote  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 0.1 ppm
+    intake_fraction_PM10 = 0.04 ppm
+    intake_fraction_NOx = 0.01 ppm
+    intake_fraction_NH3 = 0.1 ppm
+@end
+
+@context if_low_average  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 6.8 ppm
+    intake_fraction_PM10 = 7.5 ppm
+    intake_fraction_NOx = 0.18 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_ground_urban  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 44 ppm
+    intake_fraction_PM10 = 40 ppm
+    intake_fraction_NOx = 0.2 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_ground_rural  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 3.8 ppm
+    intake_fraction_PM10 = 3.7 ppm
+    intake_fraction_NOx = 0.17 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_ground_remote  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 0.1 ppm
+    intake_fraction_PM10 = 0.04 ppm
+    intake_fraction_NOx = 0.01 ppm
+    intake_fraction_NH3 = 0.1 ppm
+@end
+
+@context if_ground_average  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 25 ppm
+    intake_fraction_PM10 = 23 ppm
+    intake_fraction_NOx = 0.18 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_average_urban  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 26 ppm
+    intake_fraction_PM10 = 37 ppm
+    intake_fraction_NOx = 0.2 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_average_rural  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 2.6 ppm
+    intake_fraction_PM10 = 3.4 ppm
+    intake_fraction_NOx = 0.17 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
+
+@context if_average_remote  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 0.1 ppm
+    intake_fraction_PM10 = 0.04 ppm
+    intake_fraction_NOx = 0.01 ppm
+    intake_fraction_NH3 = 0.1 ppm
+@end
+
+@context if_average_average  # Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data
+    intake_fraction_PM2_5 = 15 ppm
+    intake_fraction_PM10 = 21 ppm
+    intake_fraction_NOx = 0.18 ppm
+    intake_fraction_NH3 = 1.7 ppm
+@end
 
 #### Toxic equivalent quantities
 

@@ -26,7 +26,8 @@ class CostNode(Ovariable):
         operation_cost = self.get_parameter_value('operation_cost') * self.get_parameter('operation_cost').unit
         investment_lifetime = self.get_parameter_value('investment_lifetime')
         investment_years = self.get_parameter_value('investment_years')
-        investment_numbers = self.get_parameter_value('investment_numbers') * self.get_parameter('investment_numbers').unit
+        investment_numbers = self.get_parameter_value('investment_numbers') * self.get_parameter(
+            'investment_numbers').unit
 
         discount = 1
 
