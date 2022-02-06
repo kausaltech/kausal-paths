@@ -47,6 +47,44 @@
     case_burden = 10.6 DALY/case  # De Leeuw & Horàlek 2016/5 http://fi.opasnet.org/fi/Kiltova#PAQ2018
 @end
 
+@context PM2_5_x_work_days_lost  # http://fi.opasnet.org/fi/Kiltova
+    period = yearly
+    route = 2  # inhalation
+    er_function = 3  # relative risk
+    erf_param_inv_inhalation = 0.00449733656 / (ug / m**3)  # log(1.046)/10 HRAPIE
+    erf_param_inhalation = 0 ug / m**3
+    mg / m**3 -> mg / kg / d: value * (inhalation_rate / body_mass)
+    m**3 / mg -> kg d / mg: value / (inhalation_rate / body_mass)
+    incidence = 12 cases / personyear  # PAQ2018
+    case_burden = 0.00027 DALY/case  # 0.099 DW * 0.00274 a, Heimtsa & Intarese http://fi.opasnet.org/fi/Kiltova#PAQ2018
+    case_cost = 152 EUR/case  # Holland et al., 2014
+@end
+
+@context NOx_x_mortality  # For NO2 atm.  http://fi.opasnet.org/fi/Kiltova, Atkinson et al., 2017
+    period = yearly
+    route = 2  # inhalation
+    er_function = 3  # relative risk
+    erf_param_inv_inhalation = 0.0019802627 / (ug / m**3)  # log(1.02)/10 
+    erf_param_inhalation = 0 ug / m**3
+    mg / m**3 -> mg / kg / d: value * (inhalation_rate / body_mass)
+    m**3 / mg -> kg d / mg: value / (inhalation_rate / body_mass)
+    incidence = 18496 cases / (5533793 personyears)  # Same as PM2.5 https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
+    case_burden = 10.6 DALY/case  # Same as PM2.5 De Leeuw & Horàlek 2016/5 http://fi.opasnet.org/fi/Kiltova#PAQ2018
+@end
+
+@context PM10_x_chronic_bronchitis  # http://fi.opasnet.org/fi/Kiltova
+    period = yearly
+    route = 2  # inhalation
+    er_function = 3  # relative risk
+    erf_param_inv_inhalation = 0.0076961941 / (ug / m**3)  # log(1.08)/10 HRAPIE
+    erf_param_inhalation = 0 ug / m**3
+    mg / m**3 -> mg / kg / d: value * (inhalation_rate / body_mass)
+    m**3 / mg -> kg d / mg: value / (inhalation_rate / body_mass)
+    incidence = 390 cases / (100000 personyears)  # PAQ2018
+    case_burden = 0.99 DALY/case  # Heimtsa & Intarese http://fi.opasnet.org/fi/Kiltova#PAQ2018
+    case_cost = 62712 EUR/case  # Holland et al., 2014
+@end
+
 @context dioxin_x_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
     period = lifetime
     route = 0  # exposure

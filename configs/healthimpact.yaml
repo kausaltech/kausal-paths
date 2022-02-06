@@ -176,14 +176,16 @@ instance:
         - dioxin_exposure
         - frexposed
 
-    - id: paf_pm2_5
-      name: Pienhiukkasten väestösyyosuus
-      name_en: Fine particle PAF
+    - id: paf_air_pollution
+      name: Ilmansaasteiden väestösyyosuus
+      name_en: Air pollutant PAF
       type: health.PopulationAttributableFraction
       params:
         - id: erf_contexts
           value:
             - PM2_5_x_mortality
+            - PM2_5_x_work_days_lost
+            - NOx_x_mortality
       input_nodes:
         - air_pollutant_exposure
         - frexposed
@@ -224,14 +226,14 @@ instance:
       output_nodes:
         - net_health_impact
 
-    - id: pm2_5_disease_burden
-      name: Pienhiukkasten tautitaakka
-      name_en: Fine particle disease burden
+    - id: air_pollution_disease_burden
+      name: Ilmansaasteiden tautitaakka
+      name_en: Air pollution disease burden
       type: health.AttributableDiseaseBurden
       unit: DALY/a
       input_nodes:
         - disease_burden_cvd_mortality
-        - paf_pm2_5
+        - paf_air_pollution
       output_nodes:
         - net_health_impact
 

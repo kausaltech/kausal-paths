@@ -40,6 +40,7 @@ erf_param_inhalation = 0 ug / m**3
 erf_param_inv_inhalation = 0 / (ug / m**3)
 erf_param_inv_inhalation_bq = 0 / (Bq / m**3)
 case_burden = 0 DALY/case
+case_cost = 0 EUR / case
 
 colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
