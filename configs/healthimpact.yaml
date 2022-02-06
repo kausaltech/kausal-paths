@@ -110,10 +110,10 @@ instance:
       quantity: mileage
       unit: Mkm
       input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Domestic fish
-          forecast_from: 2021
-          dropna: True
+      - id: tampere/scenarios/activity/bau
+        column: Private car street
+        min_year: 2016
+        dropna: true
       params:
         - id: population_densities
           value: ['urban', 'rural']
@@ -134,9 +134,9 @@ instance:
           value: ['PM2_5', 'CO2', 'CO', 'NOx', 'N2O', 'NMVOC']
 
 
-    - id: pm2_5_exposure
-      name: Pienhiukkasaltistus
-      name_en: Fine particle exposure
+    - id: air_pollutant_exposure
+      name: Ilmansaastealtistus
+      name_en: Air pollutant exposure
       type: health.ExposureInhalation
       quantity: exposure
       unit: ug/m**3
@@ -170,8 +170,8 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - dioxin_twi
-            - dioxin_cancer
+            - dioxin_x_twi
+            - dioxin_x_cancer
       input_nodes:
         - dioxin_exposure
         - frexposed
@@ -183,9 +183,9 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - pm2_5_mortality
+            - PM2_5_x_mortality
       input_nodes:
-        - pm2_5_exposure
+        - air_pollutant_exposure
         - frexposed
 
     - id: dioxin_related_endpoints
@@ -195,8 +195,8 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - dioxin_twi
-            - dioxin_cancer
+            - dioxin_x_twi
+            - dioxin_x_cancer
       unit: DALY/a
       input_nodes:
         - population
@@ -208,7 +208,7 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - pm2_5_mortality
+            - PM2_5_x_mortality
       unit: DALY/a
       input_nodes:
         - population

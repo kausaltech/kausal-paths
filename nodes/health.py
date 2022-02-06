@@ -53,8 +53,7 @@ class MileageDataOvariable(Ovariable):
                 ))
         df = df.reset_index().set_index(['Emission_height', 'Population_density', YEAR_COLUMN])
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-        print('MileageDataOvariable: ' + self.id)
-        self.print_pint_df(df)
+        self.print_outline(df)
 
         return df
 
@@ -88,8 +87,7 @@ class EmissionByFactor(Ovariable):
         grouping = ['Emission_height', 'Population_density', 'Pollutant', YEAR_COLUMN]
         emission = emission.aggregate_by_column(grouping, 'sum')
         emission[VALUE_COLUMN] = self.ensure_output_unit(emission[VALUE_COLUMN])
-        print('EmissionByFactor: ' + self.id)
-        self.print_pint_df(emission)
+        self.print_outline(emission)
 
         return emission
 
@@ -132,8 +130,7 @@ class ExposureInhalation(Ovariable):
         grouping = ['Pollutant', YEAR_COLUMN]
         exposure = exposure.aggregate_by_column(grouping, 'sum')
         exposure[VALUE_COLUMN] = self.ensure_output_unit(exposure[VALUE_COLUMN])
-        print('ExposureInhalation: ' + self.id)
-        self.print_pint_df(exposure)
+        self.print_outline(exposure)
 
         return exposure
 
@@ -165,7 +162,6 @@ class PopulationAttributableFraction(Ovariable):
     def compute(self):
         routes = ['exposure', 'ingestion', 'inhalation']
         exposure = self.get_input('exposure')
-#        self.print_pint_df(exposure)
         exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
         frexposed = self.get_input('fraction')
         erf_contexts = self.get_parameter_value('erf_contexts')
@@ -192,7 +188,13 @@ class PopulationAttributableFraction(Ovariable):
             p_illness = unit_registry('p_illness').to('dimensionless', erf_context)
             incidence = unit_registry('incidence').to('case/personyear', erf_context)
             period = unit_registry('period').to('d/incident', erf_context)
-            exposure2 = OvariableFrame(exposure.copy())
+
+            if 'Pollutant' in exposure.index.names:
+                exposure_agent = erf_context.split('_x_')[0]
+                exposure_agent = exposure.index.get_level_values('Pollutant') == exposure_agent
+                exposure2 = OvariableFrame(exposure.loc[exposure_agent].copy())
+            else:
+                exposure2 = OvariableFrame(exposure.copy())
 
             if erf_type == 1:  # unit risk
                 slope = unit_registry('erf_param_inv_' + route).to('kg d/mg', erf_context)
@@ -205,7 +207,7 @@ class PopulationAttributableFraction(Ovariable):
                 lower = unit_registry('erf_param_' + route).to('mg/kg/d', erf_context)
                 upper = unit_registry('erf_param2_' + route).to('mg/kg/d', erf_context)
                 target_population = unit_registry('1 person')
-                tmp = OvariableFrame(exposure.copy())
+                tmp = OvariableFrame(exposure2.copy())
                 out = (tmp >= lower) * 1
                 out = out * (exposure2 <= upper) * frexposed * p_illness
                 out = (out / target_population / period) / incidence
@@ -224,25 +226,25 @@ class PopulationAttributableFraction(Ovariable):
             elif erf_type == 4:  # Relative Hill
                 Imax = unit_registry('erf_param_scale').to('dimensionless', erf_context)
                 ed50 = unit_registry('erf_param_ingestion').to('mg/kg/d', erf_context)
-                tmp = OvariableFrame(exposure.copy())
+                tmp = OvariableFrame(exposure2.copy())
                 out = (tmp * Imax) / (exposure2 + ed50) + 1
                 out = postprocess_relative(rr=out, frexposed=frexposed)
 
             elif erf_type == 5:  # beta poisson approximation
                 p1 = unit_registry('erf_param_ingestion').to('mg/kg/d', erf_context)
                 p2 = unit_registry('erf_param_scale').to('dimensionless', erf_context)
-                out = ((exposure / p2 + 1) ** (p1 * -1) * -1 + 1) * frexposed
+                out = ((exposure2 / p2 + 1) ** (p1 * -1) * -1 + 1) * frexposed
                 out = (out / incidence * p_illness)
 
             elif erf_type == 6:  # exact beta poisson # FIXME Logical error with units!
                 p1 = unit_registry('erf_param_ingestion').to('mg/kg/d', erf_context)
                 p2 = unit_registry('erf_param_ingestion2').to('mg/kg/d', erf_context)
-                out = ((p1 / (p1 + p2) * exposure * -1).exp() * -1 + 1) * frexposed
+                out = ((p1 / (p1 + p2) * exposure2 * -1).exp() * -1 + 1) * frexposed
                 out = out / incidence * p_illness
 
             elif erf_type == 7:  # exponential
                 k = unit_registry('erf_param_inv_ingestion').to('kg d/mg', erf_context)
-                out = ((k * exposure * -1).exp() * -1 + 1) * frexposed
+                out = ((k * exposure2 * -1).exp() * -1 + 1) * frexposed
                 out = out / incidence * p_illness
 
             else:
@@ -254,8 +256,8 @@ class PopulationAttributableFraction(Ovariable):
         indices = list(set(output.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         output = output.set_index(indices)
         output = self.clean_computing(output)
-        print('PopulationAttributableFraction: ' + self.id)
-        self.print_pint_df(output)
+
+        self.print_outline(output)
         return output
 
 
@@ -287,8 +289,8 @@ class DiseaseBurden(Ovariable):
         out = out.set_index(indices)
         out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
         out = self.clean_computing(out)
-        print('DiseaseBurden: ' + self.id)
-        self.print_pint_df(out)
+
+        self.print_outline(out)
         return out
 
 
@@ -305,6 +307,6 @@ class AttributableDiseaseBurden(Ovariable):
         out = out.aggregate_by_column(groupby='Year', fun='sum')
 
         out = self.clean_computing(out)
-        print('AttributableDiseaseBurden: ' + self.id)
-        self.print_pint_df(out)
+
+        self.print_outline(out)
         return out

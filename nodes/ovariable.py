@@ -57,6 +57,11 @@ class Ovariable(SimpleNode):
         of[VALUE_COLUMN] = self.ensure_output_unit(of[VALUE_COLUMN])
         return OvariableFrame(of)
 
+    def print_outline(self, df):
+        print(type(self))
+        print(self.id)
+        self.print_pint_df(df.iloc[[0, 1, 2, -3, -2, -1]])
+
 
 class OvariableFrame(pd.DataFrame):
 

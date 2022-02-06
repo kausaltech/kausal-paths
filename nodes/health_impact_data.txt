@@ -35,7 +35,7 @@
 
 #### Exposure-response functions
 
-@context pm2_5_mortality  # http://en.opasnet.org/w/ERF_of_outdoor_air_pollution
+@context PM2_5_x_mortality  # http://en.opasnet.org/w/ERF_of_outdoor_air_pollution
     period = yearly
     route = 2  # inhalation
     er_function = 3  # relative risk
@@ -47,7 +47,7 @@
     case_burden = 10.6 DALY/case  # De Leeuw & Horàlek 2016/5 http://fi.opasnet.org/fi/Kiltova#PAQ2018
 @end
 
-@context dioxin_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
+@context dioxin_x_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
     period = lifetime
     route = 0  # exposure
     er_function = 1  # unit risk (linear)
@@ -57,7 +57,7 @@
     case_burden = 19.7 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
 @end
 
-@context dioxin_twi  # http://en.opasnet.org/w/ERF_of_dioxin
+@context dioxin_x_twi  # http://en.opasnet.org/w/ERF_of_dioxin
     period = yearly
     route = 0  # exposure
     er_function = 2  # step function
@@ -67,7 +67,7 @@
     case_burden = 0.0001 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
 @end
 
-@context omega3_chdmortality  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
+@context omega3_x_chdmortality  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
     period = lifetime
     route = 1  # ingestion
     er_function = 4  # Relative Hill
@@ -78,7 +78,7 @@
     mg / d -> mg / kg / d: value / body_mass
 @end
 
-@context omega3_breastcancer  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
+@context omega3_x_breastcancer  # http://en.opasnet.org/w/ERF_of_omega-3_fatty_acids
     period = lifetime
     route = 1  # ingestion
     er_function = 3  # relative risk
@@ -90,7 +90,7 @@
     d / mg -> kg d / mg: value * body_mass
 @end
 
-@context vitaminD_deficiency
+@context vitaminD_x_deficiency
     period = yearly  # during summer, sunlight prevents deficiency
     route = 1  # ingestion
     er_function = 2  # step function (0 between parameters, 1 otherwise)
@@ -101,14 +101,14 @@
 @end
 
 # http://en.opasnet.org/w/ERF_for_long-term_indoor_exposure_to_radon_and_lung_cancer
-@context radon_lungcancer  # http://en.opasnet.org/w/ERFs_of_environmental_pollutants
+@context radon_x_lungcancer  # http://en.opasnet.org/w/ERFs_of_environmental_pollutants
     period = lifetime
     erf_param_inhalation_bq = 0.0015987213636970735 / (Bq / m**3)  # log(1.0016)  # Darby 2005 http://www.bmj.com/cgi/content/full/330/7485/223
 @end
 
 ## Waterborne microbes
 
-@context campylobacter_infection
+@context campylobacter_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 5  # beta poisson approximation
@@ -118,7 +118,7 @@
     cfu / d -> mg / kg / d: value * cfu_mass / body_mass
 @end
 
-@context rotavirus_infection
+@context rotavirus_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 6  # exact beta poisson
@@ -128,7 +128,7 @@
     cfu / d -> mg / kg / d: value * cfu_mass / body_mass
 @end
 
-@context norovirus_infection
+@context norovirus_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 6  # exact beta poisson
@@ -138,7 +138,7 @@
     cfu / d -> mg / kg / d: value * cfu_mass / body_mass
 @end
 
-@context sapovirus_infection
+@context sapovirus_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 6  # exact beta poisson
@@ -148,7 +148,7 @@
     cfu / d -> mg / kg / d: value * cfu_mass / body_mass
 @end
 
-@context cryptosporidium_infection
+@context cryptosporidium_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 6  # exact beta poisson
@@ -158,7 +158,7 @@
     cfu / d -> mg / kg / d: value * cfu_mass / body_mass
 @end
 
-@context EColiO157H7_infection
+@context EColiO157H7_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 6  # exact beta poisson
@@ -168,7 +168,7 @@
     cfu / d -> mg / kg / d: value * cfu_mass / body_mass
 @end
 
-@context giardia_infection
+@context giardia_x_infection
     period = acute
     route = 1  # ingestion
     er_function = 7  # exponential
