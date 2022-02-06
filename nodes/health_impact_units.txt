@@ -41,7 +41,7 @@ erf_param_inv_inhalation = 0 / (ug / m**3)
 erf_param_inv_inhalation_bq = 0 / (Bq / m**3)
 case_burden = 0 DALY/case
 
-colony_forming_unit = [] = cfu
+colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
 
 @alias count = piece = pieces
@@ -80,6 +80,10 @@ euro = [monetary_amount] = EUR
 airdensity = 1.225 kg / m**3
 inhalation_rate = 20 m**3 / d
 body_mass = 70 kg
+cfu_mass = 10000 ** -3 * g / cfu  # Nominal weight of 1 um**3 of water
+rna_mass = (50 * (329.2 + 306.2 + 305.2 + 345.2) + 159) g / avogadro_number / rna  # Nominal weight of 200 bp rna
+# Molecular weight of rna: (An x 329.2) + (Un x 306.2) + (Cn x 305.2) + (Gn x 345.2) + 159 (triphosphate)
+
 
 lifetime = 80 a / incident
 yearly = 1 a / incident
