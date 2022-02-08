@@ -237,6 +237,44 @@ instance:
       output_nodes:
         - net_health_impact
 
+#### Noise
+
+    - id: fraction_noise_exposed
+      name: Melualtistuneiden osuus
+      name_en: Fraction noise exposed
+      type: health.DataOvariable
+      quantity: fraction
+      unit: dimensionless
+      historical_values: [[2019, 2.204339e-4], [2020, 2.204339e-4]]
+      forecast_values: [[2021, 2.204339e-4], [2022, 2.204339e-4]]
+      output_nodes:
+        - paf_noise
+
+    - id: noise_exposure
+      name: Melualtistus
+      name_en: Noise exposure
+      type: simple.Activity
+      quantity: exposure
+      unit: Lnight
+      input_datasets:
+      - id: tampere/scenarios/activity/bau
+        column: Motorcycle  # FIXME get real data
+        min_year: 2016
+        dropna: true
+      output_nodes:
+        - paf_noise
+
+    - id: paf_noise
+      name: Melun väestösyyosuus
+      name_en: Noise PAF
+      type: health.PopulationAttributableFraction
+      quantity: fraction
+      unit: dimensionless
+      params:
+        - id: erf_contexts
+          value: 
+            - Lnight_x_highly_sleep_disturbed_road
+
 ################
 # health benefits
 

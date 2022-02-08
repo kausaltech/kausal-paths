@@ -160,8 +160,11 @@ class PopulationAttributableFraction(Ovariable):
     unit = 'dimensionless'
 
     def compute(self):
-        routes = ['exposure', 'ingestion', 'inhalation']
+        routes = ['exposure', 'ingestion', 'inhalation', '']
         exposure = self.get_input('exposure')
+        if YEAR_COLUMN not in exposure.index.names:  # FIXME not the right place for this fix
+            assert len(exposure.index.names) == 1
+            exposure.index.names = [YEAR_COLUMN]
         exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
         frexposed = self.get_input('fraction')
         erf_contexts = self.get_parameter_value('erf_contexts')
@@ -246,6 +249,19 @@ class PopulationAttributableFraction(Ovariable):
                 k = unit_registry('erf_param_inv_ingestion').to('kg d/mg', erf_context)
                 out = ((k * exposure2 * -1).exp() * -1 + 1) * frexposed
                 out = out / incidence * p_illness
+
+            elif erf_type == 8:  # polynomial
+                print(erf_context)
+                p0 = unit_registry('erf_param_poly0').to('dimensionless', erf_context)
+                p1 = unit_registry('erf_param_poly1').to('(kg d / mg)', erf_context)
+                p2 = unit_registry('erf_param_poly2').to('(kg d / mg)^2', erf_context)
+                p3 = unit_registry('erf_param_poly3').to('(kg d / mg)^3', erf_context)
+                threshold = unit_registry('erf_param_exposure').to('mg/kg/d', erf_context)
+                out = exposure2 - threshold
+                tmp = OvariableFrame(out.copy())
+                tmp1 = OvariableFrame(out.copy())
+                out = out ** 3 * p3 + tmp ** 2 * p2 + tmp1 * p1 + p0
+                out = out ** -1 * -1 + 1  # (out - 1) / out
 
             else:
                 out = exposure2 / exposure
