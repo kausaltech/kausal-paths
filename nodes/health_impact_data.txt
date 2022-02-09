@@ -151,21 +151,23 @@
 @end
 
 ## Noise
+## http://fi.opasnet.org/fi/Liikenteen_terveysvaikutukset
+## All exposure-response functions: WHO & JRC 2011. https://apps.who.int/iris/handle/10665/326424
 
-@context Lden_x_highly_annoyed_road
+@context noise_x_highly_annoyed_road
     period = yearly
     route = 3  # noise
     er_function = 8  # polynomial
     erf_param_exposure = 42 Lden
     erf_param_poly1 = 5.118e-3 Lden**-1  # values scaled from % to fraction
-    erf_param_poly2 = 1.436e-4 Lden**-2
+    erf_param_poly2 = -1.436e-4 Lden**-2
     erf_param_poly3 = 9.868e-6 Lden**-3
     case_burden = 0.02 DALY / case  # disability weight 0.02, duration 1 year
     Lnight -> mg / kg / d: value * mg / kg / d / Lnight  # nominal scaling because noise cannot meaningfully convert to mass
     mg / kg / d -> Lnight: value * kg d Lnight / mg
 @end
 
-@context Lden_x_highly_annoyed_rail
+@context noise_x_highly_annoyed_rail
     period = yearly
     route = 3  # noise
     er_function = 8  # polynomial
@@ -178,7 +180,7 @@
     mg / kg / d -> Lnight: value * kg d Lnight / mg
 @end
 
-@context Lden_x_highly_annoyed_air
+@context noise_x_highly_annoyed_air
     period = yearly
     route = 3  # noise
     er_function = 8  # polynomial
@@ -191,36 +193,36 @@
     mg / kg / d -> Lnight: value * kg d Lnight / mg
 @end
 
-@context Lnight_x_highly_sleep_disturbed_road
+@context noise_x_highly_sleep_disturbed_road
     period = yearly
     route = 3  # noise
     er_function = 8  # polynomial
     erf_param_poly0 = 0.208  # values scaled from % to fraction
-    erf_param_poly1 = 1.05e-2 Lnight**-1
+    erf_param_poly1 = -1.05e-2 Lnight**-1
     erf_param_poly2 = 1.486e-4 Lnight**-2
     case_burden = 0.07 DALY / case  # disability weight 0.07, duration 1 year
     Lnight -> mg / kg / d: value * mg / kg / d / Lnight  # nominal scaling because noise cannot meaningfully convert to mass
     mg / kg / d -> Lnight: value * kg d Lnight / mg
 @end
 
-@context Lnight_x_highly_sleep_disturbed_rail
+@context noise_x_highly_sleep_disturbed_rail
     period = yearly
     route = 3  # noise
     er_function = 8  # polynomial
     erf_param_poly0 = 0.113  # values scaled from % to fraction
-    erf_param_poly1 = 5.5e-3 Lnight**-1
+    erf_param_poly1 = -5.5e-3 Lnight**-1
     erf_param_poly2 = 7.59e-5 Lnight**-2
     case_burden = 0.07 DALY / case  # disability weight 0.07, duration 1 year
     Lnight -> mg / kg / d: value * mg / kg / d / Lnight  # nominal scaling because noise cannot meaningfully convert to mass
     mg / kg / d -> Lnight: value * kg d Lnight / mg
 @end
 
-@context Lnight_x_highly_sleep_disturbed_air
+@context noise_x_highly_sleep_disturbed_air
     period = yearly
     route = 3  # noise
     er_function = 8  # polynomial
     erf_param_poly0 = 0.18147  # values scaled from % to fraction
-    erf_param_poly1 = 9.56e-3 Lnight**-1
+    erf_param_poly1 = -9.56e-3 Lnight**-1
     erf_param_poly2 = 1.482e-4 Lnight**-2
     case_burden = 0.07 DALY / case  # disability weight 0.07, duration 1 year
     Lnight -> mg / kg / d: value * mg / kg / d / Lnight  # nominal scaling because noise cannot meaningfully convert to mass

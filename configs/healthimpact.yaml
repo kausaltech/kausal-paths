@@ -256,11 +256,12 @@ instance:
       type: simple.Activity
       quantity: exposure
       unit: Lnight
-      input_datasets:
-      - id: tampere/scenarios/activity/bau
-        column: Motorcycle  # FIXME get real data
-        min_year: 2016
-        dropna: true
+      historical_values: [[2016, 57], [2017, 62], [2018, 67], [2019, 72]]
+#      input_datasets:
+#      - id: tampere/scenarios/activity/bau
+#        column: Motorcycle  # FIXME get real data
+#        min_year: 2016
+#        dropna: true
       output_nodes:
         - paf_noise
 
@@ -273,7 +274,7 @@ instance:
       params:
         - id: erf_contexts
           value: 
-            - Lnight_x_highly_sleep_disturbed_road
+            - noise_x_highly_sleep_disturbed_rail
 
 ################
 # health benefits

@@ -48,8 +48,8 @@ case_cost = 0 EUR / case
 
 colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
-Lden = []
-Lnight = 1 mg/kg/d
+Lden = 1 mg / kg / d
+Lnight = 1 mg / kg / d
 
 @alias count = piece = pieces
 
