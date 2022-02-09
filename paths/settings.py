@@ -38,6 +38,7 @@ env = environ.FileAwareEnv(
     SERVER_EMAIL=(str, 'noreply@kausal.tech'),
     DEFAULT_FROM_EMAIL=(str, 'noreply@kausal.tech'),
     INTERNAL_IPS=(list, []),
+    HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
 )
 
 BASE_DIR = root()
@@ -297,3 +298,5 @@ if 'DATABASES' in locals():
 
 CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
 CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
+
+HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
