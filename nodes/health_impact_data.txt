@@ -153,6 +153,7 @@
 ## Noise
 ## http://fi.opasnet.org/fi/Liikenteen_terveysvaikutukset
 ## All exposure-response functions: WHO & JRC 2011. https://apps.who.int/iris/handle/10665/326424
+# For exposure data, see e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq
 
 @context noise_x_highly_annoyed_road
     period = yearly

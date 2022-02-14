@@ -257,7 +257,7 @@ instance:
       quantity: exposure
       unit: Lnight
       historical_values: [[2016, 57], [2017, 62], [2018, 67], [2019, 72]]
-#      input_datasets:
+#      input_datasets: FIXME get real data e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq
 #      - id: tampere/scenarios/activity/bau
 #        column: Motorcycle  # FIXME get real data
 #        min_year: 2016

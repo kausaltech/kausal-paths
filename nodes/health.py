@@ -260,12 +260,7 @@ class PopulationAttributableFraction(Ovariable):
                 out = exposure2 - threshold
                 tmp = OvariableFrame(out.copy())
                 tmp1 = OvariableFrame(out.copy())
-                self.print_outline(out)
-                self.print_outline(tmp)
-                self.print_outline(tmp1)
-                print(p0, p1, p2, p3, threshold)
                 out = out ** 3 * p3 + tmp ** 2 * p2 + tmp1 * p1 + p0
-                self.print_outline(out)
 
             else:
                 out = exposure2 / exposure
