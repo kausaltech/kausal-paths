@@ -26,9 +26,9 @@ class InstanceQuerySet(models.QuerySet):
     def for_hostname(self, hostname):
         hostname = hostname.lower()
 
-        # Support localhost-based URLs for development
-        parts = hostname.split('.')
-        if len(parts) == 2 and parts[1] == 'localhost':
+        # Get plan identifier from hostname for development and testing
+        parts = hostname.split('.', maxsplit=1)
+        if len(parts) == 2 and parts[1] in settings.HOSTNAME_INSTANCE_DOMAINS:
             return self.filter(identifier__iexact=parts[0])
 
         return self.filter(hostnames__hostname=hostname)
