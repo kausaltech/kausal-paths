@@ -435,7 +435,8 @@
 
 #### Toxic equivalent quantities
 
-grams_toxic_equivalency_quantity = [TEQ] = g_teq
+toxic_equivalency_factor = [tef] = TEF
+toxic_equivalency_quantity = [TEQ] = g_teq
 _2378TCDD = NaN = TCDD
 _12378PeCDD = NaN = PeCDD
 _123478HxCDD = NaN = _123478HCDD

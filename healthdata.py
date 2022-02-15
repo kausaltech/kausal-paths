@@ -4,6 +4,63 @@ from nodes.context import unit_registry
 
 repo = Repository(repo_url='https://github.com/kausaltech/dvctest.git')
 
+# Physical activity
+
+df = pd.DataFrame({
+    'vehicle': pd.Series(['walking', 'cycling']),
+    'velocity': pd.Series([5.3, 14.]),
+    'metabolic_equivalent': pd.Series([4., 6.8]),
+    'weekly_activity': pd.Series([3., 3.]),
+    'ERF': pd.Series(['walking mortality', 'cycling mortality']),
+    'pollutant': pd.Series(['physical activity'] * 2),
+    'response': pd.Series(['mortaility'] * 2),
+    'period': pd.Series([1, 1]),
+    'route': pd.Series(['exercise'] * 2),
+    'er_function': pd.Series(['relative risk'] * 2),
+    'param_inv_exposure': pd.Series([-0.0093653792] * 2),
+})
+
+unit = dict({
+    'velocity': 'km / h',
+    'metabolic_equivalent': 'METh / h',
+    'weekly_activity': 'day / week',
+    'period': 'a / incident',
+    'param_inv_exposure': 'week / METh',
+})
+
+metadata = dict({
+    'references': {
+        'general': 'http://fi.opasnet.org/fi/Liikenteen_terveysvaikutukset ' +
+        'Lehtomäki, H., Karvosenoja, N., Paunu, V-V., Korhonen, A., Hänninen, O., ' +
+        'Tuomisto, J., Karppinen, A., Kukkonen, J. & Tainio, M. 2021. Liikenteen ' +
+        'terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen ' +
+        'raportteja 16/2021. http://hdl.handle.net/10138/329273',
+        'velocity': 'Kelly ym. 2014',
+        'metabolic_equivalent': 'Kahlmeier, S., Götschi, T., Cavill, N., Castro Fernandez, ' +
+        'A., Brand, C., Rojas Rueda, D., Woodcock, J., Kelly, P., Lieb, C., Oja, P., Foster, ' +
+        'C., Rutter, H., & Racioppi, F. 2017. Health economic assessment tool (HEAT) for walking ' +
+        'and for cy- cling. Methods and user guide on physical activity, air pollution, injuries ' +
+        'and carbon impact assessments. World Health Organization. Denmark, Copenhagen. ' +
+        'https://www.euro.who.int/__data/assets/pdf_file/0010/352963/Heat.pdf',
+        'weekly_activity': 'Cambridgen yliopisto 2020, Woodcock, J., Tainio, M., Cheshire, J., ' +
+        'O’Brien, O. & Goodman, A. 2014. Health effects of the London bicycle sharing system: ' +
+        'health impact modelling study. The BMJ 348:g425.',
+        'er_function': 'Kelly, P., Kahlmeier, S., Götschi, T. et al. Systematic review and ' +
+        'meta-analysis of reduction in all-cause mortality from walking and cycling and shape ' +
+        'of dose response relationship. Int J Behav Nutr Phys Act 11, 132 (2014). ' +
+        'https://doi.org/10.1186/s12966-014-0132-x',
+        'param_inv_exposure': 'log(0.9)/(11.25 METh/week)',
+    }
+})
+
+ds_act = Dataset(
+    df,
+    identifier='hia/exposure_response/physical_activity',
+    units=unit,
+    metadata=metadata)
+
+repo.add(ds_act)
+
 # Air pollution
 
 df = pd.DataFrame({
@@ -105,8 +162,10 @@ unit = dict({
 
 metadata = {
     'references': {
-        'general': 'http://fi.opasnet.org/fi/Liikenteen_terveysvaikutukset. For exposure data, see e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq',
-        'function': 'All exposure-response functions: WHO & JRC 2011 (values scaled from % to fraction). https://apps.who.int/iris/handle/10665/326424',
+        'general': 'http://fi.opasnet.org/fi/Liikenteen_terveysvaikutukset. For exposure data, ' +
+        'see e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq',
+        'function': 'All exposure-response functions: WHO & JRC 2011 (values scaled from % to ' +
+        'fraction). https://apps.who.int/iris/handle/10665/326424',
         'case_burden': 'disability weight 0.02, duration 1 year',
     }
 }
@@ -151,8 +210,10 @@ units = {
 }
 
 metadata = {
-    'general': 'http://en.opasnet.org/w/Water_guide',
-    'function': 'http://en.opasnet.org/w/ERF_of_waterborne_microbes'
+    'references': {
+        'general': 'http://en.opasnet.org/w/Water_guide',
+        'function': 'http://en.opasnet.org/w/ERF_of_waterborne_microbes'
+    }
 }
 
 ds = Dataset(
@@ -177,7 +238,10 @@ df = pd.DataFrame({
 df = df.melt(id_vars=['pollutant', 'emission height'], value_name='Value')
 
 metadata = {
-    'general': 'Humbert et al. 2011 https://doi.org/10.1021/es103563z http://en.opasnet.org/w/Intake_fractions_of_PM#Data',
+    'references': {
+        'general': 'Humbert et al. 2011 https://doi.org/10.1021/es103563z ' +
+        'http://en.opasnet.org/w/Intake_fractions_of_PM#Data',
+    }
 }
 
 unit = dict({
@@ -191,4 +255,85 @@ ds_if = Dataset(
     metadata=metadata)
 
 repo.add(ds_if)
+
+# Toxic equivalency factors TEF
+
+df = pd.DataFrame({
+    'group': pd.Series(
+        ['chlorinated dibenzo-p-dioxins'] * 7 +
+        ['chlorinatd dibenzofurans'] * 10 +
+        ['non-ortho-substituted PCBs'] * 4 +
+        ['mono-ortho-substituted PCBs'] * 8),
+    'compound': pd.Series([
+        '2378-TCDD', '12378-PeCDD', '123478-HxCDD', '123678-HxCDD', '123789-HxCDD', '1234678-HpCDD', 'OCDD',
+        '2378-TCDF', '12378-PeCDF', '23478-PeCDF', '123478-HxCDF', '123678-HxCDF', '123789-HxCDF', 
+        '234678-HxCDF', '1234678-HpCDF', '1234789-HpCDF', 'OCDF', "3,3',4,4'-tetraCB", "3,4,4',5-tetraCB", 
+        "3,3',4,4',5-pentaCB", "3,3',4,4',5,5'-hexaCB", "2,3,3',4,4'-pentaCB", "2,3,4,4',5-pentaCB", 
+        "2,3',4,4',5-pentaCB", "2',3,4,4',5-pentaCB", "2,3,3',4,4',5-hexaCB", "2,3,3',4,4',5'-hexaCB", 
+        "2,3',4,4',5,5'-hexaCB", "2,3,3',4,4',5,5'-heptaCB"]),
+    'compound2': pd.Series([
+        '2378TCDD', '12378PeCDD', '123478HxCDD', '123678HxCDD', '123789HxCDD', '1234678HpCDD',
+        'OCDD', '2378TCDF', '12378PeCDF', '23478PeCDF', '123478HxCDF', '123678HxCDF',
+        '123789HxCDF', '234678HxCDF', '1234678HpCDF', '1234789HpCDF', 'OCDF',
+        '33_44_tetraCB', '344_5tetraCB', '33_44_5pentaCB', '33_44_55_hexaCB', '233_44_pentaCB',
+        '2344_5pentaCB', '23_44_5pentaCB', '2_344_5pentaCB', '233_44_5hexaCB', 
+        '233_44_5_hexaCB', '23_44_55_hexaCB', '233_44_55_heptaCB']),
+    'compound3': pd.Series([
+        'TCDD', 'PeCDD', '123478HCDD', '123678HCDD', '123789HCDD', None, None, 'TCDF', None, None,
+        '123478HCDF', '123678HCDF', '123789HCDF', '234678HCDF', None, None, None,
+        'PCB77', 'PCB81', 'PCB126', 'PCB169', 'PCB105', 'PCB114', 'PCB118', 'PCB123', 'PCB156', 'PCB157',
+        'PCB167', 'PCB189'
+    ]),
+    'compound4': pd.Series([None] * 17 + ['CoPCB-77', 'CoPCB-81', 'CoPCB-126', 'CoPCB-169'] + [None] * 8),
+    'default_paradigm': pd.Series([False] * 29 + [True] * 29 + [False] * 29),
+    'WHO1998': pd.Series([1, 1, 0.1, 0.1, 0.1, 0.01, 0.0001, 0.1, 0.05, 0.5, 0.1, 0.1, 0.1, 0.1,
+        0.01, 0.01, 0.0001, 0.0001, 0.0001, 0.1, 0.01, 0.0001, 0.0005, 0.0001, 0.0001, 0.0005,
+        0.0005, 0.00001, 0.0001]),
+    'WHO2005': pd.Series([1, 1, 0.1, 0.1, 0.1, 0.01, 0.0003, 0.1, 0.03, 0.3, 0.1, 0.1, 0.1, 0.1,
+        0.01, 0.01, 0.0003, 0.0001, 0.0003, 0.1, 0.03, 0.00003, 0.00003, 0.00003, 0.00003, 0.00003,
+        0.00003, 0.00003, 0.00003]),
+    'EU_IED2014': pd.Series([1, 0.5, 0.1, 0.1, 0.1, 0.01, 0.001, 0.1, 0.05, 0.5, 0.1, 0.1, 0.1,
+        0.1, 0.01, 0.01, 0.001])
+})
+
+out = df.copy()[['group', 'compound', 'WHO1998', 'WHO2005', 'EU_IED2014']]
+out = out.melt(id_vars=['group', 'compound'], var_name='paradigm', value_name='Value')
+tmp = df.copy()[['group', 'compound2', 'WHO1998', 'WHO2005', 'EU_IED2014']]
+tmp.rename(columns={'compound2': 'compound'}, inplace=True)
+tmp = tmp.melt(id_vars=['group', 'compound'], var_name='paradigm', value_name='Value')
+out = out.append(tmp)
+tmp = df.copy()[['group', 'compound3', 'WHO1998', 'WHO2005', 'EU_IED2014']]
+tmp.rename(columns={'compound3': 'compound'}, inplace=True)
+tmp = tmp.melt(id_vars=['group', 'compound'], var_name='paradigm', value_name='Value')
+out = out.append(tmp)
+tmp = df.copy()[['group', 'compound4', 'WHO1998', 'WHO2005', 'EU_IED2014']]
+tmp.rename(columns={'compound4': 'compound'}, inplace=True)
+tmp = tmp.melt(id_vars=['group', 'compound'], var_name='paradigm', value_name='Value')
+out = out.append(tmp)
+out = out.dropna(how='any')
+
+unit = {'Value': 'TEF'}
+
+metadata = {
+    'references': {
+        'general': 'http://en.opasnet.org/w/Toxic_equivalency_factor http://en.opasnet.org/w/Toxic_equivalency_factor_references',
+        'WHO2005': 'Martin Van den Berg, Linda S. Birnbaum, Michael Denison, Mike De Vito, ' +
+            'William Farland, Mark Feeley, Heidelore Fiedler, Helen Hakansson, Annika Hanberg, ' +
+            'Laurie Haws, Martin Rose, Stephen Safe, Dieter Schrenk, Chiharu Tohyama, Angelika ' +
+            'Tritscher, Jouko Tuomisto, Mats Tysklind, Nigel Walker, and Richard E. Peterson: ' +
+            'The 2005 World Health Organization Reevaluation of Human and Mammalian Toxic Equivalency ' +
+            'Factors for Dioxins and Dioxin-Like Compounds. Toxicological Sciences 93(2), 223–241 ' +
+            '(2006) doi:10.1093/toxsci/kfl055.'
+    }
+}
+
+ds_tef = Dataset(
+    df=out,
+    identifier='hia/dioxin/toxic_equivalency_factors',
+    units=unit,
+    metadata=metadata
+)
+
+repo.add(ds_tef)
+
 repo.push()

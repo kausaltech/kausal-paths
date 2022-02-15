@@ -9,6 +9,8 @@ capita = [population] = cap = person
 disability_adjusted_lifeyear = [disease_burden] = DALY = YLL = YLD
 [case_burden] = [disease_burden] / [case]
 incident = [event] = case
+MET = [metabolic_equivalent]
+METh = MET * h 
 
 [exposure] = [mass] / [mass] / [time]
 [inhalation] = [mass] / [volume]
