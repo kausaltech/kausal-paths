@@ -2,7 +2,7 @@ instance:
   id: healthimpact
   default_language: fi
   dataset_repo:
-    url: https://github.com/kausaltech/dvctest.git
+    url: git@github.com:kausaltech/dvctest.git
 #    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
 #    commit: 8da94b52a1e4e1bce4c69624b5275f61043507f3
 #    commit: 6d3b5efb99b6bf3d7030795bf4490adb67da0c61
@@ -143,13 +143,8 @@ instance:
       input_nodes:
         - population
         - passenger_car_pollutant_emissions
-      params:
-        - id: emission_heights
-          value: ['ground', 'low']
-        - id: population_densities
-          value: ['urban', 'rural']
-        - id: pollutants
-          value: ['PM2_5', 'NOx']
+      input_datasets:
+        - hia/intake_fraction/air_pollution
 
     - id: frexposed
       name: Altistuneiden osuus
@@ -170,8 +165,10 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - dioxin_x_twi
-            - dioxin_x_cancer
+            - dioxin tolerable_weekly_intake
+            - dioxin cancer
+      input_datasets:
+        - hia/exposure_response/food
       input_nodes:
         - dioxin_exposure
         - frexposed
@@ -183,9 +180,11 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - PM2_5_x_mortality
-            - PM2_5_x_work_days_lost
-            - NOx_x_mortality
+            - PM2_5 mortality
+            - PM2_5 work_days_lost
+#            - NOx_x_mortality
+      input_datasets:
+        - hia/exposure_response/air_pollution
       input_nodes:
         - air_pollutant_exposure
         - frexposed
@@ -247,8 +246,8 @@ instance:
       unit: dimensionless
       historical_values: [[2019, 2.204339e-4], [2020, 2.204339e-4]]
       forecast_values: [[2021, 2.204339e-4], [2022, 2.204339e-4]]
-      output_nodes:
-        - paf_noise
+#      output_nodes:
+#        - paf_noise
 
     - id: noise_exposure
       name: Melualtistus
@@ -262,19 +261,21 @@ instance:
 #        column: Motorcycle  # FIXME get real data
 #        min_year: 2016
 #        dropna: true
-      output_nodes:
-        - paf_noise
+#      output_nodes:
+#        - paf_noise
 
-    - id: paf_noise
-      name: Melun väestösyyosuus
-      name_en: Noise PAF
-      type: health.PopulationAttributableFraction
-      quantity: fraction
-      unit: dimensionless
-      params:
-        - id: erf_contexts
-          value: 
-            - noise_x_highly_sleep_disturbed_rail
+#    - id: paf_noise
+#      name: Melun väestösyyosuus
+#      name_en: Noise PAF
+#      type: health.PopulationAttributableFraction
+#      quantity: fraction
+#      unit: dimensionless
+#      params:
+#        - id: erf_contexts
+#          value: 
+#            - noise_x_highly_sleep_disturbed_rail
+#      input_datasets:
+#        - hia/exposure_response/air_pollution  # FIXME the noise units
 
 ################
 # health benefits
