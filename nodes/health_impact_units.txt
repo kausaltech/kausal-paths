@@ -43,10 +43,28 @@ erf_param_inv_inhalation = 0 / (ug / m**3)
 erf_param_inv_inhalation_bq = 0 / (Bq / m**3)
 erf_param_poly0 = 0
 erf_param_poly1 = 0 (kg d / mg)
-erf_param_poly2 = 0 (kg d / mg)^2
-erf_param_poly3 = 0 (kg d / mg)^3
+erf_param_poly2 = 0 (kg d / mg)**2
+erf_param_poly3 = 0 (kg d / mg)**3
 case_burden = 0 DALY/case
 case_cost = 0 EUR / case
+exposure_p1 = 0 mg / kg / d
+exposure_p0 = 0
+exposure_m1 = 0 kg d / mg
+exposure_m2 = 0 (kg d / mg)**2
+exposure_m3 = 0 (kg d / mg)**3
+ingestion_p1 = 0 mg / d
+ingestion_p0 = 0
+ingestion_m1 = 0 d / mg
+ingestion_m2 = 0 (d / mg)**2
+ingestion_m3 = 0 (d / mg)**3
+inhalation_p1 = 0 ug / m**3
+inhalation_p0 = 0
+inhalation_m1 = 0 m**3 / ug
+noise_p1 = 0 Lden
+noise_p0 = 0
+noise_m1 = 0 (Lden)**-1
+noise_m2 = 0 (Lden)**-2
+noise_m3 = 0 (Lden)**-3
 
 colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
