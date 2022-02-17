@@ -29,6 +29,11 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
 ]
 
 
+def ensure_known_quantity(quantity: str):
+    if quantity not in KNOWN_QUANTITIES:
+        raise Exception(f"Quantity {quantity} is unknown")
+
+
 class DecisionLevel(Enum):
     MUNICIPALITY = 1
     NATION = 2

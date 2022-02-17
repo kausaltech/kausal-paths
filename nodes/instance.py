@@ -1,6 +1,7 @@
 import importlib
 import logging
 import re
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
@@ -54,7 +55,11 @@ class Instance:
         yaml_obj = RuamelYAML()
         with open(self.yaml_file_path, 'r', encoding='utf8') as f:
             data = yaml_obj.load(f)
-        data['instance']['dataset_repo']['commit'] = commit_id
+        if 'instance' in data:
+            instance_data = data['instance']
+        else:
+            instance_data = data
+        instance_data['dataset_repo']['commit'] = commit_id
         with open(self.yaml_file_path, 'w', encoding='utf8') as f:
             yaml_obj.dump(data, f)
 
@@ -85,15 +90,20 @@ class InstanceLoader:
         ds_config = config.get('input_datasets', None)
         datasets: list[Dataset] = []
 
+        dimensions = getattr(node_class, 'dimensions', None)
         unit = config.get('unit')
         if unit is None:
-            unit = getattr(node_class, 'unit')
+            unit = getattr(node_class, 'unit', None)
+            if not unit and not dimensions:
+                raise Exception('Node %s has no unit set' % config['id'])
         if unit and not isinstance(unit, pint.Unit):
             unit = self.context.unit_registry(unit).units
 
         quantity = config.get('quantity')
         if quantity is None:
-            quantity = getattr(node_class, 'quantity')
+            quantity = getattr(node_class, 'quantity', None)
+            if not quantity and not dimensions:
+                raise Exception('Node %s has no quantity set' % config['id'])
 
         # If the graph doesn't specify input datasets, the node
         # might.
@@ -208,7 +218,7 @@ class InstanceLoader:
             self.context.add_node(node)
 
     def setup_actions(self):
-        for nc in self.config['actions']:
+        for nc in self.config.get('actions', []):
             klass = nc['type'].split('.')
             node_name = klass.pop(-1)
             klass.insert(0, 'nodes')
@@ -286,9 +296,24 @@ class InstanceLoader:
 
     @classmethod
     def from_yaml(cls, filename):
-        print(filename)
         data = yaml.load(open(filename, 'r', encoding='utf8'), Loader=yaml.Loader)
-        return cls(data['instance'], yaml_file_path=filename)
+        if 'instance' in data:
+            data = data['instance']
+
+        framework = data.get('framework')
+        if framework:
+            base_dir = os.path.dirname(filename)
+            framework_fn = os.path.join(base_dir, 'frameworks', framework + '.yaml')
+            if not os.path.exists(framework_fn):
+                raise Exception("Config expects framework but %s does not exist" % framework_fn)
+            fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'), Loader=yaml.Loader)
+            if 'nodes' in fw_data:
+                data['nodes'] += fw_data['nodes']
+            if 'emission_sectors' in fw_data:
+                data['emission_sectors'] += fw_data['emission_sectors']
+
+
+        return cls(data, yaml_file_path=filename)
 
     def __init__(self, config: dict, yaml_file_path: str = None):
         self.config = config

@@ -5,6 +5,7 @@ import os
 import io
 import inspect
 import json
+from dataclasses import dataclass
 from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Union, overload
 
 import numpy as np
@@ -13,12 +14,39 @@ import pint
 import pint_pandas
 
 from common.i18n import TranslatedString
-from nodes.constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, KNOWN_QUANTITIES, MILEAGE_QUANTITY, VALUE_COLUMN
+from nodes.constants import (
+    EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
+    MILEAGE_QUANTITY, VALUE_COLUMN,
+    ensure_known_quantity
+)
 from params import Parameter
 
 from .context import Context
 from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
+
+
+class NodeDimension:
+    id: str
+    unit: pint.Unit
+    quantity: str
+
+    def __init__(self, unit: Union[str, pint.Unit], quantity: str):
+        self._unit = unit
+        ensure_known_quantity(quantity)
+        self.quantity = quantity
+
+    def populate_unit(self, context: Context):
+        unit = self._unit
+        if isinstance(unit, pint.Unit):
+            self.unit = unit
+        else:
+            self.unit = context.unit_registry(unit).units
+        delattr(self, '_unit')
+
+    def calculate_hash(self, id: str) -> bytes:
+        s = '%s:%s:%s' % (id, self.unit, self.quantity)
+        return s.encode('utf-8')
 
 
 class Node:
@@ -44,7 +72,10 @@ class Node:
     # output unit (from pint)
     unit: pint.Unit
     # output quantity (like 'energy' or 'emissions')
-    quantity: Optional[str]
+    quantity: str
+
+    # output units and quantities (for multi-dimensional nodes)
+    dimensions: Optional[dict[str, NodeDimension]] = None
 
     # set if this node has a specific goal for the simulation target year
     target_year_goal: Optional[float]
@@ -76,8 +107,11 @@ class Node:
         color: str = None, unit=None, target_year_goal=None,
         input_datasets: List[Dataset] = None,
     ):
-        if quantity not in KNOWN_QUANTITIES:
-            raise Exception(f"Quantity {quantity} is unknown")
+        if self.dimensions:
+            for dim in self.dimensions.values():
+                dim.populate_unit(context)
+        else:
+            ensure_known_quantity(quantity)
 
         if input_datasets is None:
             input_datasets = []
@@ -89,7 +123,7 @@ class Node:
         self.description = description
         self.color = color
         self.unit = unit
-        if unit is None:
+        if unit is None and not self.dimensions:
             raise NodeError(self, "Attempting to initialize node without a unit")
         self.quantity = quantity
         self.target_year_goal = target_year_goal
@@ -187,7 +221,11 @@ class Node:
 
     def calculate_hash(self) -> bytes:
         h = hashlib.md5()
-        h.update(bytes(self.unit))
+        if self.unit:
+            h.update(bytes(self.unit))
+        if self.dimensions:
+            for dim_id, dim in self.dimensions.items():
+                h.update(dim.calculate_hash(dim_id))
         for node in self.input_nodes:
             h.update(node.calculate_hash())
         for param in self.parameters.values():
@@ -272,6 +310,13 @@ class Node:
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True
+
+    def convert_to_unit(self, s: pd.Series, unit: pint.Unit) -> pd.Series:
+        if not s.pint.units.is_compatible_with(unit):
+            raise NodeError(self, 'Series with type %s is not compatible with %s' % (
+                s.pint.units, unit
+            ))
+        return s.astype(pint_pandas.PintType(unit))
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
         node_pt = pint_pandas.PintType(self.unit)
@@ -393,7 +438,7 @@ class Node:
         sio = io.StringIO(json.dumps(data))
         old = self.serialize_input_data()
         old['data'] = data['data']
-        df = pd.read_json(sio, orient='table')
+        _ = pd.read_json(sio, orient='table')
         return old
 
     def replace_input_data(self, data: dict):
