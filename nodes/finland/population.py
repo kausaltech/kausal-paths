@@ -7,7 +7,7 @@ from nodes.exceptions import NodeError
 class Population(Node):
     TOTAL_POPULATION_COLUMN = 'Väestö 31.12.'
 
-    input_parameters = ['municipality_name']
+    global_parameters = ['municipality_name']
     input_datasets = [
         'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re',
         'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f'
@@ -16,7 +16,7 @@ class Population(Node):
     quantity = 'population'
 
     def compute(self):
-        muni_name = self.context.get_parameter_value('municipality_name')
+        muni_name = self.get_global_parameter_value('municipality_name')
 
         df_hist, df_forecast = self.get_input_datasets()
         df_hist = df_hist.xs(muni_name, level='Alue')
