@@ -146,6 +146,18 @@ class PopulationAttributableFraction(Ovariable):
 
             return out3
 
+        if False:
+            def check_erf_units(param):
+                out = unit_registry(param)
+                is_erf_compatible = exposure.Value.pint.units.is_compatible_with(out)
+                if not is_erf_compatible:
+                    print(df6.Value)
+            #        df6.Value = df6.Value.pint.to('kg/a')
+                    out = out.to('kLden')
+                return out
+
+            check_erf_units('Lden')
+
         output = pd.DataFrame()
 
         for erf_context in erf_contexts:
