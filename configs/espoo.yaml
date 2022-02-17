@@ -1,0 +1,44 @@
+id: espoo
+default_language: fi
+supported_languages: [en]
+framework: syke
+site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: af84a46c532a0d4d976767c6f4371601e9b41255
+name: Hiilineutraali Espoo 2030
+name_en: Carbon-neutral Espoo 2030
+owner: Espoon kaupunki
+owner_en: City of Espoo
+emission_unit: kt/a
+target_year: 2030
+reference_year: 2005
+minimum_historical_year: 2005
+params:
+- id: municipality_name
+  value: Espoo
+
+emission_sectors:
+- id: net_emissions
+  name: Kokonaispäästöt (scope 2)
+  name_en: Net emissions (scope 2)
+  target_year_goal: 260
+
+nodes:
+- id: population
+  type: finland.Population
+  name: Väestö
+
+- id: all_alas_emissions
+  type: finland.syke.AlasNode
+  name: SYKE:n ALaS-päästöinventaario
+
+scenarios:
+- id: baseline
+  name: Nykykehitys
+  name_en: Baseline
+
+- id: default
+  default: true
+  name: Hiilineutraali Tampere 2030 -tiekartta
+  name_en: Carbon-neutral Tampere 2030 roadmap

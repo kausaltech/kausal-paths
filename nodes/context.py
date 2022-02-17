@@ -198,8 +198,11 @@ class Context:
             print('%s: %s' % (param.global_id, param.value))
 
     def pull_datasets(self):
+        self.dataset_repo.set_target_commit(None)
         self.dataset_repo.pull_datasets()
-        self.instance.update_dataset_repo_commit(self.dataset_repo.commit_id)
+        commit_id = self.dataset_repo.commit_id
+        self.dataset_repo.set_target_commit(commit_id)
+        self.instance.update_dataset_repo_commit(commit_id)
 
     def print_graph(self, include_datasets=False):
         import inspect
