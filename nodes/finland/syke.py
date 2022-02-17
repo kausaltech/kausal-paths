@@ -13,7 +13,7 @@ class AlasNode(Node):
     input_datasets = [
         'syke/alas_emissions',
     ]
-    input_parameters = ['municipality_name']
+    global_parameters = ['municipality_name']
     dimensions = {
         EMISSION_QUANTITY: NodeDimension(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeDimension(unit='GWh/a', quantity=ENERGY_QUANTITY),
@@ -21,7 +21,7 @@ class AlasNode(Node):
     }
 
     def compute(self) -> pd.DataFrame:
-        muni_name = self.context.get_parameter_value('municipality_name')
+        muni_name = self.get_global_parameter_value('municipality_name')
 
         df = self.get_input_dataset()
         df = df[df['kunta'] == muni_name].drop(columns=['kunta'])

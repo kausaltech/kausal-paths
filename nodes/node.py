@@ -86,6 +86,9 @@ class Node:
     input_nodes: List[Node]
     output_nodes: List[Node]
 
+    # Global input parameters the node needs
+    global_parameters: List[str]
+
     # Parameters with their values
     parameters: Dict[str, Parameter]
 
@@ -133,6 +136,9 @@ class Node:
         self.baseline_values = None
         self.parameters = {}
 
+        if not hasattr(self, 'global_parameters'):
+            self.global_parameters = []
+
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
@@ -160,6 +166,11 @@ class Node:
         if param is None:
             return None
         return param.value
+
+    def get_global_parameter_value(self, id: str, required: bool = True) -> Any:
+        if id not in self.global_parameters:
+            raise NodeError(self, f"Attempting to access parameter {id} which is not declared")
+        return self.context.get_parameter_value(id, required=required)
 
     def set_parameter_value(self, local_id: str, value: Any):
         if local_id not in self.parameters:
@@ -230,6 +241,10 @@ class Node:
             h.update(node.calculate_hash())
         for param in self.parameters.values():
             h.update(param.calculate_hash())
+        for param_id in self.global_parameters:
+            param = self.context.get_parameter(param_id, required=False)
+            if param is not None:
+                h.update(param.calculate_hash())
         for ds in self.input_dataset_instances:
             h.update(ds.calculate_hash(self.context))
         for klass in type(self).mro():
