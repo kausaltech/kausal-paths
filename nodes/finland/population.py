@@ -9,8 +9,8 @@ class Population(Node):
 
     input_parameters = ['municipality_name']
     input_datasets = [
-        'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11ra',
-        'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_128w'
+        'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re',
+        'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f'
     ]
     unit = 'person'
     quantity = 'population'
@@ -26,9 +26,9 @@ class Population(Node):
         if len(pop_col) != 1:
             raise NodeError(self, 'Unable to find population forecast column')
 
-        sf = df_forecast = df_forecast.groupby('Vuosi', axis=0)[pop_col[0]].sum()
+        sf = df_forecast.groupby('Vuosi', axis=0)[pop_col[0]].sum()
         sf.index = sf.index.astype(int)
-        sh = df_hist[self.TOTAL_POPULATION_COLUMN]
+        sh = df_hist.groupby('Vuosi', axis=0)[self.TOTAL_POPULATION_COLUMN].sum()
         sh.index = sh.index.astype(int)
 
         # Drop forecast rows that are in the historical series
@@ -38,5 +38,5 @@ class Population(Node):
         df.index = df.index.astype(int)
         df['Forecast'] = False
         df.loc[df.index >= sf.index.min(), 'Forecast'] = True
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype('pint[person]')
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(float).astype('pint[person]')
         return df
