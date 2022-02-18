@@ -124,7 +124,6 @@ class PopulationAttributableFraction(Ovariable):
     unit = 'dimensionless'
 
     def compute(self):
-        routes = ['exposure', 'ingestion', 'inhalation', '']
         exposure = self.get_input('exposure')
         if YEAR_COLUMN not in exposure.index.names:  # FIXME not the right place for this fix
             assert len(exposure.index.names) == 1
@@ -154,21 +153,28 @@ class PopulationAttributableFraction(Ovariable):
             incidence = unit_registry('incidence')
             period = unit_registry('period')
             erf = df.loc[df.Erf_context == erf_context].reset_index()
-            route = erf.Route[0]
 
             assert len(erf) == 1
 
-            if 'Er_function' in erf.columns:
-                erf_type = erf.Er_function[0]
-                print(erf_type)
-
-            if 'Pollutant' in exposure.index.names:
-                exposure_agent = erf_context.split(' ')[0]
-                exposure_agent = exposure.index.get_level_values('Pollutant') == exposure_agent
-                exposure2 = OvariableFrame(exposure.loc[exposure_agent].copy())
+            route = erf.Route[0]
+            erf_type = erf.Er_function[0]
+            if 'Exposure_agent' in erf.columns:
+                exposure_agent = erf.Exposure_agent[0]
+            elif 'Pollutant' in erf.columns:
+                exposure_agent = erf.Pollutant[0]
             else:
-                exposure2 = OvariableFrame(exposure.copy())
+                exposure_agent = erf_context.split(' ')[0]
 
+            indices = list(set(exposure.index.names + ['Exposure_agent']) - {'Pollutant'})
+            if 'Pollutant' in exposure.index.names:
+                pick_rows = exposure.index.get_level_values('Pollutant') == exposure_agent
+                exposure2 = exposure.copy().loc[pick_rows].reset_index()
+                exposure2 = exposure2.rename(columns={'Pollutant': 'Exposure_agent'})
+            else:
+                exposure2 = exposure.copy().assign(Exposure_agent=exposure_agent).reset_index()
+            exposure2 = OvariableFrame(exposure2.set_index(indices))
+
+            # If erf and exposure nodes are not in compatible units, converts both to exposure units
             def check_erf_units(param):
                 powers = {
                     'p1': 'mg/kg/d',

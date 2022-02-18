@@ -62,9 +62,9 @@ inhalation_p0 = 0
 inhalation_m1 = 0 m**3 / ug
 noise_p1 = 0 Lden
 noise_p0 = 0
-noise_m1 = 0 (Lden)**-1
-noise_m2 = 0 (Lden)**-2
-noise_m3 = 0 (Lden)**-3
+noise_m1 = 0 (1 / Lden)**1
+noise_m2 = 0 (1 / Lden)**2
+noise_m3 = 0 (1 / Lden)**3
 
 colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
