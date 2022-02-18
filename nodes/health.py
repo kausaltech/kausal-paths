@@ -300,8 +300,6 @@ class DiseaseBurden(Ovariable):
         out = out.set_index(indices)
         out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
         out = self.clean_computing(out)
-
-        self.print_outline(out)
         return out
 
 
@@ -318,6 +316,4 @@ class AttributableDiseaseBurden(Ovariable):
         out = out.aggregate_by_column(groupby='Year', fun='sum')
 
         out = self.clean_computing(out)
-
-        self.print_outline(out)
         return out

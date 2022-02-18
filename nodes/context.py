@@ -44,7 +44,6 @@ pint.set_application_registry(unit_registry)
 pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
 unit_registry.load_definitions('nodes/health_impact_units.txt')
-unit_registry.load_definitions('nodes/health_impact_data.txt')
 
 
 class Context:

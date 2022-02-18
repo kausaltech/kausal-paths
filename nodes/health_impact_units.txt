@@ -28,25 +28,10 @@ ppt = ng / kg  # parts per trillion
 
 ## Exposure
 
-route = 0  # 0 ingestion, 1 inhalation
-er_function = 0
 p_illness = 1
-erf_param_exposure = 0 mg / kg / d
-erf_param2_exposure = 0 mg / kg / d
-erf_param_inv_exposure = 0 kg * d / mg
-erf_param_ingestion = 0 mg/d
-erf_param2_ingestion = 0 mg / d
-erf_param_inv_ingestion = 0 d / mg
-erf_param_scale = 0
-erf_param_inhalation = 0 ug / m**3
-erf_param_inv_inhalation = 0 / (ug / m**3)
-erf_param_inv_inhalation_bq = 0 / (Bq / m**3)
-erf_param_poly0 = 0
-erf_param_poly1 = 0 (kg d / mg)
-erf_param_poly2 = 0 (kg d / mg)**2
-erf_param_poly3 = 0 (kg d / mg)**3
 case_burden = 0 DALY/case
 case_cost = 0 EUR / case
+
 exposure_p1 = 0 mg / kg / d
 exposure_p0 = 0
 exposure_m1 = 0 kg d / mg
@@ -60,18 +45,62 @@ ingestion_m3 = 0 (d / mg)**3
 inhalation_p1 = 0 ug / m**3
 inhalation_p0 = 0
 inhalation_m1 = 0 m**3 / ug
+inhalation_m2 = 0 (m**3 / ug)**2
+inhalation_m3 = 0 (m**3 / ug)**3
 noise_p1 = 0 Lden
 noise_p0 = 0
 noise_m1 = 0 (1 / Lden)**1
 noise_m2 = 0 (1 / Lden)**2
 noise_m3 = 0 (1 / Lden)**3
+exercise_p1 = 0 METh / week
+exercise_p0 = 0
+exercise_m1 = 0 (week / METh)**1
+exercise_m2 = 0 (week / METh)**2
+exercise_m3 = 0 (week / METh)**3
+inhalationBq_p1 = 0 Bq / m**3
+inhalationBq_p0 = 0
+inhalationBq_m1 = 0 m**3 / Bq
+inhalationBq_m2 = 0 (m**3 / Bq)**2
+inhalationBq_m3 = 0 (m**3 / Bq)**3
 
 colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
 Lden = 1 mg / kg / d
 Lnight = 1 mg / kg / d
+toxic_equivalency_factor = [tef] = TEF
+toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
 
 @alias count = piece = pieces
+
+#### Exposure conversions
+
+@context exposure_generic
+    [mass] -> [ingestion]: value / (period * incident)
+    1 / [mass] -> 1 / [ingestion]: value * (period * incident)
+    [inhalation] -> [exposure]: value * inhalation_rate / body_mass
+    1 / [inhalation] -> 1 / [exposure]: value / (inhalation_rate / body_mass)
+    mg / capita / d -> [exposure]: value * capita / body_mass
+    [ingestion] -> [exposure]: value / body_mass
+    1 / [ingestion] -> 1 / [exposure]: value * body_mass
+    Lnight -> mg / kg / d: value * mg / kg / d / Lnight
+    Lden -> mg / kg / d: value * mg / kg / d / Lden
+
+    becquerel / m ** 3 -> g / m ** 3: value * (3.8215 d * 2 * 222.0175763 g / avogadro_number)
+    m ** 3 / becquerel -> m ** 3 / g: value / (3.8215 d * 2 * 222.0175763 g / avogadro_number)
+    # Radon-222 has half-life of 3.8215 d and isotope mass 222.0175763 g/mol.
+    # The number of original atoms is activity * halflife * 2
+
+    #NOTE! This works only for ozone
+    [mass] / [mass] -> [inhalation]: value * airdensity * 47.997 / 28.89
+    # Ozone molecular mass 47.997 g/mol, air 0.78 * 28.014 + 0.22 * 32.00 = 28.89 g/mol and 1.225 kg/m**3
+
+    cfu / d -> mg / kg / d: value * cfu_mass / body_mass
+
+    [mass] -> [TEQ]: value * _a * g_teq / g  # FIXME This does not work without _a that must be defined
+    [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g
+    [mass] / [volume] -> [TEQ] / [volume]: value * _a * g_teq / g
+    [mass] / [time] -> [TEQ] / [time]: value * _a * g_teq / g
+@end
 
 ## Emission factors
 
@@ -85,17 +114,6 @@ emission_factor_km_NMVOC = 0 g / km
 emission_factor_km_CH4 = 0 g / km
 emission_factor_km_N2O = 0 g / km
 emission_factor_km_SO2 = 0 g / km
-
-## Intake fractions
-
-intake_fraction_PM2_5 = 0 ppm
-intake_fraction_PM10 = 0 ppm
-intake_fraction_NOx = 0 ppm
-intake_fraction_NO2 = 0 ppm
-intake_fraction_CO = 0 ppm
-intake_fraction_EC = 0 ppm
-intake_fraction_NH3 = 0 ppm
-
 
 ###### Monetary Units
 
@@ -111,7 +129,6 @@ cfu_mass = 10000 ** -3 * g / cfu  # Nominal weight of a microbe, 1 um**3 of wate
 rna_mass = (50 * (329.2 + 306.2 + 305.2 + 345.2) + 159) g / avogadro_number / rna  # Nominal weight of 200 bp rna
 # Molecular weight of rna: (An x 329.2) + (Un x 306.2) + (Cn x 305.2) + (Gn x 345.2) + 159 (triphosphate)
 
-
 lifetime = 80 a / incident
 yearly = 1 a / incident
 subchronic = 28 d / incident
@@ -119,3 +136,35 @@ subacute = 7 d / incident
 acute = 1 d / incident
 period = acute
 incidence = 1 / period / person
+
+#### Incidences
+
+@context cvddeath  # FIXME Should be developed in full
+    incidence = 20000 cases / (5 Mpy)
+@end
+
+#### Emission factors  # FIXME Should be moved to dvctest
+
+@context passenger_car_average  # http://efdb.apps.eea.europa.eu/ Diesel Medium - Euro 5 - EC715/2007
+    emission_factor_km_CO2 = 0.398 g / km
+    emission_factor_km_PM2_5 = 0.0021 g / km
+    emission_factor_km_NOx = 0.55 g / km
+    emission_factor_km_CO = 0.04 g / km
+    emission_factor_km_NMVOC = 0.008 g / km
+    emission_factor_km_N2O = 0.004 g / km
+@end
+
+@context dioxin_x_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
+    incidence = 12998 / (55498 person) / lifetime  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
+    case_burden = 19.7 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
+@end
+
+@context dioxin_x_twi  # http://en.opasnet.org/w/ERF_of_dioxin
+    incidence = 1 case / personyear  # nominal; everyone is exposed
+    case_burden = 0.0001 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
+@end
+
+@context PM2_5_x_mortality  # http://en.opasnet.org/w/ERF_of_outdoor_air_pollution
+    incidence = 18496 cases / (5533793 personyears)  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
+    case_burden = 10.6 DALY/case  # De Leeuw & Horàlek 2016/5 http://fi.opasnet.org/fi/Kiltova#PAQ2018
+@end
