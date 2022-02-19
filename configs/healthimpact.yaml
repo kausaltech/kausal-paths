@@ -170,6 +170,7 @@ instance:
             - dioxin cancer
       input_datasets:
         - hia/exposure_response/food
+        - hia/incidence/default
       input_nodes:
         - dioxin_exposure
         - frexposed
@@ -182,10 +183,11 @@ instance:
         - id: erf_contexts
           value:
             - PM2_5 mortality
-            - PM2_5 work_days_lost
-#            - NOx_x_mortality
+#            - PM2_5 work_days_lost
+#            - NOx mortality
       input_datasets:
         - hia/exposure_response/air_pollution
+        - hia/incidence/default
       input_nodes:
         - air_pollutant_exposure
         - frexposed
@@ -197,9 +199,12 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - dioxin_x_twi
-            - dioxin_x_cancer
+            - dioxin tolerable_weekly_intake
+            - dioxin cancer
       unit: DALY/a
+      input_datasets:
+        - hia/incidence/default
+        - hia/exposure_response/food
       input_nodes:
         - population
 
@@ -210,7 +215,10 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - PM2_5_x_mortality
+            - PM2_5 mortality
+      input_datasets:
+        - hia/incidence/default
+        - hia/exposure_response/air_pollution
       unit: DALY/a
       input_nodes:
         - population
@@ -274,9 +282,15 @@ instance:
       params:
         - id: erf_contexts
           value: 
+            - noise highly_sleep_disturbed_road
             - noise highly_sleep_disturbed_rail
+            - noise highly_sleep_disturbed_air
+            - noise highly_annoyed_road
+            - noise highly_annoyed_rail
+            - noise highly_annoyed_air
       input_datasets:
-        - hia/exposure_response/noise  # FIXME the noise units
+        - hia/exposure_response/noise
+        - hia/exposure_response/noise
 
 ################
 # health benefits

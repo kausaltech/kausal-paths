@@ -153,18 +153,3 @@ incidence = 1 / period / person
     emission_factor_km_NMVOC = 0.008 g / km
     emission_factor_km_N2O = 0.004 g / km
 @end
-
-@context dioxin_x_cancer  # http://en.opasnet.org/w/ERF_of_dioxin
-    incidence = 12998 / (55498 person) / lifetime  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
-    case_burden = 19.7 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
-@end
-
-@context dioxin_x_twi  # http://en.opasnet.org/w/ERF_of_dioxin
-    incidence = 1 case / personyear  # nominal; everyone is exposed
-    case_burden = 0.0001 DALY/case  # http://en.opasnet.org/w/Goherr_assessment#Model_parameters
-@end
-
-@context PM2_5_x_mortality  # http://en.opasnet.org/w/ERF_of_outdoor_air_pollution
-    incidence = 18496 cases / (5533793 personyears)  # https://stat.fi/til/ksyyt/2020/ksyyt_2020_2021-12-10_tau_001_fi.html
-    case_burden = 10.6 DALY/case  # De Leeuw & Horàlek 2016/5 http://fi.opasnet.org/fi/Kiltova#PAQ2018
-@end

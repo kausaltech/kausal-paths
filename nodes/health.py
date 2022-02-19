@@ -115,7 +115,11 @@ class Exposure(Ovariable):
 
 
 class PopulationAttributableFraction(Ovariable):
-    # Population attributable fraction PAF
+    ''' Population attributable fraction PAF
+    The node must have exactly two input datasets in this order:
+    * One with exposure-response functions and parameters
+    * One with incidence data and Incidence column
+    '''
     allowed_parameters = [
         StringParameter(local_id='erf_contexts'),
     ] + Ovariable.allowed_parameters
@@ -130,7 +134,7 @@ class PopulationAttributableFraction(Ovariable):
             exposure.index.names = [YEAR_COLUMN]
         frexposed = self.get_input('fraction')
         erf_contexts = self.get_parameter_value('erf_contexts')
-        df = self.get_input_dataset()
+        erfs, incidences = self.get_input_datasets()
 
         def postprocess_relative(rr, frexposed):
             r = frexposed * (rr - 1)
@@ -149,14 +153,18 @@ class PopulationAttributableFraction(Ovariable):
 
         for erf_context in erf_contexts:
 
-            p_illness = unit_registry('p_illness')
-            incidence = unit_registry('incidence')
-            period = unit_registry('period')
-            erf = df.loc[df.Erf_context == erf_context].reset_index()
+            incidence = incidences.loc[incidences.Erf_context == erf_context].reset_index()
+            incidence = incidence.Incidence[0]
 
+            erf = erfs.loc[erfs.Erf_context == erf_context].reset_index()
             assert len(erf) == 1
-
             route = erf.Route[0]
+            period = erf.Period[0]
+            if 'P_illness' in erf.columns:
+                p_illness = erf.P_illness[0]
+            else:
+                p_illness = unit_registry('p_illness')
+
             erf_type = erf.Er_function[0]
             if 'Exposure_agent' in erf.columns:
                 exposure_agent = erf.Exposure_agent[0]
@@ -273,7 +281,11 @@ class PopulationAttributableFraction(Ovariable):
 
 
 class DiseaseBurden(Ovariable):
-    # BoD is the current (observed) burden of disease (measured in disability-adjusted life years or DALYs).
+    '''BoD is the current (observed) burden of disease (measured in disability-adjusted life years or DALYs).
+    The node must always contain exactly two datasets in this order:
+    * One with incidence data and Incidence column
+    * One with case burden and Case_burden column
+    '''
     allowed_parameters = [
         StringParameter(local_id='erf_contexts'),
     ] + Ovariable.allowed_parameters
@@ -283,12 +295,15 @@ class DiseaseBurden(Ovariable):
     def compute(self):
         population = self.get_input('population')
         erf_contexts = self.get_parameter_value('erf_contexts')
+        incidences, case_burdens = self.get_input_datasets()
 
         out = pd.DataFrame()
 
         for erf_context in erf_contexts:
-            incidence = unit_registry('incidence').to('case/personyear', erf_context)
-            case_burden = unit_registry('case_burden').to('DALY/case', erf_context)
+            incidence = incidences.loc[incidences.Erf_context == erf_context].reset_index()
+            incidence = incidence.Incidence[0]
+            case_burden = case_burdens.loc[case_burdens.Erf_context == erf_context].reset_index()
+            case_burden = case_burden.Case_burden[0]
 
             tmp = OvariableFrame(population.copy())
             tmp = tmp * incidence * case_burden
