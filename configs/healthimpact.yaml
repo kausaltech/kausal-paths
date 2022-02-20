@@ -104,35 +104,32 @@ instance:
       input_nodes:
         - meat_consumption_per_person
 
-    - id: passenger_car_mileage
-      name: Henkilöautokilometrit
-      name_en: Passenger car mileage
+    - id: road_transport_mileage
+      name: Tieliikenteen ajoneuvokilometrit
+      name_en: Road tranport mileage
       type: health.MileageDataOvariable
       quantity: mileage
       unit: Mkm
       input_datasets:
-      - id: tampere/scenarios/activity/bau
-        column: Private car street
-        min_year: 2016
-        dropna: true
+      - id: syke/alas_traffic
       params:
         - id: population_densities
-          value: ['urban', 'rural']
+          value: ['urban']
         - id: emission_heights
           value: ['ground']
 
-    - id: passenger_car_pollutant_emissions
-      name: Henkilöautojen saastepäästöt
-      name_en: Passenger car pollutant emission
+    - id: road_transport_pollutant_emissions
+      name: Tieliikenteen saastepäästöt
+      name_en: Road transport pollutant emission
       type: health.EmissionByFactor
-      unit: ton
+      unit: tonne
       input_nodes:
-        - passenger_car_mileage
+        - road_transport_mileage
       params:
         - id: emission_factor_contexts
           value: ['passenger_car_average']
         - id: pollutants
-          value: ['PM2_5', 'CO2', 'CO', 'NOx', 'N2O', 'NMVOC']
+          value: ['PM2_5', 'CO', 'NOx', 'N2O', 'NMVOC']
 
 
     - id: air_pollutant_exposure
@@ -143,7 +140,7 @@ instance:
       unit: ug/m**3
       input_nodes:
         - population
-        - passenger_car_pollutant_emissions
+        - road_transport_pollutant_emissions
       input_datasets:
         - hia/intake_fraction/air_pollution
 
@@ -184,7 +181,7 @@ instance:
           value:
             - PM2_5 mortality
 #            - PM2_5 work_days_lost
-#            - NOx mortality
+            - NOx mortality
       input_datasets:
         - hia/exposure_response/air_pollution
         - hia/incidence/default

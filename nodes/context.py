@@ -34,6 +34,8 @@ unit_registry = pint.UnitRegistry(
 # usage.
 del unit_registry._units['kt']
 unit_registry.define('kt = kilotonne')
+del unit_registry._units['ton']  # The default is 2000 pounds and we don't want to accidentally use that.
+unit_registry.define('ton = tonne')
 # Mega-kilometers is often used for mileage
 unit_registry.define('Mkm = gigameters')
 unit_registry.define(pint.unit.UnitDefinition(

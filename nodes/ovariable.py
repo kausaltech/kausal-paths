@@ -16,7 +16,7 @@ import pint_pandas
 import copy
 
 from common.i18n import TranslatedString
-from nodes.constants import FORECAST_COLUMN, KNOWN_QUANTITIES, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y, YEAR_COLUMN
 from params import Parameter
 
 from .context import Context
@@ -55,12 +55,17 @@ class Ovariable(SimpleNode):
 
     def clean_computing(self, of):
         of[VALUE_COLUMN] = self.ensure_output_unit(of[VALUE_COLUMN])
+        self.print_outline(of)
         return OvariableFrame(of)
 
     def print_outline(self, df):
         print(type(self))
         print(self.id)
-        self.print_pint_df(df.iloc[[0, 1, 2, -3, -2, -1]])
+        if YEAR_COLUMN in df.index.names:
+            pick_rows = df.index.get_level_values(YEAR_COLUMN).isin([2017, 2021, 2022])
+            self.print_pint_df(df.iloc[pick_rows])
+        else:
+            self.print_pint_df(df.iloc[[0, 1, 2, -3, -2, -1]])
 
 
 class OvariableFrame(pd.DataFrame):

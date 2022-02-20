@@ -47,7 +47,7 @@ inhalation_p0 = 0
 inhalation_m1 = 0 m**3 / ug
 inhalation_m2 = 0 (m**3 / ug)**2
 inhalation_m3 = 0 (m**3 / ug)**3
-noise_p1 = 0 Lden
+noise_p1 = 0 Lden  # FIXME Think how Lden and Lnight should be differentiated. Now they are not
 noise_p0 = 0
 noise_m1 = 0 (1 / Lden)**1
 noise_m2 = 0 (1 / Lden)**2
@@ -65,8 +65,7 @@ inhalationBq_m3 = 0 (m**3 / Bq)**3
 
 colony_forming_unit = [] = cfu = microbe
 rna_count = [] = rna
-Lden = 1 mg / kg / d
-Lnight = 1 mg / kg / d
+Lden = [noise] = _ = Lnight
 toxic_equivalency_factor = [tef] = TEF
 toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
 
@@ -139,14 +138,10 @@ incidence = 1 / period / person
 
 #### Incidences
 
-@context cvddeath  # FIXME Should be developed in full
-    incidence = 20000 cases / (5 Mpy)
-@end
-
 #### Emission factors  # FIXME Should be moved to dvctest
 
 @context passenger_car_average  # http://efdb.apps.eea.europa.eu/ Diesel Medium - Euro 5 - EC715/2007
-    emission_factor_km_CO2 = 0.398 g / km
+    emission_factor_km_CO2 = 121 g / km  # http://lipasto.vtt.fi/yksikkopaastot/henkiloliikennee/tieliikennee/henkiloautote/hadiese.htm
     emission_factor_km_PM2_5 = 0.0021 g / km
     emission_factor_km_NOx = 0.55 g / km
     emission_factor_km_CO = 0.04 g / km

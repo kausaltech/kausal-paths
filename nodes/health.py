@@ -28,19 +28,14 @@ class MileageDataOvariable(Ovariable):
     def compute(self):
         em_heights = self.get_parameter_value('emission_heights')
         pop_densities = self.get_parameter_value('population_densities')
-        mileage = self.get_input_dataset()
-        df = pd.DataFrame()
-        for em_height in em_heights:
-            for pop_density in pop_densities:
-                df = df.append(mileage.assign(
-                    Emission_height=em_height,
-                    Population_density=pop_density
-                ))
-        df = df.reset_index().set_index(['Emission_height', 'Population_density', YEAR_COLUMN])
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-        self.print_outline(df)
+        df = self.get_input_dataset()
+        df = df.loc[df.Municipality == 'Tampere'].loc[df.Counting_method == 'Käyttöperusteinen']
+        df = df[['Year', 'Level_4', 'Level_5', 'Mileage']]
+        df = df.rename(columns={'Mileage': VALUE_COLUMN})
+        df = df.assign(Emission_height=em_heights[0], Population_density=pop_densities[0])
+        df = df.set_index(['Year', 'Level_4', 'Level_5', 'Emission_height', 'Population_density'])
 
-        return df
+        return self.clean_computing(df)
 
 
 class EmissionByFactor(Ovariable):
@@ -69,12 +64,12 @@ class EmissionByFactor(Ovariable):
         emission_factor = OvariableFrame(emission_factor.set_index(['Vehicle', 'Pollutant']))
 
         emission = mileage * emission_factor
-        grouping = ['Emission_height', 'Population_density', 'Pollutant', YEAR_COLUMN]
-        emission = emission.aggregate_by_column(grouping, 'sum')
+#        grouping = ['Emission_height', 'Population_density', 'Pollutant', YEAR_COLUMN]
+#        emission = emission.aggregate_by_column(grouping, 'sum')
         emission[VALUE_COLUMN] = self.ensure_output_unit(emission[VALUE_COLUMN])
         self.print_outline(emission)
 
-        return emission
+        return self.clean_computing(emission)
 
 
 class ExposureInhalation(Ovariable):
@@ -96,7 +91,7 @@ class ExposureInhalation(Ovariable):
         exposure = exposure.aggregate_by_column(grouping, 'sum')
         exposure[VALUE_COLUMN] = self.ensure_output_unit(exposure[VALUE_COLUMN])
 
-        return exposure
+        return self.clean_computing(exposure)
 
 
 class Exposure(Ovariable):
@@ -154,6 +149,7 @@ class PopulationAttributableFraction(Ovariable):
         for erf_context in erf_contexts:
 
             incidence = incidences.loc[incidences.Erf_context == erf_context].reset_index()
+            assert len(incidence) == 1
             incidence = incidence.Incidence[0]
 
             erf = erfs.loc[erfs.Erf_context == erf_context].reset_index()
@@ -193,7 +189,7 @@ class PopulationAttributableFraction(Ovariable):
                 }
                 power = param.split('_')[1]
                 out = erf[param][0]
-                if not hasattr(erf[param], 'pint') or power == 'p0':
+                if  power == 'p0' or not hasattr(erf[param], 'pint'):
                     return out
 
                 _exposure_unit = unit_registry(route + '_p1')
@@ -230,6 +226,17 @@ class PopulationAttributableFraction(Ovariable):
                 #     out[VALUE_COLUMN])
                 out = (out * beta).exp()
                 out = postprocess_relative(rr=out, frexposed=frexposed)
+
+            elif erf_type == 'linear relative':
+                k = check_erf_units(route + '_m1')
+                threshold = check_erf_units(route + '_p1')
+                out = exposure2 - threshold
+                # out[VALUE_COLUMN] = np.where(  # FIXME
+                #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
+                #     out[VALUE_COLUMN] * 0,
+                #     out[VALUE_COLUMN])
+                out = out * k
+                out = postprocess_relative(rr=out + 1, frexposed=frexposed)
 
             elif erf_type == 'relative Hill':
                 Imax = check_erf_units(route + '_p0')
@@ -274,10 +281,8 @@ class PopulationAttributableFraction(Ovariable):
 
         indices = list(set(output.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         output = output.set_index(indices)
-        output = self.clean_computing(output)
 
-        self.print_outline(output)
-        return output
+        return self.clean_computing(output)
 
 
 class DiseaseBurden(Ovariable):
@@ -314,8 +319,8 @@ class DiseaseBurden(Ovariable):
         indices = list(set(out.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         out = out.set_index(indices)
         out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
-        out = self.clean_computing(out)
-        return out
+
+        return self.clean_computing(out)
 
 
 class AttributableDiseaseBurden(Ovariable):
@@ -330,5 +335,4 @@ class AttributableDiseaseBurden(Ovariable):
         out = bod * paf
         out = out.aggregate_by_column(groupby='Year', fun='sum')
 
-        out = self.clean_computing(out)
-        return out
+        return self.clean_computing(out)
