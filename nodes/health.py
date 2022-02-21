@@ -6,6 +6,7 @@ from .context import unit_registry
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
+from .exceptions import NodeError
 
 # ############################33
 # Health-related constants and classes
@@ -13,8 +14,33 @@ from .ovariable import Ovariable, OvariableFrame
 # Ovariable with no input nodes, just data
 
 
-class DataOvariable(Ovariable, AdditiveNode):
-    pass
+class DataOvariable(Ovariable):
+    def compute(self):
+        df = self.get_input_dataset(required=True)
+
+        if not isinstance(df, pd.DataFrame):
+            raise NodeError(self, "Input is not a DataFrame")
+        if VALUE_COLUMN not in df.columns:
+            raise NodeError(self, "Input dataset doesn't have Value column")
+
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+
+        if df.index.max() < self.get_target_year():
+            last_year = df.index.max()
+            last_val = df.loc[last_year]
+            new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
+            assert df.index.name == YEAR_COLUMN
+            new_index.name = YEAR_COLUMN
+            df = df.reindex(new_index)
+            df.iloc[-1] = last_val
+            dt = df.dtypes[VALUE_COLUMN]
+            df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.m
+            df = df.fillna(method='bfill')
+            df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
+            df.loc[df.index > last_year, FORECAST_COLUMN] = True
+
+        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+        return df
 
 
 class MileageDataOvariable(Ovariable):
@@ -33,6 +59,7 @@ class MileageDataOvariable(Ovariable):
         df = df[['Year', 'Level_4', 'Level_5', 'Mileage']]
         df = df.rename(columns={'Mileage': VALUE_COLUMN})
         df = df.assign(Emission_height=em_heights[0], Population_density=pop_densities[0])
+        df[FORECAST_COLUMN] = False
         df = df.set_index(['Year', 'Level_4', 'Level_5', 'Emission_height', 'Population_density'])
 
         return self.clean_computing(df)
@@ -40,34 +67,44 @@ class MileageDataOvariable(Ovariable):
 
 class EmissionByFactor(Ovariable):
     allowed_parameters = [
-        StringParameter(local_id='emission_factor_contexts'),
         StringParameter(local_id='pollutants'),
     ] + Ovariable.allowed_parameters
 
     quantity = 'emissions'
 
     def compute(self):
-        ef_contexts = self.get_parameter_value('emission_factor_contexts')
         pollutants = self.get_parameter_value('pollutants')
         mileage = OvariableFrame(self.get_input('mileage'))
 
-        emission_factor = pd.DataFrame()
-        for ef_context in ef_contexts:
-            for pollutant in pollutants:
-                ef = unit_registry('emission_factor_km_' + pollutant).to('g/km', ef_context)
-                emission_factor = emission_factor.append(pd.DataFrame({
-                    'Vehicle': [ef_context],
-                    'Pollutant': [pollutant],
-                    FORECAST_COLUMN: [False],
-                    VALUE_COLUMN: [ef]
-                }))
-        emission_factor = OvariableFrame(emission_factor.set_index(['Vehicle', 'Pollutant']))
+        emission_factor = self.get_input_dataset()
+        emission_factor = emission_factor.loc[emission_factor.Pollutant.isin(pollutants)]
+        emission_factor = emission_factor[['Abatement', 'Pollutant', 'Value']].set_index(['Abatement', 'Pollutant'])
+        assert VALUE_COLUMN == 'Value'
 
-        emission = mileage * emission_factor
-#        grouping = ['Emission_height', 'Population_density', 'Pollutant', YEAR_COLUMN]
-#        emission = emission.aggregate_by_column(grouping, 'sum')
-        emission[VALUE_COLUMN] = self.ensure_output_unit(emission[VALUE_COLUMN])
-        self.print_outline(emission)
+        emission_classes = OvariableFrame(pd.DataFrame({
+            'Abatement': pd.Series([
+                'Petrol Medium - Euro 5 – EC 715/2007',
+                'Diesel Medium - Euro 5 – EC 715/2007',
+                'Urban Buses Standard - Euro V - 2008',
+                '4-stroke 250 - 750 cm³ - Conventional',
+                '4-stroke 250 - 750 cm³ - Conventional',
+                '2-stroke  - Mop - Euro 3 and on',
+                'Diesel 16 - 32 t - Euro IV - 2005',
+                'Diesel - Euro 5 – EC 715/2007'
+            ]),
+            'Level_5': pd.Series([
+                'Henkilöautot', 'Henkilöautot', 'Linja-autot', 'Moottoripyörät', 'Mopoautot',
+                'Mopot', 'Kuorma-autot', 'Pakettiautot'
+            ]),
+            VALUE_COLUMN: pd.Series([0.6, 0.4, 1, 1, 1, 1, 1, 1]),  # Gasoline:diesel 60%:40%
+        })).set_index(['Abatement', 'Level_5'])
+
+        pick_rows = emission_classes.index.get_level_values('Abatement')
+        emission_factor = emission_factor.loc[emission_factor.index.get_level_values('Abatement').isin(pick_rows)]
+        emission = emission_factor * emission_classes * mileage
+        grouping = ['Emission_height', 'Population_density', 'Pollutant', YEAR_COLUMN]
+        emission = OvariableFrame(emission).aggregate_by_column(grouping, 'sum')
+        # FIXME Why does OvariableFrame disappear?
 
         return self.clean_computing(emission)
 
@@ -177,6 +214,7 @@ class PopulationAttributableFraction(Ovariable):
             else:
                 exposure2 = exposure.copy().assign(Exposure_agent=exposure_agent).reset_index()
             exposure2 = OvariableFrame(exposure2.set_index(indices))
+            assert len(exposure2) > 0
 
             # If erf and exposure nodes are not in compatible units, converts both to exposure units
             def check_erf_units(param):
@@ -189,7 +227,7 @@ class PopulationAttributableFraction(Ovariable):
                 }
                 power = param.split('_')[1]
                 out = erf[param][0]
-                if  power == 'p0' or not hasattr(erf[param], 'pint'):
+                if power == 'p0' or not hasattr(erf[param], 'pint'):
                     return out
 
                 _exposure_unit = unit_registry(route + '_p1')

@@ -9,7 +9,7 @@ import numpy as np
 import math
 
 from common.i18n import TranslatedString
-from .constants import FORECAST_COLUMN, VALUE_COLUMN
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .node import Context, Node
 from .exceptions import NodeError
 
@@ -121,6 +121,8 @@ class AdditiveNode(SimpleNode):
                 last_year = df.index.max()
                 last_val = df.loc[last_year]
                 new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
+                assert df.index.name == YEAR_COLUMN
+                new_index.name = YEAR_COLUMN
                 df = df.reindex(new_index)
                 df.iloc[-1] = last_val
                 dt = df.dtypes[VALUE_COLUMN]
@@ -199,52 +201,6 @@ class MultiplicativeNode(AdditiveNode):
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
 
         return df
-
-
-#class Multiple2Node(AdditiveNode):
-#    """Multiply nodes together WITHOUT potentially adding other input nodes.
-#    """
-#
-#    def compute(self):
-#        multiply_nodes = self.input_nodes
-#
-#        if len(multiply_nodes) != 2:
-#            raise NodeError(self, "Must receive exactly two multiplicative inputs")
-#
-#        n1, n2 = multiply_nodes
-#        output_unit = n1.unit * n2.unit
-#
-#        if not self.is_compatible_unit(output_unit, self.unit):
-#            raise NodeError(self, "Multiplying inputs must in a unit compatible with '%s'" % self.unit)
-#
-#        df1 = n1.get_output()
-#        df2 = n2.get_output()
-#        df = df1.copy()
-#
-#        if self.debug:
-#            print('%s: Multiply input from node 1 (%s):' % (self.id, n1.id))
-#            self.print_pint_df(df1)
-#            print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
-#            self.print_pint_df(df2)
-#
-#        df[VALUE_COLUMN] *= df2[VALUE_COLUMN]
-#        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-#
-#        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
-#
-#        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
-#        if fill_gaps:
-#            df = self.fill_gaps_using_input_dataset(df)
-#        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-#        if replace_output:
-#            df = self.replace_output_using_input_dataset(df)
-#        if self.debug:
-#            print('%s: Output:' % self.id)
-#            self.print_pint_df(df)
-#
-#        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-#
-#        return df
 
 
 class EmissionFactorActivity(MultiplicativeNode):
