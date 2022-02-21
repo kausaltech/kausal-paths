@@ -86,11 +86,11 @@ instance:
       name_en: Dioxin concentration
       type: health.DataOvariable
       quantity: mass_concentration
-      unit: ng/kg
+      unit: pg/kg
       color: '#456789'
       input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
-          column: Domestic fish
+        - id: tampere/scenarios/emissions/bau  # FIXME Get real data
+          column: Industry and machinery
           forecast_from: 2021
           dropna: true
       output_nodes:
@@ -125,11 +125,11 @@ instance:
       unit: tonne
       input_nodes:
         - road_transport_mileage
+      input_datasets:
+        - eea/efdb
       params:
-        - id: emission_factor_contexts
-          value: ['passenger_car_average']
         - id: pollutants
-          value: ['PM2_5', 'CO', 'NOx', 'N2O', 'NMVOC']
+          value: ['PM2.5', 'CO', 'NOx', 'N2O', 'NMVOC']
 
 
     - id: air_pollutant_exposure
@@ -179,8 +179,8 @@ instance:
       params:
         - id: erf_contexts
           value:
-            - PM2_5 mortality
-#            - PM2_5 work_days_lost
+            - PM2.5 mortality
+            - PM2.5 work_days_lost
             - NOx mortality
       input_datasets:
         - hia/exposure_response/air_pollution
@@ -189,9 +189,9 @@ instance:
         - air_pollutant_exposure
         - frexposed
 
-    - id: dioxin_related_endpoints
-      name: Dioksiiniin liittyvät vasteet
-      name_en: Dioxin-related responses
+    - id: disease_burden_of_cancer_etc
+      name: Syövän ym. tautitaakka
+      name_en: Disease burden of cancer etc
       type: health.DiseaseBurden
       params:
         - id: erf_contexts
@@ -205,14 +205,14 @@ instance:
       input_nodes:
         - population
 
-    - id: disease_burden_cvd_mortality
-      name: Sydäntautikuolleisuuden tautitaakka
-      name_en: Disease burden of CVD mortality
+    - id: disease_burden_total_mortality
+      name: Kokonaiskuolleisuuden tautitaakka
+      name_en: Disease burden of total mortality
       type: health.DiseaseBurden
       params:
         - id: erf_contexts
           value:
-            - PM2_5 mortality
+            - PM2.5 mortality
       input_datasets:
         - hia/incidence/default
         - hia/exposure_response/air_pollution
@@ -226,7 +226,7 @@ instance:
       type: health.AttributableDiseaseBurden
       unit: DALY/a
       input_nodes:
-        - dioxin_related_endpoints
+        - disease_burden_of_cancer_etc
         - paf_dioxin
       output_nodes:
         - net_health_impact
@@ -237,7 +237,7 @@ instance:
       type: health.AttributableDiseaseBurden
       unit: DALY/a
       input_nodes:
-        - disease_burden_cvd_mortality
+        - disease_burden_total_mortality
         - paf_air_pollution
       output_nodes:
         - net_health_impact
