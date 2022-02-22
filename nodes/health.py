@@ -59,6 +59,8 @@ class DataColumnOvariable(Ovariable):
             var_name = self.get_parameter_value('var_name')
             df = df.melt(id_vars=index_columns, var_name=var_name, value_name=VALUE_COLUMN)
             index_columns = index_columns + [var_name]
+        else:
+            df = df.rename(columns={value_columns[0]: VALUE_COLUMN})
         df = df.set_index(index_columns)
         if YEAR_COLUMN not in df.columns:
             years = OvariableFrame(pd.DataFrame({
