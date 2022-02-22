@@ -53,8 +53,12 @@ class Ovariable(SimpleNode):
 
         return OvariableFrame(of)
 
-    def clean_computing(self, of):
+    def clean_computing(self, of, drop_columns=None):
         of[VALUE_COLUMN] = self.ensure_output_unit(of[VALUE_COLUMN])
+        if drop_columns is not None:
+            groupby = list(set(of.index.names) - set(drop_columns))
+            of = of.aggregate_by_column(groupby=groupby, fun='sum')
+
         self.print_outline(of)
         return OvariableFrame(of)
 

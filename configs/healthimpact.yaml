@@ -260,7 +260,7 @@ instance:
         - id: index_columns
           value: ['Source', 'Unit', 'Exposure level']
         - id: value_columns
-          value: ['Espoo', 'Suomi']
+          value: ['Suomi']
         - id: var_name
           value: Place
       output_nodes:
@@ -305,6 +305,42 @@ instance:
       input_datasets:
         - hia/exposure_response/noise
         - hia/exposure_response/noise
+      output_nodes:
+        - noise_disease_burden
+
+    - id: annoyed_disease_burden
+      name: Häiriintymisen ja unihäiriöiden tautitaakka
+      name_en: Annoyed and sleep disturbed disase burden
+      type: health.DiseaseBurden
+      unit: DALY/a
+      params:
+        - id: erf_contexts
+          value:
+            - noise highly_sleep_disturbed_road
+            - noise highly_sleep_disturbed_rail
+            - noise highly_sleep_disturbed_air
+            - noise highly_annoyed_road
+            - noise highly_annoyed_rail
+            - noise highly_annoyed_air
+      input_datasets:
+        - hia/exposure_response/noise
+        - hia/exposure_response/noise
+      input_nodes:
+        - population
+      output_nodes:
+        - noise_disease_burden
+
+    - id: noise_disease_burden
+      name: Melun tautitaakka
+      name_en: Noise disease burden
+      type: health.AttributableDiseaseBurden
+      unit: DALY/a
+      params:
+        - id: drop_indices
+          value: ['Source', 'Unit', 'Exposure level', 'Place', 'Exposure_agent']
+      output_nodes:
+        - net_health_impact
+
 
 ################
 # health benefits

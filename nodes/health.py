@@ -17,9 +17,6 @@ from .exceptions import NodeError
 class DataOvariable(Ovariable):
     def compute(self):
         df = self.get_input_dataset(required=True)
-        print('DataOvariable1')
-        self.print_pint_df(df)
-#        col = self.get_parameter_value('column')
 
         if not isinstance(df, pd.DataFrame):
             raise NodeError(self, "Input is not a DataFrame")
@@ -63,7 +60,6 @@ class DataColumnOvariable(Ovariable):
             df = df.melt(id_vars=index_columns, var_name=var_name, value_name=VALUE_COLUMN)
             index_columns = index_columns + [var_name]
         df = df.set_index(index_columns)
-        self.print_outline(df)
         if YEAR_COLUMN not in df.columns:
             years = OvariableFrame(pd.DataFrame({
                 YEAR_COLUMN: pd.Series(range(2010, self.context.target_year + 1)),
@@ -72,7 +68,6 @@ class DataColumnOvariable(Ovariable):
             }).set_index([YEAR_COLUMN]))
             df[FORECAST_COLUMN] = [False] * len(df)
             df = OvariableFrame(df) * years
-        self.print_pint_df(df)
 
         return self.clean_computing(df)
 
@@ -396,14 +391,17 @@ class DiseaseBurden(Ovariable):
 
 class AttributableDiseaseBurden(Ovariable):
     # bod_attr is the burden of disease that can be attributed to the exposure of interest.
+    allowed_parameters = [
+        StringParameter(local_id='drop_indices'),
+    ] + Ovariable.allowed_parameters
 
     quantity = 'disease_burden'
 
     def compute(self):
+        drop_columns = self.get_parameter_value('drop_indices', required=False)
         bod = self.get_input('disease_burden')
         paf = self.get_input('fraction')
 
         out = bod * paf
-        out = out.aggregate_by_column(groupby='Year', fun='sum')
 
-        return self.clean_computing(out)
+        return self.clean_computing(out, drop_columns)
