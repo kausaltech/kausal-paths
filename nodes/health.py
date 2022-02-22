@@ -40,7 +40,38 @@ class DataOvariable(Ovariable):
             df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-        return df
+        return self.clean_computing(df)
+
+
+class DataColumnOvariable(Ovariable):
+    allowed_parameters = [
+        StringParameter(local_id='index_columns'),
+        StringParameter(local_id='value_columns'),
+        StringParameter(local_id='var_name')
+    ] + Ovariable.allowed_parameters
+
+    def compute(self):
+        index_columns = self.get_parameter_value('index_columns')
+        value_columns = self.get_parameter_value('value_columns')
+        df = self.get_input_dataset(required=True)
+        df = df[index_columns + value_columns]
+        if len(value_columns) > 1:
+            var_name = self.get_parameter_value('var_name')
+            df = df.melt(id_vars=index_columns, var_name=var_name, value_name=VALUE_COLUMN)
+            index_columns = index_columns + [var_name]
+        df = df.set_index(index_columns)
+        self.print_outline(df)
+        if YEAR_COLUMN not in df.columns:
+            years = OvariableFrame(pd.DataFrame({
+                YEAR_COLUMN: pd.Series(range(2010, self.context.target_year + 1)),
+                VALUE_COLUMN: pd.Series([1] * (self.context.target_year - 2009)),  # FIXME Lower boundary
+                FORECAST_COLUMN: pd.Series([False] * (self.context.target_year - 2009)),
+            }).set_index([YEAR_COLUMN]))
+            df[FORECAST_COLUMN] = [False] * len(df)
+            df = OvariableFrame(df) * years
+        self.print_pint_df(df)
+
+        return self.clean_computing(df)
 
 
 class MileageDataOvariable(Ovariable):
@@ -161,14 +192,11 @@ class PopulationAttributableFraction(Ovariable):
 
     def compute(self):
         exposure = self.get_input('exposure')
-        if YEAR_COLUMN not in exposure.index.names:  # FIXME not the right place for this fix
-            assert len(exposure.index.names) == 1
-            exposure.index.names = [YEAR_COLUMN]
         frexposed = self.get_input('fraction')
         erf_contexts = self.get_parameter_value('erf_contexts')
         erfs, incidences = self.get_input_datasets()
 
-        def postprocess_relative(rr, frexposed):
+        def postprocess_relative(rr, frexposed):  # FIXME Function inside a function works but is not elegant?
             r = frexposed * (rr - 1)
             tmp = OvariableFrame(r.copy())  # OvariableFrame objecct cannot be used twice because of inplace
             out3 = (tmp / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
@@ -217,7 +245,7 @@ class PopulationAttributableFraction(Ovariable):
             assert len(exposure2) > 0
 
             # If erf and exposure nodes are not in compatible units, converts both to exposure units
-            def check_erf_units(param):
+            def check_erf_units(param):  # FIXME Function inside a loop works but is not elegant?
                 powers = {
                     'p1': 'mg/kg/d',
                     'p0': 'dimensionless',
@@ -238,6 +266,7 @@ class PopulationAttributableFraction(Ovariable):
                     out = out.to(powers[power], 'exposure_generic')
                 return out
 
+            # FIXME Check that the periods, incidences and target_populations in all erf_types are consistent
             if erf_type == 'unit risk':
                 slope = check_erf_units(route + '_m1')
                 threshold = check_erf_units(route + '_p1')
@@ -310,6 +339,7 @@ class PopulationAttributableFraction(Ovariable):
                 tmp = OvariableFrame(out.copy())
                 tmp1 = OvariableFrame(out.copy())
                 out = out ** 3 * p3 + tmp ** 2 * p2 + tmp1 * p1 + p0
+                out = out * frexposed * p_illness
 
             else:
                 out = exposure2 / exposure
@@ -356,7 +386,7 @@ class DiseaseBurden(Ovariable):
 
         indices = list(set(out.columns) - {VALUE_COLUMN, FORECAST_COLUMN})
         out = out.set_index(indices)
-        out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
+#        out = OvariableFrame(out).aggregate_by_column(groupby='Year', fun='sum')  # FIXME
 
         return self.clean_computing(out)
 

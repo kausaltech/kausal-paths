@@ -144,14 +144,14 @@ instance:
       input_datasets:
         - hia/intake_fraction/air_pollution
 
-    - id: frexposed
-      name: Altistuneiden osuus
-      name_en: Fraction exposed
+    - id: frexposed_all
+      name: Kaikki altistuvat
+      name_en: Everyone is exposed
       type: health.DataOvariable
       quantity: fraction
       unit: dimensionless
       input_datasets:
-        - id: ilmastoruoka/consumption  # FIXME Get real data
+        - id: ilmastoruoka/consumption  # Nominal value 1 for all
           column: Cooking
           forecast_from: 2021
           dropna: true
@@ -170,7 +170,7 @@ instance:
         - hia/incidence/default
       input_nodes:
         - dioxin_exposure
-        - frexposed
+        - frexposed_all
 
     - id: paf_air_pollution
       name: Ilmansaasteiden väestösyyosuus
@@ -187,7 +187,7 @@ instance:
         - hia/incidence/default
       input_nodes:
         - air_pollutant_exposure
-        - frexposed
+        - frexposed_all
 
     - id: disease_burden_of_cancer_etc
       name: Syövän ym. tautitaakka
@@ -247,23 +247,40 @@ instance:
     - id: fraction_noise_exposed
       name: Melualtistuneiden osuus
       name_en: Fraction noise exposed
-      type: health.DataOvariable
+      type: health.DataColumnOvariable
       quantity: fraction
       unit: dimensionless
-      historical_values: [[2019, 2.204339e-4], [2020, 2.204339e-4]]
-      forecast_values: [[2021, 2.204339e-4], [2022, 2.204339e-4]]
+      input_datasets:
+        - id: noise_finland
+          input_dataset: hia/exposure/noise_finland
+          filters:
+            - column: Variable
+              value: fraction
+      params:
+        - id: index_columns
+          value: ['Source', 'Unit', 'Exposure level']
+        - id: value_columns
+          value: ['Espoo', 'Suomi']
+        - id: var_name
+          value: Place
       output_nodes:
         - paf_noise
 
     - id: noise_exposure
       name: Melualtistus
       name_en: Noise exposure
-      type: simple.Activity
+      type: health.DataColumnOvariable
       quantity: exposure
-      unit: Lnight
-      historical_values: [[2016, 57], [2017, 62], [2018, 67], [2019, 72]]
-#      input_datasets: FIXME get real data e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq
-#      - id: tampere/scenarios/activity/bau
+      unit: Lden
+#      historical_values: [[2016, 57], [2017, 62], [2018, 67], [2019, 72]]
+      input_datasets:  # FIXME get real data e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq
+      - id: noise_nominal
+        input_dataset: hia/exposure/noise_nominal
+      params:
+        - id: index_columns
+          value: ['Exposure level']
+        - id: value_columns
+          value: ['Value']
 #        column: Motorcycle  # FIXME get real data
 #        min_year: 2016
 #        dropna: true
