@@ -17,6 +17,9 @@ from .exceptions import NodeError
 class DataOvariable(Ovariable):
     def compute(self):
         df = self.get_input_dataset(required=True)
+        print('DataOvariable1')
+        self.print_pint_df(df)
+#        col = self.get_parameter_value('column')
 
         if not isinstance(df, pd.DataFrame):
             raise NodeError(self, "Input is not a DataFrame")
