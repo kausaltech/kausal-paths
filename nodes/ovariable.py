@@ -10,19 +10,19 @@ from typing import Any, Callable, ClassVar, Dict, Iterable, List, Optional, TYPE
 import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
-import pint
-import pint_pandas
+# import pint
+# import pint_pandas
 
-import copy
+# import copy
 
-from common.i18n import TranslatedString
+# from common.i18n import TranslatedString
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y, YEAR_COLUMN
-from params import Parameter
+# from params import Parameter
 
-from .context import Context
-from .datasets import Dataset
-from .exceptions import NodeError
-from .node import Node
+# from .context import Context
+# from .datasets import Dataset
+# from .exceptions import NodeError
+# from .node import Node
 from .simple import AdditiveNode, SimpleNode
 
 if TYPE_CHECKING:
@@ -87,7 +87,7 @@ class OvariableFrame(pd.DataFrame):
         else:
             df2 = pd.DataFrame([other], columns=[VALUE_COLUMN])
 
-        df1 = add_temporary_index(self)
+        df1 = add_temporary_index(self.copy())
         df2 = add_temporary_index(df2)
 
         out = df1.merge(df2, left_index=True, right_index=True)
@@ -97,7 +97,7 @@ class OvariableFrame(pd.DataFrame):
         return out
 
     def aggregate_by_column(self, groupby, fun):
-        self = self.groupby(groupby)
+        self = self.copy().groupby(groupby)
         if fun == 'sum':
             self = self.sum()
         else:
@@ -106,164 +106,166 @@ class OvariableFrame(pd.DataFrame):
         return self
 
     def clean(self):
-        df = self.reset_index()
+        df = self.copy().reset_index()
         if FORECAST_x in df.columns:
             df[FORECAST_COLUMN] = df[FORECAST_x] | df[FORECAST_y]
         keep = set(df.columns) - {0, 'index', VALUE_x, VALUE_y, FORECAST_x, FORECAST_y}
         df = df[list(keep)].set_index(list(keep - {VALUE_COLUMN, FORECAST_COLUMN}))
-        return OvariableFrame(df.copy())
-
-    def print_pint_df(self):
-        df = self
-        pint_cols = [col for col in df.columns if hasattr(df[col], 'pint')]
-        if not pint_cols:
-            print(df)
-            return
-
-        out = df[pint_cols].pint.dequantify()
-        for col in df.columns:
-            if col in pint_cols:
-                continue
-            out[col] = df[col]
-        print(out)
+        return OvariableFrame(df)
 
     def __add__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] + self[VALUE_y]
-            return self.clean()
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] + of[VALUE_y]
+            return of.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] + other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] + other
+            return OvariableFrame(of)
 
     def __sub__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] - self[VALUE_y]
-            return self.clean()
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] - of[VALUE_y]
+            return of.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] - other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] - other
+            return OvariableFrame(of)
 
     def __mul__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] * self[VALUE_y]
-            return self.clean()
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] * of[VALUE_y]
+            return of.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] * other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] * other
+            return OvariableFrame(of)
 
     def __truediv__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] / self[VALUE_y]
-            return self.clean()
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] / of[VALUE_y]
+            return of.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] / other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] / other
+            return OvariableFrame(of)
 
     def __mod__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] % self[VALUE_y]
-            return self.clean()
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] % of[VALUE_y]
+            return of.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] % other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] % other
+            return OvariableFrame(of)
 
     def __pow__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] ** self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] ** of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] ** other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] ** other
+            return OvariableFrame(of)
 
     def __floordiv__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] // self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] // of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] // other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] // other
+            return OvariableFrame(of)
 
     def __lt__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] < self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] < of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] < other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] < other
+            return OvariableFrame(of)
 
     def __le__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] <= self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] <= of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] <= other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] <= other
+            return OvariableFrame(of)
 
     def __gt__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] > self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] > of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] > other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] > other
+            return OvariableFrame(of)
 
     def __ge__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] >= self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] >= of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] >= other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] >= other
+            return OvariableFrame(of)
 
     def __eq__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] == self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] == of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] == other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] == other
+            return OvariableFrame(of)
 
     def __ne__(self, other):
         if isinstance(other, pd.DataFrame):
-            self = self.do_inner_join(other)
-            self[VALUE_COLUMN] = self[VALUE_x] != self[VALUE_y]
+            of = self.do_inner_join(other)
+            of[VALUE_COLUMN] = of[VALUE_x] != of[VALUE_y]
             return self.clean()
         else:
-            self[VALUE_COLUMN] = self[VALUE_COLUMN] != other
-            return OvariableFrame(self.copy())
+            of = self.copy()
+            of[VALUE_COLUMN] = of[VALUE_COLUMN] != other
+            return OvariableFrame(of)
 
     def exp(self):
-        s = self[VALUE_COLUMN]
+        of = self.copy()
+        s = of[VALUE_COLUMN]
         assert s.pint.units.dimensionless
         s = np.exp(s.pint.m)
         s = pd.Series(s, dtype='pint[dimensionless]')
-        self[VALUE_COLUMN] = s
-        return OvariableFrame(self.copy())
+        of[VALUE_COLUMN] = s
+        return OvariableFrame(of)
 
     def log10(self):
-        s = self[VALUE_COLUMN]
+        of = self.copy()
+        s = of[VALUE_COLUMN]
         assert s.pint.units.dimensionless
         s = np.log10(s.pint.m)
         s = pd.Series(s, dtype='pint[dimensionless]')
-        self[VALUE_COLUMN] = s
-        return OvariableFrame(self.copy())
+        of[VALUE_COLUMN] = s
+        return OvariableFrame(of)
 
     def log(self):
-        s = self[VALUE_COLUMN]
+        of = self.copy()
+        s = of[VALUE_COLUMN]
         assert s.pint.units.dimensionless
         s = np.log(s.pint.m)
         s = pd.Series(s, dtype='pint[dimensionless]')
-        self[VALUE_COLUMN] = s
-        return OvariableFrame(self.copy())
+        of[VALUE_COLUMN] = s
+        return OvariableFrame(of)
