@@ -191,23 +191,22 @@ class PopulationAttributableFraction(Ovariable):
     unit = 'dimensionless'
 
     def compute(self):
-        exposure = self.get_input('exposure')
+        exposures = self.get_input('exposure')
         frexposed = self.get_input('fraction')
         erf_contexts = self.get_parameter_value('erf_contexts')
         erfs, incidences = self.get_input_datasets()
 
         def postprocess_relative(rr, frexposed):  # FIXME Function inside a function works but is not elegant?
             r = frexposed * (rr - 1)
-            tmp = OvariableFrame(r.copy())  # OvariableFrame objecct cannot be used twice because of inplace
-            out3 = (tmp / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+            of = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
             # is smaller than 0, we should use r instead. It can be converted from the result:
             # r/(r+1)=a <=> r=a/(1-a)
-            out3[VALUE_COLUMN] = np.where(
-                out3[VALUE_COLUMN] < 0,
-                out3[VALUE_COLUMN] / (1 - out3[VALUE_COLUMN]),
-                out3[VALUE_COLUMN])
+            of[VALUE_COLUMN] = np.where(
+                of[VALUE_COLUMN] < 0,
+                of[VALUE_COLUMN] / (1 - of[VALUE_COLUMN]),
+                of[VALUE_COLUMN])
 
-            return out3
+            return of
 
         output = pd.DataFrame()
 
@@ -234,17 +233,17 @@ class PopulationAttributableFraction(Ovariable):
             else:
                 exposure_agent = erf_context.split(' ')[0]
 
-            indices = list(set(exposure.index.names + ['Exposure_agent']) - {'Pollutant'})
-            if 'Pollutant' in exposure.index.names:
-                pick_rows = exposure.index.get_level_values('Pollutant') == exposure_agent
-                exposure2 = exposure.copy().loc[pick_rows].reset_index()
-                exposure2 = exposure2.rename(columns={'Pollutant': 'Exposure_agent'})
+            indices = list(set(exposures.index.names + ['Exposure_agent']) - {'Pollutant'})
+            if 'Pollutant' in exposures.index.names:
+                pick_rows = exposures.index.get_level_values('Pollutant') == exposure_agent
+                exposure = exposures.copy().loc[pick_rows].reset_index()
+                exposure = exposure.rename(columns={'Pollutant': 'Exposure_agent'})
             else:
-                exposure2 = exposure.copy().assign(Exposure_agent=exposure_agent).reset_index()
-            exposure2 = OvariableFrame(exposure2.set_index(indices))
-            assert len(exposure2) > 0
+                exposure = exposures.copy().assign(Exposure_agent=exposure_agent).reset_index()
+            exposure = OvariableFrame(exposure.set_index(indices))
+            assert len(exposure) > 0
 
-            # If erf and exposure nodes are not in compatible units, converts both to exposure units
+            # If erf and exposures nodes are not in compatible units, converts both to exposure units
             def check_erf_units(param):  # FIXME Function inside a loop works but is not elegant?
                 powers = {
                     'p1': 'mg/kg/d',
@@ -259,34 +258,32 @@ class PopulationAttributableFraction(Ovariable):
                     return out
 
                 _exposure_unit = unit_registry(route + '_p1')
-                is_erf_compatible = exposure2.Value.pint.units.is_compatible_with(_exposure_unit)
+                is_erf_compatible = exposure.Value.pint.units.is_compatible_with(_exposure_unit)
 
                 if not is_erf_compatible:
-                    exposure2[VALUE_COLUMN] = exposure2[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
+                    exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
                     out = out.to(powers[power], 'exposure_generic')
                 return out
 
-            # FIXME Check that the periods, incidences and target_populations in all erf_types are consistent
             if erf_type == 'unit risk':
                 slope = check_erf_units(route + '_m1')
                 threshold = check_erf_units(route + '_p1')
                 target_population = unit_registry('1 person')
-                out = (exposure2 - threshold) * slope * frexposed * p_illness
+                out = (exposure - threshold) * slope * frexposed * p_illness
                 out = (out / target_population / period) / incidence
 
             elif erf_type == 'step function':
                 lower = check_erf_units(route + '_p1')
                 upper = check_erf_units(route + '_p1_2')
                 target_population = unit_registry('1 person')
-                tmp = OvariableFrame(exposure2.copy())
-                out = (tmp >= lower) * 1
-                out = (out * (exposure2 <= upper) * -1 + 1) * frexposed * p_illness
+                out = (exposure >= lower) * 1
+                out = (out * (exposure <= upper) * -1 + 1) * frexposed * p_illness
                 out = (out / target_population / period) / incidence
 
             elif erf_type == 'relative risk':
                 beta = check_erf_units(route + '_m1')
                 threshold = check_erf_units(route + '_p1')
-                out = exposure2 - threshold
+                out = exposure - threshold
                 # out[VALUE_COLUMN] = np.where(  # FIXME
                 #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
                 #     out[VALUE_COLUMN] * 0,
@@ -297,7 +294,7 @@ class PopulationAttributableFraction(Ovariable):
             elif erf_type == 'linear relative':
                 k = check_erf_units(route + '_m1')
                 threshold = check_erf_units(route + '_p1')
-                out = exposure2 - threshold
+                out = exposure - threshold
                 # out[VALUE_COLUMN] = np.where(  # FIXME
                 #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
                 #     out[VALUE_COLUMN] * 0,
@@ -308,29 +305,28 @@ class PopulationAttributableFraction(Ovariable):
             elif erf_type == 'relative Hill':
                 Imax = check_erf_units(route + '_p0')
                 ed50 = check_erf_units(route + '_p1')
-                tmp = OvariableFrame(exposure2.copy())
-                out = (tmp * Imax) / (exposure2 + ed50) + 1
+                out = (exposure * Imax) / (exposure + ed50) + 1
                 out = postprocess_relative(rr=out, frexposed=frexposed)
 
             elif erf_type == 'beta poisson approximation':
                 p1 = check_erf_units(route + '_p0')
                 p2 = check_erf_units(route + '_p1')
-                out = (exposure2 / p2 + 1) ** (p1 * -1) * -1 + 1
+                out = (exposure / p2 + 1) ** (p1 * -1) * -1 + 1
                 out = out * frexposed * p_illness
 
             elif erf_type == 'exact beta poisson':
                 p1 = check_erf_units(route + '_p0_2')
                 p2 = check_erf_units(route + '_p0')
                 # Remove unit: exposure is an absolute number of microbes ingested
-                s = exposure2[VALUE_COLUMN].pint.to('cfu/d')
+                s = exposure[VALUE_COLUMN].pint.to('cfu/d')
                 s = s / unit_registry('cfu/d')
-                exposure2[VALUE_COLUMN] = s
-                out = (exposure2 * p1 / (p1 + p2) * -1).exp() * -1 + 1
+                exposure[VALUE_COLUMN] = s
+                out = (exposure * p1 / (p1 + p2) * -1).exp() * -1 + 1
                 out = out * frexposed * p_illness
 
             elif erf_type == 'exponential':
                 k = check_erf_units(route + '_m1')
-                out = (exposure2 * k * -1).exp() * -1 + 1
+                out = (exposure * k * -1).exp() * -1 + 1
                 out = out * frexposed * p_illness
 
             elif erf_type == 'polynomial':
@@ -339,14 +335,12 @@ class PopulationAttributableFraction(Ovariable):
                 p1 = check_erf_units(route + '_m1')
                 p2 = check_erf_units(route + '_m2')
                 p3 = check_erf_units(route + '_m3')
-                out = exposure2 - threshold
-                tmp = OvariableFrame(out.copy())
-                tmp1 = OvariableFrame(out.copy())
-                out = out ** 3 * p3 + tmp ** 2 * p2 + tmp1 * p1 + p0
+                x = exposure - threshold
+                out = x ** 3 * p3 + x ** 2 * p2 + x * p1 + p0
                 out = out * frexposed * p_illness
 
             else:
-                out = exposure2 / exposure
+                out = exposure / exposures
 
             out = out.reset_index().assign(Erf_context=erf_context)
             output = output.append(out)
@@ -382,8 +376,7 @@ class DiseaseBurden(Ovariable):
             case_burden = case_burdens.loc[case_burdens.Erf_context == erf_context].reset_index()
             case_burden = case_burden.Case_burden[0]
 
-            tmp = OvariableFrame(population.copy())
-            tmp = tmp * incidence * case_burden
+            tmp = population * incidence * case_burden
             tmp = tmp.reset_index().assign(Erf_context=erf_context)
 
             out = out.append(tmp)
