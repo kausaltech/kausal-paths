@@ -280,7 +280,7 @@ class PopulationAttributableFraction(Ovariable):
                 target_population = unit_registry('1 person')
                 tmp = OvariableFrame(exposure2.copy())
                 out = (tmp >= lower) * 1
-                out = out * (exposure2 <= upper) * frexposed * p_illness
+                out = (out * (exposure2 <= upper) * -1 + 1) * frexposed * p_illness
                 out = (out / target_population / period) / incidence
 
             elif erf_type == 'relative risk':
@@ -313,21 +313,25 @@ class PopulationAttributableFraction(Ovariable):
                 out = postprocess_relative(rr=out, frexposed=frexposed)
 
             elif erf_type == 'beta poisson approximation':
-                p1 = check_erf_units(route + '_p1')
-                p2 = check_erf_units(route + '_p0')
-                out = ((exposure2 / p2 + 1) ** (p1 * -1) * -1 + 1) * frexposed
-                out = (out / incidence * p_illness)
+                p1 = check_erf_units(route + '_p0')
+                p2 = check_erf_units(route + '_p1')
+                out = (exposure2 / p2 + 1) ** (p1 * -1) * -1 + 1
+                out = out * frexposed * p_illness
 
             elif erf_type == 'exact beta poisson':
-                p1 = check_erf_units(route + '_p1')
-                p2 = check_erf_units(route + '_p1_2')
-                out = ((p1 / (p1 + p2) * exposure2 * -1).exp() * -1 + 1) * frexposed
-                out = out / incidence * p_illness
+                p1 = check_erf_units(route + '_p0_2')
+                p2 = check_erf_units(route + '_p0')
+                # Remove unit: exposure is an absolute number of microbes ingested
+                s = exposure2[VALUE_COLUMN].pint.to('cfu/d')
+                s = s / unit_registry('cfu/d')
+                exposure2[VALUE_COLUMN] = s
+                out = (exposure2 * p1 / (p1 + p2) * -1).exp() * -1 + 1
+                out = out * frexposed * p_illness
 
             elif erf_type == 'exponential':
                 k = check_erf_units(route + '_m1')
-                out = ((k * exposure2 * -1).exp() * -1 + 1) * frexposed
-                out = out / incidence * p_illness
+                out = (exposure2 * k * -1).exp() * -1 + 1
+                out = out * frexposed * p_illness
 
             elif erf_type == 'polynomial':
                 threshold = check_erf_units(route + '_p1')

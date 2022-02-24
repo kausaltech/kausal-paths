@@ -93,7 +93,7 @@ toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
     [mass] / [mass] -> [inhalation]: value * airdensity * 47.997 / 28.89
     # Ozone molecular mass 47.997 g/mol, air 0.78 * 28.014 + 0.22 * 32.00 = 28.89 g/mol and 1.225 kg/m**3
 
-    cfu / d -> mg / kg / d: value * cfu_mass / body_mass
+    cfu / d -> mg / kg / d: value  # nominal change to maintain dimensions
 
     [mass] -> [TEQ]: value * _a * g_teq / g  # FIXME This does not work without _a that must be defined
     [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g

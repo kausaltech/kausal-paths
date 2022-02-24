@@ -272,7 +272,6 @@ instance:
       type: health.DataColumnOvariable
       quantity: exposure
       unit: Lden
-#      historical_values: [[2016, 57], [2017, 62], [2018, 67], [2019, 72]]
       input_datasets:  # FIXME get real data e.g. https://cdr.eionet.europa.eu/fi/eu/noise/df8/2017/envwjdfiq
       - id: noise_nominal
         input_dataset: hia/exposure/noise_nominal
@@ -281,9 +280,6 @@ instance:
           value: ['Exposure level']
         - id: value_columns
           value: ['Value']
-#        column: Motorcycle  # FIXME get real data
-#        min_year: 2016
-#        dropna: true
       output_nodes:
         - paf_noise
 
@@ -338,6 +334,93 @@ instance:
       params:
         - id: drop_indices
           value: ['Source', 'Unit', 'Exposure level', 'Place', 'Exposure_agent']
+      output_nodes:
+        - net_health_impact
+
+###### Waterborne microbes
+
+    - id: microbial_concentration
+      name: Mikrobipitoisuus juomavedessä
+      name_en: Microbial concentration in drinking water
+      type: health.DataColumnOvariable
+      quantity: mass_concentration
+      unit: microbes/l
+      input_datasets:
+        - id: microbeconc
+          input_dataset: hia/concentration/water_microbes
+          filters:
+            - column: RawWaterClass
+              value: Surface water - medium contamination
+      params:
+        - id: index_columns
+          value: ['Pollutant']
+        - id: value_columns
+          value: ['Value']
+
+    - id: microbial_exposure
+      name: Mikrobialtistus
+      name_en: Microbial exposure
+      type: simple.FixedMultiplierNode
+      quantity: exposure
+      unit: microbes/d
+      input_nodes:
+        - microbial_concentration
+      params:
+        - id: multiplier
+          value: 1000
+          unit: ml/day
+
+    - id: microbial_paf
+      name: Mikrobien väestösyyosuus
+      name_en: Microbial paf
+      type: health.PopulationAttributableFraction
+      input_nodes:
+        - microbial_exposure
+        - frexposed_all
+      input_datasets:
+        - hia/exposure_response/microbes
+        - hia/incidence/default
+      params:
+        - id: erf_contexts
+          value:
+            - campylobacter infection
+            - rotavirus infection
+            - norovirus infection
+            - sapovirus infection
+            - cryptosporidium infection
+            - E.coli O157:H7 infection
+            - giardia infection
+ 
+    - id: gastrointestinal_disease_burden
+      name: Vatsataudin tautitaakka
+      name_en: Gastrointestinal disase_burden
+      type: health.DiseaseBurden
+      unit: DALY/a
+      input_nodes:
+        - population
+      input_datasets:
+        - hia/incidence/default
+        - hia/exposure_response/microbes
+      params:
+        - id: erf_contexts
+          value:
+            - campylobacter infection
+            - rotavirus infection
+            - norovirus infection
+            - sapovirus infection
+            - cryptosporidium infection
+            - E.coli O157:H7 infection
+            - giardia infection
+
+
+    - id: microbial_disease_burden
+      name: Juomaveden mikrobien tautitaakka
+      name_en: Microbial dissease burden
+      type: health.AttributableDiseaseBurden
+      unit: DALY/a
+      input_nodes:
+        - microbial_paf
+        - gastrointestinal_disease_burden
       output_nodes:
         - net_health_impact
 
