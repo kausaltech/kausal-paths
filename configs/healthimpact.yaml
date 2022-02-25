@@ -211,8 +211,7 @@ instance:
       type: health.DiseaseBurden
       params:
         - id: erf_contexts
-          value:
-            - PM2.5 mortality
+          value: ['PM2.5 mortality']
       input_datasets:
         - hia/incidence/default
         - hia/exposure_response/air_pollution
@@ -230,6 +229,9 @@ instance:
         - paf_dioxin
       output_nodes:
         - net_health_impact
+      params:
+        - id: drop_indices
+          value: ['Erf_context', 'Exposure_agent']
 
     - id: air_pollution_disease_burden
       name: Ilmansaasteiden tautitaakka
@@ -241,6 +243,9 @@ instance:
         - paf_air_pollution
       output_nodes:
         - net_health_impact
+      params:
+        - id: drop_indices
+          value: ['Erf_context', 'Exposure_agent']
 
 #### Noise
 
@@ -333,7 +338,7 @@ instance:
       unit: DALY/a
       params:
         - id: drop_indices
-          value: ['Source', 'Unit', 'Exposure level', 'Place', 'Exposure_agent']
+          value: ['Source', 'Unit', 'Exposure level', 'Place', 'Exposure_agent', 'Erf_context']
       output_nodes:
         - net_health_impact
 
@@ -412,7 +417,6 @@ instance:
             - E.coli O157:H7 infection
             - giardia infection
 
-
     - id: microbial_disease_burden
       name: Juomaveden mikrobien tautitaakka
       name_en: Microbial dissease burden
@@ -421,6 +425,146 @@ instance:
       input_nodes:
         - microbial_paf
         - gastrointestinal_disease_burden
+      output_nodes:
+        - net_health_impact
+      params:
+        - id: drop_indices
+          value: ['Erf_context', 'Exposure_agent']
+
+#### Physical activity
+
+    - id: physical_activity_distance
+      name: Aktiiviisen liikkumisen matka
+      name_en: Physical activity distance
+      type: health.DataColumnOvariable
+      quantity: mileage
+      unit: km/d
+      input_datasets:
+        - id: phys_exposure
+          input_dataset: hia/exposure/physical_activity_fi
+      params:
+        - id: value_columns
+          value: ['Distance']
+        - id: index_columns
+          value: ['Age group', 'Vehicle']
+
+    - id: physical_activity_fraction
+      name: Aktiiviisen liikkkumisen osuus
+      name_en: Physical activity fraction
+      type: health.DataColumnOvariable
+      quantity: fraction
+      unit: dimensionless
+      input_datasets:
+        - id: phys_exposure_fraction
+          input_dataset: hia/exposure/physical_activity_fi
+      params:
+        - id: value_columns
+          value: ['Active population fraction']
+        - id: index_columns
+          value: ['Age group', 'Vehicle']
+
+    - id: physical_activity_met
+      name: Aktiiviisen liikkkumisen met
+      name_en: Physical activity met
+      type: health.DataColumnOvariable
+      quantity: fraction
+      unit: km/h
+      input_datasets:
+        - id: phys_exposure_velocity
+          input_dataset: hia/exposure_response/physical_activity
+      params:
+        - id: value_columns
+          value: ['Velocity']
+        - id: index_columns
+          value: ['Vehicle']
+
+    - id: physical_activity_equivalent
+      name: Aktiiviisen liikkkumisen vastaavuus
+      name_en: Physical activity equivalent
+      type: health.DataColumnOvariable
+      quantity: fraction
+      unit: METh/h
+      input_datasets:
+        - id: phys_exposure_equivalent
+          input_dataset: hia/exposure_response/physical_activity
+      params:
+        - id: value_columns
+          value: ['Metabolic_equivalent']
+        - id: index_columns
+          value: ['Vehicle']
+
+    - id: physical_activity_rate
+      name: Aktiiviisen liikkkumisen tiheys
+      name_en: Physical activity rate
+      type: health.DataColumnOvariable
+      quantity: fraction
+      unit: d/week
+      input_datasets:
+        - id: phys_exposure_activity
+          input_dataset: hia/exposure_response/physical_activity
+      params:
+        - id: value_columns
+          value: ['Weekly_activity']
+        - id: index_columns
+          value: ['Vehicle']
+
+    - id: physical_activity
+      name: Aktiivinen liikkuminen
+      name_en: Physical activity
+      type: health.PhysicalActivity
+      quantity: exposure
+      unit: METh/week
+      input_nodes:
+        - physical_activity_distance
+        - physical_activity_met
+        - physical_activity_equivalent
+        - physical_activity_rate
+
+    - id: physical_activity_paf
+      name: Aktiivisen liikkumisen PAF
+      name_en: Physical activity PAF
+      type: health.PopulationAttributableFraction
+      quantity: fraction
+      unit: dimensionless
+      input_nodes:
+        - physical_activity
+        - physical_activity_fraction
+      params:
+        - id: erf_contexts
+          value:
+            - walking mortality
+            - cycling mortality
+      input_datasets:
+        - hia/exposure_response/physical_activity
+        - hia/incidence/default
+      output_nodes:
+        - physical_activity_disease_burden
+
+    - id: disease_burden_mortality
+      name: Kuolleisuuden tautitaakka
+      name_en: Disease burden of mortality
+      type: health.DiseaseBurden
+      params:
+        - id: erf_contexts
+          value: ['walking mortality', 'cycling mortality']
+      input_datasets:
+        - hia/incidence/default
+        - hia/exposure_response/physical_activity
+      unit: DALY/a
+      input_nodes:
+        - population
+
+    - id: physical_activity_disease_burden
+      name: Aktiivisen liikkumisen tautitaakka
+      name_en: Physical activity disease burden
+      type: health.AttributableDiseaseBurden
+      quantity: disease_burden
+      unit: DALY/a
+      input_nodes:
+        - disease_burden_mortality
+      params:
+        - id: drop_indices
+          value: ['Erf_context', 'Exposure_agent', 'Vehicle', 'Age group']
       output_nodes:
         - net_health_impact
 

@@ -74,6 +74,23 @@ class DataColumnOvariable(Ovariable):
         return self.clean_computing(df)
 
 
+class PhysicalActivity(Ovariable):
+
+    def compute(self):
+        nodes = self.input_nodes
+        pa_distance = nodes[0]
+        pa_met = nodes[1]
+        pa_equivalent = nodes[2]
+        pa_rate = nodes[3]
+
+        out = OvariableFrame(pa_distance.get_output())
+        out = out / OvariableFrame(pa_met.get_output())
+        out = out * OvariableFrame(pa_equivalent.get_output())
+        out = out * OvariableFrame(pa_rate.get_output())
+
+        return self.clean_computing(out, drop_columns=['Age group', 'Vehicle'])
+
+
 class MileageDataOvariable(Ovariable):
     allowed_parameters = [
         StringParameter(local_id='population_densities'),
