@@ -100,6 +100,9 @@ class NumberParameter(Parameter):
             self.unit = unit_registry(self.unit).units
 
     def clean(self, value: float):
+        if hasattr(value, 'units'):
+            self.unit = value.units
+            value = value.m
         # Avoid converting, e.g., bool to float
         if not isinstance(value, (int, float, str)):
             raise ValidationError(self)

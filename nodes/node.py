@@ -167,12 +167,22 @@ class Node:
             return None
         return param.value
 
+    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Any:
+        param = self.get_parameter(id, required=required)
+        if param is None:
+            return None
+        if param.unit is None:
+            return param.value
+        return param.value * param.unit
+
     def get_global_parameter_value(self, id: str, required: bool = True) -> Any:
         if id not in self.global_parameters:
             raise NodeError(self, f"Attempting to access parameter {id} which is not declared")
         return self.context.get_parameter_value(id, required=required)
 
-    def set_parameter_value(self, local_id: str, value: Any):
+    def set_parameter_value(self, local_id: str, value: Any, force: bool = False):
+#        if force:  # FIXME if force, create this parameter
+#            self.parameters[local_id] = Parameter()
         if local_id not in self.parameters:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         self.parameters[local_id].set(value)

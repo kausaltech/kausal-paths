@@ -194,6 +194,194 @@ class Exposure(Ovariable):
         return self.clean_computing(exposure)
 
 
+class ExposureResponse(Ovariable):
+    '''ExposureResponses contain all necessary information for calculating disease burdens
+    for a particular exposure and response.
+    '''
+
+    allowed_parameters = [
+        StringParameter(local_id='erf_contexts'),
+        StringParameter(local_id='route'),
+        StringParameter(local_id='erf_type'),
+        NumberParameter(local_id='period'),
+        NumberParameter(local_id='incidence'),
+        NumberParameter(local_id='p_illness'),
+        StringParameter(local_id='exposure_agent'),
+        StringParameter(local_id='response'),
+        NumberParameter(local_id='target_population_size'),
+        NumberParameter(local_id='exposure_unit'),
+        NumberParameter(local_id='case_burden'),
+        StringParameter(local_id='drop_indices'),
+        NumberParameter(local_id='p1'),
+        NumberParameter(local_id='p0'),
+        NumberParameter(local_id='m1'),
+        NumberParameter(local_id='m2'),
+        NumberParameter(local_id='m3'),
+    ]
+
+    quantity = 'exposure-response'
+
+    def postprocess_relative(rr, frexposed):
+        r = frexposed * (rr - 1)
+        of = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+        # is smaller than 0, we should use r instead. It can be converted from the result:
+        # r/(r+1)=a <=> r=a/(1-a)
+        of[VALUE_COLUMN] = np.where(
+            of[VALUE_COLUMN] < 0,
+            of[VALUE_COLUMN] / (1 - of[VALUE_COLUMN]),
+            of[VALUE_COLUMN])
+
+        return of
+
+    def extract_parameters(self, erf):
+        for power in ['p1', 'p0', 'm1', 'm2', 'm3']:
+            param = self.get_parameter_value('route') + '_' + power
+            print(param)
+            print(erf.columns)
+            if param in erf.columns:
+                value = erf[param][0]
+                print(value)
+                self.set_parameter_value(power, value)
+                print(self.get_parameter_value(power))
+
+    # If erf and exposures nodes are not in compatible units, converts both to exposure units
+    def check_erf_units(self, exposure):
+        powers = {
+            'p1': 'mg/kg/d',
+            'p0': 'dimensionless',
+            'm1': 'kg d / mg',
+            'm2': '(kg d / mg)**2',
+            'm3': '(kg d / mg)**3'
+        }
+        power = param.split('_')[1]
+        out = erf[param][0]
+        if power == 'p0' or not hasattr(erf[param], 'pint'):
+            return out
+
+        _exposure_unit = self.get_parameter_value('exposure_unit')
+        is_erf_compatible = exposure.Value.pint.units.is_compatible_with(_exposure_unit)
+
+        if not is_erf_compatible:
+            exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
+            for local_id in powers:
+                if local_id in self.parameters:
+                    value = self.get_parameter_value(local_id)
+                    self.set_parameter_value(local_id, value.to(powers[power], 'exposure_generic'))
+        return exposure
+
+    def compute(self):
+        exposures = self.get_input('exposure')
+        erf_contexts = self.get_parameter_value('erf_contexts')
+        erfs, incidences = self.get_input_datasets()
+
+        for erf_context in erf_contexts:
+            incidence = incidences.loc[incidences.Erf_context == erf_context].reset_index()
+            assert len(incidence) == 1
+            incidence = incidence.Incidence[0]
+            self.set_parameter_value('incidence', incidence)
+
+            erf = erfs.loc[erfs.Erf_context == erf_context].reset_index()
+            assert len(erf) == 1
+            route = erf.Route[0]
+            self.set_parameter_value('route', route, True)
+
+            exposure_unit = unit_registry(route + '_p1')
+            self.set_parameter_value('exposure_unit', exposure_unit)
+            print(self.get_parameter_value('exposure_unit'))
+
+            period = erf.Period[0]
+            self.set_parameter_value('period', period)
+
+            if 'P_illness' in erf.columns:
+                p_illness = erf.P_illness[0]
+            else:
+                p_illness = unit_registry('p_illness')
+            self.set_parameter_value('p_illness', p_illness)
+
+            erf_type = erf.Er_function[0]
+            self.set_parameter_value('erf_type', erf_type)
+
+            if 'Exposure_agent' in erf.columns:
+                exposure_agent = erf.Exposure_agent[0]
+            elif 'Pollutant' in erf.columns:
+                exposure_agent = erf.Pollutant[0]
+            else:
+                exposure_agent = erf_context.split(' ')[0]
+            self.set_parameter_value('exposure_agent', exposure_agent)
+
+            if 'Response' in erf.columns:
+                response = erf.Response[0]
+            else:
+                response = erf_context.split(' ')[1]
+            self.set_parameter_value('response', response)
+
+            if 'Target_population_size' in erf.columns:
+                target_population_size = erf.Target_population_size[0]
+            else:
+                target_population_size = unit_registry('1 person')
+            self.set_parameter_value('target_population_size', target_population_size)
+
+            self.extract_parameters(erfs)
+
+            case_burden = erf.Case_burden[0]
+            self.set_parameter_value('case_burden', case_burden)
+
+            print(self.get_parameter_value('erf_contexts'))
+            print(self.get_parameter_value('route'))
+            print(self.get_parameter_value('erf_type'))
+            print(self.get_parameter_value_w_unit('period'))
+            print(self.get_parameter_value_w_unit('incidence'))
+            print(self.get_parameter_value_w_unit('p_illness'))
+            print(self.get_parameter_value('exposure_agent'))
+            print(self.get_parameter_value('response'))
+            print(self.get_parameter_value_w_unit('target_population_size'))
+            print(self.get_parameter_value_w_unit('exposure_unit'))
+            print(self.get_parameter_value_w_unit('case_burden'))
+            print(self.get_parameter_value('drop_indices'))
+            print(self.get_parameter_value_w_unit('p1'))
+            print(self.get_parameter_value_w_unit('p0'))
+            print(self.get_parameter_value_w_unit('m1'))
+            print(self.get_parameter_value_w_unit('m2'))
+            print(self.get_parameter_value_w_unit('m3'))
+
+        return exposures
+
+
+class AttributableFraction(Ovariable):
+    quantity = 'fraction'
+    unit = 'dimensionless'
+
+    def compute(self):
+        for node in self.input_nodes:
+            if node.quantity == 'exposure-response':
+                erf = node
+        exposures = self.get_input('exposure')
+        frexposed = self.get_input('fraction')
+        erf_type = erf.get_parameter_value('erf_type')
+
+        if erf_type == 'unit risk':
+            slope = erf.get_parameter_value_w_unit('m1')
+            threshold = erf.get_parameter_value_w_unit('p1')
+            target_population_size = erf.get_parameter_value_w_unit('target_population_size')
+            out = (exposures - threshold) * slope * frexposed * p_illness
+            out = (out / target_population_size / period) / incidence
+
+        elif erf_type == 'polynomial':
+            threshold = erf.get_parameter_value_w_unit('p1')
+            p0 = erf.get_parameter_value_w_unit('p0')
+            p1 = erf.get_parameter_value_w_unit('m1')
+            p2 = erf.get_parameter_value_w_unit('m2')
+            p3 = erf.get_parameter_value_w_unit('m3')
+            p_illness = erf.get_parameter_value_w_unit('p_illness')
+            x = exposures - threshold
+            out = x ** 3 * p3 + x ** 2 * p2 + x * p1 + p0
+            out = out * frexposed * p_illness
+
+        else:
+            out = exposures / exposures
+        return self.clean_computing(out)
+
+
 class PopulationAttributableFraction(Ovariable):
     ''' Population attributable fraction PAF
     The node must have exactly two input datasets in this order:

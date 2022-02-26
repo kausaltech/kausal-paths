@@ -11,6 +11,7 @@ disability_adjusted_lifeyear = [disease_burden] = DALY = YLL = YLD
 incident = [event] = case
 MET = [metabolic_equivalent]
 METh = MET * h 
+euro = [monetary_amount] = EUR
 
 [exposure] = [mass] / [mass] / [time]
 [inhalation] = [mass] / [volume]
@@ -26,11 +27,33 @@ ppm = mg / kg  # parts per million
 ppb = ug / kg  # parts per billion
 ppt = ng / kg  # parts per trillion
 
-## Exposure
+colony_forming_unit = [] = cfu = microbe
+rna_count = [] = rna
+Lden = [noise] = _ = Lnight
+toxic_equivalency_factor = [tef] = TEF
+toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
+
+@alias count = piece = pieces
+
+#### Constants
+
+airdensity = 1.225 kg / m**3
+inhalation_rate = 20 m**3 / d  # nominal value
+body_mass = 70 kg
+
+lifetime = 80 a / incident
+yearly = 1 a / incident
+subchronic = 28 d / incident
+subacute = 7 d / incident
+acute = 1 d / incident
+period = acute
+incidence = 1 / period / person
 
 p_illness = 1
 case_burden = 0 DALY/case
 case_cost = 0 EUR / case
+
+## Exposure
 
 exposure_p1 = 0 mg / kg / d
 exposure_p0 = 0
@@ -63,14 +86,6 @@ inhalationBq_m1 = 0 m**3 / Bq
 inhalationBq_m2 = 0 (m**3 / Bq)**2
 inhalationBq_m3 = 0 (m**3 / Bq)**3
 
-colony_forming_unit = [] = cfu = microbe
-rna_count = [] = rna
-Lden = [noise] = _ = Lnight
-toxic_equivalency_factor = [tef] = TEF
-toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
-
-@alias count = piece = pieces
-
 #### Exposure conversions
 
 @context exposure_generic
@@ -99,52 +114,4 @@ toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
     [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g
     [mass] / [volume] -> [TEQ] / [volume]: value * _a * g_teq / g
     [mass] / [time] -> [TEQ] / [time]: value * _a * g_teq / g
-@end
-
-## Emission factors
-
-emission_factor_km_CO2 = 0 g / km
-emission_factor_km_CO2e = 0 g / km
-emission_factor_km_PM2_5 = 0 g / km
-emission_factor_km_PM10 = 0 g / km
-emission_factor_km_NOx = 0 g / km
-emission_factor_km_CO = 0 g / km
-emission_factor_km_NMVOC = 0 g / km
-emission_factor_km_CH4 = 0 g / km
-emission_factor_km_N2O = 0 g / km
-emission_factor_km_SO2 = 0 g / km
-
-###### Monetary Units
-
-euro = [monetary_amount] = EUR
-
-
-#### Constants
-
-airdensity = 1.225 kg / m**3
-inhalation_rate = 20 m**3 / d  # nominal value
-body_mass = 70 kg
-cfu_mass = 10000 ** -3 * g / cfu  # Nominal weight of a microbe, 1 um**3 of water
-rna_mass = (50 * (329.2 + 306.2 + 305.2 + 345.2) + 159) g / avogadro_number / rna  # Nominal weight of 200 bp rna
-# Molecular weight of rna: (An x 329.2) + (Un x 306.2) + (Cn x 305.2) + (Gn x 345.2) + 159 (triphosphate)
-
-lifetime = 80 a / incident
-yearly = 1 a / incident
-subchronic = 28 d / incident
-subacute = 7 d / incident
-acute = 1 d / incident
-period = acute
-incidence = 1 / period / person
-
-#### Incidences
-
-#### Emission factors  # FIXME Should be moved to dvctest
-
-@context passenger_car_average  # http://efdb.apps.eea.europa.eu/ Diesel Medium - Euro 5 - EC715/2007
-    emission_factor_km_CO2 = 121 g / km  # http://lipasto.vtt.fi/yksikkopaastot/henkiloliikennee/tieliikennee/henkiloautote/hadiese.htm
-    emission_factor_km_PM2_5 = 0.0021 g / km
-    emission_factor_km_NOx = 0.55 g / km
-    emission_factor_km_CO = 0.04 g / km
-    emission_factor_km_NMVOC = 0.008 g / km
-    emission_factor_km_N2O = 0.004 g / km
 @end
