@@ -100,6 +100,7 @@ class NumberParameter(Parameter):
             self.unit = unit_registry(self.unit).units
 
     def clean(self, value: float):
+        # Store unit first if available
         if hasattr(value, 'units'):
             self.unit = value.units
             value = value.m

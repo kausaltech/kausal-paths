@@ -244,31 +244,6 @@ class ExposureResponse(Ovariable):
                 self.set_parameter_value(power, value)
                 print(self.get_parameter_value(power))
 
-    # If erf and exposures nodes are not in compatible units, converts both to exposure units
-    def check_erf_units(self, exposure):
-        powers = {
-            'p1': 'mg/kg/d',
-            'p0': 'dimensionless',
-            'm1': 'kg d / mg',
-            'm2': '(kg d / mg)**2',
-            'm3': '(kg d / mg)**3'
-        }
-        power = param.split('_')[1]
-        out = erf[param][0]
-        if power == 'p0' or not hasattr(erf[param], 'pint'):
-            return out
-
-        _exposure_unit = self.get_parameter_value('exposure_unit')
-        is_erf_compatible = exposure.Value.pint.units.is_compatible_with(_exposure_unit)
-
-        if not is_erf_compatible:
-            exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
-            for local_id in powers:
-                if local_id in self.parameters:
-                    value = self.get_parameter_value(local_id)
-                    self.set_parameter_value(local_id, value.to(powers[power], 'exposure_generic'))
-        return exposure
-
     def compute(self):
         exposures = self.get_input('exposure')
         erf_contexts = self.get_parameter_value('erf_contexts')
@@ -326,23 +301,23 @@ class ExposureResponse(Ovariable):
             case_burden = erf.Case_burden[0]
             self.set_parameter_value('case_burden', case_burden)
 
-            print(self.get_parameter_value('erf_contexts'))
-            print(self.get_parameter_value('route'))
-            print(self.get_parameter_value('erf_type'))
-            print(self.get_parameter_value_w_unit('period'))
-            print(self.get_parameter_value_w_unit('incidence'))
-            print(self.get_parameter_value_w_unit('p_illness'))
-            print(self.get_parameter_value('exposure_agent'))
-            print(self.get_parameter_value('response'))
-            print(self.get_parameter_value_w_unit('target_population_size'))
-            print(self.get_parameter_value_w_unit('exposure_unit'))
-            print(self.get_parameter_value_w_unit('case_burden'))
-            print(self.get_parameter_value('drop_indices'))
-            print(self.get_parameter_value_w_unit('p1'))
-            print(self.get_parameter_value_w_unit('p0'))
-            print(self.get_parameter_value_w_unit('m1'))
-            print(self.get_parameter_value_w_unit('m2'))
-            print(self.get_parameter_value_w_unit('m3'))
+        print(self.get_parameter_value('erf_contexts'))
+        print(self.get_parameter_value('route'))
+        print(self.get_parameter_value('erf_type'))
+        print(self.get_parameter_value_w_unit('period'))
+        print(self.get_parameter_value_w_unit('incidence'))
+        print(self.get_parameter_value_w_unit('p_illness'))
+        print(self.get_parameter_value('exposure_agent'))
+        print(self.get_parameter_value('response'))
+        print(self.get_parameter_value_w_unit('target_population_size'))
+        print(self.get_parameter_value_w_unit('exposure_unit'))
+        print(self.get_parameter_value_w_unit('case_burden'))
+        print(self.get_parameter_value('drop_indices'))
+        print(self.get_parameter_value_w_unit('p1'))
+        print(self.get_parameter_value_w_unit('p0'))
+        print(self.get_parameter_value_w_unit('m1'))
+        print(self.get_parameter_value_w_unit('m2'))
+        print(self.get_parameter_value_w_unit('m3'))
 
         return exposures
 
@@ -351,6 +326,18 @@ class AttributableFraction(Ovariable):
     quantity = 'fraction'
     unit = 'dimensionless'
 
+    def postprocess_relative(self, rr, frexposed):  # FIXME Function inside a function works but is not elegant?
+        r = frexposed * (rr - 1)
+        of = (r / (r + 1))  # AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+        # is smaller than 0, we should use r instead. It can be converted from the result:
+        # r/(r+1)=a <=> r=a/(1-a)
+        of[VALUE_COLUMN] = np.where(
+            of[VALUE_COLUMN] < 0,
+            of[VALUE_COLUMN] / (1 - of[VALUE_COLUMN]),
+            of[VALUE_COLUMN])
+
+        return of
+
     def compute(self):
         for node in self.input_nodes:
             if node.quantity == 'exposure-response':
@@ -358,27 +345,109 @@ class AttributableFraction(Ovariable):
         exposures = self.get_input('exposure')
         frexposed = self.get_input('fraction')
         erf_type = erf.get_parameter_value('erf_type')
+        period = erf.get_parameter_value_w_unit('period')
+        incidence = erf.get_parameter_value_w_unit('incidence')
+        exposure_unit = erf.get_parameter_value_w_unit('exposure_unit')
+        is_erf_compatible = exposures.Value.pint.units.is_compatible_with(exposure_unit)
+
+        # If erf and exposures nodes are not in compatible units, converts both to exposure units
+        powers = {
+            'p1': 'mg/kg/d',
+            'p0': 'dimensionless',
+            'm1': 'kg d / mg',
+            'm2': '(kg d / mg)**2',
+            'm3': '(kg d / mg)**3'
+        }
+        exposure = OvariableFrame(exposures.copy())
+
+        if not is_erf_compatible:
+            exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
+
+        def pick_parameter(local_id):
+            value = erf.get_parameter_value_w_unit(local_id)
+            if not is_erf_compatible:
+                power = local_id.split(' ')[0]
+                if power != 'p0':
+                    value = value.to(powers[power], 'exposure_generic')
+            return value
 
         if erf_type == 'unit risk':
-            slope = erf.get_parameter_value_w_unit('m1')
-            threshold = erf.get_parameter_value_w_unit('p1')
-            target_population_size = erf.get_parameter_value_w_unit('target_population_size')
-            out = (exposures - threshold) * slope * frexposed * p_illness
+            slope = pick_parameter('m1')
+            threshold = pick_parameter('p1')
+            target_population_size = pick_parameter('target_population_size')
+            out = (exposure - threshold) * slope * frexposed * p_illness
             out = (out / target_population_size / period) / incidence
 
+        elif erf_type == 'step function':
+            lower = pick_parameter('p1')
+            upper = pick_parameter('p1_2')
+            target_population = unit_registry('1 person')
+            out = (exposure >= lower) * 1
+            out = (out * (exposure <= upper) * -1 + 1) * frexposed * p_illness
+            out = (out / target_population / period) / incidence
+
+        elif erf_type == 'relative risk':
+            beta = pick_parameter('m1')
+            threshold = pick_parameter('p1')
+            out = exposure - threshold
+            # out[VALUE_COLUMN] = np.where(  # FIXME
+            #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
+            #     out[VALUE_COLUMN] * 0,
+            #     out[VALUE_COLUMN])
+            out = (out * beta).exp()
+            out = self.postprocess_relative(rr=out, frexposed=frexposed)
+
+        elif erf_type == 'linear relative':
+            k = pick_parameter('m1')
+            threshold = pick_parameter('p1')
+            out = exposure - threshold
+            # out[VALUE_COLUMN] = np.where(  # FIXME
+            #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
+            #     out[VALUE_COLUMN] * 0,
+            #     out[VALUE_COLUMN])
+            out = out * k
+            out = self.postprocess_relative(rr=out + 1, frexposed=frexposed)
+
+        elif erf_type == 'relative Hill':
+            Imax = pick_parameter('p0')
+            ed50 = pick_parameter('p1')
+            out = (exposure * Imax) / (exposure + ed50) + 1
+            out = self.postprocess_relative(rr=out, frexposed=frexposed)
+
+        elif erf_type == 'beta poisson approximation':
+            p1 = pick_parameter('p0')
+            p2 = pick_parameter('p1')
+            out = (exposure / p2 + 1) ** (p1 * -1) * -1 + 1
+            out = out * frexposed * p_illness
+
+        elif erf_type == 'exact beta poisson':
+            p1 = pick_parameter('p0_2')
+            p2 = pick_parameter('p0')
+            # Remove unit: exposure is an absolute number of microbes ingested
+            s = exposure[VALUE_COLUMN].pint.to('cfu/d')
+            s = s / unit_registry('cfu/d')
+            exposure[VALUE_COLUMN] = s
+            out = (exposure * p1 / (p1 + p2) * -1).exp() * -1 + 1
+            out = out * frexposed * p_illness
+
+        elif erf_type == 'exponential':
+            k = pick_parameter('m1')
+            out = (exposure * k * -1).exp() * -1 + 1
+            out = out * frexposed * p_illness
+
         elif erf_type == 'polynomial':
-            threshold = erf.get_parameter_value_w_unit('p1')
-            p0 = erf.get_parameter_value_w_unit('p0')
-            p1 = erf.get_parameter_value_w_unit('m1')
-            p2 = erf.get_parameter_value_w_unit('m2')
-            p3 = erf.get_parameter_value_w_unit('m3')
-            p_illness = erf.get_parameter_value_w_unit('p_illness')
-            x = exposures - threshold
+            threshold = pick_parameter('p1')
+            p0 = pick_parameter('p0')
+            p1 = pick_parameter('m1')
+            p2 = pick_parameter('m2')
+            p3 = pick_parameter('m3')
+            p_illness = pick_parameter('p_illness')
+            x = exposure - threshold
             out = x ** 3 * p3 + x ** 2 * p2 + x * p1 + p0
             out = out * frexposed * p_illness
 
         else:
-            out = exposures / exposures
+            out = exposure / exposures
         return self.clean_computing(out)
 
 
