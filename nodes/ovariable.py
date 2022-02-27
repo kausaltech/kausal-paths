@@ -33,12 +33,15 @@ class Ovariable(SimpleNode):
     # quantity: what the ovariable measures, e.g. exposure, exposure_response, disease_burden
     quantity: Optional[str]
 
-    def get_input(self, quantity, query: str = None, drop: List = None):
+    def get_input(self, quantity, required: bool = True, query: str = None, drop: List = None):
         count = 0
+        out = None
         for node in self.input_nodes:
             if node.quantity == quantity:
                 out = node
                 count += 1
+        if out is None and not required:
+            return None
         if count == 0:
             print(quantity)
         assert count == 1
@@ -62,14 +65,18 @@ class Ovariable(SimpleNode):
         self.print_outline(of)
         return OvariableFrame(of)
 
-    def print_outline(self, df):
-        print(type(self))
-        print(self.id)
-        if YEAR_COLUMN in df.index.names:
-            pick_rows = df.index.get_level_values(YEAR_COLUMN).isin([2017, 2021, 2022])
-            self.print_pint_df(df.iloc[pick_rows])
-        else:
-            self.print_pint_df(df.iloc[[0, 1, 2, -3, -2, -1]])
+    def add_years(self, df):
+        if isinstance(df, pd.DataFrame):
+            df = OvariableFrame(df)
+        if YEAR_COLUMN not in df.columns:
+            yrs = range(2010, self.context.target_year + 1)  # FIXME Lower boundary
+            years = OvariableFrame(pd.DataFrame({
+                YEAR_COLUMN: pd.Series(yrs),
+                VALUE_COLUMN: pd.Series([1] * len(yrs)),
+                FORECAST_COLUMN: pd.Series([False] * len(yrs)),
+            }).set_index([YEAR_COLUMN]))
+            df = df * years
+        return df
 
 
 class OvariableFrame(pd.DataFrame):

@@ -568,23 +568,22 @@ instance:
       output_nodes:
         - net_health_impact
 
-##### Exposure-response node
+##### New exposure-response noise
 
-    - id: exposure_response_test
-      name: Altistusvastetesti
-      name_en: Exposure response test
+    - id: exposure_response_noise
+      name: Melualtistusvaste
+      name_en: Exposure response noise
       type: health.ExposureResponse
       quantity: exposure-response
-      unit: DALY/a
-      input_nodes:
-        - noise_exposure
-        - fraction_noise_exposed
+      unit: dimensionless
       params:
         - id: erf_contexts
           value: ['noise highly_annoyed_road']
-        - id: incidence  # FIXME how to initialize parameters without this?
+        - id: default_incidence  # FIXME how to initialize parameters without this?
           value: 1
           unit: case / personyear
+        - id: default_frexposed
+          value: 1
         - id: route
           value: test
         - id: erf_type
@@ -619,13 +618,71 @@ instance:
         - hia/exposure_response/noise
         - hia/exposure_response/noise
 
-    - id: af_test
-      name: AF-testi
+    - id: af_noise
+      name: AF-melu
       type: health.AttributableFraction
       input_nodes:
+        - exposure_response_noise
         - noise_exposure
         - fraction_noise_exposed
-        - exposure_response_test
+
+##### New exposure-response PM2.5
+
+    - id: exposure_response_PM2_5
+      name: Pienhiukkasaltistusvaste
+      name_en: Exposure response PM2.5
+      type: health.ExposureResponse
+      quantity: exposure-response
+      unit: dimensionless
+      params:
+        - id: erf_contexts
+          value: ['PM2.5 mortality']
+        - id: default_incidence  # FIXME how to initialize parameters without this?
+          value: 1
+          unit: case / personyear
+        - id: default_frexposed
+          value: 1
+        - id: route
+          value: test
+        - id: erf_type
+          value: test
+        - id: period
+          value: test
+        - id: p_illness
+          value: test
+        - id: exposure_agent
+          value: test
+        - id: response
+          value: test
+        - id: target_population_size
+          value: test
+        - id: exposure_unit
+          value: test
+        - id: case_burden
+          value: test
+        - id: drop_indices
+          value: test 
+        - id: p1
+          value: test 
+        - id: p0
+          value: test 
+        - id: m1
+          value: test 
+        - id: m2
+          value: test 
+        - id: m3
+          value: test 
+      input_datasets:
+        - hia/exposure_response/air_pollution
+        - hia/incidence/default
+
+    - id: af_PM2_5
+      name: AF-PM2.5
+      type: health.AttributableFraction
+      input_nodes:
+        - exposure_response_PM2_5
+        - air_pollutant_exposure
+        - frexposed_all
 
 ################
 # health benefits

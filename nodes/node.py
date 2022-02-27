@@ -16,7 +16,7 @@ import pint_pandas
 from common.i18n import TranslatedString
 from nodes.constants import (
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
-    MILEAGE_QUANTITY, VALUE_COLUMN,
+    MILEAGE_QUANTITY, VALUE_COLUMN, YEAR_COLUMN,
     ensure_known_quantity
 )
 from params import Parameter
@@ -181,8 +181,8 @@ class Node:
         return self.context.get_parameter_value(id, required=required)
 
     def set_parameter_value(self, local_id: str, value: Any, force: bool = False):
-#        if force:  # FIXME if force, create this parameter
-#            self.parameters[local_id] = Parameter()
+        # if force:  # FIXME if force, create this parameter
+        #     self.parameters[local_id] = Parameter()
         if local_id not in self.parameters:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         self.parameters[local_id].set(value)
@@ -320,6 +320,17 @@ class Node:
                 continue
             out[col] = df[col]
         print(out)
+
+    def print_outline(self, df):
+        print(type(self))
+        print(self.id)
+        if YEAR_COLUMN in df.index.names:
+            pick_rows = df.index.get_level_values(YEAR_COLUMN).isin([2017, 2021, 2022])
+            self.print_pint_df(df.iloc[pick_rows])
+        elif len(df) > 6:
+            self.print_pint_df(df.iloc[[0, 1, 2, -3, -2, -1]])
+        else:
+            self.print_pint_df(df)
 
     def get_target_year(self) -> int:
         return self.context.target_year
@@ -468,7 +479,8 @@ class Node:
 
     def replace_input_data(self, data: dict):
         if len(self.input_dataset_instances) != 1:
-            raise NodeError(self, "Can't replace data for node with %d input datasets" % len(self.input_dataset_instances))
+            raise NodeError(
+                self, "Can't replace data for node with %d input datasets" % len(self.input_dataset_instances))
 
         d = self._make_input_dataset(data)
         old_ds = self.input_dataset_instances[0]
