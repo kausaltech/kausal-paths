@@ -41,6 +41,246 @@ instance:
           forecast_from: 2021
           dropna: true
 
+##### New exposure-response PM2.5
+
+    - id: PM2_5_classification
+      name: Pienhiukkasluokittelu
+      name_en: PM2.5 classification
+      type: health.DataColumnOvariable
+      quantity: ratio
+      unit: dimensionless
+      input_datasets:
+        - id: pm2_5_classes
+          input_dataset: hia/exposure_response/air_pollution
+          filters:
+            - column: Erf_context
+              value: PM2.5 mortality
+      params:
+        - id: index_columns
+          value: ['Erf_context', 'Pollutant', 'Response']
+        - id: value_columns
+          value: ['dummy']
+
+    - id: exposure_response_PM2_5
+      name: Pienhiukkasaltistusvaste
+      name_en: Exposure response PM2.5
+      type: health.ExposureResponse
+      quantity: exposure-response
+      unit: dimensionless
+      input_nodes:
+        - PM2_5_classification
+      input_datasets:
+        - hia/exposure_response/air_pollution
+        - hia/incidence/default
+      params:
+        - id: erf_contexts
+          value: ['PM2.5 mortality']
+        - id: default_incidence  # FIXME how to initialize parameters without this?
+          value: 1
+          unit: case / personyear
+        - id: default_frexposed
+          value: 1
+        - id: route
+          value: test
+        - id: erf_type
+          value: test
+        - id: period
+          value: test
+        - id: p_illness
+          value: test
+        - id: exposure_agent
+          value: test
+        - id: response
+          value: test
+        - id: target_population_size
+          value: test
+        - id: exposure_unit
+          value: test
+        - id: case_burden
+          value: test
+        - id: drop_indices
+          value: test 
+        - id: p1
+          value: test 
+        - id: p0
+          value: test 
+        - id: m1
+          value: test 
+        - id: m2
+          value: test 
+        - id: m3
+          value: test 
+
+    - id: af_PM2_5
+      name: AF-PM2.5
+      type: health.AttributableFraction
+      input_nodes:
+        - exposure_response_PM2_5
+        - air_pollutant_exposure
+        - frexposed_all
+
+##### New exposure-response noise
+
+    - id: noise_classification
+      name: Meluluokitus
+      name_en: Noise classification
+      type: health.DataColumnOvariable
+      quantity: ratio
+      unit: dimensionless
+      input_datasets:
+        - id: noise_classes
+          input_dataset: hia/exposure_response/noise
+          filters:
+            - column: Erf_context
+              value: noise highly_annoyed_road
+      params:
+        - id: index_columns
+          value: ['Erf_context', 'Pollutant', 'Response', 'Source', 'Unit']
+        - id: value_columns
+          value: ['dummy']
+
+    - id: exposure_response_noise
+      name: Melualtistusvaste
+      name_en: Exposure response noise
+      type: health.ExposureResponse
+      quantity: exposure-response
+      unit: dimensionless
+      input_nodes:
+        - noise_classification
+      params:
+        - id: erf_contexts
+          value: ['noise highly_annoyed_road']
+        - id: default_incidence  # FIXME how to initialize parameters without this?
+          value: 1
+          unit: case / personyear
+        - id: default_frexposed
+          value: 1
+        - id: route
+          value: test
+        - id: erf_type
+          value: test
+        - id: period
+          value: test
+        - id: p_illness
+          value: test
+        - id: exposure_agent
+          value: test
+        - id: response
+          value: test
+        - id: target_population_size
+          value: test
+        - id: exposure_unit
+          value: test
+        - id: case_burden
+          value: test
+        - id: drop_indices
+          value: test 
+        - id: p1
+          value: test 
+        - id: p0
+          value: test 
+        - id: m1
+          value: test 
+        - id: m2
+          value: test 
+        - id: m3
+          value: test 
+      input_datasets:
+        - hia/exposure_response/noise
+        - hia/exposure_response/noise
+
+    - id: af_noise
+      name: AF-melu
+      type: health.AttributableFraction
+      input_nodes:
+        - exposure_response_noise
+        - noise_exposure
+        - fraction_noise_exposed
+      output_nodes:
+        - noise_disease_burden
+
+##### New exposure-response physical activity
+
+    - id: physical_activity_classification
+      name: Liikkumisluokittelu
+      name_en: Physical activity classification
+      type: health.DataColumnOvariable
+      quantity: ratio
+      unit: dimensionless
+      input_datasets:
+        - id: phycisal_activity_classes
+          input_dataset: hia/exposure_response/physical_activity
+          filters:
+            - column: Erf_context
+              value: walking mortality
+      params:
+        - id: index_columns
+          value: ['Erf_context', 'Pollutant', 'Response']
+        - id: value_columns
+          value: ['dummy']
+
+    - id: exposure_response_physical_activity
+      name: Liikkumisen altistusvaste
+      name_en: Exposure response physical activity
+      type: health.ExposureResponse
+      quantity: exposure-response
+      unit: dimensionless
+      input_nodes:
+        - physical_activity_classification
+      input_datasets:
+        - hia/exposure_response/physical_activity
+        - hia/incidence/default
+      params:
+        - id: erf_contexts
+          value: ['walking mortality']
+        - id: default_incidence  # FIXME how to initialize parameters without this?
+          value: 1
+          unit: case / personyear
+        - id: default_frexposed
+          value: 1
+        - id: route
+          value: test
+        - id: erf_type
+          value: test
+        - id: period
+          value: test
+        - id: p_illness
+          value: test
+        - id: exposure_agent
+          value: test
+        - id: response
+          value: test
+        - id: target_population_size
+          value: test
+        - id: exposure_unit
+          value: test
+        - id: case_burden
+          value: test
+        - id: drop_indices
+          value: test 
+        - id: p1
+          value: test 
+        - id: p0
+          value: test 
+        - id: m1
+          value: test 
+        - id: m2
+          value: test 
+        - id: m3
+          value: test 
+
+    - id: af_physical_activity
+      name: AF-liikkuminen
+      type: health.AttributableFraction
+      input_nodes:
+        - exposure_response_physical_activity
+        - physical_activity
+        - physical_activity_fraction
+      output_nodes:
+        - physical_activity_disease_burden
+
+### Old school nodes
+
     - id: meat_emissions
       name: Lihan päästöt
       name_en: Meat emissions
@@ -172,23 +412,6 @@ instance:
         - dioxin_exposure
         - frexposed_all
 
-    - id: paf_air_pollution
-      name: Ilmansaasteiden väestösyyosuus
-      name_en: Air pollutant PAF
-      type: health.PopulationAttributableFraction
-      params:
-        - id: erf_contexts
-          value:
-            - PM2.5 mortality
-            - PM2.5 work_days_lost
-            - NOx mortality
-      input_datasets:
-        - hia/exposure_response/air_pollution
-        - hia/incidence/default
-      input_nodes:
-        - air_pollutant_exposure
-        - frexposed_all
-
     - id: disease_burden_of_cancer_etc
       name: Syövän ym. tautitaakka
       name_en: Disease burden of cancer etc
@@ -240,12 +463,12 @@ instance:
       unit: DALY/a
       input_nodes:
         - disease_burden_total_mortality
-        - paf_air_pollution
+        - af_PM2_5
       output_nodes:
         - net_health_impact
       params:
         - id: drop_indices
-          value: ['Erf_context', 'Exposure_agent']
+          value: ['Erf_context', 'Response', 'Pollutant']
 
 #### Noise
 
@@ -261,6 +484,10 @@ instance:
           filters:
             - column: Variable
               value: fraction
+            - column: Source
+              value: road
+            - column: Unit
+              value: Lden
       params:
         - id: index_columns
           value: ['Source', 'Unit', 'Exposure level']
@@ -268,8 +495,6 @@ instance:
           value: ['Suomi']
         - id: var_name
           value: Place
-      output_nodes:
-        - paf_noise
 
     - id: noise_exposure
       name: Melualtistus
@@ -285,29 +510,6 @@ instance:
           value: ['Exposure level']
         - id: value_columns
           value: ['Value']
-      output_nodes:
-        - paf_noise
-
-    - id: paf_noise
-      name: Melun väestösyyosuus
-      name_en: Noise PAF
-      type: health.PopulationAttributableFraction
-      quantity: fraction
-      unit: dimensionless
-      params:
-        - id: erf_contexts
-          value: 
-            - noise highly_sleep_disturbed_road
-            - noise highly_sleep_disturbed_rail
-            - noise highly_sleep_disturbed_air
-            - noise highly_annoyed_road
-            - noise highly_annoyed_rail
-            - noise highly_annoyed_air
-      input_datasets:
-        - hia/exposure_response/noise
-        - hia/exposure_response/noise
-      output_nodes:
-        - noise_disease_burden
 
     - id: annoyed_disease_burden
       name: Häiriintymisen ja unihäiriöiden tautitaakka
@@ -338,7 +540,7 @@ instance:
       unit: DALY/a
       params:
         - id: drop_indices
-          value: ['Source', 'Unit', 'Exposure level', 'Place', 'Exposure_agent', 'Erf_context']
+          value: ['Response', 'Pollutant', 'Exposure level', 'Unit', 'Source', 'Erf_context']
       output_nodes:
         - net_health_impact
 
@@ -449,7 +651,7 @@ instance:
           value: ['Age group', 'Vehicle']
 
     - id: physical_activity_fraction
-      name: Aktiiviisen liikkkumisen osuus
+      name: Aktiivisen liikkumisen osuus
       name_en: Physical activity fraction
       type: health.DataColumnOvariable
       quantity: fraction
@@ -520,25 +722,25 @@ instance:
         - physical_activity_equivalent
         - physical_activity_rate
 
-    - id: physical_activity_paf
-      name: Aktiivisen liikkumisen PAF
-      name_en: Physical activity PAF
-      type: health.PopulationAttributableFraction
-      quantity: fraction
-      unit: dimensionless
-      input_nodes:
-        - physical_activity
-        - physical_activity_fraction
-      params:
-        - id: erf_contexts
-          value:
-            - walking mortality
-            - cycling mortality
-      input_datasets:
-        - hia/exposure_response/physical_activity
-        - hia/incidence/default
-      output_nodes:
-        - physical_activity_disease_burden
+#    - id: physical_activity_paf
+#      name: Aktiivisen liikkumisen PAF
+#      name_en: Physical activity PAF
+#      type: health.PopulationAttributableFraction
+#      quantity: fraction
+#      unit: dimensionless
+#      input_nodes:
+#        - physical_activity
+#        - physical_activity_fraction
+#      params:
+#        - id: erf_contexts
+#          value:
+#            - walking mortality
+#            - cycling mortality
+#      input_datasets:
+#        - hia/exposure_response/physical_activity
+#        - hia/incidence/default
+#      output_nodes:
+#        - physical_activity_disease_burden
 
     - id: disease_burden_mortality
       name: Kuolleisuuden tautitaakka
@@ -564,125 +766,9 @@ instance:
         - disease_burden_mortality
       params:
         - id: drop_indices
-          value: ['Erf_context', 'Exposure_agent', 'Vehicle', 'Age group']
+          value: ['Erf_context', 'Exposure_agent', 'Vehicle', 'Age group', 'Response', 'Pollutant']
       output_nodes:
         - net_health_impact
-
-##### New exposure-response noise
-
-    - id: exposure_response_noise
-      name: Melualtistusvaste
-      name_en: Exposure response noise
-      type: health.ExposureResponse
-      quantity: exposure-response
-      unit: dimensionless
-      params:
-        - id: erf_contexts
-          value: ['noise highly_annoyed_road']
-        - id: default_incidence  # FIXME how to initialize parameters without this?
-          value: 1
-          unit: case / personyear
-        - id: default_frexposed
-          value: 1
-        - id: route
-          value: test
-        - id: erf_type
-          value: test
-        - id: period
-          value: test
-        - id: p_illness
-          value: test
-        - id: exposure_agent
-          value: test
-        - id: response
-          value: test
-        - id: target_population_size
-          value: test
-        - id: exposure_unit
-          value: test
-        - id: case_burden
-          value: test
-        - id: drop_indices
-          value: test 
-        - id: p1
-          value: test 
-        - id: p0
-          value: test 
-        - id: m1
-          value: test 
-        - id: m2
-          value: test 
-        - id: m3
-          value: test 
-      input_datasets:
-        - hia/exposure_response/noise
-        - hia/exposure_response/noise
-
-    - id: af_noise
-      name: AF-melu
-      type: health.AttributableFraction
-      input_nodes:
-        - exposure_response_noise
-        - noise_exposure
-        - fraction_noise_exposed
-
-##### New exposure-response PM2.5
-
-    - id: exposure_response_PM2_5
-      name: Pienhiukkasaltistusvaste
-      name_en: Exposure response PM2.5
-      type: health.ExposureResponse
-      quantity: exposure-response
-      unit: dimensionless
-      params:
-        - id: erf_contexts
-          value: ['PM2.5 mortality']
-        - id: default_incidence  # FIXME how to initialize parameters without this?
-          value: 1
-          unit: case / personyear
-        - id: default_frexposed
-          value: 1
-        - id: route
-          value: test
-        - id: erf_type
-          value: test
-        - id: period
-          value: test
-        - id: p_illness
-          value: test
-        - id: exposure_agent
-          value: test
-        - id: response
-          value: test
-        - id: target_population_size
-          value: test
-        - id: exposure_unit
-          value: test
-        - id: case_burden
-          value: test
-        - id: drop_indices
-          value: test 
-        - id: p1
-          value: test 
-        - id: p0
-          value: test 
-        - id: m1
-          value: test 
-        - id: m2
-          value: test 
-        - id: m3
-          value: test 
-      input_datasets:
-        - hia/exposure_response/air_pollution
-        - hia/incidence/default
-
-    - id: af_PM2_5
-      name: AF-PM2.5
-      type: health.AttributableFraction
-      input_nodes:
-        - exposure_response_PM2_5
-        - air_pollutant_exposure
-        - frexposed_all
 
 ################
 # health benefits

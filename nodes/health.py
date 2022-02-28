@@ -63,13 +63,15 @@ class DataColumnOvariable(Ovariable):
         index_columns = self.get_parameter_value('index_columns')
         value_columns = self.get_parameter_value('value_columns')
         df = self.get_input_dataset(required=True)
-        df = df[index_columns + value_columns]
         if len(value_columns) > 1:
             var_name = self.get_parameter_value('var_name')
             df = df.melt(id_vars=index_columns, var_name=var_name, value_name=VALUE_COLUMN)
             index_columns = index_columns + [var_name]
+        elif value_columns[0] == 'dummy':
+            df[VALUE_COLUMN] = 1
         else:
             df = df.rename(columns={value_columns[0]: VALUE_COLUMN})
+        df = df[index_columns + [VALUE_COLUMN]]
         df = df.set_index(index_columns)
         df = self.add_years(df)
 
@@ -90,7 +92,7 @@ class PhysicalActivity(Ovariable):
         out = out * OvariableFrame(pa_equivalent.get_output())
         out = out * OvariableFrame(pa_rate.get_output())
 
-        return self.clean_computing(out, drop_columns=['Age group', 'Vehicle'])
+        return self.clean_computing(out)
 
 
 class MileageDataOvariable(Ovariable):
@@ -110,7 +112,10 @@ class MileageDataOvariable(Ovariable):
         df = df.rename(columns={'Mileage': VALUE_COLUMN})
         df = df.assign(Emission_height=em_heights[0], Population_density=pop_densities[0])
         df[FORECAST_COLUMN] = False
-        df = df.set_index(['Year', 'Level_4', 'Level_5', 'Emission_height', 'Population_density'])
+        df = df.loc[df.Year == 2017].drop('Year', axis=1)  # FIXME
+        print(df)
+        df = df.set_index(['Level_4', 'Level_5', 'Emission_height', 'Population_density'])
+        df = self.add_years(df)
 
         return self.clean_computing(df)
 
@@ -234,6 +239,7 @@ class ExposureResponse(Ovariable):
                 self.set_parameter_value(power, value)
 
     def compute(self):
+        classification = self.get_input('ratio')
         erf_contexts = self.get_parameter_value('erf_contexts')
         erf_context = erf_contexts[0]  # FIXME List is meaningful only with multiple erf_contexts in one node.
         datasets = self.get_input_datasets()
@@ -313,9 +319,9 @@ class ExposureResponse(Ovariable):
         print('m2:', self.get_parameter_value_w_unit('m2'))
         print('m3:', self.get_parameter_value_w_unit('m3'))
 
-        out = self.add_years(pd.DataFrame({VALUE_COLUMN: [1]}))
+        classification = self.add_years(classification)
 
-        return self.clean_computing(out)
+        return self.clean_computing(classification)
 
 
 class AttributableFraction(Ovariable):
@@ -358,7 +364,7 @@ class AttributableFraction(Ovariable):
             'm2': '(kg d / mg)**2',
             'm3': '(kg d / mg)**3'
         }
-        exposure = OvariableFrame(exposures.copy())
+        exposure = exposures * erf.get_output()
 
         if not is_erf_compatible:
             exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
