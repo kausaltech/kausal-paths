@@ -9,13 +9,18 @@ from .ovariable import Ovariable, OvariableFrame
 from .exceptions import NodeError
 
 ''' QUESTIONS TO ASK:
-If exposure-response has restrictions for e.g. pollutant or population subgroup that have no parameters,
+Q1: If exposure-response has restrictions for e.g. pollutant or population subgroup that have no parameters,
 how can that be dealt with if exposure node has those additional rows of data?
-How can parameters be created without having a dummy line in yaml?
-Can there be e.g. a string parameter containing a filter query?
-Can parameters have lists? That would make it possible to aggregate related things into one node.
-Is it a good idea to have these context-insensitive ExposureResponse nodes?
-
+A: Put all additional index columns in the classification and thus make sure that right data is filtered.
+Q2: How can parameters be created without having a dummy line in yaml?
+A: Don't. Just have the extra lines in yaml.
+Q3: Can there be e.g. a string parameter containing a filter query?
+A: I think answer to Q1 solves this.
+Q4: Can parameters have lists? That would make it possible to aggregate related things into one node.
+A: No. Put e.g. the dimensions to be summed into the child node, not in parameter.
+Q5: Is it a good idea to have these context-insensitive ExposureResponse nodes?
+A: Yes, maybe. We'll compare the approaches when we have actual customers.
+(ExposureResponse vs PopulationAttributableFraction)
 '''
 # ############################33
 # Health-related constants and classes
@@ -59,7 +64,8 @@ class DataColumnOvariable(Ovariable):
         StringParameter(local_id='var_name')
     ] + Ovariable.allowed_parameters
 
-    def compute(self):
+    def compute(self):  # FIXME Replace node parameters with dataset parameters
+        # Maybe adjust parameter groupby for this purpose?
         index_columns = self.get_parameter_value('index_columns')
         value_columns = self.get_parameter_value('value_columns')
         df = self.get_input_dataset(required=True)
@@ -219,7 +225,6 @@ class ExposureResponse(Ovariable):
         NumberParameter(local_id='target_population_size'),
         NumberParameter(local_id='exposure_unit'),
         NumberParameter(local_id='case_burden'),
-        StringParameter(local_id='drop_indices'),
         NumberParameter(local_id='p1'),
         NumberParameter(local_id='p1_2'),
         NumberParameter(local_id='p0'),
@@ -310,7 +315,6 @@ class ExposureResponse(Ovariable):
         print('target_population_size:', self.get_parameter_value_w_unit('target_population_size'))
         print('exposure_unit:', self.get_parameter_value_w_unit('exposure_unit'))
         print('case_burden:', self.get_parameter_value_w_unit('case_burden'))
-        print('drop_indices:', self.get_parameter_value('drop_indices'))
         print('p1:', self.get_parameter_value_w_unit('p1'))
 #        print(self.get_parameter_value_w_unit('p1_2'))  # FIXME If not exists, give warning not error
         print('p0:', self.get_parameter_value_w_unit('p0'))
@@ -668,14 +672,12 @@ class DiseaseBurden(Ovariable):
 
 class AttributableDiseaseBurden(Ovariable):
     # bod_attr is the burden of disease that can be attributed to the exposure of interest.
-    allowed_parameters = [
-        StringParameter(local_id='drop_indices'),
-    ] + Ovariable.allowed_parameters
-
     quantity = 'disease_burden'
 
     def compute(self):
-        drop_columns = self.get_parameter_value('drop_indices', required=False)
+        drop_columns = [
+            'Erf_context', 'Exposure_agent', 'Response', 'Pollutant', 'Exposure level', 
+            'Unit', 'Source', 'Vehicle', 'Age group']
         bod = self.get_input('disease_burden')
         paf = self.get_input('fraction')
 

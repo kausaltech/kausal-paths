@@ -98,8 +98,6 @@ instance:
           value: test
         - id: case_burden
           value: test
-        - id: drop_indices
-          value: test 
         - id: p1
           value: test 
         - id: p0
@@ -173,8 +171,6 @@ instance:
           value: test
         - id: case_burden
           value: test
-        - id: drop_indices
-          value: test 
         - id: p1
           value: test 
         - id: p0
@@ -256,8 +252,6 @@ instance:
           value: test
         - id: case_burden
           value: test
-        - id: drop_indices
-          value: test 
         - id: p1
           value: test 
         - id: p0
@@ -452,9 +446,6 @@ instance:
         - paf_dioxin
       output_nodes:
         - net_health_impact
-      params:
-        - id: drop_indices
-          value: ['Erf_context', 'Exposure_agent']
 
     - id: air_pollution_disease_burden
       name: Ilmansaasteiden tautitaakka
@@ -466,9 +457,6 @@ instance:
         - af_PM2_5
       output_nodes:
         - net_health_impact
-      params:
-        - id: drop_indices
-          value: ['Erf_context', 'Response', 'Pollutant']
 
 #### Noise
 
@@ -538,9 +526,6 @@ instance:
       name_en: Noise disease burden
       type: health.AttributableDiseaseBurden
       unit: DALY/a
-      params:
-        - id: drop_indices
-          value: ['Response', 'Pollutant', 'Exposure level', 'Unit', 'Source', 'Erf_context']
       output_nodes:
         - net_health_impact
 
@@ -629,9 +614,6 @@ instance:
         - gastrointestinal_disease_burden
       output_nodes:
         - net_health_impact
-      params:
-        - id: drop_indices
-          value: ['Erf_context', 'Exposure_agent']
 
 #### Physical activity
 
@@ -722,26 +704,6 @@ instance:
         - physical_activity_equivalent
         - physical_activity_rate
 
-#    - id: physical_activity_paf
-#      name: Aktiivisen liikkumisen PAF
-#      name_en: Physical activity PAF
-#      type: health.PopulationAttributableFraction
-#      quantity: fraction
-#      unit: dimensionless
-#      input_nodes:
-#        - physical_activity
-#        - physical_activity_fraction
-#      params:
-#        - id: erf_contexts
-#          value:
-#            - walking mortality
-#            - cycling mortality
-#      input_datasets:
-#        - hia/exposure_response/physical_activity
-#        - hia/incidence/default
-#      output_nodes:
-#        - physical_activity_disease_burden
-
     - id: disease_burden_mortality
       name: Kuolleisuuden tautitaakka
       name_en: Disease burden of mortality
@@ -764,9 +726,6 @@ instance:
       unit: DALY/a
       input_nodes:
         - disease_burden_mortality
-      params:
-        - id: drop_indices
-          value: ['Erf_context', 'Exposure_agent', 'Vehicle', 'Age group', 'Response', 'Pollutant']
       output_nodes:
         - net_health_impact
 
