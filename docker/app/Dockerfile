@@ -22,9 +22,8 @@ RUN pip install -r /code/requirements-prod.txt -r /code/requirements.txt
 RUN pip install ipython
 
 ARG EXTRA_PYPI_INDEX
-ENV EXTRA_PYPI_INDEX $EXTRA_PYPI_INDEX
 ARG EXTRA_INSTALLED_APPS_VERSIONS
-ENV EXTRA_INSTALLED_APPS_VERSIONS $EXTRA_INSTALLED_APPS_VERSIONS
+ARG EXTRA_INSTALLED_APPS
 
 # Install extra dependencies
 RUN if [ ! -z "$EXTRA_INSTALLED_APPS_VERSIONS" ] ; then pip install --extra-index-url "${EXTRA_PYPI_INDEX}" $EXTRA_INSTALLED_APPS_VERSIONS ; fi

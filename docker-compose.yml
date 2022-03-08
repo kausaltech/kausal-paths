@@ -28,6 +28,7 @@ services:
         - MEDIA_ROOT=/srv/media
         - EXTRA_PYPI_INDEX
         - EXTRA_INSTALLED_APPS_VERSIONS
+        - EXTRA_INSTALLED_APPS
     restart: always
     volumes:
       - paths_media:/srv/media
