@@ -91,7 +91,8 @@ def instance(context, default_scenario):
     instance = InstanceFactory(context=context)
     # Replicate some code from InstanceConfig.get_instance
     # FIXME: This is likely to break
-    instance.modified_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
+    # Make instance newer than anything we'll likely encounter so we always use the instance_cache forced below
+    instance.modified_at = make_aware(datetime(3000, 1, 1, 0, 0), utc)
     # instance.context.generate_baseline_values()  # TODO
     from pages import global_instance
     global_instance.instance = instance

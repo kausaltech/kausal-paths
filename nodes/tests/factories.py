@@ -32,8 +32,6 @@ class InstanceConfigFactory(DjangoModelFactory):
     lead_title = "lead title"
     lead_paragraph = "Lead paragraph"
 
-    modified_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
-
 
 class InstanceFactory(Factory):
     class Meta:
@@ -61,9 +59,6 @@ class NodeConfigFactory(DjangoModelFactory):
     name = "name"
     short_description = "short description"
     description = "description"
-
-    created_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
-    modified_at = make_aware(datetime(2020, 1, 1, 0, 0), utc)
 
 
 class NodeFactory(Factory):
