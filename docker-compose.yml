@@ -41,6 +41,7 @@ services:
       - MEDIA_ROOT=/srv/media
       - LC_CTYPE=C.UTF-8
       - DEBUG
+      - DEPLOYMENT_TYPE
       - ALLOWED_HOSTS
       - COOKIE_PREFIX
       - INTERNAL_IPS
