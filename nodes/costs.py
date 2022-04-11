@@ -92,7 +92,7 @@ class CostNode(Ovariable):
 # Proof: If you denote a = 1/(1+r) where r is discount rate, you can solve
 # sum a^n, n=0 to k = (a^(k+1)-1)/(a-1)
 # https://www.wolframalpha.com/input?i=sum+a%5En%2C+n%3D0+to+k
-# (You can check the formula by polynomial division, and you get a^k+a^(k-1)+...+a).
+# (You can check the formula by polynomial division, and you get a^k+a^(k-1)+...+a+1).
 # This is equal to the excel formulation when tidshorisont = k+1 and you multiply both numerator and denominator by -1.
 # When you start from 0 (now, no discounting) and go on to k, you count k+1 years in total, which is tidshorisont.
 
