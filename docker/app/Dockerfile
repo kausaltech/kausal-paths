@@ -15,18 +15,21 @@ RUN ln -fs /usr/bin/python3.9 /usr/bin/python3
 RUN ln -fs /usr/bin/python3 /usr/bin/python
 RUN ln -fs /usr/bin/pip3 /usr/bin/pip
 RUN pip install --upgrade pip
-COPY requirements.txt requirements-prod.txt /code/
-RUN pip install -r /code/requirements-prod.txt -r /code/requirements.txt
+
+ARG EXTRA_PYPI_INDEX
 
 # Install ipython for convenience
 RUN pip install ipython
 
-ARG EXTRA_PYPI_INDEX
-ARG EXTRA_INSTALLED_APPS_VERSIONS
-ARG EXTRA_INSTALLED_APPS
+COPY requirements.txt requirements-prod.txt /code/
+RUN pip install -r /code/requirements-prod.txt -r /code/requirements.txt
 
 # Install extra dependencies
-RUN if [ ! -z "$EXTRA_INSTALLED_APPS_VERSIONS" ] ; then pip install --extra-index-url "${EXTRA_PYPI_INDEX}" $EXTRA_INSTALLED_APPS_VERSIONS ; fi
+COPY requirements-kausal.txt /code/
+RUN \
+    if [ ! -z "$EXTRA_PYPI_INDEX" ] ; then \
+        pip install --extra-index-url "${EXTRA_PYPI_INDEX}" -r /code/requirements-kausal.txt ; \
+    fi
 
 ARG MEDIA_ROOT=/srv/media
 ENV MEDIA_ROOT=$MEDIA_ROOT

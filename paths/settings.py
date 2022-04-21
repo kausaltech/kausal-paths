@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import importlib
 
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
@@ -27,7 +28,6 @@ env = environ.FileAwareEnv(
     DEPLOYMENT_TYPE=(str, 'development'),
     SECRET_KEY=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
-    EXTRA_INSTALLED_APPS=(list, []),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
     CACHE_URL=(str, 'locmemcache://'),
     MEDIA_ROOT=(environ.Path(), root('media')),
@@ -106,9 +106,6 @@ INSTALLED_APPS = [
     'pages',
     'nodes',
 ]
-
-EXTRA_INSTALLED_APPS: list[str] = env.list('EXTRA_INSTALLED_APPS')  # type:ignore
-INSTALLED_APPS += EXTRA_INSTALLED_APPS
 
 MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -248,6 +245,10 @@ BASE_URL = 'http://example.com'
 
 INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
+if importlib.util.find_spec('kausal_paths_extensions') is not None:
+    INSTALLED_APPS.append('kausal_paths_extensions')
+
+
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
 f = os.path.join(BASE_DIR, "local_settings.py")
@@ -258,7 +259,7 @@ if os.path.exists(f):
     module = types.ModuleType(module_name)
     module.__file__ = f
     sys.modules[module_name] = module
-    exec(open(f, "rb").read())
+    exec(open(f, "rb").read())  # noqa
 
 if not locals().get('SECRET_KEY', ''):
     secret_file = os.path.join(BASE_DIR, '.django_secret')

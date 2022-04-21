@@ -47,8 +47,6 @@ services:
       - INTERNAL_IPS
       - SENTRY_DSN
       - SECRET_KEY
-      - EXTRA_INSTALLED_APPS
-      - EXTRA_INSTALLED_APPS_URLS
     depends_on:
       - db
       - redis
