@@ -1,4 +1,5 @@
 -c requirements.txt
+mypy
 ipython
 pylint
 pip-tools
