@@ -42,7 +42,6 @@ class NodeDimension:
             self.unit = unit
         else:
             self.unit = context.unit_registry(unit).units
-        delattr(self, '_unit')
 
     def calculate_hash(self, id: str) -> bytes:
         s = '%s:%s:%s' % (id, self.unit, self.quantity)

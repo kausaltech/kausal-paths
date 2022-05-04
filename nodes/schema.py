@@ -121,7 +121,8 @@ class NodeType(graphene.ObjectType):
     short_description = graphene.String()
     description = graphene.String()
 
-    def resolve_color(root, info):
+    @staticmethod
+    def resolve_color(root: Node, info):
         if root.color:
             return root.color
         if root.quantity == 'emissions':
@@ -130,7 +131,8 @@ class NodeType(graphene.ObjectType):
                     root.color = parent.color
                     return root.color
 
-    def resolve_is_action(root, info):
+    @staticmethod
+    def resolve_is_action(root: Node, info):
         return isinstance(root, ActionNode)
 
     @staticmethod

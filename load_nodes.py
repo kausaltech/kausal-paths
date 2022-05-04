@@ -122,7 +122,7 @@ if args.check:
         na_count = df.isna().sum().sum()
         if na_count:
             print('Node %s has NaN values:' % node.id)
-            node.print_output(context)
+            node.print_output()
 
         if node.baseline_values is not None:
             na_count = node.baseline_values.isna().sum().sum()
@@ -149,7 +149,7 @@ for node_id in (args.node or []):
     node = context.get_node(node_id)
     node.print_output()
     if isinstance(node, ActionNode):
-        node.print_impact(context, context.get_node('net_emissions'))
+        node.print_impact(context.get_node('net_emissions'))
 
 if False:
     loader.context.dataset_repo.pull_datasets()
