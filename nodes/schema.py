@@ -64,13 +64,18 @@ class ForecastMetricType(graphene.ObjectType):
     output_node = graphene.Field(lambda: NodeType)
     unit = graphene.Field('paths.schema.UnitType')
     yearly_cumulative_unit = graphene.Field('paths.schema.UnitType')
-    historical_values = graphene.List(YearlyValue)
+    historical_values = graphene.List(YearlyValue, latest=graphene.Int(required=False))
     forecast_values = graphene.List(YearlyValue)
     baseline_forecast_values = graphene.List(YearlyValue)
 
     @staticmethod
-    def resolve_historical_values(root: Metric, info):
-        return root.get_historical_values()
+    def resolve_historical_values(root: Metric, info, latest: Optional[int] = None):
+        ret = root.get_historical_values()
+        if latest:
+            if latest >= len(ret):
+                return ret
+            return ret[-latest:]
+        return ret
 
     @staticmethod
     def resolve_forecast_values(root: Metric, info):
