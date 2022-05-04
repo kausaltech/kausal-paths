@@ -188,6 +188,9 @@ class NodeConfig(ClusterableModel):
     )
     identifier = IdentifierField()
     name = models.CharField(max_length=200, null=True, blank=True)
+    order = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_('Order')
+    )
     short_description = RichTextField(
         null=True, blank=True, verbose_name=_('Short description')
     )
@@ -215,6 +218,7 @@ class NodeConfig(ClusterableModel):
 
     def update_node_from_config(self, node: Node):
         node.database_id = self.pk
+        node.order = self.order
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1

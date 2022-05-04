@@ -88,6 +88,7 @@ class NodeType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
     color = graphene.String()
+    order = graphene.Int(required=False)
     unit = graphene.Field('paths.schema.UnitType')
     quantity = graphene.String()
     target_year_goal = graphene.Float()

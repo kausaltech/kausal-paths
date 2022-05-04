@@ -68,6 +68,8 @@ class Node:
 
     # if the node has an established visualisation color
     color: Optional[str]
+    # order comes from NodeConfig
+    order: Optional[int] = None
 
     # output unit (from pint)
     unit: pint.Unit
