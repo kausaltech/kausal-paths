@@ -660,14 +660,11 @@ instance:
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
-    input_datasets:  # There is no data about this in the input database. Parameter should be removed?
-    - id: tampere/scenarios/emissions/bau
-      column: Industry without city machinery  # Wrong column, luckily data is not used.
     output_nodes:
     - industry_and_machinery_emissions
 
   - id: city_machinery_fuel_consumption
-    name: Kaupunkin työkoneiden polttoaineenkulutus
+    name: Kaupungin työkoneiden polttoaineenkulutus
     name_en: City machinery fuel consumption
     type: simple.Activity
     quantity: fuel_consumption
