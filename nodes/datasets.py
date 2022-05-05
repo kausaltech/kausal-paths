@@ -234,7 +234,7 @@ class FixedDataset(Dataset):
             fdf = None
 
         if hdf is not None and fdf is not None:
-            df = hdf.append(fdf)
+            df = pd.concat([hdf, fdf])
         elif hdf is not None:
             df = hdf
         else:

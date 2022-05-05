@@ -1,7 +1,7 @@
 psycopg2-binary
 pandas
 python-dotenv
-wagtail
+wagtail<2.16
 django
 django-environ
 django-cors-headers
@@ -24,9 +24,7 @@ redis
 wagtailfontawesome
 django-modeltrans
 rich
-git+https://github.com/GrappleGQL/wagtail-grapple.git@e92abab64ea0dcacf68cd68ccd64a66c055e55f6
-# pint does not support Babel >= 2.9 yet
-Babel<2.9
+wagtail-grapple
+Babel
 ruamel.yaml
-aiobotocore[boto3]<2.0
 pygments-graphql

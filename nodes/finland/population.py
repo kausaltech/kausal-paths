@@ -33,7 +33,7 @@ class Population(Node):
 
         # Drop forecast rows that are in the historical series
         sf = sf[~sf.index.isin(sh.index)]
-        s = sh.append(sf)
+        s = pd.concat([sh, sf])
         df = pd.DataFrame(s.values, index=s.index, columns=[VALUE_COLUMN])
         df.index = df.index.astype(int)
         df['Forecast'] = False
