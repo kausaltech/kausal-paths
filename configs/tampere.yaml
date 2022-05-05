@@ -105,8 +105,8 @@ instance:
     color: '#E8B455'
 
   - id: industry_emissions
-    name: Teollisuuden päästöt ilman kaupungin työkoneita
-    name_en: Industry emissions without city machinery
+    name: Teollisuuden ja yksityisten työkoneiden päästöt
+    name_en: Industry and private machinery emissions
     description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa
       Teollisuuden ja työkoneiden päästöt.
     description_en: The emission forecast for industry and machinery is described
