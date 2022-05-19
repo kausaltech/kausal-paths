@@ -771,11 +771,11 @@ instance:
     - direct_electric_heating_electricity_use
     forecast_values:
     - id: district_heating_consumption
-      values: [[2020, 0], [2030, -239]]
+      values: [[2021, 0], [2030, -239]]
     - id: other_electricity_consumption
-      values: [[2020, 0], [2030, -12.65]]
+      values: [[2021, 0], [2030, -12.65]]
     - id: direct_electric_heating_electricity_use
-      values: [[2020, 0], [2030, 10.01]]
+      values: [[2021, 0], [2030, 10.01]]
 
   - id: distributed_renewable_energy
     name: Hajautettu uusiutuva energia
@@ -792,7 +792,7 @@ instance:
       all restrictions).
     output_nodes:
     - renewable_electricity_consumption_reduction
-    forecast_values: [[2019, 0], [2020, 0.2], [2030, -850]]
+    forecast_values: [[2022, 0], [2030, -850]]
     params:
     - id: target_year_level
       values:
@@ -850,9 +850,9 @@ instance:
     - direct_electric_heating_electricity_use
     forecast_values:
     - id: oil_heating_energy_use
-      values: [[2020, 0], [2025, -3.674]]
+      values: [[2021, 0], [2025, -3.674]]
     - id: direct_electric_heating_electricity_use
-      values: [[2020, 0], [2025, 1.468]]
+      values: [[2021, 0], [2025, 1.468]]
 
   - id: cleaner_electricity_production
     name: Kansallinen sähköntuotanto puhdistuu
@@ -862,7 +862,7 @@ instance:
     output_nodes:
     - electricity_production_emission_factor
     type: simple.LinearCumulativeAdditiveAction
-    forecast_values: [[2019, 0], [2030, -80]]
+    forecast_values: [[2021, 0], [2030, -80]]
     unit: g/kWh
     params:
     - id: target_year_level
@@ -885,7 +885,7 @@ instance:
       otetaan käyttöön vuoteen 2025 mennessä.
     description_en: The city’s street lighting will be transformed into LEDs and intelligent
       light control will be deployed by 2025.
-    forecast_values: [[2019, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+    forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
     output_nodes:
     - other_electricity_consumption
 
