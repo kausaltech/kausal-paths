@@ -1,15 +1,17 @@
 instance:
   id: tampere
   default_language: fi
-  supported_languages: [en]
+  supported_languages: [en, de]
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
+  name_de: Klimaneutrales Tampere 2030
   owner: Tampereen kaupunki
   owner_en: City of Tampere
+  owner_de: Stadt Tampere
   target_year: 2030
   reference_year: 1990
   minimum_historical_year: 2010
@@ -24,6 +26,7 @@ instance:
   - id: net_emissions
     name: Kokonaispäästöt (scope 2)
     name_en: Net emissions (scope 2)
+    name_de: Nettoemissionen (Scope 2)
     target_year_goal: 260
 
     #
@@ -32,12 +35,16 @@ instance:
   - id: transportation_emissions
     name: Liikenteen päästöt
     name_en: Transportation emissions
+    name_de: Transportemissionen
     description: Liikennepäästölaskenta perustuu kolmeen perustekijään. Liikennesuoritteeseen
       ajoneuvotyypeittäin, liikenteen käyttövoimien päästökertoimiin eri ajoneuvoille
       ja käyttövoimajakaumiin ajoneuvotyypeittäin.
     description_en: The traffic emission calculation is based on three basic factors.
       Mileage by vehicle type, emission factors for vehicle types with different propulsion,
       and propulsion distributions by vehicle type.
+    description_de: Die Berechnung der Verkehrsemissionen basiert auf drei grundlegenden Faktoren.
+      Fahrleistung nach Fahrzeugtyp, Emissionsfaktoren für Fahrzeugtypen mit unterschiedlichem Antrieb,
+      und Antriebsverteilungen nach Fahrzeugtyp.
     part_of: net_emissions
     color: '#668EC9'
     target_year_goal: 115
@@ -45,16 +52,19 @@ instance:
   - id: van_emissions
     name: Pakettiautojen päästöt
     name_en: Van emissions
+    name_de: Van-Emissionen  ##
     column: Vans
     part_of: transportation_emissions
   - id: truck_emissions
     name: Kuorma-autot
     name_en: Trucks and lorries
+    name_de: Lastwagen
     column: Trucks and lorries
     part_of: transportation_emissions
   - id: motorbike_emissions
     name: Moottoripyörät yms.
     name_en: Motorbikes etc.
+    name_de: Motorräder etc.
     column: Motorbikes
     part_of: transportation_emissions
 
@@ -64,29 +74,37 @@ instance:
   - id: building_heating_emissions
     name: Rakennusten lämmityksen päästöt
     name_en: Building heating emissions
+    name_de: Gebäudeheizungsemissionen
     part_of: net_emissions
     color: '#AD3963'
 
   - id: separate_heating_emissions
     name: Erillislämmityksen päästöt
     name_en: Separate heating emissions
+    name_de: Getrennte Heizemissionen
     part_of: building_heating_emissions
   - id: gas_heating_emissions
     part_of: separate_heating_emissions
     name: Kaasulämmityksen päästöt
     name_en: Gas heating emissions
+    name_de: Gasheizungsemissionen
     description: Kaasulämmityksen päästöt saadaan kertomalla maakaasun kulutus päästökertoimella.
     description_en: Emissions from gas heating are calculated by multiplying the consumption
       of natural gas by the emission factor.
+    description_de: Emissionen aus der Gasheizung werden durch Multiplikation des Verbrauchs berechnet
+      von Erdgas durch den Emissionsfaktor.
     column: Gas heating
 
   - id: electric_heating_emissions
     name: Sähkölämmityksen päästöt
     name_en: Electric heating emissions
+    name_de: Elektrische Heizungsemissionen
     description: Sähkölämmitys sisältää arviot sekä suorasähkölämmityksen että maalämmön
       päästöistä ja laskee ne yhteen.
     description_en: Electric heating emissions include estimates of both direct electric
       heating and geothermal emissions.
+    description_de: Elektrische Heizungsemissionen beinhalten Schätzungen sowohl von direkten elektrischen
+      Heizung und geothermische Emissionen.
     part_of: building_heating_emissions
 
       #
@@ -96,10 +114,13 @@ instance:
   - id: industry_and_machinery_emissions
     name: Teollisuuden ja työkoneiden päästöt
     name_en: Industry and machinery emissions
+    name_de: Industrie- und Maschinenemissionen
     description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla
       lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
     description_en: The emission forecast for industry and machinery has been made
       by linearly extrapolating the emission development during 2010-2018.
+    description_de: Die Emissionsprognose für Industrie und Maschinen wurde erstellt
+      durch lineare Extrapolation der Emissionsentwicklung im Zeitraum 2010-2018.
     part_of: net_emissions
     #  column: Industry without city machinery
     color: '#E8B455'
@@ -107,10 +128,13 @@ instance:
   - id: industry_emissions
     name: Teollisuuden ja yksityisten työkoneiden päästöt
     name_en: Industry and private machinery emissions
+    name_de: Industrielle und private Maschinenemissionen
     description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa
       Teollisuuden ja työkoneiden päästöt.
     description_en: The emission forecast for industry and machinery is described
       in more detail in the node Industry and machinery emissions.
+    description_de: Die Emissionsprognose für Industrie und Maschinen wird beschrieben
+      näher im Knoten Industrie- und Maschinenemissionen.
     part_of: industry_and_machinery_emissions
     column: Industry without city machinery
     color: '#E8B455'
@@ -118,49 +142,60 @@ instance:
   - id: waste_treatment_emissions
     name: Jätehuollon päästöt
     name_en: Waste treatment
+    name_de: Abfallbehandlung
     description: Jätehuollon päästöt sisältävät kiinteät jätteet, biojätteet ja jäteveden.
     description_en: Emissions from waste management include solid waste, biowaste
       and wastewater.
+    description_de: Emissionen aus der Abfallwirtschaft umfassen feste Abfälle, Bioabfälle
+      und Abwasser.
     part_of: net_emissions
     color: '#397368'
 
   - id: solid_waste_treatment_emissions
     name: Kiinteän jätteen käsittelyn päästöt
     name_en: Solid waste treatment
+    name_de: Behandlung fester Abfälle
     column: Solid waste treatment
     part_of: waste_treatment_emissions
 
   - id: waste_water_treatment_emissions
     name: Jäteveden puhdistuksen päästöt
     name_en: Waste water treatment
+    name_de: Abwasserbehandlung
     column: Waste water treatment
     part_of: waste_treatment_emissions
 
   - id: agriculture_emissions
     name_en: Agriculture
     name: Maatalouden päästöt
+    name_de: Landwirtschaft
     description: Maatalouden päästöt perustuvat CO2-raportin päästötoteumaan eläinten
       ruoansulatuksen, lannan käsittelyn ja peltoviljelyn päästöistä.
     description_en: Emissions from agriculture are based on the emission estimates
       of the CO2 Report on animal digestion, manure treatment and arable farming.
+    description_de: Emissionen aus der Landwirtschaft basieren auf den Emissionsschätzungen
+      des CO2-Berichts zu Tiervergärung, Güllebehandlung und Ackerbau.
     part_of: net_emissions
     color: '#ABC872'
 
   - id: cattle_digestion_emissions
     name_en: Cattle digestion
     name: Eläinten ruoansulatus
+    name_de: Rinderverdauung
     part_of: agriculture_emissions
     column: Cattle digestion
 
   - id: manure_treatment_emissions
     name_en: Manure treatment
     name: Lannankäsittely
+    name_de: Güllebehandlung
     part_of: agriculture_emissions
     column: Manure treatment
 
   - id: field_crops_emissions
     name_en: Field crops
     name: Peltoviljelyn päästöt
+    name_de: Feldfrüchte
     part_of: agriculture_emissions
     column: Field crops
 
@@ -171,6 +206,7 @@ instance:
   - id: industrial_electricity_consumption_emissions
     name_en: Industrial electricity consumption
     name: Teollisuuden sähkön kulutuksen päästöt
+    name_de: Industrieller Stromverbrauch
     part_of: electricity_consumption_emissions
     column: Power consumption industry
 
@@ -182,6 +218,7 @@ instance:
   - id: district_heating_emissions
     name: Kaukolämmön päästöt
     name_en: District heating emissions
+    name_de: Fernwärmeemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     quantity: emissions
@@ -191,6 +228,7 @@ instance:
   - id: district_heating_consumption
     name: Kaukolämmön kulutus
     name_en: District heat consumption
+    name_de: Fernwärmeverbrauch
     unit: GWh/a
     quantity: energy
     type: simple.Activity
@@ -204,6 +242,7 @@ instance:
   - id: district_heating_emission_factor
     name: Kaukolämmön päästökerroin
     name_en: District heating emission factor
+    name_de: Fernwärme-Emissionsfaktor
     type: simple.AdditiveNode
     unit: g/kWh
     quantity: emission_factor
@@ -220,10 +259,13 @@ instance:
     quantity: emissions
     name: Öljylämmityksen päästöt
     name_en: Oil heating emissions
+    name_de: Ölheizungsemissionen
     description: Öljylämmityksen päästöt lasketaan kertomalla lämmitysöljyn kulutus
       päästökertoimella.
     description_en: Emissions from oil heating are calculated by multiplying the consumption
       of heating oil by the emission factor.
+    description_de: Emissionen aus Ölheizungen werden durch Multiplikation des Verbrauchs berechnet
+      von Heizöl durch den Emissionsfaktor.
     output_nodes:
     - separate_heating_emissions
 
@@ -233,6 +275,7 @@ instance:
     type: simple.Activity
     name: Öljylämmityksen energiankulutus
     name_en: Oil heating energy consumption
+    name_de: Energieverbrauch der Ölheizung
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Total oil heating
@@ -246,6 +289,7 @@ instance:
     quantity: emission_factor
     name: Lämmitysöljyn päästökerroin
     name_en: Heating oil emission factor
+    name_de: Heizöl-Emissionsfaktor
     input_datasets:
     - id: tampere/scenarios/emission_factors/bau
       column: Oil heating
@@ -262,6 +306,7 @@ instance:
     quantity: emissions
     name: Maalämmön päästöt
     name_en: Geothermal heating emissions
+    name_de: Erdwärmeemissionen
     input_nodes:
     - electric_heating_emission_factor
     output_nodes:
@@ -273,6 +318,7 @@ instance:
     type: simple.Activity
     name: Maalämmön sähkönkulutus
     name_en: Geothermal heating electricity consumption
+    name_de: Stromverbrauch der Erdwärmeheizung
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Geothermal heating residential
@@ -286,6 +332,7 @@ instance:
     quantity: emissions
     name: Suorasähkölämmityksen päästöt
     name_en: Direct electric heating emissions
+    name_de: Direkte elektrische Heizemissionen
     input_nodes:
     - electric_heating_emission_factor
     output_nodes:
@@ -297,6 +344,7 @@ instance:
     unit: GWh/a
     name: Suorasähkölämmityksen sähkönkulutus
     name_en: Direct electric heating electricity consumption
+    name_de: Stromverbrauch der direkten Elektroheizung
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Electric heating total
@@ -310,6 +358,7 @@ instance:
   - id: other_electricity_consumption_per_capita
     name: Sähkönkulutus asukasta kohti
     name_en: Electricity consumption per capita
+    name_de: Stromverbrauch pro Kopf
     type: simple.AdditiveNode
     unit: kWh/person/a
     quantity: per_capita
@@ -322,6 +371,7 @@ instance:
   - id: other_electricity_consumption
     name: Muu sähkönkulutus
     name_en: Other electricity consumption
+    name_de: Sonstiger Stromverbrauch
     type: simple.PerCapitaActivity
     unit: GWh/a
     quantity: energy
@@ -333,6 +383,7 @@ instance:
   - id: other_electricity_consumption_emissions
     name: Muun sähkönkulutuksen päästöt
     name_en: Other electricity consumption emissions
+    name_de: Sonstige Stromverbrauchsemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     params:
@@ -350,6 +401,7 @@ instance:
   - id: electricity_production_emission_factor
     name: Sähköntuotannon päästökerroin
     name_en: Electricity production emission factor
+    name_de: Emissionsfaktor der Stromerzeugung
     type: simple.AdditiveNode
     unit: g/kWh
     quantity: emission_factor
@@ -361,6 +413,7 @@ instance:
   - id: electric_heating_emission_factor
     name: Lämmityssähkön päästökerroin
     name_en: Heating electricity emission factor
+    name_de: Heizstrom-Emissionsfaktor
     type: simple.FixedMultiplierNode
     unit: g/kWh
     quantity: emission_factor
@@ -374,6 +427,7 @@ instance:
   - id: other_electricity_consumption_emission_factor
     name: Kulutussähkön päästökerroin
     name_en: Electricity consumption emission factor
+    name_de: Emissionsfaktor des Stromverbrauchs
     type: simple.FixedMultiplierNode
     unit: g/kWh
     quantity: emission_factor
@@ -388,6 +442,7 @@ instance:
   - id: electricity_consumption_emissions
     name: Sähkön kulutuksen päästöt
     name_en: Electricity consumption emissions
+    name_de: Emissionen des Stromverbrauchs
     type: simple.SectorEmissions
     unit: kt/a
     color: '#F4D240'
@@ -396,6 +451,9 @@ instance:
     description_en: The calculation of electricity emissions is based on two components.
       Electricity consumption and the emission factor for electricity. This is electricity
       consumption other than heating.
+    description_de: Die Berechnung der Stromemissionen basiert auf zwei Komponenten.
+      Stromverbrauch und Emissionsfaktor für Strom. Das ist Strom
+      Verbrauch außer Heizung.
     output_nodes:
     - net_emissions
 
@@ -406,6 +464,7 @@ instance:
   - id: local_train_kilometers
     name: Paikallisjunasuorite
     name_en: Local train kilometers
+    name_de: Nahverkehrskilometer
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -420,6 +479,7 @@ instance:
   - id: tram_kilometers
     name: Ratikkasuorite
     name_en: Tram kilometers
+    name_de: Straßenbahnkilometer
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -432,6 +492,7 @@ instance:
   - id: car_kilometers_streets
     name: Henkilöautosuorite (katuajo)
     name_en: Car kilometers (streets)
+    name_de: Autokilometer (Straßen)
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -446,6 +507,7 @@ instance:
   - id: car_kilometers_roads
     name: Henkilöautosuorite (maantieajo)
     name_en: Car kilometers (roads)
+    name_de: Autokilometer (Straßen)  ##
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -460,6 +522,7 @@ instance:
   - id: bus_kilometers_streets
     name: Bussisuorite (katuajo)
     name_en: Bus kilometers (streets)
+    name_de: Buskilometer (Straßen)
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -474,6 +537,7 @@ instance:
   - id: bus_kilometers_roads
     name: Bussisuorite (maantieajo)
     name_en: Bus kilometers (roads)
+    name_de: Buskilometer (Straßen)  ##
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -488,6 +552,7 @@ instance:
   - id: local_train_emission_factor
     name: Paikallisjunan päästökerroin
     name_en: Local train emission factor
+    name_de: Nahverkehrszug-Emissionsfaktor
     quantity: emission_factor
     unit: g/km
     type: simple.FixedMultiplierNode
@@ -503,6 +568,7 @@ instance:
   - id: tram_emission_factor
     name: Ratikan päästökerroin
     name_en: Tram emission factor
+    name_de: Straßenbahn-Emissionsfaktor
     quantity: emission_factor
     type: simple.FixedMultiplierNode
     unit: g/km
@@ -518,6 +584,7 @@ instance:
   - id: car_emission_factor_streets
     name: Henkilöautoilun päästökerroin (katuajo)
     name_en: Car emission factor (streets)
+    name_de: Pkw-Emissionsfaktor (Straßen)
     quantity: emission_factor
     type: simple.AdditiveNode
     unit: g/km
@@ -531,6 +598,7 @@ instance:
   - id: car_emission_factor_roads
     name: Henkilöautoilun päästökerroin (maantieajo)
     name_en: Car emission factor (roads)
+    name_de: Pkw-Emissionsfaktor (Straßen)  ##
     quantity: emission_factor
     type: simple.AdditiveNode
     unit: g/km
@@ -544,6 +612,7 @@ instance:
   - id: bus_emission_factor_streets
     name: Bussin päästökerroin (katuajo)
     name_en: Bus emission factor (streets)
+    name_de: Bus-Emissionsfaktor (Straßen)
     type: simple.AdditiveNode
     quantity: emission_factor
     unit: g/km
@@ -558,6 +627,7 @@ instance:
   - id: bus_emission_factor_roads
     name: Bussin päästökerroin (maantieajo)
     name_en: Bus emission factor (roads)
+    name_de: Bus-Emissionsfaktor (Straßen)  ##
     type: simple.AdditiveNode
     quantity: emission_factor
     unit: g/km
@@ -571,6 +641,7 @@ instance:
   - id: local_train_emissions
     name: Lähijunien päästöt
     name_en: Local train emissions
+    name_de: Nahverkehrsemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     quantity: emissions
@@ -580,6 +651,7 @@ instance:
   - id: tram_emissions
     name: Ratikkaliikenteen päästöt
     name_en: Tram emissions
+    name_de: Straßenbahnemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     quantity: emissions
@@ -589,6 +661,7 @@ instance:
   - id: car_emissions_roads
     name: Henkilöautoliikenteen päästöt (maantieajo)
     name_en: Private car emissions (roads)
+    name_de: Pkw-Emissionen (Straßen)
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -598,6 +671,7 @@ instance:
   - id: car_emissions_streets
     name: Henkilöautoliikenteen päästöt (katuajo)
     name_en: Private car emissions (streets)
+    name_de: Pkw-Emissionen (Straßen)  ##
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -607,6 +681,7 @@ instance:
   - id: car_emissions
     name: Henkilöautoliikenteen päästöt
     name_en: Private car emissions
+    name_de: Emissionen von Privatfahrzeugen
     type: simple.SectorEmissions
     unit: kt/a
     params:
@@ -621,6 +696,7 @@ instance:
   - id: bus_emissions_roads
     name: Bussiliikenteen päästöt (maantieajo)
     name_en: Bus emissions (roads)
+    name_de: Busemissionen (Straßen)
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -630,6 +706,7 @@ instance:
   - id: bus_emissions_streets
     name: Bussiliikenteen päästöt (katuajo)
     name_en: Bus emissions (streets)
+    name_de: Busemissionen (Straßen)  ##
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -639,6 +716,7 @@ instance:
   - id: bus_emissions
     name: Bussiliikenteen päästöt
     name_en: Bus emissions
+    name_de: Busemissionen
     type: simple.SectorEmissions
     unit: kt/a
     quantity: emissions
@@ -657,6 +735,7 @@ instance:
   - id: city_machinery_emissions
     name: Kaupungin työkoneiden päästöt
     name_en: City machinery emissions
+    name_de: Emissionen von Stadtmaschinen
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -666,6 +745,7 @@ instance:
   - id: city_machinery_fuel_consumption
     name: Kaupungin työkoneiden polttoaineenkulutus
     name_en: City machinery fuel consumption
+    name_de: Kraftstoffverbrauch von Stadtmaschinen
     type: simple.Activity
     quantity: fuel_consumption
     unit: l/a
@@ -678,6 +758,7 @@ instance:
   - id: city_machinery_emission_factor
     name: Dieselin päästökerroin
     name_en: Diesel emission factor
+    name_de: Diesel-Emissionsfaktor
     type: simple.AdditiveNode
     quantity: emission_factor
     unit: g/l
@@ -690,6 +771,7 @@ instance:
   - id: renewable_electricity_consumption_reduction
     name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
     name_en: Decrease in purchased energy due to renewable electricity production
+    name_de: Rückgang der zugekauften Energie aufgrund erneuerbarer Stromerzeugung
     quantity: energy
     type: simple.FixedMultiplierNode
     output_nodes:
@@ -707,6 +789,7 @@ instance:
   - id: naistenlahti3
     name: Naistenlahti 3 -biovoimalaitos
     name_en: Naistenlahti 3 bio thermal plant
+    name_de: Biothermische Anlage Naistenlahti 3
     type: simple.CumulativeAdditiveAction
     quantity: emission_factor
     description: Naistenlahti 3 -voimalaitos pystyy käyttämään myös biopolttoainetta,
@@ -738,6 +821,33 @@ instance:
       pumps. However, it is not known to what extent the properties will be connected
       and what the change in their consumption would be. Therefore, no emission reduction
       has yet been estimated for the action.</p>
+    description_de: Das Kraftwerk Naistenlahti 3 kann auch Biobrennstoff verwenden, und
+      Die Wahl des Kraftstoffs ist ein Schlüsselfaktor für die Reduzierung von Emissionen.
+    long_description_de: <h2>Zentrale erneuerbare Energie</h2><p>Die Aktion umfasst
+      Investitionen von Tampereen Sähkölaitos (dem lokalen Energieunternehmen), die zurückgehen werden
+      der Fernwärme-Emissionsfaktor. Als Emissionsfaktor für Strom
+      Die Stromerzeugung wird national festgelegt, die Maßnahmen wirken sich nicht direkt auf den Strom aus
+      -Emissionen.</p><p>Derzeit ist die Investition in Naistenlahti die eindeutigste Maßnahme
+      3 Kraftwerk. Auch dieser ist nur grob von anderen Plänen zu unterscheiden
+      um den Fernwärme-Emissionsfaktor zu reduzieren. Die endgültige Emissionsreduzierung
+      des Fernwärme-Emissionsfaktors ist auf noch nicht durchgeführte Maßnahmen zurückzuführen
+      näher definiert und daher pauschal berechnet. Jedoch,
+      die Emissionsminderung wird eintreten, wenn Tampereen Sähkölaitos die Emission erreicht
+      Reduzierungen im Einklang mit seiner Strategie. In dieser Summe wird die Magnitude berechnet
+      Emissionsprognose etwas anders als wenn nur die Energieerzeugung aus
+      Tampereen Sähkölaitos wird berücksichtigt.</p><p>Als Ergebnis die Emissionsreduzierung
+      an Fernwärme verursacht durch Naistenlahti 3 beträgt ca. 82 kt CO2e. Zusätzlich,
+      ca. 99 kt CO2e werden durch andere Investitionen zur Reduzierung erzeugt
+      die Emissionen von Tampereen Sähkölaitos bis 2030. Dies ist nur eine grobe Schätzung
+      basierend auf der unternehmenseigenen Prognose des Fernwärme-Emissionsfaktors.
+      Die tatsächliche Auswirkung von Naistenlahti 3 auf die Reduzierung fossiler Emissionen hängt von der
+      Beitrag von Torf zur Verbrennung und die Gesamtauswirkung der Zugabe von Holzbrennstoff
+      woanders.</p><p>Die Aktion umfasst auch den Anschluss der Stadt Tampere
+      Liegenschaften je nach Bedarf an Fernkälte. Der Anschluss an Fernkälte reduziert sich
+      den Stromverbrauch des Gebäudes, da mit Wärme keine Kühlung benötigt wird
+      Pumps. Inwieweit die Liegenschaften verbunden werden, ist jedoch nicht bekannt
+      und was die Änderung in ihrem Verbrauch wäre. Daher keine Emissionsminderung
+      wurde für die Aktion noch geschätzt.</p>
     output_nodes:
     - district_heating_emission_factor
     forecast_values: [[2022, -23], [2023, -23]]
@@ -746,6 +856,7 @@ instance:
   - id: other_renewable_district_heating
     name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
     name_en: Increase share of renewables in district heat production
+    name_de: Erhöhung des Anteils erneuerbarer Energien an der Fernwärmeerzeugung
     type: simple.CumulativeAdditiveAction
     quantity: energy
     output_nodes:
@@ -757,6 +868,7 @@ instance:
   - id: private_building_energy_renovation
     name: Korjausrakentaminen yksityisissä kiinteistöissä
     name_en: Energy renovation of privately owned buildings
+    name_de: Energetische Sanierung von Gebäuden in Privatbesitz
     unit: GWh/a
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
@@ -765,6 +877,9 @@ instance:
     description_en: The most important target groups for energy advice are apartment
       buildings that are more than 20 years old and detached houses that are heated
       by oil and electricity.
+    description_de: Die wichtigste Zielgruppe für die Energieberatung sind Wohnungen
+      Gebäude, die älter als 20 Jahre sind, und Einfamilienhäuser, die beheizt werden
+      durch Öl und Strom.
     output_nodes:
     - district_heating_consumption
     - other_electricity_consumption
@@ -780,6 +895,7 @@ instance:
   - id: distributed_renewable_energy
     name: Hajautettu uusiutuva energia
     name_en: Distributed renewable energy production
+    name_de: Dezentrale erneuerbare Energie Produktion
     unit: GWh/a
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
@@ -790,6 +906,10 @@ instance:
       buildings. According to the 2016 municipal review of renewable energy, the unused
       potential on the roofs of buildings is 800-900 GWh (does not take into account
       all restrictions).
+    description_de: Auf den Dächern des wird eine Photovoltaik-Produktion installiert
+      Gebäude. Laut der kommunalen Bilanz erneuerbarer Energien 2016 werden die ungenutzten
+      Potenzial auf den Dächern von Gebäuden beträgt 800-900 GWh (nicht berücksichtigt
+      alle Einschränkungen).
     output_nodes:
     - renewable_electricity_consumption_reduction
     forecast_values: [[2022, 0], [2030, -850]]
@@ -807,6 +927,7 @@ instance:
   - id: oil_heated_private_buildings_to_geothermal
     name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
     name_en: Private oil heated buildings to geothermal
+    name_de: Private ölbeheizte Gebäude auf Erdwärme
     type: simple.CumulativeAdditiveAction
     unit: GWh/a
     quantity: energy
@@ -819,6 +940,11 @@ instance:
       Based on Juho Rinta-Rahko's assessment of the potential of renovation and energy
       consulting in Tampere. Some oil heating will remain in service buildings and
       industrial buildings.
+    description_de: Private Grundstücke wandeln Ölheizungen in Erdwärme um. 95%
+      der benötigten Wärme wird auf COP-3-Niveau produziert, der Rest ist direkter Strom.
+      Basierend auf Juho Rinta-Rahkos Einschätzung des Renovierungs- und Energiepotenzials
+      Beratung in Tampere. Ein Teil der Ölheizung wird in Wirtschaftsgebäuden verbleiben und
+      Industriegebäude.
     output_nodes:
     - oil_heating_energy_use
     - geothermal_heating_electricity_use
@@ -833,6 +959,8 @@ instance:
 
   - id: oil_heated_municipal_buildings_to_heat_pump
     name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
+    name_en: Oil-heated municipal buildings to heat pumps
+    name_de: Ölbeheizte kommunale Gebäude bis hin zu Wärmepumpen
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
     unit: GWh/a
@@ -845,6 +973,11 @@ instance:
       by water-air heat pumps with a COP of about 2.5 when they produce all the heat
       they need. Bio-oil has been thought to be held in reserve, but its share of
       energy consumption is insignificant.
+    description_de: Die Immobilien der Stadt verbrauchen derzeit 367 378 l / y Öl,
+      oder etwa 3 674 MWh oder 3,67 GWh. Mit diesen Aussichten wird Öl ersetzt
+      B. durch Wasser-Luft-Wärmepumpen mit einem COP von etwa 2,5, wenn sie die gesamte Wärme produzieren
+      Sie brauchen. Es wurde angenommen, dass Bio-Öl in Reserve gehalten wird, aber sein Anteil daran
+      Energieverbrauch ist unbedeutend.
     output_nodes:
     - oil_heating_energy_use
     - direct_electric_heating_electricity_use
@@ -857,6 +990,7 @@ instance:
   - id: cleaner_electricity_production
     name: Kansallinen sähköntuotanto puhdistuu
     name_en: Shift to low-carbon in national electricity production
+    name_de: Umstellung auf kohlenstoffarme nationale Stromerzeugung
     decision_level: nation
     quantity: emission_factor
     output_nodes:
@@ -874,10 +1008,12 @@ instance:
       unit: g/kWh
       description: Sähköntuotannon päästökertoimen muutos
       description_en: Change in electricity production emission factor
+      description_de: Änderung des Emissionsfaktors der Stromerzeugung
 
   - id: converting_street_lighting_to_led
     name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
     name_en: Converting street lighting to LED lamps
+    name_de: Umrüstung der Straßenbeleuchtung auf LED-Lampen
     type: simple.LinearCumulativeAdditiveAction
     unit: GWh/a
     quantity: energy
@@ -885,6 +1021,8 @@ instance:
       otetaan käyttöön vuoteen 2025 mennessä.
     description_en: The city’s street lighting will be transformed into LEDs and intelligent
       light control will be deployed by 2025.
+    description_de: Die Straßenbeleuchtung der Stadt wird auf LEDs umgestellt und intelligent
+      Lichtsteuerung wird bis 2025 eingesetzt.
     forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
     output_nodes:
     - other_electricity_consumption
@@ -892,12 +1030,15 @@ instance:
   - id: tram_phase_1
     name: Ratikan rakennusvaihe 1 (2019-2022)
     name_en: Tram construction phase 1 (2019-2022)
+    name_de: Tram Bauphase 1 (2019-2022)
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
     description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
     description_en: The first construction phase of the tramway. Also learn more about
       local train traffic.
+    description_de: Die erste Bauphase der Straßenbahn. Erfahren Sie auch mehr darüber
+      Nahverkehrsverkehr.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -913,6 +1054,7 @@ instance:
   - id: tram_phase_2
     name: Ratikan rakennusvaihe 2 (2023-2025)
     name_en: Tram construction phase 2 (2023-2025)
+    name_de: Tram Bauphase 2 (2023-2025)
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
@@ -920,6 +1062,8 @@ instance:
       jotta tämä olisi mielekäs.
     description_en: The second construction phase of the tramway. The first phase
       of construction needs to be implemented for this action to make sense.
+    description_de: Der zweite Bauabschnitt der Straßenbahn. Die erste Phase
+      des Baus umgesetzt werden muss, damit diese Maßnahme Sinn macht.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -935,6 +1079,7 @@ instance:
   - id: tram_phase_3
     name: Ratikan rakennusvaihe 3 (2028-2030)
     name_en: Tram construction phase 3 (2028-2030)
+    name_de: Tram Bauphase 3 (2028-2030)
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
@@ -942,6 +1087,8 @@ instance:
       on toteutettava, jotta tämä olisi mielekäs.
     description_en: The third construction phase of the tramway. The first and second
       construction phases need to be implemented for this action to make sense.
+    description_de: Der dritte Bauabschnitt der Straßenbahn. Die erste und zweite
+      Bauphasen müssen umgesetzt werden, damit diese Maßnahme Sinn macht.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -957,6 +1104,7 @@ instance:
   - id: renewable_diesel_in_city_machinery
     name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
     name_en: Renewable diesel in city machinery
+    name_de: Erneuerbarer Diesel in Stadtmaschinen
     type: simple.LinearCumulativeAdditiveAction
     unit: g/l
     quantity: emission_factor
@@ -964,6 +1112,8 @@ instance:
       dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
     description_en: The city’s own work machinery will move gradually to use renewable
       diesel so that in 2030 only it will be used.
+    description_de: Die stadteigenen Arbeitsmaschinen werden sukzessive auf erneuerbare Energien umgestellt
+      Diesel, sodass 2030 nur noch dieser verwendet wird.
     output_nodes:
     - city_machinery_emission_factor
       #  - city_machinery_fuel_consumption
@@ -980,6 +1130,7 @@ instance:
   - id: energy_conversion_in_buses
     name: Bussiliikenteen käyttövoimamuutos
     name_en: Energy conversion in buses
+    name_de: Energieumwandlung in Bussen
     type: simple.AdditiveAction
     quantity: emission_factor
     unit: g/km
@@ -996,11 +1147,14 @@ instance:
   pages:
   - id: home
     name: Hiilineutraali Tampere 2030 -päästöskenaario
+    name_en: Climate neutral Tampere 2030 emission scenario
+    name_de: Klimaneutrales Emissionsszenario Tampere 2030
     path: /
     type: emission
     node: net_emissions
     lead_title: Tampereen päästöskenaariot
     lead_title_en: Tampere emission scenarios
+    lead_title_de: Tampere-Emissionsszenarien
     lead_paragraph: Tampereen päästöskenaariot visualisoi Tampereen kasvihuonekaasupäästöjen
       kehityksen. Voit tarkastella, mistä Tampereen kaupungin alueen päästöt syntyvät
       ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
@@ -1015,11 +1169,19 @@ instance:
       Tampere 2030 roadmap and a scenario that you can edit yourself. Further efforts
       are needed to become carbon neutral, and their adequacy will be assessed in
       the future using this tool.
+    lead_paragraph_de: Die Emissionsszenarien von Tampere visualisieren die Entwicklung von Tampere
+       Treibhausgasemissionen. Sie können sich die Emissionen der Stadt Tampere ansehen
+       Gebiet kommen und wie sie sich voraussichtlich bis 2030 verändern werden. Es gibt eine grundlegende
+       Entwicklungsszenario zur Auswahl, ein Szenario nach dem Carbon Neutral
+       Roadmap Tampere 2030 und ein Szenario, das Sie selbst bearbeiten können. Weitere Bemühungen
+       erforderlich sind, um CO2-neutral zu werden, und ihre Angemessenheit wird in bewertet
+       die Zukunft mit diesem Tool.
 
   scenarios:
   - id: baseline
     name: Nykykehitys
     name_en: Baseline
+    name_de: Grundlinie
     params:
     - id: naistenlahti3.enabled
       value: true
@@ -1032,4 +1194,5 @@ instance:
     default: true
     name: Hiilineutraali Tampere 2030 -tiekartta
     name_en: Carbon-neutral Tampere 2030 roadmap
+    name_de: CO2-neutraler Fahrplan für Tampere 2030
     all_actions_enabled: true
