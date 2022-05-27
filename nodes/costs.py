@@ -18,10 +18,10 @@ class CostNode(Ovariable):
         NumberParameter(local_id='investment_numbers'),
     ] + Ovariable.allowed_parameters
 
-    quantity = 'monetary_amount'
+    quantity = 'currency'
 
     def compute(self):
-        costs = self.get_input('monetary_amount')
+        costs = self.get_input('currency')
         investment_cost = self.get_parameter_value('investment_cost') * self.get_parameter('investment_cost').unit
         operation_cost = self.get_parameter_value('operation_cost') * self.get_parameter('operation_cost').unit
         investment_lifetime = self.get_parameter_value('investment_lifetime')

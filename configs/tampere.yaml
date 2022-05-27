@@ -698,6 +698,51 @@ instance:
       multiplier: -1
     unit: GWh/a
 
+  - id: lighting_traditional_luminaires_number
+    name: Vanhaa teknologiaa käyttävien ulkovalaisinten lukumäärä
+    name_en: Amount of traditional public luminaires
+    quantity: number
+    type: simple.AdditiveNode
+    unit: pcs
+    historical_values: [[2020, 28934]]
+    tags: traditional
+
+  - id: lighting_led_luminaires_number
+    name: LED-ulkovalaisinten lukumäärä
+    name_en: Amount of LED public luminaires
+    quantity: number
+    type: simple.AdditiveNode
+    unit: pcs
+    historical_values: [[2020, 13786]]
+    tags: led
+
+  - id: public_lighting_energy_consumption
+    name: Yleisten alueiden valaistuksen sähkönkulutus
+    name_en: Energy consumption of public lighting
+    quantity: energy
+    type: simple.AdditiveNode
+    unit: GWh/a
+    output_nodes:
+      - other_electricity_consumption
+
+  - id: price_of_electricity
+    name: Sähkön hinta
+    name_en: Price of electricity
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 0.09]]
+    params:
+      yearly_change: 1.0
+    tags: price_of_electricity
+
+  - id: net_cost
+    name: Kokonaiskustannukset
+    name_en: Net costs
+    quantity: currency
+    unit: kEUR/a
+    type: simple.AdditiveNode
+
   #
   # ------- ACTIONS --------
   #
@@ -875,19 +920,19 @@ instance:
       description: Sähköntuotannon päästökertoimen muutos
       description_en: Change in electricity production emission factor
 
-  - id: converting_street_lighting_to_led
-    name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
-    name_en: Converting street lighting to LED lamps
-    type: simple.LinearCumulativeAdditiveAction
-    unit: GWh/a
-    quantity: energy
-    description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
-      otetaan käyttöön vuoteen 2025 mennessä.
-    description_en: The city’s street lighting will be transformed into LEDs and intelligent
-      light control will be deployed by 2025.
-    forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
-    output_nodes:
-    - other_electricity_consumption
+  # - id: converting_street_lighting_to_led
+  #   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+  #   name_en: Converting street lighting to LED lamps
+  #   type: simple.LinearCumulativeAdditiveAction
+  #   unit: GWh/a
+  #   quantity: energy
+  #   description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
+  #     otetaan käyttöön vuoteen 2025 mennessä.
+  #   description_en: The city’s street lighting will be transformed into LEDs and intelligent
+  #     light control will be deployed by 2025.
+  #   forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+  #   output_nodes:
+  #   - other_electricity_consumption
 
   - id: tram_phase_1
     name: Ratikan rakennusvaihe 1 (2019-2022)
@@ -992,6 +1037,52 @@ instance:
     output_nodes:
     - bus_emission_factor_streets
 
+  - id: lighting_led_retrofit
+    name: Ulkovalaisimien korvaaminen LED-lampuilla
+    name_en: Retrofitting public lighting with LED luminaires
+    type: energy_saving.LEDRetrofitAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - lighting_traditional_luminaires_number
+      - lighting_led_luminaires_number
+      - price_of_electricity
+    output_nodes:
+      - net_cost
+      - public_lighting_energy_consumption
+
+    params:
+    - id: yearly_retrofit_number_baseline
+      value: 1000
+      unit: pcs/a
+      description: Vuosittain uusittavien valaisimien (nykykehitys)
+      description_en: Number of luminaries retrofitted yearly (baseline)
+    - id: yearly_retrofit_number
+      min_value: 0
+      max_value: 6000
+      step: 100
+      unit: pcs/a
+      description: Vuosittain uusittavien valaisimien lisälukumäärä
+      description_en: Increase in number of luminaries retrofitted yearly
+    - id: yearly_demand_increase
+      value: 400
+      unit: pcs/a
+      description: Vuosittainen valaisinten määrän lisääntyminen
+      description_en: Yearly increase in number of luminaires
+    - id: traditional_luminaire_maintenance_cost
+      value: 25
+    - id: led_luminaire_maintenance_cost
+      value: 1.5
+    - id: traditional_luminaire_power
+      value: 104
+    - id: led_luminaire_power
+      value: 53
+    - id: traditional_luminaire_active_time
+      value: 3546
+    - id: led_luminaire_active_time
+      value: 2305
+    - id: led_luminaire_investment_cost
+      value: 350
 
   pages:
   - id: home
@@ -1027,9 +1118,14 @@ instance:
       value: true
     - id: tram_phase_1.enabled
       value: true
+    - id: lighting_led_retrofit.yearly_retrofit_number
+      value: 0
 
   - id: default
     default: true
     name: Hiilineutraali Tampere 2030 -tiekartta
     name_en: Carbon-neutral Tampere 2030 roadmap
     all_actions_enabled: true
+    params:
+    - id: lighting_led_retrofit.yearly_retrofit_number
+      value: 3500

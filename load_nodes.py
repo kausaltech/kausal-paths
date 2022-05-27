@@ -149,7 +149,16 @@ for node_id in (args.node or []):
     node = context.get_node(node_id)
     node.print_output()
     if isinstance(node, ActionNode):
-        node.print_impact(context.get_node('net_emissions'))
+        downstream_nodes = set(node.get_downstream_nodes())
+        for n in context.nodes.values():
+            if n.output_nodes:
+                # Not a leaf node
+                continue
+            if n not in downstream_nodes:
+                print("%s has no impact on %s" % (node, n))
+                continue
+            print("Impact of %s on %s" % (node, n))
+            node.print_impact(n)
 
 if False:
     loader.context.dataset_repo.pull_datasets()
