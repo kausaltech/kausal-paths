@@ -763,7 +763,7 @@ instance:
       name: Katuvalaistuksen kustannukset
       name_en: Street lighting costs
       type: simple.AdditiveNode
-      quantity: monetary_amount
+      quantity: currency
       unit: kEUR
       historical_values: [[2017, 2298], [2018, 2298], [2019, 2298], [2020, 2298], [2021, 2329]]
       forecast_values: [[2022, 2298], [2023, 2268], [2024, 2237], [2025, 2206], [2026, 2175],

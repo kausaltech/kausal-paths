@@ -6,7 +6,7 @@ import io
 import inspect
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Union, overload
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Union, Set, overload
 
 import numpy as np
 import pandas as pd
@@ -75,6 +75,9 @@ class Node:
     # output quantity (like 'energy' or 'emissions')
     quantity: str
 
+    # optional tags to differentiate between multiple input/output nodes
+    tags: Set[str]
+
     # output units and quantities (for multi-dimensional nodes)
     dimensions: Optional[dict[str, NodeDimension]] = None
 
@@ -136,6 +139,7 @@ class Node:
         self.output_nodes = []
         self.baseline_values = None
         self.parameters = {}
+        self.tags = set()
 
         if not hasattr(self, 'global_parameters'):
             self.global_parameters = []
@@ -168,12 +172,19 @@ class Node:
             return None
         return param.value
 
-    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Any:
+    @overload
+    def get_parameter_value_w_unit(self, id: str, required: Literal[True]) -> pint.Quantity: ...
+
+    @overload
+    def get_parameter_value_w_unit(self, id: str) -> pint.Quantity: ...
+
+    @overload
+    def get_parameter_value_w_unit(self, id: str, required: Literal[False]) -> Optional[pint.Quantity]: ...
+
+    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
         param = self.get_parameter(id, required=required)
         if param is None:
             return None
-        if param.unit is None:
-            return param.value
         return param.value * param.unit
 
     def get_global_parameter_value(self, id: str, required: bool = True) -> Any:
@@ -219,6 +230,17 @@ class Node:
         df = datasets[0]
         assert isinstance(df, pd.DataFrame)
         return df
+
+    def get_input_node(self, tag: Optional[str] = None) -> Node:
+        matching_nodes = []
+        for node in self.input_nodes:
+            if tag is not None:
+                if tag in node.tags:
+                    matching_nodes.append(node)
+        if len(matching_nodes) != 1:
+            tag_str = (' with tag %s' % tag) if tag is not None else ''
+            raise NodeError(self, 'Found %d input nodes %s' % (len(matching_nodes), tag_str))
+        return matching_nodes[0]
 
     def get_last_historical_year(self) -> Optional[int]:
         year = getattr(self, '_last_historical_year', None)
@@ -284,9 +306,10 @@ class Node:
         assert out is not None
         if out.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
-#        if FORECAST_COLUMN in out.columns:  # FIXME I cannot find a reason for this error, as the column IS boolean
-#            if out.dtypes[FORECAST_COLUMN] != bool:
-#                raise NodeError(self, "Forecast column is not a boolean")
+
+        if FORECAST_COLUMN in out.columns:
+            if out.dtypes[FORECAST_COLUMN] != bool:
+                raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
             self.context.cache.set(node_hash, out)
@@ -294,12 +317,23 @@ class Node:
         # If a node has multiple outputs, we can specify only one series
         # to include.
         if target_node is not None:
+            col_name = None
+
             if target_node.id in out.columns:
-                cols = [target_node.id]
+                col_name = target_node.id
+            elif self.dimensions:
+                assert isinstance(self.dimensions, dict)
+                if target_node.quantity in self.dimensions:
+                    col_name = target_node.quantity
+                else:
+                    raise NodeError(self, "Quantity '%s' for node %s not found dimensions" % (target_node.quantity, target_node))
+
+            if col_name:
+                cols = [col_name]
                 if FORECAST_COLUMN in out.columns:
                     cols.append(FORECAST_COLUMN)
                 out = out[cols]
-                out = out.rename(columns={target_node.id: VALUE_COLUMN})
+                out = out.rename(columns={col_name: VALUE_COLUMN})
 
         return out.copy()
 
@@ -309,7 +343,10 @@ class Node:
             df['Baseline'] = self.baseline_values[VALUE_COLUMN]
         self.print_pint_df(df)
 
-    def print_pint_df(self, df: pd.DataFrame):
+    def print_pint_df(self, df: Union[pd.DataFrame, pd.Series]):
+        if isinstance(df, pd.Series):
+            df = pd.DataFrame(df)
+
         pint_cols = [col for col in df.columns if hasattr(df[col], 'pint')]
         if not pint_cols:
             print(df)
@@ -347,6 +384,14 @@ class Node:
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True
+
+    @overload
+    def strip_units(self, s: pd.Series) -> pd.Series: ...
+
+    def strip_units(self, s: pd.Series) -> pd.Series:
+        if not hasattr(s, 'pint'):
+            return s
+        return s.pint.m
 
     def convert_to_unit(self, s: pd.Series, unit: pint.Unit) -> pd.Series:
         if not s.pint.units.is_compatible_with(unit):

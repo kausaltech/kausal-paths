@@ -41,6 +41,11 @@ unit_registry.define('Mkm = gigameters')
 unit_registry.define(pint.unit.UnitDefinition(
     'percent', '%', (), pint.converters.ScaleConverter(0.01)
 ))
+unit_registry.define('EUR = [currency]')
+unit_registry.define('USD = nan EUR')
+unit_registry.define('pcs = [number] = pieces')
+
+
 unit_registry.default_format = '~P'
 pint.set_application_registry(unit_registry)
 pint_pandas.PintType.ureg = unit_registry  # type: ignore
