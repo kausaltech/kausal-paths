@@ -194,6 +194,7 @@ LANGUAGES = (
     ('fi', _('Finnish')),
     ('en', _('English')),
     ('sv', _('Swedish')),
+    ('de', _('German')),
 )
 MODELTRANS_AVAILABLE_LANGUAGES = [x[0] for x in LANGUAGES]
 LANGUAGE_CODE = 'fi'
