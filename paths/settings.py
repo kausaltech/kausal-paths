@@ -103,6 +103,7 @@ INSTALLED_APPS = [
 
     'django_extensions',
 
+    'modeltrans',
     'pages',
     'nodes',
 ]

@@ -39,13 +39,13 @@ class InstanceType(graphene.ObjectType):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
-        return obj.lead_title
+        return obj.lead_title_i18n
 
     def resolve_lead_paragraph(root, info):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
-        return obj.lead_paragraph
+        return obj.lead_paragraph_i18n
 
     def resolve_hostname(root, info, hostname):
         return InstanceConfig.objects.get(identifier=root.id)\
@@ -194,17 +194,17 @@ class NodeType(graphene.ObjectType):
 
     def resolve_short_description(root, info: GQLInstanceInfo) -> Optional[str]:
         obj: NodeConfig = NodeConfig.objects.filter(identifier=root.id).first()
-        if obj is not None and obj.short_description:
-            return expand_db_html(obj.short_description)
+        if obj is not None and obj.short_description_i18n:
+            return expand_db_html(obj.short_description_i18n)
         if root.description:
             return '<p>%s</p>' % root.description
         return None
 
     def resolve_description(root, info: GQLInstanceInfo) -> Optional[str]:
         obj = NodeConfig.objects.filter(identifier=root.id).first()
-        if obj is None or not obj.description:
+        if obj is None or not obj.description_i18n:
             return None
-        return expand_db_html(obj.description)
+        return expand_db_html(obj.description_i18n)
 
 
 class ScenarioType(graphene.ObjectType):

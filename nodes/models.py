@@ -45,7 +45,7 @@ class InstanceConfig(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
-    i18n = TranslationField(fields=('name',))
+    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
     objects = models.Manager.from_queryset(InstanceQuerySet)()
 
@@ -205,7 +205,7 @@ class NodeConfig(ClusterableModel):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
-    i18n = TranslationField(fields=('name',))
+    i18n = TranslationField(fields=('name', 'short_description', 'description'))
 
     class Meta:
         verbose_name = _('Node')
