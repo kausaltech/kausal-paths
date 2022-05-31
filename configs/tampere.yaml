@@ -820,8 +820,8 @@ instance:
       pumps. However, it is not known to what extent the properties will be connected
       and what the change in their consumption would be. Therefore, no emission reduction
       has yet been estimated for the action.</p>
-    description_de: Das Kraftwerk Naistenlahti 3 kann auch Biobrennstoff verwenden, und
-      Die Wahl des Kraftstoffs ist ein Schlüsselfaktor für die Reduzierung von Emissionen.
+    description_de: Das Kraftwerk Naistenlahti 3 kann auch Biobrennstoff verwenden und
+      die Wahl des Kraftstoffs ist ein Schlüsselfaktor für die Reduzierung von Emissionen.
     long_description_de: <h2>Zentrale erneuerbare Energie</h2><p>Die Maßnahme umfasst Investitionen
       von Tampereen Sähkölaitos (dem lokalen Energieunternehmen), die den Emissionsfaktor der
       Fernwärme reduzieren werden. Da der Emissionsfaktor für die Stromerzeugung national festgelegt
@@ -902,7 +902,7 @@ instance:
       potential on the roofs of buildings is 800-900 GWh (does not take into account
       all restrictions).
     description_de: Auf den Dächern der Gebäude werden Photovoltaikanlagen installiert. Das
-      ungenutzte Potenzial auf den Dächern von Gebäuden liegt laut der 2016 durchgeführten
+      ungenutzte Potenzial auf den Dächern der Gebäude liegt laut der 2016 durchgeführten
       kommunalen Studie zu erneuerbaren Energien bei 800-900 GWh (ohne Berücksichtigung
       aller Restriktionen).
     output_nodes:
@@ -918,6 +918,7 @@ instance:
       unit: GWh/a
       description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
       description_en: PV energy production in 2030
+      description_de: Photovoltaikstromerzeugung 2030
 
   - id: oil_heated_private_buildings_to_geothermal
     name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
@@ -1173,7 +1174,7 @@ instance:
   - id: baseline
     name: Nykykehitys
     name_en: Baseline
-    name_de: Ausgangslage
+    name_de: Basisszenario
     params:
     - id: naistenlahti3.enabled
       value: true
