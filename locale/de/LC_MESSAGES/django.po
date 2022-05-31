@@ -1,0 +1,135 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-05-31 20:32+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: nodes/instance.py
+msgid "Custom"
+msgstr "Angepasst"
+
+#: nodes/models.py
+msgid "name"
+msgstr "Name"
+
+#: nodes/models.py pages/models.py
+msgid "Lead title"
+msgstr "Leittitel"
+
+#: nodes/models.py pages/models.py
+msgid "Lead paragraph"
+msgstr "Leitabsatz"
+
+#: nodes/models.py
+msgid "Site URL"
+msgstr "Seiten-URL"
+
+#: nodes/models.py
+msgid "Instance"
+msgstr "Instanz"
+
+#: nodes/models.py
+msgid "Instances"
+msgstr "Instanzen"
+
+#: nodes/models.py
+msgid "Actions"
+msgstr "Maßnahmen"
+
+#: nodes/models.py
+msgid "Instance hostname"
+msgstr "Instanz-Hostname"
+
+#: nodes/models.py
+msgid "Instance hostnames"
+msgstr "Instanz-Hostnamen"
+
+#: nodes/models.py
+msgid "Order"
+msgstr "Sortierung"
+
+#: nodes/models.py
+msgid "Short description"
+msgstr "Kurze Beschreibung"
+
+#: nodes/models.py
+msgid "Description"
+msgstr "Beschreibung"
+
+#: nodes/models.py
+msgid "Node"
+msgstr "Knoten"
+
+#: nodes/models.py
+msgid "Nodes"
+msgstr "Knoten"
+
+#: pages/models.py
+msgid "show in footer"
+msgstr "in Fußzeile anzeigen"
+
+#: pages/models.py
+msgid "Should the page be shown in the footer?"
+msgstr "Soll die Seite in der Fußzeile angezeigt werden?"
+
+#: pages/models.py
+msgid "Common page configuration"
+msgstr "Allgemeine Seitenkonfiguration"
+
+#: pages/models.py
+msgid "Outcome page"
+msgstr "Ergebnisseite"
+
+#: pages/models.py
+msgid "Outcome pages"
+msgstr "Ergebnisseiten"
+
+#: pages/models.py
+msgid "Action list page"
+msgstr "Maßnahmenlistenseite"
+
+#: pages/models.py
+msgid "Action list pages"
+msgstr "Maßnahmenlistenseiten"
+
+#: pages/wagtail_hooks.py
+msgid "Choose instance"
+msgstr "Wähle Instanz"
+
+#: params/global.py
+msgid "Municipality name"
+msgstr "Gemeindename"
+
+#: paths/settings.py
+msgid "Finnish"
+msgstr "Finnisch"
+
+#: paths/settings.py
+msgid "English"
+msgstr "Englisch"
+
+#: paths/settings.py
+msgid "Swedish"
+msgstr "Schwedisch"
+
+#: paths/settings.py
+msgid "German"
+msgstr "Deutsch"
+
+#: paths/utils.py
+msgid "identifier"
+msgstr "Kennung"
