@@ -100,22 +100,21 @@ class InstanceConfig(models.Model):
     def root_page(self) -> Page:
         return self.site.root_page
 
-    def sync_nodes(self):
+    def sync_nodes(self, update_existing=False):
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
-        new_nodes = []
         for node in instance.context.nodes.values():
             node_config = node_configs.get(node.id)
             if node_config is None:
-                new_nodes.append(node)
+                node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
+                print("Creating node config for node %s" % node.id)
+                node_config.save()
             else:
                 found_nodes.add(node.id)
-
-        for node in new_nodes:
-            node_obj = NodeConfig(instance=self, identifier=node.id)
-            print("Creating node config for node %s" % node.id)
-            node_obj.save()
+                if update_existing:
+                    node_config.update_from_node(node)
+                    node_config.save()
 
         for node in node_configs.values():
             if node.identifier not in found_nodes:
@@ -225,6 +224,12 @@ class NodeConfig(ClusterableModel):
             node.replace_input_data(self.input_data)
 
         # FIXME: Override params
+
+    def update_from_node(self, node: Node, overwrite=False):
+        """Sets attributes of this instance from revelant fields of the given node but does not save."""
+        for k, v in node.as_node_config_attributes().items():
+            if overwrite or getattr(self, k, None) is None:
+                setattr(self, k, v)
 
     def can_edit_data(self):
         node = self.get_node()

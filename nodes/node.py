@@ -495,3 +495,26 @@ class Node:
         )
 
         self._last_historical_year = None
+
+    def as_node_config_attributes(self):
+        """Return a dict that can be used to set corresponding fields of NodeConfig."""
+        attributes = {
+            'identifier': self.id,
+        }
+
+        if isinstance(self.name, TranslatedString):
+            attributes.update({f'name_{lang}': v for lang, v in self.name.i18n.items()})
+        elif self.name:
+            attributes.update({'name': self.name})
+
+        # Node's description is called `short_description` in NodeConfig and there is no equivalent for
+        # NodeConfig's `long_description` in Node
+        if isinstance(self.description, TranslatedString):
+            attributes.update({f'short_description_{lang}': v for lang, v in self.description.i18n.items()})
+        elif self.description:
+            attributes.update({'short_description': self.description})
+
+        if self.color:
+            attributes['color'] = self.color
+
+        return attributes
