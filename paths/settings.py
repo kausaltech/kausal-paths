@@ -87,6 +87,8 @@ INSTALLED_APPS = [
     'wagtail.core',
     'wagtail.contrib.modeladmin',
     'wagtail.contrib.styleguide',
+    'wagtail_localize',
+    'wagtail_localize.locales',  # replaces `wagtail.locales`
     'wagtailfontawesome',
 
     'taggit',
@@ -198,9 +200,11 @@ LANGUAGES = (
     ('de', _('German')),
 )
 MODELTRANS_AVAILABLE_LANGUAGES = [x[0] for x in LANGUAGES]
+WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
 LANGUAGE_CODE = 'fi'
 TIME_ZONE = 'Europe/Helsinki'
 USE_I18N = True
+WAGTAIL_I18N_ENABLED = True
 USE_L10N = True
 USE_TZ = True
 LOCALE_PATHS = [

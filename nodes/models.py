@@ -7,11 +7,11 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language, gettext_lazy as _
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from wagtail.core.fields import RichTextField
-from wagtail.core.models import Page
+from wagtail.core.models import Locale, Page
 from wagtail.core.models.sites import Site
 
 from nodes.node import Node
@@ -99,6 +99,17 @@ class InstanceConfig(models.Model):
     @property
     def root_page(self) -> Page:
         return self.site.root_page
+
+    def get_translated_root_page(self):
+        """Return root page in activated language, fall back to default language."""
+        root = self.root_page
+        language = get_language()
+        try:
+            locale = Locale.objects.get(language_code=language)
+            root = root.get_translation(locale)
+        except (Locale.DoesNotExist, Page.DoesNotExist):
+            pass
+        return root
 
     def sync_nodes(self, update_existing=False):
         instance = self.get_instance()

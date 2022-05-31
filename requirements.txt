@@ -104,6 +104,7 @@ django==3.2.13
     #   graphene-django
     #   wagtail
     #   wagtail-grapple
+    #   wagtail-localize
     #   wagtailfontawesome
 django-cors-headers==3.11.0
     # via -r requirements.in
@@ -278,6 +279,8 @@ pint-pandas==0.2
     #   dvc-pandas
 pluggy==1.0.0
     # via pytest
+polib==1.1.1
+    # via wagtail-localize
 promise==2.3
     # via
     #   graphene-django
@@ -442,6 +445,7 @@ typing-extensions==4.2.0
     #   asyncssh
     #   dvc
     #   pytest-factoryboy
+    #   wagtail-localize
 unidecode==1.3.4
     # via graphene-django
 urllib3==1.26.9
@@ -457,11 +461,14 @@ wagtail==2.15.5
     #   -r requirements.in
     #   wagtail-grapple
     #   wagtail-headless-preview
+    #   wagtail-localize
     #   wagtailfontawesome
 wagtail-grapple==0.14.1
     # via -r requirements.in
 wagtail-headless-preview==0.2.1
     # via wagtail-grapple
+wagtail-localize==1.2
+    # via -r requirements.in
 wagtailfontawesome==1.2.1
     # via -r requirements.in
 wcwidth==0.2.5
