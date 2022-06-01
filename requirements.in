@@ -25,6 +25,7 @@ wagtailfontawesome
 django-modeltrans
 rich
 wagtail-grapple
+wagtail-localize
 Babel
 ruamel.yaml
 pygments-graphql

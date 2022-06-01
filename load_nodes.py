@@ -51,6 +51,8 @@ parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
+parser.add_argument('--update-instance', action='store_true', help='update an existing InstanceConfig instance')
+parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
@@ -138,7 +140,10 @@ if args.check:
         print("Creating instance %s" % instance.id)
         instance_obj = InstanceConfig.create_for_instance(instance)
 
-    instance_obj.sync_nodes()
+    if args.update_instance:
+        instance_obj.update_from_instance(instance)
+        instance_obj.save()
+    instance_obj.sync_nodes(args.update_nodes)
     instance_obj.create_default_content()
 
 for param_arg in (args.param or []):
