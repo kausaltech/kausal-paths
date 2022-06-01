@@ -155,17 +155,22 @@ class InstanceConfig(models.Model):
         from pages.models import ActionListPage, OutcomePage
 
         root_pages = Page.get_first_root_node().get_children()
-        try:
-            root_page = root_pages.get(slug=self.identifier)
-        except Page.DoesNotExist:
-            outcome_nodes = self.get_outcome_nodes()
-            locale, locale_created = Locale.objects.get_or_create(language_code=self.default_language)
-            root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
-                locale=locale, title=self.get_name(), slug=self.identifier, url_path='', outcome_node=outcome_nodes[0]
-            ))
-        action_list_pages = root_page.get_children().type(ActionListPage)
-        if not action_list_pages.exists():
-            with override(self.default_language):
+        # Create default pages only in default language for now
+        with override(self.default_language):
+            try:
+                root_page = root_pages.get(slug=self.identifier)
+            except Page.DoesNotExist:
+                outcome_nodes = self.get_outcome_nodes()
+                locale, locale_created = Locale.objects.get_or_create(language_code=self.default_language)
+                root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
+                    locale=locale,
+                    title=self.get_name(),
+                    slug=self.identifier,
+                    url_path='',
+                    outcome_node=outcome_nodes[0],
+                ))
+            action_list_pages = root_page.get_children().type(ActionListPage)
+            if not action_list_pages.exists():
                 root_page.add_child(instance=ActionListPage(
                     title=_("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
                 ))
