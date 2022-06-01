@@ -156,6 +156,7 @@ class InstanceConfig(models.Model):
 
         root_pages = Page.get_first_root_node().get_children()
         # Create default pages only in default language for now
+        # TODO: Also create translations to other supported languages
         with override(self.default_language):
             try:
                 root_page = root_pages.get(slug=self.identifier)

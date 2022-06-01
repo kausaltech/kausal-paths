@@ -139,6 +139,7 @@ if args.check:
     if instance_obj is None:
         print("Creating instance %s" % instance.id)
         instance_obj = InstanceConfig.create_for_instance(instance)
+        # TODO: Create InstanceHostname somewhere?
 
     if args.update_instance:
         instance_obj.update_from_instance(instance)
