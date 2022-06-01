@@ -193,7 +193,9 @@ class NodeType(graphene.ObjectType):
         return [param for param in root.parameters.values() if param.is_customizable]
 
     def resolve_short_description(root, info: GQLInstanceInfo) -> Optional[str]:
-        obj: NodeConfig = NodeConfig.objects.filter(identifier=root.id).first()
+        obj: NodeConfig = (NodeConfig.objects
+                           .filter(instance__identifier=info.context.instance.id, identifier=root.id)
+                           .first())
         if obj is not None and obj.short_description_i18n:
             return expand_db_html(obj.short_description_i18n)
         if root.description:
@@ -201,7 +203,9 @@ class NodeType(graphene.ObjectType):
         return None
 
     def resolve_description(root, info: GQLInstanceInfo) -> Optional[str]:
-        obj = NodeConfig.objects.filter(identifier=root.id).first()
+        obj = (NodeConfig.objects
+               .filter(instance__identifier=info.context.instance.id, identifier=root.id)
+               .first())
         if obj is None or not obj.description_i18n:
             return None
         return expand_db_html(obj.description_i18n)
