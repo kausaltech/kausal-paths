@@ -441,7 +441,7 @@ instance:
   - id: electricity_consumption_emissions
     name: Sähkön kulutuksen päästöt
     name_en: Electricity consumption emissions
-    name_de: Emissionen durch Stromverbrauchs
+    name_de: Emissionen durch Stromverbrauch
     type: simple.SectorEmissions
     unit: kt/a
     color: '#F4D240'
@@ -451,7 +451,7 @@ instance:
       Electricity consumption and the emission factor for electricity. This is electricity
       consumption other than heating.
     description_de: Die Berechnung der Emissionen durch Strom basiert auf zwei Komponenten.
-      Stromverbrauch und Emissionsfaktor für Strom. Hier wird Stromverbrauch außer für Heizung
+      Stromverbrauch und Emissionsfaktor für Strom. Hier wird der Stromverbrauch ausgenommen für Heizung
       betrachtet.
     output_nodes:
     - net_emissions
