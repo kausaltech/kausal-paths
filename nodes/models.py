@@ -57,9 +57,9 @@ class InstanceConfig(models.Model):
         verbose_name_plural = _('Instances')
 
     @classmethod
-    def create_for_instance(cls, instance: Instance) -> InstanceConfig:
+    def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
-        return cls.objects.create(identifier=instance.id, site_url=instance.site_url)
+        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
 
     def update_instance_from_configs(self, instance: Instance):
         for node_config in self.nodes.all():
@@ -67,6 +67,15 @@ class InstanceConfig(models.Model):
             if node is None:
                 continue
             node_config.update_node_from_config(node)
+
+    def update_from_instance(self, instance: Instance, overwrite=False):
+        """Update lead_title and lead_paragraph from instance but do not call save()."""
+        for field_name in ('lead_title', 'lead_paragraph'):
+            if getattr(instance, field_name) is not None:
+                for lang, v in getattr(instance, field_name).i18n.items():
+                    translated_field_name = f'{field_name}_{lang}'
+                    if overwrite or not getattr(self, translated_field_name):
+                        setattr(self, translated_field_name, v)
 
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
