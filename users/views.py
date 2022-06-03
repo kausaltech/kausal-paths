@@ -26,6 +26,7 @@ def change_admin_instance(request, instance_id):
     except StopIteration:
         return HttpResponseBadRequest("Invalid instance ID")
     user.save(update_fields=['selected_instance'])
+    request.session['admin_instance'] = instance_id
 
     redirect_to = request.POST.get(
         REDIRECT_FIELD_NAME,
