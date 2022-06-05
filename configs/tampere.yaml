@@ -812,16 +812,47 @@ instance:
     quantity: unit_price
     unit: EUR/kWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 0.09]]
+    historical_values: [[2020, 0.133]]
     params:
       yearly_change: 1.0
     tags: price_of_electricity
+
+  - id: price_of_heat
+    name: Lämmityksen hinta
+    name_en: Price of heat
+    name_se: Värmepris
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 0.094]]
+    params:
+      yearly_change: 1.0
+    tags: price_of_heat
+
+  - id: floor_area
+    name: Kerrostalojen rakennusala 
+    name_en: Floor area of apartment buildings
+    name_se: Antal flerbostadshus
+    quantity: number
+    unit: m**2
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 208000000]]
+    params:
+      yearly_change: 1.0
+    tags: floor_area
 
   - id: net_cost
     name: Kokonaiskustannukset
     name_en: Net costs
     quantity: currency
     unit: kEUR/a
+    type: simple.AdditiveNode
+
+  - id: cost_efficiency
+    name: Kustannustehokkuus
+    name_en: Cost_efficiency
+    quantity: currency
+    unit: EUR/kWh
     type: simple.AdditiveNode
 
   #
@@ -1227,6 +1258,56 @@ instance:
       value: 2305
     - id: led_luminaire_investment_cost
       value: 350
+
+  - id: energy_saving_lamps
+    name: Energiansäästölamput
+    name_en: Energy-saving lamps
+    name_se: Lågenergilampor
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+#      - net_cost
+#      - public_lighting_energy_consumption
+
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+    - id: renovation_rate
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+#      unit: '%'
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
 
   pages:
   - id: home
