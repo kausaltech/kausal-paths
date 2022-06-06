@@ -11,7 +11,7 @@ from params import NumberParameter
 
 from .action import ActionNode
 
-from nodes.costs import DISCOUNT_RATE, HEALTH_IMPACTS_PER_KWH, AVOIDED_ELECTRICITY_CAPACITY_PRICE, HEAT_CO2_EF, ELECTRICITY_CO2_EF, COST_CO2, TIMESPAN
+from nodes.costs import DISCOUNT_RATE, HEALTH_IMPACTS_PER_KWH, AVOIDED_ELECTRICITY_CAPACITY_PRICE, HEAT_CO2_EF, ELECTRICITY_CO2_EF, COST_CO2
 
 
 @njit(cache=True)
@@ -249,11 +249,11 @@ class BuildingEnergySavingAction(ActionNode):
             out = pd.Series([x.m] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
             return(out)
 
-        def net_present_investment_factor(lifetime, timeline, discount):
+        def net_present_investment_factor(lifetime, timespan, discount):
             unit = lifetime.units
             lifetime = lifetime.m  #   .round(decimals=0)
             factor = 0
-            for i in range(timeline):
+            for i in range(timespan):
                 if (i % lifetime) == 0:
                     factor = factor + (1 - discount) ** i
             return factor / unit
@@ -268,7 +268,7 @@ class BuildingEnergySavingAction(ActionNode):
         df = df.rename(columns={VALUE_COLUMN: 'FloorArea'})
 
         last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
-        timeline = target_year - last_hist_year
+        timespan = target_year - last_hist_year
 
         renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
         df['RenoPot'] = serialise(df, renovation_potential)
@@ -286,7 +286,7 @@ class BuildingEnergySavingAction(ActionNode):
 
         # Calculate energy consumption, energy cost and maintenance cost
         lifetime = self.get_parameter_value_w_unit('investment_lifetime')
-        investment_factor = net_present_investment_factor(lifetime, timeline, DISCOUNT_RATE)
+        investment_factor = net_present_investment_factor(lifetime, timespan, DISCOUNT_RATE)
         investment_cost = self.get_parameter_value_w_unit('investment_cost')
         df['Invest'] = serialise(df, investment_cost) * investment_factor
         maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
@@ -294,7 +294,7 @@ class BuildingEnergySavingAction(ActionNode):
         el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
 
         df['EnSaving'] = he_saving + el_saving
-        net_present_value = (1 - (1 / (1 + DISCOUNT_RATE))**TIMESPAN) / (1 - (1 / (1 + DISCOUNT_RATE)))
+        net_present_value = (1 - (1 / (1 + DISCOUNT_RATE)) ** timespan) / (1 - (1 / (1 + DISCOUNT_RATE)))
         df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * net_present_value
         df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])
         df['ElAvoided'] = el_saving * AVOIDED_ELECTRICITY_CAPACITY_PRICE
@@ -313,7 +313,8 @@ class BuildingEnergySavingAction(ActionNode):
         df = df[[UNIT_PRICE_QUANTITY, ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN]]
         return df
 
-        # Palauta Details
+        # Muuta nodejen quantity-pohjainen haku tagipohjaiseksi
+        # Tarkista tuleeko NPV-kerroin kahdesti
         # Laske diskontto vasta aikasarjasta
         # Tee kunnon aikasarja korjausten nopeudesta
         # Lisää toimiva käyttökustannus
