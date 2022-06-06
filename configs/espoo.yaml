@@ -33,6 +33,22 @@ nodes:
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
 
+pages:
+  - id: home
+    name: Hiilineutraali Espoo -päästöskenaario
+    path: /
+    type: emission
+    node: net_emissions
+    lead_title: Espoon päästöskenaariot
+    lead_title_en: Espoo emission scenarios
+    lead_paragraph: Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
+      kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät
+      ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
+      peruskehitys-skenaario, Hiilineutraali Espoo -tiekartan mukainen skenaario
+      ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
+      vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
+      avulla.
+
 scenarios:
 - id: baseline
   name: Nykykehitys

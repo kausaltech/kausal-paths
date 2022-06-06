@@ -1,5 +1,5 @@
 instance:
-  id: tampere
+  id: greenlogic
   default_language: fi
   supported_languages: [en, se]
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
@@ -8,8 +8,8 @@ instance:
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
-  owner: Tampereen kaupunki
-  owner_en: City of Tampere
+  owner: Grönalundin kaupunki
+  owner_en: City of Gröna Lund
   target_year: 2030
   reference_year: 1990
   minimum_historical_year: 2010
