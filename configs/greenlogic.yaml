@@ -1,7 +1,7 @@
 instance:
   id: tampere
   default_language: fi
-  supported_languages: [en]
+  supported_languages: [en, se]
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
@@ -731,16 +731,62 @@ instance:
     quantity: unit_price
     unit: EUR/kWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 0.09]]
+    historical_values: [[2020, 0.133]]
     params:
       yearly_change: 1.0
     tags: price_of_electricity
+
+  - id: price_of_heat
+    name: Lämmityksen hinta
+    name_en: Price of heat
+    name_se: Värmepris
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 0.094]]
+    params:
+      yearly_change: 1.0
+    tags: price_of_heat
+
+  - id: floor_area
+    name: Kerrostalojen rakennusala 
+    name_en: Floor area of apartment buildings
+    name_se: Antal flerbostadshus
+    quantity: number
+    unit: m**2
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 208000000.0]]
+    params:
+      yearly_change: 0.0
+    tags: floor_area
 
   - id: net_cost
     name: Kokonaiskustannukset
     name_en: Net costs
     quantity: currency
     unit: kEUR/a
+    type: simple.AdditiveNode
+
+  - id: cost_efficiency
+    name: Kustannustehokkuus
+    name_en: Cost_efficiency
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.AdditiveNode
+
+  - id: energy_saving
+    name: Energian säästö
+    name_en: Energy saving
+    quantity: energy
+    unit: kWh/a
+    type: simple.AdditiveNode
+
+  - id: social_benefit
+    name: Yhteiskunnallinen hyöty
+    name_en: Social benefit
+    name_se: Social nytta
+    quantity: currency
+    unit: MEUR/a
     type: simple.AdditiveNode
 
   #
@@ -1083,6 +1129,765 @@ instance:
       value: 2305
     - id: led_luminaire_investment_cost
       value: 350
+
+# Grön logik: Flerbostadshus 24: next 16 actions 
+# Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
+  - id: energy_saving_lamps
+    name: Energiansäästölamput
+    name_en: Energy-saving lamps
+    name_se: Lågenergilampor
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+    - id: renovation_rate
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+#      unit: '%'
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: pressure_controlled_fans
+    name: Painesäädetyt tuulettimet
+    name_en: Pressure-controlled fans
+    name_se: Trykstyrda fläktar
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+    - id: renovation_rate
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+#      unit: '%'
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 5.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 4
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: ventilation_system_adjustment
+    name: Ilmanvaihdon säätö
+    name_en: Ventilation system adjustment
+    name_se: Injustering ventilationssystem
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: reduced_flow_shower_heads
+    name: Vesipihit suihkupäät
+    name_en: Reduced-flow shower-heads
+    name_se: Snålspolande armaturer
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1.8
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: smart_lighting
+    name: Älykäs valaistus
+    name_en: Smart lighting
+    name_se: Närvarostyrd LED
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 2.3
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: thermostat_replacement
+    name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
+    name_en: Thermostat replacement and heating system adjustment
+    name_se: Byte termostater och injustering värmesystem
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 7.3
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 13
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: wind_insulation
+    name: Tuulieristys 300 mm
+    name_en: Wind insulation, 300 mm
+    name_se: Vindisolering, 300 mm
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 4.2
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 7
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: window_door_sealing
+    name: Ikkunoiden ja ovin eristys
+    name_en: Painting and sealing of windows and doors
+    name_se: Målning och tätning av fönster och dörrar
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 4.8
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 2
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: door_replacement
+    name: Uudet ulko- ja kellarin ovet
+    name_en: New entrance and basement doors
+    name_se: Nya entré- och källardörrar
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 4.8
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: wastewater_heat_capture
+    name: Jäteveden lämmön talteenotto
+    name_en: Wastewater heat capture
+    name_se: Värmeväxlare spillvatten
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 5.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: imd
+    name: IMD kuuma vesi
+    name_en: IMD hot water
+    name_se: IMD varmvatten
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 5.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: f_heat_pump
+    name: F-lämpöpumppu COP 3.0
+    name_en: F heat pump COP 3.0
+    name_se: F värmepump COP 3,0
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 50
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 29.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 48
+    - id: electricity_saving
+      value: -16
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: ftx
+    name: FTX 85 %
+    name_en: FTX 85 %
+    name_se: FTX 85 %
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 50
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 56.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 34
+    - id: electricity_saving
+      value: -4
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: additional_window_insulation
+    name: Ikkunoiden lisäeristys
+    name_en: Additional window insulation
+    name_se: Tilläggsisolering fönster
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 32.2
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 15
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: additional_facade_insulation
+    name: Julkisivun lisäeristys
+    name_en: Additional facade insulation
+    name_se: Fasadisolering, 100 mm
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 52.0
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 12
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: window_replacement
+    name: Ikkunoiden vaihto (U = 1,0)
+    name_en: Window replacement (U = 1.0)
+    name_se: Fönsterbyte (U = 1,0)
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 27.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
 
   pages:
   - id: home
