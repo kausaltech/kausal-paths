@@ -1,17 +1,15 @@
 instance:
   id: tampere
   default_language: fi
-  supported_languages: [en]
+  supported_languages: [en, se]
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
   name: Hiilineutraali Tampere 2030
   name_en: Carbon-neutral Tampere 2030
-  name_de: Klimaneutrales Tampere 2030
   owner: Tampereen kaupunki
   owner_en: City of Tampere
-  owner_de: Stadt Tampere
   target_year: 2030
   reference_year: 1990
   minimum_historical_year: 2010
@@ -26,7 +24,6 @@ instance:
   - id: net_emissions
     name: Kokonaispäästöt (scope 2)
     name_en: Net emissions (scope 2)
-    name_de: Nettoemissionen (Scope 2)
     target_year_goal: 260
 
     #
@@ -35,16 +32,12 @@ instance:
   - id: transportation_emissions
     name: Liikenteen päästöt
     name_en: Transportation emissions
-    name_de: Verkehrsemissionen
     description: Liikennepäästölaskenta perustuu kolmeen perustekijään. Liikennesuoritteeseen
       ajoneuvotyypeittäin, liikenteen käyttövoimien päästökertoimiin eri ajoneuvoille
       ja käyttövoimajakaumiin ajoneuvotyypeittäin.
     description_en: The traffic emission calculation is based on three basic factors.
       Mileage by vehicle type, emission factors for vehicle types with different propulsion,
       and propulsion distributions by vehicle type.
-    description_de: Die Berechnung der Verkehrsemissionen basiert auf drei grundlegenden Faktoren.
-      Fahrleistung nach Fahrzeugtyp, Emissionsfaktoren für Fahrzeugtypen je nach Antrieb,
-      und Antriebsverteilungen nach Fahrzeugtyp.
     part_of: net_emissions
     color: '#668EC9'
     target_year_goal: 115
@@ -52,19 +45,16 @@ instance:
   - id: van_emissions
     name: Pakettiautojen päästöt
     name_en: Van emissions
-    name_de: Lieferwagen-Emissionen
     column: Vans
     part_of: transportation_emissions
   - id: truck_emissions
     name: Kuorma-autot
     name_en: Trucks and lorries
-    name_de: Lastwagen
     column: Trucks and lorries
     part_of: transportation_emissions
   - id: motorbike_emissions
     name: Moottoripyörät yms.
     name_en: Motorbikes etc.
-    name_de: Motorräder etc.
     column: Motorbikes
     part_of: transportation_emissions
 
@@ -74,36 +64,29 @@ instance:
   - id: building_heating_emissions
     name: Rakennusten lämmityksen päästöt
     name_en: Building heating emissions
-    name_de: Gebäudeheizungsemissionen
     part_of: net_emissions
     color: '#AD3963'
 
   - id: separate_heating_emissions
     name: Erillislämmityksen päästöt
     name_en: Separate heating emissions
-    name_de: Getrennte Heizemissionen
     part_of: building_heating_emissions
   - id: gas_heating_emissions
     part_of: separate_heating_emissions
     name: Kaasulämmityksen päästöt
     name_en: Gas heating emissions
-    name_de: Gasheizungsemissionen
     description: Kaasulämmityksen päästöt saadaan kertomalla maakaasun kulutus päästökertoimella.
     description_en: Emissions from gas heating are calculated by multiplying the consumption
       of natural gas by the emission factor.
-    description_de: Emissionen aus Gasheizungen werden durch Multiplikation des Gasverbrauchs mit dem Emissionsfaktor berechnet.
     column: Gas heating
 
   - id: electric_heating_emissions
     name: Sähkölämmityksen päästöt
     name_en: Electric heating emissions
-    name_de: Emissionen aus Elektrischer Heizung
     description: Sähkölämmitys sisältää arviot sekä suorasähkölämmityksen että maalämmön
       päästöistä ja laskee ne yhteen.
     description_en: Electric heating emissions include estimates of both direct electric
       heating and geothermal emissions.
-    description_de: Emissionen aus elektrischer Heizung beinhalten Schätzungen sowohl von direkter elektrischer
-      Heizung und geothermischen Emissionen.
     part_of: building_heating_emissions
 
       #
@@ -113,13 +96,10 @@ instance:
   - id: industry_and_machinery_emissions
     name: Teollisuuden ja työkoneiden päästöt
     name_en: Industry and machinery emissions
-    name_de: Industrie- und Maschinenemissionen
     description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla
       lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
     description_en: The emission forecast for industry and machinery has been made
       by linearly extrapolating the emission development during 2010-2018.
-    description_de: Die Emissionsprognose für Industrie und Maschinen wurde durch
-      lineare Extrapolation der Emissionsentwicklung im Zeitraum 2010-2018.
     part_of: net_emissions
     #  column: Industry without city machinery
     color: '#E8B455'
@@ -127,13 +107,10 @@ instance:
   - id: industry_emissions
     name: Teollisuuden ja yksityisten työkoneiden päästöt
     name_en: Industry and private machinery emissions
-    name_de: Industrielle und private Maschinenemissionen
     description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa
       Teollisuuden ja työkoneiden päästöt.
     description_en: The emission forecast for industry and machinery is described
       in more detail in the node Industry and machinery emissions.
-    description_de: Die Emissionsprognose für Industrie und Maschinen wird im Knoten
-      Industrie- und Maschinenemissionen näher beschrieben.
     part_of: industry_and_machinery_emissions
     column: Industry without city machinery
     color: '#E8B455'
@@ -141,60 +118,49 @@ instance:
   - id: waste_treatment_emissions
     name: Jätehuollon päästöt
     name_en: Waste treatment
-    name_de: Abfallbehandlung
     description: Jätehuollon päästöt sisältävät kiinteät jätteet, biojätteet ja jäteveden.
     description_en: Emissions from waste management include solid waste, biowaste
       and wastewater.
-    description_de: Emissionen aus der Abfallwirtschaft umfassen feste Abfälle, Bioabfälle
-      und Abwasser.
     part_of: net_emissions
     color: '#397368'
 
   - id: solid_waste_treatment_emissions
     name: Kiinteän jätteen käsittelyn päästöt
     name_en: Solid waste treatment
-    name_de: Behandlung fester Abfälle
     column: Solid waste treatment
     part_of: waste_treatment_emissions
 
   - id: waste_water_treatment_emissions
     name: Jäteveden puhdistuksen päästöt
     name_en: Waste water treatment
-    name_de: Abwasserbehandlung
     column: Waste water treatment
     part_of: waste_treatment_emissions
 
   - id: agriculture_emissions
     name_en: Agriculture
     name: Maatalouden päästöt
-    name_de: Landwirtschaft
     description: Maatalouden päästöt perustuvat CO2-raportin päästötoteumaan eläinten
       ruoansulatuksen, lannan käsittelyn ja peltoviljelyn päästöistä.
     description_en: Emissions from agriculture are based on the emission estimates
       of the CO2 Report on animal digestion, manure treatment and arable farming.
-    description_de: Emissionen aus der Landwirtschaft basieren auf den Emissionsschätzungen
-      des CO2-Berichts zu tierischer Verdauung, Güllebehandlung und Ackerbau.
     part_of: net_emissions
     color: '#ABC872'
 
   - id: cattle_digestion_emissions
-    name: Eläinten ruoansulatus
     name_en: Cattle digestion
-    name_de: Verdauung durch Rinder
+    name: Eläinten ruoansulatus
     part_of: agriculture_emissions
     column: Cattle digestion
 
   - id: manure_treatment_emissions
     name_en: Manure treatment
     name: Lannankäsittely
-    name_de: Güllebehandlung
     part_of: agriculture_emissions
     column: Manure treatment
 
   - id: field_crops_emissions
     name_en: Field crops
     name: Peltoviljelyn päästöt
-    name_de: Feldfrüchte
     part_of: agriculture_emissions
     column: Field crops
 
@@ -205,7 +171,6 @@ instance:
   - id: industrial_electricity_consumption_emissions
     name_en: Industrial electricity consumption
     name: Teollisuuden sähkön kulutuksen päästöt
-    name_de: Industrieller Stromverbrauch
     part_of: electricity_consumption_emissions
     column: Power consumption industry
 
@@ -217,7 +182,6 @@ instance:
   - id: district_heating_emissions
     name: Kaukolämmön päästöt
     name_en: District heating emissions
-    name_de: Fernwärmeemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     quantity: emissions
@@ -227,7 +191,6 @@ instance:
   - id: district_heating_consumption
     name: Kaukolämmön kulutus
     name_en: District heat consumption
-    name_de: Fernwärmeverbrauch
     unit: GWh/a
     quantity: energy
     type: simple.Activity
@@ -241,7 +204,6 @@ instance:
   - id: district_heating_emission_factor
     name: Kaukolämmön päästökerroin
     name_en: District heating emission factor
-    name_de: Fernwärme-Emissionsfaktor
     type: simple.AdditiveNode
     unit: g/kWh
     quantity: emission_factor
@@ -258,13 +220,10 @@ instance:
     quantity: emissions
     name: Öljylämmityksen päästöt
     name_en: Oil heating emissions
-    name_de: Ölheizungsemissionen
     description: Öljylämmityksen päästöt lasketaan kertomalla lämmitysöljyn kulutus
       päästökertoimella.
     description_en: Emissions from oil heating are calculated by multiplying the consumption
       of heating oil by the emission factor.
-    description_de: Emissionen aus Ölheizungen werden durch Multiplikation des Heizölverbrauchs
-      mit dem Emissionsfaktor berechnet.
     output_nodes:
     - separate_heating_emissions
 
@@ -274,7 +233,6 @@ instance:
     type: simple.Activity
     name: Öljylämmityksen energiankulutus
     name_en: Oil heating energy consumption
-    name_de: Energieverbrauch von Ölheizungen
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Total oil heating
@@ -288,7 +246,6 @@ instance:
     quantity: emission_factor
     name: Lämmitysöljyn päästökerroin
     name_en: Heating oil emission factor
-    name_de: Heizöl-Emissionsfaktor
     input_datasets:
     - id: tampere/scenarios/emission_factors/bau
       column: Oil heating
@@ -305,7 +262,6 @@ instance:
     quantity: emissions
     name: Maalämmön päästöt
     name_en: Geothermal heating emissions
-    name_de: Emissionen aus Erdwärme
     input_nodes:
     - electric_heating_emission_factor
     output_nodes:
@@ -317,7 +273,6 @@ instance:
     type: simple.Activity
     name: Maalämmön sähkönkulutus
     name_en: Geothermal heating electricity consumption
-    name_de: Stromverbrauch von Erdwärmeheizungen
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Geothermal heating residential
@@ -331,7 +286,6 @@ instance:
     quantity: emissions
     name: Suorasähkölämmityksen päästöt
     name_en: Direct electric heating emissions
-    name_de: Emissionen durch direkte elektrische Heizungen
     input_nodes:
     - electric_heating_emission_factor
     output_nodes:
@@ -343,7 +297,6 @@ instance:
     unit: GWh/a
     name: Suorasähkölämmityksen sähkönkulutus
     name_en: Direct electric heating electricity consumption
-    name_de: Stromverbrauch direkter Elektroheizungen
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Electric heating total
@@ -357,7 +310,6 @@ instance:
   - id: other_electricity_consumption_per_capita
     name: Sähkönkulutus asukasta kohti
     name_en: Electricity consumption per capita
-    name_de: Stromverbrauch pro Kopf
     type: simple.AdditiveNode
     unit: kWh/person/a
     quantity: per_capita
@@ -370,7 +322,6 @@ instance:
   - id: other_electricity_consumption
     name: Muu sähkönkulutus
     name_en: Other electricity consumption
-    name_de: Sonstiger Stromverbrauch
     type: simple.PerCapitaActivity
     unit: GWh/a
     quantity: energy
@@ -382,7 +333,6 @@ instance:
   - id: other_electricity_consumption_emissions
     name: Muun sähkönkulutuksen päästöt
     name_en: Other electricity consumption emissions
-    name_de: Sonstige Stromverbrauchsemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     params:
@@ -400,7 +350,6 @@ instance:
   - id: electricity_production_emission_factor
     name: Sähköntuotannon päästökerroin
     name_en: Electricity production emission factor
-    name_de: Emissionsfaktor für Stromerzeugung
     type: simple.AdditiveNode
     unit: g/kWh
     quantity: emission_factor
@@ -412,7 +361,6 @@ instance:
   - id: electric_heating_emission_factor
     name: Lämmityssähkön päästökerroin
     name_en: Heating electricity emission factor
-    name_de: Heizstrom-Emissionsfaktor
     type: simple.FixedMultiplierNode
     unit: g/kWh
     quantity: emission_factor
@@ -426,7 +374,6 @@ instance:
   - id: other_electricity_consumption_emission_factor
     name: Kulutussähkön päästökerroin
     name_en: Electricity consumption emission factor
-    name_de: Emissionsfaktor für Stromverbrauch
     type: simple.FixedMultiplierNode
     unit: g/kWh
     quantity: emission_factor
@@ -441,7 +388,6 @@ instance:
   - id: electricity_consumption_emissions
     name: Sähkön kulutuksen päästöt
     name_en: Electricity consumption emissions
-    name_de: Emissionen durch Stromverbrauch
     type: simple.SectorEmissions
     unit: kt/a
     color: '#F4D240'
@@ -450,9 +396,6 @@ instance:
     description_en: The calculation of electricity emissions is based on two components.
       Electricity consumption and the emission factor for electricity. This is electricity
       consumption other than heating.
-    description_de: Die Berechnung der Emissionen durch Strom basiert auf zwei Komponenten.
-      Stromverbrauch und Emissionsfaktor für Strom. Hier wird der Stromverbrauch ausgenommen für Heizung
-      betrachtet.
     output_nodes:
     - net_emissions
 
@@ -463,7 +406,6 @@ instance:
   - id: local_train_kilometers
     name: Paikallisjunasuorite
     name_en: Local train kilometers
-    name_de: Nahverkehrszugkilometer
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -478,7 +420,6 @@ instance:
   - id: tram_kilometers
     name: Ratikkasuorite
     name_en: Tram kilometers
-    name_de: Straßenbahnkilometer
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -491,7 +432,6 @@ instance:
   - id: car_kilometers_streets
     name: Henkilöautosuorite (katuajo)
     name_en: Car kilometers (streets)
-    name_de: Autokilometer (innerorts)
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -506,7 +446,6 @@ instance:
   - id: car_kilometers_roads
     name: Henkilöautosuorite (maantieajo)
     name_en: Car kilometers (roads)
-    name_de: Autokilometer (außerorts)
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -521,7 +460,6 @@ instance:
   - id: bus_kilometers_streets
     name: Bussisuorite (katuajo)
     name_en: Bus kilometers (streets)
-    name_de: Buskilometer (innerorts)
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -536,7 +474,6 @@ instance:
   - id: bus_kilometers_roads
     name: Bussisuorite (maantieajo)
     name_en: Bus kilometers (roads)
-    name_de: Buskilometer (außerorts)
     type: simple.Activity
     quantity: mileage
     unit: Mkm/a
@@ -551,7 +488,6 @@ instance:
   - id: local_train_emission_factor
     name: Paikallisjunan päästökerroin
     name_en: Local train emission factor
-    name_de: Nahverkehrszug-Emissionsfaktor
     quantity: emission_factor
     unit: g/km
     type: simple.FixedMultiplierNode
@@ -567,7 +503,6 @@ instance:
   - id: tram_emission_factor
     name: Ratikan päästökerroin
     name_en: Tram emission factor
-    name_de: Straßenbahn-Emissionsfaktor
     quantity: emission_factor
     type: simple.FixedMultiplierNode
     unit: g/km
@@ -583,7 +518,6 @@ instance:
   - id: car_emission_factor_streets
     name: Henkilöautoilun päästökerroin (katuajo)
     name_en: Car emission factor (streets)
-    name_de: Pkw-Emissionsfaktor (innerorts)
     quantity: emission_factor
     type: simple.AdditiveNode
     unit: g/km
@@ -597,7 +531,6 @@ instance:
   - id: car_emission_factor_roads
     name: Henkilöautoilun päästökerroin (maantieajo)
     name_en: Car emission factor (roads)
-    name_de: Pkw-Emissionsfaktor (außerorts)
     quantity: emission_factor
     type: simple.AdditiveNode
     unit: g/km
@@ -611,7 +544,6 @@ instance:
   - id: bus_emission_factor_streets
     name: Bussin päästökerroin (katuajo)
     name_en: Bus emission factor (streets)
-    name_de: Bus-Emissionsfaktor (innerorts)
     type: simple.AdditiveNode
     quantity: emission_factor
     unit: g/km
@@ -626,7 +558,6 @@ instance:
   - id: bus_emission_factor_roads
     name: Bussin päästökerroin (maantieajo)
     name_en: Bus emission factor (roads)
-    name_de: Bus-Emissionsfaktor (außerorts)
     type: simple.AdditiveNode
     quantity: emission_factor
     unit: g/km
@@ -640,7 +571,6 @@ instance:
   - id: local_train_emissions
     name: Lähijunien päästöt
     name_en: Local train emissions
-    name_de: Nahverkehrszugemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     quantity: emissions
@@ -650,7 +580,6 @@ instance:
   - id: tram_emissions
     name: Ratikkaliikenteen päästöt
     name_en: Tram emissions
-    name_de: Straßenbahnemissionen
     type: simple.EmissionFactorActivity
     unit: kt/a
     quantity: emissions
@@ -660,7 +589,6 @@ instance:
   - id: car_emissions_roads
     name: Henkilöautoliikenteen päästöt (maantieajo)
     name_en: Private car emissions (roads)
-    name_de: Pkw-Emissionen (außerorts)
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -670,7 +598,6 @@ instance:
   - id: car_emissions_streets
     name: Henkilöautoliikenteen päästöt (katuajo)
     name_en: Private car emissions (streets)
-    name_de: Pkw-Emissionen (innerorts)
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -680,7 +607,6 @@ instance:
   - id: car_emissions
     name: Henkilöautoliikenteen päästöt
     name_en: Private car emissions
-    name_de: Emissionen von Privatfahrzeugen
     type: simple.SectorEmissions
     unit: kt/a
     params:
@@ -695,7 +621,6 @@ instance:
   - id: bus_emissions_roads
     name: Bussiliikenteen päästöt (maantieajo)
     name_en: Bus emissions (roads)
-    name_de: Busemissionen (außerorts)
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -705,7 +630,6 @@ instance:
   - id: bus_emissions_streets
     name: Bussiliikenteen päästöt (katuajo)
     name_en: Bus emissions (streets)
-    name_de: Busemissionen (innerorts)
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -715,7 +639,6 @@ instance:
   - id: bus_emissions
     name: Bussiliikenteen päästöt
     name_en: Bus emissions
-    name_de: Busemissionen
     type: simple.SectorEmissions
     unit: kt/a
     quantity: emissions
@@ -734,7 +657,6 @@ instance:
   - id: city_machinery_emissions
     name: Kaupungin työkoneiden päästöt
     name_en: City machinery emissions
-    name_de: Emissionen von Maschinen der Stadt
     type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
@@ -744,7 +666,6 @@ instance:
   - id: city_machinery_fuel_consumption
     name: Kaupungin työkoneiden polttoaineenkulutus
     name_en: City machinery fuel consumption
-    name_de: Kraftstoffverbrauch von Maschinen der Stadt
     type: simple.Activity
     quantity: fuel_consumption
     unit: l/a
@@ -757,7 +678,6 @@ instance:
   - id: city_machinery_emission_factor
     name: Dieselin päästökerroin
     name_en: Diesel emission factor
-    name_de: Diesel-Emissionsfaktor
     type: simple.AdditiveNode
     quantity: emission_factor
     unit: g/l
@@ -770,7 +690,6 @@ instance:
   - id: renewable_electricity_consumption_reduction
     name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
     name_en: Decrease in purchased energy due to renewable electricity production
-    name_de: Rückgang der zugekauften Energie aufgrund erneuerbarer Stromerzeugung
     quantity: energy
     type: simple.FixedMultiplierNode
     output_nodes:
@@ -812,16 +731,62 @@ instance:
     quantity: unit_price
     unit: EUR/kWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 0.09]]
+    historical_values: [[2020, 0.133]]
     params:
       yearly_change: 1.0
     tags: price_of_electricity
+
+  - id: price_of_heat
+    name: Lämmityksen hinta
+    name_en: Price of heat
+    name_se: Värmepris
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 0.094]]
+    params:
+      yearly_change: 1.0
+    tags: price_of_heat
+
+  - id: floor_area
+    name: Kerrostalojen rakennusala 
+    name_en: Floor area of apartment buildings
+    name_se: Antal flerbostadshus
+    quantity: number
+    unit: m**2
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2020, 208000000.0]]
+    params:
+      yearly_change: 0.0
+    tags: floor_area
 
   - id: net_cost
     name: Kokonaiskustannukset
     name_en: Net costs
     quantity: currency
     unit: kEUR/a
+    type: simple.AdditiveNode
+
+  - id: cost_efficiency
+    name: Kustannustehokkuus
+    name_en: Cost_efficiency
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.AdditiveNode
+
+  - id: energy_saving
+    name: Energian säästö
+    name_en: Energy saving
+    quantity: energy
+    unit: kWh/a
+    type: simple.AdditiveNode
+
+  - id: social_benefit
+    name: Yhteiskunnallinen hyöty
+    name_en: Social benefit
+    name_se: Social nytta
+    quantity: currency
+    unit: MEUR/a
     type: simple.AdditiveNode
 
   #
@@ -833,7 +798,6 @@ instance:
   - id: naistenlahti3
     name: Naistenlahti 3 -biovoimalaitos
     name_en: Naistenlahti 3 bio thermal plant
-    name_de: Biothermische Anlage Naistenlahti 3
     type: simple.CumulativeAdditiveAction
     quantity: emission_factor
     description: Naistenlahti 3 -voimalaitos pystyy käyttämään myös biopolttoainetta,
@@ -865,30 +829,6 @@ instance:
       pumps. However, it is not known to what extent the properties will be connected
       and what the change in their consumption would be. Therefore, no emission reduction
       has yet been estimated for the action.</p>
-    description_de: Das Kraftwerk Naistenlahti 3 kann auch Biobrennstoff verwenden und
-      die Wahl des Kraftstoffs ist ein Schlüsselfaktor für die Reduzierung von Emissionen.
-    long_description_de: <h2>Zentrale erneuerbare Energie</h2><p>Die Maßnahme umfasst Investitionen
-      von Tampereen Sähkölaitos (dem lokalen Energieunternehmen), die den Emissionsfaktor der
-      Fernwärme reduzieren werden. Da der Emissionsfaktor für die Stromerzeugung national festgelegt
-      wird, wirken sich die Maßnahmen nicht direkt auf die Stromemissionen aus.</p><p>Die aktuell
-      deutlichste Maßnahme ist die Investition in das Kraftwerk Naistenlahti 3. Auch dies ist nur
-      grob von anderen Plänen zur Senkung des Fernwärme-Emissionsfaktors zu unterscheiden. Die
-      endgültige Emissionsminderung des Emissionsfaktors Fernwärme ist auf noch nicht näher
-      definierte Maßnahmen zurückzuführen und wurde daher pauschal berechnet. Die Emissionsminderung
-      wird jedoch eintreten, wenn Tampereen Sähkölaitos Emissionsminderungen im Einklang mit seiner
-      Strategie erreicht. Das Ausmaß wird in dieser Gesamtemissionsprognose etwas anders berechnet,
-      als wenn nur die Energieerzeugung von Tampereen Sähkölaitos betrachtet wird.</p><p>Im Ergebnis
-      beträgt die durch Naistenlahti 3 verursachte Emissionsminderung in der Fernwärme ca. 82 kt
-      CO2e. Darüber hinaus werden bis 2030 etwa 99 kt CO2e aus anderen Investitionen zur Reduzierung
-      der Emissionen von Tampereen Sähkölaitos erzeugt. Dies ist nur eine grobe Schätzung, die auf
-      der unternehmenseigenen Prognose des Fernwärme-Emissionsfaktors basiert. Die tatsächliche
-      Auswirkung von Naistenlahti 3 auf die Reduzierung fossiler Emissionen hängt vom Beitrag des
-      Torfs zur Verbrennung und den Gesamtauswirkungen der Zugabe von Holzbrennstoff an anderer
-      Stelle ab.</p><p>Die Maßnahme umfasst auch den Anschluss der Gebäude der Stadt Tampere an die
-      Fernkälte nach Bedarf. Der Anschluss an die Fernkälte reduziert den Stromverbrauch des
-      Gebäudes, da mit Wärmepumpen keine Kühlung benötigt wird. Es ist jedoch nicht bekannt,
-      inwieweit die Objekte angeschlossen werden und wie sich deren Verbrauch ändern würde. Daher
-      wurde für die Maßnahme noch keine Emissionsminderung geschätzt.</p>
     output_nodes:
     - district_heating_emission_factor
     forecast_values: [[2022, -23], [2023, -23]]
@@ -897,7 +837,6 @@ instance:
   - id: other_renewable_district_heating
     name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
     name_en: Increase share of renewables in district heat production
-    name_de: Erhöhung des Anteils erneuerbarer Energien an der Fernwärmeerzeugung
     type: simple.CumulativeAdditiveAction
     quantity: energy
     output_nodes:
@@ -909,7 +848,6 @@ instance:
   - id: private_building_energy_renovation
     name: Korjausrakentaminen yksityisissä kiinteistöissä
     name_en: Energy renovation of privately owned buildings
-    name_de: Energetische Sanierung von Privatgebäuden
     unit: GWh/a
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
@@ -918,8 +856,6 @@ instance:
     description_en: The most important target groups for energy advice are apartment
       buildings that are more than 20 years old and detached houses that are heated
       by oil and electricity.
-    description_de: Die wichtigste Zielgruppe für die Energieberatung sind über 20 Jahre alte
-      Wohnhäuser und Einfamilienhäuser, die mit Öl und Strom beheizt werden.
     output_nodes:
     - district_heating_consumption
     - other_electricity_consumption
@@ -935,7 +871,6 @@ instance:
   - id: distributed_renewable_energy
     name: Hajautettu uusiutuva energia
     name_en: Distributed renewable energy production
-    name_de: Dezentrale erneuerbare Energieproduktion
     unit: GWh/a
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
@@ -946,10 +881,6 @@ instance:
       buildings. According to the 2016 municipal review of renewable energy, the unused
       potential on the roofs of buildings is 800-900 GWh (does not take into account
       all restrictions).
-    description_de: Auf den Dächern der Gebäude werden Photovoltaikanlagen installiert. Das
-      ungenutzte Potenzial auf den Dächern der Gebäude liegt laut der 2016 durchgeführten
-      kommunalen Studie zu erneuerbaren Energien bei 800-900 GWh (ohne Berücksichtigung
-      aller Restriktionen).
     output_nodes:
     - renewable_electricity_consumption_reduction
     forecast_values: [[2022, 0], [2030, -850]]
@@ -963,12 +894,10 @@ instance:
       unit: GWh/a
       description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
       description_en: PV energy production in 2030
-      description_de: Photovoltaikstromerzeugung 2030
 
   - id: oil_heated_private_buildings_to_geothermal
     name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
     name_en: Private oil heated buildings to geothermal
-    name_de: Umstieg ölbeheizter privater Gebäude auf Erdwärme
     type: simple.CumulativeAdditiveAction
     unit: GWh/a
     quantity: energy
@@ -976,15 +905,11 @@ instance:
       tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho
       Rinta-Rahkon arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista.
       Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
-    description_en: Private properties change from oil heating to geothermal energy. 95%
+    description_en: Private properties convert oil heating to geothermal energy. 95%
       of the required heat is produced at COP 3 level, the rest is direct electricity.
-      This is based on Juho Rinta-Rahko's assessment of the potential of renovation and energy
+      Based on Juho Rinta-Rahko's assessment of the potential of renovation and energy
       consulting in Tampere. Some oil heating will remain in service buildings and
       industrial buildings.
-    description_de: Private Grundstücke steigen von Ölheizungen auf Erdwärme um. 95 % der benötigten
-      Wärme werden auf COP-3-Niveau produziert, der Rest ist direkter Strom. Dies basiert auf Juho
-      Rinta-Rahkos Einschätzung des Potenzials von Renovierungen und Energieberatung in Tampere.
-      Einige Ölheizungen werden in Dienstleistungs- und Industriegebäuden verbleiben.
     output_nodes:
     - oil_heating_energy_use
     - geothermal_heating_electricity_use
@@ -999,8 +924,6 @@ instance:
 
   - id: oil_heated_municipal_buildings_to_heat_pump
     name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
-    name_en: Oil-heated municipal buildings to heat pumps
-    name_de: Umstieg ölbeheizter kommunaler Gebäude auf Wärmepumpen
     type: simple.LinearCumulativeAdditiveAction
     quantity: energy
     unit: GWh/a
@@ -1013,10 +936,6 @@ instance:
       by water-air heat pumps with a COP of about 2.5 when they produce all the heat
       they need. Bio-oil has been thought to be held in reserve, but its share of
       energy consumption is insignificant.
-    description_de: Die Gebäude der Stadt verbrauchen derzeit 367 378 l / a Öl oder etwa 3 674 MWh
-      oder 3,67 GWh. Mit diesen Aussichten wird Öl durch Wasser-Luft-Wärmepumpen mit einem COP von
-      etwa 2,5 ersetzt, wenn sie die gesamte benötigte Wärme produzieren. Bioöl galt als Reserve,
-      sein Anteil am Energieverbrauch ist jedoch unbedeutend.
     output_nodes:
     - oil_heating_energy_use
     - direct_electric_heating_electricity_use
@@ -1029,7 +948,6 @@ instance:
   - id: cleaner_electricity_production
     name: Kansallinen sähköntuotanto puhdistuu
     name_en: Shift to low-carbon in national electricity production
-    name_de: Umstellung auf kohlenstoffarme nationale Stromerzeugung
     decision_level: nation
     quantity: emission_factor
     output_nodes:
@@ -1047,12 +965,10 @@ instance:
       unit: g/kWh
       description: Sähköntuotannon päästökertoimen muutos
       description_en: Change in electricity production emission factor
-      description_de: Änderung des Emissionsfaktors der Stromerzeugung
 
   # - id: converting_street_lighting_to_led
   #   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
   #   name_en: Converting street lighting to LED lamps
-  #   name_de: Umrüstung der Straßenbeleuchtung auf LED-Lampen
   #   type: simple.LinearCumulativeAdditiveAction
   #   unit: GWh/a
   #   quantity: energy
@@ -1060,8 +976,6 @@ instance:
   #     otetaan käyttöön vuoteen 2025 mennessä.
   #   description_en: The city’s street lighting will be transformed into LEDs and intelligent
   #     light control will be deployed by 2025.
-  #   description_de: Bis 2025 wird die Straßenbeleuchtung der Stadt auf LEDs umgestellt und eine
-  #     intelligente Lichtsteuerung eingeführt.
   #   forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
   #   output_nodes:
   #   - other_electricity_consumption
@@ -1069,14 +983,12 @@ instance:
   - id: tram_phase_1
     name: Ratikan rakennusvaihe 1 (2019-2022)
     name_en: Tram construction phase 1 (2019-2022)
-    name_de: Straßenbahn Bauphase 1 (2019-2022)
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
     description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
     description_en: The first construction phase of the tramway. Also learn more about
       local train traffic.
-    description_de: Die erste Bauphase der Straßenbahn. Erfahren Sie auch mehr über den Nahverkehr.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -1092,7 +1004,6 @@ instance:
   - id: tram_phase_2
     name: Ratikan rakennusvaihe 2 (2023-2025)
     name_en: Tram construction phase 2 (2023-2025)
-    name_de: Straßenbahn Bauphase 2 (2023-2025)
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
@@ -1100,8 +1011,6 @@ instance:
       jotta tämä olisi mielekäs.
     description_en: The second construction phase of the tramway. The first phase
       of construction needs to be implemented for this action to make sense.
-    description_de: Der zweite Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist, muss
-      der erste Bauabschnitt umgesetzt werden.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -1117,7 +1026,6 @@ instance:
   - id: tram_phase_3
     name: Ratikan rakennusvaihe 3 (2028-2030)
     name_en: Tram construction phase 3 (2028-2030)
-    name_de: Straßenbahn Bauphase 3 (2028-2030)
     type: simple.CumulativeAdditiveAction
     unit: Mkm/a
     quantity: mileage
@@ -1125,8 +1033,6 @@ instance:
       on toteutettava, jotta tämä olisi mielekäs.
     description_en: The third construction phase of the tramway. The first and second
       construction phases need to be implemented for this action to make sense.
-    description_de: Der dritte Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist,
-      müssen der erste und der zweite Bauabschnitt umgesetzt werden.
     output_nodes:
     - tram_kilometers
     - car_kilometers_streets
@@ -1142,7 +1048,6 @@ instance:
   - id: renewable_diesel_in_city_machinery
     name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
     name_en: Renewable diesel in city machinery
-    name_de: Erneuerbarer Diesel für Maschinen der Stadt
     type: simple.LinearCumulativeAdditiveAction
     unit: g/l
     quantity: emission_factor
@@ -1150,8 +1055,6 @@ instance:
       dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
     description_en: The city’s own work machinery will move gradually to use renewable
       diesel so that in 2030 only it will be used.
-    description_de: Die stadteigenen Arbeitsmaschinen werden sukzessive auf erneuerbaren Diesel
-      umgestellt, sodass 2030 nur noch dieser zum Einsatz kommt.
     output_nodes:
     - city_machinery_emission_factor
       #  - city_machinery_fuel_consumption
@@ -1168,7 +1071,6 @@ instance:
   - id: energy_conversion_in_buses
     name: Bussiliikenteen käyttövoimamuutos
     name_en: Energy conversion in buses
-    name_de: Energieumwandlung in Bussen
     type: simple.AdditiveAction
     quantity: emission_factor
     unit: g/km
@@ -1228,17 +1130,773 @@ instance:
     - id: led_luminaire_investment_cost
       value: 350
 
+# Grön logik: Flerbostadshus 24: next 16 actions 
+# Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
+  - id: energy_saving_lamps
+    name: Energiansäästölamput
+    name_en: Energy-saving lamps
+    name_se: Lågenergilampor
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+    - id: renovation_rate
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+#      unit: '%'
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: pressure_controlled_fans
+    name: Painesäädetyt tuulettimet
+    name_en: Pressure-controlled fans
+    name_se: Trykstyrda fläktar
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+    - id: renovation_rate
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+#      unit: '%'
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 5.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 4
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: ventilation_system_adjustment
+    name: Ilmanvaihdon säätö
+    name_en: Ventilation system adjustment
+    name_se: Injustering ventilationssystem
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: reduced_flow_shower_heads
+    name: Vesipihit suihkupäät
+    name_en: Reduced-flow shower-heads
+    name_se: Snålspolande armaturer
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 1.8
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: smart_lighting
+    name: Älykäs valaistus
+    name_en: Smart lighting
+    name_se: Närvarostyrd LED
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 2.3
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: thermostat_replacement
+    name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
+    name_en: Thermostat replacement and heating system adjustment
+    name_se: Byte termostater och injustering värmesystem
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 7.3
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 13
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: wind_insulation
+    name: Tuulieristys 300 mm
+    name_en: Wind insulation, 300 mm
+    name_se: Vindisolering, 300 mm
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 4.2
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 7
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: window_door_sealing
+    name: Ikkunoiden ja ovin eristys
+    name_en: Painting and sealing of windows and doors
+    name_se: Målning och tätning av fönster och dörrar
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 4.8
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 2
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: door_replacement
+    name: Uudet ulko- ja kellarin ovet
+    name_en: New entrance and basement doors
+    name_se: Nya entré- och källardörrar
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 4.8
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: wastewater_heat_capture
+    name: Jäteveden lämmön talteenotto
+    name_en: Wastewater heat capture
+    name_se: Värmeväxlare spillvatten
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 5.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: imd
+    name: IMD kuuma vesi
+    name_en: IMD hot water
+    name_se: IMD varmvatten
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 5.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: f_heat_pump
+    name: F-lämpöpumppu COP 3.0
+    name_en: F heat pump COP 3.0
+    name_se: F värmepump COP 3,0
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 50
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 5
+      min_value: 0
+      max_value: 10
+      step: 1
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost 
+      value: 29.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 48
+    - id: electricity_saving
+      value: -16
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: ftx
+    name: FTX 85 %
+    name_en: FTX 85 %
+    name_se: FTX 85 %
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 50
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 56.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 34
+    - id: electricity_saving
+      value: -4
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: additional_window_insulation
+    name: Ikkunoiden lisäeristys
+    name_en: Additional window insulation
+    name_se: Tilläggsisolering fönster
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 32.2
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 15
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: additional_facade_insulation
+    name: Julkisivun lisäeristys
+    name_en: Additional facade insulation
+    name_se: Fasadisolering, 100 mm
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 52.0
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 12
+    - id: electricity_saving
+      value: 0
+    - id: renovation_rate_baseline
+      value: 0.5
+
+  - id: window_replacement
+    name: Ikkunoiden vaihto (U = 1,0)
+    name_en: Window replacement (U = 1.0)
+    name_se: Fönsterbyte (U = 1,0)
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_se: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: renovation_rate
+      description: Korjausten nopeus (% vuodessa)
+      description_en: Renovation rate (%/a)
+      description_se: Utrullningtakt (%/a)
+      values:
+        default: 2.5
+      min_value: 0
+      max_value: 10
+      step: 0.5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 27.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 1
+    - id: renovation_rate_baseline
+      value: 0.5
+
   pages:
   - id: home
     name: Hiilineutraali Tampere 2030 -päästöskenaario
-    name_en: Climate neutral Tampere 2030 emission scenario
-    name_de: Emissionsszenario Klimaneutrales Tampere 2030
     path: /
     type: emission
     node: net_emissions
     lead_title: Tampereen päästöskenaariot
     lead_title_en: Tampere emission scenarios
-    lead_title_de: Tampere-Emissionsszenarien
     lead_paragraph: Tampereen päästöskenaariot visualisoi Tampereen kasvihuonekaasupäästöjen
       kehityksen. Voit tarkastella, mistä Tampereen kaupungin alueen päästöt syntyvät
       ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
@@ -1253,19 +1911,11 @@ instance:
       Tampere 2030 roadmap and a scenario that you can edit yourself. Further efforts
       are needed to become carbon neutral, and their adequacy will be assessed in
       the future using this tool.
-    lead_paragraph_de: Tamperes Emissionsszenarien visualisieren die Entwicklung der
-      Treibhausgasemissionen der Stadt. Sie können sich ansehen, woher die Emissionen aus dem
-      Stadtgebiet von Tampere stammen und wie sie sich voraussichtlich bis 2030 verändern werden. Es
-      stehen ein Grundentwicklungsszenario zur Auswahl, ein Szenario gemäß dem Aktionsplan
-      CO2-neutrales Tampere 2030, und ein Szenario, das Sie selbst bearbeiten können. Weitere
-      Anstrengungen sind erforderlich, um klimaneutral zu werden, und deren Angemessenheit wird in
-      Zukunft mit diesem Instrument bewertet.
 
   scenarios:
   - id: baseline
     name: Nykykehitys
     name_en: Baseline
-    name_de: Basisszenario
     params:
     - id: naistenlahti3.enabled
       value: true
@@ -1280,7 +1930,6 @@ instance:
     default: true
     name: Hiilineutraali Tampere 2030 -tiekartta
     name_en: Carbon-neutral Tampere 2030 roadmap
-    name_de: Aktionsplan CO2-neutrales Tampere 2030
     all_actions_enabled: true
     params:
     - id: lighting_led_retrofit.yearly_retrofit_number
