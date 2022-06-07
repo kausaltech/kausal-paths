@@ -1,4 +1,5 @@
 import graphene
+import re
 from grapple.types.pages import Page as GrapplePageType, PageInterface
 from graphql.error import GraphQLLocatedError
 from grapple.utils import resolve_queryset
@@ -28,10 +29,11 @@ def resolve_ancestors(self, info: GQLInstanceInfo, **kwargs):
 
 
 def resolve_url_path(self, info: GQLInstanceInfo, **kwargs):
-    path_prefix = '/' + info.context.instance.id
     url_path = self.url_path
-    if url_path.startswith(path_prefix):
-        url_path = url_path[len(path_prefix):]
+    # FIXME: This is a dirty way to work around the issue of the slug having the form <instance>-1 or so for translated
+    # pages.
+    # Replace instance ID, optionally followed by a `-` and a number, if it is surrounded by slashes, by a single slash
+    url_path = re.sub('^/%s(-[0-9]+)?/' % re.escape(info.context.instance.id), '/', self.url_path)
     if len(url_path) > 1:
         url_path = url_path.rstrip('/')
     return url_path
@@ -66,7 +68,7 @@ class Query:
     @ensure_instance
     def resolve_pages(query, info: GQLInstanceInfo, in_menu: bool = False, **kwargs):
         instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
-        root_page = instance_config.site.root_page
+        root_page = instance_config.get_translated_root_page()
         qs = root_page.get_descendants(inclusive=True).live().public().specific()
         if in_menu:
             qs = qs.filter(show_in_menus=True)
@@ -78,8 +80,10 @@ class Query:
         qs = Query.resolve_pages(query, info, **kwargs)
         if not path.endswith('/'):
             path = path + '/'
-        # Prepend the instance identifier
-        path = '/%s%s' % (info.context.instance.id, path)
+        # Prepend the url_path of the translated root page
+        instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
+        root_page = instance_config.get_translated_root_page()
+        path = root_page.url_path.rstrip('/') + path
         qs = qs.filter(url_path=path)
         return qs.first()
 

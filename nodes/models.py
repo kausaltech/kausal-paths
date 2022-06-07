@@ -7,11 +7,11 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from wagtail.core.fields import RichTextField
-from wagtail.core.models import Page
+from wagtail.core.models import Locale, Page
 from wagtail.core.models.sites import Site
 
 from nodes.node import Node
@@ -45,7 +45,7 @@ class InstanceConfig(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
-    i18n = TranslationField(fields=('name',))
+    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
     objects = models.Manager.from_queryset(InstanceQuerySet)()
 
@@ -57,9 +57,9 @@ class InstanceConfig(models.Model):
         verbose_name_plural = _('Instances')
 
     @classmethod
-    def create_for_instance(cls, instance: Instance) -> InstanceConfig:
+    def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
-        return cls.objects.create(identifier=instance.id, site_url=instance.site_url)
+        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
 
     def update_instance_from_configs(self, instance: Instance):
         for node_config in self.nodes.all():
@@ -67,6 +67,15 @@ class InstanceConfig(models.Model):
             if node is None:
                 continue
             node_config.update_node_from_config(node)
+
+    def update_from_instance(self, instance: Instance, overwrite=False):
+        """Update lead_title and lead_paragraph from instance but do not call save()."""
+        for field_name in ('lead_title', 'lead_paragraph'):
+            if getattr(instance, field_name) is not None:
+                for lang, v in getattr(instance, field_name).i18n.items():
+                    translated_field_name = f'{field_name}_{lang}'
+                    if overwrite or not getattr(self, translated_field_name):
+                        setattr(self, translated_field_name, v)
 
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
@@ -100,22 +109,32 @@ class InstanceConfig(models.Model):
     def root_page(self) -> Page:
         return self.site.root_page
 
-    def sync_nodes(self):
+    def get_translated_root_page(self):
+        """Return root page in activated language, fall back to default language."""
+        root = self.root_page
+        language = get_language()
+        try:
+            locale = Locale.objects.get(language_code=language)
+            root = root.get_translation(locale)
+        except (Locale.DoesNotExist, Page.DoesNotExist):
+            pass
+        return root
+
+    def sync_nodes(self, update_existing=False):
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
-        new_nodes = []
         for node in instance.context.nodes.values():
             node_config = node_configs.get(node.id)
             if node_config is None:
-                new_nodes.append(node)
+                node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
+                print("Creating node config for node %s" % node.id)
+                node_config.save()
             else:
                 found_nodes.add(node.id)
-
-        for node in new_nodes:
-            node_obj = NodeConfig(instance=self, identifier=node.id)
-            print("Creating node config for node %s" % node.id)
-            node_obj.save()
+                if update_existing:
+                    node_config.update_from_node(node)
+                    node_config.save()
 
         for node in node_configs.values():
             if node.identifier not in found_nodes:
@@ -136,18 +155,26 @@ class InstanceConfig(models.Model):
         from pages.models import ActionListPage, OutcomePage
 
         root_pages = Page.get_first_root_node().get_children()
-        try:
-            root_page = root_pages.get(slug=self.identifier)
-        except Page.DoesNotExist:
-            outcome_nodes = self.get_outcome_nodes()
-            root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
-                title=self.get_name(), slug=self.identifier, url_path='', outcome_node=outcome_nodes[0]
-            ))
-        action_list_pages = root_page.get_children().type(ActionListPage)
-        if not action_list_pages.exists():
-            root_page.add_child(instance=ActionListPage(
-                title=_("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
-            ))
+        # Create default pages only in default language for now
+        # TODO: Also create translations to other supported languages
+        with override(self.default_language):
+            try:
+                root_page = root_pages.get(slug=self.identifier)
+            except Page.DoesNotExist:
+                outcome_nodes = self.get_outcome_nodes()
+                locale, locale_created = Locale.objects.get_or_create(language_code=self.default_language)
+                root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
+                    locale=locale,
+                    title=self.get_name(),
+                    slug=self.identifier,
+                    url_path='',
+                    outcome_node=outcome_nodes[0],
+                ))
+            action_list_pages = root_page.get_children().type(ActionListPage)
+            if not action_list_pages.exists():
+                root_page.add_child(instance=ActionListPage(
+                    title=_("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
+                ))
         return root_page
 
     def create_default_content(self):
@@ -205,7 +232,7 @@ class NodeConfig(ClusterableModel):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
-    i18n = TranslationField(fields=('name',))
+    i18n = TranslationField(fields=('name', 'short_description', 'description'))
 
     class Meta:
         verbose_name = _('Node')
@@ -225,6 +252,12 @@ class NodeConfig(ClusterableModel):
             node.replace_input_data(self.input_data)
 
         # FIXME: Override params
+
+    def update_from_node(self, node: Node, overwrite=False):
+        """Sets attributes of this instance from revelant fields of the given node but does not save."""
+        for k, v in node.as_node_config_attributes().items():
+            if overwrite or getattr(self, k, None) is None:
+                setattr(self, k, v)
 
     def can_edit_data(self):
         node = self.get_node()

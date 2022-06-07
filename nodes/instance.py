@@ -35,6 +35,8 @@ class Instance:
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
     supported_languages: Optional[list[str]] = None
+    lead_title: Optional[TranslatedString] = None
+    lead_paragraph: Optional[TranslatedString] = None
 
     modified_at: Optional[datetime] = field(init=False)
 
@@ -350,7 +352,10 @@ class InstanceLoader:
             name=self.make_trans_string(self.config, 'name', default_language=self.config['default_language']),
             owner=self.make_trans_string(self.config, 'owner', default_language=self.config['default_language']),
             context=self.context,
-            **{attr: self.config.get(attr) for attr in instance_attrs}
+            **{attr: self.config.get(attr) for attr in instance_attrs},
+            # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
+            # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
+            **self._build_instance_args_from_home_page(),
         )
         self.context.instance = self.instance
         self.instance.yaml_file_path = yaml_file_path
@@ -372,3 +377,17 @@ class InstanceLoader:
         else:
             raise Exception('No default scenario defined')
         self.context.activate_scenario(scenario)
+
+    def _build_instance_args_from_home_page(self):
+        # FIXME: This is an ugly hack
+        pages = self.config.get('pages', [])
+        for page in pages:
+            if page['id'] == 'home':
+                break
+        else:
+            return {}
+        default_language = self.config['default_language']
+        return {
+            'lead_title': self.make_trans_string(page, 'lead_title', default_language=default_language),
+            'lead_paragraph': self.make_trans_string(page, 'lead_paragraph', default_language=default_language),
+        }

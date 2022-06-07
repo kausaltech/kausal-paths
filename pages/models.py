@@ -70,7 +70,7 @@ class PathsPage(Page):
 class OutcomePage(PathsPage):
     outcome_node = ParentalKey(NodeConfig, on_delete=models.PROTECT, related_name='pages')
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
-    lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
+    lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
 
     content_panels = PathsPage.content_panels + [
         FieldPanel('outcome_node'),
@@ -91,7 +91,7 @@ class OutcomePage(PathsPage):
 
 class ActionListPage(PathsPage):
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
-    lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
+    lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
 
     content_panels = PathsPage.content_panels + [
         FieldPanel('lead_title'),

@@ -13,6 +13,7 @@ django-extensions
 scipy
 dvc-pandas
 ipython
+numba
 pint
 pint-pandas
 colored
@@ -25,6 +26,7 @@ wagtailfontawesome
 django-modeltrans
 rich
 wagtail-grapple
+wagtail-localize
 Babel
 ruamel.yaml
 pygments-graphql

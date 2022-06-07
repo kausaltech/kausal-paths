@@ -966,7 +966,7 @@ instance:
       unit: g/km
     output_nodes:
     - bus_emission_factor_streets
-  
+
   - id: tree_planting
     name: Planting 100,000 trees in the city area
     name_fi: Istuta kaupunkiin 100 000 puuta
