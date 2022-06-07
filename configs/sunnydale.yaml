@@ -648,7 +648,19 @@ instance:
       multiplier: -1
     unit: GWh/a
 
-  #
+  - id: forest_sink
+    name: Metsien hiilinielu
+    name_en: Carbon sink of forests
+    quantity: emissions
+    unit: kg/a
+    type: simple.FixedMultiplierNode
+    params: 
+      - id: multiplier
+        value: -100
+        unit: kg/a/pcs
+    part_of: agriculture_emissions
+
+#
   # ------- ACTIONS --------
   #
 
@@ -962,17 +974,25 @@ instance:
     type: simple.LinearCumulativeAdditiveAction
     quantity: number
     unit: pcs
+    forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0],
+      [2029, 0],  [2030, 0]]
+    output_nodes:
+      - forest_sink
     params:
       - id: action_delay
+        description: How many years until the action starts
         values:
           default: 0
         min_value: 0
-        max_value: 10
+        max_value: 8
+        step: 1
       - id: target_year_level
+        description: How many trees to plant
         values:
           default: 100000
         min_value: 0
         max_value: 100000
+        step: 10000
 
 
   pages:
