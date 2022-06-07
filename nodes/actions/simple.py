@@ -68,11 +68,10 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
     """Cumulative additive action where a yearly target is set and the effect is linear."""
     def compute_effect(self):
         df = self.get_input_dataset()
-        delay = self.get_parameter_value('action_delay', required=False)
-        if delay is None:
-            delay = 0
         start_year = df.index.min()
-        start_year = start_year + int(delay)
+        delay = self.get_parameter_value('action_delay', required=False)
+        if delay is not None:
+            start_year = start_year + int(delay)
         end_year = df.index.max()
         df = df.reindex(range(start_year, end_year + 1))
         df[FORECAST_COLUMN] = True
@@ -82,7 +81,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
             df.loc[end_year, VALUE_COLUMN] = target_year_level
-            if delay > 0:
+            if delay is not None:
                 df.loc[range(start_year + 1, end_year), VALUE_COLUMN] = nan
 
         for col in df.columns:

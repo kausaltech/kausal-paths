@@ -658,7 +658,8 @@ instance:
       - id: multiplier
         value: -100
         unit: kg/a/pcs
-    part_of: agriculture_emissions
+    output_nodes:
+      - agriculture_emissions
 
 #
   # ------- ACTIONS --------
@@ -974,8 +975,7 @@ instance:
     type: simple.LinearCumulativeAdditiveAction
     quantity: number
     unit: pcs
-    forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0],
-      [2029, 0],  [2030, 0]]
+    forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
     output_nodes:
       - forest_sink
     params:
