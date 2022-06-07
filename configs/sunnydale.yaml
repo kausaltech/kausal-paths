@@ -955,6 +955,25 @@ instance:
     output_nodes:
     - bus_emission_factor_streets
 
+  - id: tree_planting
+    name: Planting 100,000 trees in the city area
+    name_fi: Istuta kaupunkiin 100 000 puuta
+    name_de: 100.000 Bäume in der Stadt pflanzen
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: number
+    unit: pcs
+    params:
+      - id: action_delay
+        values:
+          default: 0
+        min_value: 0
+        max_value: 10
+      - id: target_year_level
+        values:
+          default: 100000
+        min_value: 0
+        max_value: 100000
+
 
   pages:
   - id: home
