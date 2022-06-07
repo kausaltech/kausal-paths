@@ -1,7 +1,7 @@
 instance:
   id: greenlogic
   default_language: fi
-  supported_languages: [en, se]
+  supported_languages: [en, sv]
   site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
@@ -739,7 +739,7 @@ instance:
   - id: price_of_heat
     name: Lämmityksen hinta
     name_en: Price of heat
-    name_se: Värmepris
+    name_sv: Värmepris
     quantity: unit_price
     unit: EUR/kWh
     type: simple.YearlyPercentageChangeNode
@@ -751,7 +751,7 @@ instance:
   - id: floor_area
     name: Kerrostalojen rakennusala 
     name_en: Floor area of apartment buildings
-    name_se: Antal flerbostadshus
+    name_sv: Antal flerbostadshus
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
@@ -784,7 +784,7 @@ instance:
   - id: social_benefit
     name: Yhteiskunnallinen hyöty
     name_en: Social benefit
-    name_se: Social nytta
+    name_sv: Social nytta
     quantity: currency
     unit: MEUR/a
     type: simple.AdditiveNode
@@ -1135,7 +1135,7 @@ instance:
   - id: energy_saving_lamps
     name: Energiansäästölamput
     name_en: Energy-saving lamps
-    name_se: Lågenergilampor
+    name_sv: Lågenergilampor
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1157,7 +1157,7 @@ instance:
       unit: '%'
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
     - id: renovation_rate
       values:
         default: 5
@@ -1167,7 +1167,7 @@ instance:
 #      unit: '%'
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -1184,7 +1184,7 @@ instance:
   - id: pressure_controlled_fans
     name: Painesäädetyt tuulettimet
     name_en: Pressure-controlled fans
-    name_se: Trykstyrda fläktar
+    name_sv: Trykstyrda fläktar
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1207,7 +1207,7 @@ instance:
       unit: '%'
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
     - id: renovation_rate
       values:
         default: 5
@@ -1217,7 +1217,7 @@ instance:
 #      unit: '%'
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -1234,7 +1234,7 @@ instance:
   - id: ventilation_system_adjustment
     name: Ilmanvaihdon säätö
     name_en: Ventilation system adjustment
-    name_se: Injustering ventilationssystem
+    name_sv: Injustering ventilationssystem
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1250,7 +1250,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1259,7 +1259,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1281,7 +1281,7 @@ instance:
   - id: reduced_flow_shower_heads
     name: Vesipihit suihkupäät
     name_en: Reduced-flow shower-heads
-    name_se: Snålspolande armaturer
+    name_sv: Snålspolande armaturer
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1297,7 +1297,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1306,7 +1306,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1328,7 +1328,7 @@ instance:
   - id: smart_lighting
     name: Älykäs valaistus
     name_en: Smart lighting
-    name_se: Närvarostyrd LED
+    name_sv: Närvarostyrd LED
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1344,7 +1344,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1353,7 +1353,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1375,7 +1375,7 @@ instance:
   - id: thermostat_replacement
     name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
     name_en: Thermostat replacement and heating system adjustment
-    name_se: Byte termostater och injustering värmesystem
+    name_sv: Byte termostater och injustering värmesystem
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1391,7 +1391,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1400,7 +1400,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1422,7 +1422,7 @@ instance:
   - id: wind_insulation
     name: Tuulieristys 300 mm
     name_en: Wind insulation, 300 mm
-    name_se: Vindisolering, 300 mm
+    name_sv: Vindisolering, 300 mm
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1438,7 +1438,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1447,7 +1447,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 2.5
       min_value: 0
@@ -1469,7 +1469,7 @@ instance:
   - id: window_door_sealing
     name: Ikkunoiden ja ovin eristys
     name_en: Painting and sealing of windows and doors
-    name_se: Målning och tätning av fönster och dörrar
+    name_sv: Målning och tätning av fönster och dörrar
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1485,7 +1485,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1494,7 +1494,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1516,7 +1516,7 @@ instance:
   - id: door_replacement
     name: Uudet ulko- ja kellarin ovet
     name_en: New entrance and basement doors
-    name_se: Nya entré- och källardörrar
+    name_sv: Nya entré- och källardörrar
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1532,7 +1532,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1541,7 +1541,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 2.5
       min_value: 0
@@ -1563,7 +1563,7 @@ instance:
   - id: wastewater_heat_capture
     name: Jäteveden lämmön talteenotto
     name_en: Wastewater heat capture
-    name_se: Värmeväxlare spillvatten
+    name_sv: Värmeväxlare spillvatten
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1579,7 +1579,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1588,7 +1588,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1610,7 +1610,7 @@ instance:
   - id: imd
     name: IMD kuuma vesi
     name_en: IMD hot water
-    name_se: IMD varmvatten
+    name_sv: IMD varmvatten
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1626,7 +1626,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1635,7 +1635,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1657,7 +1657,7 @@ instance:
   - id: f_heat_pump
     name: F-lämpöpumppu COP 3.0
     name_en: F heat pump COP 3.0
-    name_se: F värmepump COP 3,0
+    name_sv: F värmepump COP 3,0
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1673,7 +1673,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 50
       min_value: 0
@@ -1682,7 +1682,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 5
       min_value: 0
@@ -1704,7 +1704,7 @@ instance:
   - id: ftx
     name: FTX 85 %
     name_en: FTX 85 %
-    name_se: FTX 85 %
+    name_sv: FTX 85 %
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1720,7 +1720,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 50
       min_value: 0
@@ -1729,7 +1729,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 2.5
       min_value: 0
@@ -1751,7 +1751,7 @@ instance:
   - id: additional_window_insulation
     name: Ikkunoiden lisäeristys
     name_en: Additional window insulation
-    name_se: Tilläggsisolering fönster
+    name_sv: Tilläggsisolering fönster
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1767,7 +1767,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1776,7 +1776,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 2.5
       min_value: 0
@@ -1798,7 +1798,7 @@ instance:
   - id: additional_facade_insulation
     name: Julkisivun lisäeristys
     name_en: Additional facade insulation
-    name_se: Fasadisolering, 100 mm
+    name_sv: Fasadisolering, 100 mm
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1814,7 +1814,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 70
       min_value: 0
@@ -1823,7 +1823,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 2.5
       min_value: 0
@@ -1845,7 +1845,7 @@ instance:
   - id: window_replacement
     name: Ikkunoiden vaihto (U = 1,0)
     name_en: Window replacement (U = 1.0)
-    name_se: Fönsterbyte (U = 1,0)
+    name_sv: Fönsterbyte (U = 1,0)
     type: energy_saving.BuildingEnergySavingAction
     quantity: energy
     unit: MWh/a
@@ -1861,7 +1861,7 @@ instance:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
-      description_se: Potential av fastigheter (%)
+      description_sv: Potential av fastigheter (%)
       values:
         default: 100
       min_value: 0
@@ -1870,7 +1870,7 @@ instance:
     - id: renovation_rate
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
-      description_se: Utrullningtakt (%/a)
+      description_sv: Utrullningtakt (%/a)
       values:
         default: 2.5
       min_value: 0
