@@ -220,6 +220,8 @@ jmespath==1.0.0
     #   botocore
 l18n==2021.3
     # via wagtail
+llvmlite==0.38.1
+    # via numba
 mailchecker==4.1.16
     # via python-benedict
 mako==1.2.0
@@ -236,8 +238,11 @@ nanotime==0.5.2
     # via dvc
 networkx==2.8
     # via dvc
+numba==0.55.2
+    # via -r requirements.in
 numpy==1.22.3
     # via
+    #   numba
     #   pandas
     #   pyarrow
     #   scipy
