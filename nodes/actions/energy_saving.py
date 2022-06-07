@@ -238,12 +238,12 @@ class BuildingEnergySavingAction(ActionNode):
             unit='%',
         ),
     ]
+    quantity = 'energy'
+    unit = 'MWh/a'
+    input_nodes = ['floor_area', 'price_of_heat', 'price_of_electricity']
+    output_nodes = ['cost_efficiency', 'energy_saving', 'social_benefit']
 
     def compute_effect(self) -> pd.DataFrame:
-        # Input time series are:
-        #  - building_floor_area
-        #  - electricity_price
-        #  - heat_price
 
         def serialise(df, x):
             out = pd.Series([x.m] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
@@ -251,7 +251,7 @@ class BuildingEnergySavingAction(ActionNode):
 
         def net_present_investment_factor(lifetime, timespan, discount):
             unit = lifetime.units
-            lifetime = lifetime.m  #   .round(decimals=0)
+            lifetime = lifetime.m  # .round(decimals=0)
             factor = 0
             for i in range(timespan):
                 if (i % lifetime) == 0:
