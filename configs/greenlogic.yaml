@@ -1111,6 +1111,8 @@ instance:
       description: Vuosittain uusittavien valaisimien lisälukumäärä
       description_en: Increase in number of luminaries retrofitted yearly
     - id: yearly_demand_increase
+      min_value: 0
+      max_value: 1000
       value: 400
       unit: pcs/a
       description: Vuosittainen valaisinten määrän lisääntyminen
