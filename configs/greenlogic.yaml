@@ -780,6 +780,8 @@ instance:
     quantity: energy
     unit: kWh/a
     type: simple.AdditiveNode
+    output_nodes:
+      - emission_reduction_apartment_buildings
 
   - id: social_benefit
     name: Yhteiskunnallinen hyöty
@@ -789,7 +791,21 @@ instance:
     unit: MEUR/a
     type: simple.AdditiveNode
 
-  #
+  - id: emission_reduction_apartment_buildings
+    name: Päästöjen vähenemä kerrostaloista
+    name_en: Emission reduction from apartment buildings
+    name_sv: Utsläppsminskning från flerbostadshus
+    quantity: emissions
+    type: simple.FixedMultiplierNode
+    unit: kt/a
+    params:
+      - id: multiplier
+        value: 172
+        unit: g/kWh
+    output_nodes:
+      - district_heating_emissions
+
+#
   # ------- ACTIONS --------
   #
 
