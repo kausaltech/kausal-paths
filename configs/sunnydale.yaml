@@ -648,6 +648,19 @@ instance:
       multiplier: -1
     unit: GWh/a
 
+  - id: forest_sink
+    name: Metsien hiilinielu
+    name_en: Carbon sink of forests
+    quantity: emissions
+    unit: kt/a
+    type: simple.FixedMultiplierNode
+    params: 
+      - id: multiplier
+        value: -0.0001
+        unit: kt/a/pcs
+    output_nodes:
+      - agriculture_emissions
+
   #
   # ------- ACTIONS --------
   #
@@ -954,6 +967,32 @@ instance:
       unit: g/km
     output_nodes:
     - bus_emission_factor_streets
+
+  - id: tree_planting
+    name: Planting 100,000 trees in the city area
+    name_fi: Istuta kaupunkiin 100 000 puuta
+    name_de: 100.000 Bäume in der Stadt pflanzen
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: number
+    unit: pcs
+    forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
+    output_nodes:
+      - forest_sink
+    params:
+      - id: action_delay
+        description: How many years until the action starts
+        values:
+          default: 0
+        min_value: 0
+        max_value: 8
+        step: 1
+      - id: target_year_level
+        description: How many trees to plant
+        values:
+          default: 100000
+        min_value: 0
+        max_value: 100000
+        step: 10000
 
 
   pages:
