@@ -1,5 +1,5 @@
 instance:
-  id: gronalund
+  id: greenlogic  # FIXME For some unit reasons, I could not create a new KP instance for gronalund
   default_language: fi
   supported_languages: [en, sv]
   site_url: https://gronalund.paths.kausal.tech
