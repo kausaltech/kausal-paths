@@ -11,7 +11,6 @@ disability_adjusted_lifeyear = [disease_burden] = DALY = YLL = YLD
 incident = [event] = case
 MET = [metabolic_equivalent]
 METh = MET * h 
-euro = [monetary_amount] = EUR
 
 [exposure] = [mass] / [mass] / [time]
 [inhalation] = [mass] / [volume]
@@ -33,7 +32,7 @@ Lden = [noise] = _ = Lnight
 toxic_equivalency_factor = [tef] = TEF
 toxic_equivalency_quantity = [TEQ] = g_teq  # Not sure if this is needed
 
-@alias count = piece = pieces
+#@alias count = piece = pieces
 
 #### Constants
 

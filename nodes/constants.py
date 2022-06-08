@@ -19,11 +19,14 @@ EMISSION_QUANTITY = 'emissions'
 ENERGY_QUANTITY = 'energy'
 MILEAGE_QUANTITY = 'mileage'
 EMISSION_FACTOR_QUANTITY = 'emission_factor'
+CURRENCY_QUANTITY = 'currency'
+UNIT_PRICE_QUANTITY = 'unit_price'
+NUMBER_QUANTITY = 'number'
 ACTIVITY_QUANTITIES = [EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'mass']
 
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
-    'emission_factor', 'population', 'per_capita', 'fuel_consumption',
-    'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
+    EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, UNIT_PRICE_QUANTITY,
+    'population', 'per_capita', 'fuel_consumption',    'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'monetary_amount'
 ]
