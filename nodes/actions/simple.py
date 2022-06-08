@@ -1,3 +1,5 @@
+from cmath import nan
+from threading import local
 from params.param import Parameter
 from params import PercentageParameter, NumberParameter
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
@@ -56,13 +58,20 @@ class CumulativeAdditiveAction(ActionNode):
 
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
     allowed_parameters = CumulativeAdditiveAction.allowed_parameters + [
-        NumberParameter('target_year_level')
+        NumberParameter('target_year_level'),
+        NumberParameter(
+            local_id='action_delay',
+            label='Years of delay (a)',
+        ),
     ]
 
     """Cumulative additive action where a yearly target is set and the effect is linear."""
     def compute_effect(self):
         df = self.get_input_dataset()
         start_year = df.index.min()
+        delay = self.get_parameter_value('action_delay', required=False)
+        if delay is not None:
+            start_year = start_year + int(delay)
         end_year = df.index.max()
         df = df.reindex(range(start_year, end_year + 1))
         df[FORECAST_COLUMN] = True
@@ -72,6 +81,8 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
             df.loc[end_year, VALUE_COLUMN] = target_year_level
+            if delay is not None:
+                df.loc[range(start_year + 1, end_year), VALUE_COLUMN] = nan
 
         for col in df.columns:
             if col == FORECAST_COLUMN:
