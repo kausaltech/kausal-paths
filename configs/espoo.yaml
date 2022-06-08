@@ -2,7 +2,7 @@ id: espoo
 default_language: fi
 supported_languages: [en]
 framework: syke
-site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
+site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: af84a46c532a0d4d976767c6f4371601e9b41255

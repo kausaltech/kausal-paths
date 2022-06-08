@@ -66,7 +66,7 @@ instance:
       name_en: Exposure response PM2.5
       type: health.ExposureResponse
       quantity: exposure-response
-      unit: dimensionless
+      unit: dimensionless  # FIXME: dimensionless units cause error in get_parameter_value_w_unit()
       input_nodes:
         - PM2_5_classification
       input_datasets:
@@ -782,16 +782,16 @@ instance:
           unit: year
         - id: investment_cost
           value: 350
-          unit: EUR / piece
+          unit: EUR / pcs
         - id: operation_cost
           value: -23.5  # 25 - 1.5 difference between old and LED
-          unit: EUR / piece
+          unit: EUR / pcs
         - id: investment_years
           value: [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029]
         - id: investment_numbers
           value: [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]
           description: 2024 pilot project, 2029 full investment
-          unit: pieces
+          unit: pcs
       input_nodes:
         - street_lighting_costs
 #      input_datasets:
