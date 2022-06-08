@@ -6,10 +6,10 @@ instance:
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
-  name: Hiilineutraali Grönalund 2030
-  name_en: Carbon-neutral Grönalund 2030
+  name: Hiilineutraali Tampere 2030
+  name_en: Carbon-neutral Tampere 2030
   owner: Grönalundin kaupunki
-  owner_en: City of Grönalund
+  owner_en: City of Gröna Lund
   target_year: 2030
   reference_year: 1990
   minimum_historical_year: 2010
@@ -25,6 +25,38 @@ instance:
     name: Kokonaispäästöt (scope 2)
     name_en: Net emissions (scope 2)
     target_year_goal: 260
+
+    #
+    # Transportation
+    #
+  - id: transportation_emissions
+    name: Liikenteen päästöt
+    name_en: Transportation emissions
+    description: Liikennepäästölaskenta perustuu kolmeen perustekijään. Liikennesuoritteeseen
+      ajoneuvotyypeittäin, liikenteen käyttövoimien päästökertoimiin eri ajoneuvoille
+      ja käyttövoimajakaumiin ajoneuvotyypeittäin.
+    description_en: The traffic emission calculation is based on three basic factors.
+      Mileage by vehicle type, emission factors for vehicle types with different propulsion,
+      and propulsion distributions by vehicle type.
+    part_of: net_emissions
+    color: '#668EC9'
+    target_year_goal: 115
+
+  - id: van_emissions
+    name: Pakettiautojen päästöt
+    name_en: Van emissions
+    column: Vans
+    part_of: transportation_emissions
+  - id: truck_emissions
+    name: Kuorma-autot
+    name_en: Trucks and lorries
+    column: Trucks and lorries
+    part_of: transportation_emissions
+  - id: motorbike_emissions
+    name: Moottoripyörät yms.
+    name_en: Motorbikes etc.
+    column: Motorbikes
+    part_of: transportation_emissions
 
     #
     # Heating
@@ -56,6 +88,91 @@ instance:
     description_en: Electric heating emissions include estimates of both direct electric
       heating and geothermal emissions.
     part_of: building_heating_emissions
+
+      #
+      # Other emission sources
+      #
+
+  - id: industry_and_machinery_emissions
+    name: Teollisuuden ja työkoneiden päästöt
+    name_en: Industry and machinery emissions
+    description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla
+      lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
+    description_en: The emission forecast for industry and machinery has been made
+      by linearly extrapolating the emission development during 2010-2018.
+    part_of: net_emissions
+    #  column: Industry without city machinery
+    color: '#E8B455'
+
+  - id: industry_emissions
+    name: Teollisuuden ja yksityisten työkoneiden päästöt
+    name_en: Industry and private machinery emissions
+    description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa
+      Teollisuuden ja työkoneiden päästöt.
+    description_en: The emission forecast for industry and machinery is described
+      in more detail in the node Industry and machinery emissions.
+    part_of: industry_and_machinery_emissions
+    column: Industry without city machinery
+    color: '#E8B455'
+
+  - id: waste_treatment_emissions
+    name: Jätehuollon päästöt
+    name_en: Waste treatment
+    description: Jätehuollon päästöt sisältävät kiinteät jätteet, biojätteet ja jäteveden.
+    description_en: Emissions from waste management include solid waste, biowaste
+      and wastewater.
+    part_of: net_emissions
+    color: '#397368'
+
+  - id: solid_waste_treatment_emissions
+    name: Kiinteän jätteen käsittelyn päästöt
+    name_en: Solid waste treatment
+    column: Solid waste treatment
+    part_of: waste_treatment_emissions
+
+  - id: waste_water_treatment_emissions
+    name: Jäteveden puhdistuksen päästöt
+    name_en: Waste water treatment
+    column: Waste water treatment
+    part_of: waste_treatment_emissions
+
+  - id: agriculture_emissions
+    name_en: Agriculture
+    name: Maatalouden päästöt
+    description: Maatalouden päästöt perustuvat CO2-raportin päästötoteumaan eläinten
+      ruoansulatuksen, lannan käsittelyn ja peltoviljelyn päästöistä.
+    description_en: Emissions from agriculture are based on the emission estimates
+      of the CO2 Report on animal digestion, manure treatment and arable farming.
+    part_of: net_emissions
+    color: '#ABC872'
+
+  - id: cattle_digestion_emissions
+    name_en: Cattle digestion
+    name: Eläinten ruoansulatus
+    part_of: agriculture_emissions
+    column: Cattle digestion
+
+  - id: manure_treatment_emissions
+    name_en: Manure treatment
+    name: Lannankäsittely
+    part_of: agriculture_emissions
+    column: Manure treatment
+
+  - id: field_crops_emissions
+    name_en: Field crops
+    name: Peltoviljelyn päästöt
+    part_of: agriculture_emissions
+    column: Field crops
+
+    #
+    # Electricity emissions
+    #
+
+  - id: industrial_electricity_consumption_emissions
+    name_en: Industrial electricity consumption
+    name: Teollisuuden sähkön kulutuksen päästöt
+    part_of: electricity_consumption_emissions
+    column: Power consumption industry
 
   nodes:
   - id: population
@@ -282,6 +399,332 @@ instance:
     output_nodes:
     - net_emissions
 
+    #
+    # Transport nodes
+    #
+
+  - id: local_train_kilometers
+    name: Paikallisjunasuorite
+    name_en: Local train kilometers
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Local train
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - local_train_emissions
+
+  - id: tram_kilometers
+    name: Ratikkasuorite
+    name_en: Tram kilometers
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    historical_values: [[2020, 0]]
+    forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026,
+        0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
+    output_nodes:
+    - tram_emissions
+
+  - id: car_kilometers_streets
+    name: Henkilöautosuorite (katuajo)
+    name_en: Car kilometers (streets)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Private car street
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - car_emissions_streets
+
+  - id: car_kilometers_roads
+    name: Henkilöautosuorite (maantieajo)
+    name_en: Car kilometers (roads)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Private car road
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - car_emissions_roads
+
+  - id: bus_kilometers_streets
+    name: Bussisuorite (katuajo)
+    name_en: Bus kilometers (streets)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Bus street
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - bus_emissions_streets
+
+  - id: bus_kilometers_roads
+    name: Bussisuorite (maantieajo)
+    name_en: Bus kilometers (roads)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Bus road
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - bus_emissions_roads
+
+  - id: local_train_emission_factor
+    name: Paikallisjunan päästökerroin
+    name_en: Local train emission factor
+    quantity: emission_factor
+    unit: g/km
+    type: simple.FixedMultiplierNode
+    params:
+    - id: multiplier
+      value: 6.5  # Derived from explicit emission factors of trains and electricity
+      unit: kWh/km
+    input_nodes:
+    - electricity_production_emission_factor
+    output_nodes:
+    - local_train_emissions
+
+  - id: tram_emission_factor
+    name: Ratikan päästökerroin
+    name_en: Tram emission factor
+    quantity: emission_factor
+    type: simple.FixedMultiplierNode
+    unit: g/km
+    params:
+    - id: multiplier
+      value: 2.56  # Derived from explicit emission factors of trams and electricity
+      unit: kWh/km
+    input_nodes:
+    - electricity_production_emission_factor
+    output_nodes:
+    - tram_emissions
+
+  - id: car_emission_factor_streets
+    name: Henkilöautoilun päästökerroin (katuajo)
+    name_en: Car emission factor (streets)
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Private car street
+      dropna: true
+    output_nodes:
+    - car_emissions_streets
+
+  - id: car_emission_factor_roads
+    name: Henkilöautoilun päästökerroin (maantieajo)
+    name_en: Car emission factor (roads)
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Private car road
+      dropna: true
+    output_nodes:
+    - car_emissions_roads
+
+  - id: bus_emission_factor_streets
+    name: Bussin päästökerroin (katuajo)
+    name_en: Bus emission factor (streets)
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus street constant fuel share
+      dropna: true
+      unit: g/km
+    output_nodes:
+    - bus_emissions_streets
+
+  - id: bus_emission_factor_roads
+    name: Bussin päästökerroin (maantieajo)
+    name_en: Bus emission factor (roads)
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus road
+      dropna: true
+    output_nodes:
+    - bus_emissions_roads
+
+  - id: local_train_emissions
+    name: Lähijunien päästöt
+    name_en: Local train emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - transportation_emissions
+
+  - id: tram_emissions
+    name: Ratikkaliikenteen päästöt
+    name_en: Tram emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - transportation_emissions
+
+  - id: car_emissions_roads
+    name: Henkilöautoliikenteen päästöt (maantieajo)
+    name_en: Private car emissions (roads)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - car_emissions
+
+  - id: car_emissions_streets
+    name: Henkilöautoliikenteen päästöt (katuajo)
+    name_en: Private car emissions (streets)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - car_emissions
+
+  - id: car_emissions
+    name: Henkilöautoliikenteen päästöt
+    name_en: Private car emissions
+    type: simple.SectorEmissions
+    unit: kt/a
+    params:
+      fill_gaps_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Private cars
+      forecast_from: 2019
+    output_nodes:
+    - transportation_emissions
+
+  - id: bus_emissions_roads
+    name: Bussiliikenteen päästöt (maantieajo)
+    name_en: Bus emissions (roads)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - bus_emissions
+
+  - id: bus_emissions_streets
+    name: Bussiliikenteen päästöt (katuajo)
+    name_en: Bus emissions (streets)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - bus_emissions
+
+  - id: bus_emissions
+    name: Bussiliikenteen päästöt
+    name_en: Bus emissions
+    type: simple.SectorEmissions
+    unit: kt/a
+    quantity: emissions
+    params:
+      fill_gaps_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Buses
+      forecast_from: 2019
+    output_nodes:
+    - transportation_emissions
+
+    #
+    # City machinery
+    #
+  - id: city_machinery_emissions
+    name: Kaupungin työkoneiden päästöt
+    name_en: City machinery emissions
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - industry_and_machinery_emissions
+
+  - id: city_machinery_fuel_consumption
+    name: Kaupungin työkoneiden polttoaineenkulutus
+    name_en: City machinery fuel consumption
+    type: simple.Activity
+    quantity: fuel_consumption
+    unit: l/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: City machinery fuel consumption
+    output_nodes:
+    - city_machinery_emissions
+
+  - id: city_machinery_emission_factor
+    name: Dieselin päästökerroin
+    name_en: Diesel emission factor
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/l
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Machinery
+    output_nodes:
+    - city_machinery_emissions
+
+  - id: renewable_electricity_consumption_reduction
+    name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
+    name_en: Decrease in purchased energy due to renewable electricity production
+    quantity: energy
+    type: simple.FixedMultiplierNode
+    output_nodes:
+    - other_electricity_consumption
+    params:
+      multiplier: -1
+    unit: GWh/a
+
+  - id: lighting_traditional_luminaires_number
+    name: Vanhaa teknologiaa käyttävien ulkovalaisinten lukumäärä
+    name_en: Amount of traditional public luminaires
+    quantity: number
+    type: simple.AdditiveNode
+    unit: pcs
+    historical_values: [[2020, 28934]]
+    tags: traditional
+
+  - id: lighting_led_luminaires_number
+    name: LED-ulkovalaisinten lukumäärä
+    name_en: Amount of LED public luminaires
+    quantity: number
+    type: simple.AdditiveNode
+    unit: pcs
+    historical_values: [[2020, 13786]]
+    tags: led
+
+  - id: public_lighting_energy_consumption
+    name: Yleisten alueiden valaistuksen sähkönkulutus
+    name_en: Energy consumption of public lighting
+    quantity: energy
+    type: simple.AdditiveNode
+    unit: GWh/a
+    output_nodes:
+      - other_electricity_consumption
+
   - id: price_of_electricity
     name: Sähkön hinta
     name_en: Price of electricity
@@ -368,6 +811,343 @@ instance:
 
   actions:
 
+  - id: naistenlahti3
+    name: Naistenlahti 3 -biovoimalaitos
+    name_en: Naistenlahti 3 bio thermal plant
+    type: simple.CumulativeAdditiveAction
+    quantity: emission_factor
+    description: Naistenlahti 3 -voimalaitos pystyy käyttämään myös biopolttoainetta,
+      ja polttoainevalinta onkin keskeinen päästöjä vähentävä tekijä.
+    description_en: The Naistenlahti 3 power plant is also able to use biofuel, and
+      the choice of fuel is a key factor in reducing emissions.
+    long_description_en: <h2>Centralized renewable energy</h2><p>The action includes
+      investments by Tampereen Sähkölaitos (the local energy company) that will reduce
+      the district heating emission factor. As the emission factor for electricity
+      generation is determined nationally, the measures do not directly affect electricity
+      emissions.</p><p>Currently, the clearest measure is the investment in the Naistenlahti
+      3 power plant. This, too, can only be roughly distinguished from other plans
+      to reduce the district heating emission factor. The final emission reduction
+      from the district heating emission factor is due to measures that have not yet
+      been further defined and have therefore been calculated as a lump sum. However,
+      the emission reduction will materialize if Tampereen Sähkölaitos achieves emission
+      reductions in line with its strategy. The magnitude is calculated in this total
+      emission forecast slightly differently than if only the energy production of
+      Tampereen Sähkölaitos is considered.</p><p>As a result, the emission reduction
+      in district heating caused by Naistenlahti 3 is approx. 82 kt CO2e. In addition,
+      approximately 99 kt of CO2e will be generated from other investments in reducing
+      the emissions of Tampereen Sähkölaitos by 2030. This is only a rough estimate
+      based on the company's own forecast of the district heating emission factor.
+      The real impact of Naistenlahti 3 in reducing fossil emissions depends on the
+      contribution of peat to combustion and the overall impact of adding wood fuel
+      elsewhere.</p><p>The action also includes the connection of the City of Tampere's
+      properties to district cooling as required. Connecting to district cooling reduces
+      the building's electricity consumption, as cooling is not required with heat
+      pumps. However, it is not known to what extent the properties will be connected
+      and what the change in their consumption would be. Therefore, no emission reduction
+      has yet been estimated for the action.</p>
+    output_nodes:
+    - district_heating_emission_factor
+    forecast_values: [[2022, -23], [2023, -23]]
+    unit: g/kWh
+
+  - id: other_renewable_district_heating
+    name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
+    name_en: Increase share of renewables in district heat production
+    type: simple.CumulativeAdditiveAction
+    quantity: energy
+    output_nodes:
+    - district_heating_emission_factor
+    forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
+      [2029, -14], [2030, -6]]
+    unit: g/kWh
+
+  - id: private_building_energy_renovation
+    name: Korjausrakentaminen yksityisissä kiinteistöissä
+    name_en: Energy renovation of privately owned buildings
+    unit: GWh/a
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    description: Keskeisimmät kohderyhmät energianeuvonnalle ovat yli 20 vuotta vanhat
+      kerrostalot sekä öljy- ja sähkölämmitteiset pientalot.
+    description_en: The most important target groups for energy advice are apartment
+      buildings that are more than 20 years old and detached houses that are heated
+      by oil and electricity.
+    output_nodes:
+    - district_heating_consumption
+    - other_electricity_consumption
+    - direct_electric_heating_electricity_use
+    forecast_values:
+    - id: district_heating_consumption
+      values: [[2021, 0], [2030, -239]]
+    - id: other_electricity_consumption
+      values: [[2021, 0], [2030, -12.65]]
+    - id: direct_electric_heating_electricity_use
+      values: [[2021, 0], [2030, 10.01]]
+
+  - id: distributed_renewable_energy
+    name: Hajautettu uusiutuva energia
+    name_en: Distributed renewable energy production
+    unit: GWh/a
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
+      uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali
+      rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
+    description_en: Photovoltaic production will be installed on the roofs of the
+      buildings. According to the 2016 municipal review of renewable energy, the unused
+      potential on the roofs of buildings is 800-900 GWh (does not take into account
+      all restrictions).
+    output_nodes:
+    - renewable_electricity_consumption_reduction
+    forecast_values: [[2022, 0], [2030, -850]]
+    params:
+    - id: target_year_level
+      values:
+        default: 17
+      min_value: 0
+      max_value: 850
+      step: 1
+      unit: GWh/a
+      description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+      description_en: PV energy production in 2030
+
+  - id: oil_heated_private_buildings_to_geothermal
+    name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
+    name_en: Private oil heated buildings to geothermal
+    type: simple.CumulativeAdditiveAction
+    unit: GWh/a
+    quantity: energy
+    description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 %
+      tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho
+      Rinta-Rahkon arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista.
+      Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
+    description_en: Private properties convert oil heating to geothermal energy. 95%
+      of the required heat is produced at COP 3 level, the rest is direct electricity.
+      Based on Juho Rinta-Rahko's assessment of the potential of renovation and energy
+      consulting in Tampere. Some oil heating will remain in service buildings and
+      industrial buildings.
+    output_nodes:
+    - oil_heating_energy_use
+    - geothermal_heating_electricity_use
+    forecast_values:
+    - id: oil_heating_energy_use
+      values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025,
+          -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030,
+          -5.73]]
+    - id: geothermal_heating_electricity_use
+      values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10],
+        [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
+
+  - id: oil_heated_municipal_buildings_to_heat_pump
+    name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    unit: GWh/a
+    description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v
+      eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden
+      COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu
+      pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
+    description_en: The city's properties currently consume 367 378 l / y of oil,
+      or about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced
+      by water-air heat pumps with a COP of about 2.5 when they produce all the heat
+      they need. Bio-oil has been thought to be held in reserve, but its share of
+      energy consumption is insignificant.
+    output_nodes:
+    - oil_heating_energy_use
+    - direct_electric_heating_electricity_use
+    forecast_values:
+    - id: oil_heating_energy_use
+      values: [[2021, 0], [2025, -3.674]]
+    - id: direct_electric_heating_electricity_use
+      values: [[2021, 0], [2025, 1.468]]
+
+  - id: cleaner_electricity_production
+    name: Kansallinen sähköntuotanto puhdistuu
+    name_en: Shift to low-carbon in national electricity production
+    decision_level: nation
+    quantity: emission_factor
+    output_nodes:
+    - electricity_production_emission_factor
+    type: simple.LinearCumulativeAdditiveAction
+    forecast_values: [[2021, 0], [2030, -80]]
+    unit: g/kWh
+    params:
+    - id: target_year_level
+      values:
+        default: -61
+      min_value: -80
+      max_value: 0
+      step: 1
+      unit: g/kWh
+      description: Sähköntuotannon päästökertoimen muutos
+      description_en: Change in electricity production emission factor
+
+  # - id: converting_street_lighting_to_led
+  #   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+  #   name_en: Converting street lighting to LED lamps
+  #   type: simple.LinearCumulativeAdditiveAction
+  #   unit: GWh/a
+  #   quantity: energy
+  #   description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
+  #     otetaan käyttöön vuoteen 2025 mennessä.
+  #   description_en: The city’s street lighting will be transformed into LEDs and intelligent
+  #     light control will be deployed by 2025.
+  #   forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+  #   output_nodes:
+  #   - other_electricity_consumption
+
+  - id: tram_phase_1
+    name: Ratikan rakennusvaihe 1 (2019-2022)
+    name_en: Tram construction phase 1 (2019-2022)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
+    description_en: The first construction phase of the tramway. Also learn more about
+      local train traffic.
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2021, 0.7], [2022, 0.7]]
+    - id: car_kilometers_streets
+      values: [[2021, -2.95], [2022, -2.95]]
+    - id: bus_kilometers_streets
+      values: [[2021, -0.48], [2022, -0.36]]
+
+  - id: tram_phase_2
+    name: Ratikan rakennusvaihe 2 (2023-2025)
+    name_en: Tram construction phase 2 (2023-2025)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava,
+      jotta tämä olisi mielekäs.
+    description_en: The second construction phase of the tramway. The first phase
+      of construction needs to be implemented for this action to make sense.
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2024, 0.535], [2025, 0.535]]
+    - id: car_kilometers_streets
+      values: [[2024, -2.35], [2025, -2.35]]
+    - id: bus_kilometers_streets
+      values: [[2025, -0.71]]
+
+  - id: tram_phase_3
+    name: Ratikan rakennusvaihe 3 (2028-2030)
+    name_en: Tram construction phase 3 (2028-2030)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe
+      on toteutettava, jotta tämä olisi mielekäs.
+    description_en: The third construction phase of the tramway. The first and second
+      construction phases need to be implemented for this action to make sense.
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2029, 0.325], [2030, 0.325]]
+    - id: car_kilometers_streets
+      values: [[2029, -4.3], [2030, -4.3]]
+    - id: bus_kilometers_streets
+      values: [[2030, 0]]
+
+  - id: renewable_diesel_in_city_machinery
+    name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
+    name_en: Renewable diesel in city machinery
+    type: simple.LinearCumulativeAdditiveAction
+    unit: g/l
+    quantity: emission_factor
+    description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
+      dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
+    description_en: The city’s own work machinery will move gradually to use renewable
+      diesel so that in 2030 only it will be used.
+    output_nodes:
+    - city_machinery_emission_factor
+      #  - city_machinery_fuel_consumption
+    forecast_values:
+    - id: city_machinery_emission_factor
+        #  quantity: emission_factor
+        #  unit: g/l
+      values: [[2021, 0], [2030, -2689]]
+        #- id: city_machinery_fuel_consumption # TODO An action should be able to have several output nodes with different units
+        #  quantity: fuel_consumption
+        #  unit: l
+        #  values: [[2021, 0], [2030, 64000]]
+
+  - id: energy_conversion_in_buses
+    name: Bussiliikenteen käyttövoimamuutos
+    name_en: Energy conversion in buses
+    type: simple.AdditiveAction
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus street difference to constant fuel share
+      forecast_from: 2020
+      dropna: true
+      unit: g/km
+    output_nodes:
+    - bus_emission_factor_streets
+
+  - id: lighting_led_retrofit
+    name: Ulkovalaisimien korvaaminen LED-lampuilla
+    name_en: Retrofitting public lighting with LED luminaires
+    type: energy_saving.LEDRetrofitAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - lighting_traditional_luminaires_number
+      - lighting_led_luminaires_number
+      - price_of_electricity
+    output_nodes:
+      - net_cost
+      - public_lighting_energy_consumption
+
+    params:
+    - id: yearly_retrofit_number_baseline
+      value: 1000
+      unit: pcs/a
+      description: Vuosittain uusittavien valaisimien (nykykehitys)
+      description_en: Number of luminaries retrofitted yearly (baseline)
+    - id: yearly_retrofit_number
+      min_value: 0
+      max_value: 6000
+      step: 100
+      unit: pcs/a
+      description: Vuosittain uusittavien valaisimien lisälukumäärä
+      description_en: Increase in number of luminaries retrofitted yearly
+    - id: yearly_demand_increase
+      min_value: 0
+      max_value: 1000
+      value: 400
+      unit: pcs/a
+      description: Vuosittainen valaisinten määrän lisääntyminen
+      description_en: Yearly increase in number of luminaires
+    - id: traditional_luminaire_maintenance_cost
+      value: 25
+    - id: led_luminaire_maintenance_cost
+      value: 1.5
+    - id: traditional_luminaire_power
+      value: 104
+    - id: led_luminaire_power
+      value: 53
+    - id: traditional_luminaire_active_time
+      value: 3546
+    - id: led_luminaire_active_time
+      value: 2305
+    - id: led_luminaire_investment_cost
+      value: 350
+
 # Grön logik: Flerbostadshus 24: next 16 actions 
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
   - id: energy_saving_lamps
@@ -375,6 +1155,16 @@ instance:
     name_en: Energy-saving lamps
     name_sv: Lågenergilampor
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       values:
@@ -392,6 +1182,7 @@ instance:
       min_value: 0
       max_value: 10
       step: 1
+#      unit: '%'
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
       description_sv: Utrullningtakt (%/a)
@@ -413,6 +1204,17 @@ instance:
     name_en: Pressure-controlled fans
     name_sv: Trykstyrda fläktar
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
+
     params:
     - id: renovation_potential
       values:
@@ -430,6 +1232,7 @@ instance:
       min_value: 0
       max_value: 10
       step: 1
+#      unit: '%'
       description: Korjausten nopeus (% vuodessa)
       description_en: Renovation rate (%/a)
       description_sv: Utrullningtakt (%/a)
@@ -451,6 +1254,16 @@ instance:
     name_en: Ventilation system adjustment
     name_sv: Injustering ventilationssystem
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -488,6 +1301,16 @@ instance:
     name_en: Reduced-flow shower-heads
     name_sv: Snålspolande armaturer
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -525,6 +1348,16 @@ instance:
     name_en: Smart lighting
     name_sv: Närvarostyrd LED
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -562,6 +1395,16 @@ instance:
     name_en: Thermostat replacement and heating system adjustment
     name_sv: Byte termostater och injustering värmesystem
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -599,6 +1442,16 @@ instance:
     name_en: Wind insulation, 300 mm
     name_sv: Vindisolering, 300 mm
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -636,6 +1489,16 @@ instance:
     name_en: Painting and sealing of windows and doors
     name_sv: Målning och tätning av fönster och dörrar
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -673,6 +1536,16 @@ instance:
     name_en: New entrance and basement doors
     name_sv: Nya entré- och källardörrar
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -710,6 +1583,16 @@ instance:
     name_en: Wastewater heat capture
     name_sv: Värmeväxlare spillvatten
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -746,6 +1629,17 @@ instance:
     name: IMD kuuma vesi
     name_en: IMD hot water
     name_sv: IMD varmvatten
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -783,6 +1677,16 @@ instance:
     name_en: F heat pump COP 3.0
     name_sv: F värmepump COP 3,0
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -820,6 +1724,16 @@ instance:
     name_en: FTX 85 %
     name_sv: FTX 85 %
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -856,6 +1770,17 @@ instance:
     name: Ikkunoiden lisäeristys
     name_en: Additional window insulation
     name_sv: Tilläggsisolering fönster
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -893,6 +1818,16 @@ instance:
     name_en: Additional facade insulation
     name_sv: Fasadisolering, 100 mm
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -930,6 +1865,16 @@ instance:
     name_en: Window replacement (U = 1.0)
     name_sv: Fönsterbyte (U = 1,0)
     type: energy_saving.BuildingEnergySavingAction
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+      - floor_area
+      - price_of_heat
+      - price_of_electricity
+    output_nodes:
+      - cost_efficiency
+      - energy_saving
+      - social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -964,42 +1909,46 @@ instance:
 
   pages:
   - id: home
-    name: Hiilineutraali Grönalund 2030 -päästöskenaario
-    name_en: Climate Neutral Grönalund 2030 emission scenario
+    name: Hiilineutraali Tampere 2030 -päästöskenaario
     path: /
     type: emission
     node: net_emissions
-    lead_title: Grönalundin päästöskenaariot
-    lead_title_en: Grönalund emission scenarios
-    lead_paragraph: Grönalundin päästöskenaariot visualisoi Grönalundin kasvihuonekaasupäästöjen
-      kehityksen. Voit tarkastella, mistä Grönalundin kaupungin alueen päästöt syntyvät
+    lead_title: Tampereen päästöskenaariot
+    lead_title_en: Tampere emission scenarios
+    lead_paragraph: Tampereen päästöskenaariot visualisoi Tampereen kasvihuonekaasupäästöjen
+      kehityksen. Voit tarkastella, mistä Tampereen kaupungin alueen päästöt syntyvät
       ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
-      peruskehitys-skenaario, Hiilineutraali Grönalund 2030 -tiekartan mukainen skenaario
+      peruskehitys-skenaario, Hiilineutraali Tampere 2030 -tiekartan mukainen skenaario
       ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
       vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
       avulla.
-    lead_paragraph_en: Grönalund's emission scenarios visualize the development of Grönalund's
-      greenhouse gas emissions. You can look at where emissions from the Grönalund city
+    lead_paragraph_en: Tampere's emission scenarios visualize the development of Tampere's
+      greenhouse gas emissions. You can look at where emissions from the Tampere city
       area come from and how they are projected to change by 2030. There is a basic
       development scenario to choose from, a scenario according to the Carbon Neutral
-      Grönalund 2030 roadmap and a scenario that you can edit yourself. Further efforts
+      Tampere 2030 roadmap and a scenario that you can edit yourself. Further efforts
       are needed to become carbon neutral, and their adequacy will be assessed in
       the future using this tool.
-    lead_paragraph_sv: Grönalunds utsläppsscenarier visualiserar utvecklingen av Grönalunds
-      utsläpp av växthusgaser. Du kan titta på var utsläppen från Grönalund stadsområde kommer
-      ifrån och hur de beräknas förändras till 2030. Det finns ett grundläggande
-      utvecklingsscenario att välja mellan, ett scenario enligt Carbon Neutral Grönalund 2030
-      roadmap och ett scenario som du kan redigera själv. Ytterligare ansträngningar krävs
-      för att bli koldioxidneutral, och deras tillräcklighet kommer att bedömas i framtiden
-      med hjälp av detta verktyg.
 
   scenarios:
   - id: baseline
     name: Nykykehitys
     name_en: Baseline
+    params:
+    - id: naistenlahti3.enabled
+      value: true
+    - id: cleaner_electricity_production.enabled
+      value: true
+    - id: tram_phase_1.enabled
+      value: true
+    - id: lighting_led_retrofit.yearly_retrofit_number
+      value: 0
 
   - id: default
     default: true
     name: Hiilineutraali Tampere 2030 -tiekartta
     name_en: Carbon-neutral Tampere 2030 roadmap
     all_actions_enabled: true
+    params:
+    - id: lighting_led_retrofit.yearly_retrofit_number
+      value: 3500
