@@ -2,7 +2,7 @@ id: espoo
 default_language: fi
 supported_languages: [en]
 framework: syke
-site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
+site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: af84a46c532a0d4d976767c6f4371601e9b41255
@@ -32,6 +32,22 @@ nodes:
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
+
+pages:
+  - id: home
+    name: Hiilineutraali Espoo -päästöskenaario
+    path: /
+    type: emission
+    node: net_emissions
+    lead_title: Espoon päästöskenaariot
+    lead_title_en: Espoo emission scenarios
+    lead_paragraph: Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
+      kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät
+      ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
+      peruskehitys-skenaario, Hiilineutraali Espoo -tiekartan mukainen skenaario
+      ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
+      vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
+      avulla.
 
 scenarios:
 - id: baseline

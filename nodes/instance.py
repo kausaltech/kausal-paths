@@ -133,7 +133,7 @@ class InstanceLoader:
                 forecast=config.get('forecast_values'),
             ))
 
-        node = node_class(
+        node: Node = node_class(
             id=config['id'],
             context=self.context,
             name=self.make_trans_string(config, 'name'),
@@ -178,6 +178,15 @@ class InstanceLoader:
 
                 for scenario_id, value in scenario_values.items():
                     param.add_scenario_setting(scenario_id, param.clean(value))
+
+        tags = config.get('tags', None)
+        if isinstance(tags, str):
+            tags = [tags]
+        if tags:
+            for tag in tags:
+                if not isinstance(tag, str):
+                    raise NodeError(Node, "'tags' must be a list of strings")
+            node.tags.update(tags)
 
         return node
 

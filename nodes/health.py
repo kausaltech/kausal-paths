@@ -676,7 +676,7 @@ class AttributableDiseaseBurden(Ovariable):
 
     def compute(self):
         drop_columns = [
-            'Erf_context', 'Exposure_agent', 'Response', 'Pollutant', 'Exposure level', 
+            'Erf_context', 'Exposure_agent', 'Response', 'Pollutant', 'Exposure level',
             'Unit', 'Source', 'Vehicle', 'Age group']
         bod = self.get_input('disease_burden')
         paf = self.get_input('fraction')

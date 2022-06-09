@@ -66,7 +66,7 @@ instance:
       name_en: Exposure response PM2.5
       type: health.ExposureResponse
       quantity: exposure-response
-      unit: dimensionless
+      unit: dimensionless  # FIXME: dimensionless units cause error in get_parameter_value_w_unit()
       input_nodes:
         - PM2_5_classification
       input_datasets:
@@ -763,7 +763,7 @@ instance:
       name: Katuvalaistuksen kustannukset
       name_en: Street lighting costs
       type: simple.AdditiveNode
-      quantity: monetary_amount
+      quantity: currency
       unit: kEUR
       historical_values: [[2017, 2298], [2018, 2298], [2019, 2298], [2020, 2298], [2021, 2329]]
       forecast_values: [[2022, 2298], [2023, 2268], [2024, 2237], [2025, 2206], [2026, 2175],
@@ -782,16 +782,16 @@ instance:
           unit: year
         - id: investment_cost
           value: 350
-          unit: EUR / piece
+          unit: EUR / pcs
         - id: operation_cost
           value: -23.5  # 25 - 1.5 difference between old and LED
-          unit: EUR / piece
+          unit: EUR / pcs
         - id: investment_years
           value: [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029]
         - id: investment_numbers
           value: [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]
           description: 2024 pilot project, 2029 full investment
-          unit: pieces
+          unit: pcs
       input_nodes:
         - street_lighting_costs
 #      input_datasets:

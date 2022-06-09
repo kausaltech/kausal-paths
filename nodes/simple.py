@@ -1,5 +1,6 @@
 from logging import log
 from types import FunctionType
+from nodes.calc import nafill_all_forecast_years
 from params.param import BoolParameter, NumberParameter
 from typing import Dict, List
 import pandas as pd
@@ -137,6 +138,7 @@ class AdditiveNode(SimpleNode):
         else:
             df = self.add_nodes(df, self.input_nodes)
 
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
         return df
 
@@ -242,5 +244,36 @@ class FixedMultiplierNode(SimpleNode):
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset(df)
+
+        return df
+
+
+class YearlyPercentageChangeNode(SimpleNode):
+    allowed_parameters = [
+        NumberParameter(local_id='yearly_change', unit='%'),
+    ] + SimpleNode.allowed_parameters
+
+    def compute(self):
+        df = self.get_input_dataset()
+        if len(self.input_nodes) != 0:
+            raise NodeError(self, "YearlyPercentageChange can't have input nodes")
+
+        df = nafill_all_forecast_years(df, self.get_target_year())
+        mult = self.get_parameter_value('yearly_change') / 100 + 1
+        df['Multiplier'] = 1
+        df.loc[df[FORECAST_COLUMN], 'Multiplier'] = mult
+        df['Multiplier'] = df['Multiplier'].cumprod()
+        for col in df.columns:
+            if col in (FORECAST_COLUMN, 'Multiplier'):
+                continue
+            dt = df.dtypes[col]
+            df[col] = df[col].pint.m.fillna(method='pad').astype(dt)
+            df.loc[df[FORECAST_COLUMN], col] *= df['Multiplier']
+
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(df)
+
+        df = df.drop(columns=['Multiplier'])
 
         return df

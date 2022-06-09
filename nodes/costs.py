@@ -6,7 +6,12 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, F
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
 
-DISCOUNT_RATE = 0.04
+DISCOUNT_RATE = 0.035
+HEALTH_IMPACTS_PER_KWH = unit_registry('0.007 EUR/kWh')
+AVOIDED_ELECTRICITY_CAPACITY_PRICE = unit_registry('0.04 EUR/kWh')
+HEAT_CO2_EF = unit_registry('53.7 g/kWh')
+ELECTRICITY_CO2_EF = unit_registry('93.2 g/kWh')
+COST_CO2 = unit_registry('700 EUR/t')
 
 
 class CostNode(Ovariable):
@@ -18,10 +23,10 @@ class CostNode(Ovariable):
         NumberParameter(local_id='investment_numbers'),
     ] + Ovariable.allowed_parameters
 
-    quantity = 'monetary_amount'
+    quantity = 'currency'
 
     def compute(self):
-        costs = self.get_input('monetary_amount')
+        costs = self.get_input('currency')
         investment_cost = self.get_parameter_value('investment_cost') * self.get_parameter('investment_cost').unit
         operation_cost = self.get_parameter_value('operation_cost') * self.get_parameter('operation_cost').unit
         investment_lifetime = self.get_parameter_value('investment_lifetime')
