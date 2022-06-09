@@ -22,251 +22,48 @@ instance:
     value: Tampere
   emission_sectors:
   - id: net_emissions
-    name: Kokonaispäästöt (scope 2)
-    name_en: Net emissions (scope 2)
+    name: Kokonaispäästöt
+    name_en: Net emissions
     target_year_goal: 260
 
-  - id: transportation_emissions
-    name: Liikenteen päästöt
-    name_en: Transportation emissions
-    description: Liikennepäästölaskenta perustuu kolmeen perustekijään. Liikennesuoritteeseen
-      ajoneuvotyypeittäin, liikenteen käyttövoimien päästökertoimiin eri ajoneuvoille
-      ja käyttövoimajakaumiin ajoneuvotyypeittäin.
-    description_en: The traffic emission calculation is based on three basic factors.
-      Mileage by vehicle type, emission factors for vehicle types with different propulsion,
-      and propulsion distributions by vehicle type.
-    part_of: net_emissions
-    color: '#668EC9'
-    target_year_goal: 115
-
-  - id: van_emissions
-    name: Pakettiautojen päästöt
-    name_en: Van emissions
-    column: Vans
-    part_of: transportation_emissions
-
-    #
-    # Heating
-    #
-  - id: apartment_building_heating_emissions
-    name: Rakennusten lämmityksen päästöt
-    name_en: Building heating emissions
+  - id: apartment_building_emissions
+    name: Kerrostalojen päästöt
+    name_en: Apartment building emissions
+    name_sv: Flerbostadshusutsläpp
     part_of: net_emissions
     color: '#AD3963'
-
-  - id: electric_heating_emissions
-    name: Sähkölämmityksen päästöt
-    name_en: Electric heating emissions
-    description: Sähkölämmitys sisältää arviot sekä suorasähkölämmityksen että maalämmön
-      päästöistä ja laskee ne yhteen.
-    description_en: Electric heating emissions include estimates of both direct electric
-      heating and geothermal emissions.
+  - id: single_house_emissions
+    name: Pientalojen päästöt
+    name_en: Single house emissions
+    name_sv: Småhusutsläpp
+    column: Trucks and lorries
     part_of: net_emissions
+    color: '#E8B455'
+  - id: office_building_emissions
+    name: Toimistorakennusten päästöt
+    name_en: Office building emissions
+    name_sv: Kontorutsläpp
+    column: Trucks and lorries
+    part_of: net_emissions
+    color: '#668EC9'
+  - id: school_emissions
+    name: Koulujen päästöt
+    name_en: School emissions
+    name_sv: Skolutsläpp
+    column: Trucks and lorries
+    part_of: net_emissions
+    color: '#397368'
+  - id: single_house_wo_solar_emissions
+    name: Päästöt pientaloista ilman aurinkovoimaa
+    name_en: Single house without solar emissions
+    name_sv: Utsläpp av småhus utan solar
+    column: Trucks and lorries
+    part_of: net_emissions
+    color: '#ABC872'
+#    color: '#F4D240'
 
-      #
-      # Other emission sources
-      #
-
-#    color: '#E8B455'
-#    color: '#E8B455'
-#    color: '#397368'
-#    color: '#ABC872'
-
-  - id: industrial_electricity_consumption_emissions
-    name_en: Industrial electricity consumption
-    name: Teollisuuden sähkön kulutuksen päästöt
-    part_of: electricity_consumption_emissions
-    column: Power consumption industry
 
   nodes:
-  - id: population
-    type: finland.Population
-    name: Väestö
-
-  - id: geothermal_heating_emissions
-    type: simple.EmissionFactorActivity
-    unit: kt/a
-    quantity: emissions
-    name: Maalämmön päästöt
-    name_en: Geothermal heating emissions
-    input_nodes:
-    - electric_heating_emission_factor
-    output_nodes:
-    - electric_heating_emissions
-
-  - id: geothermal_heating_electricity_use
-    unit: GWh/a
-    quantity: energy
-    type: simple.Activity
-    name: Maalämmön sähkönkulutus
-    name_en: Geothermal heating electricity consumption
-    input_datasets:
-    - id: tampere/scenarios/activity/bau
-      column: Geothermal heating residential
-      dropna: true
-    output_nodes:
-    - geothermal_heating_emissions
-
-  - id: direct_electric_heating_emissions
-    type: simple.EmissionFactorActivity
-    unit: kt/a
-    quantity: emissions
-    name: Suorasähkölämmityksen päästöt
-    name_en: Direct electric heating emissions
-    input_nodes:
-    - electric_heating_emission_factor
-    output_nodes:
-    - electric_heating_emissions
-
-  - id: direct_electric_heating_electricity_use
-    quantity: energy
-    type: simple.Activity
-    unit: GWh/a
-    name: Suorasähkölämmityksen sähkönkulutus
-    name_en: Direct electric heating electricity consumption
-    input_datasets:
-    - id: tampere/scenarios/activity/bau
-      column: Electric heating total
-      dropna: true
-    output_nodes:
-    - direct_electric_heating_emissions
-
-      #
-      # ----------- Electricity use ------------
-      #
-  - id: other_electricity_consumption_per_capita
-    name: Sähkönkulutus asukasta kohti
-    name_en: Electricity consumption per capita
-    type: simple.AdditiveNode
-    unit: kWh/person/a
-    quantity: per_capita
-    input_datasets:
-    - id: tampere/scenarios/activity/bau
-      column: Other electricity consumption per capita
-    output_nodes:
-    - other_electricity_consumption
-
-  - id: other_electricity_consumption
-    name: Muu sähkönkulutus
-    name_en: Other electricity consumption
-    type: simple.PerCapitaActivity
-    unit: GWh/a
-    quantity: energy
-    input_nodes:
-    - population
-    output_nodes:
-    - other_electricity_consumption_emissions
-
-  - id: other_electricity_consumption_emissions
-    name: Muun sähkönkulutuksen päästöt
-    name_en: Other electricity consumption emissions
-    type: simple.EmissionFactorActivity
-    unit: kt/a
-    params:
-      replace_output_using_input_dataset: true
-    input_datasets:
-    - id: tampere/scenarios/emissions/bau
-      column: Other power consumption
-      forecast_from: 2019
-      max_year: 2018
-    input_nodes:
-    - other_electricity_consumption_emission_factor
-    output_nodes:
-    - electricity_consumption_emissions
-
-  - id: electricity_production_emission_factor
-    name: Sähköntuotannon päästökerroin
-    name_en: Electricity production emission factor
-    type: simple.AdditiveNode
-    unit: g/kWh
-    quantity: emission_factor
-    input_datasets:
-    - id: tampere/scenarios/emission_factors/bau
-      column: Other power consumption
-      max_year: 2019
-
-  - id: electric_heating_emission_factor
-    name: Lämmityssähkön päästökerroin
-    name_en: Heating electricity emission factor
-    type: simple.FixedMultiplierNode
-    unit: g/kWh
-    quantity: emission_factor
-    description_en: We assume an 8 % higher emission factor for heating electricity.
-    input_nodes:
-    - electricity_production_emission_factor
-    params:
-    - id: multiplier
-      value: 1.08
-
-  - id: other_electricity_consumption_emission_factor
-    name: Kulutussähkön päästökerroin
-    name_en: Electricity consumption emission factor
-    type: simple.FixedMultiplierNode
-    unit: g/kWh
-    quantity: emission_factor
-    description_en: We assume an 5 % higher emission factor for other electricity
-      consumption.
-    input_nodes:
-    - electricity_production_emission_factor
-    params:
-    - id: multiplier
-      value: .95
-
-  - id: electricity_consumption_emissions
-    name: Sähkön kulutuksen päästöt
-    name_en: Electricity consumption emissions
-    type: simple.SectorEmissions
-    unit: kt/a
-    color: '#F4D240'
-    description: Sähkön päästölaskenta perustuu kahteen komponenttiin. Sähkön kulutus
-      ja sähkön päästökerroin. Tässä on muu sähkönkulutus kuin lämmitys.
-    description_en: The calculation of electricity emissions is based on two components.
-      Electricity consumption and the emission factor for electricity. This is electricity
-      consumption other than heating.
-    output_nodes:
-    - net_emissions
-
-    #
-    # City machinery
-    #
-  - id: renewable_electricity_consumption_reduction
-    name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
-    name_en: Decrease in purchased energy due to renewable electricity production
-    quantity: energy
-    type: simple.FixedMultiplierNode
-    output_nodes:
-    - other_electricity_consumption
-    params:
-      multiplier: -1
-    unit: GWh/a
-
-  - id: lighting_traditional_luminaires_number
-    name: Vanhaa teknologiaa käyttävien ulkovalaisinten lukumäärä
-    name_en: Amount of traditional public luminaires
-    quantity: number
-    type: simple.AdditiveNode
-    unit: pcs
-    historical_values: [[2020, 28934]]
-    tags: traditional
-
-  - id: lighting_led_luminaires_number
-    name: LED-ulkovalaisinten lukumäärä
-    name_en: Amount of LED public luminaires
-    quantity: number
-    type: simple.AdditiveNode
-    unit: pcs
-    historical_values: [[2020, 13786]]
-    tags: led
-
-  - id: public_lighting_energy_consumption
-    name: Yleisten alueiden valaistuksen sähkönkulutus
-    name_en: Energy consumption of public lighting
-    quantity: energy
-    type: simple.AdditiveNode
-    unit: GWh/a
-    output_nodes:
-      - other_electricity_consumption
-
   - id: price_of_electricity
     name: Sähkön hinta
     name_en: Price of electricity
@@ -290,7 +87,7 @@ instance:
       yearly_change: 1.0
     tags: price_of_heat
 
-  - id: floor_area
+  - id: apartment_building_floor_area
     name: Kerrostalojen rakennusala 
     name_en: Floor area of apartment buildings
     name_sv: Antal flerbostadshus
@@ -302,153 +99,71 @@ instance:
       yearly_change: 0.0
     tags: floor_area
 
-  - id: net_cost
-    name: Kokonaiskustannukset
-    name_en: Net costs
-    quantity: currency
-    unit: kEUR/a
-    type: simple.AdditiveNode
-
-  - id: cost_efficiency
-    name: Kustannustehokkuus
-    name_en: Cost_efficiency
+  - id: apartment_building_cost_efficiency
+    name: Kerrostalojen kustannustehokkuus
+    name_en: apartment_building_cost_efficiency of apartment buildings
+    name_sv: Kosteffektivitet av flerbostadshus
     quantity: unit_price
     unit: EUR/kWh
     type: simple.AdditiveNode
 
-  - id: energy_saving
-    name: Energian säästö
-    name_en: Energy saving
-    quantity: energy
-    unit: kWh/a
-    type: simple.AdditiveNode
-    output_nodes:
-      - emission_reduction_apartment_buildings
+#  - id: apartment_building_energy_use
+#    name: Kerrostalojen energiankulutus
+#    name_en: Energy use in apartment buildings
+#    name_sv: Energianvändning av flerbostadshus
+#    quantity: energy
+#    unit: kWh/a
+#    type: simple.AdditiveNode
+#    output_nodes:
+#      - apartment_building_emissions
 
-  - id: social_benefit
-    name: Yhteiskunnallinen hyöty
-    name_en: Social benefit
-    name_sv: Social nytta
+  - id: apartment_building_social_benefit
+    name: Yhteiskunnallinen nettokustannushyöty
+    name_en: Social net cost benefit
+    name_sv: Social net kost nytta
     quantity: currency
     unit: MEUR/a
     type: simple.AdditiveNode
 
-  - id: emission_reduction_apartment_buildings
-    name: Päästöjen vähenemä kerrostaloista
-    name_en: Emission reduction from apartment buildings
-    name_sv: Utsläppsminskning från flerbostadshus
+  - id: apartment_building_heating_emissions  # FIXME contains also electricity
+    name: Kerrostalojen lämmityksen päästöt
+    name_en: Apartment building heating emissions
+    name_sv: Värmningsutsläpp av flerbostadshus
     quantity: emissions
-    type: simple.FixedMultiplierNode
+    type: simple.EmissionFactorActivity
     unit: kt/a
-    params:
-      - id: multiplier
-        value: 172
-        unit: g/kWh
     output_nodes:
-      - apartment_building_heating_emissions
+      - apartment_building_emissions
 
-#
+  - id: apartment_building_heating_energy_use
+    name: Kerrostalojen lämmityksen energiankulutus
+    name_en: Apartment building heating energy use
+    name_sv: Energianvändning av flerbostadshusuppvärmning
+    quantity: energy
+    type: simple.AdditiveNode
+    unit: GWh/a
+    output_nodes:
+    - apartment_building_heating_emissions
+
+  - id: apartment_building_heating_emission_factor
+    name: Kerrostalojen lämmityksen päästökerroin
+    name_en: Apartment house heating emission factor
+    name_sv: Emissionsfaktor av flerbostadshusuppvärmning
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Oil heating
+      dropna: true
+    output_nodes:
+    - apartment_building_heating_emissions
+
+  #
   # ------- ACTIONS --------
   #
 
   actions:
-
-  - id: distributed_renewable_energy
-    name: Hajautettu uusiutuva energia
-    name_en: Distributed renewable energy production
-    unit: GWh/a
-    type: simple.LinearCumulativeAdditiveAction
-    quantity: energy
-    description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
-      uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali
-      rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
-    description_en: Photovoltaic production will be installed on the roofs of the
-      buildings. According to the 2016 municipal review of renewable energy, the unused
-      potential on the roofs of buildings is 800-900 GWh (does not take into account
-      all restrictions).
-    output_nodes:
-    - renewable_electricity_consumption_reduction
-    forecast_values: [[2022, 0], [2030, -850]]
-    params:
-    - id: target_year_level
-      values:
-        default: 17
-      min_value: 0
-      max_value: 850
-      step: 1
-      unit: GWh/a
-      description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
-      description_en: PV energy production in 2030
-
-  - id: cleaner_electricity_production
-    name: Kansallinen sähköntuotanto puhdistuu
-    name_en: Shift to low-carbon in national electricity production
-    decision_level: nation
-    quantity: emission_factor
-    output_nodes:
-    - electricity_production_emission_factor
-    type: simple.LinearCumulativeAdditiveAction
-    forecast_values: [[2021, 0], [2030, -80]]
-    unit: g/kWh
-    params:
-    - id: target_year_level
-      values:
-        default: -61
-      min_value: -80
-      max_value: 0
-      step: 1
-      unit: g/kWh
-      description: Sähköntuotannon päästökertoimen muutos
-      description_en: Change in electricity production emission factor
-
-  - id: lighting_led_retrofit
-    name: Ulkovalaisimien korvaaminen LED-lampuilla
-    name_en: Retrofitting public lighting with LED luminaires
-    type: energy_saving.LEDRetrofitAction
-    quantity: energy
-    unit: MWh/a
-    input_nodes:
-      - lighting_traditional_luminaires_number
-      - lighting_led_luminaires_number
-      - price_of_electricity
-    output_nodes:
-      - net_cost
-      - public_lighting_energy_consumption
-
-    params:
-    - id: yearly_retrofit_number_baseline
-      value: 1000
-      unit: pcs/a
-      description: Vuosittain uusittavien valaisimien (nykykehitys)
-      description_en: Number of luminaries retrofitted yearly (baseline)
-    - id: yearly_retrofit_number
-      min_value: 0
-      max_value: 6000
-      step: 100
-      unit: pcs/a
-      description: Vuosittain uusittavien valaisimien lisälukumäärä
-      description_en: Increase in number of luminaries retrofitted yearly
-    - id: yearly_demand_increase
-      min_value: 0
-      max_value: 1000
-      value: 400
-      unit: pcs/a
-      description: Vuosittainen valaisinten määrän lisääntyminen
-      description_en: Yearly increase in number of luminaires
-    - id: traditional_luminaire_maintenance_cost
-      value: 25
-    - id: led_luminaire_maintenance_cost
-      value: 1.5
-    - id: traditional_luminaire_power
-      value: 104
-    - id: led_luminaire_power
-      value: 53
-    - id: traditional_luminaire_active_time
-      value: 3546
-    - id: led_luminaire_active_time
-      value: 2305
-    - id: led_luminaire_investment_cost
-      value: 350
 
 # Grön logik: Flerbostadshus 24: next 16 actions 
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
@@ -460,13 +175,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       values:
@@ -494,10 +209,10 @@ instance:
       value: 1
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
+    - id: heat_change
       value: 0
-    - id: electricity_saving
-      value: 1
+    - id: electricity_change
+      value: -1
     - id: renovation_rate_baseline
       value: 0.5
 
@@ -509,13 +224,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
 
     params:
     - id: renovation_potential
@@ -544,10 +259,10 @@ instance:
       value: 5.5
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
+    - id: heat_change
       value: 0
-    - id: electricity_saving
-      value: 4
+    - id: electricity_change
+      value: -4
     - id: renovation_rate_baseline
       value: 0.5
 
@@ -559,13 +274,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -591,9 +306,9 @@ instance:
       value: 1
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 5
-    - id: electricity_saving
+    - id: heat_change
+      value: -5
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -606,13 +321,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -638,9 +353,9 @@ instance:
       value: 1.8
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 6
-    - id: electricity_saving
+    - id: heat_change
+      value: -6
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -653,13 +368,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -685,10 +400,10 @@ instance:
       value: 2.3
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
+    - id: heat_change
       value: 0
-    - id: electricity_saving
-      value: 1
+    - id: electricity_change
+      value: -1
     - id: renovation_rate_baseline
       value: 0.5
 
@@ -700,13 +415,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -732,9 +447,9 @@ instance:
       value: 7.3
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 13
-    - id: electricity_saving
+    - id: heat_change
+      value: -13
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -747,13 +462,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -779,9 +494,9 @@ instance:
       value: 4.2
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 7
-    - id: electricity_saving
+    - id: heat_change
+      value: -7
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -794,13 +509,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -826,9 +541,9 @@ instance:
       value: 4.8
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 2
-    - id: electricity_saving
+    - id: heat_change
+      value: -2
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -841,13 +556,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -873,9 +588,9 @@ instance:
       value: 4.8
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 5
-    - id: electricity_saving
+    - id: heat_change
+      value: -5
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -888,13 +603,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -920,9 +635,9 @@ instance:
       value: 5.6
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 5
-    - id: electricity_saving
+    - id: heat_change
+      value: -5
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -935,13 +650,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -967,9 +682,9 @@ instance:
       value: 5.6
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 5
-    - id: electricity_saving
+    - id: heat_change
+      value: -5
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -982,13 +697,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -1014,10 +729,10 @@ instance:
       value: 29.6
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 48
-    - id: electricity_saving
-      value: -16
+    - id: heat_change
+      value: -48
+    - id: electricity_change
+      value: 16
     - id: renovation_rate_baseline
       value: 0.5
 
@@ -1029,13 +744,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -1061,10 +776,10 @@ instance:
       value: 56.5
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 34
-    - id: electricity_saving
-      value: -4
+    - id: heat_change
+      value: -34
+    - id: electricity_change
+      value: 4
     - id: renovation_rate_baseline
       value: 0.5
 
@@ -1076,13 +791,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -1108,9 +823,9 @@ instance:
       value: 32.2
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 15
-    - id: electricity_saving
+    - id: heat_change
+      value: -15
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -1123,13 +838,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -1155,9 +870,9 @@ instance:
       value: 52.0
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 12
-    - id: electricity_saving
+    - id: heat_change
+      value: -12
+    - id: electricity_change
       value: 0
     - id: renovation_rate_baseline
       value: 0.5
@@ -1170,13 +885,13 @@ instance:
     quantity: energy
     unit: MWh/a
     input_nodes:
-      - floor_area
+      - apartment_building_floor_area
       - price_of_heat
       - price_of_electricity
     output_nodes:
-      - cost_efficiency
-      - energy_saving
-      - social_benefit
+      - apartment_building_cost_efficiency
+      - apartment_building_heating_energy_use
+      - apartment_building_social_benefit
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -1202,10 +917,10 @@ instance:
       value: 27.5
     - id: maintenance_cost
       value: 0
-    - id: heat_saving
-      value: 6
-    - id: electricity_saving
-      value: 1
+    - id: heat_change
+      value: -6
+    - id: electricity_change
+      value: -1
     - id: renovation_rate_baseline
       value: 0.5
 
@@ -1241,8 +956,6 @@ instance:
       value: false
     - id: energy_saving_lamps.enabled
       value: true
-    - id: lighting_led_retrofit.yearly_retrofit_number
-      value: 0
 
   - id: default
     default: true

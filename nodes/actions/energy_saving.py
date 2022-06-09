@@ -210,13 +210,13 @@ class BuildingEnergySavingAction(ActionNode):
             is_customizable=False,
         ),
         NumberParameter(
-            local_id='heat_saving',
+            local_id='heat_change',
             label=_('Heat saving (kWh/m2/a'),
             unit='kWh/m**2/a',
             is_customizable=False,
         ),
         NumberParameter(
-            local_id='electricity_saving',
+            local_id='electricity_change',
             label=_('Electricity saving (kWh/m2/a)'),
             unit='kWh/m**2/a',
             is_customizable=False,
@@ -290,8 +290,8 @@ class BuildingEnergySavingAction(ActionNode):
         investment_cost = self.get_parameter_value_w_unit('investment_cost')
         df['Invest'] = serialise(df, investment_cost) * investment_factor
         maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
-        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_saving'))
-        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
+        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_change'))
+        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_change'))
 
         df['EnSaving'] = he_saving + el_saving
         net_present_value = (1 - (1 / (1 + DISCOUNT_RATE)) ** timespan) / (1 - (1 / (1 + DISCOUNT_RATE)))
