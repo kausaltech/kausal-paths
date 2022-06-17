@@ -245,6 +245,8 @@ class FixedMultiplierNode(SimpleNode):
         if replace_output:
             df = self.replace_output_using_input_dataset(df)
 
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+
         return df
 
 
