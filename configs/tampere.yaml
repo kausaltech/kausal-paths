@@ -995,7 +995,7 @@ instance:
     params:
     - id: target_year_level
       values:
-        default: -61
+        default: -42
       min_value: -80
       max_value: 0
       step: 1
