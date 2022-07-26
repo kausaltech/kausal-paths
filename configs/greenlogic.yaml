@@ -2,18 +2,18 @@ instance:
   id: greenlogic  # FIXME For some unit reasons, I could not create a new KP instance for gronalund
   default_language: fi
   supported_languages: [en, sv]
-  site_url: https://gronalund.paths.kausal.tech
+  site_url: https://gronlogik.paths.kausal.tech
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
-  name: Hiilineutraali Grönalund 2030
-  name_en: Carbon-neutral Grönalund 2030
-  owner: Grönalundin kaupunki
-  owner_en: City of Grönalund
-  target_year: 2030
+  name: Grön logik -projekti rakennusten ilmastotoimista
+  name_en: Grön logik project about climate actions on buildings
+  owner: Kausal & Anthesis
+  owner_en: Kausal & Anthesis
+  target_year: 2040
   reference_year: 1990
   minimum_historical_year: 2010
-  maximum_historical_year: 2018
+  maximum_historical_year: 2021
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt/a
   emission_forecast_from: 2019
@@ -30,6 +30,7 @@ instance:
     name: Kerrostalojen päästöt
     name_en: Apartment building emissions
     name_sv: Flerbostadshusutsläpp
+    column: Heating total
     part_of: net_emissions
     color: '#AD3963'
   - id: single_house_emissions
@@ -926,31 +927,24 @@ instance:
 
   pages:
   - id: home
-    name: Hiilineutraali Grönalund 2030 -päästöskenaario
+    name: Grön logik -projekti
     path: /
     type: emission
     node: net_emissions
-    lead_title: Grönalundin päästöskenaariot
-    lead_title_en: Grönalund emission scenarios
-    lead_paragraph: Grönalundin päästöskenaariot visualisoi Grönalundin kasvihuonekaasupäästöjen
-      kehityksen. Voit tarkastella, mistä Grönalundin kaupungin alueen päästöt syntyvät
-      ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
-      peruskehitys-skenaario, Hiilineutraali Grönalund 2030 -tiekartan mukainen skenaario
-      ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
-      vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
-      avulla.
-    lead_paragraph_en: Grönalund's emission scenarios visualize the development of Grönalund's
-      greenhouse gas emissions. You can look at where emissions from the Grönalund city
-      area come from and how they are projected to change by 2030. There is a basic
-      development scenario to choose from, a scenario according to the Carbon Neutral
-      Grönalund 2030 roadmap and a scenario that you can edit yourself. Further efforts
-      are needed to become carbon neutral, and their adequacy will be assessed in
-      the future using this tool.
+    lead_title: Grön logik -projektin päästöskenaariot
+    lead_title_en: Grön logik project's emission scenarios
+    lead_paragraph: Grön logik -projekti tarkastelee rakennusten energiankulutusta ja 
+      eri toimien vaikutusta sen kautta ilmastopäästöihin.
+    lead_paragraph_en: Grön logik project examines the energy consumption of buildings and
+      how different actions reduce it and thus climate emissions.
+    lead_paragrap_sv: Grön logik projektet undersöker byggnaders energiförbrukning och
+      hur olika åtgärder minskar det och därmed klimatutsläppen.
 
   scenarios:
   - id: baseline
     name: Nykykehitys
     name_en: Baseline
+    name_sv: Baslinje
     params:
     - id: window_replacement.enabled
       value: false
@@ -959,8 +953,9 @@ instance:
 
   - id: default
     default: true
-    name: Hiilineutraali Grönalund 2030 -tiekartta
-    name_en: Carbon-neutral Grönalund 2030 roadmap
+    name: Kaikki Grön logik -toimet
+    name_en: All Grön logik actions
+    name_sv: Alla Grön logik åtgärder
     all_actions_enabled: true
     params:
     - id: window_replacement.enabled
