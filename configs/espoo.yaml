@@ -22,7 +22,7 @@ emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
   name_en: Net emissions (scope 2)
-  target_year_goal: 260
+  target_year_goal: 245
 
 nodes:
 - id: population
@@ -56,5 +56,5 @@ scenarios:
 
 - id: default
   default: true
-  name: Hiilineutraali Tampere 2030 -tiekartta
-  name_en: Carbon-neutral Tampere 2030 roadmap
+  name: Hiilineutraali Espoo 2030 -tiekartta
+  name_en: Carbon-neutral Espoo 2030 roadmap
