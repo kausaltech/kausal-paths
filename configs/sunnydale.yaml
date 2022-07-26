@@ -652,16 +652,16 @@ instance:
     name: Metsien hiilinielu
     name_en: Carbon sink of forests
     quantity: emissions
-    unit: kg/a
+    unit: kt/a
     type: simple.FixedMultiplierNode
     params: 
       - id: multiplier
-        value: -100
-        unit: kg/a/pcs
+        value: -0.0001
+        unit: kt/a/pcs
     output_nodes:
       - agriculture_emissions
 
-#
+  #
   # ------- ACTIONS --------
   #
 
