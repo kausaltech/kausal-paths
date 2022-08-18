@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from params import StringParameter
+from params import StringParameter, BoolParameter
 from nodes import Node
 from nodes.constants import (
     VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
@@ -59,12 +59,27 @@ class AlasEmissions(Node):
             label='Sector path in ALaS',
             is_customizable=False
         ),
+        BoolParameter(
+            local_id='required',
+            label='Has to exist in data',
+            is_customizable=False,
+        ),
     ]
 
     def compute(self) -> pd.DataFrame:
         df = self.input_nodes[0].get_output()
         sector = self.get_parameter_value('sector')
-        df = df.xs(sector, level='Sector')
+        required = self.get_parameter_value('required', required=False)
+        try:
+            df = df.xs(sector, level='Sector')
+        except KeyError:
+            if not required:
+                years = df.index.get_level_values('Year').unique()
+                dt = df.dtypes[EMISSION_QUANTITY]
+                df = pd.DataFrame([0.0] * len(years), index=years, columns=[EMISSION_QUANTITY])
+                df[EMISSION_QUANTITY] = df[EMISSION_QUANTITY].astype(dt)
+            else:
+                raise
         df = df[[EMISSION_QUANTITY]]
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df['Forecast'] = False

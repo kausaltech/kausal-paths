@@ -92,9 +92,6 @@ emission_sectors:
 - id: f_gases_emissions
   name: F-kaasujen päästöt
   part_of: net_emissions
-- id: compensation_emissions
-  name: Kompensaatioiden määrä
-  part_of: net_emissions
 nodes:
 - id: consumer_electricity_residence_emissions
   name: Asumisen kulutussähkön päästöt
@@ -138,13 +135,13 @@ nodes:
     sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut:ETS
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-- id: direct_electric_heating_industry_emissions
-  name: Teollisuuden suoran sähkölämmityksen päästöt
-  output_nodes: [direct_electric_heating_emissions]
-  params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus:ETS
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
+# - id: direct_electric_heating_industry_emissions
+#   name: Teollisuuden suoran sähkölämmityksen päästöt
+#   output_nodes: [direct_electric_heating_emissions]
+#   params:
+#     sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus:ETS
+#   input_nodes: [all_alas_emissions]
+#   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_agriculture_emissions
   name: Maatalouden suoran sähkölämmityksen päästöt
   output_nodes: [direct_electric_heating_emissions]
@@ -166,13 +163,13 @@ nodes:
     sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Palvelut:ETS
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-- id: geothermal_heating_industry_emissions
-  name: Teollisuuden maalämmön päästöt
-  output_nodes: [geothermal_heating_emissions]
-  params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Teollisuus:ETS
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
+# - id: geothermal_heating_industry_emissions
+#   name: Teollisuuden maalämmön päästöt
+#   output_nodes: [geothermal_heating_emissions]
+#   params:
+#     sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Teollisuus:ETS
+#   input_nodes: [all_alas_emissions]
+#   type: finland.syke.AlasEmissions
 - id: geothermal_heating_agriculture_emissions
   name: Maatalouden maalämmön päästöt
   output_nodes: [geothermal_heating_emissions]
@@ -250,13 +247,13 @@ nodes:
     sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Palvelut
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-- id: oil_heating_industry_emissions
-  name: Teollisuuden öljylämmityksen päästöt
-  output_nodes: [oil_heating_emissions]
-  params:
-    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
+# - id: oil_heating_industry_emissions
+#   name: Teollisuuden öljylämmityksen päästöt
+#   output_nodes: [oil_heating_emissions]
+#   params:
+#     sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
+#   input_nodes: [all_alas_emissions]
+#   type: finland.syke.AlasEmissions
 - id: oil_heating_agriculture_emissions
   name: Maatalouden öljylämmityksen päästöt
   output_nodes: [oil_heating_emissions]
@@ -278,13 +275,13 @@ nodes:
     sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Palvelut
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-- id: wood_heating_industry_emissions
-  name: Teollisuuden puulämmityksen päästöt
-  output_nodes: [wood_heating_emissions]
-  params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
+# - id: wood_heating_industry_emissions
+#   name: Teollisuuden puulämmityksen päästöt
+#   output_nodes: [wood_heating_emissions]
+#   params:
+#     sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Teollisuus
+#   input_nodes: [all_alas_emissions]
+#   type: finland.syke.AlasEmissions
 - id: wood_heating_agriculture_emissions
   name: Maatalouden puulämmityksen päästöt
   output_nodes: [wood_heating_emissions]
@@ -306,13 +303,13 @@ nodes:
     sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Palvelut
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-- id: other_direct_heating_industry_emissions
-  name: Teollisuuden muun suoran lämmityksen päästöt
-  output_nodes: [other_direct_heating_emissions]
-  params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
+# - id: other_direct_heating_industry_emissions
+#   name: Teollisuuden muun suoran lämmityksen päästöt
+#   output_nodes: [other_direct_heating_emissions]
+#   params:
+#     sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Teollisuus
+#   input_nodes: [all_alas_emissions]
+#   type: finland.syke.AlasEmissions
 - id: other_direct_heating_agriculture_emissions
   name: Maatalouden muun suoran lämmityksen päästöt
   output_nodes: [other_direct_heating_emissions]
@@ -389,6 +386,7 @@ nodes:
   output_nodes: [road_transport_emissions]
   params:
     sector: Energia|Liikenne|Tieliikenne|Läpiajoliikenne|Läpiajoliikenne
+    required: false
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: local_train_emissions
@@ -398,6 +396,13 @@ nodes:
     sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Lähijunat:ETS
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
+- id: local_train_nonets_emissions
+  name: Lähijunien päästöt ei-päästökauppa
+  output_nodes: [local_rail_emissions]
+  params:
+    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Lähijunat
+  input_nodes: [all_alas_emissions]
+  type: finland.syke.AlasEmissions
 - id: tram_emissions
   name: Metrojen ja raitiovaunujen päästöt
   output_nodes: [local_rail_emissions]
@@ -405,11 +410,25 @@ nodes:
     sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Metrot ja raitiovaunut:ETS
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
+- id: tram_nonets_emissions
+  name: Metrojen ja raitiovaunujen päästöt ei-päästökauppa
+  output_nodes: [local_rail_emissions]
+  params:
+    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Metrot ja raitiovaunut
+  input_nodes: [all_alas_emissions]
+  type: finland.syke.AlasEmissions
 - id: electric_train_emissions
   name: Sähköjunien päästöt
   output_nodes: [distant_rail_emissions]
   params:
     sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Sähkö:ETS
+  input_nodes: [all_alas_emissions]
+  type: finland.syke.AlasEmissions
+- id: electric_train_nonets_emissions
+  name: Sähköjunien päästöt ei-päästökauppa
+  output_nodes: [distant_rail_emissions]
+  params:
+    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Sähkö
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: diesel_train_emissions
@@ -628,7 +647,7 @@ nodes:
   name: Kaupan ja ammattikeittiöiden kylmälaitteiden päästöt
   output_nodes: [f_gases_emissions]
   params:
-    sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Kaupan ja ammattikeittiöiden
+    sector: Teollisuusprosessit|F-kaasut|F-kaasut|Kaupan ja ammattikeittiöiden
       kylmälaitteet|Kaupan ja ammattikeittiöiden kylmälaitteet
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
@@ -636,7 +655,7 @@ nodes:
   name: Rakennusten ilmastointilaitteiden päästöt
   output_nodes: [f_gases_emissions]
   params:
-    sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Rakennusten
+    sector: Teollisuusprosessit|F-kaasut|F-kaasut|Rakennusten
       ilmastointilaitteet|Rakennusten ilmastointilaitteet
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
@@ -644,7 +663,7 @@ nodes:
   name: Ajoneuvojen ilmastointilaitteiden päästöt
   output_nodes: [f_gases_emissions]
   params:
-    sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Ajoneuvojen
+    sector: Teollisuusprosessit|F-kaasut|F-kaasut|Ajoneuvojen
       ilmastointilaitteet|Ajoneuvojen ilmastointilaitteet
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
@@ -652,14 +671,7 @@ nodes:
   name: Muiden F-kaasujen lähteiden päästöt
   output_nodes: [f_gases_emissions]
   params:
-    sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Muut F-kaasujen
+    sector: Teollisuusprosessit|F-kaasut|F-kaasut|Muut F-kaasujen
       lähteet|Muut F-kaasujen lähteet
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
-- id: wind_power_compensation_emissions
-  name: Tuulivoiman kompensaatiot
-  output_nodes: [compensation_emissions]
-  params:
-    sector: Kompensaatiot|Kompensaatiot|Tuulivoima|Tuulivoima|Tuulivoima
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions

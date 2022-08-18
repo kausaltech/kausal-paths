@@ -5,7 +5,7 @@ framework: syke
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: af84a46c532a0d4d976767c6f4371601e9b41255
+  commit: dd541b4cef986df6799a7b505215646d4edce366
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
 owner: Espoon kaupunki
