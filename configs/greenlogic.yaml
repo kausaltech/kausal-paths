@@ -10,7 +10,7 @@ instance:
   name_en: Grön logik project about climate actions on buildings
   owner: Kausal & Anthesis
   owner_en: Kausal & Anthesis
-  target_year: 2040
+  target_year: 2044
   reference_year: 1990
   minimum_historical_year: 2010
   maximum_historical_year: 2021
@@ -20,6 +20,10 @@ instance:
   params:
   - id: municipality_name
     value: Tampere
+#  - id: discount_rate
+#    value: 0.035
+#  - id: avoided_electricity_capacity_price
+#    value: 
   emission_sectors:
   - id: net_emissions
     name: Kokonaispäästöt
@@ -921,7 +925,7 @@ instance:
     - id: heat_change
       value: -6
     - id: electricity_change
-      value: -1
+      value: 0
     - id: renovation_rate_baseline
       value: 0.5
 

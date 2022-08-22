@@ -246,7 +246,8 @@ class BuildingEnergySavingAction(ActionNode):
     def compute_effect(self) -> pd.DataFrame:
 
         def serialise(df, x):
-            out = pd.Series([x.m] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
+            value = float(x.m)
+            out = pd.Series([value] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
             return(out)
 
         def net_present_investment_factor(lifetime, timespan, discount):
@@ -256,7 +257,8 @@ class BuildingEnergySavingAction(ActionNode):
             for i in range(timespan):
                 if (i % lifetime) == 0:
                     factor = factor + (1 - discount) ** i
-            return factor / unit
+            out = factor / unit
+            return out
 
         df = self.get_input_node(tag='floor_area').get_output()
         he_price = self.get_input_node(tag='price_of_heat').get_output()
@@ -276,13 +278,13 @@ class BuildingEnergySavingAction(ActionNode):
         if renovation_rate_baseline is None:
             renovation_rate_baseline = 0
         renovation_rate = self.get_parameter_value_w_unit('renovation_rate')
-        do_action = 1
-        if not self.is_enabled():
-            # If the action is disabled, we assume that only the baseline amount
-            # of retrofits are done.
-            renovation_rate = renovation_rate_baseline
-            do_action = 0
-        df['RenoRate'] = serialise(df, renovation_rate)
+#        do_action = 1
+#        if not self.is_enabled():
+#            # If the action is disabled, we assume that only the baseline amount
+#            # of retrofits are done.
+#            renovation_rate = renovation_rate_baseline
+#            do_action = 0
+        df['RenoRate'] = serialise(df, renovation_rate - renovation_rate_baseline)
 
         # Calculate energy consumption, energy cost and maintenance cost
         lifetime = self.get_parameter_value_w_unit('investment_lifetime')
@@ -293,28 +295,27 @@ class BuildingEnergySavingAction(ActionNode):
         he_saving = serialise(df, self.get_parameter_value_w_unit('heat_change'))
         el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_change'))
 
-        df['EnSaving'] = he_saving + el_saving
+        df['EnSaving'] = (he_saving + el_saving) * -1
         net_present_value = (1 - (1 / (1 + DISCOUNT_RATE)) ** timespan) / (1 - (1 / (1 + DISCOUNT_RATE)))
-        df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * net_present_value
-        df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])
-        df['ElAvoided'] = el_saving * AVOIDED_ELECTRICITY_CAPACITY_PRICE
-        df['CostCO2'] = ((he_saving * HEAT_CO2_EF + el_saving * ELECTRICITY_CO2_EF) * COST_CO2).astype('pint[EUR/a/m**2]')
+        df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * net_present_value * -1
+#        df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])  # This is correct but we replicate the excel error
+        df['PrivateProfit'] = (df['CostSaving'] - investment_cost / lifetime.units)
+        df['ElAvoided'] = el_saving * AVOIDED_ELECTRICITY_CAPACITY_PRICE * -1
+        df['CostCO2'] = ((he_saving * HEAT_CO2_EF + el_saving * ELECTRICITY_CO2_EF) * COST_CO2 * -1).astype('pint[EUR/a/m**2]')
         df['Health'] = df['EnSaving'] * HEALTH_IMPACTS_PER_KWH
         df['SocialProfit'] = (df['ElAvoided'] + df['CostCO2'] + df['Health']) * net_present_value + df['PrivateProfit']
-        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1 * do_action
+        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1  # * do_action
         potential_area = df['FloorArea'] * df['RenoPot']
         total_reduction = df['EnSaving'] * potential_area * renovation_rate
-        social_benefit = df['SocialProfit'] * potential_area * (renovation_rate - renovation_rate_baseline) * net_present_value
+        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * net_present_value
 
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
         df[CURRENCY_QUANTITY] = social_benefit.astype(PintType(self.dimensions[CURRENCY_QUANTITY].unit))
+        print(self.id)
         self.print_pint_df(df)
         df = df[[UNIT_PRICE_QUANTITY, ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN]]
         return df
 
-        # Muuta nodejen quantity-pohjainen haku tagipohjaiseksi
-        # Tarkista tuleeko NPV-kerroin kahdesti
-        # Laske diskontto vasta aikasarjasta
         # Tee kunnon aikasarja korjausten nopeudesta
         # Lisää toimiva käyttökustannus
