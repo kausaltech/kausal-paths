@@ -6,13 +6,6 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, F
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
 
-DISCOUNT_RATE = 0.035
-HEALTH_IMPACTS_PER_KWH = unit_registry('0.007344 EUR/kWh')
-AVOIDED_ELECTRICITY_CAPACITY_PRICE = unit_registry('0.04 EUR/kWh')
-HEAT_CO2_EF = unit_registry('53.7 g/kWh')
-ELECTRICITY_CO2_EF = unit_registry('93.2 g/kWh')
-COST_CO2 = unit_registry('700 EUR/t')
-
 
 class CostNode(Ovariable):
     allowed_parameters = [
@@ -34,6 +27,7 @@ class CostNode(Ovariable):
         investment_numbers = self.get_parameter_value('investment_numbers') * self.get_parameter(
             'investment_numbers').unit
 
+        discount_rate = self.context.get_parameter_value('discount_rate')
         discount = 1
 
         for time in costs.reset_index()[YEAR_COLUMN]:
@@ -47,7 +41,7 @@ class CostNode(Ovariable):
                 if time >= year and time < year + investment_lifetime:
                     change = change + (operation_cost * number)
             if costs.at[time, FORECAST_COLUMN]:
-                discount = discount * (1 + DISCOUNT_RATE)  # FIXME Discounting should NOT be shown on graph
+                discount = discount * (1 + discount_rate)  # FIXME Discounting should NOT be shown on graph
             costs.at[time, VALUE_COLUMN] = (change + costs.at[time, VALUE_COLUMN]) / discount
 
         return(costs)

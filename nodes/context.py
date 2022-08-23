@@ -146,6 +146,12 @@ class Context:
             return None
         return param.value
 
+    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
+        param = self.get_parameter(id, required=required)
+        if param is None:
+            return None
+        return param.value * param.unit
+
     def set_parameter_value(self, id: str, value: Any):
         param = self.global_parameters.get(id)
         if param is None:

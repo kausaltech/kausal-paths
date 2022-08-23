@@ -11,8 +11,6 @@ from params import NumberParameter
 
 from .action import ActionNode
 
-from nodes.costs import DISCOUNT_RATE, HEALTH_IMPACTS_PER_KWH, AVOIDED_ELECTRICITY_CAPACITY_PRICE, HEAT_CO2_EF, ELECTRICITY_CO2_EF, COST_CO2
-
 
 @njit(cache=True)
 def simulate_led_retrofit(
@@ -264,6 +262,12 @@ class BuildingEnergySavingAction(ActionNode):
         he_price = self.get_input_node(tag='price_of_heat').get_output()
         el_price = self.get_input_node(tag='price_of_electricity').get_output()
         target_year = self.get_target_year()
+        discount_rate = self.context.get_parameter_value('discount_rate')
+        health_impacts_per_kwh = self.context.get_parameter_value_w_unit('health_impacts_per_kwh')
+        avoided_electricity_capacity_price = self.context.get_parameter_value_w_unit('avoided_electricity_capacity_price')
+        heat_co2_ef = self.context.get_parameter_value_w_unit('heat_co2_ef')
+        electricity_co2_ef = self.context.get_parameter_value_w_unit('electricity_co2_ef')
+        cost_co2 = self.context.get_parameter_value_w_unit('cost_co2')
 
         df['HePrice'] = he_price[VALUE_COLUMN]
         df['ElPrice'] = el_price[VALUE_COLUMN]
@@ -288,7 +292,7 @@ class BuildingEnergySavingAction(ActionNode):
 
         # Calculate energy consumption, energy cost and maintenance cost
         lifetime = self.get_parameter_value_w_unit('investment_lifetime')
-        investment_factor = net_present_investment_factor(lifetime, timespan, DISCOUNT_RATE)
+        investment_factor = net_present_investment_factor(lifetime, timespan, discount_rate)
         investment_cost = self.get_parameter_value_w_unit('investment_cost')
         df['Invest'] = serialise(df, investment_cost) * investment_factor
         maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
@@ -296,13 +300,13 @@ class BuildingEnergySavingAction(ActionNode):
         el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_change'))
 
         df['EnSaving'] = (he_saving + el_saving) * -1
-        net_present_value = (1 - (1 / (1 + DISCOUNT_RATE)) ** timespan) / (1 - (1 / (1 + DISCOUNT_RATE)))
+        net_present_value = (1 - (1 / (1 + discount_rate)) ** timespan) / (1 - (1 / (1 + discount_rate)))
         df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * net_present_value * -1
 #        df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])  # This is correct but we replicate the excel error
         df['PrivateProfit'] = (df['CostSaving'] - investment_cost / lifetime.units)
-        df['ElAvoided'] = el_saving * AVOIDED_ELECTRICITY_CAPACITY_PRICE * -1
-        df['CostCO2'] = ((he_saving * HEAT_CO2_EF + el_saving * ELECTRICITY_CO2_EF) * COST_CO2 * -1).astype('pint[EUR/a/m**2]')
-        df['Health'] = df['EnSaving'] * HEALTH_IMPACTS_PER_KWH
+        df['ElAvoided'] = el_saving * avoided_electricity_capacity_price * -1
+        df['CostCO2'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2 * -1).astype('pint[EUR/a/m**2]')
+        df['Health'] = df['EnSaving'] * health_impacts_per_kwh
         df['SocialProfit'] = (df['ElAvoided'] + df['CostCO2'] + df['Health']) * net_present_value + df['PrivateProfit']
         social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1  # * do_action
         potential_area = df['FloorArea'] * df['RenoPot']
@@ -312,6 +316,7 @@ class BuildingEnergySavingAction(ActionNode):
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
         df[CURRENCY_QUANTITY] = social_benefit.astype(PintType(self.dimensions[CURRENCY_QUANTITY].unit))
+        print(self.context.global_parameters)
         print(self.id)
         self.print_pint_df(df)
         df = df[[UNIT_PRICE_QUANTITY, ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN]]
@@ -319,3 +324,5 @@ class BuildingEnergySavingAction(ActionNode):
 
         # Tee kunnon aikasarja korjausten nopeudesta
         # Lisää toimiva käyttökustannus
+        # Tee globaaliparametreja
+        # Tee summataulukko kontekstitasolle

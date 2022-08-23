@@ -20,10 +20,27 @@ instance:
   params:
   - id: municipality_name
     value: Tampere
-#  - id: discount_rate
-#    value: 0.035
-#  - id: avoided_electricity_capacity_price
-#    value: 
+  - id: discount_rate
+    value: 0.035
+    min_value: 0
+    max_value: 0.18
+    step: 0.05
+  - id: avoided_electricity_capacity_price
+    value: 0.04
+    unit: EUR/kWh
+  - id: health_impacts_per_kwh
+    value: 0.007344
+    unit: EUR/kWh
+  - id: heat_co2_ef
+    value: 53.7
+    unit: g/kWh
+  - id: electricity_co2_ef
+    value: 93.2
+    unit: g/kWh
+  - id: cost_co2
+    value: 700
+    unit: EUR/t
+
   emission_sectors:
   - id: net_emissions
     name: Kokonaispäästöt
