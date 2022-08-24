@@ -40,3 +40,8 @@ class CostCo2(NumberParameter):
 class RenovationRateBaseline(NumberParameter):
     name = _('Renovation rate baseline')
     id = 'renovation_rate_baseline'
+
+
+class CarbonPriceChange(NumberParameter):
+    name = _('Change in carbon emission price')
+    id = 'carbon_price_change'

@@ -21,10 +21,11 @@ instance:
   - id: municipality_name
     value: Tampere
   - id: discount_rate
-    value: 0.035
+    value: 3.5
     min_value: 0
-    max_value: 0.18
-    step: 0.05
+    max_value: 18
+    step: 0.5
+    unit: '%'
   - id: avoided_electricity_capacity_price
     value: 0.04
     unit: EUR/kWh
@@ -43,6 +44,9 @@ instance:
   - id: renovation_rate_baseline
     value: 0.5
     unit: '%/a'
+  - id: carbon_price_change
+    value: 0
+    unit: '%'
 
   emission_sectors:
   - id: net_emissions
