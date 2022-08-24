@@ -268,6 +268,7 @@ class BuildingEnergySavingAction(ActionNode):
         heat_co2_ef = self.context.get_parameter_value_w_unit('heat_co2_ef')
         electricity_co2_ef = self.context.get_parameter_value_w_unit('electricity_co2_ef')
         cost_co2 = self.context.get_parameter_value_w_unit('cost_co2')
+        renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
 
         df['HePrice'] = he_price[VALUE_COLUMN]
         df['ElPrice'] = el_price[VALUE_COLUMN]
@@ -275,17 +276,14 @@ class BuildingEnergySavingAction(ActionNode):
 
         last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
         timespan = target_year - last_hist_year
+        lifetime = self.get_parameter_value_w_unit('investment_lifetime')
 
         renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
         df['RenoPot'] = serialise(df, renovation_potential)
-        renovation_rate_baseline = self.get_parameter_value_w_unit('renovation_rate_baseline', required=False)
-        if renovation_rate_baseline is None:
-            renovation_rate_baseline = 0
-        renovation_rate = self.get_parameter_value_w_unit('renovation_rate')
+        renovation_rate = 1 / lifetime
         df['RenoRate'] = serialise(df, renovation_rate - renovation_rate_baseline)
 
         # Calculate energy consumption, energy cost and maintenance cost
-        lifetime = self.get_parameter_value_w_unit('investment_lifetime')
         investment_factor = net_present_investment_factor(lifetime, timespan, discount_rate)
         investment_cost = self.get_parameter_value_w_unit('investment_cost')
         df['Invest'] = serialise(df, investment_cost) * investment_factor
@@ -304,8 +302,8 @@ class BuildingEnergySavingAction(ActionNode):
         df['SocialProfit'] = (df['ElAvoided'] + df['CostCO2'] + df['Health']) * net_present_value + df['PrivateProfit']
         social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1  # * do_action
         potential_area = df['FloorArea'] * df['RenoPot']
-        total_reduction = df['EnSaving'] * potential_area * renovation_rate
-        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * net_present_value
+        total_reduction = df['EnSaving'] * potential_area * renovation_rate * lifetime.units
+        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * net_present_value * lifetime.units
 
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
@@ -318,4 +316,4 @@ class BuildingEnergySavingAction(ActionNode):
         # Tee kunnon aikasarja korjausten nopeudesta
         # Lisää toimiva käyttökustannus
         # Systeemi joka huomioi skenaariot (tee/älä tee) oikein.
-        
+        # Tarkista, että vuosittaiset ja NPV-arvot ovat yksiköiltään johdonmukaisia (myös compute_mac)

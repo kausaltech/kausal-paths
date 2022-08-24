@@ -35,3 +35,8 @@ class ElectricityCo2Ef(NumberParameter):
 class CostCo2(NumberParameter):
     name = _('Cost of CO2')
     id = 'cost_co2'
+
+
+class RenovationRateBaseline(NumberParameter):
+    name = _('Renovation rate baseline')
+    id = 'renovation_rate_baseline'

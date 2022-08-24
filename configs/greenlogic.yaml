@@ -40,6 +40,9 @@ instance:
   - id: cost_co2
     value: 700
     unit: EUR/t
+  - id: renovation_rate_baseline
+    value: 0.5
+    unit: '%/a'
 
   emission_sectors:
   - id: net_emissions
