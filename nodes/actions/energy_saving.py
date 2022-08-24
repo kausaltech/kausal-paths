@@ -224,17 +224,6 @@ class BuildingEnergySavingAction(ActionNode):
             label=_('Renovation potential (% of floor area)'),
             unit='%',
         ),
-        NumberParameter(
-            local_id='renovation_rate_baseline',
-            label=_('Renovation rate baseline (% of floor area / a)'),
-            unit='%',
-            is_customizable=False,
-        ),
-        NumberParameter(
-            local_id='renovation_rate',
-            label=_('Renovation rate (% of floor area / a)'),
-            unit='%',
-        ),
     ]
     quantity = 'energy'
     unit = 'MWh/a'

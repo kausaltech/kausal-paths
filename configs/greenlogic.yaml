@@ -218,16 +218,6 @@ instance:
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
       description_sv: Potential av fastigheter (%)
-    - id: renovation_rate
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
-#      unit: '%'
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -238,8 +228,6 @@ instance:
       value: 0
     - id: electricity_change
       value: -1
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: pressure_controlled_fans
     name: Painesäädetyt tuulettimet
@@ -268,16 +256,6 @@ instance:
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
       description_en: Fraction of floor area available for renovation (%)
       description_sv: Potential av fastigheter (%)
-    - id: renovation_rate
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
-#      unit: '%'
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -288,8 +266,6 @@ instance:
       value: 0
     - id: electricity_change
       value: -4
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: ventilation_system_adjustment
     name: Ilmanvaihdon säätö
@@ -316,15 +292,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -335,8 +302,6 @@ instance:
       value: -5
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: reduced_flow_shower_heads
     name: Vesipihit suihkupäät
@@ -363,15 +328,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -382,8 +338,6 @@ instance:
       value: -6
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: smart_lighting
     name: Älykäs valaistus
@@ -410,15 +364,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -429,8 +374,6 @@ instance:
       value: 0
     - id: electricity_change
       value: -1
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: thermostat_replacement
     name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
@@ -457,15 +400,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -476,8 +410,6 @@ instance:
       value: -13
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: wind_insulation
     name: Tuulieristys 300 mm
@@ -504,15 +436,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 2.5
-      min_value: 0
-      max_value: 10
-      step: 0.5
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -523,8 +446,6 @@ instance:
       value: -7
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: window_door_sealing
     name: Ikkunoiden ja ovin eristys
@@ -551,15 +472,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -570,8 +482,6 @@ instance:
       value: -2
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: door_replacement
     name: Uudet ulko- ja kellarin ovet
@@ -598,15 +508,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 2.5
-      min_value: 0
-      max_value: 10
-      step: 0.5
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -617,8 +518,6 @@ instance:
       value: -5
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: wastewater_heat_capture
     name: Jäteveden lämmön talteenotto
@@ -645,15 +544,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -664,8 +554,6 @@ instance:
       value: -5
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: imd
     name: IMD kuuma vesi
@@ -692,15 +580,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -711,8 +590,6 @@ instance:
       value: -5
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: f_heat_pump
     name: F-lämpöpumppu COP 3.0
@@ -739,15 +616,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 5
-      min_value: 0
-      max_value: 10
-      step: 1
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
@@ -758,8 +626,6 @@ instance:
       value: -48
     - id: electricity_change
       value: 16
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: ftx
     name: FTX 85 %
@@ -786,15 +652,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 2.5
-      min_value: 0
-      max_value: 10
-      step: 0.5
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -805,8 +662,6 @@ instance:
       value: -34
     - id: electricity_change
       value: 4
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: additional_window_insulation
     name: Ikkunoiden lisäeristys
@@ -833,15 +688,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 2.5
-      min_value: 0
-      max_value: 10
-      step: 0.5
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -852,8 +698,6 @@ instance:
       value: -15
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: additional_facade_insulation
     name: Julkisivun lisäeristys
@@ -880,15 +724,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 2.5
-      min_value: 0
-      max_value: 10
-      step: 0.5
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -899,8 +734,6 @@ instance:
       value: -12
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   - id: window_replacement
     name: Ikkunoiden vaihto (U = 1,0)
@@ -927,15 +760,6 @@ instance:
       min_value: 0
       max_value: 100
       step: 5
-    - id: renovation_rate
-      description: Korjausten nopeus (% vuodessa)
-      description_en: Renovation rate (%/a)
-      description_sv: Utrullningtakt (%/a)
-      values:
-        default: 2.5
-      min_value: 0
-      max_value: 10
-      step: 0.5
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
@@ -946,8 +770,6 @@ instance:
       value: -6
     - id: electricity_change
       value: 0
-    - id: renovation_rate_baseline
-      value: 0.5
 
   pages:
   - id: home
