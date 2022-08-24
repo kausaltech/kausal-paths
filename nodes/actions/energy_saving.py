@@ -282,12 +282,6 @@ class BuildingEnergySavingAction(ActionNode):
         if renovation_rate_baseline is None:
             renovation_rate_baseline = 0
         renovation_rate = self.get_parameter_value_w_unit('renovation_rate')
-#        do_action = 1
-#        if not self.is_enabled():
-#            # If the action is disabled, we assume that only the baseline amount
-#            # of retrofits are done.
-#            renovation_rate = renovation_rate_baseline
-#            do_action = 0
         df['RenoRate'] = serialise(df, renovation_rate - renovation_rate_baseline)
 
         # Calculate energy consumption, energy cost and maintenance cost
@@ -316,7 +310,6 @@ class BuildingEnergySavingAction(ActionNode):
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
         df[CURRENCY_QUANTITY] = social_benefit.astype(PintType(self.dimensions[CURRENCY_QUANTITY].unit))
-        print(self.context.global_parameters)
         print(self.id)
         self.print_pint_df(df)
         df = df[[UNIT_PRICE_QUANTITY, ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN]]
@@ -324,5 +317,5 @@ class BuildingEnergySavingAction(ActionNode):
 
         # Tee kunnon aikasarja korjausten nopeudesta
         # Lisää toimiva käyttökustannus
-        # Tee globaaliparametreja
-        # Tee summataulukko kontekstitasolle
+        # Systeemi joka huomioi skenaariot (tee/älä tee) oikein.
+        

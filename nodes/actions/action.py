@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Optional
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, DecisionLevel
-from nodes import Context, Node, NodeError
+from nodes import Node, NodeError
 from params import BoolParameter
 
 

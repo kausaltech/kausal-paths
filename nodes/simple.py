@@ -13,6 +13,7 @@ from common.i18n import TranslatedString
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .node import Context, Node
 from .exceptions import NodeError
+from nodes.actions.energy_saving import BuildingEnergySavingAction
 
 
 EMISSION_UNIT = 'kg'
@@ -140,7 +141,27 @@ class AdditiveNode(SimpleNode):
 
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+        self.compute_mac()
         return df
+
+    def compute_mac(self) -> pd.DataFrame:
+        out = pd.DataFrame()
+        nodes =  self.get_upstream_nodes()
+        if nodes is None:
+            return None
+        for node in nodes:
+            if not isinstance(node, BuildingEnergySavingAction):
+                continue
+            df = node.get_output()
+            df['Action'] = node.id
+            df['Target'] = self.id
+            df = df.reset_index().rename(columns={'index': 'Year'})
+            df = df.set_index(['Year', 'Action', 'Target'])
+            out = pd.concat([out, df])
+        if out.size == 0:
+            return None
+        out = out.xs(2020)  # FIXME Temporary filtering until we figure out how to deal with investements by time.
+        return out
 
 
 class SectorEmissions(AdditiveNode):
