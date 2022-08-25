@@ -42,7 +42,7 @@ class CumulativeAdditiveAction(ActionNode):
 
             target_year_ratio = self.get_parameter_value('target_year_ratio', required=False)
             if target_year_ratio is not None:
-                val *= target_year_ratio / 100
+                val *= target_year_ratio / 100  # FIXME This just multiplies ALL years with a constant
 
             df[col] = val
             if not self.is_enabled():

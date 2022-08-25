@@ -273,7 +273,7 @@ class BuildingEnergySavingAction(ActionNode):
         lifetime = self.get_parameter_value_w_unit('investment_lifetime')
         renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
         investment_cost = self.get_parameter_value_w_unit('investment_cost')
-        maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
+        maint_cost = self.get_parameter_value_w_unit('maintenance_cost')
         he_saving = serialise(df, self.get_parameter_value_w_unit('heat_saving'))
         el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
 
@@ -283,27 +283,29 @@ class BuildingEnergySavingAction(ActionNode):
 
         last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
         timespan = target_year - last_hist_year
-#        cost_co2 = cost_co2 * net_present_value(carbon_price_change, timespan)  # FIXME NPV should be calculated but is not
         df['RenoPot'] = serialise(df, renovation_potential)
         renovation_rate = 1 / lifetime
-        df['RenoRate'] = serialise(df, renovation_rate - renovation_rate_baseline)
+        if not self.is_enabled():
+            renovation_rate = renovation_rate_baseline
+        df['RenoRate'] = serialise(df, renovation_rate)
 
         # Calculate energy consumption, energy cost and maintenance cost
         investment_factor = net_present_value(discount_rate, timespan, lifetime)
-        df['Invest'] = serialise(df, investment_cost) * investment_factor
-        df['EnSaving'] = he_saving + el_saving
         npv = net_present_value(discount_rate, timespan)
+        df['Costs'] = serialise(df, investment_cost) * investment_factor
+        df['Costs'] += serialise(df, maint_cost) * npv
+        df['EnSaving'] = he_saving + el_saving
         df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * npv
-#        df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])  # This is correct but we replicate the excel error
+#        df['PrivateProfit'] = (df['CostSaving'] - df['Costs'])  # FIXME This is correct but we replicate the excel error
         df['PrivateProfit'] = (df['CostSaving'] - investment_cost)
         df['ElAvoided'] = el_saving * avoided_electricity_capacity_price
         df['CO2Saved'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2).astype('pint[EUR/a/m**2]')
         df['Health'] = df['EnSaving'] * health_impacts_per_kwh
         df['SocialProfit'] = (df['ElAvoided'] + df['CO2Saved'] + df['Health']) * npv + df['PrivateProfit']
-        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1 / lifetime.units
+        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1 / lifetime.units  # FIXME Should have cumulative energy saved
         potential_area = df['FloorArea'] * df['RenoPot']
         total_reduction = df['EnSaving'] * potential_area * renovation_rate * lifetime.units
-        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * npv
+        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * npv  # FIXME Should NOT have npv
 
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
@@ -314,6 +316,3 @@ class BuildingEnergySavingAction(ActionNode):
         return df
 
         # Tee kunnon aikasarja korjausten nopeudesta
-        # Lisää toimiva käyttökustannus
-        # Systeemi joka huomioi skenaariot (tee/älä tee) oikein.
-        # Erikille kysely NPV-epäjohonmukaisuuksista

@@ -96,12 +96,13 @@ instance:
   - id: price_of_electricity
     name: Sähkön hinta
     name_en: Price of electricity
+    name_sv: Elpris
     quantity: unit_price
     unit: EUR/kWh
-    type: simple.YearlyPercentageChangeNode
+    type: simple.AdditiveNode
     historical_values: [[2020, 0.133]]
-    params:
-      yearly_change: 1.0
+#    params:
+#      yearly_change: 1.0
     tags: price_of_electricity
 
   - id: price_of_heat
@@ -193,6 +194,27 @@ instance:
   #
 
   actions:
+
+# National actions for sensitivity analyses
+
+  - id: increase_in_price_of_electricity
+    name: Sähkön hinnannousu
+    name_en: Increase in price of electricity
+    quantity: unit_price
+    unit: EUR/kWh
+    type: simple.LinearCumulativeAdditiveAction
+    decision_level: nation
+    forecast_values: [[2021, 0], [2044, 0.1]]
+    params:
+      - id: target_year_level
+        values:
+          default: 0.1
+        min_value: 0
+        max_value: 0.5
+        step: 0.05
+    tags: price_of_electricity
+    output_nodes:
+      - price_of_electricity
 
 # Grön logik: Flerbostadshus 24: next 16 actions 
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
