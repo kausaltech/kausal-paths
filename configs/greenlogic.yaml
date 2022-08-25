@@ -151,7 +151,7 @@ instance:
     name_en: Social net cost benefit
     name_sv: Social net kost nytta
     quantity: currency
-    unit: MEUR/a
+    unit: MEUR
     type: simple.AdditiveNode
 
   - id: apartment_building_heating_emissions  # FIXME contains also electricity

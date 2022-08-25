@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from numba import njit, int32
 from pint_pandas import PintType
+from nodes.context import unit_registry
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeDimension
@@ -186,7 +187,7 @@ class BuildingEnergySavingAction(ActionNode):
     dimensions = {
         ENERGY_QUANTITY: NodeDimension('kWh/a', ENERGY_QUANTITY),
         UNIT_PRICE_QUANTITY: NodeDimension('EUR/kWh', UNIT_PRICE_QUANTITY),
-        CURRENCY_QUANTITY: NodeDimension('EUR/a', CURRENCY_QUANTITY),
+        CURRENCY_QUANTITY: NodeDimension('EUR', CURRENCY_QUANTITY),
     }
     allowed_parameters = [
         NumberParameter(
@@ -237,22 +238,20 @@ class BuildingEnergySavingAction(ActionNode):
             out = pd.Series([value] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
             return(out)
 
-        def net_present_investment_factor(lifetime, timespan, discount_rate):
-            unit = lifetime.units
-            lifetime = lifetime.m  # .round(decimals=0)
-            factor = 0
+        def net_present_value(discount_rate, timespan, lifetime=None):
+            if lifetime is None:
+                lifetime = 1
+                unit = unit_registry('1 a')
+            else:
+                assert {str(lifetime.units)} <= {'year', 'a'}
+                lifetime = round(lifetime.m)
+                unit = 1
+            out = 0
             for i in range(timespan):
                 if (i % lifetime) == 0:
-                    factor = factor + (1 - discount_rate) ** i
-            out = factor / unit
-            return out
+                    out += (1 / (1 + discount_rate)) ** i
+            return out * unit
 
-        def net_present_value(timespan, discount_rate):
-            if discount_rate == 0:
-                npv = timespan
-            else:
-                npv = (1 - (1 / (1 + discount_rate)) ** timespan) / (1 - (1 / (1 + discount_rate)))
-            return npv
 
         # Global parameters
         discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
@@ -284,27 +283,27 @@ class BuildingEnergySavingAction(ActionNode):
 
         last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
         timespan = target_year - last_hist_year
-#        cost_co2 = cost_co2 * net_present_value(timespan, carbon_price_change)  # FIXME NPV should be calculated but is not
+#        cost_co2 = cost_co2 * net_present_value(carbon_price_change, timespan)  # FIXME NPV should be calculated but is not
         df['RenoPot'] = serialise(df, renovation_potential)
         renovation_rate = 1 / lifetime
         df['RenoRate'] = serialise(df, renovation_rate - renovation_rate_baseline)
 
         # Calculate energy consumption, energy cost and maintenance cost
-        investment_factor = net_present_investment_factor(lifetime, timespan, discount_rate)
+        investment_factor = net_present_value(discount_rate, timespan, lifetime)
         df['Invest'] = serialise(df, investment_cost) * investment_factor
         df['EnSaving'] = he_saving + el_saving
-        npv = net_present_value(timespan, discount_rate)
+        npv = net_present_value(discount_rate, timespan)
         df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * npv
 #        df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])  # This is correct but we replicate the excel error
-        df['PrivateProfit'] = (df['CostSaving'] - investment_cost / lifetime.units)
-        df['ElAvoided'] = el_saving * avoided_electricity_capacity_price * -1
-        df['CostCO2'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2).astype('pint[EUR/a/m**2]')
+        df['PrivateProfit'] = (df['CostSaving'] - investment_cost)
+        df['ElAvoided'] = el_saving * avoided_electricity_capacity_price
+        df['CO2Saved'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2).astype('pint[EUR/a/m**2]')
         df['Health'] = df['EnSaving'] * health_impacts_per_kwh
-        df['SocialProfit'] = (df['ElAvoided'] + df['CostCO2'] + df['Health']) * npv + df['PrivateProfit']
-        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1  # * do_action
+        df['SocialProfit'] = (df['ElAvoided'] + df['CO2Saved'] + df['Health']) * npv + df['PrivateProfit']
+        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1 / lifetime.units
         potential_area = df['FloorArea'] * df['RenoPot']
         total_reduction = df['EnSaving'] * potential_area * renovation_rate * lifetime.units
-        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * npv * lifetime.units
+        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * npv
 
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
@@ -317,4 +316,4 @@ class BuildingEnergySavingAction(ActionNode):
         # Tee kunnon aikasarja korjausten nopeudesta
         # Lisää toimiva käyttökustannus
         # Systeemi joka huomioi skenaariot (tee/älä tee) oikein.
-        # Tarkista, että vuosittaiset ja NPV-arvot ovat yksiköiltään johdonmukaisia (myös compute_mac)
+        # Erikille kysely NPV-epäjohonmukaisuuksista
