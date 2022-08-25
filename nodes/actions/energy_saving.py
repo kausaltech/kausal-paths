@@ -254,16 +254,29 @@ class BuildingEnergySavingAction(ActionNode):
                 npv = (1 - (1 / (1 + discount_rate)) ** timespan) / (1 - (1 / (1 + discount_rate)))
             return npv
 
-        df = self.get_input_node(tag='floor_area').get_output()
-        he_price = self.get_input_node(tag='price_of_heat').get_output()
-        el_price = self.get_input_node(tag='price_of_electricity').get_output()
-        target_year = self.get_target_year()
+        # Global parameters
         discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
         health_impacts_per_kwh = self.context.get_parameter_value_w_unit('health_impacts_per_kwh')
         avoided_electricity_capacity_price = self.context.get_parameter_value_w_unit('avoided_electricity_capacity_price')
         heat_co2_ef = self.context.get_parameter_value_w_unit('heat_co2_ef')
         electricity_co2_ef = self.context.get_parameter_value_w_unit('electricity_co2_ef')
         renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
+        cost_co2 = self.context.get_parameter_value_w_unit('cost_co2')
+        carbon_price_change = self.context.get_parameter_value_w_unit('carbon_price_change')
+
+        # Input nodes
+        df = self.get_input_node(tag='floor_area').get_output()
+        he_price = self.get_input_node(tag='price_of_heat').get_output()
+        el_price = self.get_input_node(tag='price_of_electricity').get_output()
+        target_year = self.get_target_year()
+
+        # Local parameters
+        lifetime = self.get_parameter_value_w_unit('investment_lifetime')
+        renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
+        investment_cost = self.get_parameter_value_w_unit('investment_cost')
+        maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
+        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_saving'))
+        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
 
         df['HePrice'] = he_price[VALUE_COLUMN]
         df['ElPrice'] = el_price[VALUE_COLUMN]
@@ -271,25 +284,14 @@ class BuildingEnergySavingAction(ActionNode):
 
         last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
         timespan = target_year - last_hist_year
-        lifetime = self.get_parameter_value_w_unit('investment_lifetime')
-
-        carbon_price_change = self.context.get_parameter_value_w_unit('carbon_price_change')
-        cost_co2 = self.context.get_parameter_value_w_unit('cost_co2')
 #        cost_co2 = cost_co2 * net_present_value(timespan, carbon_price_change)  # FIXME NPV should be calculated but is not
-
-        renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
         df['RenoPot'] = serialise(df, renovation_potential)
         renovation_rate = 1 / lifetime
         df['RenoRate'] = serialise(df, renovation_rate - renovation_rate_baseline)
 
         # Calculate energy consumption, energy cost and maintenance cost
         investment_factor = net_present_investment_factor(lifetime, timespan, discount_rate)
-        investment_cost = self.get_parameter_value_w_unit('investment_cost')
         df['Invest'] = serialise(df, investment_cost) * investment_factor
-        maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
-        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_saving'))
-        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
-
         df['EnSaving'] = he_saving + el_saving
         npv = net_present_value(timespan, discount_rate)
         df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * npv
