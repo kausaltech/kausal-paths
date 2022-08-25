@@ -208,13 +208,13 @@ class BuildingEnergySavingAction(ActionNode):
             is_customizable=False,
         ),
         NumberParameter(
-            local_id='heat_change',
+            local_id='heat_saving',
             label=_('Heat saving (kWh/m2/a'),
             unit='kWh/m**2/a',
             is_customizable=False,
         ),
         NumberParameter(
-            local_id='electricity_change',
+            local_id='electricity_saving',
             label=_('Electricity saving (kWh/m2/a)'),
             unit='kWh/m**2/a',
             is_customizable=False,
@@ -287,16 +287,16 @@ class BuildingEnergySavingAction(ActionNode):
         investment_cost = self.get_parameter_value_w_unit('investment_cost')
         df['Invest'] = serialise(df, investment_cost) * investment_factor
         maint_cost = self.get_parameter_value_w_unit('maintenance_cost') * lifetime
-        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_change'))
-        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_change'))
+        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_saving'))
+        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
 
-        df['EnSaving'] = (he_saving + el_saving) * -1
+        df['EnSaving'] = he_saving + el_saving
         npv = net_present_value(timespan, discount_rate)
-        df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * npv * -1
+        df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * npv
 #        df['PrivateProfit'] = (df['CostSaving'] - df['Invest'])  # This is correct but we replicate the excel error
         df['PrivateProfit'] = (df['CostSaving'] - investment_cost / lifetime.units)
         df['ElAvoided'] = el_saving * avoided_electricity_capacity_price * -1
-        df['CostCO2'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2 * -1).astype('pint[EUR/a/m**2]')
+        df['CostCO2'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2).astype('pint[EUR/a/m**2]')
         df['Health'] = df['EnSaving'] * health_impacts_per_kwh
         df['SocialProfit'] = (df['ElAvoided'] + df['CostCO2'] + df['Health']) * npv + df['PrivateProfit']
         social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1  # * do_action

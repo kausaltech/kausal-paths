@@ -228,10 +228,10 @@ instance:
       value: 1
     - id: maintenance_cost
       value: 0
-    - id: heat_change
+    - id: heat_saving
       value: 0
-    - id: electricity_change
-      value: -1
+    - id: electricity_saving
+      value: 1
 
   - id: pressure_controlled_fans
     name: Painesäädetyt tuulettimet
@@ -266,10 +266,10 @@ instance:
       value: 5.5
     - id: maintenance_cost
       value: 0
-    - id: heat_change
+    - id: heat_saving
       value: 0
-    - id: electricity_change
-      value: -4
+    - id: electricity_saving
+      value: 4
 
   - id: ventilation_system_adjustment
     name: Ilmanvaihdon säätö
@@ -302,9 +302,9 @@ instance:
       value: 1
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -5
-    - id: electricity_change
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
       value: 0
 
   - id: reduced_flow_shower_heads
@@ -338,9 +338,9 @@ instance:
       value: 1.8
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -6
-    - id: electricity_change
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
       value: 0
 
   - id: smart_lighting
@@ -374,10 +374,10 @@ instance:
       value: 2.3
     - id: maintenance_cost
       value: 0
-    - id: heat_change
+    - id: heat_saving
       value: 0
-    - id: electricity_change
-      value: -1
+    - id: electricity_saving
+      value: 1
 
   - id: thermostat_replacement
     name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
@@ -410,9 +410,9 @@ instance:
       value: 7.3
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -13
-    - id: electricity_change
+    - id: heat_saving
+      value: 13
+    - id: electricity_saving
       value: 0
 
   - id: wind_insulation
@@ -446,9 +446,9 @@ instance:
       value: 4.2
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -7
-    - id: electricity_change
+    - id: heat_saving
+      value: 7
+    - id: electricity_saving
       value: 0
 
   - id: window_door_sealing
@@ -482,9 +482,9 @@ instance:
       value: 4.8
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -2
-    - id: electricity_change
+    - id: heat_saving
+      value: 2
+    - id: electricity_saving
       value: 0
 
   - id: door_replacement
@@ -518,9 +518,9 @@ instance:
       value: 4.8
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -5
-    - id: electricity_change
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
       value: 0
 
   - id: wastewater_heat_capture
@@ -554,9 +554,9 @@ instance:
       value: 5.6
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -5
-    - id: electricity_change
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
       value: 0
 
   - id: imd
@@ -590,9 +590,9 @@ instance:
       value: 5.6
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -5
-    - id: electricity_change
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
       value: 0
 
   - id: f_heat_pump
@@ -626,10 +626,10 @@ instance:
       value: 29.6
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -48
-    - id: electricity_change
-      value: 16
+    - id: heat_saving
+      value: 48
+    - id: electricity_saving
+      value: -16
 
   - id: ftx
     name: FTX 85 %
@@ -662,10 +662,10 @@ instance:
       value: 56.5
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -34
-    - id: electricity_change
-      value: 4
+    - id: heat_saving
+      value: 34
+    - id: electricity_saving
+      value: -4
 
   - id: additional_window_insulation
     name: Ikkunoiden lisäeristys
@@ -698,9 +698,9 @@ instance:
       value: 32.2
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -15
-    - id: electricity_change
+    - id: heat_saving
+      value: 15
+    - id: electricity_saving
       value: 0
 
   - id: additional_facade_insulation
@@ -734,9 +734,9 @@ instance:
       value: 52.0
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -12
-    - id: electricity_change
+    - id: heat_saving
+      value: 12
+    - id: electricity_saving
       value: 0
 
   - id: window_replacement
@@ -770,9 +770,9 @@ instance:
       value: 27.5
     - id: maintenance_cost
       value: 0
-    - id: heat_change
-      value: -6
-    - id: electricity_change
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
       value: 0
 
   pages:
