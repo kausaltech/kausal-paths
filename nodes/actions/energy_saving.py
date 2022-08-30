@@ -342,10 +342,11 @@ class BuildingEnergySavingAction(ActionNode):
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
         df[CURRENCY_QUANTITY] = social_benefit.astype(PintType(self.dimensions[CURRENCY_QUANTITY].unit))
-        print(self.id)
-        self.print_pint_df(df)
+#        print(self.id)
+#        self.print_pint_df(df)
         df = df[[UNIT_PRICE_QUANTITY, ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN]]
 
         return df
 
         # Tee kunnon aikasarja korjausten nopeudesta
+        # Kehitä get_outputia niin että voi valita sarakkeen nimellä.

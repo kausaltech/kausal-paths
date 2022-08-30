@@ -166,6 +166,20 @@ instance:
 #    output_nodes:
 #      - apartment_building_emissions
 
+#  - id: heat_consumption_per_area
+#    name: Lämmönkulutus pinta-alaa kohti
+#    name_en: Heat consumption per floor area
+#    type: simple.AdditiveNode
+#    quantity: heat_saving
+#    unit: kWh/a/m**2
+
+#  - id: electricity_consumption_per_area
+#    name: Sähkönkulutus pinta-alaa kohti
+#    name_en: Electricity consumption per floor area
+#    type: simple.AdditiveNode
+#    quantity: electricity_saving
+#    unit: kWh/a/m**2
+
   - id: apartment_building_social_benefit
     name: Yhteiskunnallinen nettokustannushyöty
     name_en: Social net cost benefit

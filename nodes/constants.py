@@ -26,9 +26,9 @@ ACTIVITY_QUANTITIES = [EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'ma
 
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
     EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, UNIT_PRICE_QUANTITY,
-    'population', 'per_capita', 'fuel_consumption',    'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
+    'population', 'per_capita', 'fuel_consumption', 'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
-    'probability', 'ingestion',
+    'probability', 'ingestion', 'energy_saving', 'heat_saving', 'electricity_saving',
 ]
 
 

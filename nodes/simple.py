@@ -139,14 +139,17 @@ class AdditiveNode(SimpleNode):
         else:
             df = self.add_nodes(df, self.input_nodes)
 
+        if self.id == 'apartment_building_social_benefit':  # FIXME Temporary hacking to get one MAC curve
+#            print('Printing MAC curve of node ', self.id)
+#            self.print_pint_df(df)
+            self.print_pint_df(self.compute_mac())
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
-        self.compute_mac()
         return df
 
     def compute_mac(self) -> pd.DataFrame:
         out = pd.DataFrame()
-        nodes =  self.get_upstream_nodes()
+        nodes = self.get_upstream_nodes()
         if nodes is None:
             return None
         for node in nodes:
