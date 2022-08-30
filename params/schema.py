@@ -195,7 +195,7 @@ class Query(graphene.ObjectType):
 
     def resolve_parameters(root, info: GQLInstanceInfo):
         instance = info.context.instance
-        return instance.context.parameters.values()
+        return instance.context.global_parameters.values()
 
     def resolve_parameter(root, info: GQLInstanceInfo, id):
         instance = info.context.instance
