@@ -21,32 +21,51 @@ instance:
   - id: municipality_name
     value: Tampere
   - id: discount_rate
+    label: Discount rate (%/a)
+    description: Speed of value decrease for monetary variables
+    is_customizable: True
     value: 3.5
     min_value: 0
     max_value: 18
     step: 0.5
     unit: '%'
   - id: avoided_electricity_capacity_price
+    is_customizable: True
     value: 0.04
     unit: EUR/kWh
   - id: health_impacts_per_kwh
+    is_customizable: True
     value: 0.007344
     unit: EUR/kWh
   - id: heat_co2_ef
+    is_customizable: True
     value: 53.7
     unit: g/kWh
   - id: electricity_co2_ef
+    is_customizable: True
     value: 93.2
     unit: g/kWh
   - id: cost_co2
+    is_customizable: True
     value: 700
     unit: EUR/t
   - id: renovation_rate_baseline
+    is_customizable: True
     value: 0.5
     unit: '%/a'
   - id: carbon_price_change
+    is_customizable: True
     value: 0
     unit: '%'
+  - id: include_co2
+    is_customizable: True
+    value: True
+  - id: include_health
+    is_customizable: True
+    value: True
+  - id: include_el_avoided
+    is_customizable: True
+    value: True
 
   emission_sectors:
   - id: net_emissions

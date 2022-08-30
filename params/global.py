@@ -1,4 +1,4 @@
-from .param import NumberParameter, StringParameter
+from .param import BoolParameter, NumberParameter, StringParameter
 from common.i18n import gettext_lazy as _
 
 
@@ -45,3 +45,18 @@ class RenovationRateBaseline(NumberParameter):
 class CarbonPriceChange(NumberParameter):
     name = _('Change in carbon emission price')
     id = 'carbon_price_change'
+
+
+class IncludeCO2(BoolParameter):
+    name = _('Include CO2 cost variable in calculations?')
+    id = 'include_co2'
+
+
+class IncludeHealth(BoolParameter):
+    name = _('Include health impact variable in calculations?')
+    id = 'include_health'
+
+
+class IncludeElAvoided(BoolParameter):
+    name = _('Include avoided electricity capacity variable in calculations?')
+    id = 'include_el_avoided'

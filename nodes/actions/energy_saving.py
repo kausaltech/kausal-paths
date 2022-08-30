@@ -300,10 +300,10 @@ class BuildingEnergySavingAction(ActionNode):
         df['CO2Saved'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2).astype('pint[EUR/a/m**2]')
         df['Health'] = df['EnSaving'] * health_impacts_per_kwh
         df['SocialProfit'] = (df['ElAvoided'] + df['CO2Saved'] + df['Health']) * npv + df['PrivateProfit']
-        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1 / lifetime.units  # FIXME Should have cumulative energy saved
+        social_cost_efficiency = df['SocialProfit'] / df['EnSaving'] * -1 / lifetime.units  # FIXME Should have cumulative energy saved. But see Erik's email 2022-08-29
         potential_area = df['FloorArea'] * df['RenoPot']
         total_reduction = df['EnSaving'] * potential_area * renovation_rate * lifetime.units
-        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * npv  # FIXME Should NOT have npv
+        social_benefit = df['SocialProfit'] * potential_area * df['RenoRate'] * npv  # FIXME Should NOT have npv. But see Erik's email 2022-08-29
 
         df[UNIT_PRICE_QUANTITY] = social_cost_efficiency.astype(PintType(self.dimensions[UNIT_PRICE_QUANTITY].unit))
         df[ENERGY_QUANTITY] = total_reduction.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
