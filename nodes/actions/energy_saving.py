@@ -252,7 +252,6 @@ class BuildingEnergySavingAction(ActionNode):
                     out += (1 / (1 + discount_rate)) ** i
             return out * unit
 
-
         # Global parameters
         discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
         health_impacts_per_kwh = self.context.get_parameter_value_w_unit('health_impacts_per_kwh')
@@ -296,8 +295,7 @@ class BuildingEnergySavingAction(ActionNode):
         df['Costs'] += serialise(df, maint_cost) * npv
         df['EnSaving'] = he_saving + el_saving
         df['CostSaving'] = (df['ElPrice'] * el_saving + df['HePrice'] * he_saving) * npv
-#        df['PrivateProfit'] = (df['CostSaving'] - df['Costs'])  # FIXME This is correct but we replicate the excel error
-        df['PrivateProfit'] = (df['CostSaving'] - investment_cost)
+        df['PrivateProfit'] = (df['CostSaving'] - df['Costs'])
         df['ElAvoided'] = el_saving * avoided_electricity_capacity_price
         df['CO2Saved'] = ((he_saving * heat_co2_ef + el_saving * electricity_co2_ef) * cost_co2).astype('pint[EUR/a/m**2]')
         df['Health'] = df['EnSaving'] * health_impacts_per_kwh
