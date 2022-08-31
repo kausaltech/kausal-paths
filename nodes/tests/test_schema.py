@@ -170,9 +170,6 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               __typename
               id
             }
-            aggregatedImpactUnit {
-              __typename
-            }
             parameters {
               __typename
               id
@@ -229,7 +226,6 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'ForecastMetricType',
                 'id': f'{additive_action.id}-{additive_action.id}-impact',
             },
-            'aggregatedImpactUnit': None,  # TODO: No resolver for this exists yet
             'parameters': [{
                 '__typename': 'BoolParameterType',
                 'id': additive_action.enabled_param.global_id,
