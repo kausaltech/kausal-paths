@@ -1,7 +1,7 @@
 import pytest
 from django.utils.translation import get_language
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
-from pages.base import Metric
+from nodes.metric import Metric
 
 pytestmark = pytest.mark.django_db
 

@@ -1,7 +1,7 @@
 psycopg2-binary
 pandas
 python-dotenv
-wagtail<2.16
+wagtail
 django
 django-environ
 django-cors-headers
@@ -11,6 +11,8 @@ sentry_sdk
 djangorestframework
 django-extensions
 scipy
+dvc[s3]
+aiobotocore[boto3]==2.3.4
 dvc-pandas
 ipython
 numba
@@ -30,3 +32,4 @@ wagtail-localize
 Babel
 ruamel.yaml
 pygments-graphql
+watchfiles

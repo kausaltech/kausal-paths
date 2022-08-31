@@ -5,8 +5,7 @@ from wagtail.core.rich_text import expand_db_html
 from nodes.models import InstanceConfig, NodeConfig
 
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
-from pages.models import NodePage
-from pages.base import Metric
+from .metric import Metric
 
 from . import Node
 from .actions import ActionNode
