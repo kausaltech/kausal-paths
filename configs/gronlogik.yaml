@@ -178,7 +178,7 @@ instance:
     name_sv: Sociala kostnaderna
     type: costs.SocialCost
     quantity: currency
-    unit: EUR
+    unit: MEUR
     input_nodes:
     - apartment_building_floor_area
     - price_of_heat
@@ -190,7 +190,7 @@ instance:
     name_sv: Energikonsumtion
     type: costs.EnergyConsumption
     quantity: energy
-    unit: MWh/a
+    unit: GWh/a
     input_nodes:
     - apartment_building_floor_area
     output_nodes:
