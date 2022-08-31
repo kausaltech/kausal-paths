@@ -142,52 +142,11 @@ instance:
     name_sv: Antal flerbostadshus
     quantity: number
     unit: m**2
-    type: simple.AdditiveNode
-#    type: simple.YearlyPercentageChangeNode
+    type: simple.YearlyPercentageChangeNode
     historical_values: [[2020, 208000000.0]]
-#    params:
-#      yearly_change: 0.0
+    params:
+      yearly_change: 0.0
     tags: floor_area
-
-  - id: apartment_building_cost_efficiency
-    name: Kerrostalojen kustannustehokkuus
-    name_en: apartment_building_cost_efficiency of apartment buildings
-    name_sv: Kosteffektivitet av flerbostadshus
-    quantity: unit_price
-    unit: EUR/kWh
-    type: simple.AdditiveNode
-
-#  - id: apartment_building_energy_use
-#    name: Kerrostalojen energiankulutus
-#    name_en: Energy use in apartment buildings
-#    name_sv: Energianvändning av flerbostadshus
-#    quantity: energy
-#    unit: kWh/a
-#    type: simple.AdditiveNode
-#    output_nodes:
-#      - apartment_building_emissions
-
-#  - id: heat_consumption_per_area
-#    name: Lämmönkulutus pinta-alaa kohti
-#    name_en: Heat consumption per floor area
-#    type: simple.AdditiveNode
-#    quantity: heat_saving
-#    unit: kWh/a/m**2
-
-#  - id: electricity_consumption_per_area
-#    name: Sähkönkulutus pinta-alaa kohti
-#    name_en: Electricity consumption per floor area
-#    type: simple.AdditiveNode
-#    quantity: electricity_saving
-#    unit: kWh/a/m**2
-
-  - id: apartment_building_social_benefit
-    name: Yhteiskunnallinen nettokustannushyöty
-    name_en: Social net cost benefit
-    name_sv: Social net kost nytta
-    quantity: currency
-    unit: MEUR
-    type: simple.AdditiveNode
 
   - id: apartment_building_heating_emissions  # FIXME contains also electricity
     name: Kerrostalojen lämmityksen päästöt
@@ -198,16 +157,6 @@ instance:
     unit: kt/a
     output_nodes:
       - apartment_building_emissions
-
-  - id: apartment_building_heating_energy_use
-    name: Kerrostalojen lämmityksen energiankulutus
-    name_en: Apartment building heating energy use
-    name_sv: Energianvändning av flerbostadshusuppvärmning
-    quantity: energy
-    type: simple.AdditiveNode
-    unit: GWh/a
-    output_nodes:
-    - apartment_building_heating_emissions
 
   - id: apartment_building_heating_emission_factor
     name: Kerrostalojen lämmityksen päästökerroin
@@ -244,6 +193,8 @@ instance:
     unit: MWh/a
     input_nodes:
     - apartment_building_floor_area
+    output_nodes:
+    - apartment_building_heating_emissions
 
   #
   # ------- ACTIONS --------
@@ -256,6 +207,7 @@ instance:
   - id: increase_in_price_of_electricity
     name: Sähkön hinnannousu
     name_en: Increase in price of electricity
+    name_sv: Elprishöjning
     quantity: unit_price
     unit: EUR/kWh
     type: simple.LinearCumulativeAdditiveAction
@@ -278,17 +230,14 @@ instance:
     name: Energiansäästölamput
     name_en: Energy-saving lamps
     name_sv: Lågenergilampor
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       values:
@@ -315,18 +264,14 @@ instance:
     name: Painesäädetyt tuulettimet
     name_en: Pressure-controlled fans
     name_sv: Trykstyrda fläktar
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
-
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       values:
@@ -353,17 +298,14 @@ instance:
     name: Ilmanvaihdon säätö
     name_en: Ventilation system adjustment
     name_sv: Injustering ventilationssystem
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -389,17 +331,14 @@ instance:
     name: Vesipihit suihkupäät
     name_en: Reduced-flow shower-heads
     name_sv: Snålspolande armaturer
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -425,17 +364,14 @@ instance:
     name: Älykäs valaistus
     name_en: Smart lighting
     name_sv: Närvarostyrd LED
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -461,17 +397,14 @@ instance:
     name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
     name_en: Thermostat replacement and heating system adjustment
     name_sv: Byte termostater och injustering värmesystem
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -497,17 +430,14 @@ instance:
     name: Tuulieristys 300 mm
     name_en: Wind insulation, 300 mm
     name_sv: Vindisolering, 300 mm
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -533,17 +463,14 @@ instance:
     name: Ikkunoiden ja ovin eristys
     name_en: Painting and sealing of windows and doors
     name_sv: Målning och tätning av fönster och dörrar
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -569,17 +496,14 @@ instance:
     name: Uudet ulko- ja kellarin ovet
     name_en: New entrance and basement doors
     name_sv: Nya entré- och källardörrar
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -605,17 +529,14 @@ instance:
     name: Jäteveden lämmön talteenotto
     name_en: Wastewater heat capture
     name_sv: Värmeväxlare spillvatten
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -641,17 +562,14 @@ instance:
     name: IMD kuuma vesi
     name_en: IMD hot water
     name_sv: IMD varmvatten
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -677,17 +595,14 @@ instance:
     name: F-lämpöpumppu COP 3.0
     name_en: F heat pump COP 3.0
     name_sv: F värmepump COP 3,0
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -713,17 +628,14 @@ instance:
     name: FTX 85 %
     name_en: FTX 85 %
     name_sv: FTX 85 %
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -749,17 +661,14 @@ instance:
     name: Ikkunoiden lisäeristys
     name_en: Additional window insulation
     name_sv: Tilläggsisolering fönster
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -785,17 +694,14 @@ instance:
     name: Julkisivun lisäeristys
     name_en: Additional facade insulation
     name_sv: Fasadisolering, 100 mm
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
+    type: energy_saving.BuildingEnergySavingActionb
+    quantity: fraction
+    unit: '%/a'
     input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
+    - apartment_building_floor_area
     output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -821,48 +727,9 @@ instance:
     name: Ikkunoiden vaihto (U = 1,0)
     name_en: Window replacement (U = 1.0)
     name_sv: Fönsterbyte (U = 1,0)
-    type: energy_saving.BuildingEnergySavingAction
-    quantity: energy
-    unit: MWh/a
-    input_nodes:
-      - apartment_building_floor_area
-      - price_of_heat
-      - price_of_electricity
-    output_nodes:
-      - apartment_building_cost_efficiency
-      - apartment_building_heating_energy_use
-      - apartment_building_social_benefit
-    params:
-    - id: renovation_potential
-      description: Korjaukseen soveltuvan rakennusalan osuus (%)
-      description_en: Fraction of floor area available for renovation (%)
-      description_sv: Potential av fastigheter (%)
-      values:
-        default: 100
-      min_value: 0
-      max_value: 100
-      step: 5
-    - id: investment_lifetime
-      value: 40
-    - id: investment_cost 
-      value: 27.5
-    - id: maintenance_cost
-      value: 0
-    - id: heat_saving
-      value: 6
-    - id: electricity_saving
-      value: 0
-
-  - id: test
-    name: Testi
     type: energy_saving.BuildingEnergySavingActionb
     quantity: fraction
     unit: '%/a'
-    params:
-    - id: heat_saving
-      value: 6
-    - id: electricity_saving
-      value: 1
     input_nodes:
     - apartment_building_floor_area
     output_nodes:

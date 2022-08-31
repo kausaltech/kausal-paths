@@ -145,7 +145,7 @@ class EnergyConsumption(SimpleNode):
                 renovation = node.get_output(dimension=VALUE_COLUMN)
 
                 energy = (heat[VALUE_COLUMN] + electricity[VALUE_COLUMN])
-                energy = energy * df[VALUE_COLUMN] * renovation[VALUE_COLUMN] * unit_registry('1 a')
+                energy = energy * df[VALUE_COLUMN] * renovation[VALUE_COLUMN] * unit_registry('-1 a')
             if first:
                 out[VALUE_COLUMN] = energy
                 first = False
