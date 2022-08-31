@@ -288,7 +288,7 @@ class Node:
             h.update(str(mod_mtime).encode('utf8'))
         return h.digest()
 
-    def get_output(self, target_node: Node = None) -> pd.DataFrame:
+    def get_output(self, target_node: Node = None, dimension = None) -> pd.DataFrame:
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
         if out is None or self.debug or self.context.skip_cache:
@@ -327,6 +327,22 @@ class Node:
                     col_name = target_node.quantity
                 else:
                     raise NodeError(self, "Quantity '%s' for node %s not found dimensions" % (target_node.quantity, target_node))
+
+            if col_name:
+                cols = [col_name]
+                if FORECAST_COLUMN in out.columns:
+                    cols.append(FORECAST_COLUMN)
+                out = out[cols]
+                out = out.rename(columns={col_name: VALUE_COLUMN})
+
+        if dimension is not None:
+            col_name = None
+
+            if dimension in self.dimensions:  # FIXME This assumes that the column name and dimension are identical
+                assert dimension in out.columns
+                col_name = dimension
+            else:
+                raise NodeError(self, "Dimension '%s' not found" % (dimension))
 
             if col_name:
                 cols = [col_name]

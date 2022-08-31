@@ -142,10 +142,11 @@ instance:
     name_sv: Antal flerbostadshus
     quantity: number
     unit: m**2
-    type: simple.YearlyPercentageChangeNode
+    type: simple.AdditiveNode
+#    type: simple.YearlyPercentageChangeNode
     historical_values: [[2020, 208000000.0]]
-    params:
-      yearly_change: 0.0
+#    params:
+#      yearly_change: 0.0
     tags: floor_area
 
   - id: apartment_building_cost_efficiency
@@ -221,6 +222,16 @@ instance:
       dropna: true
     output_nodes:
     - apartment_building_heating_emissions
+
+  - id: testnode
+    name: Testinode
+    type: costs.TestNode
+    quantity: currency
+    unit: EUR
+    input_nodes:
+    - apartment_building_floor_area
+    - price_of_heat
+    - price_of_electricity
 
   #
   # ------- ACTIONS --------
@@ -809,6 +820,41 @@ instance:
       - apartment_building_cost_efficiency
       - apartment_building_heating_energy_use
       - apartment_building_social_benefit
+    params:
+    - id: renovation_potential
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost 
+      value: 27.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 0
+
+  - id: test
+    name: Testi
+    type: energy_saving.Test
+    quantity: fraction
+    unit: '%/a'
+    params:
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 1
+    input_nodes:
+    - apartment_building_floor_area
+    output_nodes:
+    - testnode
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)

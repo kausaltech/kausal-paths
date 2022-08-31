@@ -5,6 +5,7 @@ from params.param import NumberParameter, PercentageParameter, StringParameter
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
+from .actions.energy_saving import Test
 
 
 class CostNode(Ovariable):
@@ -45,6 +46,82 @@ class CostNode(Ovariable):
             costs.at[time, VALUE_COLUMN] = (change + costs.at[time, VALUE_COLUMN]) / discount
 
         return(costs)
+
+
+class TestNode(SimpleNode):
+
+    def compute(self):
+        def net_present_value(discount_rate, timespan, lifetime=None):
+            if lifetime is None:
+                lifetime = 1
+                unit = unit_registry('1 a')
+            else:
+                assert {str(lifetime.units)} <= {'year', 'a'}
+                lifetime = round(lifetime.m)
+                unit = 1
+            out = 0
+            for i in range(timespan):
+                if (i % lifetime) == 0:
+                    out += (1 / (1 + discount_rate)) ** i
+            return out * unit
+
+        # Global parameters
+        discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
+        health_impacts_per_kwh = self.context.get_parameter_value_w_unit('health_impacts_per_kwh')
+        avoided_electricity_capacity_price = self.context.get_parameter_value_w_unit('avoided_electricity_capacity_price')
+        heat_co2_ef = self.context.get_parameter_value_w_unit('heat_co2_ef')
+        electricity_co2_ef = self.context.get_parameter_value_w_unit('electricity_co2_ef')
+        cost_co2 = self.context.get_parameter_value_w_unit('cost_co2')
+        carbon_price_change = self.context.get_parameter_value_w_unit('carbon_price_change')
+        target_year = self.get_target_year()
+
+        # Input nodes
+        df = self.get_input_node(tag='floor_area').get_output()
+        he_price = self.get_input_node(tag='price_of_heat').get_output()
+        el_price = self.get_input_node(tag='price_of_electricity').get_output()
+        df['HePrice'] = he_price[VALUE_COLUMN]
+        df['ElPrice'] = el_price[VALUE_COLUMN]
+        df = df.rename(columns={VALUE_COLUMN: 'FloorArea'})
+
+        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
+        timespan = target_year - last_hist_year
+        npv = net_present_value(discount_rate, timespan)
+        out = None
+
+        for node in self.input_nodes:
+            if not isinstance(node, Test):
+                continue
+            else:
+                heat = node.get_output(dimension='HeSaving')
+                electricity = node.get_output(dimension='ElSaving')
+                renov_cost = node.get_output(dimension='RenovCost')
+                renovation = node.get_output(dimension=VALUE_COLUMN)
+
+            df['CostSaving'] = (
+                df['ElPrice'] * electricity[VALUE_COLUMN] 
+                + df['HePrice'] * heat[VALUE_COLUMN]) * npv
+            df['PrivateProfit'] = (df['CostSaving'] - renov_cost[VALUE_COLUMN])
+            df['ElAvoided'] = electricity[VALUE_COLUMN] * avoided_electricity_capacity_price
+            df['CO2Saved'] = (
+                (heat[VALUE_COLUMN] * heat_co2_ef
+                + electricity[VALUE_COLUMN] * electricity_co2_ef) * cost_co2
+                ).astype('pint[EUR/a/m**2]')
+            df['EnSaving'] = heat[VALUE_COLUMN] + electricity[VALUE_COLUMN]
+            df['Health'] = df['EnSaving'] * health_impacts_per_kwh
+            df['SocialProfit'] = (
+                df['ElAvoided'] 
+                + df['CO2Saved'] 
+                + df['Health']
+                ) * npv + df['PrivateProfit']
+            potential_area = df['FloorArea'] * renovation[VALUE_COLUMN]
+            df[VALUE_COLUMN] = df['SocialProfit'] * potential_area * npv  # FIXME See Erik's email 2022-08-29 about npv
+            if out is None:
+                out = df[[VALUE_COLUMN, FORECAST_COLUMN]]
+            else:
+                out[VALUE_COLUMN] += df[VALUE_COLUMN]
+
+        return out
+
 
 # Grön logik and marginal abatement cost (MAC) curves, notes
 # https://data-88e.github.io/textbook/content/12-environmental/textbook1.html
