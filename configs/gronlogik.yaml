@@ -223,15 +223,27 @@ instance:
     output_nodes:
     - apartment_building_heating_emissions
 
-  - id: testnode
-    name: Testinode
-    type: costs.TestNode
+  - id: social_cost
+    name: Sosiaaliset kustannukset
+    name_en: Social costs
+    name_sv: Sociala kostnaderna
+    type: costs.SocialCost
     quantity: currency
     unit: EUR
     input_nodes:
     - apartment_building_floor_area
     - price_of_heat
     - price_of_electricity
+
+  - id: energy_consumption
+    name: Energiankulutus
+    name_en: Energy consumption
+    name_sv: Energikonsumtion
+    type: costs.EnergyConsumption
+    quantity: energy
+    unit: MWh/a
+    input_nodes:
+    - apartment_building_floor_area
 
   #
   # ------- ACTIONS --------
@@ -843,7 +855,7 @@ instance:
 
   - id: test
     name: Testi
-    type: energy_saving.Test
+    type: energy_saving.BuildingEnergySavingActionb
     quantity: fraction
     unit: '%/a'
     params:
@@ -854,7 +866,8 @@ instance:
     input_nodes:
     - apartment_building_floor_area
     output_nodes:
-    - testnode
+    - social_cost
+    - energy_consumption
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)

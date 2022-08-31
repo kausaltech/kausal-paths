@@ -183,7 +183,7 @@ class LEDRetrofitAction(ActionNode):
 ############################################
 
 
-class Test(ActionNode):
+class BuildingEnergySavingActionb(ActionNode):
     dimensions = {
         VALUE_COLUMN: NodeDimension('%', 'fraction'),
         'RenovCost': NodeDimension('EUR/m**2', 'currency'),

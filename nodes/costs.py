@@ -1,11 +1,15 @@
 import pandas as pd
 import numpy as np
+
+from nodes.exceptions import NodeError
+
 from .context import unit_registry
 from params.param import NumberParameter, PercentageParameter, StringParameter
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
+from .node import Node
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
-from .actions.energy_saving import Test
+from .actions.energy_saving import BuildingEnergySavingAction, BuildingEnergySavingActionb
 
 
 class CostNode(Ovariable):
@@ -48,7 +52,7 @@ class CostNode(Ovariable):
         return(costs)
 
 
-class TestNode(SimpleNode):
+class SocialCost(SimpleNode):
 
     def compute(self):
         def net_present_value(discount_rate, timespan, lifetime=None):
@@ -89,36 +93,65 @@ class TestNode(SimpleNode):
         out = None
 
         for node in self.input_nodes:
-            if not isinstance(node, Test):
+            if not isinstance(node, BuildingEnergySavingActionb):
                 continue
             else:
-                heat = node.get_output(dimension='HeSaving')
-                electricity = node.get_output(dimension='ElSaving')
-                renov_cost = node.get_output(dimension='RenovCost')
-                renovation = node.get_output(dimension=VALUE_COLUMN)
+                heat = node.get_output(dimension='HeSaving')[VALUE_COLUMN]
+                electricity = node.get_output(dimension='ElSaving')[VALUE_COLUMN]
+                renov_cost = node.get_output(dimension='RenovCost')[VALUE_COLUMN]
+                renovation = node.get_output(dimension=VALUE_COLUMN)[VALUE_COLUMN]
 
             df['CostSaving'] = (
-                df['ElPrice'] * electricity[VALUE_COLUMN] 
-                + df['HePrice'] * heat[VALUE_COLUMN]) * npv
-            df['PrivateProfit'] = (df['CostSaving'] - renov_cost[VALUE_COLUMN])
-            df['ElAvoided'] = electricity[VALUE_COLUMN] * avoided_electricity_capacity_price
+                df['ElPrice'] * electricity
+                + df['HePrice'] * heat) * npv
+            df['PrivateProfit'] = (df['CostSaving'] - renov_cost)
+            df['ElAvoided'] = electricity * avoided_electricity_capacity_price
             df['CO2Saved'] = (
-                (heat[VALUE_COLUMN] * heat_co2_ef
-                + electricity[VALUE_COLUMN] * electricity_co2_ef) * cost_co2
+                (heat * heat_co2_ef
+                + electricity * electricity_co2_ef) * cost_co2
                 ).astype('pint[EUR/a/m**2]')
-            df['EnSaving'] = heat[VALUE_COLUMN] + electricity[VALUE_COLUMN]
+            df['EnSaving'] = heat + electricity
             df['Health'] = df['EnSaving'] * health_impacts_per_kwh
             df['SocialProfit'] = (
                 df['ElAvoided'] 
                 + df['CO2Saved'] 
                 + df['Health']
                 ) * npv + df['PrivateProfit']
-            potential_area = df['FloorArea'] * renovation[VALUE_COLUMN]
+            potential_area = df['FloorArea'] * renovation
             df[VALUE_COLUMN] = df['SocialProfit'] * potential_area * npv  # FIXME See Erik's email 2022-08-29 about npv
             if out is None:
                 out = df[[VALUE_COLUMN, FORECAST_COLUMN]]
             else:
                 out[VALUE_COLUMN] += df[VALUE_COLUMN]
+
+        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
+        return out
+
+
+class EnergyConsumption(SimpleNode):
+
+    def compute(self):
+        # Input nodes
+        df = self.get_input_node(tag='floor_area').get_output()
+        out = df[[VALUE_COLUMN, FORECAST_COLUMN]]
+        first = True
+
+        for node in self.input_nodes:
+            if not isinstance(node, BuildingEnergySavingActionb):
+                continue
+            else:
+                heat = node.get_output(dimension='HeSaving')
+                electricity = node.get_output(dimension='ElSaving')
+                renovation = node.get_output(dimension=VALUE_COLUMN)
+
+                energy = (heat[VALUE_COLUMN] + electricity[VALUE_COLUMN])
+                energy = energy * df[VALUE_COLUMN] * renovation[VALUE_COLUMN] * unit_registry('1 a')
+            if first:
+                out[VALUE_COLUMN] = energy
+                first = False
+            else:
+                out[VALUE_COLUMN] += energy
+        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
 
         return out
 
