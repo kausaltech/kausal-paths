@@ -5,8 +5,7 @@ from wagtail.core.rich_text import expand_db_html
 from nodes.models import InstanceConfig, NodeConfig
 
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
-from pages.models import NodePage
-from pages.base import Metric
+from .metric import Metric
 
 from . import Node
 from .actions import ActionNode
@@ -66,6 +65,7 @@ class ForecastMetricType(graphene.ObjectType):
     yearly_cumulative_unit = graphene.Field('paths.schema.UnitType')
     historical_values = graphene.List(YearlyValue, latest=graphene.Int(required=False))
     forecast_values = graphene.List(YearlyValue)
+    cumulative_forecast_value = graphene.Float()
     baseline_forecast_values = graphene.List(YearlyValue)
 
     @staticmethod
@@ -84,6 +84,10 @@ class ForecastMetricType(graphene.ObjectType):
     @staticmethod
     def resolve_baseline_forecast_values(root: Metric, info):
         return root.get_baseline_forecast_values()
+
+    @staticmethod
+    def resolve_cumulative_forecast_value(root: Metric, info):
+        return root.get_cumulative_forecast_value()
 
 
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
@@ -112,7 +116,6 @@ class NodeType(graphene.ObjectType):
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
-    aggregated_impact_unit = graphene.Field('paths.schema.UnitType')
 
     # TODO: input_datasets, baseline_values, context
     parameters = graphene.List('params.schema.ParameterInterface')

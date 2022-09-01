@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import importlib
+from typing import Literal
 
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
@@ -32,6 +33,7 @@ env = environ.FileAwareEnv(
     CACHE_URL=(str, 'locmemcache://'),
     MEDIA_ROOT=(environ.Path(), root('media')),
     STATIC_ROOT=(environ.Path(), root('static')),
+    ADMIN_BASE_URL=(str, 'http://localhost:8000'),
     MEDIA_URL=(str, '/media/'),
     STATIC_URL=(str, '/static/'),
     SENTRY_DSN=(str, ''),
@@ -40,6 +42,7 @@ env = environ.FileAwareEnv(
     DEFAULT_FROM_EMAIL=(str, 'noreply@kausal.tech'),
     INTERNAL_IPS=(list, []),
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
+    CONFIGURE_LOGGING=(bool, True),
 )
 
 BASE_DIR = root()
@@ -246,7 +249,8 @@ WAGTAIL_PASSWORD_RESET_ENABLED = True
 
 # Base URL to use when referring to full URLs within the Wagtail admin backend -
 # e.g. in notification emails. Don't include '/admin' or a trailing slash
-BASE_URL = 'http://example.com'
+BASE_URL = env('ADMIN_BASE_URL')
+WAGTAILADMIN_BASE_URL = BASE_URL
 
 
 INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
@@ -284,9 +288,76 @@ if not locals().get('SECRET_KEY', ''):
         except IOError:
             Exception('Please create a %s file with random characters to generate your secret key!' % secret_file)
 
+
 if DEBUG:
     from rich.traceback import install
     install()
+
+    from paths.watchfiles_reloader import replace_reloader
+    replace_reloader()
+
+
+if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
+    def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
+        return dict(
+            handlers=['rich' if DEBUG else 'console'],
+            propagate=False,
+            level=level,
+        )
+
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+            },
+            'simple': {
+                'format': '%(levelname)s %(name)s %(asctime)s %(message)s'
+            },
+            'rich': {
+                'format': '%(message)s'
+            },
+        },
+        'handlers': {
+            'null': {
+                'level': 'DEBUG',
+                'class': 'logging.NullHandler',
+            },
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+                'formatter': 'simple'
+            },
+            'rich': {
+                'level': 'DEBUG',
+                'class': 'paths.log_handler.LogHandler',
+                'formatter': 'rich',
+                'log_time_format': '%Y-%m-%d %H:%M:%S.%f'
+            },
+        },
+        'loggers': {
+            'django.db': level('INFO'),
+            'django.template': level('WARNING'),
+            'django.utils.autoreload': level('INFO'),
+            'django': level('DEBUG'),
+            'raven': level('WARNING'),
+            'blib2to3': level('INFO'),
+            'generic': level('DEBUG'),
+            'parso': level('WARNING'),
+            'requests': level('WARNING'),
+            'urllib3.connectionpool': level('INFO'),
+            'elasticsearch': level('WARNING'),
+            'PIL': level('INFO'),
+            'faker': level('INFO'),
+            'factory': level('INFO'),
+            'watchfiles': level('INFO'),
+            'watchdog': level('INFO'),
+            'git': level('INFO'),
+            'pint': level('INFO'),
+            '': level('DEBUG'),
+        }
+    }
 
 
 if SENTRY_DSN:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from typing import Dict, List, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import pandas as pd
 import pint
@@ -44,6 +44,7 @@ class Metric:
             return None
 
         df = self.df.copy().dropna()
+        # Drop units
         for col in df.columns:
             if hasattr(df[col], 'pint'):
                 df[col] = df[col].pint.m
@@ -67,9 +68,12 @@ class Metric:
                     baseline.append(YearlyValue(year=year, value=bl_val))
                 forecast.append(YearlyValue(year=year, value=val))
 
+        cumulative_forecast_value = float(df.loc[df[FORECAST_COLUMN], VALUE_COLUMN].sum())
+
         out = dict(
             historical=hist,
             forecast=forecast,
+            cumulative_forecast_value=cumulative_forecast_value,
             baseline=baseline if baseline else None
         )
         self.split_values = out
@@ -93,12 +97,18 @@ class Metric:
             return None
         return vals['baseline']
 
+    def get_cumulative_forecast_value(self) -> float:
+        vals = self.split_df()
+        if not vals:
+            return None
+        return vals['cumulative_forecast_value']
+
     @property
     def yearly_cumulative_unit(self) -> Optional[pint.Unit]:
         if not self.unit:
             return None
         # Check if the unit as a time divisor
-        if self.unit.dimensionality.get('[time]') != -1:
+        if self.unit.dimensionality.get('[time]') > -1:
             return None
         year_unit = self.unit._REGISTRY('year').units
         return self.unit * year_unit

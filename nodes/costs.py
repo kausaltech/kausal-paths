@@ -120,7 +120,7 @@ class SocialCost(SimpleNode):
             potential_area = df['FloorArea'] * renovation
             df[VALUE_COLUMN] = df['SocialProfit'] * potential_area * npv  # FIXME See Erik's email 2022-08-29 about npv
             if out is None:
-                out = df[[VALUE_COLUMN, FORECAST_COLUMN]]
+                out = df[[VALUE_COLUMN, FORECAST_COLUMN]].copy()
             else:
                 out[VALUE_COLUMN] += df[VALUE_COLUMN]
 

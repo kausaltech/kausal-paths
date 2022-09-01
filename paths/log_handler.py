@@ -1,9 +1,11 @@
 from datetime import datetime
+from pathlib import Path
+from logging import LogRecord
 from typing import Iterable, List, Optional, TYPE_CHECKING, Union, Callable
 
 from rich.logging import RichHandler
-from rich.markup import render
 from rich.text import Text, TextType
+from rich.traceback import Traceback
 
 if TYPE_CHECKING:
     from rich.console import Console, ConsoleRenderable, RenderableType
@@ -34,6 +36,7 @@ class LogRender:
         self,
         console: "Console",
         renderables: Iterable["ConsoleRenderable"],
+        name: str,
         log_time: Optional[datetime] = None,
         time_format: Optional[Union[str, FormatTimeCallable]] = None,
         level: TextType = "",
@@ -78,10 +81,8 @@ class LogRender:
         if self.show_path and path:
             path_text = Text()
             path_text.append(
-                path, style=f"link file://{link_path}#{line_no}" if link_path else ""
+                name, style=f"link file://{link_path}#{line_no}" if link_path else ""
             )
-            if line_no:
-                path_text.append(f":{line_no}")
             row.append(path_text)
 
         output.add_row(*row)
@@ -101,3 +102,38 @@ class LogHandler(RichHandler):
             omit_repeated_times=lr.omit_repeated_times,
             level_width=None,
         )
+
+    def render(
+        self,
+        *,
+        record: LogRecord,
+        traceback: Optional[Traceback],
+        message_renderable: "ConsoleRenderable",
+    ) -> "ConsoleRenderable":
+        """Render log for display.
+
+        Args:
+            record (LogRecord): logging Record.
+            traceback (Optional[Traceback]): Traceback instance or None for no Traceback.
+            message_renderable (ConsoleRenderable): Renderable (typically Text) containing log message contents.
+
+        Returns:
+            ConsoleRenderable: Renderable to display log.
+        """
+        path = Path(record.pathname).name
+        level = self.get_level_text(record)
+        time_format = None if self.formatter is None else self.formatter.datefmt
+        log_time = datetime.fromtimestamp(record.created)
+
+        log_renderable = self._log_render(
+            self.console,
+            [message_renderable] if not traceback else [message_renderable, traceback],
+            name=record.name,
+            log_time=log_time,
+            time_format=time_format,
+            level=level,
+            path=path,
+            line_no=record.lineno,
+            link_path=record.pathname if self.enable_link_path else None,
+        )
+        return log_renderable
