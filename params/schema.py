@@ -100,16 +100,21 @@ class SetParameterMutation(graphene.Mutation):
             raise GraphQLError("Parameter %s is not customizable", [info])
 
         parameter_values = {
-            (NumberParameter, PercentageParameter): (number_value, 'numberValue'),
+            NumberParameter: (number_value, 'numberValue'),
             BoolParameter: (bool_value, 'boolValue'),
             StringParameter: (string_value, 'stringValue'),
         }
         param_type = type(param)
         for klasses, (value, attr_name) in parameter_values.items():
             if isinstance(klasses, tuple):
-                if param_type in klasses:
+                found = False
+                for k in klasses:
+                    if issubclass(param_type, k):
+                        found = True
+                        break
+                if found:
                     break
-            elif param_type == klasses:
+            elif issubclass(param_type, klasses):
                 break
         else:
             raise Exception("Attempting to mutate an unsupported parameter class: %s" % type(param))
