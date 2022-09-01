@@ -19,6 +19,7 @@ instance:
   emission_forecast_from: 2019
   params:
   - id: municipality_name
+    label: Municipality
     value: Tampere
   - id: discount_rate
     label: Discount rate (%/a)
@@ -30,40 +31,62 @@ instance:
     step: 0.5
     unit: '%'
   - id: avoided_electricity_capacity_price
-    is_customizable: True
+    label: Benefit for avoiding new electricity capacity (EUR/kWh)
+    is_customizable: False
     value: 0.04
+    min_value: 0.03
+    max_value: 0.05
     unit: EUR/kWh
   - id: health_impacts_per_kwh
-    is_customizable: True
+    is_customizable: False
+    label: Cost of health impacts (EUR/kWh)
     value: 0.007344
+    min_value: 0.007
+    max_value: 0.008
     unit: EUR/kWh
   - id: heat_co2_ef
+    label: Emission factor of heat production (g CO2/kWh)
     is_customizable: True
     value: 53.7
+    min_value: 40
+    max_value: 70
     unit: g/kWh
   - id: electricity_co2_ef
+    label: Emission factor of electricity production (g CO2/kWh)
     is_customizable: True
     value: 93.2
+    min_value: 80
+    max_value: 140
     unit: g/kWh
   - id: cost_co2
+    label: Cost of CO2 (EUR/t)
     is_customizable: True
     value: 700
+    min_value: 600
+    max_value: 1500
     unit: EUR/t
   - id: renovation_rate_baseline
+    label: Baseline renovation rate (%/a)
     is_customizable: True
     value: 0.5
+    min_value: 0
+    max_value: 2
     unit: '%/a'
   - id: carbon_price_change
-    is_customizable: True
+    label: Carbon price change (%/a)
+    is_customizable: False
     value: 0
     unit: '%'
   - id: include_co2
+    label: Include CO2 costs?
     is_customizable: True
     value: True
   - id: include_health
+    label: Include health impacts?
     is_customizable: True
     value: True
   - id: include_el_avoided
+    label: Include 'avoiding new capacity'?
     is_customizable: True
     value: True
 
