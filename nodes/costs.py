@@ -9,7 +9,7 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, F
 from .node import Node
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
-from .actions.energy_saving import BuildingEnergySavingAction, BuildingEnergySavingActionb
+from .actions.energy_saving import BuildingEnergySavingAction
 
 
 class CostNode(Ovariable):
@@ -93,7 +93,7 @@ class SocialCost(SimpleNode):
         out = None
 
         for node in self.input_nodes:
-            if not isinstance(node, BuildingEnergySavingActionb):
+            if not isinstance(node, BuildingEnergySavingAction):
                 continue
             else:
                 heat = node.get_output(dimension='HeSaving')[VALUE_COLUMN]
@@ -137,7 +137,7 @@ class EnergyConsumption(SimpleNode):
         first = True
 
         for node in self.input_nodes:
-            if not isinstance(node, BuildingEnergySavingActionb):
+            if not isinstance(node, BuildingEnergySavingAction):
                 continue
             else:
                 heat = node.get_output(dimension='HeSaving')

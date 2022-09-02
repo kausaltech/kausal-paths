@@ -253,7 +253,7 @@ instance:
     name: Energiansäästölamput
     name_en: Energy-saving lamps
     name_sv: Lågenergilampor
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -287,7 +287,7 @@ instance:
     name: Painesäädetyt tuulettimet
     name_en: Pressure-controlled fans
     name_sv: Trykstyrda fläktar
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -321,7 +321,7 @@ instance:
     name: Ilmanvaihdon säätö
     name_en: Ventilation system adjustment
     name_sv: Injustering ventilationssystem
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -354,7 +354,7 @@ instance:
     name: Vesipihit suihkupäät
     name_en: Reduced-flow shower-heads
     name_sv: Snålspolande armaturer
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -387,7 +387,7 @@ instance:
     name: Älykäs valaistus
     name_en: Smart lighting
     name_sv: Närvarostyrd LED
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -420,7 +420,7 @@ instance:
     name: Termostaattien vaihto ja lämmitysjärjestelmän säätö
     name_en: Thermostat replacement and heating system adjustment
     name_sv: Byte termostater och injustering värmesystem
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -453,7 +453,7 @@ instance:
     name: Tuulieristys 300 mm
     name_en: Wind insulation, 300 mm
     name_sv: Vindisolering, 300 mm
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -486,7 +486,7 @@ instance:
     name: Ikkunoiden ja ovin eristys
     name_en: Painting and sealing of windows and doors
     name_sv: Målning och tätning av fönster och dörrar
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -519,7 +519,7 @@ instance:
     name: Uudet ulko- ja kellarin ovet
     name_en: New entrance and basement doors
     name_sv: Nya entré- och källardörrar
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -552,7 +552,7 @@ instance:
     name: Jäteveden lämmön talteenotto
     name_en: Wastewater heat capture
     name_sv: Värmeväxlare spillvatten
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -585,7 +585,7 @@ instance:
     name: IMD kuuma vesi
     name_en: IMD hot water
     name_sv: IMD varmvatten
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -618,7 +618,7 @@ instance:
     name: F-lämpöpumppu COP 3.0
     name_en: F heat pump COP 3.0
     name_sv: F värmepump COP 3,0
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -651,7 +651,7 @@ instance:
     name: FTX 85 %
     name_en: FTX 85 %
     name_sv: FTX 85 %
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -684,7 +684,7 @@ instance:
     name: Ikkunoiden lisäeristys
     name_en: Additional window insulation
     name_sv: Tilläggsisolering fönster
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -717,7 +717,7 @@ instance:
     name: Julkisivun lisäeristys
     name_en: Additional facade insulation
     name_sv: Fasadisolering, 100 mm
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
@@ -750,7 +750,7 @@ instance:
     name: Ikkunoiden vaihto (U = 1,0)
     name_en: Window replacement (U = 1.0)
     name_sv: Fönsterbyte (U = 1,0)
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
     input_nodes:
