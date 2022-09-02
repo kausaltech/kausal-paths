@@ -77,6 +77,9 @@ class SocialCost(SimpleNode):
         electricity_co2_ef = self.context.get_parameter_value_w_unit('electricity_co2_ef')
         cost_co2 = self.context.get_parameter_value_w_unit('cost_co2')
         carbon_price_change = self.context.get_parameter_value_w_unit('carbon_price_change')
+        include_co2 = self.context.get_parameter_value('include_co2')
+        include_health = self.context.get_parameter_value('include_health')
+        include_el_avoided = self.context.get_parameter_value('include_el_avoided')
         target_year = self.get_target_year()
 
         # Input nodes
@@ -112,11 +115,14 @@ class SocialCost(SimpleNode):
                 ).astype('pint[EUR/a/m**2]')
             df['EnSaving'] = heat + electricity
             df['Health'] = df['EnSaving'] * health_impacts_per_kwh
-            df['SocialProfit'] = (
-                df['ElAvoided'] 
-                + df['CO2Saved'] 
-                + df['Health']
-                ) * npv + df['PrivateProfit']
+            s = df['PrivateProfit']
+            if include_el_avoided:
+                s += df['ElAvoided'] * npv
+            if include_co2:
+                s += df['CO2Saved'] * npv
+            if include_health:
+                s += df['Health'] * npv
+            df['SocialProfit'] = s
             potential_area = df['FloorArea'] * renovation
             df[VALUE_COLUMN] = df['SocialProfit'] * potential_area * npv  # FIXME See Erik's email 2022-08-29 about npv
             if out is None:
