@@ -1,5 +1,5 @@
 instance:
-  id: gronlogik  # FIXME For some unit reasons, I could not create a new KP instance for gronalund
+  id: gronlogik
   default_language: fi
   supported_languages: [en, sv]
   site_url: https://gronlogik.paths.kausal.tech
@@ -206,6 +206,7 @@ instance:
     - apartment_building_floor_area
     - price_of_heat
     - price_of_electricity
+    - price_of_co2
 
   - id: energy_consumption
     name: Energiankulutus
@@ -226,6 +227,36 @@ instance:
   actions:
 
 # National actions for sensitivity analyses
+
+  - id: price_of_co2
+    name: Hiilidioksidikustannus
+    name_en: Cost of carbon dioxide
+    name_sv: Koldioxidkostnad
+    quantity: unit_price
+    unit: EUR/t
+    tags: cost_co2
+    type: simple.ExponentialAction
+    params:
+    - id: current_value
+      values:
+        default: 700
+      min_value: 300
+      max_value: 1500
+      step: 50
+      unit: EUR/t
+      description: Hiilidioksidin nykykustannukset
+      description_en: Current cost of CO2
+      description_sv: Koldioxidkostnad
+    - id: annual_change
+      values:
+        default: 3
+      min_value: 0
+      max_value: 10
+      step: 0.5
+      unit: '%'
+      description: Kustannusten nousuvauhti (%/a)
+      description_en: Cost increase rate (%/a)
+      description_sv: Kostnadsökningstakt (%/a)
 
   - id: increase_in_price_of_electricity
     name: Sähkön hinnannousu

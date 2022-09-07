@@ -2,9 +2,11 @@ from cmath import nan
 from threading import local
 from params.param import Parameter
 from params import PercentageParameter, NumberParameter
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.node import NodeError
 from .action import ActionNode
+
+import pandas as pd
 
 
 class AdditiveAction(ActionNode):
@@ -101,4 +103,52 @@ class EmissionReductionAction(ActionNode):
     def compute_effect(self):
         df = self.get_input_dataset()
         df[VALUE_COLUMN] = 0 - df[VALUE_COLUMN]
+        return df
+
+
+class ExponentialAction(ActionNode):
+    allowed_parameters = [
+        NumberParameter(
+            local_id='current_value',
+            unit='EUR/t',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='annual_change',
+            unit='%',
+            is_customizable=True,
+        ),
+    ]
+
+    def compute(self):
+        current_value = self.get_parameter_value_w_unit('current_value')
+        unit = str(current_value.units)
+        current_value = current_value.m
+        annual_change = self.get_parameter_value_w_unit('annual_change')
+        assert {str(annual_change.units)} <= {'%/a', '%/year', '%'}
+        annual_change = (1 + annual_change).m
+
+        target_year = self.context.target_year
+        start_year = self.context.instance.minimum_historical_year
+        current_time = self.context.instance.maximum_historical_year - start_year
+        duration = target_year - start_year + 1
+        s = [current_value] * duration
+        year = []
+        forecast = []
+        factor = [1]
+
+        for i in range(duration):
+            if i > current_time:
+                factor = factor + [factor[-1] * annual_change]
+                forecast = forecast + [True]
+            else:
+                factor = factor + [factor[-1]]
+                forecast = forecast + [False]
+            year = year + [start_year + i]
+        if self.is_enabled():
+            s = pd.Series(s) * pd.Series(factor[1:])
+        df = pd.DataFrame({
+            YEAR_COLUMN: year,
+            VALUE_COLUMN: pd.Series(s, dtype='pint[' + unit + ']'),
+            FORECAST_COLUMN: forecast}).set_index([YEAR_COLUMN])
         return df
