@@ -133,6 +133,51 @@ class SocialCost(SimpleNode):
         return out
 
 
+class DiscountNode(SimpleNode):
+    '''All input nodes must be additive'''
+    def get_discount_factor(self, base_value):
+        target_year = self.context.target_year
+        start_year = self.context.instance.minimum_historical_year
+        current_time = self.context.instance.maximum_historical_year - start_year
+        duration = target_year - start_year + 1
+        year = []
+        forecast = []
+        factor = [1]
+
+        for i in range(duration):
+            if i > current_time:
+                factor = factor + [factor[-1] * base_value]
+                forecast = forecast + [True]
+            else:
+                factor = factor + [factor[-1]]
+                forecast = forecast + [False]
+            year = year + [start_year + i]
+
+        df = pd.DataFrame({
+            YEAR_COLUMN: year,
+            VALUE_COLUMN: pd.Series(factor[1:]),
+            FORECAST_COLUMN: forecast}).set_index([YEAR_COLUMN])
+        return df
+
+    def compute(self):
+        base_value = self.context.get_parameter_value_w_unit('discount_rate')
+        assert {str(base_value.units)} <= {'%/a', '%/year', '%'}
+        base_value = 1 / (1 + base_value).m
+        discount_factor = self.get_discount_factor(base_value)
+        self.print_pint_df(discount_factor)
+
+        df = None
+        for node in self.input_nodes:
+            if df is None:
+                df = node.get_output()
+            else:
+                df[VALUE_COLUMN] += node.get_output()[VALUE_COLUMN]
+                df[FORECAST_COLUMN] = df[FORECAST_COLUMN] | node[FORECAST_COLUMN]
+            self.print_pint_df(df)
+        df[VALUE_COLUMN] *= discount_factor[VALUE_COLUMN]
+        return df
+
+
 class EnergyConsumption(SimpleNode):
 
     def compute(self):

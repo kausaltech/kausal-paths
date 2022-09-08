@@ -208,6 +208,16 @@ instance:
     - price_of_electricity
     - price_of_co2
 
+  - id: apartment_building_discounted_social_cost
+    name: Diskontatut sosiaaliset kustannukset kerrostaloista
+    name_en: Discounted social cost from apartment buildings
+    name_sv: Rabatterad sociala kostnaderna från flerbostadshus
+    type: costs.DiscountNode
+    quantity: currency
+    unit: MEUR
+    input_nodes:
+    - social_cost
+
   - id: energy_consumption
     name: Energiankulutus
     name_en: Energy consumption
@@ -235,6 +245,7 @@ instance:
     quantity: unit_price
     unit: EUR/t
     tags: cost_co2
+    decision_level: nation
     type: simple.ExponentialAction
     params:
     - id: current_value
