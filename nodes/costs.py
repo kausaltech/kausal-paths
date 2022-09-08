@@ -9,7 +9,7 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, F
 from .node import Node
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
-from .actions.energy_saving import BuildingEnergySavingAction
+from .actions.energy_saving import BuildingEnergySavingAction, BuildingEnergySavingActionb
 
 
 class CostNode(Ovariable):
@@ -164,7 +164,6 @@ class DiscountNode(SimpleNode):
         assert {str(base_value.units)} <= {'%/a', '%/year', '%'}
         base_value = 1 / (1 + base_value).m
         discount_factor = self.get_discount_factor(base_value)
-        self.print_pint_df(discount_factor)
 
         df = None
         for node in self.input_nodes:
@@ -173,7 +172,6 @@ class DiscountNode(SimpleNode):
             else:
                 df[VALUE_COLUMN] += node.get_output()[VALUE_COLUMN]
                 df[FORECAST_COLUMN] = df[FORECAST_COLUMN] | node[FORECAST_COLUMN]
-            self.print_pint_df(df)
         df[VALUE_COLUMN] *= discount_factor[VALUE_COLUMN]
         return df
 
@@ -187,7 +185,7 @@ class EnergyConsumption(SimpleNode):
         first = True
 
         for node in self.input_nodes:
-            if not isinstance(node, BuildingEnergySavingAction):
+            if not isinstance(node, BuildingEnergySavingActionb):
                 continue
             else:
                 heat = node.get_output(dimension='HeSaving')

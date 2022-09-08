@@ -10,7 +10,7 @@ instance:
   name_en: Grön logik project about climate actions on buildings
   owner: Kausal & Anthesis
   owner_en: Kausal & Anthesis
-  target_year: 2044
+  target_year: 2065
   reference_year: 1990
   minimum_historical_year: 2010
   maximum_historical_year: 2021
@@ -792,11 +792,9 @@ instance:
     name: Ikkunoiden vaihto (U = 1,0)
     name_en: Window replacement (U = 1.0)
     name_sv: Fönsterbyte (U = 1,0)
-    type: energy_saving.BuildingEnergySavingAction
+    type: energy_saving.BuildingEnergySavingActionb
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption

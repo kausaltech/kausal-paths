@@ -6,7 +6,7 @@ from nodes.context import unit_registry
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeDimension
-from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY
+from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
 from nodes.calc import nafill_all_forecast_years
 from params import NumberParameter
 
@@ -290,4 +290,106 @@ class BuildingEnergySavingAction(ActionNode):
         return df
 
 
-        # Tee kunnon aikasarja korjausten nopeudesta
+class BuildingEnergySavingActionb(ActionNode):
+    dimensions = {
+        VALUE_COLUMN: NodeDimension('%', 'fraction'),
+        'RenovCost': NodeDimension('EUR/m**2', 'currency'),
+        'HeSaving': NodeDimension('kWh/a/m**2', 'energy_per_area'),
+        'ElSaving': NodeDimension('kWh/a/m**2', 'energy_per_area')
+    }
+    allowed_parameters = [
+        NumberParameter(
+            local_id='investment_lifetime',
+            label=_('Investment lifetime (a)'),
+            unit='a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='investment_cost',
+            label=_('Investment cost (EUR/m2)'),
+            unit='EUR/m**2',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='maintenance_cost',
+            label=_('Maintenance cost (EUR/m2/a)'),
+            unit='EUR/m**2/a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='heat_saving',
+            label=_('Heat saving (kWh/m2/a'),
+            unit='kWh/m**2/a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='electricity_saving',
+            label=_('Electricity saving (kWh/m2/a)'),
+            unit='kWh/m**2/a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='renovation_potential',
+            label=_('Renovation potential (% of floor area)'),
+            unit='%',
+            is_customizable=False,
+        ),
+    ]
+    quantity = 'fraction'
+    unit = '%'
+
+    def compute_effect(self) -> pd.DataFrame:
+
+        def serialise(df, x):
+            value = float(x.m)
+            out = pd.Series([value] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
+            out[min(out.index)] *= 0
+            return(out)
+
+        # Global parameters
+        renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
+        target_year = self.context.target_year
+        current_year = self.context.instance.maximum_historical_year
+
+        # Local parameters
+        lifetime = self.get_parameter_value_w_unit('investment_lifetime')
+        renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
+        investment_cost = self.get_parameter_value_w_unit('investment_cost')
+        maint_cost = self.get_parameter_value_w_unit('maintenance_cost')
+        he_saving = self.get_parameter_value_w_unit('heat_saving')
+        el_saving = self.get_parameter_value_w_unit('electricity_saving')
+
+        # Calculations
+
+        year = []
+        forecast = []
+        investment_costs = []
+        for i in range(target_year - current_year + 1):
+            if i > 0:
+                forecast = forecast + [True]
+                if (i - 1) % lifetime.m == 0:
+                    investment_costs = investment_costs + [investment_cost]
+                else:
+                    investment_costs = investment_costs + [investment_cost * 0]
+            else:
+                forecast = forecast + [False]
+                investment_costs = [investment_cost * 0]
+            year = year + [current_year + i]
+        
+        df = pd.DataFrame({
+            YEAR_COLUMN: year,
+            'RenovCost': pd.Series(investment_costs, dtype='pint[' + str(investment_cost.units) + ']'),
+            FORECAST_COLUMN: forecast,
+        }).set_index([YEAR_COLUMN])
+
+        df[VALUE_COLUMN] = serialise(df, renovation_potential)
+        renovation_rate = 1 / lifetime
+        if not self.is_enabled():
+            renovation_rate = renovation_rate_baseline
+        df[VALUE_COLUMN] = df[VALUE_COLUMN] * serialise(df, renovation_rate)
+        df['ElSaving'] = serialise(df, el_saving)
+        df['HeSaving'] = serialise(df, he_saving)
+        df['RenovCost'] += serialise(df, maint_cost * unit_registry('1 a'))
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        self.print_pint_df(df)
+        return df
