@@ -183,7 +183,7 @@ class LEDRetrofitAction(ActionNode):
 ############################################
 
 
-class BuildingEnergySavingAction(ActionNode):
+class BuildingEnergySavingActionb(ActionNode):
     dimensions = {
         VALUE_COLUMN: NodeDimension('%', 'fraction'),
         'RenovCost': NodeDimension('EUR/m**2', 'currency'),
@@ -290,7 +290,7 @@ class BuildingEnergySavingAction(ActionNode):
         return df
 
 
-class BuildingEnergySavingActionb(ActionNode):
+class BuildingEnergySavingAction(ActionNode):
     '''NOTE! The output values are given per TOTAL building floor area,
     not per RENOVATEABLE building floor area. This is necessary because
     the costs from renovations at different timepoints are summed up and
@@ -376,7 +376,7 @@ class BuildingEnergySavingActionb(ActionNode):
         reno = 1 / lifetime
         if not self.is_enabled():
             reno = renovation_rate_baseline * unit_registry('0.01/%')  # dtype is unable to handle %**2
-        reno *= renovation_potential * unit_registry('a')  # This is no longer rate but annual amount
+        reno *= renovation_potential
         reno_unit = str(reno.units)
         df = pd.DataFrame({
             YEAR_COLUMN: year,

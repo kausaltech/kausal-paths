@@ -55,22 +55,8 @@ class CostNode(Ovariable):
 class SocialCost(SimpleNode):
 
     def compute(self):
-        def net_present_value(discount_rate, timespan, lifetime=None):
-            if lifetime is None:
-                lifetime = 1
-                unit = unit_registry('1 a')
-            else:
-                assert {str(lifetime.units)} <= {'year', 'a'}
-                lifetime = round(lifetime.m)
-                unit = 1
-            out = 0
-            for i in range(timespan):
-                if (i % lifetime) == 0:
-                    out += (1 / (1 + discount_rate)) ** i
-            return out * unit
 
         # Global parameters
-        discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
         health_impacts_per_kwh = self.context.get_parameter_value_w_unit('health_impacts_per_kwh')
         avoided_electricity_capacity_price = self.context.get_parameter_value_w_unit('avoided_electricity_capacity_price')
         heat_co2_ef = self.context.get_parameter_value_w_unit('heat_co2_ef')
@@ -78,7 +64,6 @@ class SocialCost(SimpleNode):
         include_co2 = self.context.get_parameter_value('include_co2')
         include_health = self.context.get_parameter_value('include_health')
         include_el_avoided = self.context.get_parameter_value('include_el_avoided')
-        target_year = self.get_target_year()
 
         # Input nodes
         df = self.get_input_node(tag='floor_area').get_output()
@@ -89,9 +74,6 @@ class SocialCost(SimpleNode):
         df['ElPrice'] = el_price[VALUE_COLUMN]
         df = df.rename(columns={VALUE_COLUMN: 'FloorArea'})
 
-        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
-        timespan = target_year - last_hist_year
-        npv = net_present_value(discount_rate, timespan)
         out = None
 
         for node in self.input_nodes:
@@ -101,11 +83,10 @@ class SocialCost(SimpleNode):
                 heat = node.get_output(dimension='HeSaving')[VALUE_COLUMN]
                 electricity = node.get_output(dimension='ElSaving')[VALUE_COLUMN]
                 renov_cost = node.get_output(dimension='RenovCost')[VALUE_COLUMN]
-                renovation = node.get_output(dimension=VALUE_COLUMN)[VALUE_COLUMN]
 
             df['CostSaving'] = (
                 df['ElPrice'] * electricity
-                + df['HePrice'] * heat) * npv
+                + df['HePrice'] * heat)
             df['PrivateProfit'] = (df['CostSaving'] - renov_cost)
             df['ElAvoided'] = electricity * avoided_electricity_capacity_price
             df['CO2Saved'] = (
@@ -116,19 +97,17 @@ class SocialCost(SimpleNode):
             df['Health'] = df['EnSaving'] * health_impacts_per_kwh
             s = df['PrivateProfit']
             if include_el_avoided:
-                s += df['ElAvoided'] * npv
+                s += df['ElAvoided']
             if include_co2:
-                s += df['CO2Saved'] * npv
+                s += df['CO2Saved']
             if include_health:
-                s += df['Health'] * npv
+                s += df['Health']
             df['SocialProfit'] = s
-            potential_area = df['FloorArea'] * renovation
-            df[VALUE_COLUMN] = df['SocialProfit'] * potential_area * npv  # FIXME See Erik's email 2022-08-29 about npv
+            df[VALUE_COLUMN] = df['SocialProfit'] * df['FloorArea']
             if out is None:
                 out = df[[VALUE_COLUMN, FORECAST_COLUMN]].copy()
             else:
                 out[VALUE_COLUMN] += df[VALUE_COLUMN]
-
         out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
         return out
 
@@ -180,20 +159,19 @@ class EnergyConsumption(SimpleNode):
 
     def compute(self):
         # Input nodes
-        df = self.get_input_node(tag='floor_area').get_output()
-        out = df[[VALUE_COLUMN, FORECAST_COLUMN]]
+        floor = self.get_input_node(tag='floor_area').get_output()
+        out = floor[[VALUE_COLUMN, FORECAST_COLUMN]]
+        floor = floor[VALUE_COLUMN]
         first = True
 
         for node in self.input_nodes:
-            if not isinstance(node, BuildingEnergySavingActionb):
+            if not isinstance(node, BuildingEnergySavingAction):
                 continue
             else:
-                heat = node.get_output(dimension='HeSaving')
-                electricity = node.get_output(dimension='ElSaving')
-                renovation = node.get_output(dimension=VALUE_COLUMN)
+                heat = node.get_output(dimension='HeSaving')[VALUE_COLUMN]
+                electricity = node.get_output(dimension='ElSaving')[VALUE_COLUMN]
 
-                energy = (heat[VALUE_COLUMN] + electricity[VALUE_COLUMN])
-                energy = energy * df[VALUE_COLUMN] * renovation[VALUE_COLUMN] * unit_registry('-1 a')
+                energy = (heat + electricity) * floor
             if first:
                 out[VALUE_COLUMN] = energy
                 first = False

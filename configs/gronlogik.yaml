@@ -201,7 +201,7 @@ instance:
     name_sv: Sociala kostnaderna
     type: costs.SocialCost
     quantity: currency
-    unit: MEUR
+    unit: MEUR/a
     input_nodes:
     - apartment_building_floor_area
     - price_of_heat
@@ -214,7 +214,7 @@ instance:
     name_sv: Rabatterad sociala kostnaderna från flerbostadshus
     type: costs.DiscountNode
     quantity: currency
-    unit: MEUR
+    unit: MEUR/a
     input_nodes:
     - social_cost
 
@@ -298,8 +298,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -332,8 +330,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -366,8 +362,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -399,8 +393,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -432,8 +424,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -465,8 +455,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -498,8 +486,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -531,8 +517,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -564,8 +548,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -597,8 +579,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -630,8 +610,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -663,8 +641,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -696,8 +672,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -729,8 +703,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -762,8 +734,6 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
-    input_nodes:
-    - apartment_building_floor_area
     output_nodes:
     - social_cost
     - energy_consumption
@@ -792,9 +762,9 @@ instance:
     name: Ikkunoiden vaihto (U = 1,0)
     name_en: Window replacement (U = 1.0)
     name_sv: Fönsterbyte (U = 1,0)
-    type: energy_saving.BuildingEnergySavingActionb
+    type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
-    unit: '%'
+    unit: '%/a'
     output_nodes:
     - social_cost
     - energy_consumption
