@@ -794,7 +794,7 @@ instance:
     name_sv: Fönsterbyte (U = 1,0)
     type: energy_saving.BuildingEnergySavingActionb
     quantity: fraction
-    unit: '%/a'
+    unit: '%'
     output_nodes:
     - social_cost
     - energy_consumption
