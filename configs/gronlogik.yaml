@@ -58,13 +58,6 @@ instance:
     min_value: 80
     max_value: 140
     unit: g/kWh
-  - id: cost_co2
-    label: Cost of CO2 (EUR/t)
-    is_customizable: True
-    value: 700
-    min_value: 600
-    max_value: 1500
-    unit: EUR/t
   - id: renovation_rate_baseline
     label: Baseline renovation rate (%/a)
     is_customizable: True
@@ -72,11 +65,6 @@ instance:
     min_value: 0
     max_value: 2
     unit: '%/a'
-  - id: carbon_price_change
-    label: Carbon price change (%/a)
-    is_customizable: False
-    value: 0
-    unit: '%'
   - id: include_co2
     label: Include CO2 costs?
     is_customizable: True
@@ -208,10 +196,10 @@ instance:
     - price_of_electricity
     - price_of_co2
 
-  - id: apartment_building_discounted_social_cost
-    name: Diskontatut sosiaaliset kustannukset kerrostaloista
-    name_en: Discounted social cost from apartment buildings
-    name_sv: Rabatterad sociala kostnaderna från flerbostadshus
+  - id: apartment_building_discounted_social_benefit
+    name: Diskontatut sosiaaliset hyödyt kerrostaloista
+    name_en: Discounted social benefit from apartment buildings
+    name_sv: Rabatterad sociala besparingar från flerbostadshus
     type: costs.DiscountNode
     quantity: currency
     unit: MEUR/a
@@ -253,6 +241,7 @@ instance:
         default: 700
       min_value: 300
       max_value: 1500
+      step: 10
       step: 50
       unit: EUR/t
       description: Hiilidioksidin nykykustannukset

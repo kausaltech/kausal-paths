@@ -9,7 +9,7 @@ from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, F
 from .node import Node
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
-from .actions.energy_saving import BuildingEnergySavingAction, BuildingEnergySavingActionb
+from .actions.energy_saving import BuildingEnergySavingAction
 
 
 class CostNode(Ovariable):
@@ -134,7 +134,7 @@ class DiscountNode(SimpleNode):
 
         df = pd.DataFrame({
             YEAR_COLUMN: year,
-            VALUE_COLUMN: pd.Series(factor[1:]),
+            VALUE_COLUMN: pd.Series(factor[1:]) * -1,
             FORECAST_COLUMN: forecast}).set_index([YEAR_COLUMN])
         return df
 

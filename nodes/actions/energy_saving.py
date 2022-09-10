@@ -183,113 +183,6 @@ class LEDRetrofitAction(ActionNode):
 ############################################
 
 
-class BuildingEnergySavingActionb(ActionNode):
-    dimensions = {
-        VALUE_COLUMN: NodeDimension('%', 'fraction'),
-        'RenovCost': NodeDimension('EUR/m**2', 'currency'),
-        'HeSaving': NodeDimension('kWh/a/m**2', 'energy_per_area'),
-        'ElSaving': NodeDimension('kWh/a/m**2', 'energy_per_area')
-    }
-    allowed_parameters = [
-        NumberParameter(
-            local_id='investment_lifetime',
-            label=_('Investment lifetime (a)'),
-            unit='a',
-            is_customizable=False,
-        ),
-        NumberParameter(
-            local_id='investment_cost',
-            label=_('Investment cost (EUR/m2)'),
-            unit='EUR/m**2',
-            is_customizable=False,
-        ),
-        NumberParameter(
-            local_id='maintenance_cost',
-            label=_('Maintenance cost (EUR/m2/a)'),
-            unit='EUR/m**2/a',
-            is_customizable=False,
-        ),
-        NumberParameter(
-            local_id='heat_saving',
-            label=_('Heat saving (kWh/m2/a'),
-            unit='kWh/m**2/a',
-            is_customizable=False,
-        ),
-        NumberParameter(
-            local_id='electricity_saving',
-            label=_('Electricity saving (kWh/m2/a)'),
-            unit='kWh/m**2/a',
-            is_customizable=False,
-        ),
-        NumberParameter(
-            local_id='renovation_potential',
-            label=_('Renovation potential (% of floor area)'),
-            unit='%',
-            is_customizable=False,
-        ),
-    ]
-    quantity = 'fraction'
-    unit = '%'
-
-    def compute_effect(self) -> pd.DataFrame:
-
-        def serialise(df, x):
-            value = float(x.m)
-            out = pd.Series([value] * len(df), index=df.index, dtype='pint[' + str(x.units) + ']')
-            return(out)
-
-        def net_present_value(discount_rate, timespan, lifetime=None):
-            if lifetime is None:
-                lifetime = 1
-                unit = unit_registry('1 a')
-            else:
-                assert {str(lifetime.units)} <= {'year', 'a'}
-                lifetime = round(lifetime.m)
-                unit = 1
-            out = 0
-            for i in range(timespan):
-                if (i % lifetime) == 0:
-                    out += (1 / (1 + discount_rate)) ** i
-            return out * unit
-
-        # Global parameters
-        renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
-        discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
-        target_year = self.get_target_year()
-
-        # Input nodes
-        df = self.get_input_node(tag='floor_area').get_output()  # FIXME get rid of this
-
-        # Local parameters
-        lifetime = self.get_parameter_value_w_unit('investment_lifetime')
-        renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
-        investment_cost = self.get_parameter_value_w_unit('investment_cost')
-        maint_cost = self.get_parameter_value_w_unit('maintenance_cost')
-        he_saving = serialise(df, self.get_parameter_value_w_unit('heat_saving'))
-        el_saving = serialise(df, self.get_parameter_value_w_unit('electricity_saving'))
-
-        # Calculations
-        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
-        timespan = target_year - last_hist_year
-
-        df[VALUE_COLUMN] = serialise(df, renovation_potential)
-        renovation_rate = 1 / lifetime
-        if not self.is_enabled():
-            renovation_rate = renovation_rate_baseline
-        df[VALUE_COLUMN] = df[VALUE_COLUMN] * serialise(df, renovation_rate)
-
-        df['ElSaving'] = el_saving
-        df['HeSaving'] = he_saving
-
-        investment_factor = net_present_value(discount_rate, timespan, lifetime)
-        npv = net_present_value(discount_rate, timespan)
-        df['RenovCost'] = serialise(df, investment_cost) * investment_factor
-        df['RenovCost'] += serialise(df, maint_cost) * npv
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-
-        return df
-
-
 class BuildingEnergySavingAction(ActionNode):
     '''NOTE! The output values are given per TOTAL building floor area,
     not per RENOVATEABLE building floor area. This is necessary because
@@ -297,9 +190,9 @@ class BuildingEnergySavingAction(ActionNode):
     therefore the renovation rate and cost at a particular year refer to different things.'''
     dimensions = {
         VALUE_COLUMN: NodeDimension('%', 'fraction'),
-        'RenovCost': NodeDimension('EUR/m**2', 'currency'),
-        'HeSaving': NodeDimension('kWh/m**2', 'energy_per_area'),
-        'ElSaving': NodeDimension('kWh/m**2', 'energy_per_area')
+        'RenovCost': NodeDimension('EUR/a/m**2', 'currency'),
+        'HeSaving': NodeDimension('kWh/a/m**2', 'energy_per_area'),
+        'ElSaving': NodeDimension('kWh/a/m**2', 'energy_per_area')
     }
     allowed_parameters = [
         NumberParameter(

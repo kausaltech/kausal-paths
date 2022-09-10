@@ -32,19 +32,9 @@ class ElectricityCo2Ef(NumberParameter):
     id = 'electricity_co2_ef'
 
 
-class CostCo2(NumberParameter):
-    name = _('Cost of CO2')
-    id = 'cost_co2'
-
-
 class RenovationRateBaseline(NumberParameter):
     name = _('Renovation rate baseline')
     id = 'renovation_rate_baseline'
-
-
-class CarbonPriceChange(NumberParameter):
-    name = _('Change in carbon emission price')
-    id = 'carbon_price_change'
 
 
 class IncludeCO2(BoolParameter):
