@@ -1,0 +1,361 @@
+emission_sectors:
+- id: building_heating_emissions
+  name: Rakennusten lämmityksen päästöt
+  part_of: net_emissions
+- id: district_heating_emissions
+  name: Kaukolämmön päästöt
+  part_of: building_heating_emissions
+- id: oil_heating_emissions
+  name: Öljylämmityksen päästöt
+  part_of: building_heating_emissions
+- id: direct_electric_heating_emissions
+  name: Sähkölämmityksen päästöt
+  part_of: building_heating_emissions
+- id: geothermal_heating_emissions
+  name: Maalämmön päästöt
+  part_of: building_heating_emissions
+- id: consumer_electricity_emissions
+  name: Kulutussähkön päästöt
+  part_of: net_emissions
+- id: transport_emissions
+  name: Liikenteen päästöt
+  part_of: net_emissions
+- id: road_transport_emissions
+  name: Tieliikenteen päästöt
+  part_of: transport_emissions
+- id: rail_transport_emissions
+  name: Raideliikenteen päästöt
+  part_of: transport_emissions
+- id: water_transport_emissions
+  name: Laivaliikenteen päästöt
+  part_of: transport_emissions
+- id: industry_machinery_emissions
+  name: Teollisuuden ja työkoneiden päästöt
+  part_of: net_emissions
+- id: waste_treatment_emissions
+  name: Jätteiden käsittelyn päästöt
+  part_of: net_emissions
+- id: waste_landfill_emissions
+  name: Kaatopaikkojen päästöt
+  part_of: waste_treatment_emissions
+- id: biowaste_composting_emissions
+  name: Biojätteen kompostoinnin päästöt
+  part_of: waste_treatment_emissions
+- id: waste_water_treatment_emissions
+  name: Jäteveden käsittelyn päästöt
+  part_of: waste_treatment_emissions
+- id: sludge_composting_emissions
+  name: Jätevesilietteen kompostoinnin päästöt
+  part_of: waste_treatment_emissions
+- id: agriculture_emissions
+  name: Maatalouden päästöt
+  part_of: net_emissions
+nodes:
+- id: district_heating_residence_emissions
+  name: Kaukolämmön päästöt (Asuminen)
+  output_nodes: [district_heating_emissions]
+  params:
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: district_heating_services_emissions
+  name: Kaukolämmön päästöt (Palvelut)
+  output_nodes: [district_heating_emissions]
+  params:
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: district_heating_industry_emissions
+  name: Kaukolämmön päästöt (Teollisuus)
+  output_nodes: [district_heating_emissions]
+  params:
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: oil_heating_residence_emissions
+  name: Öljylämmityksen päästöt (Asuminen)
+  output_nodes: [oil_heating_emissions]
+  params:
+    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: oil_heating_services_emissions
+  name: Öljylämmityksen päästöt (Palvelut)
+  output_nodes: [oil_heating_emissions]
+  params:
+    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: oil_heating_industry_emissions
+  name: Öljylämmityksen päästöt (Teollisuus)
+  output_nodes: [oil_heating_emissions]
+  params:
+    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: direct_electric_heating_residence_emissions
+  name: Sähkölämmityksen päästöt (Asuminen)
+  output_nodes: [direct_electric_heating_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: direct_electric_heating_services_emissions
+  name: Sähkölämmityksen päästöt (Palvelut)
+  output_nodes: [direct_electric_heating_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: direct_electric_heating_industry_emissions
+  name: Sähkölämmityksen päästöt (Teollisuus)
+  output_nodes: [direct_electric_heating_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: geothermal_heating_residence_emissions
+  name: Maalämmön päästöt (Asuminen)
+  output_nodes: [geothermal_heating_emissions]
+  params:
+    sector: Lämmitys|Maalämpö|Maalämpö|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: geothermal_heating_services_emissions
+  name: Maalämmön päästöt (Palvelut)
+  output_nodes: [geothermal_heating_emissions]
+  params:
+    sector: Lämmitys|Maalämpö|Maalämpö|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: geothermal_heating_industry_emissions
+  name: Maalämmön päästöt (Teollisuus)
+  output_nodes: [geothermal_heating_emissions]
+  params:
+    sector: Lämmitys|Maalämpö|Maalämpö|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: consumer_electricity_residence_emissions
+  name: Kulutussähkön päästöt (Asuminen)
+  output_nodes: [consumer_electricity_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: consumer_electricity_services_emissions
+  name: Kulutussähkön päästöt (Palvelut)
+  output_nodes: [consumer_electricity_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: consumer_electricity_industry_emissions
+  name: Kulutussähkön päästöt (Teollisuus)
+  output_nodes: [consumer_electricity_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: car_emissions
+  name: Henkilöautot päästöt
+  output_nodes: [road_transport_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: motorbike_emissions
+  name: Moottoripyörät päästöt
+  output_nodes: [road_transport_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: van_emissions
+  name: Pakettiautot päästöt
+  output_nodes: [road_transport_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: truck_emissions
+  name: Kuorma-autot päästöt
+  output_nodes: [road_transport_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: bus_emissions
+  name: Linja-autot päästöt
+  output_nodes: [road_transport_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: local_train_emissions
+  name: Lähijunien päästöt
+  output_nodes: [rail_transport_emissions]
+  params:
+    sector: Liikenne|Raideliikenne|Lähijunat|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: metro_emissions
+  name: Metroliikenteen päästöt
+  output_nodes: [rail_transport_emissions]
+  params:
+    sector: Liikenne|Raideliikenne|Metrot|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: tram_emissions
+  name: Raitiovaunujen päästöt
+  output_nodes: [rail_transport_emissions]
+  params:
+    sector: Liikenne|Raideliikenne|Raitiovaunut|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: yacht_emissions
+  name: Huviveneiden päästöt
+  output_nodes: [water_transport_emissions]
+  params:
+    sector: Liikenne|Laivaliikenne|Huviveneet|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: work_boat_emissions
+  name: Ammattiveneiden päästöt
+  output_nodes: [water_transport_emissions]
+  params:
+    sector: Liikenne|Laivaliikenne|Ammattiveneet|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: passenger_ship_emissions
+  name: Matkustajalaivojen päästöt
+  output_nodes: [water_transport_emissions]
+  params:
+    sector: Liikenne|Laivaliikenne|Matkustajalaivat|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: freight_ship_emissions
+  name: Rahtilaivojen päästöt
+  output_nodes: [water_transport_emissions]
+  params:
+    sector: Liikenne|Laivaliikenne|Rahtilaivat|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: machinery_emissions
+  name: Työkoneiden päästöt
+  output_nodes: [industry_machinery_emissions]
+  params:
+    sector: Teollisuus ja työkoneet|Työkoneet|Työkoneet|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: industry_fuel_emissions
+  name: Teollisuuden polttoaineiden päästöt
+  output_nodes: [industry_machinery_emissions]
+  params:
+    sector: Teollisuus ja työkoneet|Polttoaineet|Polttoaineet|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: industrial_processes_emissions
+  name: Teollisuusprosessien päästöt
+  output_nodes: [industry_machinery_emissions]
+  params:
+    sector: Teollisuus ja työkoneet|Prosessit|Prosessit|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_landfill_residence_emissions
+  name: Kaatopaikkojen päästöt (Asuminen)
+  output_nodes: [waste_landfill_emissions]
+  params:
+    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_landfill_services_emissions
+  name: Kaatopaikkojen päästöt (Palvelut)
+  output_nodes: [waste_landfill_emissions]
+  params:
+    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_landfill_industry_emissions
+  name: Kaatopaikkojen päästöt (Teollisuus)
+  output_nodes: [waste_landfill_emissions]
+  params:
+    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: biowaste_composting_residence_emissions
+  name: Biojätteen kompostoinnin päästöt (Asuminen)
+  output_nodes: [biowaste_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: biowaste_composting_services_emissions
+  name: Biojätteen kompostoinnin päästöt (Palvelut)
+  output_nodes: [biowaste_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: biowaste_composting_industry_emissions
+  name: Biojätteen kompostoinnin päästöt (Teollisuus)
+  output_nodes: [biowaste_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_water_treatment_residence_emissions
+  name: Jäteveden käsittelyn päästöt (Asuminen)
+  output_nodes: [waste_water_treatment_emissions]
+  params:
+    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_water_treatment_services_emissions
+  name: Jäteveden käsittelyn päästöt (Palvelut)
+  output_nodes: [waste_water_treatment_emissions]
+  params:
+    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_water_treatment_industry_emissions
+  name: Jäteveden käsittelyn päästöt (Teollisuus)
+  output_nodes: [waste_water_treatment_emissions]
+  params:
+    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: sludge_composting_residence_emissions
+  name: Jätevesilietteen kompostoinnin päästöt (Asuminen)
+  output_nodes: [sludge_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: sludge_composting_services_emissions
+  name: Jätevesilietteen kompostoinnin päästöt (Palvelut)
+  output_nodes: [sludge_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: sludge_composting_industry_emissions
+  name: Jätevesilietteen kompostoinnin päästöt (Teollisuus)
+  output_nodes: [sludge_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: agricultural_field_emissions
+  name: Peltojen päästöt
+  output_nodes: [agriculture_emissions]
+  params:
+    sector: Maatalous|Pellot|Pellot|Maatalous
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: agricultural_cattle_emissions
+  name: Kotieläimien päästöt
+  output_nodes: [agriculture_emissions]
+  params:
+    sector: Maatalous|Kotieläimet|Kotieläimet|Maatalous
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions

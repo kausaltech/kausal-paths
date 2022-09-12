@@ -1,19 +1,19 @@
 id: espoo
 default_language: fi
 supported_languages: [en]
-framework: syke
+framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dd541b4cef986df6799a7b505215646d4edce366
+  commit: 073199e322f9373322ad24e5fb6b96529825e1dd
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
 owner: Espoon kaupunki
 owner_en: City of Espoo
 emission_unit: kt/a
 target_year: 2030
-reference_year: 2005
-minimum_historical_year: 2005
+reference_year: 1990
+minimum_historical_year: 2000
 params:
 - id: municipality_name
   value: Espoo
@@ -29,25 +29,24 @@ nodes:
   type: finland.Population
   name: Väestö
 
-- id: all_alas_emissions
-  type: finland.syke.AlasNode
-  name: SYKE:n ALaS-päästöinventaario
+- id: all_hsy_emissions
+  type: finland.hsy.HsyNode
+  name: HSY:n päästöinventaario
 
 pages:
-  - id: home
-    name: Hiilineutraali Espoo -päästöskenaario
-    path: /
-    type: emission
-    node: net_emissions
-    lead_title: Espoon päästöskenaariot
-    lead_title_en: Espoo emission scenarios
-    lead_paragraph: Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
-      kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät
-      ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
-      peruskehitys-skenaario, Hiilineutraali Espoo -tiekartan mukainen skenaario
-      ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
-      vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
-      avulla.
+- id: home
+  name: Hiilineutraali Espoo -päästöskenaario
+  path: /
+  type: emission
+  node: net_emissions
+  lead_title: Espoon päästöskenaariot
+  lead_title_en: Espoo emission scenarios
+  lead_paragraph: Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
+    kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät ja
+    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario,
+    Hiilineutraali Espoo -tiekartan mukainen skenaario ja skenaario, jota voit itse
+    muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
+    riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
 
 scenarios:
 - id: baseline
