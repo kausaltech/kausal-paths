@@ -128,9 +128,9 @@ instance:
     name_en: Price of electricity
     name_sv: Elpris
     quantity: unit_price
-    unit: EUR/kWh
+    unit: EUR/MWh
     type: simple.AdditiveNode
-    historical_values: [[2020, 0.133]]
+    historical_values: [[2020, 133]]
 #    params:
 #      yearly_change: 1.0
     tags: price_of_electricity
@@ -140,9 +140,9 @@ instance:
     name_en: Price of heat
     name_sv: Värmepris
     quantity: unit_price
-    unit: EUR/kWh
+    unit: EUR/MWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 0.094]]
+    historical_values: [[2020, 94]]
     params:
       yearly_change: 1.0
     tags: price_of_heat
@@ -196,15 +196,205 @@ instance:
     - price_of_electricity
     - price_of_co2
 
-  - id: apartment_building_discounted_social_benefit
-    name: Diskontatut sosiaaliset hyödyt kerrostaloista
-    name_en: Discounted social benefit from apartment buildings
-    name_sv: Rabatterad sociala besparingar från flerbostadshus
+  - id: apartment_building_discounted_social_cost
+    name: Diskontatut sosiaaliset kustannukset kerrostaloista
+    name_en: Discounted social cost from apartment buildings
+    name_sv: Rabatterad sociala kostnader från flerbostadshus
     type: costs.DiscountNode
     quantity: currency
     unit: MEUR/a
     input_nodes:
-    - social_cost
+    - social_cost_apartment
+
+  - id: social_cost_apartment
+    name: Sosiaaliset kustannukset kerrostaloissa
+    #
+    type: costs.SocialCostb
+    quantity: currency
+    unit: MEUR/a
+    input_nodes:
+    - renovation_cost_apartment
+    - health_impact_of_heat_production_apartment
+    - heat_co2_cost_apartment
+    - heat_cost_apartment
+    - avoided_electricity_capacity_apartment
+    - health_impact_of_electricity_production_apartment
+    - electricity_co2_cost_apartment
+    - electricity_cost_apartment
+
+  - id: cost_impact
+    name: Kustannusvaikutus kerrostaloissa
+    name_en: Cost impact in apartment buildings
+    name_sv: Kostnadseffekt i flerbostadshus
+    type: costs.AddUsingDimensionNode
+    quantity: currency
+    unit: EUR/a/m**2
+    params:
+      - id: dimension
+        value: RenovCost
+
+  - id: renovation_cost_apartment
+    name: Korjauskustannukset kerrostaloissa
+    #
+    type: simple.MultiplicativeNode
+    quantity: currency
+    unit: MEUR/a
+    tags: renovation
+    input_nodes:
+    - cost_impact
+    - apartment_building_floor_area
+
+  - id: heat_impact
+    name: Lämpövaikutus kerrostaloissa
+    name_en: Heat impact in apartment buildings
+    name_sv: Värmeeffekt i flerbostadshus
+    type: costs.AddUsingDimensionNode
+    quantity: energy
+    unit: kWh/a/m**2
+    params:
+      - id: dimension
+        value: Heat
+
+  - id: heat_consumption_apartment
+    name: Lämmönkulutus kerrostaloissa
+    name_en: Heat consumption in apartment buildings
+    name_sv: Värmekonnsumtion i flerbostadshus
+    type: simple.MultiplicativeNode
+    quantity: energy
+    unit: GWh/a
+    input_nodes:
+    - heat_impact
+    - apartment_building_floor_area
+
+  - id: health_impact_of_heat_production_apartment
+    name: Kerrostalojen lämmöntuotannon terveysvaikutus
+    #
+    type: simple.FixedMultiplierNodeb
+    quantity: currency
+    unit: MEUR/a
+    tags: health_heat
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - heat_consumption_apartment
+
+  - id: co2_emissions_from_heat_apartment
+    name: CO2-päästöt kerrostalojen lämmityksestä
+    #
+    type: simple.FixedMultiplierNodeb
+    quantity: emissions
+    unit: kt/a
+    params:
+    - id: global_multiplier
+      value: heat_co2_ef
+    input_nodes:
+    - heat_consumption_apartment
+
+  - id: heat_co2_cost_apartment
+    name: CO2-kustannus kerrostalojen lämmityksestä
+    #
+    type: simple.MultiplicativeNode
+    quantity: currency
+    unit: MEUR/a
+    tags: co2_heat
+    input_nodes:
+    - co2_emissions_from_heat_apartment
+    - price_of_co2
+
+  - id: heat_cost_apartment
+    name: Lämmityskustannukset kerrostaloissa
+    #
+    type: simple.MultiplicativeNode
+    quantity: currency
+    unit: MEUR/a
+    tags: heat
+    input_nodes:
+    - heat_consumption_apartment
+    - price_of_heat
+
+  - id: electricity_impact
+    name: Sähkövaikutus kerrostaloissa
+    name_en: Electricity impact in apartment buildings
+    name_sv: Eleffekt i flerbostadshus
+    type: costs.AddUsingDimensionNode
+    quantity: energy
+    unit: kWh/a/m**2
+    tags: electricity
+    params:
+      - id: dimension
+        value: Heat
+
+  - id: electricity_consumption_apartment
+    name: Sähkönkulutus kerrostaloissa
+    name_en: Electricity consumption
+    name_sv: Elkonsumtion i flerbostadshus
+    type: simple.MultiplicativeNode
+    quantity: energy
+    unit: GWh/a
+    input_nodes:
+    - electricity_impact
+    - apartment_building_floor_area
+
+  - id: avoided_electricity_capacity_apartment
+    name: Kerrostaloissa vältetty sähköntuotantokapasiteetti
+    #
+    type: simple.FixedMultiplierNodeb
+    quantity: currency
+    unit: MEUR/a
+    tags: avoided_electricity
+    params:
+    - id: global_multiplier
+      value: avoided_electricity_capacity_price
+    input_nodes:
+    - electricity_consumption_apartment
+
+  - id: health_impact_of_electricity_production_apartment
+    name: Kerrostalojen sähköntuotannon terveysvaikutus
+    #
+    type: simple.FixedMultiplierNodeb
+    quantity: currency
+    unit: MEUR/a
+    tags: health_electricity
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - electricity_consumption_apartment
+
+  - id: co2_emissions_from_electricity_apartment
+    name: CO2-päästöt kerrostalojen sähkönkulutuksesta
+    #
+    type: simple.FixedMultiplierNodeb
+    quantity: emissions
+    unit: kt/a
+    params:
+    - id: global_multiplier
+      value: electricity_co2_ef
+    input_nodes:
+    - electricity_consumption_apartment
+
+  - id: electricity_co2_cost_apartment
+    name: CO2-kustannus kerrostalojen sähkönkulutuksesta
+    #
+    type: simple.MultiplicativeNode
+    quantity: currency
+    unit: MEUR/a
+    tags: co2_electricity
+    input_nodes:
+    - co2_emissions_from_electricity_apartment
+    - price_of_co2
+
+  - id: electricity_cost_apartment
+    name: Sähkönkulutuksen kustannukset kerrostaloissa
+    #
+    type: simple.MultiplicativeNode
+    quantity: currency
+    unit: MEUR/a
+    tags: electricity
+    input_nodes:
+    - electricity_consumption_apartment
+    - price_of_electricity
 
   - id: energy_consumption
     name: Energiankulutus
@@ -213,6 +403,10 @@ instance:
     type: costs.EnergyConsumption
     quantity: energy
     unit: GWh/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: District heating
+      dropna: true
     input_nodes:
     - apartment_building_floor_area
     output_nodes:
@@ -290,6 +484,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       values:
@@ -322,6 +519,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       values:
@@ -354,6 +554,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -385,6 +588,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -416,6 +622,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -447,6 +656,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -478,6 +690,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -509,6 +724,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -540,6 +758,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -571,6 +792,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -602,6 +826,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -633,6 +860,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -664,6 +894,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -695,6 +928,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -726,6 +962,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -757,6 +996,9 @@ instance:
     output_nodes:
     - social_cost
     - energy_consumption
+    - electricity_impact
+    - heat_impact
+    - cost_impact
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)

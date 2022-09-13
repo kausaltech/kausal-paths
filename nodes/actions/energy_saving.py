@@ -191,8 +191,8 @@ class BuildingEnergySavingAction(ActionNode):
     dimensions = {
         VALUE_COLUMN: NodeDimension('%', 'fraction'),
         'RenovCost': NodeDimension('EUR/a/m**2', 'currency'),
-        'HeSaving': NodeDimension('kWh/a/m**2', 'energy_per_area'),
-        'ElSaving': NodeDimension('kWh/a/m**2', 'energy_per_area')
+        'Heat': NodeDimension('kWh/a/m**2', 'energy_per_area'),
+        'Electricity': NodeDimension('kWh/a/m**2', 'energy_per_area')
     }
     allowed_parameters = [
         NumberParameter(
@@ -233,23 +233,23 @@ class BuildingEnergySavingAction(ActionNode):
         ),
     ]
 
+    def add_with_timeshift(self, s, activity):  # Activity must be indexed by YEAR_COLUMN
+        s_unit = s[0].units
+        activity_unit = activity.loc[min(activity.index)].units
+        out_unit = str(s_unit * activity_unit)
+
+        index = range(min(activity.index), min(activity.index) + len(activity.index) + len(s))
+        out = pd.Series([0.] * len(index), index=index)
+        for shift in activity.index:
+            new_index = range(shift, shift + len(s))
+            increment = [i.m for i in s]
+            increment = pd.Series(increment, index=new_index)
+            increment = increment * activity.loc[shift].m  # FIXME The treatment of activity units is not foolproof
+            out = out.add(increment, fill_value=0)
+        out = pd.Series(out, dtype='pint[' + out_unit + ']')
+        return out
+
     def compute_effect(self) -> pd.DataFrame:
-
-        def add_with_timeshift(s, activity):  # Activity must be indexed by YEAR_COLUMN
-            s_unit = s[0].units
-            activity_unit = activity.loc[min(activity.index)].units
-            out_unit = str(s_unit * activity_unit)
-
-            index = range(min(activity.index), min(activity.index) + len(activity.index) + len(s))
-            out = pd.Series([0.] * len(index), index=index)
-            for shift in activity.index:
-                new_index = range(shift, shift + len(s))
-                increment = [i.m for i in s]
-                increment = pd.Series(increment, index=new_index)
-                increment = increment * activity.loc[shift].m  # FIXME The treatment of activity units is not foolproof
-                out = out.add(increment, fill_value=0)
-            out = pd.Series(out, dtype='pint[' + out_unit + ']')
-            return out
 
         # Global parameters
         renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
@@ -275,17 +275,17 @@ class BuildingEnergySavingAction(ActionNode):
             YEAR_COLUMN: year,
             FORECAST_COLUMN: [False] + [True] * (len(year) - 1),
             VALUE_COLUMN: pd.Series([reno.m] * len(year), dtype='pint[' + reno_unit + ']'),
-        }).set_index(['Year'])
+        }).set_index([YEAR_COLUMN])
         df.loc[~df[FORECAST_COLUMN], VALUE_COLUMN] *= 0
         renovcost = [maint_cost * unit_registry('0.01 a/%')] * lifetime.m
         for i in range(lifetime.m):
             if i % lifetime.m == 0:
                 renovcost[i] += investment_cost
-        df['RenovCost'] = add_with_timeshift(renovcost, df[VALUE_COLUMN])
+        df['RenovCost'] = self.add_with_timeshift(renovcost, df[VALUE_COLUMN])
 
-        el_saving = [el_saving * unit_registry('0.01 a/%')] * lifetime.m
-        df['ElSaving'] = add_with_timeshift(el_saving, df[VALUE_COLUMN])
-        he_saving = [he_saving * unit_registry('0.01 a/%')] * lifetime.m
-        df['HeSaving'] = add_with_timeshift(he_saving, df[VALUE_COLUMN])
+        electricity = [el_saving * -1 * unit_registry('0.01 a/%')] * lifetime.m
+        df['Electricity'] = self.add_with_timeshift(electricity, df[VALUE_COLUMN])
+        heat = [he_saving * -1 * unit_registry('0.01 a/%')] * lifetime.m
+        df['Heat'] = self.add_with_timeshift(heat, df[VALUE_COLUMN])
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         return df

@@ -1,7 +1,7 @@
 from logging import log
 from types import FunctionType
 from nodes.calc import nafill_all_forecast_years
-from params.param import BoolParameter, NumberParameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 from typing import Dict, List
 import pandas as pd
 import pint
@@ -233,6 +233,41 @@ class FixedMultiplierNode(SimpleNode):
 
         df = node.get_output()
         multiplier_param = self.get_parameter('multiplier')
+        multiplier = multiplier_param.value
+        if multiplier_param.unit:
+            multiplier = pint.Quantity(multiplier, multiplier_param.unit)
+        for col in df.columns:
+            if col == FORECAST_COLUMN:
+                continue
+            df[col] *= multiplier
+
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset(df)
+
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+
+        return df
+
+
+class FixedMultiplierNodeb(SimpleNode):
+    allowed_parameters = [
+        NumberParameter(local_id='multiplier'),
+        StringParameter(local_id='global_multiplier'),
+    ] + SimpleNode.allowed_parameters
+
+    def compute(self):
+        if len(self.input_nodes) != 1:
+            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
+
+        node = self.input_nodes[0]
+
+        df = node.get_output()
+        multiplier_param = self.get_parameter('multiplier', required=False)
+        if multiplier_param is None:
+            global_multiplier = self.get_parameter_value('global_multiplier', required=True)
+            print('global multiplier:::::::::', global_multiplier)
+            multiplier_param = self.context.get_parameter(global_multiplier)
         multiplier = multiplier_param.value
         if multiplier_param.unit:
             multiplier = pint.Quantity(multiplier, multiplier_param.unit)

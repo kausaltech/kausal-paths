@@ -80,8 +80,8 @@ class SocialCost(SimpleNode):
             if not isinstance(node, BuildingEnergySavingAction):
                 continue
             else:
-                heat = node.get_output(dimension='HeSaving')[VALUE_COLUMN]
-                electricity = node.get_output(dimension='ElSaving')[VALUE_COLUMN]
+                heat = node.get_output(dimension='Heat')[VALUE_COLUMN]
+                electricity = node.get_output(dimension='Electricity')[VALUE_COLUMN]
                 renov_cost = node.get_output(dimension='RenovCost')[VALUE_COLUMN]
 
             df['CostSaving'] = (
@@ -112,6 +112,38 @@ class SocialCost(SimpleNode):
         return out
 
 
+class SocialCostb(SimpleNode):
+
+    def compute(self):
+
+        # Global parameters
+        include_co2 = self.context.get_parameter_value('include_co2')
+        include_health = self.context.get_parameter_value('include_health')
+        include_el_avoided = self.context.get_parameter_value('include_el_avoided')
+
+        # Input nodes
+        df = self.get_input_node(tag='renovation').get_output()
+
+        health_heat = self.get_input_node(tag='health_heat').get_output()[VALUE_COLUMN]
+        co2_heat = self.get_input_node(tag='co2_heat').get_output()[VALUE_COLUMN]
+        heat = self.get_input_node(tag='heat').get_output()[VALUE_COLUMN]
+        avoided_electricity = self.get_input_node(tag='avoided_electricity').get_output()[VALUE_COLUMN]
+        health_electricity = self.get_input_node(tag='health_electricity').get_output()[VALUE_COLUMN]
+        co2_electricity = self.get_input_node(tag='co2_electricity').get_output()[VALUE_COLUMN]
+        electricity = self.get_input_node(tag='electricity').get_output()[VALUE_COLUMN]
+
+        s = df[VALUE_COLUMN] + heat + electricity
+        if include_health:
+            s = s + health_heat + health_electricity
+        if include_co2:
+            s = s + co2_heat + co2_electricity
+        if include_el_avoided:
+            s = s + avoided_electricity
+        df[VALUE_COLUMN] = s
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        return df
+
+
 class DiscountNode(SimpleNode):
     '''All input nodes must be additive'''
     def get_discount_factor(self, base_value):
@@ -134,7 +166,7 @@ class DiscountNode(SimpleNode):
 
         df = pd.DataFrame({
             YEAR_COLUMN: year,
-            VALUE_COLUMN: pd.Series(factor[1:]) * -1,
+            VALUE_COLUMN: pd.Series(factor[1:]),
             FORECAST_COLUMN: forecast}).set_index([YEAR_COLUMN])
         return df
 
@@ -168,8 +200,8 @@ class EnergyConsumption(SimpleNode):
             if not isinstance(node, BuildingEnergySavingAction):
                 continue
             else:
-                heat = node.get_output(dimension='HeSaving')[VALUE_COLUMN]
-                electricity = node.get_output(dimension='ElSaving')[VALUE_COLUMN]
+                heat = node.get_output(dimension='Heat')[VALUE_COLUMN]
+                electricity = node.get_output(dimension='Electricity')[VALUE_COLUMN]
 
                 energy = (heat + electricity) * floor
             if first:
@@ -177,6 +209,32 @@ class EnergyConsumption(SimpleNode):
                 first = False
             else:
                 out[VALUE_COLUMN] += energy
+        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
+
+        return out
+
+
+class AddUsingDimensionNode(SimpleNode):
+    allowed_parameters = [
+        StringParameter(
+            local_id='dimension',
+            is_customizable=False,
+        ),
+    ]
+
+    def compute(self):
+        dimension = self.get_parameter_value('dimension')
+        first = True
+        out = pd.DataFrame()
+
+        for node in self.input_nodes:
+            df = node.get_output(dimension=dimension)
+            if first:
+                out = df
+                first = False
+            else:
+                self.print_pint_df(out)
+                out[VALUE_COLUMN] += df[VALUE_COLUMN]
         out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
 
         return out
