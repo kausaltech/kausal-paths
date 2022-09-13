@@ -265,7 +265,7 @@ class BuildingEnergySavingAction(ActionNode):
         el_saving = self.get_parameter_value_w_unit('electricity_saving')
 
         # Calculations
-        year = range(current_year, target_year)
+        year = range(current_year, target_year + 1)
         reno = 1 / lifetime
         if not self.is_enabled():
             reno = renovation_rate_baseline * unit_registry('0.01/%')  # dtype is unable to handle %**2

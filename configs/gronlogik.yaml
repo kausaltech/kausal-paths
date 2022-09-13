@@ -145,16 +145,26 @@ instance:
       yearly_change: 0.0
     tags: price_of_heat
 
-  - id: discounted_social_cost
-    name: Diskontatut sosiaaliset kustannukset
-    name_en: Discounted social cost
-    name_sv: Rabatterad sociala kostnader
+  - id: social_cost
+    name: Sosiaaliset kustannukset
+    name_en: Social cost
+    name_sv: Sociala kostnader
     type: simple.AdditiveNode
     quantity: currency
     unit: MEUR/a
     input_nodes:
-    - discounted_social_cost_apartment
-    - discounted_social_cost_office
+    - social_cost_apartment
+    - social_cost_office
+
+  - id: discounted_social_cost
+    name: Diskontatut sosiaaliset kustannukset
+    name_en: Discounted social cost
+    name_sv: Rabatterad sociala kostnader
+    type: costs.DiscountNode
+    quantity: currency
+    unit: MEUR/a
+    input_nodes:
+    - social_cost
 
 ############## Apartment buildings
 
@@ -169,16 +179,6 @@ instance:
     params:
       yearly_change: 0.0
     tags: floor_area
-
-  - id: discounted_social_cost_apartment
-    name: Diskontatut sosiaaliset kustannukset kerrostaloista
-    name_en: Discounted social cost from apartment buildings
-    name_sv: Rabatterad sociala kostnader från flerbostadshus
-    type: costs.DiscountNode
-    quantity: currency
-    unit: MEUR/a
-    input_nodes:
-    - social_cost_apartment
 
   - id: social_cost_apartment
     name: Sosiaaliset kustannukset kerrostaloissa
@@ -398,16 +398,6 @@ instance:
     params:
       yearly_change: 0.0
     tags: floor_area
-
-  - id: discounted_social_cost_office
-    name: Diskontatut sosiaaliset kustannukset toimistoista
-    name_en: Discounted social cost from offices
-    name_sv: Rabatterad sociala kostnader från kontor
-    type: costs.DiscountNode
-    quantity: currency
-    unit: MEUR/a
-    input_nodes:
-    - social_cost_office
 
   - id: social_cost_office
     name: Sosiaaliset kustannukset toimistoissa

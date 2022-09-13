@@ -233,7 +233,6 @@ class AddUsingDimensionNode(SimpleNode):
                 out = df
                 first = False
             else:
-                self.print_pint_df(out)
                 out[VALUE_COLUMN] += df[VALUE_COLUMN]
         out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
 
