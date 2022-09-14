@@ -8,6 +8,7 @@ instance:
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
   name: Grön logik -projekti rakennusten ilmastotoimista
   name_en: Grön logik project about climate actions on buildings
+  name_sv: Grön logik projekt om byggnaders klimatåtgärder
   owner: Kausal & Anthesis
   owner_en: Kausal & Anthesis
   target_year: 2065
@@ -234,7 +235,7 @@ instance:
   - id: heat_consumption_apartment
     name: Lämmönkulutus kerrostaloissa
     name_en: Heat consumption in apartment buildings
-    name_sv: Värmekonnsumtion i flerbostadshus
+    name_sv: Värmekonsumtion i flerbostadshus
     type: simple.MultiplicativeNode
     quantity: energy
     unit: GWh/a
@@ -305,7 +306,7 @@ instance:
     tags: electricity
     params:
       - id: dimension
-        value: Heat
+        value: Electricity
 
   - id: electricity_consumption_apartment
     name: Sähkönkulutus kerrostaloissa
@@ -453,7 +454,7 @@ instance:
   - id: heat_consumption_office
     name: Lämmönkulutus toimistoissa
     name_en: Heat consumption in offices
-    name_sv: Värmekonnsumtion i kontor
+    name_sv: Värmekonsumtion i kontor
     type: simple.MultiplicativeNode
     quantity: energy
     unit: GWh/a
@@ -524,7 +525,7 @@ instance:
     tags: electricity
     params:
       - id: dimension
-        value: Heat
+        value: Electricity
 
   - id: electricity_consumption_office
     name: Sähkönkulutus toimistoissa
@@ -578,7 +579,7 @@ instance:
     input_nodes:
     - electricity_consumption_office
     output_nodes:
-    - apartment_building_emissions
+    - office_building_emissions
 
   - id: electricity_co2_cost_office
     name: CO2-kustannus toimstojen sähkönkulutuksesta
@@ -659,6 +660,9 @@ instance:
         min_value: 0
         max_value: 5
         step: 0.5
+        description: Hinnannousu (%/a)
+        description_en: Price increase (%/a)
+        description_sv: Prisäkning (%/a)
     tags: price_of_electricity
     output_nodes:
       - price_of_electricity
@@ -1247,9 +1251,9 @@ instance:
     - id: electricity_saving
       value: 1
 
-  - id: lighing_upgrading_in_offices
+  - id: lighting_upgrading_in_offices
     name: Valaistuksen uusiminen toimistotiloissa
-    name_en: Lighing upgrading in office rooms
+    name_en: Lighting upgrading in office rooms
     name_sv: Uppgradering ab belysningen i kontorsytor
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
