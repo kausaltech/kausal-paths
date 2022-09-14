@@ -83,7 +83,7 @@ class InstanceDirective(GraphQLDirective):
 
 schema = graphene.Schema(
     query=Query,
-    directives=specified_directives + [LocaleDirective(), InstanceDirective()],
+    directives=list(specified_directives) + [LocaleDirective(), InstanceDirective()],
     types=params_types + list(grapple_registry.models.values()),
     mutation=Mutations,
 )

@@ -1,10 +1,15 @@
+import logging
 from typing import Optional
+
 import orjson
+import sentry_sdk
 from django.conf import settings
 from django.utils.translation import activate, get_language_from_request
 from graphene_django.views import GraphQLView
-from graphql.language.ast import Variable
+from graphql.language.ast import VariableNode
 from graphql.error import GraphQLError
+from rich.console import Console
+from rich.syntax import Syntax
 
 from nodes.models import Instance, InstanceConfig
 from params.storage import SessionStorage
@@ -12,10 +17,11 @@ from .graphql_helpers import GQLContext, GQLInfo, GQLInstanceInfo
 
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
+logger = logging.getLogger(__name__)
 
 
 def _arg_value(arg, variable_vals):
-    if isinstance(arg.value, Variable):
+    if isinstance(arg.value, VariableNode):
         return variable_vals.get(arg.value.name.value)
     return arg.value.value
 
@@ -139,6 +145,10 @@ class InstanceMiddleware:
 
 
 class PathsGraphQLView(GraphQLView):
+    graphiql_version = "2.0.7"
+    graphiql_sri = "sha256-qQ6pw7LwTLC+GfzN+cJsYXfVWRKH9O5o7+5H96gTJhQ="
+    graphiql_css_sri = "sha256-gQryfbGYeYFxnJYnfPStPYFt0+uv8RP8Dm++eh00G9c="
+
     def __init__(self, *args, **kwargs):
         if 'middleware' not in kwargs:
             kwargs['middleware'] = (LocaleMiddleware, InstanceMiddleware)
@@ -150,13 +160,60 @@ class PathsGraphQLView(GraphQLView):
         return orjson.dumps(d, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS)
 
     def execute_graphql_request(self, request, data, query, variables, operation_name, *args, **kwargs):
-        if settings.DEBUG:
-            from rich.console import Console
-            from rich.syntax import Syntax
-
+        request._referer = self.request.META.get('HTTP_REFERER')
+        transaction = sentry_sdk.Hub.current.scope.transaction
+        logger.info('GraphQL request %s from %s' % (operation_name, request._referer))
+        debug_logging = settings.DEBUG and logger.isEnabledFor(logging.DEBUG)
+        if debug_logging and query:
             console = Console()
             syntax = Syntax(query, "graphql")
             console.print(syntax)
+            if variables:
+                console.print('Variables:', variables)
 
-        ret = super().execute_graphql_request(request, data, query, variables, operation_name, *args, **kwargs)
-        return ret
+        with sentry_sdk.push_scope() as scope:
+            scope.set_context('graphql_variables', variables)
+            scope.set_tag('graphql_operation_name', operation_name)
+            scope.set_tag('referer', request._referer)
+
+            if transaction is not None:
+                span = transaction.start_child(op='graphql query', description=operation_name)
+                span.set_data('graphql_variables', variables)
+                span.set_tag('graphql_operation_name', operation_name)
+                span.set_tag('referer', request._referer)
+            else:
+                # No tracing activated, use an inert Span
+                span = sentry_sdk.tracing.Span()
+
+            with span:
+                result = super().execute_graphql_request(
+                    request, data, query, variables, operation_name, *args, **kwargs
+                )
+
+            # If 'invalid' is set, it's a bad request
+            if result and result.errors:
+                if debug_logging:
+                    from rich.traceback import Traceback
+                    console = Console()
+
+                    def print_error(err: GraphQLError):
+                        console.print(err)
+                        oe = err.original_error
+                        if oe:
+                            tb = Traceback.from_exception(
+                                type(oe), oe, traceback=oe.__traceback__
+                            )
+                            console.print(tb)
+                else:
+                    def print_error(err: GraphQLError):
+                        pass
+
+                for error in result.errors:
+                    print_error(error)
+                    err = getattr(error, 'original_error', None)
+                    if not err:
+                        # It's an invalid query
+                        continue
+                    sentry_sdk.capture_exception(err)
+
+        return result
