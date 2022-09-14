@@ -29,12 +29,15 @@ emission_sectors:
 - id: water_transport_emissions
   name: Laivaliikenteen päästöt
   part_of: transport_emissions
+- id: other_emissions
+  name: Muut päästöt
+  part_of: net_emissions
 - id: industry_machinery_emissions
   name: Teollisuuden ja työkoneiden päästöt
-  part_of: net_emissions
+  part_of: other_emissions
 - id: waste_treatment_emissions
   name: Jätteiden käsittelyn päästöt
-  part_of: net_emissions
+  part_of: other_emissions
 - id: waste_landfill_emissions
   name: Kaatopaikkojen päästöt
   part_of: waste_treatment_emissions
@@ -49,7 +52,7 @@ emission_sectors:
   part_of: waste_treatment_emissions
 - id: agriculture_emissions
   name: Maatalouden päästöt
-  part_of: net_emissions
+  part_of: other_emissions
 nodes:
 - id: district_heating_residence_emissions
   name: Kaukolämmön päästöt (Asuminen)
@@ -157,35 +160,35 @@ nodes:
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
 - id: car_emissions
-  name: Henkilöautot päästöt
+  name: Henkilöautojen päästöt
   output_nodes: [road_transport_emissions]
   params:
     sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
 - id: motorbike_emissions
-  name: Moottoripyörät päästöt
+  name: Moottoripyörien päästöt
   output_nodes: [road_transport_emissions]
   params:
     sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
 - id: van_emissions
-  name: Pakettiautot päästöt
+  name: Pakettiautojen päästöt
   output_nodes: [road_transport_emissions]
   params:
     sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
 - id: truck_emissions
-  name: Kuorma-autot päästöt
+  name: Kuorma-autojen päästöt
   output_nodes: [road_transport_emissions]
   params:
     sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
 - id: bus_emissions
-  name: Linja-autot päästöt
+  name: Linja-autojen päästöt
   output_nodes: [road_transport_emissions]
   params:
     sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
