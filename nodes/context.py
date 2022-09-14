@@ -43,6 +43,7 @@ unit_registry.define(pint.unit.UnitDefinition(
 ))
 unit_registry.define('EUR = [currency]')
 unit_registry.define('USD = nan EUR')
+unit_registry.define('SEK = nan EUR')
 unit_registry.define('pcs = [number] = pieces')
 
 

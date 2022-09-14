@@ -31,19 +31,19 @@ instance:
     step: 0.5
     unit: '%'
   - id: avoided_electricity_capacity_price
-    label: Benefit for avoiding new electricity capacity (EUR/kWh)
+    label: Benefit for avoiding new electricity capacity (SEK/kWh)
     is_customizable: False
-    value: 0.04
-    min_value: 0.03
-    max_value: 0.05
-    unit: EUR/kWh
+    value: 0.4
+    min_value: 0.3
+    max_value: 0.5
+    unit: SEK/kWh
   - id: health_impacts_per_kwh
     is_customizable: False
-    label: Cost of health impacts (EUR/kWh)
-    value: 0.007344
-    min_value: 0.007
-    max_value: 0.008
-    unit: EUR/kWh
+    label: Cost of health impacts (SEK/kWh)
+    value: 0.07344
+    min_value: 0.07
+    max_value: 0.08
+    unit: SEK/kWh
   - id: heat_co2_ef
     label: Emission factor of heat production (g CO2/kWh)
     is_customizable: True
@@ -128,9 +128,9 @@ instance:
     name_en: Price of electricity
     name_sv: Elpris
     quantity: unit_price
-    unit: EUR/MWh
+    unit: SEK/MWh
     type: simple.AdditiveNode
-    historical_values: [[2020, 133]]
+    historical_values: [[2020, 1330]]
     tags: price_of_electricity
 
   - id: price_of_heat
@@ -138,9 +138,9 @@ instance:
     name_en: Price of heat
     name_sv: Värmepris
     quantity: unit_price
-    unit: EUR/MWh
+    unit: SEK/MWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 94]]
+    historical_values: [[2020, 940]]
     params:
       yearly_change: 0.0
     tags: price_of_heat
@@ -151,7 +151,7 @@ instance:
     name_sv: Sociala kostnader
     type: simple.AdditiveNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     input_nodes:
     - social_cost_apartment
     - social_cost_office
@@ -162,7 +162,7 @@ instance:
     name_sv: Rabatterad sociala kostnader
     type: costs.DiscountNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     input_nodes:
     - social_cost
 
@@ -186,7 +186,7 @@ instance:
     name_sv: Sociala kostnader i flerbostadshus
     type: costs.SocialCostb
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     input_nodes:
     - renovation_cost_apartment
     - health_impact_of_heat_production_apartment
@@ -203,7 +203,7 @@ instance:
     name_sv: Kostnadseffekt i flerbostadshus
     type: costs.AddUsingDimensionNode
     quantity: currency
-    unit: EUR/a/m**2
+    unit: SEK/a/m**2
     params:
       - id: dimension
         value: RenovCost
@@ -214,7 +214,7 @@ instance:
     name_sv: Renovationskostnader i flerbostadshus
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: renovation
     input_nodes:
     - cost_impact_apartment
@@ -248,7 +248,7 @@ instance:
     name_sv: Hälsoeffekt av värmeproduktion för flerbostadshus
     type: simple.FixedMultiplierNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: health_heat
     params:
     - id: global_multiplier
@@ -277,7 +277,7 @@ instance:
     name:_sv: CO2 kosnader från värmeproduktion för flerbostadshus
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: co2_heat
     input_nodes:
     - co2_emissions_from_heat_apartment
@@ -289,7 +289,7 @@ instance:
     name_sv: Värmekostnader i flerbostadshus
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: heat
     input_nodes:
     - heat_consumption_apartment
@@ -324,7 +324,7 @@ instance:
     name_sv: Elproduktionkapacitet undvekt i flerbostadshus
     type: simple.FixedMultiplierNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: avoided_electricity
     params:
     - id: global_multiplier
@@ -338,7 +338,7 @@ instance:
     name_sv: Hälsoeffekt från elproduktion för flerbostadshus
     type: simple.FixedMultiplierNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: health_electricity
     params:
     - id: global_multiplier
@@ -367,7 +367,7 @@ instance:
     name_sv: CO2 kostnad från elproduktion för flerbostadshus
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: co2_electricity
     input_nodes:
     - co2_emissions_from_electricity_apartment
@@ -379,7 +379,7 @@ instance:
     name_sv: Elkostnader i flerbostadshus
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: electricity
     input_nodes:
     - electricity_consumption_apartment
@@ -405,7 +405,7 @@ instance:
     name_sv: Sociala kostnader i kontor
     type: costs.SocialCostb
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     input_nodes:
     - renovation_cost_office
     - health_impact_of_heat_production_office
@@ -422,7 +422,7 @@ instance:
     name_sv: Kostnadseffekt i kontor
     type: costs.AddUsingDimensionNode
     quantity: currency
-    unit: EUR/a/m**2
+    unit: SEK/a/m**2
     params:
       - id: dimension
         value: RenovCost
@@ -433,7 +433,7 @@ instance:
     name_sv: Renovationskostnader i kontor
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: renovation
     input_nodes:
     - cost_impact_office
@@ -467,7 +467,7 @@ instance:
     name_sv: Hälsoeffekt av värmeproduktion för kontor
     type: simple.FixedMultiplierNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: health_heat
     params:
     - id: global_multiplier
@@ -496,7 +496,7 @@ instance:
     name:_sv: CO2 kosnader från värmeproduktion för kontor
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: co2_heat
     input_nodes:
     - co2_emissions_from_heat_office
@@ -508,7 +508,7 @@ instance:
     name_sv: Värmekostnader i kontor
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: heat
     input_nodes:
     - heat_consumption_office
@@ -543,7 +543,7 @@ instance:
     name_sv: Elproduktionkapacitet undvekt i kontor
     type: simple.FixedMultiplierNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: avoided_electricity
     params:
     - id: global_multiplier
@@ -557,7 +557,7 @@ instance:
     name_sv: Hälsoeffekt från elproduktion för kontor
     type: simple.FixedMultiplierNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: health_electricity
     params:
     - id: global_multiplier
@@ -586,7 +586,7 @@ instance:
     name_sv: CO2 kostnad från elproduktion för kontor
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: co2_electricity
     input_nodes:
     - co2_emissions_from_electricity_office
@@ -598,7 +598,7 @@ instance:
     name_sv: Elkostnader i kontor
     type: simple.MultiplicativeNode
     quantity: currency
-    unit: MEUR/a
+    unit: MSEK/a
     tags: electricity
     input_nodes:
     - electricity_consumption_office
@@ -617,19 +617,18 @@ instance:
     name_en: Cost of carbon dioxide
     name_sv: Koldioxidkostnad
     quantity: unit_price
-    unit: EUR/t
+    unit: SEK/t
     tags: cost_co2
     decision_level: nation
     type: simple.ExponentialAction
     params:
     - id: current_value
       values:
-        default: 700
-      min_value: 300
-      max_value: 1500
-      step: 10
-      step: 50
-      unit: EUR/t
+        default: 7000
+      min_value: 3000
+      max_value: 15000
+      step: 100
+      unit: SEK/t
       description: Hiilidioksidin nykykustannukset
       description_en: Current cost of CO2
       description_sv: Koldioxidkostnad
@@ -649,17 +648,17 @@ instance:
     name_en: Increase in price of electricity
     name_sv: Elprishöjning
     quantity: unit_price
-    unit: EUR/kWh
+    unit: SEK/kWh
     type: simple.LinearCumulativeAdditiveAction
     decision_level: nation
-    forecast_values: [[2021, 0], [2044, 0.1]]
+    forecast_values: [[2021, 0], [2044, 1]]
     params:
       - id: target_year_level
         values:
-          default: 0.1
+          default: 1
         min_value: 0
-        max_value: 0.5
-        step: 0.05
+        max_value: 5
+        step: 0.5
     tags: price_of_electricity
     output_nodes:
       - price_of_electricity
@@ -691,7 +690,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 1
+      value: 10
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -724,7 +723,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 5.5
+      value: 55
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -756,7 +755,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 1
+      value: 10
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -788,7 +787,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 1.8
+      value: 18
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -820,7 +819,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 2.3
+      value: 23
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -852,7 +851,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 7.3
+      value: 73
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -884,7 +883,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 4.2
+      value: 42
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -916,7 +915,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 4.8
+      value: 48
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -948,7 +947,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 4.8
+      value: 48
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -980,7 +979,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 5.6
+      value: 56
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1012,7 +1011,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 5.6
+      value: 56
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1044,7 +1043,7 @@ instance:
     - id: investment_lifetime
       value: 20
     - id: investment_cost 
-      value: 29.6
+      value: 296
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1076,7 +1075,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 56.5
+      value: 565
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1108,7 +1107,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 32.2
+      value: 322
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1140,7 +1139,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 52.0
+      value: 520
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1172,7 +1171,7 @@ instance:
     - id: investment_lifetime
       value: 40
     - id: investment_cost 
-      value: 27.5
+      value: 275
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1207,7 +1206,7 @@ instance:
     - id: investment_lifetime
       value: 10
     - id: investment_cost 
-      value: 1.95
+      value: 19.5
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1240,7 +1239,7 @@ instance:
     - id: investment_lifetime
       value: 10
     - id: investment_cost 
-      value: 1.1
+      value: 11
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1273,7 +1272,7 @@ instance:
     - id: investment_lifetime
       value: 15
     - id: investment_cost 
-      value: 16.1
+      value: 161
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1305,8 +1304,8 @@ instance:
       description_sv: Potential av fastigheter (%)
     - id: investment_lifetime
       value: 15
-    - id: investment_cost 
-      value: 8.5
+    - id: investment_cost
+      value: 85
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1338,8 +1337,8 @@ instance:
       description_sv: Potential av fastigheter (%)
     - id: investment_lifetime
       value: 40
-    - id: investment_cost 
-      value: 27.6
+    - id: investment_cost
+      value: 276
     - id: maintenance_cost
       value: 0
     - id: heat_saving
@@ -1371,8 +1370,8 @@ instance:
       description_sv: Potential av fastigheter (%)
     - id: investment_lifetime
       value: 40
-    - id: investment_cost 
-      value: 41.1
+    - id: investment_cost
+      value: 411
     - id: maintenance_cost
       value: 0
     - id: heat_saving
