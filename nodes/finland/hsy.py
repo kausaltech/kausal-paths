@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 from params import StringParameter, BoolParameter
@@ -8,6 +10,8 @@ from nodes.constants import (
 from nodes.exceptions import NodeError
 from nodes.node import NodeDimension
 
+
+BELOW_ZERO_WARNED = False
 
 class HsyNode(Node):
     input_datasets = [
@@ -24,13 +28,21 @@ class HsyNode(Node):
         muni_name = self.get_global_parameter_value('municipality_name')
 
         df = self.get_input_dataset()
-        print(df)
         df = df[df['Kaupunki'] == muni_name].drop(columns=['Kaupunki', 'index'])
         df = df.rename(columns={
             'Vuosi': YEAR_COLUMN,
             'Päästöt': EMISSION_QUANTITY,
             'Energiankulutus': ENERGY_QUANTITY,
         })
+        below_zero = (df[EMISSION_QUANTITY] < 0) | (df[ENERGY_QUANTITY] < 0)
+        if len(below_zero):
+            global BELOW_ZERO_WARNED
+
+            if not BELOW_ZERO_WARNED:
+                self.logger.warn('HSY dataset has negative emissions, filling with zero')
+                BELOW_ZERO_WARNED = True
+            df.loc[below_zero, [EMISSION_QUANTITY, ENERGY_QUANTITY]] = 0
+
         df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
         df['Sector'] = ''
         for i in range(1, 5):
