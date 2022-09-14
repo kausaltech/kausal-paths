@@ -190,7 +190,7 @@ class BuildingEnergySavingAction(ActionNode):
     therefore the renovation rate and cost at a particular year refer to different things.'''
     dimensions = {
         VALUE_COLUMN: NodeDimension('%', 'fraction'),
-        'RenovCost': NodeDimension('EUR/a/m**2', 'currency'),
+        'RenovCost': NodeDimension('SEK/a/m**2', 'currency'),
         'Heat': NodeDimension('kWh/a/m**2', 'energy_per_area'),
         'Electricity': NodeDimension('kWh/a/m**2', 'energy_per_area')
     }
@@ -203,14 +203,14 @@ class BuildingEnergySavingAction(ActionNode):
         ),
         NumberParameter(
             local_id='investment_cost',
-            label=_('Investment cost (EUR/m2)'),
-            unit='EUR/m**2',
+            label=_('Investment cost (SEK/m2)'),
+            unit='SEK/m**2',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='maintenance_cost',
-            label=_('Maintenance cost (EUR/m2/a)'),
-            unit='EUR/m**2/a',
+            label=_('Maintenance cost (SEK/m2/a)'),
+            unit='SEK/m**2/a',
             is_customizable=False,
         ),
         NumberParameter(

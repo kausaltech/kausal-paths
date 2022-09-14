@@ -52,7 +52,7 @@ class SocialCost(SimpleNode):
             df['CO2Saved'] = (
                 (heat * heat_co2_ef
                 + electricity * electricity_co2_ef) * cost_co2[VALUE_COLUMN]
-                ).astype('pint[EUR/a/m**2]')
+                ).astype('pint[SEK/a/m**2]')
             df['EnSaving'] = heat + electricity
             df['Health'] = df['EnSaving'] * health_impacts_per_kwh
             s = df['PrivateProfit']
