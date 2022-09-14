@@ -184,7 +184,7 @@ instance:
     name: Sosiaaliset kustannukset kerrostaloissa
     name_en: Social costs in apartment buildings
     name_sv: Sociala kostnader i flerbostadshus
-    type: costs.SocialCostb
+    type: costs.SocialCost
     quantity: currency
     unit: MSEK/a
     input_nodes:
@@ -403,7 +403,7 @@ instance:
     name: Sosiaaliset kustannukset toimistoissa
     name_en: Social costs in offices
     name_sv: Sociala kostnader i kontor
-    type: costs.SocialCostb
+    type: costs.SocialCost
     quantity: currency
     unit: MSEK/a
     input_nodes:

@@ -17,66 +17,6 @@ class SocialCost(SimpleNode):
     def compute(self):
 
         # Global parameters
-        health_impacts_per_kwh = self.context.get_parameter_value_w_unit('health_impacts_per_kwh')
-        avoided_electricity_capacity_price = self.context.get_parameter_value_w_unit('avoided_electricity_capacity_price')
-        heat_co2_ef = self.context.get_parameter_value_w_unit('heat_co2_ef')
-        electricity_co2_ef = self.context.get_parameter_value_w_unit('electricity_co2_ef')
-        include_co2 = self.context.get_parameter_value('include_co2')
-        include_health = self.context.get_parameter_value('include_health')
-        include_el_avoided = self.context.get_parameter_value('include_el_avoided')
-
-        # Input nodes
-        df = self.get_input_node(tag='floor_area').get_output()
-        cost_co2 = self.get_input_node(tag='cost_co2').get_output()
-        he_price = self.get_input_node(tag='price_of_heat').get_output()
-        el_price = self.get_input_node(tag='price_of_electricity').get_output()
-        df['HePrice'] = he_price[VALUE_COLUMN]
-        df['ElPrice'] = el_price[VALUE_COLUMN]
-        df = df.rename(columns={VALUE_COLUMN: 'FloorArea'})
-
-        out = None
-
-        for node in self.input_nodes:
-            if not isinstance(node, BuildingEnergySavingAction):
-                continue
-            else:
-                heat = node.get_output(dimension='Heat')[VALUE_COLUMN]
-                electricity = node.get_output(dimension='Electricity')[VALUE_COLUMN]
-                renov_cost = node.get_output(dimension='RenovCost')[VALUE_COLUMN]
-
-            df['CostSaving'] = (
-                df['ElPrice'] * electricity
-                + df['HePrice'] * heat)
-            df['PrivateProfit'] = (df['CostSaving'] - renov_cost)
-            df['ElAvoided'] = electricity * avoided_electricity_capacity_price
-            df['CO2Saved'] = (
-                (heat * heat_co2_ef
-                + electricity * electricity_co2_ef) * cost_co2[VALUE_COLUMN]
-                ).astype('pint[SEK/a/m**2]')
-            df['EnSaving'] = heat + electricity
-            df['Health'] = df['EnSaving'] * health_impacts_per_kwh
-            s = df['PrivateProfit']
-            if include_el_avoided:
-                s += df['ElAvoided']
-            if include_co2:
-                s += df['CO2Saved']
-            if include_health:
-                s += df['Health']
-            df['SocialProfit'] = s
-            df[VALUE_COLUMN] = df['SocialProfit'] * df['FloorArea']
-            if out is None:
-                out = df[[VALUE_COLUMN, FORECAST_COLUMN]].copy()
-            else:
-                out[VALUE_COLUMN] += df[VALUE_COLUMN]
-        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
-        return out
-
-
-class SocialCostb(SimpleNode):
-
-    def compute(self):
-
-        # Global parameters
         include_co2 = self.context.get_parameter_value('include_co2')
         include_health = self.context.get_parameter_value('include_health')
         include_el_avoided = self.context.get_parameter_value('include_el_avoided')
