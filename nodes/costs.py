@@ -87,33 +87,6 @@ class DiscountNode(SimpleNode):
         return df
 
 
-class EnergyConsumption(SimpleNode):
-
-    def compute(self):
-        # Input nodes
-        floor = self.get_input_node(tag='floor_area').get_output()
-        out = floor[[VALUE_COLUMN, FORECAST_COLUMN]]
-        floor = floor[VALUE_COLUMN]
-        first = True
-
-        for node in self.input_nodes:
-            if not isinstance(node, BuildingEnergySavingAction):
-                continue
-            else:
-                heat = node.get_output(dimension='Heat')[VALUE_COLUMN]
-                electricity = node.get_output(dimension='Electricity')[VALUE_COLUMN]
-
-                energy = (heat + electricity) * floor
-            if first:
-                out[VALUE_COLUMN] = energy
-                first = False
-            else:
-                out[VALUE_COLUMN] += energy
-        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
-
-        return out
-
-
 class AddUsingDimensionNode(SimpleNode):
     allowed_parameters = [
         StringParameter(
