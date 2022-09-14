@@ -770,37 +770,6 @@ instance:
         [2027, 2143], [2028, 2112], [2029, 2081], [2030, 2048], [2031, 2048], [2032, 2048],
         [2033, 2048], [2034, 2048], [2035, 2048]]
 
-    - id: street_lighting_costs_with_led
-      name: Katuvalaistuksen kustannukset LED-valojen kanssa
-      name_en: Street lighting costs with LED
-      type: costs.CostNode
-      unit: kEUR
-      color: '#cb4154'
-      params:
-        - id: investment_lifetime
-          value: 25
-          unit: year
-        - id: investment_cost
-          value: 350
-          unit: EUR / pcs
-        - id: operation_cost
-          value: -23.5  # 25 - 1.5 difference between old and LED
-          unit: EUR / pcs
-        - id: investment_years
-          value: [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029]
-        - id: investment_numbers
-          value: [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]
-          description: 2024 pilot project, 2029 full investment
-          unit: pcs
-      input_nodes:
-        - street_lighting_costs
-#      input_datasets:
-#        - id: ilmastoruoka/consumption  # FIXME Get real data
-#          column: Cooking
-#          forecast_from: 2021
-#          dropna: true
-
-
   #
   # ------- ACTIONS --------
   #
