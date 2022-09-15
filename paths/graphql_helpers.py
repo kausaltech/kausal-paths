@@ -1,6 +1,6 @@
 from django.core.handlers.wsgi import WSGIRequest
-from graphql.execution import ResolveInfo
-from graphql.language.ast import OperationDefinition
+from graphql.type import GraphQLResolveInfo
+from graphql.language.ast import OperationDefinitionNode
 from graphql.error import GraphQLError
 
 from nodes.instance import Instance
@@ -15,9 +15,9 @@ class GQLInstanceContext(GQLContext):
     instance: Instance
 
 
-class GQLInfo(ResolveInfo):
+class GQLInfo(GraphQLResolveInfo):
     context: GQLContext
-    operation: OperationDefinition
+    operation: OperationDefinitionNode
 
 
 class GQLInstanceInfo(GQLInfo):

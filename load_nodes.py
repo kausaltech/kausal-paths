@@ -6,6 +6,7 @@ import sys
 from nodes.instance import Instance, InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
+import pandas as pd
 
 
 if True:
@@ -25,6 +26,8 @@ if True:
 load_dotenv()
 
 django_initialized = False
+
+pd.set_option('display.max_rows', 500)
 
 
 def init_django():
@@ -118,19 +121,20 @@ if args.baseline:
     context.generate_baseline_values()
     pc.display('done')
 
-if args.check:
-    for node_id, node in context.nodes.items():
-        df = node.get_output()
-        na_count = df.isna().sum().sum()
-        if na_count:
-            print('Node %s has NaN values:' % node.id)
-            node.print_output()
-
-        if node.baseline_values is not None:
-            na_count = node.baseline_values.isna().sum().sum()
+if args.check or args.update_instance or args.update_nodes:
+    if args.check:
+        for node_id, node in context.nodes.items():
+            df = node.get_output()
+            na_count = df.isna().sum().sum()
             if na_count:
-                print('Node %s baseline forecast has NaN values:' % node.id)
-                node.print_pint_df(node.baseline_values)
+                print('Node %s has NaN values:' % node.id)
+                node.print_output()
+
+            if node.baseline_values is not None:
+                na_count = node.baseline_values.isna().sum().sum()
+                if na_count:
+                    print('Node %s baseline forecast has NaN values:' % node.id)
+                    node.print_pint_df(node.baseline_values)
 
     init_django()
     from nodes.models import InstanceConfig

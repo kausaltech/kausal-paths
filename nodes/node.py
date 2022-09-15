@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import hashlib
 import os
 import io
@@ -106,6 +107,7 @@ class Node:
     _last_historical_year: Optional[int]
     context: Context
 
+    logger: logging.Logger
     debug: bool = False
     __post_init__: Callable[[Node], None]
 
@@ -140,6 +142,9 @@ class Node:
         self.baseline_values = None
         self.parameters = {}
         self.tags = set()
+
+        kls = type(self)
+        self.logger = logging.getLogger('%s.%s' % (kls.__module__, kls.__name__))
 
         if not hasattr(self, 'global_parameters'):
             self.global_parameters = []

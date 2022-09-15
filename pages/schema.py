@@ -1,7 +1,6 @@
 import graphene
 import re
 from grapple.types.pages import Page as GrapplePageType, PageInterface
-from graphql.error import GraphQLLocatedError
 from grapple.utils import resolve_queryset
 
 from wagtail.core.models import Page as WagtailPage
@@ -16,10 +15,10 @@ from .models import OutcomePage, PathsPage
 def resolve_parent(self, info: GQLInstanceInfo, **kwargs):
     if self.depth <= 2:
         return None
-    try:
-        return self.get_parent().specific
-    except GraphQLLocatedError:
-        return WagtailPage.objects.none()
+    parent = self.get_parent()
+    if parent is None:
+        return None
+    return parent.specific
 
 
 def resolve_ancestors(self, info: GQLInstanceInfo, **kwargs):

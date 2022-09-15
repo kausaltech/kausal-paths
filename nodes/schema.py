@@ -33,6 +33,7 @@ class InstanceType(graphene.ObjectType):
     hostname = graphene.Field(InstanceHostname, hostname=graphene.String())
     lead_title = graphene.String()
     lead_paragraph = graphene.String()
+    theme_identifier = graphene.String()
 
     def resolve_lead_title(root, info):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
