@@ -1,4 +1,4 @@
-FROM ubuntu:21.10
+FROM ubuntu:22.04
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -7,11 +7,11 @@ ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Helsinki"
 RUN mkdir /code
 
 RUN apt-get update
-RUN apt-get install -y python3.9 libpython3.9-dev python3-pip \
+RUN apt-get install -y python3.10 libpython3.10-dev python3-pip \
 	postgresql-client-common postgresql-client libpq-dev \
 	gettext git
 
-RUN ln -fs /usr/bin/python3.9 /usr/bin/python3
+RUN ln -fs /usr/bin/python3.10 /usr/bin/python3
 RUN ln -fs /usr/bin/python3 /usr/bin/python
 RUN ln -fs /usr/bin/pip3 /usr/bin/pip
 RUN pip install --upgrade pip
