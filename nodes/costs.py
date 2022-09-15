@@ -87,31 +87,6 @@ class DiscountNode(SimpleNode):
         return df
 
 
-class AddUsingDimensionNode(SimpleNode):
-    allowed_parameters = [
-        StringParameter(
-            local_id='dimension',
-            is_customizable=False,
-        ),
-    ]
-
-    def compute(self):
-        dimension = self.get_parameter_value('dimension')
-        first = True
-        out = pd.DataFrame()
-
-        for node in self.input_nodes:
-            df = node.get_output(dimension=dimension)
-            if first:
-                out = df
-                first = False
-            else:
-                out[VALUE_COLUMN] += df[VALUE_COLUMN]
-        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
-
-        return out
-
-
 # Grön logik and marginal abatement cost (MAC) curves, notes
 # https://data-88e.github.io/textbook/content/12-environmental/textbook1.html
 # https://plotly.com/python/bar-charts/
