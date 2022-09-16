@@ -31,7 +31,7 @@ def ensure_instance(method):
         if info.context.instance is None:
             raise GraphQLError(
                 "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
-                [info]
+                info.field_nodes
             )
         return method(self, info, *args, **kwargs)
 

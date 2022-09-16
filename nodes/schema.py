@@ -1,5 +1,6 @@
 from typing import Optional
 import graphene
+from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
 from nodes.models import InstanceConfig, NodeConfig
@@ -165,12 +166,12 @@ class NodeType(graphene.ObjectType):
         return Metric.from_node(root)
 
     @staticmethod
-    def resolve_impact_metric(root: Node, info, target_node_id: str = None):
+    def resolve_impact_metric(root: Node, info: GraphQLResolveInfo, target_node_id: str = None):
         context = info.context.instance.context
         upstream_node = getattr(info.context, '_upstream_node', None)
         if target_node_id is not None:
             if target_node_id not in context.nodes:
-                raise GraphQLError("Node %s not found" % target_node_id, [info])
+                raise GraphQLError("Node %s not found" % target_node_id, info.field_nodes)
             source_node = root
             target_node = context.get_node(target_node_id)
         elif upstream_node is not None:
