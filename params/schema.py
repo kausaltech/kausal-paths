@@ -94,10 +94,10 @@ class SetParameterMutation(graphene.Mutation):
         try:
             param = context.get_parameter(id)
         except KeyError:
-            raise GraphQLError("Parameter %s does not exist", [info])
+            raise GraphQLError("Parameter %s does not exist", info.field_nodes)
 
         if not param.is_customizable:
-            raise GraphQLError("Parameter %s is not customizable", [info])
+            raise GraphQLError("Parameter %s is not customizable", info.field_nodes)
 
         parameter_values = {
             NumberParameter: (number_value, 'numberValue'),
@@ -120,17 +120,17 @@ class SetParameterMutation(graphene.Mutation):
             raise Exception("Attempting to mutate an unsupported parameter class: %s" % type(param))
 
         if value is None:
-            raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.id))
+            raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.id), info.field_nodes)
 
         del parameter_values[klasses]
         for v, _ in parameter_values.values():
             if v is not None:
-                raise GraphQLError("Only one type of value allowed", [info])
+                raise GraphQLError("Only one type of value allowed", info.field_nodes)
 
         try:
             value = param.clean(value)
         except ValidationError as e:
-            raise GraphQLError(str(e), [info])
+            raise GraphQLError(str(e), info.field_nodes)
 
         setting_storage = info.context.instance.context.setting_storage
         assert setting_storage is not None
@@ -179,7 +179,7 @@ class ActivateScenarioMutation(graphene.Mutation):
         context = info.context.instance.context
         scenario = context.scenarios.get(id)
         if scenario is None:
-            raise GraphQLError("Scenario '%s' not found" % id, [info])
+            raise GraphQLError("Scenario '%s' not found" % id, info.field_nodes)
 
         assert context.setting_storage is not None
         context.setting_storage.set_active_scenario(scenario.id)
@@ -207,7 +207,7 @@ class Query(graphene.ObjectType):
         try:
             return instance.context.get_parameter(id)
         except KeyError:
-            raise GraphQLError(f"Parameter {id} does not exist")
+            raise GraphQLError(f"Parameter {id} does not exist", info.field_nodes)
 
 
 types = [

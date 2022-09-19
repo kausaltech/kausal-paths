@@ -32,7 +32,7 @@ class LocaleMiddleware:
             if arg.name.value == 'lang':
                 lang = arg.value.value
                 if lang not in SUPPORTED_LANGUAGES:
-                    raise GraphQLError("unsupported language: %s" % lang, [info])
+                    raise GraphQLError("unsupported language: %s" % lang, info.field_nodes)
                 return lang
         return None
 
@@ -64,7 +64,7 @@ class InstanceMiddleware:
             else:
                 instance = queryset.get(identifier=identifier)
         except InstanceConfig.DoesNotExist:
-            raise GraphQLError("Instance with identifier %s not found" % identifier, [info] if info else None)
+            raise GraphQLError("Instance with identifier %s not found" % identifier, info.field_nodes if info else None)
         return instance
 
     def get_instance_by_hostname(self, queryset, hostname: str, info: GQLInfo = None) -> InstanceConfig:
@@ -72,7 +72,7 @@ class InstanceMiddleware:
             instance = queryset.for_hostname(hostname).get()
         except InstanceConfig.DoesNotExist:
             print('not found')
-            raise GraphQLError("Instance matching hostname %s not found" % hostname, [info] if info else None)
+            raise GraphQLError("Instance matching hostname %s not found" % hostname, info.field_nodes if info else None)
         return instance
 
     def process_instance_directive(self, info: GQLInfo, directive) -> InstanceConfig:
@@ -84,7 +84,7 @@ class InstanceMiddleware:
             return self.get_instance_by_identifier(qs, identifier, info)
         if hostname:
             return self.get_instance_by_hostname(qs, hostname, info)
-        raise GraphQLError("Invalid instance directive", [info])
+        raise GraphQLError("Invalid instance directive", info.field_nodes)
 
     def process_instance_headers(self, context: GQLContext) -> Optional[InstanceConfig]:
         identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
