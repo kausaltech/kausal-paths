@@ -2,6 +2,19 @@ from .param import BoolParameter, NumberParameter, StringParameter
 from common.i18n import gettext_lazy as _
 
 
+class CostNode(StringParameter):
+    name = _('Cost node')
+    id = 'cost_node'
+
+
+class ImpactNode(StringParameter):
+    id = 'impact_node'
+
+
+class EfficiencyUnit(StringParameter):
+    id = 'efficiency_unit'
+
+
 class MunicipalityName(StringParameter):
     name = _('Municipality name')
     id = 'municipality_name'

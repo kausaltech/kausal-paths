@@ -38,6 +38,7 @@ class Instance:
     lead_title: Optional[TranslatedString] = None
     lead_paragraph: Optional[TranslatedString] = None
     theme_identifier: Optional[str] = None
+    action_efficiency_nodes: Optional[str] = None
 
     modified_at: Optional[datetime] = field(init=False)
 
@@ -347,6 +348,7 @@ class InstanceLoader:
         instance_attrs = [
             'reference_year', 'minimum_historical_year', 'maximum_historical_year',
             'default_language', 'supported_languages', 'site_url', 'theme_identifier',
+            'action_efficiency_nodes'  # FIXME How to add content? Now is always None
         ]
         self.instance = Instance(
             id=self.config['id'],

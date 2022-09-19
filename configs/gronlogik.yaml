@@ -18,7 +18,20 @@ instance:
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt/a
   emission_forecast_from: 2019
+  action_efficincy_nodes: social_cost
+#    - social_cost
+#    - net_emissions
+#  - cost_node: social_cost
+#    cost_discount: discount_rate
+#    impact_node: net_emissions
+#    unit: SEK/kWh
   params:
+  - id: cost_node  # FIXME Temporarily use global paramters for this functionality
+    value: social_cost
+  - id: impact_node
+    value: net_emissions
+  - id: efficiency_unit
+    value: SEK/kWh
   - id: municipality_name
     label: Municipality
     value: Tampere
