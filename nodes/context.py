@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, overload, Literal
 
 import dvc_pandas
 import pint
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .node import Node
     from .instance import Instance
     from .scenario import CustomScenario, Scenario
-    from params.storage import Param
+    from nodes.actions.action import ActionEfficiencyPair, ActionNode
 
 
 unit_registry = pint.UnitRegistry(
@@ -71,6 +71,7 @@ class Context:
     cache: Cache
     skip_cache: bool = False
     instance: Instance
+    action_efficiency_pairs: list[ActionEfficiencyPair]
     setting_storage: Optional[SettingStorage]
 
     def __init__(
@@ -94,6 +95,12 @@ class Context:
         self.supported_parameter_types = discover_parameter_types()
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
         self.instance = None  # will be set later
+        self.action_efficiency_pairs = []
+
+    def add_action_efficiency_pair(self, cost_node_id: str, impact_node_id: str, unit: str):
+        from nodes.actions.action import ActionEfficiencyPair
+        aep = ActionEfficiencyPair.from_config(self, cost_node_id, impact_node_id, unit)
+        self.action_efficiency_pairs.append(aep)
 
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
@@ -146,6 +153,12 @@ class Context:
         if param is None:
             return None
         return param.value
+
+    @overload
+    def get_parameter_value_w_unit(self, id: str, required: Literal[True]) -> pint.Quantity: ...
+
+    @overload
+    def get_parameter_value_w_unit(self, id: str) -> pint.Quantity: ...
 
     def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
         param = self.get_parameter(id, required=required)
@@ -273,3 +286,7 @@ class Context:
             html_long='H',
         )
         return {k: unit.format_babel(v) for k, v in formats.items()}
+
+    def get_actions(self) -> list['ActionNode']:
+        from nodes.actions.action import ActionNode
+        return [n for n in self.nodes.values() if isinstance(n, ActionNode)]

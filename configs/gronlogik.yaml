@@ -18,13 +18,11 @@ instance:
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt/a
   emission_forecast_from: 2019
-  action_efficincy_nodes: social_cost
-#    - social_cost
-#    - net_emissions
-#  - cost_node: social_cost
-#    cost_discount: discount_rate
-#    impact_node: net_emissions
-#    unit: SEK/kWh
+  action_efficiency_pairs:
+    - cost_node: social_cost
+      impact_node: net_emissions
+      desirable_impact_direction: down
+      unit: SEK/t
   params:
   - id: cost_node  # FIXME Temporarily use global paramters for this functionality
     value: social_cost

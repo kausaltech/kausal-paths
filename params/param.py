@@ -22,8 +22,8 @@ class ValidationError(Exception):
 @dataclass
 class Parameter:
     local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
-    label: Optional[TranslatedString] = None
-    description: Optional[TranslatedString] = None
+    label: Optional[TranslatedString | str] = None
+    description: Optional[TranslatedString | str] = None
     # Set if this parameter is bound to a specific node
     node: Optional[Node] = None
     is_customized: bool = False

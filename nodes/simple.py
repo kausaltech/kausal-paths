@@ -1,8 +1,8 @@
 from logging import log
 from types import FunctionType
 from nodes.calc import nafill_all_forecast_years
-from params.param import BoolParameter, NumberParameter, StringParameter
-from typing import Dict, List
+from params.param import Parameter, BoolParameter, NumberParameter, StringParameter
+from typing import Dict, List, ClassVar, Sequence
 import pandas as pd
 import pint
 from .context import unit_registry
@@ -19,7 +19,7 @@ EMISSION_UNIT = 'kg'
 
 
 class SimpleNode(Node):
-    allowed_parameters = [
+    allowed_parameters: ClassVar[List[Parameter]] = [
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
             label=TranslatedString(en="Fill in gaps in computation using input dataset"),
@@ -72,11 +72,11 @@ class SimpleNode(Node):
 
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
-    allowed_parameters = [
+    allowed_parameters: ClassVar[list[Parameter]] = [
         StringParameter(local_id='dimension', is_customizable=False),
     ] + SimpleNode.allowed_parameters
 
-    def add_nodes(self, df: pd.DataFrame, nodes: List[Node], dimension=None):
+    def add_nodes(self, df: pd.DataFrame, nodes: List[Node], dimension=None) -> pd.DataFrame:
         if self.debug:
             print('%s: input dataset:' % self.id)
             if df is not None:
@@ -176,7 +176,7 @@ class MultiplicativeNode(AdditiveNode):
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
                 self,
-                "Multiplying inputs must in a unit compatible with '%s' (%s * %s)" % (self.unit, n1.id, n2.id))
+                "Multiplying inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
         df1 = n1.get_output()
         df2 = n2.get_output()
@@ -212,7 +212,7 @@ class MultiplicativeNode(AdditiveNode):
 class EmissionFactorActivity(MultiplicativeNode):
     """Multiply an activity by an emission factor."""
     quantity = 'emissions'
-    unit = EMISSION_UNIT
+    default_unit = '%s/a' % EMISSION_UNIT
 
 
 class PerCapitaActivity(MultiplicativeNode):

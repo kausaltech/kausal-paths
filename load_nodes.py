@@ -56,6 +56,7 @@ parser.add_argument('--pull-datasets', action='store_true', help='refresh all da
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
 parser.add_argument('--update-instance', action='store_true', help='update an existing InstanceConfig instance')
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
+parser.add_argument('--print-action-efficiencies', action='store_true', help='calculate and print action efficiencies')
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
@@ -169,6 +170,19 @@ for node_id in (args.node or []):
                 continue
             print("Impact of %s on %s" % (node, n))
             node.print_impact(n)
+
+if args.print_action_efficiencies:
+    for aep in context.action_efficiency_pairs:
+        print('%s / %s\n' % (aep.cost_node.id, aep.impact_node.id))
+        if args.node:
+            actions = [context.get_node(node_id) for node_id in args.node]
+        else:
+            actions = None
+        for out in aep.calculate_iter(context, actions=actions):
+            action = out.action
+            print('%s: %s' % (action.id, out.cumulative_efficiency))
+            action.print_pint_df(out.df)
+            print()
 
 if False:
     loader.context.dataset_repo.pull_datasets()

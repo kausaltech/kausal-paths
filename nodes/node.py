@@ -7,7 +7,7 @@ import io
 import inspect
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Union, Set, overload
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Sequence, Union, Set, overload
 
 import numpy as np
 import pandas as pd
@@ -15,6 +15,7 @@ import pint
 import pint_pandas
 
 from common.i18n import TranslatedString
+from common.utils import hash_unit
 from nodes.constants import (
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
     MILEAGE_QUANTITY, VALUE_COLUMN, YEAR_COLUMN,
@@ -45,8 +46,8 @@ class NodeDimension:
             self.unit = context.unit_registry(unit).units
 
     def calculate_hash(self, id: str) -> bytes:
-        s = '%s:%s:%s' % (id, self.unit, self.quantity)
-        return s.encode('utf-8')
+        s = '%s:%s' % (id, self.quantity)
+        return s.encode('utf-8') + hash_unit(self.unit)
 
 
 class Node:
@@ -73,6 +74,8 @@ class Node:
 
     # output unit (from pint)
     unit: pint.Unit
+    # default unit for a node class (defined as a class variable)
+    default_unit: ClassVar[str]
     # output quantity (like 'energy' or 'emissions')
     quantity: str
 
@@ -98,7 +101,7 @@ class Node:
     parameters: Dict[str, Parameter]
 
     # All allowed parameters for this class
-    allowed_parameters: ClassVar[Iterable[Parameter]]
+    allowed_parameters: ClassVar[list[Parameter]]
 
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
@@ -271,7 +274,8 @@ class Node:
     def calculate_hash(self) -> bytes:
         h = hashlib.md5()
         if self.unit:
-            h.update(bytes(self.unit))
+            # __str__() of Unit is very slow, try another way
+            h.update(hash_unit(self.unit))
         if self.dimensions:
             for dim_id, dim in self.dimensions.items():
                 h.update(dim.calculate_hash(dim_id))
@@ -415,10 +419,9 @@ class Node:
         return s.astype(pint_pandas.PintType(unit))
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
-        node_pt = pint_pandas.PintType(self.unit)
         if hasattr(s, 'pint'):
-            s_pt = pint_pandas.PintType(s.pint.units)
-            if not self.unit.is_compatible_with(s.pint.units):
+            s_u: pint.Unit = s.pint.u
+            if self.unit.dimensionality != s_u.dimensionality:
                 if input_node is not None:
                     node_str = ' from node %s' % input_node.id
                 else:
@@ -426,11 +429,17 @@ class Node:
                 raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
                     s.pint.units, node_str, self.unit
                 ))
+            # Units match exactly
+            if s_u == self.unit:
+                return s
+            s_pt = pint_pandas.PintType(s.pint.units)
         else:
             s_pt = None
+
         s = s.astype(float)
         if s_pt is not None:
             s = s.astype(s_pt)
+        node_pt = pint_pandas.PintType(self.unit)
         s = s.astype(node_pt)
         return s
 

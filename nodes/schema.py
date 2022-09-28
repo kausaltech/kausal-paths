@@ -9,7 +9,7 @@ from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from .metric import Metric
 
 from . import Node
-from .actions import ActionNode
+from .actions import ActionNode, ActionEfficiencyPair
 from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, DecisionLevel
 from .scenario import Scenario
 
@@ -232,6 +232,41 @@ class ScenarioType(graphene.ObjectType):
         return root.default
 
 
+class ActionEfficiency(graphene.ObjectType):
+    action = graphene.Field(NodeType)
+    cost_values = graphene.List(YearlyValue)
+    impact_values = graphene.List(YearlyValue)
+    cumulative_efficiency = graphene.Float()
+    cumulative_cost = graphene.Float()
+    cumulative_impact = graphene.Float()
+
+
+class ActionEfficiencyPairType(graphene.ObjectType):
+    cost_node = graphene.Field(NodeType)
+    impact_node = graphene.Field(NodeType)
+    efficiency_unit = graphene.Field('paths.schema.UnitType')
+    actions = graphene.List(ActionEfficiency)
+
+    @staticmethod
+    def resolve_actions(root: ActionEfficiencyPair, info: GQLInstanceInfo):
+        all_aes = root.calculate(info.context.instance.context)
+        out = []
+        for ae in all_aes:
+            sum_fields = ['cumulative_efficiency', 'cumulative_cost', 'cumulative_impact']
+            d = dict(
+                action=ae.action,
+                cost_values=[YearlyValue(year, float(val)) for year, val in ae.df['Cost'].pint.m.iteritems()],
+                impact_values=[YearlyValue(year, float(val)) for year, val in ae.df['Impact'].pint.m.iteritems()],
+                **{f: float(getattr(ae, f).m) for f in sum_fields},
+            )
+            out.append(d)
+        return out
+
+    @staticmethod
+    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
+        return root.unit
+
+
 class Query(graphene.ObjectType):
     instance = graphene.Field(InstanceType)
     nodes = graphene.List(NodeType)
@@ -239,6 +274,7 @@ class Query(graphene.ObjectType):
         NodeType, id=graphene.ID(required=True)
     )
     actions = graphene.List(NodeType)
+    action_efficiency_pairs = graphene.List(ActionEfficiencyPairType)
     scenarios = graphene.List(ScenarioType)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
     active_scenario = graphene.Field(ScenarioType)
@@ -282,4 +318,10 @@ class Query(graphene.ObjectType):
     @ensure_instance
     def resolve_actions(root, info: GQLInstanceInfo):
         instance = info.context.instance
-        return [n for n in instance.context.nodes.values() if isinstance(n, ActionNode)]
+        return instance.context.get_actions()
+
+    @ensure_instance
+    def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo):
+        instance = info.context.instance
+        ctx = instance.context
+        return ctx.action_efficiency_pairs

@@ -1,9 +1,20 @@
-import pandas as pd
-from typing import Optional
+from __future__ import annotations
 
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, DecisionLevel
+from dataclasses import dataclass
+import typing
+from typing import Iterable, Iterator, Optional, Tuple
+import numpy as np
+
+import pandas as pd
+import pint
+import pint_pandas
+
+from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, VALUE_WITHOUT_ACTION_COLUMN, DecisionLevel
 from nodes import Node, NodeError
 from params import BoolParameter
+
+if typing.TYPE_CHECKING:
+    from nodes.context import Context
 
 
 ENABLED_PARAM_ID = 'enabled'
@@ -53,8 +64,8 @@ class ActionNode(Node):
             raise NodeError(self, 'Output for node %s did not contain the Value column' % target_node.id)
         self.enabled_param.set(enabled)
         df = target_node.get_output()
-        df['ValueWithoutAction'] = disabled_df[VALUE_COLUMN]
-        df['Impact'] = df[VALUE_COLUMN] - df['ValueWithoutAction']
+        df[VALUE_WITHOUT_ACTION_COLUMN] = disabled_df[VALUE_COLUMN]
+        df[IMPACT_COLUMN] = df[VALUE_COLUMN] - df[VALUE_WITHOUT_ACTION_COLUMN]
         return df
 
     def print_impact(self, target_node: Node):
@@ -66,34 +77,93 @@ class ActionNode(Node):
         if self.enabled_param.get_scenario_setting(scenario) is None:
             self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
 
-    def compute_action_efficiency(self) -> pd.Series:  # FIXME Allows only one afficiency metric
-        def get_discount_factor(base_value):
+    def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: pint.Unit) -> pd.DataFrame:
+        def get_discount_factor(base_value) -> pd.Series:
             target_year = self.context.target_year
             start_year = self.context.instance.minimum_historical_year
-            current_time = self.context.instance.maximum_historical_year - start_year
+            assert start_year is not None
+            max_hist = self.context.instance.maximum_historical_year
+            assert max_hist is not None
+            current_time = max_hist - start_year
             duration = target_year - start_year + 1
-            year = []
-            factor = [1]
+            years = []
+            factors = [1]
 
             for i in range(duration):
+                prev = factors[-1]
                 if i > current_time:
-                    factor = factor + [factor[-1] * base_value]
-                else:
-                    factor = factor + [factor[-1]]
-                year = year + [start_year + i]
+                    prev *= 1 - base_value
+                factors.append(prev)
+                years.append(start_year + i)
 
-            s = pd.Series(factor[1:]).set_index(year)
+            s = pd.Series(factors[1:], index=years)
             return s
 
-        cost = self.context.get_node(self.context.get_parameter_value('cost_node'))
-        impact = self.context.get_node(self.context.get_parameter_value('impact_node'))
-        efficiency_unit = self.context.get_parameter_value('efficiency_unit')
-        discount_rate = self.context.get_parameter_value_w_unit('discount_rate')
-        discount_factor = get_discount_factor(discount_rate)
+        rate = self.context.get_parameter_value_w_unit('discount_rate')
+        rate = rate.to('dimensionless').m
+        discount_factor = get_discount_factor(rate)
+        cost = self.compute_impact(cost_node)[IMPACT_COLUMN]
+        cost.name = 'Cost'
+        impact = self.compute_impact(impact_node)[IMPACT_COLUMN]
+        df = pd.concat([cost], axis=1)
+        df['Cost'] *= discount_factor
+        df['Impact'] = impact.replace({0: np.nan})
+        pd_pt = pint_pandas.PintType(unit)
+        df['Efficiency'] = (df['Cost'] / df['Impact']).astype(pd_pt)
+        df = df.dropna()
+        return df
 
-        cost = self.compute_impact(cost)[VALUE_COLUMN]
-        impact = self.compute_impact(impact)[VALUE_COLUMN]
-        efficiency = (cost * discount_factor).sum / (impact).sum
-        efficiency = efficiency.astype('pint[' + efficiency_unit + ']')
 
-        return [cost.sum, impact.sum, efficiency]
+class ActionEfficiency(typing.NamedTuple):
+    action: ActionNode
+    df: pd.DataFrame
+    cumulative_efficiency: pint.Quantity
+    cumulative_cost: pint.Quantity
+    cumulative_impact: pint.Quantity
+
+
+@dataclass
+class ActionEfficiencyPair:
+    cost_node: Node
+    impact_node: Node
+    unit: pint.Unit
+
+    @classmethod
+    def from_config(self, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str) -> ActionEfficiencyPair:
+        cost_node = context.get_node(cost_node_id)
+        impact_node = context.get_node(impact_node_id)
+        unit_obj = context.unit_registry(unit).u
+        aep = ActionEfficiencyPair(cost_node=cost_node, impact_node=impact_node, unit=unit_obj)
+        aep.validate()
+        return aep
+
+    def validate(self):
+        # Ensure units are compatible
+        div_unit = self.cost_node.unit / self.impact_node.unit
+        if not self.unit.is_compatible_with(div_unit):
+            raise Exception("Unit %s is not compatible with %s" % (self.unit, div_unit))
+
+    def calculate_iter(
+        self, context: 'Context', actions: Iterable[ActionNode] | None = None
+    ) -> Iterator[ActionEfficiency]:
+        if actions is None:
+            actions = list(context.get_actions())
+        for action in actions:
+            df = action.compute_efficiency(self.cost_node, self.impact_node, self.unit)
+            if not len(df):
+                # No impact for this action, skip it
+                continue
+            cost = df['Cost'].sum()
+            impact = df['Impact'].sum()
+            efficiency = (cost / impact).to(self.unit)
+            ae = ActionEfficiency(
+                action=action, df=df,
+                cumulative_cost=cost,
+                cumulative_impact=impact,
+                cumulative_efficiency=efficiency
+            )
+            yield ae
+
+    def calculate(self, context: 'Context', actions: Iterable[ActionNode] | None = None) -> list[ActionEfficiency]:
+        out = list(self.calculate_iter(context, actions))
+        return out

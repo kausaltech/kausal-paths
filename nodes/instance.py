@@ -4,12 +4,14 @@ import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import typing
 from typing import Dict, Optional
 
 import dvc_pandas
 import pint
 from ruamel.yaml import YAML as RuamelYAML
 import yaml
+import networkx as nx
 
 from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.constants import DecisionLevel
@@ -38,7 +40,6 @@ class Instance:
     lead_title: Optional[TranslatedString] = None
     lead_paragraph: Optional[TranslatedString] = None
     theme_identifier: Optional[str] = None
-    action_efficiency_nodes: Optional[str] = None
 
     modified_at: Optional[datetime] = field(init=False)
 
@@ -97,7 +98,9 @@ class InstanceLoader:
         dimensions = getattr(node_class, 'dimensions', None)
         unit = config.get('unit')
         if unit is None:
-            unit = getattr(node_class, 'unit', None)
+            unit = getattr(node_class, 'default_unit', None)
+            if unit is None:
+                unit = getattr(node_class, 'unit', None)
             if not unit and not dimensions:
                 raise Exception('Node %s has no unit set' % config['id'])
         if unit and not isinstance(unit, pint.Unit):
@@ -187,7 +190,7 @@ class InstanceLoader:
         if tags:
             for tag in tags:
                 if not isinstance(tag, str):
-                    raise NodeError(Node, "'tags' must be a list of strings")
+                    raise NodeError(node, "'tags' must be a list of strings")
             node.tags.update(tags)
 
         return node
@@ -197,7 +200,12 @@ class InstanceLoader:
             klass = nc['type'].split('.')
             node_name = klass.pop(-1)
             klass.insert(0, 'nodes')
-            mod = importlib.import_module('.'.join(klass))
+            try:
+                mod = importlib.import_module('.'.join(klass))
+            except ImportError:
+                logger.error('Unable to input node class for %s' % nc.get('id'))
+                raise
+
             node_class = getattr(mod, node_name)
             node = self.make_node(node_class, nc)
             self.context.add_node(node)
@@ -251,18 +259,26 @@ class InstanceLoader:
 
     def setup_edges(self):
         # Setup edges
-        for node in self.context.nodes.values():
+        ctx = self.context
+        for node in ctx.nodes.values():
             for out_id in self._output_nodes.get(node.id, []):
-                out_node = self.context.get_node(out_id)
+                out_node = ctx.get_node(out_id)
                 out_node.add_input_node(node)
                 node.add_output_node(out_node)
 
             for in_id in self._input_nodes.get(node.id, []):
-                in_node = self.context.get_node(in_id)
+                in_node = ctx.get_node(in_id)
                 in_node.add_output_node(node)
                 node.add_input_node(in_node)
 
-        # FIXME: Check for cycles?
+        g = nx.DiGraph()
+        g.add_nodes_from([n.id for n in ctx.nodes.values()])
+        for node in ctx.nodes.values():
+            for output in node.output_nodes:
+                g.add_edge(node.id, output.id)
+
+        if not nx.is_directed_acyclic_graph(g):
+            raise Exception("Node graph is not directed (there might be loops)")
 
     def setup_scenarios(self):
         default_scenario = None
@@ -307,6 +323,11 @@ class InstanceLoader:
             param.set(param_val)
             context.add_global_parameter(param)
 
+    def setup_action_efficiency_pairs(self):
+        conf = self.config.get('action_efficiency_pairs', [])
+        for aep in conf:
+            self.context.add_action_efficiency_pair(aep['cost_node'], aep['impact_node'], aep['unit'])
+
     @classmethod
     def from_yaml(cls, filename):
         data = yaml.load(open(filename, 'r', encoding='utf8'), Loader=yaml.Loader)
@@ -324,7 +345,6 @@ class InstanceLoader:
                 data['nodes'] += fw_data['nodes']
             if 'emission_sectors' in fw_data:
                 data['emission_sectors'] += fw_data['emission_sectors']
-
 
         return cls(data, yaml_file_path=filename)
 
@@ -348,7 +368,6 @@ class InstanceLoader:
         instance_attrs = [
             'reference_year', 'minimum_historical_year', 'maximum_historical_year',
             'default_language', 'supported_languages', 'site_url', 'theme_identifier',
-            'action_efficiency_nodes'  # FIXME How to add content? Now is always None
         ]
         self.instance = Instance(
             id=self.config['id'],
@@ -371,6 +390,7 @@ class InstanceLoader:
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
+        self.setup_action_efficiency_pairs()
         self.setup_global_parameters()
         self.setup_scenarios()
 
