@@ -18,11 +18,34 @@ instance:
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt/a
   emission_forecast_from: 2019
+  action_groups:
+    - id: general
+      name: Yleinen
+      name_en: General
+      color: '#cccccc'
+    - id: apartment
+      name: Kerrostalot
+      name_en: Apartment buildings
+      name_sv: Flerbostadshus
+      color: '#AD3963'
+    - id: office
+      name: Toimistorakennukset
+      name_en: Office buildings
+      name_sv: Kontor
+      color: '#668EC9'
+
   action_efficiency_pairs:
     - cost_node: social_cost
+      impact_node: net_energy_consumption
+      unit: SEK/kWh
+      label: Energiasäästön kustannustehokkuus
+      label_en: Cost efficiency in energy savings
+    - cost_node: social_cost
       impact_node: net_emissions
-      desirable_impact_direction: down
       unit: SEK/t
+      label: Päästövähennysten kustannustehokkuus
+      label_en: Cost efficiency in emission reduction
+
   params:
   - id: cost_node  # FIXME Temporarily use global paramters for this functionality
     value: social_cost
@@ -632,6 +655,18 @@ instance:
     - electricity_consumption_office
     - price_of_electricity
 
+  - id: net_energy_consumption
+    name: Energiankulutus
+    name_en: Energy consumption
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: GWh/a
+    input_nodes:
+      - electricity_consumption_apartment
+      - heat_consumption_apartment
+      - electricity_consumption_office
+      - heat_consumption_office
+
   #
   # ------- ACTIONS --------
   #
@@ -648,6 +683,7 @@ instance:
     unit: SEK/t
     tags: cost_co2
     decision_level: nation
+    group: general
     type: simple.ExponentialAction
     params:
     - id: current_value
@@ -679,6 +715,7 @@ instance:
     unit: SEK/kWh
     type: simple.LinearCumulativeAdditiveAction
     decision_level: nation
+    group: general
     forecast_values: [[2021, 0], [2044, 1]]
     params:
       - id: target_year_level
@@ -703,6 +740,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -736,6 +774,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -769,6 +808,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -801,6 +841,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -833,6 +874,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -865,6 +907,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -897,6 +940,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -929,6 +973,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -961,6 +1006,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -993,6 +1039,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1025,6 +1072,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1057,6 +1105,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1089,6 +1138,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1121,6 +1171,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1153,6 +1204,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1185,6 +1237,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: apartment
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
@@ -1219,6 +1272,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: office
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
@@ -1252,6 +1306,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: office
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
@@ -1285,6 +1340,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: office
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
@@ -1318,6 +1374,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: office
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
@@ -1351,6 +1408,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: office
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
@@ -1384,6 +1442,7 @@ instance:
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%/a'
+    group: office
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office

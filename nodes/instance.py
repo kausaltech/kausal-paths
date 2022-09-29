@@ -14,12 +14,17 @@ import yaml
 import networkx as nx
 
 from common.i18n import TranslatedString, gettext_lazy as _
+from nodes.actions.action import ActionEfficiencyPair, ActionGroup
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
 
 from . import Context, Dataset, DVCDataset, FixedDataset
+
+if typing.TYPE_CHECKING:
+    from nodes.actions.action import ActionGroup
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +45,7 @@ class Instance:
     lead_title: Optional[TranslatedString] = None
     lead_paragraph: Optional[TranslatedString] = None
     theme_identifier: Optional[str] = None
+    action_groups: list[ActionGroup] = field(default_factory=list)
 
     modified_at: Optional[datetime] = field(init=False)
 
@@ -71,6 +77,7 @@ class Instance:
 
 class InstanceLoader:
     instance: Instance
+    default_language: str
     yaml_file_path: Optional[str] = None
 
     def make_trans_string(self, config: Dict, attr: str, pop: bool = False, default_language=None):
@@ -89,7 +96,7 @@ class InstanceLoader:
                 del config[key]
         if not langs:
             return None
-        return TranslatedString(**langs, default_language=default_language or self.instance.default_language)
+        return TranslatedString(**langs, default_language=default_language or self.default_language)
 
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', None)
@@ -239,6 +246,8 @@ class InstanceLoader:
             self.context.add_node(node)
 
     def setup_actions(self):
+        from nodes.actions import ActionNode
+
         for nc in self.config.get('actions', []):
             klass = nc['type'].split('.')
             node_name = klass.pop(-1)
@@ -247,6 +256,7 @@ class InstanceLoader:
             mod = importlib.import_module('.'.join(klass))
             node_class = getattr(mod, node_name)
             node = self.make_node(node_class, nc)
+            assert isinstance(node, ActionNode)
             decision_level = nc.get('decision_level')
             if decision_level is not None:
                 for name, val in DecisionLevel.__members__.items():
@@ -255,6 +265,16 @@ class InstanceLoader:
                 else:
                     raise Exception('Invalid decision level for action %s: %s' % (nc['id'], val))
                 node.decision_level = val
+            ag_id = nc.get('group', None)
+            if ag_id is not None:
+                assert isinstance(ag_id, str)
+                for ag in self.instance.action_groups:
+                    if ag.id == ag_id:
+                        break
+                else:
+                    raise Exception("Action group '%s' not found for action %s" % (ag_id, nc['id']))
+                node.group = ag
+
             self.context.add_node(node)
 
     def setup_edges(self):
@@ -325,8 +345,12 @@ class InstanceLoader:
 
     def setup_action_efficiency_pairs(self):
         conf = self.config.get('action_efficiency_pairs', [])
-        for aep in conf:
-            self.context.add_action_efficiency_pair(aep['cost_node'], aep['impact_node'], aep['unit'])
+        for aepc in conf:
+            label = self.make_trans_string(aepc, 'label', pop=False)
+            aep = ActionEfficiencyPair.from_config(
+                self.context, aepc['cost_node'], aepc['impact_node'], aepc['unit'], label=label,
+            )
+            self.context.action_efficiency_pairs.append(aep)
 
     @classmethod
     def from_yaml(cls, filename):
@@ -350,6 +374,7 @@ class InstanceLoader:
 
     def __init__(self, config: dict, yaml_file_path: str = None):
         self.config = config
+        self.default_language = config.get('default_language')
 
         static_datasets = self.config.get('static_datasets')
         if static_datasets is not None:
@@ -369,11 +394,19 @@ class InstanceLoader:
             'reference_year', 'minimum_historical_year', 'maximum_historical_year',
             'default_language', 'supported_languages', 'site_url', 'theme_identifier',
         ]
+        agc_all = self.config.get('action_groups', [])
+        agcs = []
+        for agc in agc_all:
+            assert 'name' in agc
+            ag = ActionGroup(agc['id'], self.make_trans_string(agc, 'name'), agc.get('color'))
+            agcs.append(ag)
+
         self.instance = Instance(
             id=self.config['id'],
             name=self.make_trans_string(self.config, 'name', default_language=self.config['default_language']),
             owner=self.make_trans_string(self.config, 'owner', default_language=self.config['default_language']),
             context=self.context,
+            action_groups=agcs,
             **{attr: self.config.get(attr) for attr in instance_attrs},
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.

@@ -1,3 +1,3 @@
-from .action import ActionNode, ActionEfficiencyPair, ActionEfficiency
+from .action import ActionNode, ActionEfficiencyPair, ActionEfficiency, ActionGroup
 
-__all__ = [ActionNode, ActionEfficiencyPair, ActionEfficiency]
+__all__ = [ActionNode, ActionEfficiencyPair, ActionEfficiency, ActionGroup]

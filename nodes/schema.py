@@ -9,7 +9,7 @@ from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from .metric import Metric
 
 from . import Node
-from .actions import ActionNode, ActionEfficiencyPair
+from .actions import ActionNode, ActionEfficiencyPair, ActionGroup
 from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, DecisionLevel
 from .scenario import Scenario
 
@@ -17,6 +17,18 @@ from .scenario import Scenario
 class InstanceHostname(graphene.ObjectType):
     hostname = graphene.String()
     base_path = graphene.String()
+
+
+class ActionGroupType(graphene.ObjectType):
+    id = graphene.ID()
+    name = graphene.String()
+    color = graphene.String(required=False)
+    actions = graphene.List('nodes.schema.NodeType')
+
+    @staticmethod
+    def resolve_actions(root: ActionGroup, info: GQLInstanceInfo):
+        context = info.context.instance.context
+        return [act for act in context.get_actions() if act.group == root]
 
 
 class InstanceType(graphene.ObjectType):
@@ -35,6 +47,7 @@ class InstanceType(graphene.ObjectType):
     lead_title = graphene.String()
     lead_paragraph = graphene.String()
     theme_identifier = graphene.String()
+    action_groups = graphene.List(ActionGroupType)
 
     def resolve_lead_title(root, info):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
@@ -110,6 +123,7 @@ class NodeType(graphene.ObjectType):
     downstream_nodes = graphene.List(lambda: NodeType)
     upstream_nodes = graphene.List(lambda: NodeType, same_unit=graphene.Boolean(), same_quantity=graphene.Boolean())
     upstream_actions = graphene.List(lambda: NodeType)
+    group = graphene.Field(ActionGroupType, required=False)
 
     # TODO: Many nodes will output multiple time series. Remove metric
     # and handle a single-metric node as a special case in the UI??
@@ -194,6 +208,11 @@ class NodeType(graphene.ObjectType):
         )
         return metric
 
+    def resolve_group(root: Node, info: GQLInstanceInfo):
+        if not isinstance(root, ActionNode):
+            return None
+        return root.group
+
     def resolve_parameters(root, info):
         return [param for param in root.parameters.values() if param.is_customizable]
 
@@ -245,6 +264,7 @@ class ActionEfficiencyPairType(graphene.ObjectType):
     cost_node = graphene.Field(NodeType)
     impact_node = graphene.Field(NodeType)
     efficiency_unit = graphene.Field('paths.schema.UnitType')
+    label = graphene.String()
     actions = graphene.List(ActionEfficiency)
 
     @staticmethod

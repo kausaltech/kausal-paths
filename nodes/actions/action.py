@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import typing
-from typing import Iterable, Iterator, Optional, Tuple
+from typing import Iterable, Iterator, Optional
 import numpy as np
 
 import pandas as pd
 import pint
 import pint_pandas
+from common.i18n import TranslatedString
 
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, VALUE_WITHOUT_ACTION_COLUMN, DecisionLevel
 from nodes import Node, NodeError
@@ -20,14 +21,26 @@ if typing.TYPE_CHECKING:
 ENABLED_PARAM_ID = 'enabled'
 
 
+@dataclass
+class ActionGroup:
+    id: str
+    name: TranslatedString | str
+    color: str | None
+
+
 class ActionNode(Node):
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
+    group: ActionGroup | None = None
 
     # The value to use for "no effect" years.
     # For additive actions, it probably is 0, and for multiplicative
     # actions, 1.0.
     no_effect_value: Optional[float] = None
     enabled_param: BoolParameter
+    global_parameters: list[str] = [
+        # FIXME: Probably better to use a separate DiscountNode
+        'discount_rate'
+    ]
 
     def __post_init__(self):
         self.enabled_param = BoolParameter(local_id=ENABLED_PARAM_ID)
@@ -78,6 +91,7 @@ class ActionNode(Node):
             self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
 
     def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: pint.Unit) -> pd.DataFrame:
+        # FIXME: Use DiscountNode instead of this for NPV
         def get_discount_factor(base_value) -> pd.Series:
             target_year = self.context.target_year
             start_year = self.context.instance.minimum_historical_year
@@ -92,7 +106,7 @@ class ActionNode(Node):
             for i in range(duration):
                 prev = factors[-1]
                 if i > current_time:
-                    prev *= 1 - base_value
+                    prev /= 1 + base_value
                 factors.append(prev)
                 years.append(start_year + i)
 
@@ -127,13 +141,17 @@ class ActionEfficiencyPair:
     cost_node: Node
     impact_node: Node
     unit: pint.Unit
+    label: TranslatedString | str | None
 
     @classmethod
-    def from_config(self, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str) -> ActionEfficiencyPair:
+    def from_config(
+        self, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
+        label: TranslatedString | str | None = None
+    ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
         unit_obj = context.unit_registry(unit).u
-        aep = ActionEfficiencyPair(cost_node=cost_node, impact_node=impact_node, unit=unit_obj)
+        aep = ActionEfficiencyPair(cost_node=cost_node, impact_node=impact_node, unit=unit_obj, label=label)
         aep.validate()
         return aep
 
