@@ -232,6 +232,9 @@ class BuildingEnergySavingAction(ActionNode):
             is_customizable=False,
         ),
     ]
+    global_parameters: list[str] = ActionNode.global_parameters + [
+        'renovation_rate_baseline',
+    ]
 
     def add_with_timeshift(self, s, activity):  # Activity must be indexed by YEAR_COLUMN
         s_unit = s[0].units

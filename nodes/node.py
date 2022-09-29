@@ -175,14 +175,27 @@ class Node:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         return None
 
-    def get_parameter_value(self, id: str, required: bool = True) -> Any:
+    @overload
+    def get_parameter_value(self, id: str, units: Literal[True]) -> pint.Quantity: ...
+
+    @overload
+    def get_parameter_value(self, id: str, required: Literal[True], units: Literal[True]) -> pint.Quantity: ...
+
+    @overload
+    def get_parameter_value(self, id: str, required: Literal[False], units: Literal[True]) -> pint.Quantity | None: ...
+
+    @overload
+    def get_parameter_value(self, id: str, required: Literal[True], units: Literal[True]) -> pint.Quantity: ...
+
+    def get_parameter_value(self, id: str, required: bool = True, units: bool = False) -> Any:
         param = self.get_parameter(id, required=required)
         if param is None:
             return None
+        if units:
+            if not hasattr(param, 'unit'):
+                raise NodeError(self, f"Parameter {id} does not support units")
+            return param.value * param.unit
         return param.value
-
-    @overload
-    def get_parameter_value_w_unit(self, id: str, required: Literal[True]) -> pint.Quantity: ...
 
     @overload
     def get_parameter_value_w_unit(self, id: str) -> pint.Quantity: ...
@@ -191,14 +204,18 @@ class Node:
     def get_parameter_value_w_unit(self, id: str, required: Literal[False]) -> Optional[pint.Quantity]: ...
 
     def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
-        param = self.get_parameter(id, required=required)
-        if param is None:
-            return None
-        return param.value * param.unit
+        return self.get_parameter_value(id, required=required, units=True)
 
-    def get_global_parameter_value(self, id: str, required: bool = True) -> Any:
+    def get_global_parameter_value(self, id: str, required: bool = True, units: bool = False) -> Any:
         if id not in self.global_parameters:
-            raise NodeError(self, f"Attempting to access parameter {id} which is not declared")
+            raise NodeError(self, f"Attempting to access global parameter {id} which is not declared")
+        if units:
+            param = self.context.get_parameter(id, required=required)
+            if param is None:
+                return None
+            if not hasattr(param, 'unit'):
+                raise NodeError(self, f"Parameter {id} does not support units")
+            return param.value * param.unit
         return self.context.get_parameter_value(id, required=required)
 
     def set_parameter_value(self, local_id: str, value: Any, force: bool = False):
@@ -437,9 +454,6 @@ class Node:
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True
-
-    @overload
-    def strip_units(self, s: pd.Series) -> pd.Series: ...
 
     def strip_units(self, s: pd.Series) -> pd.Series:
         if not hasattr(s, 'pint'):

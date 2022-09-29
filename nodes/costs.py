@@ -13,13 +13,15 @@ from .actions.energy_saving import BuildingEnergySavingAction
 
 
 class SocialCost(SimpleNode):
+    global_parameters: list[str] = [
+        'include_co2', 'include_health', 'include_el_avoided',
+    ]
 
     def compute(self):
-
         # Global parameters
-        include_co2 = self.context.get_parameter_value('include_co2')
-        include_health = self.context.get_parameter_value('include_health')
-        include_el_avoided = self.context.get_parameter_value('include_el_avoided')
+        include_co2 = self.get_global_parameter_value('include_co2')
+        include_health = self.get_global_parameter_value('include_health')
+        include_el_avoided = self.get_global_parameter_value('include_el_avoided')
 
         # Input nodes
         df = self.get_input_node(tag='renovation').get_output()
@@ -46,6 +48,10 @@ class SocialCost(SimpleNode):
 
 class DiscountNode(SimpleNode):
     '''All input nodes must be additive'''
+    global_parameters: list[str] = [
+        'discount_rate'
+    ]
+
     def get_discount_factor(self, base_value):
         target_year = self.context.target_year
         start_year = self.context.instance.minimum_historical_year

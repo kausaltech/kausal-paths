@@ -3,6 +3,7 @@ import argparse
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 import sys
+import time
 from nodes.instance import Instance, InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
@@ -124,6 +125,9 @@ if args.baseline:
 
 if args.check or args.update_instance or args.update_nodes:
     if args.check:
+        context.check_mode = True
+        old_cache_prefix = context.cache.prefix
+        context.cache.prefix = old_cache_prefix + '-' + str(time.time())
         for node_id, node in context.nodes.items():
             df = node.get_output()
             na_count = df.isna().sum().sum()
@@ -136,6 +140,7 @@ if args.check or args.update_instance or args.update_nodes:
                 if na_count:
                     print('Node %s baseline forecast has NaN values:' % node.id)
                     node.print_pint_df(node.baseline_values)
+        context.cache.prefix = old_cache_prefix
 
     init_django()
     from nodes.models import InstanceConfig

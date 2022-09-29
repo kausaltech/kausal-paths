@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pint
 import hashlib
 import orjson
 from common.i18n import TranslatedString
@@ -97,7 +98,7 @@ class NumberParameter(Parameter):
     min_value: Optional[float] = None
     max_value: Optional[float] = None
     step: Optional[float] = None
-    unit: Optional[str] = None
+    unit: Optional[pint.Unit | str] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -105,11 +106,14 @@ class NumberParameter(Parameter):
             from nodes.context import unit_registry
             self.unit = unit_registry(self.unit).units
 
-    def clean(self, value: float):
+    def clean(self, value: float | pint.Quantity) -> float:
         # Store unit first if available
-        if hasattr(value, 'units'):
-            self.unit = value.units
+        if isinstance(value, pint.Quantity):
+            if self.unit is not None:
+                assert isinstance(self.unit, pint.Quantity)
+                assert self.unit.is_compatible_with(value.units)
             value = value.m
+
         # Avoid converting, e.g., bool to float
         if not isinstance(value, (int, float, str)):
             raise ValidationError(self)
@@ -122,6 +126,15 @@ class NumberParameter(Parameter):
         if self.max_value is not None and value > self.max_value:
             raise ValidationError(self, 'Above max_value')
         return value
+
+    def set(self, value: float | pint.Quantity):
+        if isinstance(value, pint.Quantity):
+            unit = value.units
+        else:
+            unit = None
+        super().set(value)
+        if unit is not None:
+            self.unit = unit
 
 
 @dataclass

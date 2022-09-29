@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import inspect
+from types import FrameType
 from typing import TYPE_CHECKING, Any, Dict, Optional, overload, Literal
 
 import dvc_pandas
@@ -10,6 +12,7 @@ import rich
 from rich.tree import Tree
 
 from common.cache import Cache
+from common.i18n import TranslatedString
 from params import Parameter
 from params.discover import discover_parameter_types
 from params.storage import SettingStorage
@@ -70,6 +73,7 @@ class Context:
     supported_parameter_types: dict[str, type]
     cache: Cache
     skip_cache: bool = False
+    check_mode: bool = False
     instance: Instance
     action_efficiency_pairs: list[ActionEfficiencyPair]
     setting_storage: Optional[SettingStorage]
@@ -96,11 +100,6 @@ class Context:
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
         self.instance = None  # will be set later
         self.action_efficiency_pairs = []
-
-    def add_action_efficiency_pair(self, cost_node_id: str, impact_node_id: str, unit: str):
-        from nodes.actions.action import ActionEfficiencyPair
-        aep = ActionEfficiencyPair.from_config(self, cost_node_id, impact_node_id, unit)
-        self.action_efficiency_pairs.append(aep)
 
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
@@ -135,7 +134,35 @@ class Context:
             raise Exception(f"Global parameter {parameter.local_id} already defined")
         self.global_parameters[parameter.local_id] = parameter
 
+    def _get_caller_node(self, frame: FrameType) -> Node | None:
+        from nodes import Node
+
+        caller_frame: FrameType | None = inspect.getouterframes(frame, 0)[1].frame
+        while caller_frame is not None:
+            cl = caller_frame.f_locals
+            cs = cl.get('self')
+            if cs is None:
+                return None
+            if isinstance(cs, Context):
+                caller_frame = caller_frame.f_back
+                continue
+            if isinstance(cs, Node):
+                return cs
+            else:
+                break
+        return None
+
     def get_parameter(self, id: str, required: bool = True) -> Optional[Parameter]:
+        if self.check_mode:
+            frame = inspect.currentframe()
+            if frame is not None:
+                node = self._get_caller_node(frame)
+                if node is not None and id not in node.global_parameters:
+                    raise Exception(
+                        "Attempting to access global parameter '%s', but it's "
+                        "not listed in global_parameters of node %s" % (id, node.id)
+                    )
+
         param = None
         try:
             node_id, param_name = id.split('.', 1)

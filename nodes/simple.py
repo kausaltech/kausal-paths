@@ -240,6 +240,9 @@ class FixedMultiplierNode(SimpleNode):
         multiplier_param = self.get_parameter('multiplier', required=False)
         if multiplier_param is None:
             global_multiplier = self.get_parameter_value('global_multiplier', required=True)
+            # This is a bit of a hack
+            if global_multiplier not in self.global_parameters:
+                self.global_parameters = list(self.global_parameters) + [global_multiplier]
             multiplier_param = self.context.get_parameter(global_multiplier)
         multiplier = multiplier_param.value
         if multiplier_param.unit:
