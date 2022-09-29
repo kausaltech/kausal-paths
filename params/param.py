@@ -33,9 +33,11 @@ class Parameter:
 
     def __post_init__(self):
         assert '.' not in self.local_id
+        self._hash = None
 
     def set(self, value: Any):
         self.value = self.clean(value)
+        self._hash = None
 
     def reset_to_scenario_setting(self, scenario):
         if scenario.id in self.scenario_settings:
@@ -47,9 +49,13 @@ class Parameter:
         return self.value
 
     def calculate_hash(self) -> bytes:
+        h = getattr(self, '_hash', None)
+        if h is not None:
+            return h
         s = orjson.dumps({'id': self.global_id, 'value': self.value})
-        h = hashlib.md5(s)
-        return h.digest()
+        h = hashlib.md5(s).digest()
+        self._hash = h
+        return h
 
     def clean(self, value: Any) -> Any:
         raise NotImplementedError('Implement in subclass')

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import base64
 
 import logging
 import hashlib
@@ -271,35 +272,69 @@ class Node:
         self._last_historical_year = year
         return year
 
-    def calculate_hash(self) -> bytes:
+    def calculate_hash(self, cache: dict = None) -> bytes:
         h = hashlib.md5()
+        debug = self.debug
+        if cache is None:
+            cache = {}
+        if debug:
+            print('hashing %s' % self.id)
+
+        def hash_part(part: str, val: str | bytes):
+            if isinstance(val, str):
+                if debug:
+                    print('\t%10s: "%s"' % (part, val))
+                val = val.encode('utf8')
+            else:
+                if debug:
+                    print('\t%10s: %s' % (part, base64.b64encode(val)))
+            h.update(val)
+
         if self.unit:
             # __str__() of Unit is very slow, try another way
-            h.update(hash_unit(self.unit))
+            hash_part('unit', hash_unit(self.unit))
+
         if self.dimensions:
             for dim_id, dim in self.dimensions.items():
-                h.update(dim.calculate_hash(dim_id))
+                hash_part('dim %s' % dim_id, dim.calculate_hash(dim_id))
+
         for node in self.input_nodes:
-            h.update(node.calculate_hash())
+            hash_part('input %s' % node.id, node.calculate_hash(cache=cache))
         for param in self.parameters.values():
-            h.update(param.calculate_hash())
+            hash_part('param %s' % param.local_id, param.calculate_hash())
         for param_id in self.global_parameters:
             param = self.context.get_parameter(param_id, required=False)
             if param is not None:
-                h.update(param.calculate_hash())
+                hash_part('global param %s' % param.global_id, param.calculate_hash())
+
         for ds in self.input_dataset_instances:
-            h.update(ds.calculate_hash(self.context))
+            hash_part('dataset %s' % ds.id, ds.calculate_hash(self.context))
+
         for klass in type(self).mro():
-            try:
-                mod_mtime = os.path.getmtime(inspect.getfile(klass))
-            except TypeError:
+            if klass == object:
                 continue
-            h.update(str(mod_mtime).encode('utf8'))
+            if klass in cache:
+                mod_mtime = cache[klass]
+            else:
+                fn = getattr(klass, '_paths_fname', None)
+                if fn is None:
+                    fn = inspect.getfile(klass)
+                    setattr(klass, '_paths_fname', fn)
+
+                try:
+                    mod_mtime = os.path.getmtime(fn)
+                except TypeError:
+                    continue
+                cache[klass] = mod_mtime
+            hash_part('mtime %s' % klass.__name__, str(mod_mtime))
+
         return h.digest()
 
-    def get_output(self, target_node: Node = None, dimension = None) -> pd.DataFrame:
+    def get_output(self, target_node: Node = None, dimension=None) -> pd.DataFrame:
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
+        if self.debug:
+            print('%s: cache %s' % (self.id, 'hit' if out is not None else 'miss'))
         if out is None or self.debug or self.context.skip_cache:
             try:
                 out = self.compute()
