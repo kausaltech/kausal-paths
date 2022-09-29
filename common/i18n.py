@@ -1,4 +1,4 @@
-from django.utils.translation import gettext_lazy, gettext, get_language
+from django.utils.translation import gettext_lazy, gettext, get_language  # noqa
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 
@@ -42,3 +42,6 @@ class TranslatedString:
         if lang not in self.i18n:
             return self.i18n[self.default_language]
         return self.i18n[lang]
+
+    def __repr__(self):
+        return "[i18n]'%s'" % str(self)
