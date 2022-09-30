@@ -123,7 +123,7 @@ class ActionNode(Node):
         df['Cost'] *= discount_factor
         df['Impact'] = impact.replace({0: np.nan})
         pd_pt = pint_pandas.PintType(unit)
-        df['Efficiency'] = (df['Cost'] * -1 / df['Impact']).astype(pd_pt)
+        df['Efficiency'] = (df['Cost'] / df['Impact']).astype(pd_pt)
         df = df.dropna()
         return df
 
