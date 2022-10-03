@@ -7,13 +7,13 @@ import os
 import io
 import inspect
 import json
-from dataclasses import dataclass
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Literal, Optional, Sequence, Union, Set, overload
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union, Set, overload
 
 import numpy as np
 import pandas as pd
 import pint
 import pint_pandas
+from rich import print as pprint
 
 from common.i18n import TranslatedString
 from common.utils import hash_unit
@@ -185,7 +185,7 @@ class Node:
     def get_parameter_value(self, id: str, required: Literal[False], units: Literal[True]) -> pint.Quantity | None: ...
 
     @overload
-    def get_parameter_value(self, id: str, required: Literal[True], units: Literal[True]) -> pint.Quantity: ...
+    def get_parameter_value(self, id: str) -> Any: ...
 
     def get_parameter_value(self, id: str, required: bool = True, units: bool = False) -> Any:
         param = self.get_parameter(id, required=required)
@@ -419,7 +419,7 @@ class Node:
 
         pint_cols = [col for col in df.columns if hasattr(df[col], 'pint')]
         if not pint_cols:
-            print(df)
+            pprint(df)
             return
 
         out = df[pint_cols].pint.dequantify()
@@ -427,7 +427,7 @@ class Node:
             if col in pint_cols:
                 continue
             out[col] = df[col]
-        print(out)
+        pprint(out)
 
     def print_outline(self, df):
         print(type(self))

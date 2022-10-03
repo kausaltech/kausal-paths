@@ -1,17 +1,21 @@
 import logging
+from typing import ClassVar, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from params import StringParameter, BoolParameter
+from nodes.calc import extend_last_historical_value
+from params import StringParameter, BoolParameter, Parameter
 from nodes import Node
 from nodes.constants import (
     VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
+from nodes.simple import AdditiveNode
 from nodes.exceptions import NodeError
 from nodes.node import NodeDimension
 
 
 BELOW_ZERO_WARNED = False
+
 
 class HsyNode(Node):
     input_datasets = [
@@ -59,40 +63,72 @@ class HsyNode(Node):
         return df
 
 
-class HsyEmissions(Node):
-    unit = 'kt/a'
-    quantity = EMISSION_QUANTITY
-    allowed_input_classes = [
-        HsyNode
-    ]
-    allowed_parameters = [
+class HsyNodeMixin:
+    allowed_parameters: ClassVar[list[Parameter]] = [
         StringParameter(
             local_id='sector',
             label='Sector path in ALaS',
             is_customizable=False
         ),
-        BoolParameter(
-            local_id='required',
-            label='Has to exist in data',
-            is_customizable=False,
-        ),
     ]
 
-    def compute(self) -> pd.DataFrame:
-        df = self.input_nodes[0].get_output()
+    def get_sector(self: Union[Node, 'HsyNodeMixin'], column: str) -> Tuple[pd.DataFrame, list[Node]]:
+        assert isinstance(self, Node)
+        nodes = list(self.input_nodes)
+        for node in nodes:
+            if isinstance(node, HsyNode):
+                break
+        else:
+            raise NodeError(self, "HsyNode not configured as an input node")
+
+        # Remove the HsyNode from the list of nodes to be added together
+        nodes.remove(node)
+        df = node.get_output()
         sector = self.get_parameter_value('sector')
-        required = self.get_parameter_value('required', required=False)
         try:
-            df = df.xs(sector, level='Sector')
+            df_xs = df.xs(sector, level='Sector')
+            assert isinstance(df_xs, pd.DataFrame)
+            df = df_xs
         except KeyError:
-            if not required:
-                years = df.index.get_level_values('Year').unique()
-                dt = df.dtypes[EMISSION_QUANTITY]
-                df = pd.DataFrame([0.0] * len(years), index=years, columns=[EMISSION_QUANTITY])
-                df[EMISSION_QUANTITY] = df[EMISSION_QUANTITY].astype(dt)
-            else:
-                raise
-        df = df[[EMISSION_QUANTITY]]
-        df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
+            raise NodeError(self, "'Sector' level not found in input")
+
+        df = df[[column]]
+        df = df.rename(columns={column: VALUE_COLUMN})
         df['Forecast'] = False
+        df = extend_last_historical_value(df, self.context.target_year)
+        return df, nodes
+
+
+class HsyEnergyConsumption(AdditiveNode, HsyNodeMixin):
+    default_unit = 'GWh/a'
+    quantity = ENERGY_QUANTITY
+    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
+
+    def compute(self) -> pd.DataFrame:
+        df, other_nodes = self.get_sector(ENERGY_QUANTITY)
+        # If there are other input nodes connected, add them with this one.
+        if len(other_nodes):
+            df = self.add_nodes(df, other_nodes)
+        return df
+
+
+class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
+    default_unit = 'g/kWh'
+    quantity = EMISSION_FACTOR_QUANTITY
+    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
+
+    def compute(self) -> pd.DataFrame:
+        df, other_nodes = self.get_sector(EMISSION_FACTOR_QUANTITY)
+        assert len(other_nodes) == 0
+        return df
+
+
+class HsyEmissions(Node, HsyNodeMixin):
+    default_unit = 'kt/a'
+    quantity = EMISSION_QUANTITY
+    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
+
+    def compute(self) -> pd.DataFrame:
+        df, other_nodes = self.get_sector(EMISSION_QUANTITY)
+        assert len(other_nodes) == 0
         return df
