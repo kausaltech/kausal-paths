@@ -355,6 +355,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'watchdog': level('INFO'),
             'git': level('INFO'),
             'pint': level('INFO'),
+            'matplotlib': level('INFO'),
             '': level('DEBUG'),
         }
     }

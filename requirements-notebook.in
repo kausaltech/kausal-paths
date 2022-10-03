@@ -1,0 +1,5 @@
+-c requirements-dev.txt
+jupyterlab
+jupyterlab-lsp
+python-lsp-server[all]
+seaborn[stats]
