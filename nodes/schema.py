@@ -261,11 +261,16 @@ class ActionEfficiency(graphene.ObjectType):
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):
+    id = graphene.ID()
     cost_node = graphene.Field(NodeType)
     impact_node = graphene.Field(NodeType)
     efficiency_unit = graphene.Field('paths.schema.UnitType')
     label = graphene.String()
     actions = graphene.List(ActionEfficiency)
+
+    @staticmethod
+    def resolve_id(root: ActionEfficiencyPair, info: GQLInstanceInfo):
+        return '%s:%s' % (root.cost_node.id, root.impact_node.id)
 
     @staticmethod
     def resolve_actions(root: ActionEfficiencyPair, info: GQLInstanceInfo):
