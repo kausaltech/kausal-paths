@@ -159,38 +159,43 @@ class MultiplicativeNode(AdditiveNode):
     Multiplication and addition is determined based on the input node units.
     """
 
-    def compute(self):
-        additive_nodes = []
-        multiply_nodes = []
-        for node in self.input_nodes:
-            if self.is_compatible_unit(node.unit, self.unit):
-                additive_nodes.append(node)
-            else:
-                multiply_nodes.append(node)
+    operation_label = 'multiplication'
 
-        if len(multiply_nodes) != 2:
-            raise NodeError(self, "Must receive exactly two multiplicative inputs")
-
-        n1, n2 = multiply_nodes
+    def perform_operation(self, n1: Node, n2: Node, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
         output_unit = n1.unit * n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
                 self,
                 "Multiplying inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
+        df1[VALUE_COLUMN] *= df2[VALUE_COLUMN]
+        return df1
+
+    def compute(self):
+        additive_nodes = []
+        operation_nodes = []
+        for node in self.input_nodes:
+            if self.is_compatible_unit(node.unit, self.unit):
+                additive_nodes.append(node)
+            else:
+                operation_nodes.append(node)
+
+        if len(operation_nodes) != 2:
+            raise NodeError(self, "Must receive exactly two inputs to operate %s on" % self.operation_label)
+
+        n1, n2 = operation_nodes
         df1 = n1.get_output()
         df2 = n2.get_output()
-        df = df1.copy()
 
         if self.debug:
-            print('%s: Multiply input from node 1 (%s):' % (self.id, n1.id))
+            print('%s: %s input from node 1 (%s):' % (self.operation_label, self.id, n1.id))
             self.print_pint_df(df1)
-            print('%s: Multiply input from node 2 (%s):' % (self.id, n2.id))
+            print('%s: %s input from node 2 (%s):' % (self.operation_label, self.id, n2.id))
             self.print_pint_df(df2)
 
-        df[VALUE_COLUMN] *= df2[VALUE_COLUMN]
-        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
+        df = self.perform_operation(n1, n2, df1.copy(), df2)
 
+        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
         df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
 
         df = self.add_nodes(df, additive_nodes)
@@ -207,6 +212,25 @@ class MultiplicativeNode(AdditiveNode):
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
 
         return df
+
+
+class DivisiveNode(MultiplicativeNode):
+    """Divide two nodes together with potentially adding other input nodes.
+
+    Division and addition is determined based on the input node units.
+    """
+
+    operation_label = 'division'
+
+    def perform_operation(self, n1: Node, n2: Node, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+        output_unit = n1.unit / n2.unit
+        if not self.is_compatible_unit(output_unit, self.unit):
+            raise NodeError(
+                self,
+                "Division inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
+
+        df1[VALUE_COLUMN] /= df2[VALUE_COLUMN]
+        return df1
 
 
 class EmissionFactorActivity(MultiplicativeNode):
