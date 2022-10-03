@@ -353,6 +353,19 @@ class InstanceLoader:
             self.context.action_efficiency_pairs.append(aep)
 
     @classmethod
+    def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict]):
+        by_id = {d['id']: d for d in confs}
+        for fwn in fw_confs:
+            n = by_id.get(fwn['id'])
+            if n is not None:
+                # Merge the configs with the node config overriding framework config
+                for key, val in fwn.items():
+                    if key not in n:
+                        n[key] = val
+            else:
+                confs.append(fwn)
+
+    @classmethod
     def from_yaml(cls, filename):
         data = yaml.load(open(filename, 'r', encoding='utf8'), Loader=yaml.Loader)
         if 'instance' in data:
@@ -365,10 +378,8 @@ class InstanceLoader:
             if not os.path.exists(framework_fn):
                 raise Exception("Config expects framework but %s does not exist" % framework_fn)
             fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'), Loader=yaml.Loader)
-            if 'nodes' in fw_data:
-                data['nodes'] += fw_data['nodes']
-            if 'emission_sectors' in fw_data:
-                data['emission_sectors'] += fw_data['emission_sectors']
+            cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
+            cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
 
         return cls(data, yaml_file_path=filename)
 

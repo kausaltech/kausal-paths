@@ -10,6 +10,7 @@ name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
 owner: Espoon kaupunki
 owner_en: City of Espoo
+theme_identifier: espoo-ilmasto
 emission_unit: kt/a
 target_year: 2030
 reference_year: 1990
@@ -24,6 +25,15 @@ emission_sectors:
   name_en: Net emissions (scope 2)
   target_year_goal: 245
 
+- id: building_heating_emissions
+  color: '#ff4f57'
+
+- id: consumer_electricity_emissions
+  color: '#0047b6'
+
+- id: transport_emissions
+  color: '#014B30'
+
 nodes:
 - id: population
   type: finland.Population
@@ -32,6 +42,14 @@ nodes:
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
   name: HSY:n päästöinventaario
+
+#- id: electricity_production_emission_factor
+#  type: simple.AdditiveNode
+#  name: Kansallisen sähköntuotannon päästökerroin
+#  unit: g/kWh
+#  quantity: emission_factor
+#  input_nodes:
+#  - consumer_electricity_residence_emission_factor
 
 pages:
 - id: home
@@ -48,6 +66,18 @@ pages:
     muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
     riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
 
+actions:
+- id: city_building_heat_optimization
+  name: Kaupungin kiinteistöjen lämmityksen optimointi
+  name_en: Optimization of heating systems in city-owned buildings
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  output_nodes:
+  - district_heating_services_energy
+  forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
+    [2029, -14], [2030, -6]]
+  unit: GWh/a
+
 scenarios:
 - id: baseline
   name: Nykykehitys
@@ -57,3 +87,4 @@ scenarios:
   default: true
   name: Hiilineutraali Espoo 2030 -tiekartta
   name_en: Carbon-neutral Espoo 2030 roadmap
+  all_actions_enabled: true
