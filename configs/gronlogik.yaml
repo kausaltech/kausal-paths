@@ -216,21 +216,11 @@ instance:
     quantity: energy
     unit: GWh/a
     input_nodes:
-      - electricity_consumption_apartment
-      - heat_consumption_apartment
-      - electricity_consumption_office
-      - heat_consumption_office
       - energy_single_family
-
-#  - id: discounted_social_cost
-#    name: Diskontatut sosiaaliset kustannukset
-#    name_en: Discounted social cost
-#    name_sv: Rabatterad sociala kostnader
-#    type: costs.DiscountNode
-#    quantity: currency
-#    unit: MSEK/a
-#    input_nodes:
-#    - social_cost
+      - energy_apartment
+      - energy_office
+      - energy_school
+      - energy_single_family_wo_solar
 
 ############## Single family houses
 
@@ -413,228 +403,178 @@ instance:
 
   - id: floor_area_apartment
     name: Kerrostalojen rakennusala 
-    name_en: Floor area of apartment buildings
+    name_en: Floor area of apartment houses
     name_sv: Antal flerbostadshus
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2019, 208000000.0]]
+    historical_values: [[2010, 208000000.0]]
     params:
       yearly_change: 0.0
     tags: floor_area
 
-  - id: social_cost_apartment
-    name: Sosiaaliset kustannukset kerrostaloissa
-    name_en: Social costs in apartment buildings
-    name_sv: Sociala kostnader i flerbostadshus
-    type: costs.SocialCost
-    quantity: currency
-    unit: MSEK/a
-    input_nodes:
-    - renovation_cost_apartment
-    - health_impact_of_heat_production_apartment
-    - heat_co2_cost_apartment
-    - heat_cost_apartment
-    - avoided_electricity_capacity_apartment
-    - health_impact_of_electricity_production_apartment
-    - electricity_co2_cost_apartment
-    - electricity_cost_apartment
-
-  - id: cost_per_area_apartment
-    name: Kustannus rakennusalaa kohti kerrostaloissa
-    name_en: Cost per floor area in apartment buildings
-    name_sv: Kostnader per byggnadsytarea i flerbostadshus
-    type: simple.AdditiveNode
-    quantity: currency
-    unit: SEK/a/m**2
-    params:
-      - id: dimension
-        value: RenovCost
-
-  - id: renovation_cost_apartment
-    name: Korjauskustannukset kerrostaloissa
-    name_en: Renovation costs in apartment buildings
-    name_sv: Renovationskostnader i flerbostadshus
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: renovation
-    input_nodes:
-    - cost_per_area_apartment
-    - floor_area_apartment
-
-  - id: heat_per_area_apartment
-    name: Lämmönkulutus rakennusalaa kohti kerrostaloissa
-    name_en: Heat consumption per floor area in apartment buildings
-    name_sv: Värmekonsumtion per byggnadsytarea i flerbostadshus
-    type: simple.AdditiveNode
-    quantity: energy
-    unit: kWh/a/m**2
-    input_datasets: 
-    - id: tampere/scenarios/activity/bau  # FIXME Replace with real data
-      column: Electric heating total
-      dropna: True
-    params:
-      - id: dimension
-        value: Heat
-
-  - id: heat_consumption_apartment
-    name: Lämmönkulutus kerrostaloissa
-    name_en: Heat consumption in apartment buildings
-    name_sv: Värmekonsumtion i flerbostadshus
-    type: simple.MultiplicativeNode
-    quantity: energy
-    unit: GWh/a
-    input_nodes:
-    - heat_per_area_apartment
-    - floor_area_apartment
-
-  - id: health_impact_of_heat_production_apartment
-    name: Kerrostalojen lämmöntuotannon terveysvaikutus
-    name_en: Health impacts of heat production for apartment buildings
-    name_sv: Hälsoeffekt av värmeproduktion för flerbostadshus
-    type: simple.FixedMultiplierNode
-    quantity: currency
-    unit: MSEK/a
-    tags: health_heat
-    params:
-    - id: global_multiplier
-      value: health_impacts_per_kwh
-    input_nodes:
-    - heat_consumption_apartment
-
-  - id: co2_emissions_from_heat_apartment
-    name: CO2-päästöt kerrostalojen lämmityksestä
-    name_en: CO2 emissions from heating of apartment buildings
-    name_sv: CO2 utsläpp från värmeproduktion för flerbostadshus
-    type: simple.FixedMultiplierNode
-    quantity: emissions
-    unit: kt/a
-    params:
-    - id: global_multiplier
-      value: heat_co2_ef
-    input_nodes:
-    - heat_consumption_apartment
-    output_nodes:
-    - apartment_building_emissions
-
-  - id: heat_co2_cost_apartment
-    name: CO2-kustannus kerrostalojen lämmityksestä
-    name_en: CO2 cost from heating of apartment buildings
-    name_sv: CO2 kosnader från värmeproduktion för flerbostadshus
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: co2_heat
-    input_nodes:
-    - co2_emissions_from_heat_apartment
-    - price_of_co2
-
-  - id: heat_cost_apartment
-    name: Lämmityskustannukset kerrostaloissa
-    name_en: Heating costs in apartment buildings
-    name_sv: Värmekostnader i flerbostadshus
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: heat
-    input_nodes:
-    - heat_consumption_apartment
-    - price_of_heat
-
   - id: electricity_per_area_apartment
-    name: Sähkönkulutus rakennusalaa kohti kerrostaloissa
-    name_en: Electricity consumption per floor area in apartment buildings
-    name_sv: Elkonsumtion per byggnadsytarea i flerbostadshus
-    type: simple.AdditiveNode
+    name: Sähkönkulutus per ala kerrostalossa
     quantity: energy
     unit: kWh/a/m**2
-    tags: electricity
-    input_datasets: 
-    - id: tampere/scenarios/activity/bau  # FIXME Replace with real data
-      column: Van street
-      dropna: True
+    type: simple.AdditiveNode
     params:
       - id: dimension
         value: Electricity
 
-  - id: electricity_consumption_apartment
-    name: Sähkönkulutus kerrostaloissa
-    name_en: Electricity consumption in apartment buildings
-    name_sv: Elkonsumtion i flerbostadshus
-    type: simple.MultiplicativeNode
+  - id: heat_per_area_apartment
+    name: Lämmönkulutus per ala kerrostalossa
     quantity: energy
-    unit: GWh/a
-    input_nodes:
-    - electricity_per_area_apartment
-    - floor_area_apartment
-
-  - id: avoided_electricity_capacity_apartment
-    name: Kerrostaloissa vältetty sähköntuotantokapasiteetti
-    name_en: Electricity production capacity avoided in apartment buildings
-    name_sv: Elproduktionkapacitet undvekt i flerbostadshus
-    type: simple.FixedMultiplierNode
-    quantity: currency
-    unit: MSEK/a
-    tags: avoided_electricity
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
     params:
-    - id: global_multiplier
-      value: avoided_electricity_capacity_price
-    input_nodes:
-    - electricity_consumption_apartment
+      - id: dimension
+        value: Heat
 
-  - id: health_impact_of_electricity_production_apartment
-    name: Kerrostalojen sähköntuotannon terveysvaikutus
-    name_en: Health impact of electricity production for apartment_buildinds
-    name_sv: Hälsoeffekt från elproduktion för flerbostadshus
-    type: simple.FixedMultiplierNode
+  - id: renovation_cost_per_area_apartment
+    name: Korjauskustannus per ala kerrostalossa
     quantity: currency
-    unit: MSEK/a
-    tags: health_electricity
+    unit: SEK/a/m**2
+    type: simple.AdditiveNode
     params:
-    - id: global_multiplier
-      value: health_impacts_per_kwh
-    input_nodes:
-    - electricity_consumption_apartment
+      - id: dimension
+        value: RenovCost
 
-  - id: co2_emissions_from_electricity_apartment
-    name: CO2-päästöt kerrostalojen sähkönkulutuksesta
-    name_en: CO2 emissions from electricity consumption in apatrment buildings
-    name_sv: CO2 utsläpp från elkonsumtion i flerbostadshus
-    type: simple.FixedMultiplierNode
+  - id: emissions_electricity_per_area_apartment
+    name: Sähkönkulutuksen päästöt per ala kerrostalossa
     quantity: emissions
-    unit: kt/a
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
       value: electricity_co2_ef
     input_nodes:
-    - electricity_consumption_apartment
+    - electricity_per_area_apartment
     output_nodes:
-    - apartment_building_emissions
+    - emissions_per_area_apartment
 
-  - id: electricity_co2_cost_apartment
-    name: CO2-kustannus kerrostalojen sähkönkulutuksesta
-    name_en: CO2 cost from electricity production for apartment buildings
-    name_sv: CO2 kostnad från elproduktion för flerbostadshus
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: co2_electricity
+  - id: emissions_heat_per_area_apartment
+    name: Lämmönkulutuksen päästöt per ala kerrostalossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: heat_co2_ef
     input_nodes:
-    - co2_emissions_from_electricity_apartment
-    - price_of_co2
+    - heat_per_area_apartment
+    output_nodes:
+    - emissions_per_area_apartment
 
-  - id: electricity_cost_apartment
-    name: Sähkönkulutuksen kustannukset kerrostaloissa
-    name_en: Electricity costs in apartment buildings
-    name_sv: Elkostnader i flerbostadshus
+  - id: emissions_per_area_apartment
+    name: Päästöt per ala kerrostalossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.AdditiveNode
+    output_nodes:
+    - emissions_apartment
+
+  - id: emissions_apartment
+    name: Omakotitalon päästöt
+    quantity: emissions
+    unit: kt/a
     type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: electricity
     input_nodes:
-    - electricity_consumption_apartment
+    - floor_area_apartment
+    output_nodes:
+    - single_house_emissions
+
+  - id: energy_per_area_apartment
+    name: Energiankulutus per ala kerrostalossa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    input_nodes:
+    - heat_per_area_apartment
+    - electricity_per_area_apartment
+
+  - id: energy_apartment
+    name: Energiankulutus kerrostalossa
+    quantity: energy
+    unit: GWh/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_apartment
+    - energy_per_area_apartment
+
+  - id: electricity_cost_per_area_apartment
+    name: Sähkökustannus per ala kerrostalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - electricity_per_area_apartment
     - price_of_electricity
+
+  - id: heat_cost_per_area_apartment
+    name: Lämpökustannus per ala kerrostalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - heat_per_area_apartment
+    - price_of_heat
+
+  - id: avoided_capacity_cost_per_area_apartment
+    name: Vältetty sähköntuotantokapasiteetti per ala kerrostalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: avoided_electricity_capacity_price
+    input_nodes:
+    - electricity_per_area_apartment
+    tags: capacity_cost
+
+  - id: health_cost_per_area_apartment
+    name: Terveysvaikutus per ala kerrostalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - energy_per_area_apartment
+    tags: health_cost
+
+  - id: co2_cost_per_area_apartment
+    name: CO2-kustannus per ala kerrostalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - price_of_co2
+    - emissions_per_area_apartment
+    tags: co2_cost
+
+  - id: cost_per_area_apartment
+    name: Kustannus per ala kerrostalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: costs.SelectiveNode
+    input_nodes:
+    - renovation_cost_per_area_apartment
+    - electricity_cost_per_area_apartment
+    - heat_cost_per_area_apartment
+    - avoided_capacity_cost_per_area_apartment
+    - health_cost_per_area_apartment
+    - co2_cost_per_area_apartment
+
+  - id: social_cost_apartment
+    name: Sosiaaliset kustannukset kerrostalossa
+    quantity: currency
+    unit: MSEK/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - cost_per_area_apartment
+    - floor_area_apartment
 
 ############## Offices
 
@@ -645,223 +585,173 @@ instance:
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2019, 33200000.0]]
+    historical_values: [[2010, 33200000.0]]
     params:
       yearly_change: 0.0
     tags: floor_area
 
-  - id: social_cost_office
-    name: Sosiaaliset kustannukset toimistoissa
-    name_en: Social costs in offices
-    name_sv: Sociala kostnader i kontor
-    type: costs.SocialCost
-    quantity: currency
-    unit: MSEK/a
-    input_nodes:
-    - renovation_cost_office
-    - health_impact_of_heat_production_office
-    - heat_co2_cost_office
-    - heat_cost_office
-    - avoided_electricity_capacity_office
-    - health_impact_of_electricity_production_office
-    - electricity_co2_cost_office
-    - electricity_cost_office
-
-  - id: cost_per_area_office
-    name: Kustannus rakennusalaa kohti toimistoissa
-    name_en: Cost per floor area in offices
-    name_sv: Kostnader per byggnadsytarea i kontor
-    type: simple.AdditiveNode
-    quantity: currency
-    unit: SEK/a/m**2
-    params:
-      - id: dimension
-        value: RenovCost
-
-  - id: renovation_cost_office
-    name: Korjauskustannukset toimistoissa
-    name_en: Renovation costs in offices
-    name_sv: Renovationskostnader i kontor
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: renovation
-    input_nodes:
-    - cost_per_area_office
-    - floor_area_office
-
-  - id: heat_per_area_office
-    name: Lämmönkulutus rakennusalaa kohti toimistoissa
-    name_en: Heat consumption per floor area in offices
-    name_sv: Värmekonsumtion per byggnadsytarea i kontor
-    type: simple.AdditiveNode
-    quantity: energy
-    unit: kWh/a/m**2
-    input_datasets: 
-    - id: tampere/scenarios/activity/bau  # FIXME Replace with real data
-      column: Electric heating total
-      dropna: True
-    params:
-      - id: dimension
-        value: Heat
-
-  - id: heat_consumption_office
-    name: Lämmönkulutus toimistoissa
-    name_en: Heat consumption in offices
-    name_sv: Värmekonsumtion i kontor
-    type: simple.MultiplicativeNode
-    quantity: energy
-    unit: GWh/a
-    input_nodes:
-    - heat_per_area_office
-    - floor_area_office
-
-  - id: health_impact_of_heat_production_office
-    name: Toimistojen lämmöntuotannon terveysvaikutus
-    name_en: Health impacts of heat production for offices
-    name_sv: Hälsoeffekt av värmeproduktion för kontor
-    type: simple.FixedMultiplierNode
-    quantity: currency
-    unit: MSEK/a
-    tags: health_heat
-    params:
-    - id: global_multiplier
-      value: health_impacts_per_kwh
-    input_nodes:
-    - heat_consumption_office
-
-  - id: co2_emissions_from_heat_office
-    name: CO2-päästöt toimistojen lämmityksestä
-    name_en: CO2 emissions from heating of offices
-    name_sv: CO2 utsläpp från värmeproduktion för kontor
-    type: simple.FixedMultiplierNode
-    quantity: emissions
-    unit: kt/a
-    params:
-    - id: global_multiplier
-      value: heat_co2_ef
-    input_nodes:
-    - heat_consumption_office
-    output_nodes:
-    - office_building_emissions
-
-  - id: heat_co2_cost_office
-    name: CO2-kustannus toimistojen lämmityksestä
-    name_en: CO2 cost from heating of offices
-    name_sv: CO2 kosnader från värmeproduktion för kontor
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: co2_heat
-    input_nodes:
-    - co2_emissions_from_heat_office
-    - price_of_co2
-
-  - id: heat_cost_office
-    name: Lämmityskustannukset toimistoissa
-    name_en: Heating costs in offices
-    name_sv: Värmekostnader i kontor
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: heat
-    input_nodes:
-    - heat_consumption_office
-    - price_of_heat
-
   - id: electricity_per_area_office
-    name: Sähkönkulutus rakennusalaa kohti toimistoissa
-    name_en: Electricity consumption per floor area in offices
-    name_sv: Elkonsumtion per byggnadsytarea i kontor
-    type: simple.AdditiveNode
+    name: Sähkönkulutus per ala toimistossa
     quantity: energy
     unit: kWh/a/m**2
-    tags: electricity
-    input_datasets: 
-    - id: tampere/scenarios/activity/bau  # FIXME Replace with real data
-      column: Van street
-      dropna: True
+    type: simple.AdditiveNode
     params:
       - id: dimension
         value: Electricity
 
-  - id: electricity_consumption_office
-    name: Sähkönkulutus toimistoissa
-    name_en: Electricity consumption in offices
-    name_sv: Elkonsumtion i kontor
-    type: simple.MultiplicativeNode
+  - id: heat_per_area_office
+    name: Lämmönkulutus per ala toimistossa
     quantity: energy
-    unit: GWh/a
-    input_nodes:
-    - electricity_per_area_office
-    - floor_area_office
-
-  - id: avoided_electricity_capacity_office
-    name: Toimistoissa vältetty sähköntuotantokapasiteetti
-    name_en: Electricity production capacity avoided in offices
-    name_sv: Elproduktionkapacitet undvekt i kontor
-    type: simple.FixedMultiplierNode
-    quantity: currency
-    unit: MSEK/a
-    tags: avoided_electricity
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
     params:
-    - id: global_multiplier
-      value: avoided_electricity_capacity_price
-    input_nodes:
-    - electricity_consumption_office
+      - id: dimension
+        value: Heat
 
-  - id: health_impact_of_electricity_production_office
-    name: Toimistojen sähköntuotannon terveysvaikutus
-    name_en: Health impact of electricity production for offices
-    name_sv: Hälsoeffekt från elproduktion för kontor
-    type: simple.FixedMultiplierNode
+  - id: renovation_cost_per_area_office
+    name: Korjauskustannus per ala toimistossa
     quantity: currency
-    unit: MSEK/a
-    tags: health_electricity
+    unit: SEK/a/m**2
+    type: simple.AdditiveNode
     params:
-    - id: global_multiplier
-      value: health_impacts_per_kwh
-    input_nodes:
-    - electricity_consumption_office
+      - id: dimension
+        value: RenovCost
 
-  - id: co2_emissions_from_electricity_office
-    name: CO2-päästöt toimistojen sähkönkulutuksesta
-    name_en: CO2 emissions from electricity consumption in offices
-    name_sv: CO2 utsläpp från elkonsumtion i kontor
-    type: simple.FixedMultiplierNode
+  - id: emissions_electricity_per_area_office
+    name: Sähkönkulutuksen päästöt per ala toimistossa
     quantity: emissions
-    unit: kt/a
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
       value: electricity_co2_ef
     input_nodes:
-    - electricity_consumption_office
+    - electricity_per_area_office
     output_nodes:
-    - office_building_emissions
+    - emissions_per_area_office
 
-  - id: electricity_co2_cost_office
-    name: CO2-kustannus toimistojen sähkönkulutuksesta
-    name_en: CO2 cost from electricity production for offices
-    name_sv: CO2 kostnad från elproduktion för kontor
-    type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: co2_electricity
+  - id: emissions_heat_per_area_office
+    name: Lämmönkulutuksen päästöt per ala toimistossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: heat_co2_ef
     input_nodes:
-    - co2_emissions_from_electricity_office
-    - price_of_co2
+    - heat_per_area_office
+    output_nodes:
+    - emissions_per_area_office
 
-  - id: electricity_cost_office
-    name: Sähkönkulutuksen kustannukset toimistoissa
-    name_en: Electricity costs in offices
-    name_sv: Elkostnader i kontor
+  - id: emissions_per_area_office
+    name: Päästöt per ala toimistossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.AdditiveNode
+    output_nodes:
+    - emissions_office
+
+  - id: emissions_office
+    name: Omakotitalon päästöt
+    quantity: emissions
+    unit: kt/a
     type: simple.MultiplicativeNode
-    quantity: currency
-    unit: MSEK/a
-    tags: electricity
     input_nodes:
-    - electricity_consumption_office
+    - floor_area_office
+    output_nodes:
+    - single_house_emissions
+
+  - id: energy_per_area_office
+    name: Energiankulutus per ala toimistossa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    input_nodes:
+    - heat_per_area_office
+    - electricity_per_area_office
+
+  - id: energy_office
+    name: Energiankulutus toimistossa
+    quantity: energy
+    unit: GWh/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_office
+    - energy_per_area_office
+
+  - id: electricity_cost_per_area_office
+    name: Sähkökustannus per ala toimistossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - electricity_per_area_office
     - price_of_electricity
+
+  - id: heat_cost_per_area_office
+    name: Lämpökustannus per ala toimistossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - heat_per_area_office
+    - price_of_heat
+
+  - id: avoided_capacity_cost_per_area_office
+    name: Vältetty sähköntuotantokapasiteetti per ala toimistossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: avoided_electricity_capacity_price
+    input_nodes:
+    - electricity_per_area_office
+    tags: capacity_cost
+
+  - id: health_cost_per_area_office
+    name: Terveysvaikutus per ala toimistossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - energy_per_area_office
+    tags: health_cost
+
+  - id: co2_cost_per_area_office
+    name: CO2-kustannus per ala toimistossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - price_of_co2
+    - emissions_per_area_office
+    tags: co2_cost
+
+  - id: cost_per_area_office
+    name: Kustannus per ala toimistossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: costs.SelectiveNode
+    input_nodes:
+    - renovation_cost_per_area_office
+    - electricity_cost_per_area_office
+    - heat_cost_per_area_office
+    - avoided_capacity_cost_per_area_office
+    - health_cost_per_area_office
+    - co2_cost_per_area_office
+
+  - id: social_cost_office
+    name: Sosiaaliset kustannukset toimistossa
+    quantity: currency
+    unit: MSEK/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - cost_per_area_office
+    - floor_area_office
 
 ############## Schools
 
@@ -2113,7 +2003,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       values:
@@ -2147,7 +2037,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       values:
@@ -2181,7 +2071,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2214,7 +2104,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2247,7 +2137,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2280,7 +2170,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2313,7 +2203,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2346,7 +2236,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2379,7 +2269,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2412,7 +2302,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2445,7 +2335,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2478,7 +2368,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2511,7 +2401,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2544,7 +2434,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2577,7 +2467,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2610,7 +2500,7 @@ instance:
     output_nodes:
     - electricity_per_area_apartment
     - heat_per_area_apartment
-    - cost_per_area_apartment
+    - renovation_cost_per_area_apartment
     params:
     - id: renovation_potential
       description: Korjaukseen soveltuvan rakennusalan osuus (%)
@@ -2645,7 +2535,7 @@ instance:
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
-    - cost_per_area_office
+    - renovation_cost_per_area_office
     params:
     - id: renovation_potential
       values:
@@ -2679,7 +2569,7 @@ instance:
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
-    - cost_per_area_office
+    - renovation_cost_per_area_office
     params:
     - id: renovation_potential
       values:
@@ -2713,7 +2603,7 @@ instance:
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
-    - cost_per_area_office
+    - renovation_cost_per_area_office
     params:
     - id: renovation_potential
       values:
@@ -2747,7 +2637,7 @@ instance:
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
-    - cost_per_area_office
+    - renovation_cost_per_area_office
     params:
     - id: renovation_potential
       values:
@@ -2781,7 +2671,7 @@ instance:
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
-    - cost_per_area_office
+    - renovation_cost_per_area_office
     params:
     - id: renovation_potential
       values:
@@ -2815,7 +2705,7 @@ instance:
     output_nodes:
     - electricity_per_area_office
     - heat_per_area_office
-    - cost_per_area_office
+    - renovation_cost_per_area_office
     params:
     - id: renovation_potential
       values:
