@@ -1,0 +1,1015 @@
+instance:
+  id: zuerich
+  default_language: en
+  supported_languages: [de]
+  site_url: https://zuerich.paths-test.kausal.tech
+  dataset_repo:
+    url: https://github.com/kausaltech/dvctest.git
+    commit: af84a46c532a0d4d976767c6f4371601e9b41255
+  name: Carbon-neutral Zürich 2030
+  name_de: Klimaneutrales Zürich 2030
+  owner: City of Zürich
+  owner_de: Stadt Zürich
+  theme_identifier: zurich
+  target_year: 2030
+  reference_year: 1990
+  minimum_historical_year: 2010
+  maximum_historical_year: 2018
+  emission_dataset: tampere/scenarios/emissions/bau
+  emission_unit: kt/a
+  emission_forecast_from: 2019
+  params:
+  - id: municipality_name
+    value: Tampere
+  emission_sectors:
+  - id: net_emissions
+    name: Net emissions (scope 2)
+    name_de: Nettoemissionen (Scope 2)
+    target_year_goal: 260
+
+    #
+    # Transportation
+    #
+  - id: transportation_emissions
+    name: Transportation emissions
+    name_de: Verkehrsemissionen
+    description: The traffic emission calculation is based on three basic factors.
+      Mileage by vehicle type, emission factors for vehicle types with different propulsion,
+      and propulsion distributions by vehicle type.
+    description_de: Die Berechnung der Verkehrsemissionen basiert auf drei grundlegenden Faktoren.
+      Fahrleistung nach Fahrzeugtyp, Emissionsfaktoren für Fahrzeugtypen je nach Antrieb,
+      und Antriebsverteilungen nach Fahrzeugtyp.
+    part_of: net_emissions
+    color: '#668EC9'
+    target_year_goal: 115
+
+  - id: van_emissions
+    name: Van emissions
+    name_de: Lieferwagen-Emissionen
+    column: Vans
+    part_of: transportation_emissions
+  - id: truck_emissions
+    name: Trucks and lorries
+    name_de: Lastwagen
+    column: Trucks and lorries
+    part_of: transportation_emissions
+  - id: motorbike_emissions
+    name: Motorbikes etc.
+    name_de: Motorräder etc.
+    column: Motorbikes
+    part_of: transportation_emissions
+
+    #
+    # Heating
+    #
+  - id: building_heating_emissions
+    name: Building heating emissions
+    name_de: Gebäudeheizungsemissionen
+    part_of: net_emissions
+    color: '#AD3963'
+
+  - id: separate_heating_emissions
+    name: Separate heating emissions
+    name_de: Getrennte Heizemissionen
+    part_of: building_heating_emissions
+  - id: gas_heating_emissions
+    part_of: separate_heating_emissions
+    name: Gas heating emissions
+    name_de: Gasheizungsemissionen
+    description: Emissions from gas heating are calculated by multiplying the consumption
+      of natural gas by the emission factor.
+    description_de: Emissionen aus Gasheizungen werden durch Multiplikation des Gasverbrauchs mit dem Emissionsfaktor berechnet.
+    column: Gas heating
+
+  - id: electric_heating_emissions
+    name: Electric heating emissions
+    name_de: Emissionen aus Elektrischer Heizung
+    description: Electric heating emissions include estimates of both direct electric
+      heating and geothermal emissions.
+    description_de: Emissionen aus elektrischer Heizung beinhalten Schätzungen sowohl von direkter elektrischer
+      Heizung und geothermischen Emissionen.
+    part_of: building_heating_emissions
+
+      #
+      # Other emission sources
+      #
+
+  - id: industry_and_machinery_emissions
+    name: Industry and machinery emissions
+    name_de: Industrie- und Maschinenemissionen
+    description: The emission forecast for industry and machinery has been made
+      by linearly extrapolating the emission development during 2010-2018.
+    description_de: Die Emissionsprognose für Industrie und Maschinen wurde durch
+      lineare Extrapolation der Emissionsentwicklung im Zeitraum 2010-2018.
+    part_of: net_emissions
+    #  column: Industry without city machinery
+    color: '#E8B455'
+
+  - id: industry_emissions
+    name: Industry and private machinery emissions
+    name_de: Industrielle und private Maschinenemissionen
+    description: The emission forecast for industry and machinery is described
+      in more detail in the node Industry and machinery emissions.
+    description_de: Die Emissionsprognose für Industrie und Maschinen wird im Knoten
+      Industrie- und Maschinenemissionen näher beschrieben.
+    part_of: industry_and_machinery_emissions
+    column: Industry without city machinery
+    color: '#E8B455'
+
+  - id: waste_treatment_emissions
+    name: Waste treatment
+    name_de: Abfallbehandlung
+    description: Emissions from waste management include solid waste, biowaste
+      and wastewater.
+    description_de: Emissionen aus der Abfallwirtschaft umfassen feste Abfälle, Bioabfälle
+      und Abwasser.
+    part_of: net_emissions
+    color: '#397368'
+
+  - id: solid_waste_treatment_emissions
+    name: Solid waste treatment
+    name_de: Behandlung fester Abfälle
+    column: Solid waste treatment
+    part_of: waste_treatment_emissions
+
+  - id: agriculture_emissions
+    name: Agriculture
+    name_de: Landwirtschaft
+    description: Emissions from agriculture are based on the emission estimates
+      of the CO2 Report on animal digestion, manure treatment and arable farming.
+    description_de: Emissionen aus der Landwirtschaft basieren auf den Emissionsschätzungen
+      des CO2-Berichts zu tierischer Verdauung, Güllebehandlung und Ackerbau.
+    part_of: net_emissions
+    color: '#ABC872'
+
+  - id: cattle_digestion_emissions
+    name: Cattle digestion
+    name_de: Verdauung durch Rinder
+    part_of: agriculture_emissions
+    column: Cattle digestion
+
+  - id: field_crops_emissions
+    name: Field crops
+    name_de: Feldfrüchte
+    part_of: agriculture_emissions
+    column: Field crops
+
+    #
+    # Electricity emissions
+    #
+
+  - id: industrial_electricity_consumption_emissions
+    name: Industrial electricity consumption
+    name_de: Industrieller Stromverbrauch
+    part_of: electricity_consumption_emissions
+    column: Power consumption industry
+
+  nodes:
+  - id: population
+    type: finland.Population
+    name: Population
+    name_de: Bevölkerung
+
+  - id: district_heating_emissions
+    name: District heating emissions
+    name_fi: Kaukolämmön päästöt
+    name_de: Fernwärmeemissionen
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - building_heating_emissions
+
+  - id: district_heating_consumption
+    name: District heat consumption
+    name_fi: Kaukolämmön kulutus
+    name_de: Fernwärmeverbrauch
+    unit: GWh/a
+    quantity: energy
+    type: simple.Activity
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: District heating
+      dropna: true
+    output_nodes:
+    - district_heating_emissions
+
+  - id: district_heating_emission_factor
+    name: District heating emission factor
+    name_fi: Kaukolämmön päästökerroin
+    name_de: Fernwärme-Emissionsfaktor
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: District heating utility method
+      dropna: true
+    output_nodes:
+    - district_heating_emissions
+
+  - id: oil_heating_emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    name: Oil heating emissions
+    name_fi: Öljylämmityksen päästöt
+    name_de: Ölheizungsemissionen
+    description: Emissions from oil heating are calculated by multiplying the consumption
+      of heating oil by the emission factor.
+    description_fi: Öljylämmityksen päästöt lasketaan kertomalla lämmitysöljyn kulutus
+      päästökertoimella.
+    description_de: Emissionen aus Ölheizungen werden durch Multiplikation des Heizölverbrauchs
+      mit dem Emissionsfaktor berechnet.
+    output_nodes:
+    - separate_heating_emissions
+
+  - id: oil_heating_energy_use
+    unit: GWh/a
+    quantity: energy
+    type: simple.Activity
+    name: Oil heating energy consumption
+    name_fi: Öljylämmityksen energiankulutus
+    name_de: Energieverbrauch von Ölheizungen
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Total oil heating
+      dropna: true
+    output_nodes:
+    - oil_heating_emissions
+
+  - id: oil_heating_emission_factor
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    name: Heating oil emission factor
+    name_fi: Lämmitysöljyn päästökerroin
+    name_de: Heizöl-Emissionsfaktor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Oil heating
+      dropna: true
+    output_nodes:
+    - oil_heating_emissions
+
+      #
+      # ----------- geothermal --------------
+      #
+  - id: geothermal_heating_emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    name: Geothermal heating emissions
+    name_fi: Maalämmön päästöt
+    name_de: Emissionen aus Erdwärme
+    input_nodes:
+    - electric_heating_emission_factor
+    output_nodes:
+    - electric_heating_emissions
+
+  - id: geothermal_heating_electricity_use
+    unit: GWh/a
+    quantity: energy
+    type: simple.Activity
+    name: Geothermal heating electricity consumption
+    name_fi: Maalämmön sähkönkulutus
+    name_de: Stromverbrauch von Erdwärmeheizungen
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Geothermal heating residential
+      dropna: true
+    output_nodes:
+    - geothermal_heating_emissions
+
+  - id: direct_electric_heating_emissions
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    name: Direct electric heating emissions
+    name_fi: Suorasähkölämmityksen päästöt
+    name_de: Emissionen durch direkte elektrische Heizungen
+    input_nodes:
+    - electric_heating_emission_factor
+    output_nodes:
+    - electric_heating_emissions
+
+  - id: direct_electric_heating_electricity_use
+    quantity: energy
+    type: simple.Activity
+    unit: GWh/a
+    name: Direct electric heating electricity consumption
+    name_fi: Suorasähkölämmityksen sähkönkulutus
+    name_de: Stromverbrauch direkter Elektroheizungen
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Electric heating total
+      dropna: true
+    output_nodes:
+    - direct_electric_heating_emissions
+
+      #
+      # ----------- Electricity use ------------
+      #
+  - id: other_electricity_consumption_per_capita
+    name: Electricity consumption per capita
+    name_fi: Sähkönkulutus asukasta kohti
+    name_de: Stromverbrauch pro Kopf
+    type: simple.AdditiveNode
+    unit: kWh/person/a
+    quantity: per_capita
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Other electricity consumption per capita
+    output_nodes:
+    - other_electricity_consumption
+
+  - id: other_electricity_consumption
+    name: Other electricity consumption
+    name_fi: Muu sähkönkulutus
+    name_de: Sonstiger Stromverbrauch
+    type: simple.PerCapitaActivity
+    unit: GWh/a
+    quantity: energy
+    input_nodes:
+    - population
+    output_nodes:
+    - other_electricity_consumption_emissions
+
+  - id: other_electricity_consumption_emissions
+    name: Other electricity consumption emissions
+    name_fi: Muun sähkönkulutuksen päästöt
+    name_de: Sonstige Stromverbrauchsemissionen
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    params:
+      replace_output_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Other power consumption
+      forecast_from: 2019
+      max_year: 2018
+    input_nodes:
+    - other_electricity_consumption_emission_factor
+    output_nodes:
+    - electricity_consumption_emissions
+
+  - id: electricity_production_emission_factor
+    name: Electricity production emission factor
+    name_fi: Sähköntuotannon päästökerroin
+    name_de: Emissionsfaktor für Stromerzeugung
+    type: simple.AdditiveNode
+    unit: g/kWh
+    quantity: emission_factor
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Other power consumption
+      max_year: 2019
+
+  - id: electric_heating_emission_factor
+    name: Heating electricity emission factor
+    name_fi: Lämmityssähkön päästökerroin
+    name_de: Heizstrom-Emissionsfaktor
+    type: simple.FixedMultiplierNode
+    unit: g/kWh
+    quantity: emission_factor
+    description: We assume an 8 % higher emission factor for heating electricity.
+    input_nodes:
+    - electricity_production_emission_factor
+    params:
+    - id: multiplier
+      value: 1.08
+
+  - id: other_electricity_consumption_emission_factor
+    name: Electricity consumption emission factor
+    name_fi: Kulutussähkön päästökerroin
+    name_de: Emissionsfaktor für Stromverbrauch
+    type: simple.FixedMultiplierNode
+    unit: g/kWh
+    quantity: emission_factor
+    description: We assume an 5 % higher emission factor for other electricity
+      consumption.
+    input_nodes:
+    - electricity_production_emission_factor
+    params:
+    - id: multiplier
+      value: .95
+
+  - id: electricity_consumption_emissions
+    name: Electricity consumption emissions
+    name_fi: Sähkön kulutuksen päästöt
+    name_de: Emissionen durch Stromverbrauch
+    type: simple.SectorEmissions
+    unit: kt/a
+    color: '#F4D240'
+    description: The calculation of electricity emissions is based on two components.
+      Electricity consumption and the emission factor for electricity. This is electricity
+      consumption other than heating.
+    description_fi: Sähkön päästölaskenta perustuu kahteen komponenttiin. Sähkön kulutus
+      ja sähkön päästökerroin. Tässä on muu sähkönkulutus kuin lämmitys.
+    description_de: Die Berechnung der Emissionen durch Strom basiert auf zwei Komponenten.
+      Stromverbrauch und Emissionsfaktor für Strom. Hier wird der Stromverbrauch ausgenommen für Heizung
+      betrachtet.
+    output_nodes:
+    - net_emissions
+
+    #
+    # Transport nodes
+    #
+
+  - id: tram_kilometers
+    name: Tram kilometers
+    name_fi: Ratikkasuorite
+    name_de: Straßenbahnkilometer
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    historical_values: [[2020, 0]]
+    forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026,
+        0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
+    output_nodes:
+    - tram_emissions
+
+  - id: car_kilometers_streets
+    name: Car kilometers (streets)
+    name_fi: Henkilöautosuorite (katuajo)
+    name_de: Autokilometer (innerorts)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Private car street
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - car_emissions_streets
+
+  - id: bus_kilometers_streets
+    name: Bus kilometers (streets)
+    name_fi: Bussisuorite (katuajo)
+    name_de: Buskilometer (innerorts)
+    type: simple.Activity
+    quantity: mileage
+    unit: Mkm/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: Bus street
+      min_year: 2016
+      dropna: true
+    output_nodes:
+    - bus_emissions_streets
+
+  - id: tram_emission_factor
+    name: Tram emission factor
+    name_fi: Ratikan päästökerroin
+    name_de: Straßenbahn-Emissionsfaktor
+    quantity: emission_factor
+    type: simple.FixedMultiplierNode
+    unit: g/km
+    params:
+    - id: multiplier
+      value: 2.56  # Derived from explicit emission factors of trams and electricity
+      unit: kWh/km
+    input_nodes:
+    - electricity_production_emission_factor
+    output_nodes:
+    - tram_emissions
+
+  - id: car_emission_factor_streets
+    name: Car emission factor (streets)
+    name_fi: Henkilöautoilun päästökerroin (katuajo)
+    name_de: Pkw-Emissionsfaktor (innerorts)
+    quantity: emission_factor
+    type: simple.AdditiveNode
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Private car street
+      dropna: true
+    output_nodes:
+    - car_emissions_streets
+
+  - id: bus_emission_factor_streets
+    name: Bus emission factor (streets)
+    name_fi: Bussin päästökerroin (katuajo)
+    name_de: Bus-Emissionsfaktor (innerorts)
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus street constant fuel share
+      dropna: true
+      unit: g/km
+    output_nodes:
+    - bus_emissions_streets
+
+  - id: tram_emissions
+    name: Tram emissions
+    name_fi: Ratikkaliikenteen päästöt
+    name_de: Straßenbahnemissionen
+    type: simple.EmissionFactorActivity
+    unit: kt/a
+    quantity: emissions
+    output_nodes:
+    - transportation_emissions
+
+  - id: car_emissions_streets
+    name: Private car emissions (streets)
+    name_fi: Henkilöautoliikenteen päästöt (katuajo)
+    name_de: Pkw-Emissionen (innerorts)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - car_emissions
+
+  - id: car_emissions
+    name: Private car emissions
+    name_fi: Henkilöautoliikenteen päästöt
+    name_de: Emissionen von Privatfahrzeugen
+    type: simple.SectorEmissions
+    unit: kt/a
+    params:
+      fill_gaps_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Private cars
+      forecast_from: 2019
+    output_nodes:
+    - transportation_emissions
+
+  - id: bus_emissions_streets
+    name: Bus emissions (streets)
+    name_fi: Bussiliikenteen päästöt (katuajo)
+    name_de: Busemissionen (innerorts)
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - bus_emissions
+
+  - id: bus_emissions
+    name: Bus emissions
+    name_fi: Bussiliikenteen päästöt
+    name_de: Busemissionen
+    type: simple.SectorEmissions
+    unit: kt/a
+    quantity: emissions
+    params:
+      fill_gaps_using_input_dataset: true
+    input_datasets:
+    - id: tampere/scenarios/emissions/bau
+      column: Buses
+      forecast_from: 2019
+    output_nodes:
+    - transportation_emissions
+
+    #
+    # City machinery
+    #
+  - id: city_machinery_emissions
+    name: City machinery emissions
+    name_fi: Kaupungin työkoneiden päästöt
+    name_de: Emissionen von Maschinen der Stadt
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    output_nodes:
+    - industry_and_machinery_emissions
+
+  - id: city_machinery_fuel_consumption
+    name: City machinery fuel consumption
+    name_fi: Kaupungin työkoneiden polttoaineenkulutus
+    name_de: Kraftstoffverbrauch von Maschinen der Stadt
+    type: simple.Activity
+    quantity: fuel_consumption
+    unit: l/a
+    input_datasets:
+    - id: tampere/scenarios/activity/bau
+      column: City machinery fuel consumption
+    output_nodes:
+    - city_machinery_emissions
+
+  - id: city_machinery_emission_factor
+    name: Diesel emission factor
+    name_fi: Dieselin päästökerroin
+    name_de: Diesel-Emissionsfaktor
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/l
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Machinery
+    output_nodes:
+    - city_machinery_emissions
+
+  - id: renewable_electricity_consumption_reduction
+    name: Decrease in purchased energy due to renewable electricity production
+    name_fi: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
+    name_de: Rückgang der zugekauften Energie aufgrund erneuerbarer Stromerzeugung
+    quantity: energy
+    type: simple.FixedMultiplierNode
+    output_nodes:
+    - other_electricity_consumption
+    params:
+      multiplier: -1
+    unit: GWh/a
+
+  - id: forest_sink
+    name: Metsien hiilinielu
+    name_en: Carbon sink of forests
+    quantity: emissions
+    unit: kt/a
+    type: simple.FixedMultiplierNode
+    params: 
+      - id: multiplier
+        value: -0.0001
+        unit: kt/a/pcs
+    output_nodes:
+      - agriculture_emissions
+
+  #
+  # ------- ACTIONS --------
+  #
+
+  actions:
+
+  - id: balmy_bay_3
+    name: Balmy Bay 3 bio thermal plant
+    name_fi: Balmy Bay 3 -biovoimalaitos
+    name_de: Biothermische Anlage Balmy Bay 3
+    type: simple.CumulativeAdditiveAction
+    quantity: emission_factor
+    description: The Balmy Bay 3 power plant is also able to use biofuel, and
+      the choice of fuel is a key factor in reducing emissions.
+    description_fi: Balmy Bay 3 -voimalaitos pystyy käyttämään myös biopolttoainetta,
+      ja polttoainevalinta onkin keskeinen päästöjä vähentävä tekijä.
+    description_de: Das Kraftwerk Balmy Bay 3 kann auch Biobrennstoff verwenden und
+      die Wahl des Kraftstoffs ist ein Schlüsselfaktor für die Reduzierung von Emissionen.
+    long_description: <h2>Centralized renewable energy</h2><p>The action includes
+      investments by Sunnydale Energy (the local energy company) that will reduce
+      the district heating emission factor. As the emission factor for electricity
+      generation is determined nationally, the measures do not directly affect electricity
+      emissions.</p><p>Currently, the clearest measure is the investment in the Balmy Bay
+      3 power plant. This, too, can only be roughly distinguished from other plans
+      to reduce the district heating emission factor. The final emission reduction
+      from the district heating emission factor is due to measures that have not yet
+      been further defined and have therefore been calculated as a lump sum. However,
+      the emission reduction will materialize if Sunnydale Energy achieves emission
+      reductions in line with its strategy. The magnitude is calculated in this total
+      emission forecast slightly differently than if only the energy production of
+      Sunnydale Energy is considered.</p><p>As a result, the emission reduction
+      in district heating caused by Balmy Bay 3 is approx. 82 kt CO2e. In addition,
+      approximately 99 kt of CO2e will be generated from other investments in reducing
+      the emissions of Sunnydale Energy by 2030. This is only a rough estimate
+      based on the company's own forecast of the district heating emission factor.
+      The real impact of Balmy Bay 3 in reducing fossil emissions depends on the
+      contribution of peat to combustion and the overall impact of adding wood fuel
+      elsewhere.</p><p>The action also includes the connection of the City of Sunnydale's
+      properties to district cooling as required. Connecting to district cooling reduces
+      the building's electricity consumption, as cooling is not required with heat
+      pumps. However, it is not known to what extent the properties will be connected
+      and what the change in their consumption would be. Therefore, no emission reduction
+      has yet been estimated for the action.</p>
+    long_description_de: <h2>Zentrale erneuerbare Energie</h2><p>Die Maßnahme umfasst Investitionen
+      von Sunnydale Energy (dem lokalen Energieunternehmen), die den Emissionsfaktor der
+      Fernwärme reduzieren werden. Da der Emissionsfaktor für die Stromerzeugung national festgelegt
+      wird, wirken sich die Maßnahmen nicht direkt auf die Stromemissionen aus.</p><p>Die aktuell
+      deutlichste Maßnahme ist die Investition in das Kraftwerk Balmy Bay 3. Auch dies ist nur
+      grob von anderen Plänen zur Senkung des Fernwärme-Emissionsfaktors zu unterscheiden. Die
+      endgültige Emissionsminderung des Emissionsfaktors Fernwärme ist auf noch nicht näher
+      definierte Maßnahmen zurückzuführen und wurde daher pauschal berechnet. Die Emissionsminderung
+      wird jedoch eintreten, wenn Sunnydale Energy Emissionsminderungen im Einklang mit seiner
+      Strategie erreicht. Das Ausmaß wird in dieser Gesamtemissionsprognose etwas anders berechnet,
+      als wenn nur die Energieerzeugung von Sunnydale Energy betrachtet wird.</p><p>Im Ergebnis
+      beträgt die durch Balmy Bay 3 verursachte Emissionsminderung in der Fernwärme ca. 82 kt
+      CO2e. Darüber hinaus werden bis 2030 etwa 99 kt CO2e aus anderen Investitionen zur Reduzierung
+      der Emissionen von Sunnydale Energy erzeugt. Dies ist nur eine grobe Schätzung, die auf
+      der unternehmenseigenen Prognose des Fernwärme-Emissionsfaktors basiert. Die tatsächliche
+      Auswirkung von Balmy Bay 3 auf die Reduzierung fossiler Emissionen hängt vom Beitrag des
+      Torfs zur Verbrennung und den Gesamtauswirkungen der Zugabe von Holzbrennstoff an anderer
+      Stelle ab.</p><p>Die Maßnahme umfasst auch den Anschluss der Gebäude der Stadt Sunnydale an die
+      Fernkälte nach Bedarf. Der Anschluss an die Fernkälte reduziert den Stromverbrauch des
+      Gebäudes, da mit Wärmepumpen keine Kühlung benötigt wird. Es ist jedoch nicht bekannt,
+      inwieweit die Objekte angeschlossen werden und wie sich deren Verbrauch ändern würde. Daher
+      wurde für die Maßnahme noch keine Emissionsminderung geschätzt.</p>
+    output_nodes:
+    - district_heating_emission_factor
+    forecast_values: [[2022, -23], [2023, -23]]
+    unit: g/kWh
+
+  - id: other_renewable_district_heating
+    name: Increase share of renewables in district heat production
+    name_fi: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
+    name_de: Erhöhung des Anteils erneuerbarer Energien an der Fernwärmeerzeugung
+    type: simple.CumulativeAdditiveAction
+    quantity: energy
+    output_nodes:
+    - district_heating_emission_factor
+    forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
+      [2029, -14], [2030, -6]]
+    unit: g/kWh
+
+  - id: private_building_energy_renovation
+    name: Energy renovation of privately owned buildings
+    name_fi: Korjausrakentaminen yksityisissä kiinteistöissä
+    name_de: Energetische Sanierung von Privatgebäuden
+    unit: GWh/a
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    description: The most important target groups for energy advice are apartment
+      buildings that are more than 20 years old and detached houses that are heated
+      by oil and electricity.
+    description_fi: Keskeisimmät kohderyhmät energianeuvonnalle ovat yli 20 vuotta vanhat
+      kerrostalot sekä öljy- ja sähkölämmitteiset pientalot.
+    description_de: Die wichtigste Zielgruppe für die Energieberatung sind über 20 Jahre alte
+      Wohnhäuser und Einfamilienhäuser, die mit Öl und Strom beheizt werden.
+    output_nodes:
+    - district_heating_consumption
+    - other_electricity_consumption
+    - direct_electric_heating_electricity_use
+    forecast_values:
+    - id: district_heating_consumption
+      values: [[2021, 0], [2030, -239]]
+    - id: other_electricity_consumption
+      values: [[2021, 0], [2030, -12.65]]
+    - id: direct_electric_heating_electricity_use
+      values: [[2021, 0], [2030, 10.01]]
+
+  - id: distributed_renewable_energy
+    name: Distributed renewable energy production
+    name_fi: Hajautettu uusiutuva energia
+    name_de: Dezentrale erneuerbare Energieproduktion
+    unit: GWh/a
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    description: Photovoltaic production will be installed on the roofs of the
+      buildings. According to the 2016 municipal review of renewable energy, the unused
+      potential on the roofs of buildings is 800-900 GWh (does not take into account
+      all restrictions).
+    description_fi: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
+      uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali
+      rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
+    description_de: Auf den Dächern der Gebäude werden Photovoltaikanlagen installiert. Das
+      ungenutzte Potenzial auf den Dächern der Gebäude liegt laut der 2016 durchgeführten
+      kommunalen Studie zu erneuerbaren Energien bei 800-900 GWh (ohne Berücksichtigung
+      aller Restriktionen).
+    output_nodes:
+    - renewable_electricity_consumption_reduction
+    forecast_values: [[2022, 0], [2030, -850]]
+    params:
+    - id: target_year_level
+      values:
+        default: 17
+      min_value: 0
+      max_value: 850
+      step: 1
+      unit: GWh/a
+      description: PV energy production in 2030
+      description_fi: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+      description_de: Photovoltaikstromerzeugung 2030
+
+  - id: oil_heated_private_buildings_to_geothermal
+    name: Private oil heated buildings to geothermal
+    name_fi: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
+    name_de: Umstieg ölbeheizter privater Gebäude auf Erdwärme
+    type: simple.CumulativeAdditiveAction
+    unit: GWh/a
+    quantity: energy
+    description: Private properties change from oil heating to geothermal energy. 95%
+      of the required heat is produced at COP 3 level, the rest is direct electricity.
+      This is based on Juho Rinta-Rahko's assessment of the potential of renovation and energy
+      consulting in Sunnydale. Some oil heating will remain in service buildings and
+      industrial buildings.
+    description_fi: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 %
+      tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho
+      Rinta-Rahkon arvioon Sunnydalen korjausrakentamisen ja energianeuvonnan potentiaalista.
+      Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
+    description_de: Private Grundstücke steigen von Ölheizungen auf Erdwärme um. 95 % der benötigten
+      Wärme werden auf COP-3-Niveau produziert, der Rest ist direkter Strom. Dies basiert auf Juho
+      Rinta-Rahkos Einschätzung des Potenzials von Renovierungen und Energieberatung in Sunnydale.
+      Einige Ölheizungen werden in Dienstleistungs- und Industriegebäuden verbleiben.
+    output_nodes:
+    - oil_heating_energy_use
+    - geothermal_heating_electricity_use
+    forecast_values:
+    - id: oil_heating_energy_use
+      values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025,
+          -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030,
+          -5.73]]
+    - id: geothermal_heating_electricity_use
+      values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10],
+        [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
+
+  - id: oil_heated_municipal_buildings_to_heat_pump
+    name: Oil-heated municipal buildings to heat pumps
+    name_fi: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
+    name_de: Umstieg ölbeheizter kommunaler Gebäude auf Wärmepumpen
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: energy
+    unit: GWh/a
+    description: The city's properties currently consume 367 378 l / y of oil,
+      or about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced
+      by water-air heat pumps with a COP of about 2.5 when they produce all the heat
+      they need. Bio-oil has been thought to be held in reserve, but its share of
+      energy consumption is insignificant.
+    description_fi: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v
+      eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden
+      COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu
+      pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
+    description_de: Die Gebäude der Stadt verbrauchen derzeit 367 378 l / a Öl oder etwa 3 674 MWh
+      oder 3,67 GWh. Mit diesen Aussichten wird Öl durch Wasser-Luft-Wärmepumpen mit einem COP von
+      etwa 2,5 ersetzt, wenn sie die gesamte benötigte Wärme produzieren. Bioöl galt als Reserve,
+      sein Anteil am Energieverbrauch ist jedoch unbedeutend.
+    output_nodes:
+    - oil_heating_energy_use
+    - direct_electric_heating_electricity_use
+    forecast_values:
+    - id: oil_heating_energy_use
+      values: [[2021, 0], [2025, -3.674]]
+    - id: direct_electric_heating_electricity_use
+      values: [[2021, 0], [2025, 1.468]]
+
+  - id: cleaner_electricity_production
+    name: Shift to low-carbon in national electricity production
+    name_fi: Kansallinen sähköntuotanto puhdistuu
+    name_de: Umstellung auf kohlenstoffarme nationale Stromerzeugung
+    decision_level: nation
+    quantity: emission_factor
+    output_nodes:
+    - electricity_production_emission_factor
+    type: simple.LinearCumulativeAdditiveAction
+    forecast_values: [[2021, 0], [2030, -80]]
+    unit: g/kWh
+    params:
+    - id: target_year_level
+      values:
+        default: -61
+      min_value: -80
+      max_value: 0
+      step: 1
+      unit: g/kWh
+      description: Change in electricity production emission factor
+      description_fi: Sähköntuotannon päästökertoimen muutos
+      description_de: Änderung des Emissionsfaktors der Stromerzeugung
+
+  - id: converting_street_lighting_to_led
+    name: Converting street lighting to LED lamps
+    name_fi: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+    name_de: Umrüstung der Straßenbeleuchtung auf LED-Lampen
+    type: simple.LinearCumulativeAdditiveAction
+    unit: GWh/a
+    quantity: energy
+    description: The city’s street lighting will be transformed into LEDs and intelligent
+      light control will be deployed by 2025.
+    description_fi: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
+      otetaan käyttöön vuoteen 2025 mennessä.
+    description_de: Bis 2025 wird die Straßenbeleuchtung der Stadt auf LEDs umgestellt und eine
+      intelligente Lichtsteuerung eingeführt.
+    forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+    output_nodes:
+    - other_electricity_consumption
+
+  - id: tram_phase_1
+    name: Tram construction phase 1 (2019-2022)
+    name_fi: Ratikan rakennusvaihe 1 (2019-2022)
+    name_de: Straßenbahn Bauphase 1 (2019-2022)
+    type: simple.CumulativeAdditiveAction
+    unit: Mkm/a
+    quantity: mileage
+    description: The first construction phase of the tramway. Also learn more about
+      local train traffic.
+    description_fi: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
+    description_de: Die erste Bauphase der Straßenbahn. Erfahren Sie auch mehr über den Nahverkehr.
+    output_nodes:
+    - tram_kilometers
+    - car_kilometers_streets
+    - bus_kilometers_streets
+    forecast_values:
+    - id: tram_kilometers
+      values: [[2021, 0.7], [2022, 0.7]]
+    - id: car_kilometers_streets
+      values: [[2021, -2.95], [2022, -2.95]]
+    - id: bus_kilometers_streets
+      values: [[2021, -0.48], [2022, -0.36]]
+
+  - id: renewable_diesel_in_city_machinery
+    name: Renewable diesel in city machinery
+    name_fi: Uusiutuvan dieselin käyttö kaupungin työkoneissa
+    name_de: Erneuerbarer Diesel für Maschinen der Stadt
+    type: simple.LinearCumulativeAdditiveAction
+    unit: g/l
+    quantity: emission_factor
+    description: The city’s own work machinery will move gradually to use renewable
+      diesel so that in 2030 only it will be used.
+    description_fi: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
+      dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
+    description_de: Die stadteigenen Arbeitsmaschinen werden sukzessive auf erneuerbaren Diesel
+      umgestellt, sodass 2030 nur noch dieser zum Einsatz kommt.
+    output_nodes:
+    - city_machinery_emission_factor
+      #  - city_machinery_fuel_consumption
+    forecast_values:
+    - id: city_machinery_emission_factor
+        #  quantity: emission_factor
+        #  unit: g/l
+      values: [[2021, 0], [2030, -2689]]
+        #- id: city_machinery_fuel_consumption # TODO An action should be able to have several output nodes with different units
+        #  quantity: fuel_consumption
+        #  unit: l
+        #  values: [[2021, 0], [2030, 64000]]
+
+  - id: energy_conversion_in_buses
+    name: Energy conversion in buses
+    name_fi: Bussiliikenteen käyttövoimamuutos
+    name_de: Energieumwandlung in Bussen
+    type: simple.AdditiveAction
+    quantity: emission_factor
+    unit: g/km
+    input_datasets:
+    - id: tampere/scenarios/emission_factors/bau
+      column: Bus street difference to constant fuel share
+      forecast_from: 2020
+      dropna: true
+      unit: g/km
+    output_nodes:
+    - bus_emission_factor_streets
+
+  - id: tree_planting
+    name: Planting 100,000 trees in the city area
+    name_fi: Istuta kaupunkiin 100 000 puuta
+    name_de: 100.000 Bäume in der Stadt pflanzen
+    type: simple.LinearCumulativeAdditiveAction
+    quantity: number
+    unit: pcs
+    forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
+    output_nodes:
+      - forest_sink
+    params:
+      - id: action_delay
+        description: How many years until the action starts
+        values:
+          default: 0
+        min_value: 0
+        max_value: 8
+        step: 1
+      - id: target_year_level
+        description: How many trees to plant
+        values:
+          default: 100000
+        min_value: 0
+        max_value: 100000
+        step: 10000
+
+
+  pages:
+  - id: home
+    name: Climate neutral Sunnydale 2030 emission scenario
+    name_fi: Hiilineutraali Sunnydale 2030 -päästöskenaario
+    name_de: Emissionsszenario Klimaneutrales Sunnydale 2030
+    path: /
+    type: emission
+    node: net_emissions
+    lead_title: Sunnydale emission scenarios
+    lead_title_fi: Sunnydalen päästöskenaariot
+    lead_title_de: Sunnydale-Emissionsszenarien
+    lead_paragraph: Sunnydale's emission scenarios visualize the development of Sunnydale's
+      greenhouse gas emissions. You can look at where emissions from the Sunnydale city
+      area come from and how they are projected to change by 2030. There is a basic
+      development scenario to choose from, a scenario according to the Carbon Neutral
+      Sunnydale 2030 roadmap and a scenario that you can edit yourself. Further efforts
+      are needed to become carbon neutral, and their adequacy will be assessed in
+      the future using this tool.
+    lead_paragraph_fi: Sunnydalen päästöskenaariot visualisoi Sunnydalen kasvihuonekaasupäästöjen
+      kehityksen. Voit tarkastella, mistä Sunnydalen kaupungin alueen päästöt syntyvät
+      ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
+      peruskehitys-skenaario, Hiilineutraali Sunnydale 2030 -tiekartan mukainen skenaario
+      ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
+      vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
+      avulla.
+    lead_paragraph_de: Sunnydales Emissionsszenarien visualisieren die Entwicklung der
+      Treibhausgasemissionen der Stadt. Sie können sich ansehen, woher die Emissionen aus dem
+      Stadtgebiet von Sunnydale stammen und wie sie sich voraussichtlich bis 2030 verändern werden. Es
+      stehen ein Grundentwicklungsszenario zur Auswahl, ein Szenario gemäß dem Aktionsplan
+      CO2-neutrales Sunnydale 2030, und ein Szenario, das Sie selbst bearbeiten können. Weitere
+      Anstrengungen sind erforderlich, um klimaneutral zu werden, und deren Angemessenheit wird in
+      Zukunft mit diesem Instrument bewertet.
+
+  scenarios:
+  - id: baseline
+    name: Baseline
+    name_de: Basisszenario
+    params:
+    - id: balmy_bay_3.enabled
+      value: true
+    - id: cleaner_electricity_production.enabled
+      value: true
+    - id: tram_phase_1.enabled
+      value: true
+
+  - id: default
+    default: true
+    name: Carbon-neutral Zürich 2030 roadmap
+    name_de: Aktionsplan CO2-neutrales Zürich 2030
+    all_actions_enabled: true
