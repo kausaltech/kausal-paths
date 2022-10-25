@@ -46,6 +46,40 @@ class SocialCost(SimpleNode):
         return df
 
 
+class SelectiveNode(AdditiveNode):
+    global_parameters: list[str] = [
+        'include_co2', 'include_health', 'include_el_avoided',
+    ]
+
+    def compute(self):
+        # Global parameters
+        include_co2 = self.get_global_parameter_value('include_co2')
+        include_health = self.get_global_parameter_value('include_health')
+        include_el_avoided = self.get_global_parameter_value('include_el_avoided')
+
+        # Input nodes
+        nodes = self.input_nodes
+        out = None
+        for node in nodes:
+            df = node.get_output()
+            if 'co2_cost' in node.tags:
+                if not include_co2:
+                    df[VALUE_COLUMN] *= 0
+            if 'capacity_cost' in node.tags:
+                if not include_el_avoided:
+                    df[VALUE_COLUMN] *= 0
+            if 'health_cost' in node.tags:
+                if not include_health:
+                    df[VALUE_COLUMN] *= 0
+            if out is None:
+                out = df
+            else:
+                out[VALUE_COLUMN] += df[VALUE_COLUMN]
+
+        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
+        return out
+
+
 class DiscountNode(SimpleNode):
     '''All input nodes must be additive'''
     global_parameters: list[str] = [

@@ -43,7 +43,7 @@ instance:
       name_en: Schools
       name_sv: Skolor
       color: '#397368'
-    - id: single_houses_wo_solar
+    - id: single_family_wo_solar
       name: Omakotitalot ilman aurinkovoimaa
       name_en: Single houses without solar
       name_sv: Småhus utan solar
@@ -363,6 +363,7 @@ instance:
       value: avoided_electricity_capacity_price
     input_nodes:
     - electricity_per_area_single_family
+    tags: capacity_cost
 
   - id: health_cost_per_area_single_family
     name: Terveysvaikutus per ala omakotitalossa
@@ -374,6 +375,7 @@ instance:
       value: health_impacts_per_kwh
     input_nodes:
     - energy_per_area_single_family
+    tags: health_cost
 
   - id: co2_cost_per_area_single_family
     name: CO2-kustannus per ala omakotitalossa
@@ -383,12 +385,13 @@ instance:
     input_nodes:
     - price_of_co2
     - emissions_per_area_single_family
+    tags: co2_cost
 
   - id: cost_per_area_single_family
     name: Kustannus per ala omakotitalossa
     quantity: currency
     unit: SEK/a/m**2
-    type: simple.AdditiveNode
+    type: costs.SelectiveNode
     input_nodes:
     - renovation_cost_per_area_single_family
     - electricity_cost_per_area_single_family
@@ -860,6 +863,360 @@ instance:
     - electricity_consumption_office
     - price_of_electricity
 
+############## Schools
+
+  - id: floor_area_school
+    name: Koulujen rakennusala 
+    name_en: Floor area of schools
+    name_sv: Antal småhus
+    quantity: number
+    unit: m**2
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2010, 42900000.0]]
+    params:
+      yearly_change: 0.0
+    tags: floor_area
+
+  - id: electricity_per_area_school
+    name: Sähkönkulutus per ala koulussa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: Electricity
+
+  - id: heat_per_area_school
+    name: Lämmönkulutus per ala koulussa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: Heat
+
+  - id: renovation_cost_per_area_school
+    name: Korjauskustannus per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: RenovCost
+
+  - id: emissions_electricity_per_area_school
+    name: Sähkönkulutuksen päästöt per ala koulussa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: electricity_co2_ef
+    input_nodes:
+    - electricity_per_area_school
+    output_nodes:
+    - emissions_per_area_school
+
+  - id: emissions_heat_per_area_school
+    name: Lämmönkulutuksen päästöt per ala koulussa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: heat_co2_ef
+    input_nodes:
+    - heat_per_area_school
+    output_nodes:
+    - emissions_per_area_school
+
+  - id: emissions_per_area_school
+    name: Päästöt per ala koulussa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.AdditiveNode
+    output_nodes:
+    - emissions_school
+
+  - id: emissions_school
+    name: Omakotitalon päästöt
+    quantity: emissions
+    unit: kt/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_school
+    output_nodes:
+    - single_house_emissions
+
+  - id: energy_per_area_school
+    name: Energiankulutus per ala koulussa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    input_nodes:
+    - heat_per_area_school
+    - electricity_per_area_school
+
+  - id: energy_school
+    name: Energiankulutus koulussa
+    quantity: energy
+    unit: GWh/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_school
+    - energy_per_area_school
+
+  - id: electricity_cost_per_area_school
+    name: Sähkökustannus per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - electricity_per_area_school
+    - price_of_electricity
+
+  - id: heat_cost_per_area_school
+    name: Lämpökustannus per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - heat_per_area_school
+    - price_of_heat
+
+  - id: avoided_capacity_cost_per_area_school
+    name: Vältetty sähköntuotantokapasiteetti per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: avoided_electricity_capacity_price
+    input_nodes:
+    - electricity_per_area_school
+    tags: capacity_cost
+
+  - id: health_cost_per_area_school
+    name: Terveysvaikutus per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - energy_per_area_school
+    tags: health_cost
+
+  - id: co2_cost_per_area_school
+    name: CO2-kustannus per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - price_of_co2
+    - emissions_per_area_school
+    tags: co2_cost
+
+  - id: cost_per_area_school
+    name: Kustannus per ala koulussa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: costs.SelectiveNode
+    input_nodes:
+    - renovation_cost_per_area_school
+    - electricity_cost_per_area_school
+    - heat_cost_per_area_school
+    - avoided_capacity_cost_per_area_school
+    - health_cost_per_area_school
+    - co2_cost_per_area_school
+
+  - id: social_cost_school
+    name: Sosiaaliset kustannukset koulussa
+    quantity: currency
+    unit: MSEK/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - cost_per_area_school
+    - floor_area_school
+
+############## Single-family houses without solar
+
+  - id: floor_area_single_family_wo_solar
+    name: Omakotitalojen auringotta rakennusala 
+    name_en: Floor area of single-family houses without solar
+    name_sv: Antal småhus utan sol
+    quantity: number
+    unit: m**2
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2010, 302000.0]]
+    params:
+      yearly_change: 0.0
+    tags: floor_area
+
+  - id: electricity_per_area_single_family_wo_solar
+    name: Sähkönkulutus per ala omakotitalossa auringotta
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: Electricity
+
+  - id: heat_per_area_single_family_wo_solar
+    name: Lämmönkulutus per ala omakotitalossa auringotta
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: Heat
+
+  - id: renovation_cost_per_area_single_family_wo_solar
+    name: Korjauskustannus per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: RenovCost
+
+  - id: emissions_electricity_per_area_single_family_wo_solar
+    name: Sähkönkulutuksen päästöt per ala omakotitalossa auringotta
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: electricity_co2_ef
+    input_nodes:
+    - electricity_per_area_single_family_wo_solar
+    output_nodes:
+    - emissions_per_area_single_family_wo_solar
+
+  - id: emissions_heat_per_area_single_family_wo_solar
+    name: Lämmönkulutuksen päästöt per ala omakotitalossa auringotta
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: heat_co2_ef
+    input_nodes:
+    - heat_per_area_single_family_wo_solar
+    output_nodes:
+    - emissions_per_area_single_family_wo_solar
+
+  - id: emissions_per_area_single_family_wo_solar
+    name: Päästöt per ala omakotitalossa auringotta
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.AdditiveNode
+    output_nodes:
+    - emissions_single_family_wo_solar
+
+  - id: emissions_single_family_wo_solar
+    name: Omakotitalon päästöt
+    quantity: emissions
+    unit: kt/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_single_family_wo_solar
+    output_nodes:
+    - single_house_emissions
+
+  - id: energy_per_area_single_family_wo_solar
+    name: Energiankulutus per ala omakotitalossa auringotta
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    input_nodes:
+    - heat_per_area_single_family_wo_solar
+    - electricity_per_area_single_family_wo_solar
+
+  - id: energy_single_family_wo_solar
+    name: Energiankulutus omakotitalossa auringotta
+    quantity: energy
+    unit: GWh/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_single_family_wo_solar
+    - energy_per_area_single_family_wo_solar
+
+  - id: electricity_cost_per_area_single_family_wo_solar
+    name: Sähkökustannus per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - price_of_electricity
+
+  - id: heat_cost_per_area_single_family_wo_solar
+    name: Lämpökustannus per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - heat_per_area_single_family_wo_solar
+    - price_of_heat
+
+  - id: avoided_capacity_cost_per_area_single_family_wo_solar
+    name: Vältetty sähköntuotantokapasiteetti per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: avoided_electricity_capacity_price
+    input_nodes:
+    - electricity_per_area_single_family_wo_solar
+    tags: capacity_cost
+
+  - id: health_cost_per_area_single_family_wo_solar
+    name: Terveysvaikutus per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - energy_per_area_single_family_wo_solar
+    tags: health_cost
+
+  - id: co2_cost_per_area_single_family_wo_solar
+    name: CO2-kustannus per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - price_of_co2
+    - emissions_per_area_single_family_wo_solar
+    tags: co2_cost
+
+  - id: cost_per_area_single_family_wo_solar
+    name: Kustannus per ala omakotitalossa auringotta
+    quantity: currency
+    unit: SEK/a/m**2
+    type: costs.SelectiveNode
+    input_nodes:
+    - renovation_cost_per_area_single_family_wo_solar
+    - electricity_cost_per_area_single_family_wo_solar
+    - heat_cost_per_area_single_family_wo_solar
+    - avoided_capacity_cost_per_area_single_family_wo_solar
+    - health_cost_per_area_single_family_wo_solar
+    - co2_cost_per_area_single_family_wo_solar
+
+  - id: social_cost_single_family_wo_solar
+    name: Sosiaaliset kustannukset omakotitalossa auringotta
+    quantity: currency
+    unit: MSEK/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - cost_per_area_single_family_wo_solar
+    - floor_area_single_family_wo_solar
+
   #
   # ------- ACTIONS --------
   #
@@ -925,7 +1282,41 @@ instance:
       - price_of_electricity
 
 # Grön logik: Småhus 24: next 24 actions
-# Data from 
+# Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=2083157528
+
+  - id: improved_ventilation_single_family
+    name: Parantunut ilmanvaihto omakotitalossa
+    name_en: Improved ventilation single family
+    name_sv: Förbättrad ventilation småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 66
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 411
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: -15.7
 
   - id: switch_to_led_single_family
     name: Siirtyminen LEDiin
@@ -960,6 +1351,754 @@ instance:
       value: 0
     - id: electricity_saving
       value: 1.4
+
+  - id: hot_water_heater_replacement_single_family
+    name: Kuumavesivaraajan korvaaminen omakotitalossa
+    name_en: Hot water heater replacement single family
+    name_sv: Varmvattenberedare byta småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 85
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 65
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 17.1
+
+  - id: electric_heat_to_aahp_single_family
+    name: Sähkölämmitetyksestä ilmalämpöpumppuun omakotitalossa
+    name_en: Electric heatin to air-air heat pump single family
+    name_sv: Elvärmda till luft/luft-värmepump småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 8
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 144
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 33.6
+
+  - id: controls_and_rules_direct_electric_single_family
+    name: Hallinta ja säännöt suorasähkölämmitteisessä omakotitalossa
+    name_en: Controls and rules with direct electric heating single family
+    name_sv: Styr och regler direktel småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 14.
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 62.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 9.5
+
+  - id: waterborne_electric_bvp_single_family
+    name: Vesisähkölämmityksestä BVP omakotitalossa
+    name_en: Waterborne electric to BVP single family
+    name_sv: Vattenburen el till BVP småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 3
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 823
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 78.3
+
+  - id: fridge_freezer_single_family
+    name: Jääkaappipakastin omakotitalossa
+    name_en: Fridge Freezer single family
+    name_sv: Kyl/Frys småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 36
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 3.8
+
+  - id: directel_bvp_water_single_family
+    name: Suorasähkölämmityksestä BVP+vesi omakotitalossa
+    name_en: Direct electricity to BVP + water single family
+    name_sv: Direktel till BVP + vattenburet småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 1361
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 101.6
+
+  - id: control_heater_single_family
+    name: Kattilan säätö omakotitalossa
+    name_en: Control heater single family
+    name_sv: Styr, panna småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 86
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 52.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 23.6
+    - id: electricity_saving
+      value: 0
+
+  - id: hot_water_measures_sluggish_luminaires_single_family
+    name: Kuumavesitoimet ja hitaat valaisimet omakotitalossa
+    name_en: Hot water measures and sluggish luminaires single family
+    name_sv: Varmvattenåtgärder och snålspolande armaturer småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 25
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 10.4
+    - id: electricity_saving
+      value: 0
+
+  - id: wind_insulation_single_family
+    name: Tuuleneristys omakotitalossa
+    name_en: Wind insulation single family
+    name_sv: Vindsisolering småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 85
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 66.4
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 14.4
+    - id: electricity_saving
+      value: 0
+
+  - id: dishwasher_single_family
+    name: Astianpesukone omakotitalossa
+    name_en: Dishwasher single family
+    name_sv: Diskmaskin småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 11
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 0.8
+
+  - id: thermostat_valves_and_adjustment_single_family
+    name: Termostaattiventtiilit ja säätö omakotitalossa
+    name_en: Thermostat valves and adjustment single family
+    name_sv: Termostatventiler och injustering småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 47.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5.9
+    - id: electricity_saving
+      value: 0
+
+  - id: window_extension_single_family
+    name: Ikkunalaajennus omakotitalossa
+    name_en: Window extension single family
+    name_sv: Fönster, tillägg småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 37.5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 176
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 13.3
+    - id: electricity_saving
+      value: 0
+
+  - id: more_energy_efficient_doors_single_family
+    name: Enemmän energiatehokkaat ovet omakotitalossa
+    name_en: More energy-efficient doors single family
+    name_sv: Mer energieffektiva dörrar småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 49
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 3.3
+    - id: electricity_saving
+      value: 0
+
+  - id: solar_heating_single_family
+    name: Aurinkosälämmitys (25%) omakotitalossa
+    name_en: Solar heating (25%) single family
+    name_sv: Solvärme (25%) småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 25
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost
+      value: 476
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 38
+    - id: electricity_saving
+      value: 0
+
+  - id: solar_cells_single_family
+    name: Aurinkokennot (25%) omakotitalossa
+    name_en: Solar cells (25%) single family
+    name_sv: Solceller (25%) småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 25
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost
+      value: 421
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 18
+
+  - id: stove_single_family
+    name: Liesi omakotitalossa
+    name_en: Stove single family
+    name_sv: Spis småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 19
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+
+  - id: more_energy_efficient_windows_single_family
+    name: Energiatehokkaammat ikkunat omakotitalossa
+    name_en: More energy efficient windows single family
+    name_sv: Mer energieffektiva fönster, byte småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 37.5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 611
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 19.5
+    - id: electricity_saving
+      value: 0
+
+  - id: washing_dryer_single_family
+    name: Pesu/kuivausrumpu omakotitalossa
+    name_en: Washing/dryer single family
+    name_sv: Tvätt/tork småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 23
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 0.9
+
+  - id: facade_insulation_single_family
+    name: Julkisivueristys omakotitalossa
+    name_en: Facad insulation single family
+    name_sv: Fasadisolering småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 75
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 1016
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 17.9
+    - id: electricity_saving
+      value: 0
+
+  - id: upgrade_to_ftx_ventilation_single_family
+    name: Päivitys FTX-ilmanvaihtoon omakotitalossa
+    name_en: Upgrade to FTX ventilation single family
+    name_sv: Uppgradering till FTX-ventilation småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 79
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 865
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 21.8
+    - id: electricity_saving
+      value: -5.7
+
+  - id: waterborne_electric_fjv_single_family
+    name: Vesikeskuslämmityksestä FJV omakotitalossa
+    name_en: Waterborne electric -> Fjv single family
+    name_sv: Vattenburen el -> FJV småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 3
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 296
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: -4.5
+    - id: electricity_saving
+      value: 4.5
+
+  - id: directel_fjv_water_single_family
+    name: Suorasähköstä FJV + vesi omakotitalossa
+    name_en: Direct electricity to FJV + water single family
+    name_sv: Direktel -> FJV + vattenburet småhus
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 943
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: -1.5
+    - id: electricity_saving
+      value: 1.5
 
 # Grön logik: Flerbostadshus 24: next 16 actions 
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
@@ -1699,6 +2838,1404 @@ instance:
     - id: electricity_saving
       value: 3
 
+### Grön logik: Schools, next 19 actions
+### Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=1431578359
+  - id: wood_replacement_of_ftx_school
+    name: Puu FTXn korvaaminen koulu
+    name_en: Wood Replacement of FTX school
+    name_sv: Trä Byte av FTX skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 22
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 65
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5
+    - id: electricity_saving
+      value: 3
+
+  - id: stone_replacement_thermostats_adjustment_heating_system_school
+    name: Kivi Korvaavat termostaatit ja säätölämmitysjärjestelmä koulu
+    name_en: Stone Replacement Thermostats & Adjustment Heating System school
+    name_sv: Sten Byte termostater & injustering värmesystem skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 18
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 7
+    - id: electricity_saving
+      value: 0
+
+  - id: stone_need_controlled_ventilation_school
+    name: Kivi Tarvehallittu ilmanvaihto koulu
+    name_en: Stone Need-controlled ventilation school
+    name_sv: Sten Behovsstyrd ventilation skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 120
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 15
+    - id: electricity_saving
+      value: 4
+
+  - id: wood_replacement_thermostats_adjustment_heating_system_school
+    name: Puu Korvaavat termostaatit ja säätölämmitysjärjestelmä koulu
+    name_en: Wood Replacement Thermostats & Adjustment Heating System school
+    name_sv: Trä Byte termostater & injustering värmesystem skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 30
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 25
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 9
+    - id: electricity_saving
+      value: 0
+
+  - id: wood_need_controlled_ventilation_school
+    name: Puu Tarvehallittu ilmanvaihto koulu
+    name_en: Wood Need-controlled ventilation school
+    name_sv: Trä Behovsstyrd ventilation skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 30
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 72
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6.5
+    - id: electricity_saving
+      value: 2
+
+  - id: stone_installation_of_radiation_collector_school
+    name: Kivi Säteilynkerääjän asennus koulu
+    name_en: Stone Installation of radiation collector school
+    name_sv: Sten Installation av strålsamlare skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost
+      value: 3.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0.5
+    - id: electricity_saving
+      value: 0
+
+  - id: wood_installation_of_radiation_collector_school
+    name: Puu Säteilynkerääjän asennus koulu
+    name_en: Wood Installation of radiation collector school
+    name_sv: Trä Installation av strålsamlare skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 30
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost
+      value: 3.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0.5
+    - id: electricity_saving
+      value: 0
+
+  - id: stone_replacement_of_ftx_school
+    name: Kivi FTXn korvaaminen koulu
+    name_en: Stone Replacement of FTX school
+    name_sv: Sten Byte av FTX skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 52
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 235
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 10
+    - id: electricity_saving
+      value: 3.5
+
+  - id: stone_ft_to_ftx_school
+    name: Kivi ft -> ftx koulu
+    name_en: Stone ft -> ftx school
+    name_sv: Sten FT -> FTX skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 295
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 22
+    - id: electricity_saving
+      value: 0
+
+  - id: wood_ft_to_ftx_school
+    name: Puu ft -> ftx koulu
+    name_en: Wood ft -> ftx school
+    name_sv: Trä FT -> FTX skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 2
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 272
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 17
+    - id: electricity_saving
+      value: 1
+
+  - id: stone_modern_outdoor_lighting_school
+    name: Kivi Moderni ulkoiluvalaistus koulu
+    name_en: Stone Modern outdoor lighting school
+    name_sv: Sten Modern utomhusbelysning skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 33
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+
+  - id: wood_modern_outdoor_lighting_school
+    name: Puu Moderni ulkovalaistus koulu
+    name_en: Wood Modern outdoor lighting school
+    name_sv: Trä Modern utomhusbelysning skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 30
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 33
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+
+  - id: stone_insulation_roof_wind_school
+    name: Kivi Eristyskatto/tuuli koulu
+    name_en: Stone insulation roof/wind school
+    name_sv: Sten Isolering tak/vind skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 100
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 6
+    - id: electricity_saving
+      value: 0
+
+  - id: stone_change_window_school
+    name: Kivi Vaihda ikkuna koulu
+    name_en: Stone Change window school
+    name_sv: Sten Byte fönster skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 307
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 12
+    - id: electricity_saving
+      value: 0
+
+  - id: stone_f_to_ftx_school
+    name: Kivi f -> ftx koulu
+    name_en: Stone F -> FTX school
+    name_sv: Sten F -> FTX skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 11
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 688
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 30
+    - id: electricity_saving
+      value: -2.5
+
+  - id: wood_f_to_ftx_school
+    name: Puu f -> ftx koulu
+    name_en: Wood F -> FTX school
+    name_sv: Trä F -> FTX skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 688
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 30
+    - id: electricity_saving
+      value: -2.5
+
+  - id: wood_change_window_school
+    name: Puu Vaihda ikkuna koulu
+    name_en: Wood Change window school
+    name_sv: Trä Byte fönster skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 30
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 532
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 16
+    - id: electricity_saving
+      value: 1
+
+  - id: stone_modern_lighting_school
+    name: Kivi Moderni valaistus koulu
+    name_en: Stone Modern lighting school
+    name_sv: Sten Modern belysning skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 70
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 180
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: -3
+    - id: electricity_saving
+      value: 5
+
+  - id: wood_modern_lighting_school
+    name: Puu Moderni valaistus koulu
+    name_en: Wood Modern lighting school
+    name_sv: Trä Modern belysning skola
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: school
+    output_nodes:
+    - electricity_per_area_school
+    - heat_per_area_school
+    - renovation_cost_per_area_school
+    params:
+    - id: renovation_potential
+      values:
+        default: 30
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 180
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: -3
+    - id: electricity_saving
+      value: 5
+
+###### Grön logik 22 Actions with single-family houses without solar (whatever that means)
+###### Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=107900433
+
+  - id: improved_ventilation_single_family_wo_solar
+    name: Parantunut ilmanvaihto omakotitalossa auringotta
+    name_en: Improved ventilation single family wo solar
+    name_sv: Förbättrad ventilation småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 66
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 411
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: -15.7
+
+  - id: switch_to_led_single_family_wo_solar
+    name: Siirtyä LEDiin omakotitalossa auringotta
+    name_en: Switch to LED single family wo solar
+    name_sv: Byta till LED småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 0.7
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1.4
+
+  - id: hot_water_replacing_boiler_single_family_wo_solar
+    name: Kuumavesiboilerin korvaaminen omakotitalossa auringotta
+    name_en: Hot water boiler replacing single family wo solar
+    name_sv: Varmvattenåtgärder, byta vv-beredare småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 85
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 65
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 17.1
+
+  - id: electric_to_air_air_heatpump_single_family_wo_solar
+    name: Sähkölämmitys ilma/ilma-lämpöpumpuksi omakotitalossa auringotta
+    name_en: Electric heated to air/air -VP single family wo solar
+    name_sv: Elvärmda, exkl värmepump -> Luft/luft-VP småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 8
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 144
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 33.6
+
+  - id: controls_and_rules_direct_electricity_single_family_wo_solar
+    name: Hallinta ja säännöt suorasähkö omakotitalossa auringotta
+    name_en: Controls and rules, direct electricity single family wo solar
+    name_sv: Styr och regler, direktel småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 14.
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 62.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 9.5
+
+  - id: waterborne_electric_to_bvp_single_family_wo_solar
+    name: Vesiabronne Electric -> BVP omakotitalossa auringotta
+    name_en: Waterborne electric -> bvp single family wo solar
+    name_sv: Vattenburen el -> BVP småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 3
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 823
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 78.3
+
+  - id: control_forehead_single_family_wo_solar
+    name: Otsa omakotitalossa auringotta
+    name_en: Control, forehead single family wo solar
+    name_sv: Styr, panna småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 86
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 52.6
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 23.6
+    - id: electricity_saving
+      value: 0
+
+  - id: wind_insulation_single_family_wo_solar
+    name: Tuuleneristys omakotitalossa auringotta
+    name_en: Wind insulation single family wo solar
+    name_sv: Vindsisolering småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 85
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 66.4
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 14.4
+    - id: electricity_saving
+      value: 0
+
+  - id: hot_water_measures_sluggish_luminaires_single_family_wo_solar
+    name: Kuumavesi mitat, hitaat valaisimet omakotitalossa auringotta
+    name_en: Hot water measures, sluggish luminaires single family wo solar
+    name_sv: Varmvattenåtgärder, snålspolande armaturer småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 25
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 10.4
+    - id: electricity_saving
+      value: 0
+
+  - id: directel_to_bvp_water_cage_single_family_wo_solar
+    name: DIDOKEL -> BVP + Vesihäkki omakotitalossa auringotta
+    name_en: Directel -> BVP + water cage single family wo solar
+    name_sv: Direktel -> BVP + vattenburet småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 1361
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 101.6
+
+  - id: fridge_freezer_single_family_wo_solar
+    name: Jääkaappipakastin omakotitalossa auringotta
+    name_en: Fridge Freezer single family wo solar
+    name_sv: Kyl/Frys småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 36
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 3.8
+
+  - id: window_extension_single_family_wo_solar
+    name: Ikkuna, laajennus omakotitalossa auringotta
+    name_en: Window, extension single family wo solar
+    name_sv: Fönster, tillägg småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 37.5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 176
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 13.3
+    - id: electricity_saving
+      value: 0
+
+  - id: more_energy_-efficient_doors_single_family_wo_solar
+    name: Enemmän energiatehokkaita ovia omakotitalossa auringotta
+    name_en: More energy -efficient doors single family wo solar
+    name_sv: Mer energieffektiva dörrar småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 49
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 3.3
+    - id: electricity_saving
+      value: 0
+
+  - id: thermostat_valves_and_adjustment_single_family_wo_solar
+    name: Termostaattiventtiilit ja säätö omakotitalossa auringotta
+    name_en: Thermostat valves and adjustment single family wo solar
+    name_sv: Termostatventiler och injustering småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 47.5
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 5.9
+    - id: electricity_saving
+      value: 0
+
+  - id: dishwasher_single_family_wo_solar
+    name: Astianpesukone omakotitalossa auringotta
+    name_en: Dishwasher single family wo solar
+    name_sv: Diskmaskin småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 11
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 0.8
+
+  - id: more_energy_efficient_windows_single_family_wo_solar
+    name: Energiatehokkaampia ikkunoita omakotitalossa auringotta
+    name_en: More energy efficient windows, bytes single family wo solar
+    name_sv: Mer energieffektiva fönster, byte småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 37.5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 611
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 19.5
+    - id: electricity_saving
+      value: 0
+
+  - id: stove_single_family_wo_solar
+    name: Liesi omakotitalossa auringotta
+    name_en: Stove single family wo solar
+    name_sv: Spis småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 19
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1
+
+  - id: facade_insulation_single_family_wo_solar
+    name: Fadd -eristys omakotitalossa auringotta
+    name_en: Facad insulation single family wo solar
+    name_sv: Fasadisolering småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 75
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 40
+    - id: investment_cost
+      value: 1016
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 17.9
+    - id: electricity_saving
+      value: 0
+
+  - id: washing/dryer_single_family_wo_solar
+    name: Pesu/kuivausrumpu omakotitalossa auringotta
+    name_en: Washing/dryer single family wo solar
+    name_sv: Tvätt/tork småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 10
+    - id: investment_cost
+      value: 23
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 0.9
+
+  - id: upgrade_to_ftx_ventilation_single_family_wo_solar
+    name: Päivitys FTX -ilmanvaihtoon omakotitalossa auringotta
+    name_en: Upgrade to FTX ventilation single family wo solar
+    name_sv: Uppgradering till FTX-ventilation småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 79
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 865
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 21.8
+    - id: electricity_saving
+      value: -5.7
+
+  - id: waterborne_electric_to_fjv_single_family_wo_solar
+    name: Vesiabronne Electric -> FJV omakotitalossa auringotta
+    name_en: Waterborne electric -> Fjv single family wo solar
+    name_sv: Vattenburen el -> FJV småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 3
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 296
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: -4.5
+    - id: electricity_saving
+      value: 4.5
+
+  - id: directel_to_fjv_water_cage_single_family_wo_solar
+    name: Suorasähkö -> FJV + Vesihäkki omakotitalossa auringotta
+    name_en: Directel -> FJV + water cage single family wo solar
+    name_sv: Direktel -> FJV + vattenburet småhus utan sol
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family_wo_solar
+    output_nodes:
+    - electricity_per_area_single_family_wo_solar
+    - heat_per_area_single_family_wo_solar
+    - renovation_cost_per_area_single_family_wo_solar
+    params:
+    - id: renovation_potential
+      values:
+        default: 5
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 15
+    - id: investment_cost
+      value: 943
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: -1.5
+    - id: electricity_saving
+      value: 1.5
 
   pages:
   - id: home
