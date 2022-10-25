@@ -13,11 +13,11 @@ instance:
   owner_en: Kausal & Anthesis
   target_year: 2065
   reference_year: 1990
-  minimum_historical_year: 2010
+  minimum_historical_year: 2019
   maximum_historical_year: 2021
   emission_dataset: tampere/scenarios/emissions/bau
   emission_unit: kt/a
-  emission_forecast_from: 2019
+  emission_forecast_from: 2021
   action_groups:
     - id: general
       name: Yleinen
@@ -44,7 +44,7 @@ instance:
       name_sv: Skolor
       color: '#397368'
     - id: single_houses_wo_solar
-      name: Pientalot ilman aurinkovoimaa
+      name: Omakotitalot ilman aurinkovoimaa
       name_en: Single houses without solar
       name_sv: Småhus utan solar
       color: '#ABC872'
@@ -144,7 +144,7 @@ instance:
     part_of: net_emissions
     color: '#AD3963'
   - id: single_house_emissions
-    name: Pientalojen päästöt
+    name: Omakotitalojen päästöt
     name_en: Single house emissions
     name_sv: Småhusutsläpp
     column: Trucks and lorries
@@ -165,7 +165,7 @@ instance:
     part_of: net_emissions
     color: '#397368'
   - id: single_house_wo_solar_emissions
-    name: Päästöt pientaloista ilman aurinkovoimaa
+    name: Päästöt omakotitaloista ilman aurinkovoimaa
     name_en: Single house without solar emissions
     name_sv: Utsläpp av småhus utan solar
     column: Trucks and lorries
@@ -182,7 +182,7 @@ instance:
     quantity: unit_price
     unit: SEK/MWh
     type: simple.AdditiveNode
-    historical_values: [[2020, 1330]]
+    historical_values: [[2019, 1330]]
     tags: price_of_electricity
 
   - id: price_of_heat
@@ -192,7 +192,7 @@ instance:
     quantity: unit_price
     unit: SEK/MWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 940]]
+    historical_values: [[2019, 940]]
     params:
       yearly_change: 0.0
     tags: price_of_heat
@@ -207,16 +207,204 @@ instance:
     input_nodes:
     - social_cost_apartment
     - social_cost_office
+    - social_cost_single_family
 
-  - id: discounted_social_cost
-    name: Diskontatut sosiaaliset kustannukset
-    name_en: Discounted social cost
-    name_sv: Rabatterad sociala kostnader
-    type: costs.DiscountNode
+  - id: net_energy_consumption
+    name: Energiankulutus
+    name_en: Energy consumption
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: GWh/a
+    input_nodes:
+      - electricity_consumption_apartment
+      - heat_consumption_apartment
+      - electricity_consumption_office
+      - heat_consumption_office
+      - energy_single_family
+
+#  - id: discounted_social_cost
+#    name: Diskontatut sosiaaliset kustannukset
+#    name_en: Discounted social cost
+#    name_sv: Rabatterad sociala kostnader
+#    type: costs.DiscountNode
+#    quantity: currency
+#    unit: MSEK/a
+#    input_nodes:
+#    - social_cost
+
+############## Single family houses
+
+  - id: floor_area_single_family
+    name: Omakotitalojen rakennusala 
+    name_en: Floor area of single family houses
+    name_sv: Antal småhus
+    quantity: number
+    unit: m**2
+    type: simple.YearlyPercentageChangeNode
+    historical_values: [[2010, 302000000.0]]
+    params:
+      yearly_change: 0.0
+    tags: floor_area
+
+  - id: electricity_per_area_single_family
+    name: Sähkönkulutus per ala omakotitalossa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: Electricity
+
+  - id: heat_per_area_single_family
+    name: Lämmönkulutus per ala omakotitalossa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: Heat
+
+  - id: renovation_cost_per_area_single_family
+    name: Korjauskustannus per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.AdditiveNode
+    params:
+      - id: dimension
+        value: RenovCost
+
+  - id: emissions_electricity_per_area_single_family
+    name: Sähkönkulutuksen päästöt per ala omakotitalossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: electricity_co2_ef
+    input_nodes:
+    - electricity_per_area_single_family
+    output_nodes:
+    - emissions_per_area_single_family
+
+  - id: emissions_heat_per_area_single_family
+    name: Lämmönkulutuksen päästöt per ala omakotitalossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: heat_co2_ef
+    input_nodes:
+    - heat_per_area_single_family
+    output_nodes:
+    - emissions_per_area_single_family
+
+  - id: emissions_per_area_single_family
+    name: Päästöt per ala omakotitalossa
+    quantity: emissions
+    unit: kg/a/m**2
+    type: simple.AdditiveNode
+    output_nodes:
+    - emissions_single_family
+
+  - id: emissions_single_family
+    name: Omakotitalon päästöt
+    quantity: emissions
+    unit: kt/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_single_family
+    output_nodes:
+    - single_house_emissions
+
+  - id: energy_per_area_single_family
+    name: Energiankulutus per ala omakotitalossa
+    quantity: energy
+    unit: kWh/a/m**2
+    type: simple.AdditiveNode
+    input_nodes:
+    - heat_per_area_single_family
+    - electricity_per_area_single_family
+
+  - id: energy_single_family
+    name: Energiankulutus omakotitalossa
+    quantity: energy
+    unit: GWh/a
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - floor_area_single_family
+    - energy_per_area_single_family
+
+  - id: electricity_cost_per_area_single_family
+    name: Sähkökustannus per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - electricity_per_area_single_family
+    - price_of_electricity
+
+  - id: heat_cost_per_area_single_family
+    name: Lämpökustannus per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - heat_per_area_single_family
+    - price_of_heat
+
+  - id: avoided_capacity_cost_per_area_single_family
+    name: Vältetty sähköntuotantokapasiteetti per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: avoided_electricity_capacity_price
+    input_nodes:
+    - electricity_per_area_single_family
+
+  - id: health_cost_per_area_single_family
+    name: Terveysvaikutus per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.FixedMultiplierNode
+    params:
+    - id: global_multiplier
+      value: health_impacts_per_kwh
+    input_nodes:
+    - energy_per_area_single_family
+
+  - id: co2_cost_per_area_single_family
+    name: CO2-kustannus per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.MultiplicativeNode
+    input_nodes:
+    - price_of_co2
+    - emissions_per_area_single_family
+
+  - id: cost_per_area_single_family
+    name: Kustannus per ala omakotitalossa
+    quantity: currency
+    unit: SEK/a/m**2
+    type: simple.AdditiveNode
+    input_nodes:
+    - renovation_cost_per_area_single_family
+    - electricity_cost_per_area_single_family
+    - heat_cost_per_area_single_family
+    - avoided_capacity_cost_per_area_single_family
+    - health_cost_per_area_single_family
+    - co2_cost_per_area_single_family
+
+  - id: social_cost_single_family
+    name: Sosiaaliset kustannukset omakotitalossa
     quantity: currency
     unit: MSEK/a
+    type: simple.MultiplicativeNode
     input_nodes:
-    - social_cost
+    - cost_per_area_single_family
+    - floor_area_single_family
 
 ############## Apartment buildings
 
@@ -227,7 +415,7 @@ instance:
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 208000000.0]]
+    historical_values: [[2019, 208000000.0]]
     params:
       yearly_change: 0.0
     tags: floor_area
@@ -454,7 +642,7 @@ instance:
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2020, 33200000.0]]
+    historical_values: [[2019, 33200000.0]]
     params:
       yearly_change: 0.0
     tags: floor_area
@@ -672,18 +860,6 @@ instance:
     - electricity_consumption_office
     - price_of_electricity
 
-  - id: net_energy_consumption
-    name: Energiankulutus
-    name_en: Energy consumption
-    type: simple.AdditiveNode
-    quantity: energy
-    unit: GWh/a
-    input_nodes:
-      - electricity_consumption_apartment
-      - heat_consumption_apartment
-      - electricity_consumption_office
-      - heat_consumption_office
-
   #
   # ------- ACTIONS --------
   #
@@ -747,6 +923,43 @@ instance:
     tags: price_of_electricity
     output_nodes:
       - price_of_electricity
+
+# Grön logik: Småhus 24: next 24 actions
+# Data from 
+
+  - id: switch_to_led_single_family
+    name: Siirtyminen LEDiin
+    name_en: Switch to LED
+    name_sv: Byta till LED
+    type: energy_saving.BuildingEnergySavingAction
+    quantity: fraction
+    unit: '%/a'
+    group: single_family
+    output_nodes:
+    - electricity_per_area_single_family
+    - heat_per_area_single_family
+    - renovation_cost_per_area_single_family
+    params:
+    - id: renovation_potential
+      values:
+        default: 100
+      min_value: 0
+      max_value: 100
+      step: 5
+      unit: '%'
+      description: Korjaukseen soveltuvan rakennusalan osuus (%)
+      description_en: Fraction of floor area available for renovation (%)
+      description_sv: Potential av fastigheter (%)
+    - id: investment_lifetime
+      value: 20
+    - id: investment_cost
+      value: 0.7
+    - id: maintenance_cost
+      value: 0
+    - id: heat_saving
+      value: 0
+    - id: electricity_saving
+      value: 1.4
 
 # Grön logik: Flerbostadshus 24: next 16 actions 
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=535112721
@@ -1384,7 +1597,7 @@ instance:
     - id: electricity_saving
       value: 10
 
-  - id: lighting_upfrading_in_public_rooms_office
+  - id: lighting_upgrading_in_public_rooms_office
     name: Valaistuksen uusiminen yleisissä toimistotiloissa
     name_en: Lighting upgrading in public office rooms
     name_sv: Uppgradering av belysningen i allmänna utrymmen i kontor
