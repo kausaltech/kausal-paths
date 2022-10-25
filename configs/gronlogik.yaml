@@ -62,6 +62,12 @@ instance:
       label: Päästövähennysten marginaalikustannus
       label_en: Marginal cost in emission reduction
       label_sv: Marginalnettokostnad for utsläppsminskning
+    - cost_node: social_cost
+      impact_node: net_energy_consumption_per_area
+      unit: SEK/kWh*m**2
+      label: Rakennusalakohtaisen energiansäästön marginaalikustannus
+      label_en: Marginal cost in area-based energy savings
+      lavel_sv: Marginalnettokostnad för areabaserad energibesparing
 
   params:
   - id: cost_node  # FIXME Temporarily use global paramters for this functionality
@@ -143,7 +149,7 @@ instance:
     column: Heating total
     part_of: net_emissions
     color: '#AD3963'
-  - id: single_house_emissions
+  - id: single_family_emissions
     name: Omakotitalojen päästöt
     name_en: Single house emissions
     name_sv: Småhusutsläpp
@@ -164,7 +170,7 @@ instance:
     column: Trucks and lorries
     part_of: net_emissions
     color: '#397368'
-  - id: single_house_wo_solar_emissions
+  - id: single_family_wo_solar_emissions
     name: Päästöt omakotitaloista ilman aurinkovoimaa
     name_en: Single house without solar emissions
     name_sv: Utsläpp av småhus utan solar
@@ -205,9 +211,11 @@ instance:
     quantity: currency
     unit: MSEK/a
     input_nodes:
+    - social_cost_single_family
     - social_cost_apartment
     - social_cost_office
-    - social_cost_single_family
+    - social_cost_school
+    - social_cost_single_family_wo_solar
 
   - id: net_energy_consumption
     name: Energiankulutus
@@ -221,6 +229,19 @@ instance:
       - energy_office
       - energy_school
       - energy_single_family_wo_solar
+
+  - id: net_energy_consumption_per_area
+    name: Energiankulutus per ala
+    name_en: Energy consumption per area
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: GWh/a/m**2
+    input_nodes:
+      - energy_per_area_single_family
+      - energy_per_area_apartment
+      - energy_per_area_office
+      - energy_per_area_school
+      - energy_per_area_single_family_wo_solar
 
 ############## Single family houses
 
@@ -305,7 +326,7 @@ instance:
     input_nodes:
     - floor_area_single_family
     output_nodes:
-    - single_house_emissions
+    - single_family_emissions
 
   - id: energy_per_area_single_family
     name: Energiankulutus per ala omakotitalossa
@@ -482,7 +503,7 @@ instance:
     input_nodes:
     - floor_area_apartment
     output_nodes:
-    - single_house_emissions
+    - apartment_building_emissions
 
   - id: energy_per_area_apartment
     name: Energiankulutus per ala kerrostalossa
@@ -659,7 +680,7 @@ instance:
     input_nodes:
     - floor_area_office
     output_nodes:
-    - single_house_emissions
+    - office_building_emissions
 
   - id: energy_per_area_office
     name: Energiankulutus per ala toimistossa
@@ -836,7 +857,7 @@ instance:
     input_nodes:
     - floor_area_school
     output_nodes:
-    - single_house_emissions
+    - school_emissions
 
   - id: energy_per_area_school
     name: Energiankulutus per ala koulussa
@@ -1013,7 +1034,7 @@ instance:
     input_nodes:
     - floor_area_single_family_wo_solar
     output_nodes:
-    - single_house_emissions
+    - single_family_wo_solar_emissions
 
   - id: energy_per_area_single_family_wo_solar
     name: Energiankulutus per ala omakotitalossa auringotta
