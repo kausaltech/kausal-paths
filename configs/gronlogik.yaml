@@ -188,7 +188,7 @@ instance:
     quantity: unit_price
     unit: SEK/MWh
     type: simple.AdditiveNode
-    historical_values: [[2019, 1330]]
+    historical_values: [[2010, 1330]]
     tags: price_of_electricity
 
   - id: price_of_heat
@@ -198,7 +198,7 @@ instance:
     quantity: unit_price
     unit: SEK/MWh
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2019, 940]]
+    historical_values: [[2010, 940]]
     params:
       yearly_change: 0.0
     tags: price_of_heat
@@ -252,7 +252,7 @@ instance:
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2010, 302000000.0]]
+    historical_values: [[2010, 313000000.0]]
     params:
       yearly_change: 0.0
     tags: floor_area
@@ -262,6 +262,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
       - id: dimension
         value: Electricity
@@ -271,6 +272,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 101.6]]  # Energimyndigheten 31.8 TWh / 313 M m2
     params:
       - id: dimension
         value: Heat
@@ -333,6 +335,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 200]]  # Placeholder
     input_nodes:
     - heat_per_area_single_family
     - electricity_per_area_single_family
@@ -429,7 +432,7 @@ instance:
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2010, 208000000.0]]
+    historical_values: [[2010, 211000000.0]]
     params:
       yearly_change: 0.0
     tags: floor_area
@@ -439,6 +442,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
       - id: dimension
         value: Electricity
@@ -448,6 +452,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 129.4]]  # Energimyndigheten 27.3 TWh / 211 M km
     params:
       - id: dimension
         value: Heat
@@ -606,7 +611,7 @@ instance:
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
-    historical_values: [[2010, 33200000.0]]
+    historical_values: [[2010, 33200000.0]]  # Energimyndigheten
     params:
       yearly_change: 0.0
     tags: floor_area
@@ -616,6 +621,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
       - id: dimension
         value: Electricity
@@ -625,6 +631,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 110]]  # Energimyndigheten
     params:
       - id: dimension
         value: Heat
@@ -793,6 +800,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
       - id: dimension
         value: Electricity
@@ -970,6 +978,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
       - id: dimension
         value: Electricity
@@ -979,6 +988,7 @@ instance:
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
+    historical_values: [[2010, 101.6]]  # Energimyndigheten 31.8 TWh / 313 M m2
     params:
       - id: dimension
         value: Heat
