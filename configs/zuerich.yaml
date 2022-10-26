@@ -6,8 +6,8 @@ instance:
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
     commit: af84a46c532a0d4d976767c6f4371601e9b41255
-  name: Carbon-neutral Zürich 2030
-  name_de: Klimaneutrales Zürich 2030
+  name: Carbon-neutral Zürich 2040
+  name_de: Klimaneutrales Zürich 2040
   owner: City of Zürich
   owner_de: Stadt Zürich
   theme_identifier: zurich
@@ -1010,6 +1010,6 @@ instance:
 
   - id: default
     default: true
-    name: Carbon-neutral Zürich 2030 roadmap
-    name_de: Aktionsplan CO2-neutrales Zürich 2030
+    name: Net-zero by 2040
+    name_de: Netto-Null bis 2040
     all_actions_enabled: true
