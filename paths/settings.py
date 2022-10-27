@@ -196,12 +196,26 @@ GRAPPLE = {
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
+# While Django seems to prefer lower-case regions in language codes (e.g., 'en-us' instead of 'en-US'; cf.
+# https://github.com/django/django/blob/main/django/conf/global_settings.py), the Accept-Language header is
+# case-insensitive, and Django also seems to be able to deal with upper case.
+# https://docs.djangoproject.com/en/4.1/topics/i18n/#term-language-code
+# On the other hand, i18next strongly suggests regions to be in upper case lest some features break.
+# https://www.i18next.com/how-to/faq#how-should-the-language-codes-be-formatted
+# Since we send the language code of a plan to the client, let's make sure we use the upper-case format everywhere in
+# the backend already so we don't end up with different formats.
 LANGUAGES = (
     ('fi', _('Finnish')),
     ('en', _('English')),
     ('sv', _('Swedish')),
     ('de', _('German')),
+    ('de-CH', _('German (Switzerland)')),
 )
+# For languages that Django has no translations for, we need to manually specify what the language is called in that
+# language. We use this for displaying the list of available languages in the user settings.
+LOCAL_LANGUAGE_NAMES = {
+    'de-CH': "Deutsch (Schweiz)",
+}
 MODELTRANS_AVAILABLE_LANGUAGES = [x[0] for x in LANGUAGES]
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
 LANGUAGE_CODE = 'fi'
@@ -246,6 +260,7 @@ WAGTAIL_ENABLE_UPDATE_CHECK = False
 WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = True
 WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
 WAGTAIL_PASSWORD_RESET_ENABLED = True
+WAGTAILADMIN_PERMITTED_LANGUAGES = list(LANGUAGES)
 
 # Base URL to use when referring to full URLs within the Wagtail admin backend -
 # e.g. in notification emails. Don't include '/admin' or a trailing slash

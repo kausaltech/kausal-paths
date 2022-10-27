@@ -1,0 +1,247 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-10-27 15:09+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: nodes/actions/energy_saving.py
+msgid "Number of LED bulbs changed per year (baseline)"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Number of additional LED bulbs changed per year"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Yearly increase in total number of luminaires"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Yearly maintenance cost of traditional luminaires"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Yearly maintenance cost of LED luminaires"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Traditional luminaire power consumption"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "LED luminaire power consumption"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Traditional luminaire yearly active time"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "LED luminaire yearly active time"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Investment cost of one LED retrofit"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Investment lifetime (a)"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Investment cost (EUR/m2)"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Maintenance cost (EUR/m2/a)"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Heat saving (kWh/m2/a"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+msgid "Electricity saving (kWh/m2/a)"
+msgstr ""
+
+#: nodes/actions/energy_saving.py
+#, python-format
+msgid "Renovation potential (% of floor area)"
+msgstr ""
+
+#: nodes/instance.py
+msgid "Custom"
+msgstr ""
+
+#: nodes/models.py
+msgid "name"
+msgstr ""
+
+#: nodes/models.py pages/models.py
+msgid "Lead title"
+msgstr ""
+
+#: nodes/models.py pages/models.py
+msgid "Lead paragraph"
+msgstr ""
+
+#: nodes/models.py
+msgid "Site URL"
+msgstr ""
+
+#: nodes/models.py
+msgid "Instance"
+msgstr ""
+
+#: nodes/models.py
+msgid "Instances"
+msgstr ""
+
+#: nodes/models.py
+msgid "Actions"
+msgstr "Massnahmen"
+
+#: nodes/models.py
+msgid "Instance hostname"
+msgstr ""
+
+#: nodes/models.py
+msgid "Instance hostnames"
+msgstr ""
+
+#: nodes/models.py
+msgid "Order"
+msgstr ""
+
+#: nodes/models.py
+msgid "Short description"
+msgstr ""
+
+#: nodes/models.py
+msgid "Description"
+msgstr ""
+
+#: nodes/models.py
+msgid "Node"
+msgstr ""
+
+#: nodes/models.py
+msgid "Nodes"
+msgstr ""
+
+#: pages/models.py
+msgid "show in footer"
+msgstr "in Fusszeile anzeigen"
+
+#: pages/models.py
+msgid "Should the page be shown in the footer?"
+msgstr "Soll die Seite in der Fusszeile angezeigt werden?"
+
+#: pages/models.py
+msgid "Common page configuration"
+msgstr ""
+
+#: pages/models.py
+msgid "Outcome page"
+msgstr ""
+
+#: pages/models.py
+msgid "Outcome pages"
+msgstr ""
+
+#: pages/models.py
+msgid "Action list page"
+msgstr "Massnahmenlistenseite"
+
+#: pages/models.py
+msgid "Action list pages"
+msgstr "Massnahmenlistenseiten"
+
+#: pages/wagtail_hooks.py
+msgid "Choose instance"
+msgstr ""
+
+#: params/global.py
+msgid "Municipality name"
+msgstr ""
+
+#: params/global.py
+msgid "Discount rate"
+msgstr ""
+
+#: params/global.py
+msgid "Avoided electricity capacity price"
+msgstr ""
+
+#: params/global.py
+msgid "Health impacts per kWh"
+msgstr ""
+
+#: params/global.py
+msgid "Heat CO2 emission factor"
+msgstr ""
+
+#: params/global.py
+msgid "Electricity CO2 emission factor"
+msgstr ""
+
+#: params/global.py
+msgid "Cost of CO2"
+msgstr ""
+
+#: params/global.py
+msgid "Renovation rate baseline"
+msgstr ""
+
+#: params/global.py
+msgid "Change in carbon emission price"
+msgstr ""
+
+#: params/global.py
+msgid "Include CO2 cost variable in calculations?"
+msgstr ""
+
+#: params/global.py
+msgid "Include health impact variable in calculations?"
+msgstr ""
+
+#: params/global.py
+msgid "Include avoided electricity capacity variable in calculations?"
+msgstr ""
+
+#: paths/settings.py
+msgid "Finnish"
+msgstr ""
+
+#: paths/settings.py
+msgid "English"
+msgstr ""
+
+#: paths/settings.py
+msgid "Swedish"
+msgstr ""
+
+#: paths/settings.py
+msgid "German"
+msgstr ""
+
+#: paths/settings.py
+msgid "German (Switzerland)"
+msgstr ""
+
+#: paths/utils.py
+msgid "identifier"
+msgstr ""

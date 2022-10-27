@@ -130,6 +130,10 @@ msgstr "Schwedisch"
 msgid "German"
 msgstr "Deutsch"
 
+#: paths/settings.py
+msgid "German (Switzerland)"
+msgstr "Deutsch (Schweiz)"
+
 #: paths/utils.py
 msgid "identifier"
 msgstr "Kennung"
