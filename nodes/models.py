@@ -120,7 +120,7 @@ class InstanceConfig(models.Model):
             pass
         return root
 
-    def sync_nodes(self, update_existing=False):
+    def sync_nodes(self, update_existing=False, delete_stale=False):
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
@@ -136,9 +136,13 @@ class InstanceConfig(models.Model):
                     node_config.update_from_node(node)
                     node_config.save()
 
-        for node in node_configs.values():
-            if node.identifier not in found_nodes:
-                print("Node %s exists in database, but it's not found in node graph" % node.identifier)
+        for node in list(node_configs.values()):
+            if node.identifier in found_nodes:
+                continue
+
+            print("Node %s exists in database, but it's not found in node graph" % node.identifier)
+            if delete_stale:
+                node.delete()
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()
@@ -213,7 +217,7 @@ class NodeConfig(ClusterableModel):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
     )
-    identifier = IdentifierField()
+    identifier = IdentifierField(max_length=200)
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')

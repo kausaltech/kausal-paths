@@ -57,6 +57,7 @@ parser.add_argument('--pull-datasets', action='store_true', help='refresh all da
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
 parser.add_argument('--update-instance', action='store_true', help='update an existing InstanceConfig instance')
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
+parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
 parser.add_argument('--print-action-efficiencies', action='store_true', help='calculate and print action efficiencies')
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -154,7 +155,7 @@ if args.check or args.update_instance or args.update_nodes:
     if args.update_instance:
         instance_obj.update_from_instance(instance)
         instance_obj.save()
-    instance_obj.sync_nodes(args.update_nodes)
+    instance_obj.sync_nodes(update_existing=args.update_nodes, delete_stale=args.delete_stale_nodes)
     instance_obj.create_default_content()
 
 for param_arg in (args.param or []):
