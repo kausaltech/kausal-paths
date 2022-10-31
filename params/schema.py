@@ -2,7 +2,7 @@ from typing import Any
 import graphene
 from graphql.error import GraphQLError
 
-from paths.graphql_helpers import GQLInfo, GQLInstanceInfo
+from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 
 from . import (
     BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter,
@@ -198,10 +198,12 @@ class Query(graphene.ObjectType):
     parameters = graphene.List(ParameterInterface)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
 
+    @ensure_instance
     def resolve_parameters(root, info: GQLInstanceInfo):
         instance = info.context.instance
         return instance.context.global_parameters.values()
 
+    @ensure_instance
     def resolve_parameter(root, info: GQLInstanceInfo, id):
         instance = info.context.instance
         try:

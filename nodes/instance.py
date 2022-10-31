@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import typing
-from typing import Dict, Optional
+from typing import Dict, Iterable, Optional, Type
 
 import dvc_pandas
 import pint
@@ -14,11 +14,12 @@ import yaml
 import networkx as nx
 
 from common.i18n import TranslatedString, gettext_lazy as _
-from nodes.actions.action import ActionEfficiencyPair, ActionGroup
+from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
+from nodes.processors import Processor
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
@@ -97,6 +98,22 @@ class InstanceLoader:
         if not langs:
             return None
         return TranslatedString(**langs, default_language=default_language or self.default_language)
+
+    def setup_processors(self, node: Node, confs: list[dict | str]):
+        processors = []
+        for idp_conf in confs:
+            if isinstance(idp_conf, str):
+                class_path = idp_conf
+                idp_conf = {}
+            else:
+                class_path = idp_conf.pop('type')
+
+            params = idp_conf.get('params', {})
+            p_class: Type[Processor] = self.import_class(
+                class_path, 'nodes.processors', allowed_classes=[Processor]
+            )
+            processors.append(p_class(self.context, node, params=params))
+        return processors
 
     def make_node(self, node_class, config) -> Node:
         ds_config = config.get('input_datasets', None)
@@ -200,20 +217,43 @@ class InstanceLoader:
                     raise NodeError(node, "'tags' must be a list of strings")
             node.tags.update(tags)
 
+        idp_confs = config.get('input_dataset_processors', [])
+        node.input_dataset_processors = self.setup_processors(node, idp_confs)
+
         return node
+
+    def import_class(
+        self, path: str, path_prefix: str | None = None,
+        allowed_classes: Iterable[Type] | None = None,
+        disallowed_classes: Iterable[Type] | None = None,
+    ) -> Type:
+        parts = path.split('.')
+        class_name = parts.pop(-1)
+        if path_prefix:
+            prefix_parts = path_prefix.split('.')
+            parts = prefix_parts + parts
+
+        mod = importlib.import_module('.'.join(parts))
+        klass = getattr(mod, class_name)
+        if allowed_classes:
+            if not issubclass(klass, tuple(allowed_classes)):
+                raise Exception("%s is not a subclass of %s" % (klass, allowed_classes))
+        if disallowed_classes:
+            for k in disallowed_classes:
+                if issubclass(klass, k):
+                    raise Exception("%s is a subclass of disallowed %s" % (klass, disallowed_classes))
+        return klass
 
     def setup_nodes(self):
         for nc in self.config.get('nodes', []):
-            klass = nc['type'].split('.')
-            node_name = klass.pop(-1)
-            klass.insert(0, 'nodes')
             try:
-                mod = importlib.import_module('.'.join(klass))
+                node_class = self.import_class(
+                    nc['type'], 'nodes', allowed_classes=[Node], disallowed_classes=[ActionNode]
+                )
             except ImportError:
-                logger.error('Unable to input node class for %s' % nc.get('id'))
+                logger.error('Unable to import node class for %s' % nc.get('id'))
                 raise
 
-            node_class = getattr(mod, node_name)
             node = self.make_node(node_class, nc)
             self.context.add_node(node)
 

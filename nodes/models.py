@@ -1,7 +1,8 @@
 from __future__ import annotations
+from datetime import datetime
 
 import os
-from typing import Optional
+from typing import Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -22,35 +23,49 @@ from .instance import Instance, InstanceLoader
 instance_cache: dict[str, Instance] = {}
 
 
-class InstanceQuerySet(models.QuerySet):
-    def for_hostname(self, hostname):
+def get_instance_identifier_from_wildcard_domain(hostname: str) -> Union[Tuple[str, str], Tuple[None, None]]:
+    # Get instance identifier from hostname for development and testing
+    parts = hostname.lower().split('.', maxsplit=1)
+    if len(parts) == 2:
+        if parts[1] in settings.HOSTNAME_INSTANCE_DOMAINS:
+            return (parts[0], parts[1])
+    return (None, None)
+
+
+class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
+    def for_hostname(self, hostname: str):
         hostname = hostname.lower()
+        hostnames = InstanceHostname.objects.filter(hostname=hostname)
+        lookup = models.Q(id__in=hostnames.values_list('instance'))
 
-        # Get plan identifier from hostname for development and testing
-        parts = hostname.split('.', maxsplit=1)
-        if len(parts) == 2 and parts[1] in settings.HOSTNAME_INSTANCE_DOMAINS:
-            return self.filter(identifier__iexact=parts[0])
-
-        return self.filter(hostnames__hostname=hostname)
+        # Get instance identifier from hostname for development and testing
+        identifier, _ = get_instance_identifier_from_wildcard_domain(hostname)
+        if identifier:
+            lookup |= models.Q(identifier=identifier)
+        return self.filter(lookup)
 
 
 class InstanceConfig(models.Model):
-    identifier = IdentifierField()
+    identifier = IdentifierField(max_length=100)
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
 
+    is_protected = models.BooleanField(default=False)
+    protection_password = models.CharField(max_length=50, null=True, blank=True)
+
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
-    objects = models.Manager.from_queryset(InstanceQuerySet)()
+    objects = InstanceConfigQuerySet.as_manager()
 
     # Type annotations
-    nodes: "models.manager.RelatedManager[NodeConfig]"
+    nodes: models.manager.RelatedManager[NodeConfig]
+    hostnames: models.manager.RelatedManager[InstanceHostname]
 
     class Meta:
         verbose_name = _('Instance')
@@ -83,6 +98,8 @@ class InstanceConfig(models.Model):
             if not self.nodes.exists():
                 return instance
             latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
+            assert isinstance(latest_node_edit, datetime)
+            assert instance.modified_at is not None
             if latest_node_edit <= instance.modified_at and self.modified_at <= instance.modified_at:
                 return instance
 
@@ -107,6 +124,7 @@ class InstanceConfig(models.Model):
 
     @property
     def root_page(self) -> Page:
+        assert self.site is not None
         return self.site.root_page
 
     def get_translated_root_page(self):
@@ -153,12 +171,12 @@ class InstanceConfig(models.Model):
         instance = self.get_instance()
         root_nodes = instance.context.get_root_nodes()
         pks = [node.database_id for node in root_nodes]
-        return self.nodes.filter(pk__in=pks)
+        return list(self.nodes.filter(pk__in=pks))
 
     def _create_default_pages(self) -> Page:
         from pages.models import ActionListPage, OutcomePage
 
-        root_pages = Page.get_first_root_node().get_children()
+        root_pages: models.QuerySet['Page'] = Page.get_first_root_node().get_children()
         # Create default pages only in default language for now
         # TODO: Also create translations to other supported languages
         with override(self.default_language):
@@ -205,12 +223,28 @@ class InstanceHostname(models.Model):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='hostnames'
     )
-    hostname = models.CharField(max_length=100, unique=True)
-    base_path = models.CharField(max_length=100, null=True, blank=True)
+    hostname = models.CharField(max_length=100)
+    base_path = models.CharField(max_length=100, blank=True, default='')
 
     class Meta:
         verbose_name = _('Instance hostname')
         verbose_name_plural = _('Instance hostnames')
+        unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
+
+    def __str__(self):
+        return '%s at %s [basepath %s]' % (self.instance, self.hostname, self.base_path)
+
+
+class InstanceToken(models.Model):
+    instance = models.ForeignKey(
+        InstanceConfig, on_delete=models.CASCADE, related_name='tokens'
+    )
+    token = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('Instance token')
+        verbose_name_plural = _('Instance tokens')
 
 
 class NodeConfig(ClusterableModel):

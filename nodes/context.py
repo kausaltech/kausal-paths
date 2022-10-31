@@ -48,6 +48,7 @@ unit_registry.define('EUR = [currency]')
 unit_registry.define('USD = nan EUR')
 unit_registry.define('SEK = 0.1 EUR')
 unit_registry.define('pcs = [number] = pieces')
+unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
 
 
 unit_registry.default_format = '~P'

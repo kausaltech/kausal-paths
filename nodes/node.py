@@ -7,6 +7,7 @@ import os
 import io
 import inspect
 import json
+import typing
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union, Set, overload
 
 import numpy as np
@@ -27,6 +28,9 @@ from params import Parameter
 from .context import Context
 from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
+
+if typing.TYPE_CHECKING:
+    from .processors import Processor
 
 
 class NodeDimension:
@@ -92,6 +96,8 @@ class Node:
     input_datasets: List[str]
 
     input_dataset_instances: List[Dataset]
+    input_dataset_processors: List[Processor]
+
     input_nodes: List[Node]
     output_nodes: List[Node]
 
@@ -113,12 +119,13 @@ class Node:
 
     logger: logging.Logger
     debug: bool = False
-    __post_init__: Callable[[Node], None]
+
+    def __post_init__(self): ...
 
     def __init__(
         self, id: str, context: Context, name, quantity: str, description,
-        color: str = None, unit=None, target_year_goal=None,
-        input_datasets: List[Dataset] = None,
+        color: str | None = None, unit=None, target_year_goal=None,
+        input_datasets: List[Dataset] | None = None,
     ):
         if self.dimensions:
             for dim in self.dimensions.values():
@@ -146,6 +153,7 @@ class Node:
         self.baseline_values = None
         self.parameters = {}
         self.tags = set()
+        self.input_dataset_processors = []
 
         kls = type(self)
         self.logger = logging.getLogger('%s.%s' % (kls.__module__, kls.__name__))
@@ -233,6 +241,12 @@ class Node:
                 raise NodeError(self, "Input dataset has duplicate index rows")
             assert isinstance(df, pd.DataFrame)
             dfs.append(df)
+
+        if self.input_dataset_processors:
+            for proc in self.input_dataset_processors:
+                for idx, df in enumerate(list(dfs)):
+                    df = proc.process_input_dataset(df)
+                    dfs[idx] = df
         return dfs
 
     @overload

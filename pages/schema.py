@@ -27,6 +27,14 @@ def resolve_ancestors(self, info: GQLInstanceInfo, **kwargs):
     )
 
 
+def resolve_siblings(self, info: GQLInstanceInfo, **kwargs):
+    return resolve_queryset(
+        self.get_siblings().exclude(pk=self.pk).filter(depth__gte=3).live().public().specific(),
+        info,
+        **kwargs,
+    )
+
+
 def resolve_url_path(self, info: GQLInstanceInfo, **kwargs):
     url_path = self.url_path
     # FIXME: This is a dirty way to work around the issue of the slug having the form <instance>-1 or so for translated
@@ -93,6 +101,7 @@ def monkeypatch_grapple():
     # of site pages.
     PageInterface.resolve_parent = resolve_parent
     PageInterface.resolve_ancestors = resolve_ancestors
+    PageInterface.resolve_siblings = resolve_siblings
     PageInterface.resolve_url_path = resolve_url_path
     # Replace Grapple-generated PageTypes with our own
     registry.pages[OutcomePage] = OutcomePageType

@@ -33,3 +33,4 @@ Babel
 ruamel.yaml
 pygments-graphql
 watchfiles
+ipdb

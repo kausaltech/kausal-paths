@@ -9,6 +9,7 @@ from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from .metric import Metric
 
 from . import Node
+from .instance import Instance
 from .actions import ActionNode, ActionEfficiencyPair, ActionGroup
 from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, DecisionLevel
 from .scenario import Scenario
@@ -49,18 +50,21 @@ class InstanceType(graphene.ObjectType):
     theme_identifier = graphene.String()
     action_groups = graphene.List(ActionGroupType)
 
+    @staticmethod
     def resolve_lead_title(root, info):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
         return obj.lead_title_i18n
 
+    @staticmethod
     def resolve_lead_paragraph(root, info):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
         return obj.lead_paragraph_i18n
 
+    @staticmethod
     def resolve_hostname(root, info, hostname):
         return InstanceConfig.objects.get(identifier=root.id)\
             .hostnames.filter(hostname__iexact=hostname).first()
@@ -194,7 +198,13 @@ class NodeType(graphene.ObjectType):
         else:
             # FIXME: Determine a "default" target node from instance
             source_node = root
-            target_node = context.get_node('net_emissions')
+            for node_id in ('net_emissions', 'direct_emissions'):
+                if node_id not in context.nodes:
+                    continue
+                target_node = context.get_node(node_id)
+                break
+            else:
+                raise GraphQLError("No default target node available", info.field_nodes)
 
         if not isinstance(source_node, ActionNode):
             return None
@@ -292,15 +302,41 @@ class ActionEfficiencyPairType(graphene.ObjectType):
         return root.unit
 
 
+class InstanceBasicConfiguration(graphene.ObjectType):
+    identifier = graphene.String(required=True)
+    is_protected = graphene.Boolean(required=True)
+    default_language = graphene.String(required=True)
+    theme_identifier = graphene.String(required=True)
+    supported_languages = graphene.List(graphene.NonNull(graphene.String), required=True)
+    hostname = graphene.Field(InstanceHostname, required=True)
+
+    @staticmethod
+    def resolve_identifier(root: Instance, info: GQLInfo):
+        return root.id
+
+    @staticmethod
+    def resolve_is_protected(root: Instance, info: GQLInfo):
+        return root._config.is_protected
+
+    @staticmethod
+    def resolve_hostname(root: Instance, info: GQLInfo):
+        hostname = root._config.hostnames.filter(hostname=root._hostname.lower()).first()
+        if not hostname:
+            return dict(hostname=root._hostname, base_path='')
+
+
 class Query(graphene.ObjectType):
-    instance = graphene.Field(InstanceType)
-    nodes = graphene.List(NodeType)
+    available_instances = graphene.List(
+        graphene.NonNull(InstanceBasicConfiguration), hostname=graphene.String(), required=True
+    )
+    instance = graphene.Field(InstanceType, required=True)
+    nodes = graphene.List(graphene.NonNull(NodeType), required=True)
     node = graphene.Field(
         NodeType, id=graphene.ID(required=True)
     )
-    actions = graphene.List(NodeType)
-    action_efficiency_pairs = graphene.List(ActionEfficiencyPairType)
-    scenarios = graphene.List(ScenarioType)
+    actions = graphene.List(graphene.NonNull(NodeType), required=True)
+    action_efficiency_pairs = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
+    scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
     active_scenario = graphene.Field(ScenarioType)
 
@@ -350,3 +386,14 @@ class Query(graphene.ObjectType):
         instance = info.context.instance
         ctx = instance.context
         return ctx.action_efficiency_pairs
+
+    @staticmethod
+    def resolve_available_instances(root, info: GQLInfo, hostname: str):
+        qs = InstanceConfig.objects.for_hostname(hostname)
+        instances = []
+        for config in qs:
+            instance = config.get_instance()
+            instance._config = config
+            instance._hostname = hostname
+            instances.append(instance)
+        return instances

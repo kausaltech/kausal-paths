@@ -3,7 +3,6 @@
 #### Quantities
 
 [mass_concentration] = [mass] / [mass]
-capita = [population] = cap = person
 [persontime] = [population] * [time]  # Maybe not needed as a separate quantity
 [diseaseincidence] = [event] / [persontime]
 disability_adjusted_lifeyear = [disease_burden] = DALY = YLL = YLD

@@ -75,7 +75,11 @@ class InstanceDirective(GraphQLDirective):
                 'identifier': GraphQLArgument(
                     type_=GraphQLID,
                     description='Instance identifier'
-                )
+                ),
+                'token': GraphQLArgument(
+                    type_=GraphQLString,
+                    description='Token for accessing the instance'
+                ),
             },
             locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION]
         )
