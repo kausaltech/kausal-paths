@@ -215,7 +215,7 @@ class BuildingEnergySavingAction(ActionNode):
         ),
         NumberParameter(
             local_id='heat_saving',
-            label=_('Heat saving (kWh/m2/a'),
+            label=_('Heat saving (kWh/m2/a)'),
             unit='kWh/m**2/a',
             is_customizable=False,
         ),

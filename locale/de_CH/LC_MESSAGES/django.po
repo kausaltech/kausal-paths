@@ -70,7 +70,7 @@ msgid "Maintenance cost (EUR/m2/a)"
 msgstr ""
 
 #: nodes/actions/energy_saving.py
-msgid "Heat saving (kWh/m2/a"
+msgid "Heat saving (kWh/m2/a)"
 msgstr ""
 
 #: nodes/actions/energy_saving.py
