@@ -18,7 +18,8 @@ instance:
   emission_unit: t/inh/a
   emission_forecast_from: 2021
   params:
-
+  - id: municipality_name
+    value: zurich
   emission_sectors:
   - id: direct_emissions
     name_en: Direct emissions
@@ -33,7 +34,7 @@ instance:
     name_en: Building emissions
     name_de: Gebäude
     part_of: direct_emissions
-    color: '#e8404c'
+    color: '#002F96'
     historical_values: [[1990, 2.96942], [2020, 1.71186]]
     input_dataset_processors: [LinearInterpolation]
 
@@ -44,7 +45,7 @@ instance:
     name_en: Transportation emissions
     name_de: Mobilität
     part_of: direct_emissions
-    color: '#0a8df6'
+    color: '#E22D53'
     historical_values: [[1990, 1.12260], [2020, 0.66457]]
     input_dataset_processors: [LinearInterpolation]
 
@@ -52,7 +53,7 @@ instance:
     name_en: Waste disposal
     name_de: Entsorgung
     part_of: direct_emissions
-    color: '#614600'
+    color: '#F18830'
     historical_values: [[1990, 0.45001], [2020, 0.49011]]
     input_dataset_processors: [LinearInterpolation]
 
@@ -60,12 +61,12 @@ instance:
     name_en: Other direct emissions
     name_de: Übrige direkte Emissionen
     part_of: direct_emissions
+    color: '#7C7C7C'
 
   - id: ippu_emissions
     name_en: Industrial and commercial process emissions
     name_de: Industrie- und Gewerbeprozesse
     part_of: other_direct_emissions
-    color: '#ffcc00'
     historical_values: [[1990, 0.21308], [2020, 0.21308]]
     input_dataset_processors: [LinearInterpolation]
 
@@ -73,7 +74,6 @@ instance:
     name_en: Agriculture and forestry emissions
     name_de: Land- und Forstwirtschaft
     part_of: other_direct_emissions
-    color: '#34b16f'
     historical_values: [[1990, 0.01253], [2020, 0.00843]]
     input_dataset_processors: [LinearInterpolation]
 
