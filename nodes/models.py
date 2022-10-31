@@ -14,6 +14,7 @@ from modeltrans.fields import TranslationField
 from wagtail.core.fields import RichTextField
 from wagtail.core.models import Locale, Page
 from wagtail.core.models.sites import Site
+from common.i18n import get_modeltrans_attrs_from_str
 
 from nodes.node import Node
 from paths.utils import IdentifierField
@@ -85,12 +86,17 @@ class InstanceConfig(models.Model):
 
     def update_from_instance(self, instance: Instance, overwrite=False):
         """Update lead_title and lead_paragraph from instance but do not call save()."""
-        for field_name in ('lead_title', 'lead_paragraph'):
-            if getattr(instance, field_name) is not None:
-                for lang, v in getattr(instance, field_name).i18n.items():
-                    translated_field_name = f'{field_name}_{lang}'
-                    if overwrite or not getattr(self, translated_field_name):
-                        setattr(self, translated_field_name, v)
+
+        for field_name in ('lead_title', 'lead_paragraph', 'name'):
+            field_val = getattr(instance, field_name)
+            if field_val is None:
+                continue
+            val, i18n = get_modeltrans_attrs_from_str(field_val, field_name, instance.default_language)
+            if not getattr(self, field_name, None) or overwrite:
+                setattr(self, field_name, val)
+                if self.i18n is None:
+                    self.i18n = {}
+                self.i18n.update(i18n)
 
     def get_instance(self) -> Instance:
         if self.identifier in instance_cache:
@@ -169,7 +175,7 @@ class InstanceConfig(models.Model):
 
     def get_outcome_nodes(self) -> list[NodeConfig]:
         instance = self.get_instance()
-        root_nodes = instance.context.get_root_nodes()
+        root_nodes = [node for node in instance.context.nodes.values() if node.is_outcome]
         pks = [node.database_id for node in root_nodes]
         return list(self.nodes.filter(pk__in=pks))
 
@@ -207,6 +213,16 @@ class InstanceConfig(models.Model):
             site.save()
             self.site = site
             self.save(update_fields=['site'])
+
+    def delete(self, **kwargs):
+        site = self.site
+        if site is not None:
+            rp = site.root_page
+            self.site = None
+            self.save()
+            site.delete()
+            rp.get_descendants(inclusive=True).delete()
+        super().delete(**kwargs)
 
     def save(self, *args, **kwargs):
         if self.site is not None:

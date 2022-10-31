@@ -81,7 +81,6 @@ class FixedMultiplier(Processor):
     def process_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
         for col_name in df.columns:
             col = df[col_name]
-            print(type(col.iloc[0]))
             if isinstance(col.iloc[0], (bool, np.bool_)):
                 continue
             df[col_name] *= self.get_parameter('multiplier').value

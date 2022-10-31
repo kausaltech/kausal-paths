@@ -1,6 +1,6 @@
 instance:
   id: zuerich
-  default_language: de
+  default_language: de-CH
   supported_languages: [en]
   site_url: https://zuerich.paths-test.kausal.tech
   dataset_repo:
@@ -18,15 +18,13 @@ instance:
   emission_unit: t/inh/a
   emission_forecast_from: 2021
   params:
-  # FIXME
-  - id: municipality_name
-    value: Tampere
 
   emission_sectors:
   - id: direct_emissions
     name_en: Direct emissions
     name_de: Direkte Emissionen
     target_year_goal: 0
+    is_outcome: true
 
     #
     # Buildings
@@ -206,6 +204,7 @@ instance:
 
   - id: increase_carbon_sinks
     name_en: Increase carbon sinks
+    name_de: Kohlenstoffsenken vergrössern
     type: simple.LinearCumulativeAdditiveAction
     quantity: emissions
     output_nodes:
@@ -213,48 +212,29 @@ instance:
     forecast_values: [[2021, 0], [2030, -0.1], [2040, -0.4]]
     unit: t/inh/a
 
-
-
   pages:
   - id: home
-    name: Climate neutral Sunnydale 2030 emission scenario
-    name_fi: Hiilineutraali Sunnydale 2030 -päästöskenaario
-    name_de: Emissionsszenario Klimaneutrales Sunnydale 2030
+    name_en: Net Zero 2040
+    name_de: Netto-Null 2040
     path: /
     type: emission
-    node: net_emissions
-    lead_title: Sunnydale emission scenarios
-    lead_title_fi: Sunnydalen päästöskenaariot
-    lead_title_de: Sunnydale-Emissionsszenarien
-    lead_paragraph: Sunnydale's emission scenarios visualize the development of Sunnydale's
-      greenhouse gas emissions. You can look at where emissions from the Sunnydale city
-      area come from and how they are projected to change by 2030. There is a basic
-      development scenario to choose from, a scenario according to the Carbon Neutral
-      Sunnydale 2030 roadmap and a scenario that you can edit yourself. Further efforts
-      are needed to become carbon neutral, and their adequacy will be assessed in
-      the future using this tool.
-    lead_paragraph_fi: Sunnydalen päästöskenaariot visualisoi Sunnydalen kasvihuonekaasupäästöjen
-      kehityksen. Voit tarkastella, mistä Sunnydalen kaupungin alueen päästöt syntyvät
-      ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
-      peruskehitys-skenaario, Hiilineutraali Sunnydale 2030 -tiekartan mukainen skenaario
-      ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
-      vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
-      avulla.
-    lead_paragraph_de: Sunnydales Emissionsszenarien visualisieren die Entwicklung der
-      Treibhausgasemissionen der Stadt. Sie können sich ansehen, woher die Emissionen aus dem
-      Stadtgebiet von Sunnydale stammen und wie sie sich voraussichtlich bis 2030 verändern werden. Es
-      stehen ein Grundentwicklungsszenario zur Auswahl, ein Szenario gemäß dem Aktionsplan
-      CO2-neutrales Sunnydale 2030, und ein Szenario, das Sie selbst bearbeiten können. Weitere
-      Anstrengungen sind erforderlich, um klimaneutral zu werden, und deren Angemessenheit wird in
-      Zukunft mit diesem Instrument bewertet.
+    node: direct_emissions
+    lead_title_en: Development version
+    lead_title_de: Entwicklungsversion
+    lead_paragraph_en: This is a test version of the City of Zürich's
+      interactive scenario modeling platform for the Net Zero goal.
+      All information on this website is to be considered incomplete and experimental.
+    lead_paragraph_de: Dies ist eine Testversion der interaktiven Szenariomodellierungsplattform
+      zu Zürichs Ziel Netto-Null 2040. Alle Informationen auf dieser Website sind als unvollständig
+      und experimentell zu verstehen.
 
   scenarios:
   - id: baseline
-    name: Baseline
+    name_en: Baseline
     name_de: Basisszenario
 
   - id: default
     default: true
-    name: Net-zero by 2040
+    name_en: Net Zero 2040
     name_de: Netto-Null 2040
     all_actions_enabled: true

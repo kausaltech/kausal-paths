@@ -82,6 +82,9 @@ class InstanceLoader:
     yaml_file_path: Optional[str] = None
 
     def make_trans_string(self, config: Dict, attr: str, pop: bool = False, default_language=None):
+        all_langs = set([self.config['default_language']])
+        all_langs.update(set(self.config.get('supported_languages', [])))
+
         default = config.get(attr)
         if pop and default is not None:
             del config[attr]
@@ -89,10 +92,20 @@ class InstanceLoader:
         if default is not None:
             langs[self.config['default_language']] = default
         for key in list(config.keys()):
-            m = re.match(r'%s_([a-z]+)' % attr, key)
+            m = re.match(r'%s_(([a-z]{2})(-[A-Z]{2})?)$' % attr, key)
             if m is None:
                 continue
-            langs[m.groups()[0]] = config[key]
+            full, lang, region = m.groups()
+            if full not in all_langs:
+                matches = [x for x in all_langs if x.startswith('%s-' % lang)]
+                if len(matches) > 1:
+                    raise Exception("Too many languages match %s" % full)
+                if len(matches) == 1:
+                    full = matches[0]
+                else:
+                    raise Exception("Unsupported language: %s" % full)
+
+            langs[full] = config[key]
             if pop:
                 del config[key]
         if not langs:
@@ -168,6 +181,7 @@ class InstanceLoader:
             name=self.make_trans_string(config, 'name'),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
+            is_outcome=config.get('is_outcome', False),
             unit=unit,
             quantity=quantity,
             target_year_goal=config.get('target_year_goal'),

@@ -16,7 +16,7 @@ import pint
 import pint_pandas
 from rich import print as pprint
 
-from common.i18n import TranslatedString
+from common.i18n import TranslatedString, get_modeltrans_attrs_from_str
 from common.utils import hash_unit
 from nodes.constants import (
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
@@ -76,6 +76,8 @@ class Node:
     color: Optional[str]
     # order comes from NodeConfig
     order: Optional[int] = None
+    # if this node should have its own outcome page
+    is_outcome: bool = False
 
     # output unit (from pint)
     unit: pint.Unit
@@ -124,7 +126,7 @@ class Node:
 
     def __init__(
         self, id: str, context: Context, name, quantity: str, description,
-        color: str | None = None, unit=None, target_year_goal=None,
+        color: str | None = None, is_outcome: bool = False, unit=None, target_year_goal=None,
         input_datasets: List[Dataset] | None = None,
     ):
         if self.dimensions:
@@ -142,6 +144,7 @@ class Node:
         self.name = name
         self.description = description
         self.color = color
+        self.is_outcome = is_outcome
         self.unit = unit
         if unit is None and not self.dimensions:
             raise NodeError(self, "Attempting to initialize node without a unit")
@@ -633,17 +636,20 @@ class Node:
             'identifier': self.id,
         }
 
-        if isinstance(self.name, TranslatedString):
-            attributes.update({f'name_{lang}': v for lang, v in self.name.i18n.items()})
-        elif self.name:
-            attributes.update({'name': self.name})
+        i18n = {}
+        default_lang = self.context.instance.default_language
 
+        def set_from_translated_str(s: str | TranslatedString | None, field_name: str):
+            if s is None:
+                return
+
+            val, tr = get_modeltrans_attrs_from_str(s, field_name, default_lang)
+            i18n.update(tr)
+
+        set_from_translated_str(self.name, 'name')
         # Node's description is called `short_description` in NodeConfig and there is no equivalent for
         # NodeConfig's `long_description` in Node
-        if isinstance(self.description, TranslatedString):
-            attributes.update({f'short_description_{lang}': v for lang, v in self.description.i18n.items()})
-        elif self.description:
-            attributes.update({'short_description': self.description})
+        set_from_translated_str(self.description, 'short_description')
 
         if self.color:
             attributes['color'] = self.color
