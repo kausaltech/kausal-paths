@@ -60,7 +60,7 @@ class LinearInterpolation(Processor):
         for col_name in df.columns:
             col = df[col_name]
             if isinstance(col.iloc[0], (bool,)):
-                df[col_name] = col.fillna(method='pad')
+                df[col_name] = col.fillna(method='bfill')
             elif hasattr(col, 'pint'):
                 pt = col.dtype
                 df[col_name] = col.pint.m.interpolate().astype(pt)
