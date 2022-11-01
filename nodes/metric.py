@@ -82,22 +82,22 @@ class Metric:
     def get_historical_values(self) -> List[YearlyValue]:
         vals = self.split_df()
         if not vals:
-            return None
+            return []
         return vals['historical']
 
     def get_forecast_values(self) -> List[YearlyValue]:
         vals = self.split_df()
         if not vals:
-            return None
+            return []
         return vals['forecast']
 
     def get_baseline_forecast_values(self) -> List[YearlyValue]:
         vals = self.split_df()
         if not vals:
-            return None
+            return []
         return vals['baseline']
 
-    def get_cumulative_forecast_value(self) -> float:
+    def get_cumulative_forecast_value(self) -> float | None:
         vals = self.split_df()
         if not vals:
             return None

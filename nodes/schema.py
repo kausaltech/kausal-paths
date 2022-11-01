@@ -32,6 +32,10 @@ class ActionGroupType(graphene.ObjectType):
         return [act for act in context.get_actions() if act.group == root]
 
 
+class InstanceFeaturesType(graphene.ObjectType):
+    baseline_visible_in_graphs = graphene.Boolean(required=True)
+
+
 class InstanceType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
@@ -49,6 +53,7 @@ class InstanceType(graphene.ObjectType):
     lead_paragraph = graphene.String()
     theme_identifier = graphene.String()
     action_groups = graphene.List(ActionGroupType)
+    features = graphene.Field(InstanceFeaturesType, required=True)
 
     @staticmethod
     def resolve_lead_title(root, info):
@@ -82,10 +87,10 @@ class ForecastMetricType(graphene.ObjectType):
     output_node = graphene.Field(lambda: NodeType)
     unit = graphene.Field('paths.schema.UnitType')
     yearly_cumulative_unit = graphene.Field('paths.schema.UnitType')
-    historical_values = graphene.List(YearlyValue, latest=graphene.Int(required=False))
-    forecast_values = graphene.List(YearlyValue)
+    historical_values = graphene.List(graphene.NonNull(YearlyValue), latest=graphene.Int(required=False))
+    forecast_values = graphene.List(graphene.NonNull(YearlyValue), required=True)
     cumulative_forecast_value = graphene.Float()
-    baseline_forecast_values = graphene.List(YearlyValue)
+    baseline_forecast_values = graphene.List(graphene.NonNull(YearlyValue))
 
     @staticmethod
     def resolve_historical_values(root: Metric, info, latest: Optional[int] = None):
@@ -113,31 +118,32 @@ ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
 
 
 class NodeType(graphene.ObjectType):
-    id = graphene.ID()
-    name = graphene.String()
+    id = graphene.ID(required=True)
+    name = graphene.String(required=True)
     color = graphene.String()
     order = graphene.Int(required=False)
     unit = graphene.Field('paths.schema.UnitType')
     quantity = graphene.String()
     target_year_goal = graphene.Float()
-    is_action = graphene.Boolean()
+    is_action = graphene.Boolean(required=True)
     decision_level = graphene.Field(ActionDecisionLevel)
-    input_nodes = graphene.List(lambda: NodeType)
-    output_nodes = graphene.List(lambda: NodeType)
-    downstream_nodes = graphene.List(lambda: NodeType)
+    input_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
+    output_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
+    downstream_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
     upstream_nodes = graphene.List(
-        lambda: NodeType,
+        graphene.NonNull(lambda: NodeType),
         same_unit=graphene.Boolean(),
         same_quantity=graphene.Boolean(),
-        include_actions=graphene.Boolean()
+        include_actions=graphene.Boolean(),
+        required=True
     )
-    upstream_actions = graphene.List(lambda: NodeType)
+    upstream_actions = graphene.List(graphene.NonNull(lambda: NodeType, required=True))
     group = graphene.Field(ActionGroupType, required=False)
 
     # TODO: Many nodes will output multiple time series. Remove metric
     # and handle a single-metric node as a special case in the UI??
     metric = graphene.Field(ForecastMetricType)
-    output_metrics = graphene.List(ForecastMetricType)
+    output_metrics = graphene.List(graphene.NonNull(ForecastMetricType), required=True)
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))

@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import typing
-from typing import Dict, Iterable, Optional, Type
+from typing import Dict, Iterable, Literal, Optional, Type, overload
 
 import dvc_pandas
 import pint
@@ -23,11 +23,13 @@ from nodes.processors import Processor
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
-if typing.TYPE_CHECKING:
-    from nodes.actions.action import ActionGroup
-
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class InstanceFeatures:
+    baseline_visible_in_graphs: bool = True
 
 
 @dataclass
@@ -46,6 +48,7 @@ class Instance:
     lead_title: Optional[TranslatedString] = None
     lead_paragraph: Optional[TranslatedString] = None
     theme_identifier: Optional[str] = None
+    features: InstanceFeatures = field(default_factory=InstanceFeatures)
     action_groups: list[ActionGroup] = field(default_factory=list)
 
     modified_at: Optional[datetime] = field(init=False)
@@ -56,6 +59,9 @@ class Instance:
 
     def __post_init__(self):
         self.modified_at = None
+        if isinstance(self.features, dict):
+            self.features = InstanceFeatures(**self.features)
+
         if not self.supported_languages:
             self.supported_languages = [self.default_language]
         else:
@@ -81,7 +87,23 @@ class InstanceLoader:
     default_language: str
     yaml_file_path: Optional[str] = None
 
-    def make_trans_string(self, config: Dict, attr: str, pop: bool = False, default_language=None):
+    @overload
+    def make_trans_string(
+        self, config: Dict, attr: str, pop: bool = False, required: Literal[True] = True,
+        default_language=None
+    ) -> TranslatedString: ...
+
+    @overload
+    def make_trans_string(
+        self, config: Dict, attr: str, pop: bool = False, required: Literal[False] = False,
+        default_language=None
+    ) -> TranslatedString | None: ...
+
+    def make_trans_string(
+        self, config: Dict, attr: str, pop: bool = False, required: bool = False,
+        default_language=None
+    ):
+        default_language = default_language or self.config['default_language']
         all_langs = set([self.config['default_language']])
         all_langs.update(set(self.config.get('supported_languages', [])))
 
@@ -109,6 +131,8 @@ class InstanceLoader:
             if pop:
                 del config[key]
         if not langs:
+            if required:
+                raise Exception("Value for field %s missing" % attr)
             return None
         return TranslatedString(**langs, default_language=default_language or self.default_language)
 
@@ -439,7 +463,7 @@ class InstanceLoader:
 
     def __init__(self, config: dict, yaml_file_path: str = None):
         self.config = config
-        self.default_language = config.get('default_language')
+        self.default_language = config['default_language']
 
         static_datasets = self.config.get('static_datasets')
         if static_datasets is not None:
@@ -457,7 +481,7 @@ class InstanceLoader:
 
         instance_attrs = [
             'reference_year', 'minimum_historical_year', 'maximum_historical_year',
-            'default_language', 'supported_languages', 'site_url', 'theme_identifier',
+            'supported_languages', 'site_url', 'theme_identifier',
         ]
         agc_all = self.config.get('action_groups', [])
         agcs = []
@@ -468,10 +492,12 @@ class InstanceLoader:
 
         self.instance = Instance(
             id=self.config['id'],
-            name=self.make_trans_string(self.config, 'name', default_language=self.config['default_language']),
-            owner=self.make_trans_string(self.config, 'owner', default_language=self.config['default_language']),
+            name=self.make_trans_string(self.config, 'name', required=True),
+            owner=self.make_trans_string(self.config, 'owner', required=True),
+            default_language=self.config['default_language'],
             context=self.context,
             action_groups=agcs,
+            features=self.config.get('features', {}),
             **{attr: self.config.get(attr) for attr in instance_attrs},
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
