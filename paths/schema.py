@@ -15,6 +15,8 @@ from params.schema import (
     Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 )
 
+CO2E = 'CO<sub>2</sub>e'
+
 
 class UnitType(graphene.ObjectType):
     short = graphene.String()
@@ -24,19 +26,49 @@ class UnitType(graphene.ObjectType):
 
     def resolve_short(self: pint.Unit, info):  # type: ignore
         lang = get_language()
-        return self.format_babel('~P', locale=lang)
+        val = self.format_babel('~P', locale=lang)
+        if val == 't/a/cap':
+            if lang == 'de':
+                return 't/a/Einw.'
+            elif lang == 'en':
+                return 't/a/inh.'
+        return val
 
     def resolve_long(self: pint.Unit, info):  # type: ignore
         lang = get_language()
-        return self.format_babel('P', locale=lang)
+        val = self.format_babel('~P', locale=lang)
+        if val == 't/a/cap':
+            if lang == 'de':
+                return 't CO₂e/Jahr/Einw.'
+            elif lang == 'en':
+                return 't CO₂e/year/inh.'
+        return val
 
     def resolve_html_short(self: pint.Unit, info):  # type: ignore
         lang = get_language()
-        return self.format_babel('~H', locale=lang)
+        val = self.format_babel('~H', locale=lang)
+        # FIXME: remove this hack
+        if val == 't/(a cap)':
+            if lang == 'de':
+                return 't∕a∕Einw.'
+        return val
 
     def resolve_html_long(self: pint.Unit, info):  # type: ignore
         lang = get_language()
-        return self.format_babel('H', locale=lang)
+        val = self.format_babel('~H', locale=lang)
+        if val == 't/(a cap)':
+            if lang == 'de':
+                return f't {CO2E}∕Jahr∕Einw.'
+            elif lang == 'en':
+                return f't {CO2E}∕year∕inh.'
+        elif val == 'kt/a':
+            if lang == 'fi':
+                return f'kt {CO2E}∕vuosi'
+            elif lang == 'en':
+                return f'kt {CO2E}∕year'
+            elif lang == 'de':
+                return f'kt {CO2E}∕Jahr'
+        return val
 
 
 class Query(NodesQuery, ParamsQuery, PagesQuery):
