@@ -125,7 +125,12 @@ class NodeType(graphene.ObjectType):
     input_nodes = graphene.List(lambda: NodeType)
     output_nodes = graphene.List(lambda: NodeType)
     downstream_nodes = graphene.List(lambda: NodeType)
-    upstream_nodes = graphene.List(lambda: NodeType, same_unit=graphene.Boolean(), same_quantity=graphene.Boolean())
+    upstream_nodes = graphene.List(
+        lambda: NodeType,
+        same_unit=graphene.Boolean(),
+        same_quantity=graphene.Boolean(),
+        include_actions=graphene.Boolean()
+    )
     upstream_actions = graphene.List(lambda: NodeType)
     group = graphene.Field(ActionGroupType, required=False)
 
@@ -164,13 +169,20 @@ class NodeType(graphene.ObjectType):
         return root.get_downstream_nodes()
 
     @staticmethod
-    def resolve_upstream_nodes(root: Node, info: GQLInstanceInfo, same_unit: bool = False, same_quantity: bool = False):
+    def resolve_upstream_nodes(
+        root: Node, info: GQLInstanceInfo,
+        same_unit: bool = False, same_quantity: bool = False,
+        include_actions: bool = True
+    ):
         def filter_nodes(node):
             if same_unit:
                 if root.unit != node.unit:
                     return False
             if same_quantity:
                 if root.quantity != node.quantity:
+                    return False
+            if not include_actions:
+                if isinstance(node, ActionNode):
                     return False
             return True
         return root.get_upstream_nodes(filter=filter_nodes)
