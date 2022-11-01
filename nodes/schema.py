@@ -143,7 +143,6 @@ class NodeType(graphene.ObjectType):
     # TODO: Many nodes will output multiple time series. Remove metric
     # and handle a single-metric node as a special case in the UI??
     metric = graphene.Field(ForecastMetricType)
-    output_metrics = graphene.List(graphene.NonNull(ForecastMetricType), required=True)
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))

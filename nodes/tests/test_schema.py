@@ -162,10 +162,6 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               __typename
               id
             }
-            outputMetrics {
-              __typename
-              id
-            }
             impactMetric {
               __typename
               id
@@ -221,7 +217,6 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'ForecastMetricType',
                 'id': additive_action.id,
             },
-            'outputMetrics': None,  # TODO: Not implemented in schema yet
             'impactMetric': {
                 '__typename': 'ForecastMetricType',
                 'id': f'{additive_action.id}-{additive_action.id}-impact',
