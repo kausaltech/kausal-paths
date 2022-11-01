@@ -24,6 +24,7 @@ instance:
   - id: net_emissions
     name_en: Greenhouse gas emissions
     name_de: Treibhausgas-emissionen
+    target_year_goal: 6.5
     is_outcome: true
 
   - id: direct_emissions
@@ -31,7 +32,7 @@ instance:
     name_de: Direkte Emissionen
     target_year_goal: 0
     part_of: net_emissions
-    color: '#002F96'
+    color: '#0F05A0'
 
     #
     # Buildings
@@ -88,14 +89,14 @@ instance:
     name_en: Negative emissions
     name_de: Negative Emissionen
     part_of: net_emissions
-    color: '#34B16F'
+    color: '#F7A5AF'
     historical_values: [[1990, 0], [2020, 0]]
 
   - id: indirect_emissions
     name_en: Indirect emissions
     name_de: Indirekte Emissionen
     part_of: net_emissions
-    color: '#814100'
+    color: '#6496FF'
 
   - id: building_indirect_emissions
     name_en: Building indirect emissions
