@@ -17,6 +17,9 @@ instance:
   maximum_historical_year: 2020
   emission_unit: t/inh/a
   emission_forecast_from: 2021
+  features:
+    baseline_visible_in_graphs: false
+
   params:
   - id: municipality_name
     value: zurich
@@ -102,7 +105,7 @@ instance:
     name_en: Building indirect emissions
     name_de: Gebäude
     part_of: indirect_emissions
-    color: '#007AC8'
+    color: '#BBEEFE'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 2.02326], [2020, 2.09565]]
     forecast_values: [[2030, 1.40267], [2040, 1.04673], [2050, 0.82570]]
@@ -111,7 +114,7 @@ instance:
     name_en: Mobility (without aviation)
     name_de: Mobilität (exkl. Flugverkehr)
     part_of: indirect_emissions
-    color: '#B74992'
+    color: '#F99EC8'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 1.44522], [2020, 1.49693]]
     forecast_values: [[2030, 1.22610], [2040, 0.86622], [2050, 0.37174]]
@@ -120,7 +123,7 @@ instance:
     name_en: Aviation
     name_de: Flugverkehr
     part_of: indirect_emissions
-    color: '#55558E'
+    color: '#A174DE'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 1.01871], [2020, 1.39705]]
     forecast_values: [[2030, 1.24933], [2040, 1.14421], [2050, 0.70306]]
@@ -129,7 +132,7 @@ instance:
     name_en: Food consumption emissions
     name_de: Ernährung
     part_of: indirect_emissions
-    color: '#FF775D'
+    color: '#BCE59E'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 1.96194], [2020, 2.03214]]
     forecast_values: [[2030, 1.78179], [2040, 1.39428], [2050, 1.07363]]
@@ -138,7 +141,7 @@ instance:
     name_en: Textile consumption emissions
     name_de: Textilien
     part_of: indirect_emissions
-    color: '#FFB851'
+    color: '#FBCB97'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 1.16144], [2020, 1.20300]]
     forecast_values: [[2030, 0.90850], [2040, 0.57000], [2050, 0.30708]]
@@ -147,7 +150,7 @@ instance:
     name_en: Other consumption emissions
     name_de: Übriger Konsum
     part_of: indirect_emissions
-    color: '#7C7C7C'
+    color: '#2AC7C7'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 1.46920], [2020, 1.52177]]
     forecast_values: [[2030, 1.49528], [2040, 1.35937], [2050, 1.28961]]
@@ -156,7 +159,7 @@ instance:
     name_en: Industrial and commercial processes indirect emissions
     name_de: Industrie- und Gewerbeprozesse
     part_of: indirect_emissions
-    color: '#686495'
+    color: '#8DAFBC'
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 0.10258], [2020, 0.10626]]
     forecast_values: [[2030, 0.07655], [2040, 0.04684], [2050, 0.02035]]
@@ -198,6 +201,9 @@ instance:
   - id: building_energy_retrofit
     name_en: Energetic retrofitting of buildings
     name_de: Energetische Gebäudesanierungen
+    description_de: Wenn jährlich 2% der Gebäude energetisch saniert werden und
+      sich die Wohnfläche pro Person um 7 m2 auf 46 m2 verringert, reduzieren
+      sich die direkten Emissionen von Gebäuden um 0.34 tCO2eq/(Einw.*a).
     type: simple.LinearCumulativeAdditiveAction
     quantity: emissions
     output_nodes:
@@ -212,6 +218,8 @@ instance:
   - id: reduce_room_temperature
     name_en: Reduced room temperature
     name_de: Reduzierte Heiztemperatur
+    description_de: Wenn alle Gebäude künftig um 1°C weniger geheizt werden,
+      reduzieren sich die direkten Emissionen von Gebäuden um 0.1 tCO2eq/(Einw.*a).
     type: simple.LinearCumulativeAdditiveAction
     quantity: emissions
     output_nodes:
