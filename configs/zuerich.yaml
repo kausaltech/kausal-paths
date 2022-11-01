@@ -21,11 +21,17 @@ instance:
   - id: municipality_name
     value: zurich
   emission_sectors:
+  - id: net_emissions
+    name_en: Greenhouse gas emissions
+    name_de: Treibhausgas-emissionen
+    is_outcome: true
+
   - id: direct_emissions
     name_en: Direct emissions
     name_de: Direkte Emissionen
     target_year_goal: 0
-    is_outcome: true
+    part_of: net_emissions
+    color: '#002F96'
 
     #
     # Buildings
@@ -35,8 +41,7 @@ instance:
     name_de: Gebäude
     part_of: direct_emissions
     color: '#002F96'
-    historical_values: [[1990, 2.96942], [2020, 1.71186]]
-    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 2.96942], [1991, 2.90150], [1992, 2.86149], [1993, 2.82878], [1994, 2.80427], [1995, 2.75521], [1996, 2.73391], [1997, 2.72130], [1998, 2.66890], [1999, 2.63333], [2000, 2.60462], [2001, 2.29287], [2002, 2.50596], [2003, 2.43821], [2004, 2.46960], [2005, 2.52127], [2006, 2.50572], [2007, 2.23755], [2008, 2.24559], [2009, 2.19389], [2010, 2.23294], [2011, 2.11615], [2012, 2.18573], [2013, 2.10383], [2014, 1.76327], [2015, 1.73161], [2016, 1.83536], [2017, 1.57945], [2018, 1.45222], [2019, 1.51281], [2020, 1.71186]]
 
     #
     # Transportation
@@ -46,8 +51,7 @@ instance:
     name_de: Mobilität
     part_of: direct_emissions
     color: '#E22D53'
-    historical_values: [[1990, 1.12260], [2020, 0.66457]]
-    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1.12260], [1991, 1.11716], [1992, 1.13922], [1993, 1.13652], [1994, 1.13722], [1995, 1.13924], [1996, 1.14139], [1997, 1.14739], [1998, 1.14820], [1999, 1.14407], [2000, 1.17067], [2001, 1.13852], [2002, 1.13435], [2003, 1.13131], [2004, 1.13026], [2005, 1.12637], [2006, 1.06421], [2007, 1.02305], [2008, 0.95417], [2009, 0.89414], [2010, 0.86372], [2011, 0.85478], [2012, 0.87185], [2013, 0.88639], [2014, 0.87493], [2015, 0.63975], [2016, 0.65534], [2017, 0.66790], [2018, 0.68125], [2019, 0.67345], [2020, 0.66457]]
 
   - id: waste_treatment_emissions
     name_en: Waste disposal
@@ -55,6 +59,7 @@ instance:
     part_of: direct_emissions
     color: '#F18830'
     historical_values: [[1990, 0.45001], [2020, 0.49011]]
+    forecast_values: [[2030, 0.33688], [2040, 0.07659], [2050, 0.07381]]
     input_dataset_processors: [LinearInterpolation]
 
   - id: other_direct_emissions
@@ -68,6 +73,7 @@ instance:
     name_de: Industrie- und Gewerbeprozesse
     part_of: other_direct_emissions
     historical_values: [[1990, 0.21308], [2020, 0.21308]]
+    forecast_values: [[2030, 0.14415], [2040, 0.07964], [2050, 0.00000]]
     input_dataset_processors: [LinearInterpolation]
 
   - id: afolu_emissions
@@ -75,14 +81,84 @@ instance:
     name_de: Land- und Forstwirtschaft
     part_of: other_direct_emissions
     historical_values: [[1990, 0.01253], [2020, 0.00843]]
+    forecast_values: [[2030, 0.00751], [2040, 0.00712], [2050, 0.00685]]
     input_dataset_processors: [LinearInterpolation]
 
   - id: negative_emissions
     name_en: Negative emissions
     name_de: Negative Emissionen
-    part_of: direct_emissions
+    part_of: net_emissions
     color: '#34B16F'
     historical_values: [[1990, 0], [2020, 0]]
+
+  - id: indirect_emissions
+    name_en: Indirect emissions
+    name_de: Indirekte Emissionen
+    part_of: net_emissions
+    color: '#814100'
+
+  - id: building_indirect_emissions
+    name_en: Building indirect emissions
+    name_de: Gebäude
+    part_of: indirect_emissions
+    color: '#007AC8'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 2.02326], [2020, 2.09565]]
+    forecast_values: [[2030, 1.40267], [2040, 1.04673], [2050, 0.82570]]
+
+  - id: transportation_indirect_emissions
+    name_en: Mobility (without aviation)
+    name_de: Mobilität (exkl. Flugverkehr)
+    part_of: indirect_emissions
+    color: '#B74992'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1.44522], [2020, 1.49693]]
+    forecast_values: [[2030, 1.22610], [2040, 0.86622], [2050, 0.37174]]
+
+  - id: aviation_emissions
+    name_en: Aviation
+    name_de: Flugverkehr
+    part_of: indirect_emissions
+    color: '#55558E'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1.01871], [2020, 1.39705]]
+    forecast_values: [[2030, 1.24933], [2040, 1.14421], [2050, 0.70306]]
+
+  - id: food_consumption_emissions
+    name_en: Food consumption emissions
+    name_de: Ernährung
+    part_of: indirect_emissions
+    color: '#FF775D'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1.96194], [2020, 2.03214]]
+    forecast_values: [[2030, 1.78179], [2040, 1.39428], [2050, 1.07363]]
+
+  - id: textile_consumption_emissions
+    name_en: Textile consumption emissions
+    name_de: Textilien
+    part_of: indirect_emissions
+    color: '#FFB851'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1.16144], [2020, 1.20300]]
+    forecast_values: [[2030, 0.90850], [2040, 0.57000], [2050, 0.30708]]
+
+  - id: other_consumption_emissions
+    name_en: Other consumption emissions
+    name_de: Übriger Konsum
+    part_of: indirect_emissions
+    color: '#7C7C7C'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1.46920], [2020, 1.52177]]
+    forecast_values: [[2030, 1.49528], [2040, 1.35937], [2050, 1.28961]]
+
+  - id: ippu_indirect_emissions
+    name_en: Industrial and commercial processes indirect emissions
+    name_de: Industrie- und Gewerbeprozesse
+    part_of: indirect_emissions
+    color: '#686495'
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 0.10258], [2020, 0.10626]]
+    forecast_values: [[2030, 0.07655], [2040, 0.04684], [2050, 0.02035]]
 
   nodes:
   - id: population
@@ -91,7 +167,7 @@ instance:
     unit: cap
     name_en: Inhabitants
     name_de: Einwohner/innen
-    historical_values: [[1990, 359050], [2020, 439000]]
+    historical_values: [[1990, 359050], [1991, 360730], [1992, 362450], [1993, 363278], [1994, 363062], [1995, 362445], [1996, 361789], [1997, 359970], [1998, 359728], [1999, 360974], [2000, 361301], [2001, 362664], [2002, 363944], [2003, 364884], [2004, 365209], [2005, 366418], [2006, 368917], [2007, 373762], [2008, 379500], [2009, 382453], [2010, 384246], [2011, 388057], [2012, 391729], [2013, 396342], [2014, 401267], [2015, 407629], [2016, 412820], [2017, 419549], [2018, 425593], [2019, 431322], [2020, 433963]]
     forecast_values: [[2030, 492900], [2040, 520000], [2050, 540000]]
     input_dataset_processors: [LinearInterpolation]
 
@@ -139,7 +215,7 @@ instance:
     quantity: emissions
     output_nodes:
     - building_emissions
-    forecast_values: [[2021, 0], [2040, -0.1]]
+    forecast_values: [[2021, 0], [2030, -0.1]]
     input_dataset_processors:
       - type: FixedMultiplier
         params:
@@ -195,7 +271,7 @@ instance:
     quantity: emissions
     output_nodes:
     - transportation_emissions
-    forecast_values: [[2021, 0], [2040, -0.03]]
+    forecast_values: [[2021, 0], [2035, -0.03]]
     input_dataset_processors:
       - type: FixedMultiplier
         params:
