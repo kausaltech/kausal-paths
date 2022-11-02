@@ -26,7 +26,7 @@ instance:
   emission_sectors:
   - id: net_emissions
     name_en: Greenhouse gas emissions
-    name_de: Treibhausgas-emissionen
+    name_de: Treibhausgasemissionen
     target_year_goal: 6.5
     is_outcome: true
 
