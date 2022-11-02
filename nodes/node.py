@@ -126,8 +126,8 @@ class Node:
 
     def __init__(
         self, id: str, context: Context, name, quantity: str, description,
-        color: str | None = None, is_outcome: bool = False, unit=None, target_year_goal=None,
-        input_datasets: List[Dataset] | None = None,
+        color: str | None = None, order: int | None = None, is_outcome: bool = False,
+        unit=None, target_year_goal=None, input_datasets: List[Dataset] | None = None,
     ):
         if self.dimensions:
             for dim in self.dimensions.values():
@@ -144,6 +144,7 @@ class Node:
         self.name = name
         self.description = description
         self.color = color
+        self.order = order
         self.is_outcome = is_outcome
         self.unit = unit
         if unit is None and not self.dimensions:
@@ -447,8 +448,6 @@ class Node:
         pprint(out)
 
     def print_outline(self, df):
-        print(type(self))
-        print(self.id)
         if YEAR_COLUMN in df.index.names:
             pick_rows = df.index.get_level_values(YEAR_COLUMN).isin([2017, 2021, 2022])
             self.print_pint_df(df.iloc[pick_rows])

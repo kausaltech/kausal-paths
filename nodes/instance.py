@@ -205,6 +205,7 @@ class InstanceLoader:
             name=self.make_trans_string(config, 'name'),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
+            order=config.get('order'),
             is_outcome=config.get('is_outcome', False),
             unit=unit,
             quantity=quantity,

@@ -36,6 +36,7 @@ instance:
     target_year_goal: 0
     part_of: net_emissions
     color: '#0F05A0'
+    order: 10
 
     #
     # Buildings
@@ -100,6 +101,7 @@ instance:
     name_de: Indirekte Emissionen
     part_of: net_emissions
     color: '#6496FF'
+    order: 11
 
   - id: building_indirect_emissions
     name_en: Building indirect emissions

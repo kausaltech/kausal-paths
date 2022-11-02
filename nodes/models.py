@@ -299,7 +299,8 @@ class NodeConfig(ClusterableModel):
 
     def update_node_from_config(self, node: Node):
         node.database_id = self.pk
-        node.order = self.order
+        if self.order is not None:
+            node.order = self.order
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1
