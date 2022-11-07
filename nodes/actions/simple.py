@@ -120,7 +120,7 @@ class ExponentialAction(ActionNode):
         ),
     ]
 
-    def compute(self):
+    def compute_effect(self):
         current_value = self.get_parameter_value_w_unit('current_value')
         unit = str(current_value.units)
         current_value = current_value.m

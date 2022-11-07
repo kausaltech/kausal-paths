@@ -43,6 +43,27 @@ nodes:
   type: finland.hsy.HsyNode
   name: HSY:n päästöinventaario
 
+- id: waste_treatment_impact_per_person
+  name: Jätteenkäsittelyn päästöt per henkilö
+  name_en: Waste treatment emissions per person
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/cap/a
+  historical_values: [[2000, 0]]
+
+- id: waste_treatment_impact
+  name: Jätteenkäsittelyn toimenpiteiden vaikutus
+  name_en: Waste treatment action impact
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - population
+  - waste_treatment_impact_per_person
+  output_nodes:
+  - waste_treatment_emissions
+
+
 #- id: electricity_production_emission_factor
 #  type: simple.AdditiveNode
 #  name: Kansallisen sähköntuotannon päästökerroin
@@ -78,13 +99,82 @@ actions:
     [2029, -14], [2030, -6]]
   unit: GWh/a
 
+- id: agriculture_actions
+  name: Maatalouden toimet
+  name_en: Agricultural actions
+  description: 'Maaralouden päästöjen kehityksen osalta laskennassa on tehty seuraavat oletukset. 
+    Pessimistinen skenaario: Päästöjen oletetaan pysyvän muuttumattomana aikavälillä 2021-2035. 
+    Suomi2035-skenaario: Päästöjen oletetaan laskevan 11 prosenttia vuoden 2020 tasosta vuoteen 2035 mennessä. 
+    HNE2030-skenaario: Päästöjen oletetaan kehittyvän Suomi 2035 –skenaarion oletusten mukaisesti.'
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - agriculture_emissions
+  forecast_values: [[2021, 0], [2035, -0.10791]]
+
+- id: waste_treatment_actions_suomi
+  name: Jätteenkäsittelytoimenpiteet perus
+  name_en: Waste management actions moderate
+  description: 'Jätteiden käsittelyn päästöjen kehityksen osalta laskennassa on tehty 
+    seuraavat oletukset: 
+    Pessimistinen skenaario: Asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2021 tasolla.
+    Suomi2035-skenaario: Päästöjen arvioidaan laskevan 4 prosenttia vuoden 2020 tasosta 
+    vuoteen 2030 mennessä. Samankaltaisen päästökehityksen arvioidaan toteutuvan myös 
+    aikavälillä 2030-2035. 
+    HNE2030-skenaario: Päästöjen oletetaan laskevan 68 prosenttia aikavälillä 2021-2030, 
+    minkä jälkeen päästöjen oletetaan pysyvän vuoden 2030 tasolla.'
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: t/cap/a
+  output_nodes:
+  - waste_treatment_impact_per_person
+  forecast_values: [[2021, 0], [2035, -0.00495]]
+
+- id: waste_treatment_actions_hne
+  name: Jätteenkäsittelytoimenpiteet HNE
+  name_en: Waste management actions full
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: t/cap/a
+  output_nodes:
+  - waste_treatment_impact_per_person
+  forecast_values: [[2021, 0], [2030, -0.0541], [2035, -0.0541]]
+
+- id: industry_and_machinery_actions
+  name: Teollisuuden ja työkoneiden toimenpiteet
+  name_en: Industry and machinery actions
+  description: 'Teollisuuden ja työkoneiden päästöjen kehityksen osalta laskennassa 
+    on tehty seuraavat oletukset: 
+    Pessimistinen skenaario: Asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2021 tasolla.  
+    Suomi2035-skenaario: Päästöjen oletetaan laskevan teollisuudessa 53 prosenttia vuoteen 
+    2035 mennessä. Työkoneiden päästöjen oletetaan laskevan 20 prosenttia.
+    Hiilineutraali Espoo 2035 -skenaario vaatii vielä miettimistä.'
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2020, 0], [2035, -8.1619]]
+  output_nodes:
+  - industry_machinery_emissions
+
 scenarios:
 - id: baseline
   name: Nykykehitys
   name_en: Baseline
+
+- id: moderate
+  name: Suomi 2035
+  name_en: Finland 2035
+  all_actions_enabled: true
+  params:
+  - id: waste_treatment_actions_hne.enabled
+    value: false
 
 - id: default
   default: true
   name: Hiilineutraali Espoo 2030 -tiekartta
   name_en: Carbon-neutral Espoo 2030 roadmap
   all_actions_enabled: true
+  params:
+  - id: waste_treatment_actions_suomi.enabled
+    value: false
