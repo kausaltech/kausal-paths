@@ -153,7 +153,7 @@ if args.check or args.update_instance or args.update_nodes:
         # TODO: Create InstanceHostname somewhere?
 
     if args.update_instance:
-        instance_obj.update_from_instance(instance)
+        instance_obj.update_from_instance(instance, overwrite=True)
         instance_obj.save()
     instance_obj.sync_nodes(update_existing=args.update_nodes, delete_stale=args.delete_stale_nodes)
     instance_obj.create_default_content()
