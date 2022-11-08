@@ -62,12 +62,16 @@ pages:
   node: net_emissions
   lead_title: Espoon päästöskenaariot
   lead_title_en: Espoo emission scenarios
-  lead_paragraph: Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
+  lead_paragraph: "<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
     kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät ja
-    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario,
-    Hiilineutraali Espoo -tiekartan mukainen skenaario ja skenaario, jota voit itse
-    muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
-    riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
+    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on:
+    <b>Suomi 2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla toteutettavat
+    ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen; 
+    <b>Hiilineutraali Espoo 2030-skenaario (HNE2030)</b>, jossa oletetaan, että kaupungin
+    päästökehitykseen vaikuttavat kansallisten toimien lisäksi myös kaupungin ja
+    sen yhteistyökumppaneiden, kuten Fortumin ja HSY:n, toteuttamat
+    ilmastotoimet; sekä <b>pessimistinen skenaario</b> skenaario, jossa oletetaan, että
+    uusia päästövähennystoimia ei kaupungissa suunnitella tai toteuteta."
 
 actions:
 - id: cleaner_electricity_production
@@ -112,6 +116,40 @@ actions:
     [2029, -14], [2030, -6]]
   unit: GWh/a
 
+- id: reduce_waste_treatment_emissions
+  name: Jätteiden käsittelyn päästöt pienenevät
+  name_en: Waste treatment emissions are reduced
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2022, 0], [2030, 0]]
+  output_nodes:
+  - waste_treatment_emissions
+  params:
+  - id: target_year_level
+    description: Jätteiden käsittelyn päästöjen muutos
+    min_value: -20
+    max_value: +20
+    step: 0.1
+    unit: kt/a
+
+- id: reduce_road_transport_emissions
+  name: Tieliikenteen päästöt pienenevät
+  name_en: Road transportation emissions are reduced
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2022, 0], [2030, 0]]
+  output_nodes:
+  - transport_emissions
+  params:
+  - id: target_year_level
+    description: Tieliikenteen päästöjen muutos
+    min_value: -100
+    max_value: +100
+    step: 0.1
+    unit: kt/a
+
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
   name_en: Agriculture emissions are reduced
@@ -130,11 +168,26 @@ scenarios:
   - id: cleaner_electricity_production.enabled
     value: true
 
+  - id: reduce_waste_treatment_emissions.target_year_level
+    value: -0.9
+  - id: reduce_waste_treatment_emissions.enabled
+    value: true
+
+  - id: reduce_road_transport_emissions.target_year_level
+    value: -62.4
+  - id: reduce_road_transport_emissions.enabled
+    value: true
+
 - id: default
   default: true
-  name: Hiilineutraali Espoo 2030 -tiekartta
-  name_en: Carbon-neutral Espoo 2030 roadmap
+  name: Hiilineutraali Espoo 2030
+  name_en: Carbon-neutral Espoo 2030
   all_actions_enabled: true
+  params:
+  - id: reduce_waste_treatment_emissions.target_year_level
+    value: -16.1
+  - id: reduce_road_transport_emissions.target_year_level
+    value: -67.6
 
 - id: pessimistic
   name: Pessimistinen
