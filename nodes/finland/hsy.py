@@ -119,16 +119,18 @@ class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
 
     def compute(self) -> pd.DataFrame:
         df, other_nodes = self.get_sector(EMISSION_FACTOR_QUANTITY)
-        assert len(other_nodes) == 0
+        if len(other_nodes):
+            df = self.add_nodes(df, other_nodes)
         return df
 
 
-class HsyEmissions(Node, HsyNodeMixin):
+class HsyEmissions(AdditiveNode, HsyNodeMixin):
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
 
     def compute(self) -> pd.DataFrame:
         df, other_nodes = self.get_sector(EMISSION_QUANTITY)
-        assert len(other_nodes) == 0
+        if len(other_nodes):
+            df = self.add_nodes(df, other_nodes)
         return df

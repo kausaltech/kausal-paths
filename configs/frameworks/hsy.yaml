@@ -52,275 +52,200 @@ emission_sectors:
   part_of: net_emissions
 nodes:
 - id: district_heating_residence_energy
-  output_nodes: [district_heating_residence_emissions]
   name: Kaukolämmön lämmönkulutus (Asuminen)
   params:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: district_heating_residence_emission_factor
-  output_nodes: [district_heating_residence_emissions]
-  name: Kaukolämmön päästökerroin (Asuminen)
-  params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: district_heating_residence_emissions
   name: Kaukolämmön päästöt (Asuminen)
   output_nodes: [district_heating_emissions]
+  input_nodes: [district_heating_emission_factor, district_heating_residence_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: district_heating_services_energy
-  output_nodes: [district_heating_services_emissions]
   name: Kaukolämmön lämmönkulutus (Palvelut)
   params:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: district_heating_services_emission_factor
-  output_nodes: [district_heating_services_emissions]
-  name: Kaukolämmön päästökerroin (Palvelut)
-  params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: district_heating_services_emissions
   name: Kaukolämmön päästöt (Palvelut)
   output_nodes: [district_heating_emissions]
+  input_nodes: [district_heating_emission_factor, district_heating_services_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: district_heating_industry_energy
-  output_nodes: [district_heating_industry_emissions]
   name: Kaukolämmön lämmönkulutus (Teollisuus)
   params:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: district_heating_industry_emission_factor
-  output_nodes: [district_heating_industry_emissions]
-  name: Kaukolämmön päästökerroin (Teollisuus)
-  params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: district_heating_industry_emissions
   name: Kaukolämmön päästöt (Teollisuus)
   output_nodes: [district_heating_emissions]
+  input_nodes: [district_heating_emission_factor, district_heating_industry_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: oil_heating_residence_energy
-  output_nodes: [oil_heating_residence_emissions]
   name: Öljylämmityksen lämmönkulutus (Asuminen)
   params:
     sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: oil_heating_residence_emission_factor
-  output_nodes: [oil_heating_residence_emissions]
-  name: Öljylämmityksen päästökerroin (Asuminen)
-  params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: oil_heating_residence_emissions
   name: Öljylämmityksen päästöt (Asuminen)
   output_nodes: [oil_heating_emissions]
+  input_nodes: [oil_heating_emission_factor, oil_heating_residence_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: oil_heating_services_energy
-  output_nodes: [oil_heating_services_emissions]
   name: Öljylämmityksen lämmönkulutus (Palvelut)
   params:
     sector: Lämmitys|Öljylämmitys|Öljylämmitys|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: oil_heating_services_emission_factor
-  output_nodes: [oil_heating_services_emissions]
-  name: Öljylämmityksen päästökerroin (Palvelut)
-  params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: oil_heating_services_emissions
   name: Öljylämmityksen päästöt (Palvelut)
   output_nodes: [oil_heating_emissions]
+  input_nodes: [oil_heating_emission_factor, oil_heating_services_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: oil_heating_industry_energy
-  output_nodes: [oil_heating_industry_emissions]
   name: Öljylämmityksen lämmönkulutus (Teollisuus)
   params:
     sector: Lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: oil_heating_industry_emission_factor
-  output_nodes: [oil_heating_industry_emissions]
-  name: Öljylämmityksen päästökerroin (Teollisuus)
-  params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: oil_heating_industry_emissions
   name: Öljylämmityksen päästöt (Teollisuus)
   output_nodes: [oil_heating_emissions]
+  input_nodes: [oil_heating_emission_factor, oil_heating_industry_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: direct_electric_heating_residence_energy
-  output_nodes: [direct_electric_heating_residence_emissions]
   name: Sähkölämmityksen sähkönkulutus (Asuminen)
   params:
     sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: direct_electric_heating_residence_emission_factor
-  output_nodes: [direct_electric_heating_residence_emissions]
-  name: Sähkölämmityksen päästökerroin (Asuminen)
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: direct_electric_heating_residence_emissions
   name: Sähkölämmityksen päästöt (Asuminen)
   output_nodes: [direct_electric_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, direct_electric_heating_residence_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: direct_electric_heating_services_energy
-  output_nodes: [direct_electric_heating_services_emissions]
   name: Sähkölämmityksen sähkönkulutus (Palvelut)
   params:
     sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: direct_electric_heating_services_emission_factor
-  output_nodes: [direct_electric_heating_services_emissions]
-  name: Sähkölämmityksen päästökerroin (Palvelut)
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: direct_electric_heating_services_emissions
   name: Sähkölämmityksen päästöt (Palvelut)
   output_nodes: [direct_electric_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, direct_electric_heating_services_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: direct_electric_heating_industry_energy
-  output_nodes: [direct_electric_heating_industry_emissions]
   name: Sähkölämmityksen sähkönkulutus (Teollisuus)
   params:
     sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: direct_electric_heating_industry_emission_factor
-  output_nodes: [direct_electric_heating_industry_emissions]
-  name: Sähkölämmityksen päästökerroin (Teollisuus)
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: direct_electric_heating_industry_emissions
   name: Sähkölämmityksen päästöt (Teollisuus)
   output_nodes: [direct_electric_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, direct_electric_heating_industry_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: geothermal_heating_residence_energy
-  output_nodes: [geothermal_heating_residence_emissions]
   name: Maalämmön sähkönkulutus (Asuminen)
   params:
     sector: Lämmitys|Maalämpö|Maalämpö|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: geothermal_heating_residence_emission_factor
-  output_nodes: [geothermal_heating_residence_emissions]
-  name: Maalämmön päästökerroin (Asuminen)
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: geothermal_heating_residence_emissions
   name: Maalämmön päästöt (Asuminen)
   output_nodes: [geothermal_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, geothermal_heating_residence_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: geothermal_heating_services_energy
-  output_nodes: [geothermal_heating_services_emissions]
   name: Maalämmön sähkönkulutus (Palvelut)
   params:
     sector: Lämmitys|Maalämpö|Maalämpö|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: geothermal_heating_services_emission_factor
-  output_nodes: [geothermal_heating_services_emissions]
-  name: Maalämmön päästökerroin (Palvelut)
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: geothermal_heating_services_emissions
   name: Maalämmön päästöt (Palvelut)
   output_nodes: [geothermal_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, geothermal_heating_services_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: geothermal_heating_industry_energy
-  output_nodes: [geothermal_heating_industry_emissions]
   name: Maalämmön sähkönkulutus (Teollisuus)
   params:
     sector: Lämmitys|Maalämpö|Maalämpö|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: geothermal_heating_industry_emission_factor
-  output_nodes: [geothermal_heating_industry_emissions]
-  name: Maalämmön päästökerroin (Teollisuus)
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: geothermal_heating_industry_emissions
   name: Maalämmön päästöt (Teollisuus)
   output_nodes: [geothermal_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, geothermal_heating_industry_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: consumer_electricity_residence_energy
-  output_nodes: [consumer_electricity_residence_emissions]
   name: Kulutussähkön sähkönkulutus (Asuminen)
   params:
     sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: consumer_electricity_residence_emission_factor
-  output_nodes: [consumer_electricity_residence_emissions]
-  name: Kulutussähkön päästökerroin (Asuminen)
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: consumer_electricity_residence_emissions
   name: Kulutussähkön päästöt (Asuminen)
   output_nodes: [consumer_electricity_emissions]
+  input_nodes: [electricity_production_emission_factor, consumer_electricity_residence_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: consumer_electricity_services_energy
-  output_nodes: [consumer_electricity_services_emissions]
   name: Kulutussähkön sähkönkulutus (Palvelut)
   params:
     sector: Sähkö|Kulutussähkö|Kulutussähkö|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: consumer_electricity_services_emission_factor
-  output_nodes: [consumer_electricity_services_emissions]
-  name: Kulutussähkön päästökerroin (Palvelut)
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: consumer_electricity_services_emissions
   name: Kulutussähkön päästöt (Palvelut)
   output_nodes: [consumer_electricity_emissions]
+  input_nodes: [electricity_production_emission_factor, consumer_electricity_services_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: consumer_electricity_industry_energy
-  output_nodes: [consumer_electricity_industry_emissions]
   name: Kulutussähkön sähkönkulutus (Teollisuus)
   params:
     sector: Sähkö|Kulutussähkö|Kulutussähkö|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
-- id: consumer_electricity_industry_emission_factor
-  output_nodes: [consumer_electricity_industry_emissions]
-  name: Kulutussähkön päästökerroin (Teollisuus)
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissionFactor
+  unit: GWh/a
 - id: consumer_electricity_industry_emissions
   name: Kulutussähkön päästöt (Teollisuus)
   output_nodes: [consumer_electricity_emissions]
+  input_nodes: [electricity_production_emission_factor, consumer_electricity_industry_energy]
   type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: car_emissions
   name: Henkilöautot päästöt
   output_nodes: [road_transport_emissions]
@@ -356,27 +281,45 @@ nodes:
     sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
-- id: local_train_emissions
-  name: Lähijunien päästöt
-  output_nodes: [rail_transport_emissions]
+- id: local_train_energy
+  name: Lähijunien sähkönkulutus
   params:
     sector: Liikenne|Raideliikenne|Lähijunat|Palvelut
   input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: metro_emissions
-  name: Metroliikenteen päästöt
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+- id: local_train_emissions
+  name: Lähijunien päästöt
   output_nodes: [rail_transport_emissions]
+  input_nodes: [electricity_production_emission_factor, local_train_energy]
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+- id: metro_energy
+  name: Metroliikenteen sähkönkulutus
   params:
     sector: Liikenne|Raideliikenne|Metrot|Palvelut
   input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: tram_emissions
-  name: Raitiovaunujen päästöt
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+- id: metro_emissions
+  name: Metroliikenteen päästöt
   output_nodes: [rail_transport_emissions]
+  input_nodes: [electricity_production_emission_factor, metro_energy]
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+- id: tram_energy
+  name: Raitiovaunujen sähkönkulutus
   params:
     sector: Liikenne|Raideliikenne|Raitiovaunut|Palvelut
   input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+- id: tram_emissions
+  name: Raitiovaunujen päästöt
+  output_nodes: [rail_transport_emissions]
+  input_nodes: [electricity_production_emission_factor, tram_energy]
+  type: simple.EmissionFactorActivity
+  unit: kt/a
 - id: yacht_emissions
   name: Huviveneiden päästöt
   output_nodes: [water_transport_emissions]
@@ -524,3 +467,35 @@ nodes:
     sector: Maatalous|Kotieläimet|Kotieläimet|Maatalous
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
+- id: district_heating_emission_factor
+  name: Kaukolämmön päästökerroin
+  name_en: District heating emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+- id: oil_heating_emission_factor
+  name: Öljylämmityksen päästökerroin
+  name_en: Oil heating emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
+- id: electricity_production_emission_factor
+  name: Kansallisen sähköntuotannon päästökerroin
+  name_en: National electricity production emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+- id: electric_heating_emission_factor
+  name: Lämmityssähkön päästökerroin
+  name_en: Electric heating emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen

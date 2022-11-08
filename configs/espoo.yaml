@@ -15,6 +15,7 @@ emission_unit: kt/a
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
+maximum_historical_year: 2021
 params:
 - id: municipality_name
   value: Espoo
@@ -23,6 +24,7 @@ emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
   name_en: Net emissions (scope 2)
+  is_outcome: true
   target_year_goal: 245
 
 - id: building_heating_emissions
@@ -36,8 +38,9 @@ emission_sectors:
 
 nodes:
 - id: population
-  type: finland.Population
+  type: finland.population.Population
   name: Väestö
+  #forecast_values: [[2022, 301866], [2023, 306628], [2024, 311404], [2025, 316189], [2026, 320968], [2027, 325734], [2028, 330474], [2029, 335184], [2030, 339856], [2031, 344488], [2032, 349084], [2033, 353647], [2034, 358180], [2035, 362690]]
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -67,6 +70,37 @@ pages:
     riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
 
 actions:
+- id: cleaner_electricity_production
+  name: Kansallinen sähköntuotanto puhdistuu
+  name_en: Shift to low-carbon in national electricity production
+  decision_level: nation
+  quantity: emission_factor
+  output_nodes:
+  - electricity_production_emission_factor
+  type: simple.LinearCumulativeAdditiveAction
+  forecast_values: [[2022, 0], [2030, -80]]
+  unit: g/kWh
+  params:
+  - id: target_year_level
+    values:
+      default: -68
+    min_value: -70
+    max_value: 0
+    step: 1
+    unit: g/kWh
+    description: Sähköntuotannon päästökertoimen muutos
+    description_en: Change in electricity production emission factor
+
+- id: replace_fossil_fuels_in_district_heating
+  name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
+  name_en: Fortum replaces fossil fuels in district heat production
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emission_factor
+  output_nodes:
+  - district_heating_emission_factor
+  forecast_values: [[2021, 0], [2025, -82], [2030, -116]]
+  unit: g/kWh
+
 - id: city_building_heat_optimization
   name: Kaupungin kiinteistöjen lämmityksen optimointi
   name_en: Optimization of heating systems in city-owned buildings
@@ -78,13 +112,30 @@ actions:
     [2029, -14], [2030, -6]]
   unit: GWh/a
 
+- id: reduce_agriculture_emissions
+  name: Maatalouden päästöt pienenevät
+  name_en: Agriculture emissions are reduced
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2022, 0], [2035, -0.1]]
+  output_nodes:
+  - agricultural_field_emissions
+
 scenarios:
 - id: baseline
-  name: Nykykehitys
-  name_en: Baseline
+  name: Suomi 2035
+  name_en: Finland 2035
+  params:
+  - id: cleaner_electricity_production.enabled
+    value: true
 
 - id: default
   default: true
   name: Hiilineutraali Espoo 2030 -tiekartta
   name_en: Carbon-neutral Espoo 2030 roadmap
   all_actions_enabled: true
+
+- id: pessimistic
+  name: Pessimistinen
+  name_en: Pessimistic
