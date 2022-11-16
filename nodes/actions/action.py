@@ -38,8 +38,7 @@ class ActionNode(Node):
     no_effect_value: Optional[float] = None
     enabled_param: BoolParameter
     global_parameters: list[str] = [
-        # FIXME: Probably better to use a separate DiscountNode
-        'discount_rate'
+        'discount_node_name'
     ]
 
     def __post_init__(self):
@@ -91,34 +90,16 @@ class ActionNode(Node):
             self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
 
     def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: pint.Unit) -> pd.DataFrame:
-        # FIXME: Use DiscountNode instead of this for NPV
-        def get_discount_factor(base_value) -> pd.Series:
-            target_year = self.context.target_year
-            start_year = self.context.instance.minimum_historical_year
-            assert start_year is not None
-            max_hist = self.context.instance.maximum_historical_year
-            assert max_hist is not None
-            current_time = max_hist - start_year
-            duration = target_year - start_year + 1
-            years = []
-            factors = [1]
+        discount = self.context.get_parameter_value('discount_node_name')
+        discount_factor = self.context.get_node(discount).compute()[VALUE_COLUMN]
+        minuscule_limit = self.context.get_parameter_value('minuscule_limit')
+        # Consider impact as zero if deviates less than this.
 
-            for i in range(duration):
-                prev = factors[-1]
-                if i > current_time:
-                    prev /= 1 + base_value
-                factors.append(prev)
-                years.append(start_year + i)
-
-            s = pd.Series(factors[1:], index=years)
-            return s
-
-        rate = self.context.get_parameter_value_w_unit('discount_rate')
-        rate = rate.to('dimensionless').m
-        discount_factor = get_discount_factor(rate)
         cost = self.compute_impact(cost_node)[IMPACT_COLUMN]
         cost.name = 'Cost'
         impact = self.compute_impact(impact_node)[IMPACT_COLUMN]
+        s = (minuscule_limit < impact.pint.m.abs()).astype(int)
+        impact *= s
         df = pd.concat([cost], axis=1)
         df['Cost'] *= discount_factor
         df['Impact'] = impact.replace({0: np.nan})

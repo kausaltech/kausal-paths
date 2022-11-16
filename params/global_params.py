@@ -20,6 +20,16 @@ class MunicipalityName(StringParameter):
     id = 'municipality_name'
 
 
+class MinusculeLimit(NumberParameter):
+    name = _('Smaller impact is considered zero')
+    id = 'minuscule_limit'
+
+
+class DiscountNodeName(StringParameter):
+    name = _('Discount node name')
+    id = 'discount_node_name'
+
+
 class DiscountRate(NumberParameter):
     name = _('Discount rate')
     id = 'discount_rate'

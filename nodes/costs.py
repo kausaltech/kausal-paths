@@ -12,40 +12,6 @@ from .ovariable import Ovariable, OvariableFrame
 from .actions.energy_saving import BuildingEnergySavingAction
 
 
-class SocialCost(SimpleNode):
-    global_parameters: list[str] = [
-        'include_co2', 'include_health', 'include_el_avoided',
-    ]
-
-    def compute(self):
-        # Global parameters
-        include_co2 = self.get_global_parameter_value('include_co2')
-        include_health = self.get_global_parameter_value('include_health')
-        include_el_avoided = self.get_global_parameter_value('include_el_avoided')
-
-        # Input nodes
-        df = self.get_input_node(tag='renovation').get_output()
-
-        health_heat = self.get_input_node(tag='health_heat').get_output()[VALUE_COLUMN]
-        co2_heat = self.get_input_node(tag='co2_heat').get_output()[VALUE_COLUMN]
-        heat = self.get_input_node(tag='heat').get_output()[VALUE_COLUMN]
-        avoided_electricity = self.get_input_node(tag='avoided_electricity').get_output()[VALUE_COLUMN]
-        health_electricity = self.get_input_node(tag='health_electricity').get_output()[VALUE_COLUMN]
-        co2_electricity = self.get_input_node(tag='co2_electricity').get_output()[VALUE_COLUMN]
-        electricity = self.get_input_node(tag='electricity').get_output()[VALUE_COLUMN]
-
-        s = df[VALUE_COLUMN] + heat + electricity
-        if include_health:
-            s = s + health_heat + health_electricity
-        if include_co2:
-            s = s + co2_heat + co2_electricity
-        if include_el_avoided:
-            s = s + avoided_electricity
-        df[VALUE_COLUMN] = s
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-        return df
-
-
 class SelectiveNode(AdditiveNode):
     global_parameters: list[str] = [
         'include_co2', 'include_health', 'include_el_avoided',
@@ -80,51 +46,25 @@ class SelectiveNode(AdditiveNode):
         return out
 
 
-class DiscountNode(SimpleNode):
-    '''All input nodes must be additive'''
+class Discount(SimpleNode):
     global_parameters: list[str] = [
         'discount_rate'
     ]
 
-    def get_discount_factor(self, base_value):
-        target_year = self.context.target_year
-        start_year = self.context.instance.minimum_historical_year
-        current_time = self.context.instance.maximum_historical_year - start_year
-        duration = target_year - start_year + 1
-        year = []
-        forecast = []
-        factor = [1]
-
-        for i in range(duration):
-            if i > current_time:
-                factor = factor + [factor[-1] * base_value]
-                forecast = forecast + [True]
-            else:
-                factor = factor + [factor[-1]]
-                forecast = forecast + [False]
-            year = year + [start_year + i]
-
-        df = pd.DataFrame({
-            YEAR_COLUMN: year,
-            VALUE_COLUMN: pd.Series(factor[1:]),
-            FORECAST_COLUMN: forecast}).set_index([YEAR_COLUMN])
-        return df
-
     def compute(self):
+        target_year = self.context.target_year
+        current_year = self.context.instance.maximum_historical_year + 1
         base_value = self.context.get_parameter_value_w_unit('discount_rate')
-        assert {str(base_value.units)} <= {'%/a', '%/year', '%'}
-        base_value = 1 / (1 + base_value).m
-        discount_factor = self.get_discount_factor(base_value)
+        base_value = 1 / (1 + base_value.to('dimensionless').m)
 
-        df = None
-        for node in self.input_nodes:
-            if df is None:
-                df = node.get_output()
-            else:
-                df[VALUE_COLUMN] += node.get_output()[VALUE_COLUMN]
-                df[FORECAST_COLUMN] = df[FORECAST_COLUMN] | node[FORECAST_COLUMN]
-        df[VALUE_COLUMN] *= discount_factor[VALUE_COLUMN]
+        df = pd.DataFrame(
+            {VALUE_COLUMN: range(target_year - current_year + 1)},
+            index=range(current_year, target_year + 1))
+        df[VALUE_COLUMN] = base_value ** df[VALUE_COLUMN]
+        df[FORECAST_COLUMN] = True
+
         return df
+
 
 
 # Grön logik and marginal abatement cost (MAC) curves, notes

@@ -307,8 +307,8 @@ class ActionEfficiencyPairType(graphene.ObjectType):
             sum_fields = ['cumulative_efficiency', 'cumulative_cost', 'cumulative_impact']
             d = dict(
                 action=ae.action,
-                cost_values=[YearlyValue(year, float(val)) for year, val in ae.df['Cost'].pint.m.iteritems()],
-                impact_values=[YearlyValue(year, float(val)) for year, val in ae.df['Impact'].pint.m.iteritems()],
+                cost_values=[YearlyValue(year, float(val)) for year, val in ae.df['Cost'].pint.m.items()],
+                impact_values=[YearlyValue(year, float(val)) for year, val in ae.df['Impact'].pint.m.items()],
                 **{f: float(getattr(ae, f).m) for f in sum_fields},
             )
             out.append(d)
