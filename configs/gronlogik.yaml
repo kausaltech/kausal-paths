@@ -52,7 +52,7 @@ instance:
       label_en: Marginal cost in energy savings
       label_sv: Marginalnettokostnad för energibesparing
     - cost_node: social_cost
-      impact_node: net_emissions
+      impact_node: emissions_reduction
       unit: SEK/t
       label: Päästövähennysten marginaalikustannus
       label_en: Marginal cost in emission reduction
@@ -181,6 +181,19 @@ instance:
     quantity: ratio
     unit: '%'
     type: costs.Discount
+
+  - id: emissions_reduction
+    name: Päästövähennys
+    name_en: Emissions reduction
+    name_sv: Utsläppsminskning
+    quantity: emissions
+    unit: kt/a
+    type: simple.FixedMultiplierNode
+    params:
+    - id: multiplier
+      value: -1
+    input_nodes:
+    - net_emissions
 
   - id: price_of_electricity
     name: Sähkön hinta
