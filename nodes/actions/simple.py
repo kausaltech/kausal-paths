@@ -7,6 +7,7 @@ from nodes.node import NodeError
 from .action import ActionNode
 
 import pandas as pd
+import pint_pandas
 
 
 class AdditiveAction(ActionNode):
@@ -44,7 +45,7 @@ class CumulativeAdditiveAction(ActionNode):
 
             target_year_ratio = self.get_parameter_value('target_year_ratio', required=False)
             if target_year_ratio is not None:
-                val *= target_year_ratio / 100  # FIXME This just multiplies ALL years with a constant
+                val *= target_year_ratio / 100
 
             df[col] = val
             if not self.is_enabled():
@@ -120,35 +121,29 @@ class ExponentialAction(ActionNode):
         ),
     ]
 
-    def compute(self):
-        current_value = self.get_parameter_value_w_unit('current_value')
-        unit = str(current_value.units)
-        current_value = current_value.m
-        annual_change = self.get_parameter_value_w_unit('annual_change')
-        assert {str(annual_change.units)} <= {'%/a', '%/year', '%'}
-        annual_change = (1 + annual_change).m
-
-        target_year = self.context.target_year
-        start_year = self.context.instance.minimum_historical_year
-        current_time = self.context.instance.maximum_historical_year - start_year
-        duration = target_year - start_year + 1
-        s = [current_value] * duration
-        year = []
-        forecast = []
-        factor = [1]
-
-        for i in range(duration):
-            if i > current_time:
-                factor = factor + [factor[-1] * annual_change]
-                forecast = forecast + [True]
-            else:
-                factor = factor + [factor[-1]]
-                forecast = forecast + [False]
-            year = year + [start_year + i]
+    def compute_effect(self):
+        current_value = self.get_parameter('current_value')
+        print(current_value)
+        pt = pint_pandas.PintType(current_value.unit)
+        base_value = self.get_parameter('annual_change')
+        base_unit = base_value.unit
         if self.is_enabled():
-            s = pd.Series(s) * pd.Series(factor[1:])
-        df = pd.DataFrame({
-            YEAR_COLUMN: year,
-            VALUE_COLUMN: pd.Series(s, dtype='pint[' + unit + ']'),
-            FORECAST_COLUMN: forecast}).set_index([YEAR_COLUMN])
+            current_value = current_value.value
+            base_value = base_value.value
+        else:
+            current_value = current_value.scenario_settings['default']
+            base_value = base_value.scenario_settings['default']
+        base_value = 1 + (base_value * base_unit).to('dimensionless').m
+        start_year = self.context.instance.minimum_historical_year
+        target_year = self.get_target_year()
+        current_year = self.context.instance.maximum_historical_year
+        print(current_value, base_value, pt)
+
+        df = pd.DataFrame(
+            {VALUE_COLUMN: range(start_year - current_year, target_year - current_year + 1)},
+            index=range(start_year, target_year + 1))
+        val = current_value * base_value ** df[VALUE_COLUMN]
+        df[VALUE_COLUMN] = val.astype(pt)
+        df[FORECAST_COLUMN] = df.index > current_year
+
         return df

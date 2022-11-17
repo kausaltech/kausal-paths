@@ -106,7 +106,7 @@ instance:
   - id: heat_co2_ef
     label: Emission factor of heat production (g CO2/kWh)
     is_customizable: True
-    value: 53.7
+    value: 52
     min_value: 40
     max_value: 70
     unit: g/kWh
@@ -195,28 +195,6 @@ instance:
     input_nodes:
     - net_emissions
 
-  - id: price_of_electricity
-    name: Sähkön hinta
-    name_en: Price of electricity
-    name_sv: Elpris
-    quantity: unit_price
-    unit: SEK/MWh
-    type: simple.AdditiveNode
-    historical_values: [[2019, 1330], [2022, 2536.5]]
-    tags: price_of_electricity
-
-  - id: price_of_heat
-    name: Lämmityksen hinta
-    name_en: Price of heat
-    name_sv: Värmepris
-    quantity: unit_price
-    unit: SEK/MWh
-    type: simple.AdditiveNode
-    historical_values: [[2019, 940], [2022, 868]]
-#    params:
-#      yearly_change: 0.0
-    tags: price_of_heat
-
   - id: social_cost
     name: Sosiaaliset kustannukset
     name_en: Social cost
@@ -225,10 +203,10 @@ instance:
     quantity: currency
     unit: MSEK/a
     input_nodes:
-    - social_cost_single_family
-    - social_cost_apartment
-    - social_cost_office
-    - social_cost_school
+    - cost_single_family
+    - cost_apartment
+    - cost_office
+    - cost_school
 
   - id: net_energy_consumption
     name: Energiankulutus
@@ -507,10 +485,10 @@ instance:
     - health_cost_per_area_single_family
     - co2_cost_per_area_single_family
 
-  - id: social_cost_single_family
-    name: Sosiaaliset kustannukset omakotitalossa
-    name_en: Social cost single family
-    name_sv: Sociala kostnader i småhus
+  - id: cost_single_family
+    name: Kustannukset omakotitalossa
+    name_en: Cost single family
+    name_sv: Kostnader i småhus
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -729,10 +707,10 @@ instance:
     - health_cost_per_area_apartment
     - co2_cost_per_area_apartment
 
-  - id: social_cost_apartment
-    name: Sosiaaliset kustannukset kerrostalossa
-    name_en: Social cost apartment
-    name_sv: Sociala kostnader i flerbostadshus
+  - id: cost_apartment
+    name: Kustannukset kerrostalossa
+    name_en: Cost apartment
+    name_sv: Kostnader i flerbostadshus
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -951,10 +929,10 @@ instance:
     - health_cost_per_area_office
     - co2_cost_per_area_office
 
-  - id: social_cost_office
-    name: Sosiaaliset kustannukset toimistossa
-    name_en: Social cost per area office
-    name_sv: Sociala kostnader per ytarea i kontor
+  - id: cost_office
+    name: Kustannukset toimistossa
+    name_en: Cost per area office
+    name_sv: Kostnader per ytarea i kontor
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -1173,10 +1151,10 @@ instance:
     - health_cost_per_area_school
     - co2_cost_per_area_school
 
-  - id: social_cost_school
-    name: Sosiaaliset kustannukset koulussa
-    name_en: Social costs schools
-    name_sv: Sociala kostnader i skolor
+  - id: cost_school
+    name: Kustannukset koulussa
+    name_en: Costs schools
+    name_sv: Kostnader i skolor
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -1215,6 +1193,8 @@ instance:
       description_sv: Koldioxidkostnad. Uppdaterade utifrån ASEK - EU ETS, eftersom kostnaderna
         för utsläppsrätter redan är internaliserade i privatekonomiska kostnader. 
         Förut 7000kr/ton co2. Nu 7000-550=6450. (550 var genomsnittspriset 2021)
+        ASEK 7.0, Trafikverkets Analysmetod och samhällsekonomiska kalkylvärden (2020)
+        https://www.naturvardsverket.se/om-oss/aktuellt/nyheter-och-pressmeddelanden/utslappen-okade-med-106-procent-i-eus-utslappshandel-2021/
     - id: annual_change
       values:
         default: 3
@@ -1226,53 +1206,69 @@ instance:
       description_en: Cost increase rate (%/a)
       description_sv: Kostnadsökningstakt (%/a)
 
-  - id: increase_in_price_of_electricity
-    name: Sähkön hinnannousu
-    name_en: Increase in price of electricity
-    name_sv: Elprishöjning
+  - id: price_of_electricity
+    name: Sähkön hinta
+    name_en: Price of electricity
+    name_sv: Elpris
     quantity: unit_price
-    unit: SEK/kWh
-    type: simple.LinearCumulativeAdditiveAction
-    decision_level: nation
-    group: general
-    forecast_values: [[2021, 0], [2044, 0]]
-    params:
-      - id: target_year_level
-        values:
-          default: 0
-        min_value: 0
-        max_value: 5
-        step: 0.5
-        description: Hinnannousu (%/a)
-        description_en: Price increase (%/a)
-        description_sv: Prisökning (%/a)
+    unit: SEK/MWh
+    type: simple.ExponentialAction
+    historical_values: [[2019, 1330], [2021, 2536.5]]
     tags: price_of_electricity
-    output_nodes:
-      - price_of_electricity
-
-  - id: increase_in_price_of_heat
-    name: Lämmön hinnannousu
-    name_en: Increase in price of heat
-    name_sv: Värmeprishöjning
-    quantity: unit_price
-    unit: SEK/kWh
-    type: simple.LinearCumulativeAdditiveAction
     decision_level: nation
-    group: general
-    forecast_values: [[2021, 0], [2044, 0]]
     params:
-      - id: target_year_level
-        values:
-          default: 0
-        min_value: 0
-        max_value: 5
-        step: 0.5
-        description: Hinnannousu (%/a)
-        description_en: Price increase (%/a)
-        description_sv: Prisökning (%/a)
+    - id: current_value
+      values:
+        default: 2536.5
+      min_value: 1000
+      max_value: 5000
+      step: 100
+      unit: SEK/MWh
+      description: Sähkön nykyhinta (SEK/MWh)
+      description_en: Current electricity price (SEK/MWh)
+      description_sv: Nuvarande elpris (SEK/MWh)
+    - id: annual_change
+      values:
+        default: 0
+      min_value: -2
+      max_value: 4
+      step: 0.5
+      unit: '%'
+      description: Kustannusten nousuvauhti (%/a)
+      description_en: Cost increase rate (%/a)
+      description_sv: Kostnadsökningstakt (%/a)
+
+  - id: price_of_heat
+    name: Lämmityksen hinta
+    name_en: Price of heat
+    name_sv: Värmepris
+    quantity: unit_price
+    unit: SEK/MWh
+    type: simple.ExponentialAction
+    historical_values: [[2019, 940], [2021, 868]]
     tags: price_of_heat
-    output_nodes:
-      - price_of_heat
+    decision_level: nation
+    params:
+    - id: current_value
+      values:
+        default: 868
+      min_value: 600
+      max_value: 2000
+      step: 10
+      unit: SEK/MWh
+      description: Lämmön nykyhinta (SEK/MWh)
+      description_en: Current heat price (SEK/MWh)
+      description_sv: Nuvarande värmepris (SEK/MWh)
+    - id: annual_change
+      values:
+        default: 0
+      min_value: -2
+      max_value: 4
+      step: 0.5
+      unit: '%'
+      description: Kustannusten nousuvauhti (%/a)
+      description_en: Cost increase rate (%/a)
+      description_sv: Kostnadsökningstakt (%/a)
 
 # Grön logik: Småhus 24: next 24 actions
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=2083157528
