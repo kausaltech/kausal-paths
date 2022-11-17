@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import pint_pandas
+
 from numba import njit, int32
 from pint_pandas import PintType
 from nodes.context import unit_registry
@@ -253,6 +255,51 @@ class BuildingEnergySavingAction(ActionNode):
         return out
 
     def compute_effect(self) -> pd.DataFrame:
+
+        # Global parameters
+        renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
+        renovation_rate_baseline = renovation_rate_baseline.to('1/a').m
+        target_year = self.context.target_year
+        current_year = self.context.instance.maximum_historical_year
+
+        # Local parameters
+        lifetime = self.get_parameter_value_w_unit('investment_lifetime').to('a').m
+        renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
+        renovation_potential = renovation_potential.to('dimensionless').m
+        investment_cost = self.get_parameter_value_w_unit('investment_cost')
+        maint_cost = self.get_parameter_value_w_unit('maintenance_cost')
+        cost_pt = pint_pandas.PintType(maint_cost.units)
+        he_saving = self.get_parameter_value_w_unit('heat_saving')
+        he_pt = pint_pandas.PintType(he_saving.units)
+        el_saving = self.get_parameter_value_w_unit('electricity_saving')
+        el_pt = pint_pandas.PintType(el_saving.units)
+
+        # Calculations
+        reno = 1 / lifetime
+        if not self.is_enabled():
+            reno = renovation_rate_baseline
+
+        df = pd.DataFrame({
+            VALUE_COLUMN: range(target_year - current_year + 1),
+        }, index=range(current_year, target_year + 1))
+        df[FORECAST_COLUMN] = df.index > current_year
+        df[VALUE_COLUMN] = (df[VALUE_COLUMN] * reno).clip(None, renovation_potential)
+        cost = df[VALUE_COLUMN].copy()
+
+        # Reinvestments after renovation potential reached
+        for round in range(1, len(df.index) // lifetime):
+            cost += df[VALUE_COLUMN].shift(lifetime * round, fill_value=0)
+        cost = cost.diff().fillna(0)
+        cost = cost * investment_cost.m
+        cost += df[VALUE_COLUMN] * maint_cost.m
+        df['RenovCost'] = cost.astype(cost_pt)
+        df['Heat'] = (df[VALUE_COLUMN] * he_saving.m * -1).astype(he_pt)
+        df['Electricity'] = (df[VALUE_COLUMN] * el_saving.m * -1).astype(el_pt)
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN] * 100)
+
+        return df
+
+    def compute_effect2(self) -> pd.DataFrame:
 
         # Global parameters
         renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')

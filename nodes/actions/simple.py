@@ -123,7 +123,6 @@ class ExponentialAction(ActionNode):
 
     def compute_effect(self):
         current_value = self.get_parameter('current_value')
-        print(current_value)
         pt = pint_pandas.PintType(current_value.unit)
         base_value = self.get_parameter('annual_change')
         base_unit = base_value.unit
@@ -137,7 +136,6 @@ class ExponentialAction(ActionNode):
         start_year = self.context.instance.minimum_historical_year
         target_year = self.get_target_year()
         current_year = self.context.instance.maximum_historical_year
-        print(current_value, base_value, pt)
 
         df = pd.DataFrame(
             {VALUE_COLUMN: range(start_year - current_year, target_year - current_year + 1)},
