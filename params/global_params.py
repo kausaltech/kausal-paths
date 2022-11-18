@@ -60,6 +60,11 @@ class RenovationRateBaseline(NumberParameter):
     id = 'renovation_rate_baseline'
 
 
+class IncludeSocial(BoolParameter):
+    name = _('Include social costs in calculations?')
+    id = 'include_social'
+
+
 class IncludeCO2(BoolParameter):
     name = _('Include CO2 cost variable in calculations?')
     id = 'include_co2'

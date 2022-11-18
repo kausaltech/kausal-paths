@@ -13,6 +13,7 @@ from nodes.calc import nafill_all_forecast_years
 from params import NumberParameter
 
 from .action import ActionNode
+from .simple import ExponentialAction
 
 
 @njit(cache=True)
@@ -187,9 +188,9 @@ class LEDRetrofitAction(ActionNode):
 
 class BuildingEnergySavingAction(ActionNode):
     '''NOTE! The output values are given per TOTAL building floor area,
-    not per RENOVATEABLE building floor area. This is necessary because
-    the costs from renovations at different timepoints are summed up and
-    therefore the renovation rate and cost at a particular year refer to different things.'''
+    not per RENOVATEABLE building floor area. This is useful because
+    the costs and savings from total renovations sum up to a meaningful
+    impact on nodes that are given per floor area.'''
     dimensions = {
         VALUE_COLUMN: NodeDimension('%', 'fraction'),
         'RenovCost': NodeDimension('SEK/a/m**2', 'currency'),
@@ -280,5 +281,76 @@ class BuildingEnergySavingAction(ActionNode):
         df['Heat'] = (df[VALUE_COLUMN] * he_saving.m * -1).astype(he_pt)
         df['Electricity'] = (df[VALUE_COLUMN] * el_saving.m * -1).astype(el_pt)
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN] * 100)
+
+        return df
+
+
+class EnergyCostAction(ExponentialAction):
+    dimensions = {
+        VALUE_COLUMN: NodeDimension('SEK/a', 'currency'),
+        'EnergyPrice': NodeDimension('SEK/MWh', 'currency'),
+        'AddedValueTax': NodeDimension('SEK/MWh', 'currency'),
+        'NetworkPrice': NodeDimension('SEK/MWh', 'currency'),
+        'HandlingFee': NodeDimension('SEK/MWh', 'currency'),
+        'Certificate': NodeDimension('SEK/MWh', 'currency'),
+        'EnergyTax': NodeDimension('SEK/MWh', 'currency')
+    }
+    global_parameters: list[str] = ['include_social']
+    allowed_parameters = ExponentialAction.allowed_parameters + [
+        NumberParameter(
+            local_id='added_value_tax',
+            label='Added value tax (%)',
+            unit='%',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='network_price',
+            label='Network price (SEK/MWh)',
+            unit='SEK/MWh',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='handling_fee',
+            label='Handling fee (SEK/MWh)',
+            unit='SEK/MWh',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='certificate',
+            label='Certificate (SEK/MWh)',
+            unit='SEK/MWh',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='energy_tax',
+            label='Energy tax (SEK/MEh)',
+            unit='SEK/MWh',
+            is_customizable=False
+        )
+    ]
+
+    def compute_effect(self):
+        added_value_tax = self.get_parameter_value_w_unit('added_value_tax')
+        network_price, net_pt = self.get_parameter_and_unit('network_price')
+        handling_fee, han_pt = self.get_parameter_and_unit('handling_fee')
+        certificate, cer_pt = self.get_parameter_and_unit('certificate')
+        energy_tax, ene_pt = self.get_parameter_and_unit('energy_tax')
+        include_social = self.get_global_parameter_value('include_social')
+
+        df = self.compute_exponential()
+        df['EnergyPrice'] = df[VALUE_COLUMN]
+        added_value_tax = added_value_tax.to('dimensionless').m
+        df['AddedValueTax'] = df['EnergyPrice'] * added_value_tax
+        df['NetworkPrice'] = pd.Series(network_price, index=df.index, dtype=net_pt)
+        df['HandlingFee'] = pd.Series(handling_fee, index=df.index, dtype=han_pt)
+        df['Certificate'] = pd.Series(certificate, index=df.index, dtype=cer_pt)
+        df['EnergyTax'] = pd.Series(energy_tax, index=df.index, dtype=ene_pt)
+
+        if include_social:
+            cols = ['NetworkPrice']
+        else:
+            cols = ['AddedValueTax', 'NetworkPrice', 'HandlingFee', 'Certificate', 'EnergyTax']
+        for col in cols:
+            df[VALUE_COLUMN] += df[col]
 
         return df

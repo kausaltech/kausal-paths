@@ -124,6 +124,10 @@ instance:
     min_value: 0
     max_value: 2
     unit: '%/a'
+  - id: include_social
+    label: Include social costs?
+    is_customizable: True
+    value: False
   - id: include_co2
     label: Include CO2 costs?
     is_customizable: True
@@ -1212,16 +1216,16 @@ instance:
     name_sv: Elpris
     quantity: unit_price
     unit: SEK/MWh
-    type: simple.ExponentialAction
+    type: energy_saving.EnergyCostAction
     historical_values: [[2019, 1330], [2021, 2536.5]]
     tags: price_of_electricity
     decision_level: nation
     params:
     - id: current_value
       values:
-        default: 2536.5
-      min_value: 1000
-      max_value: 5000
+        default: 670
+      min_value: 400
+      max_value: 3000
       step: 100
       unit: SEK/MWh
       description: Sähkön nykyhinta (SEK/MWh)
@@ -1237,6 +1241,16 @@ instance:
       description: Kustannusten nousuvauhti (%/a)
       description_en: Cost increase rate (%/a)
       description_sv: Kostnadsökningstakt (%/a)
+    - id: added_value_tax
+      value: 25
+    - id: network_price
+      value: 989
+    - id: handling_fee
+      value: 228
+    - id: certificate
+      value: 32
+    - id: energy_tax
+      value: 450
 
   - id: price_of_heat
     name: Lämmityksen hinta
@@ -1244,16 +1258,16 @@ instance:
     name_sv: Värmepris
     quantity: unit_price
     unit: SEK/MWh
-    type: simple.ExponentialAction
+    type: energy_saving.EnergyCostAction
     historical_values: [[2019, 940], [2021, 868]]
     tags: price_of_heat
     decision_level: nation
     params:
     - id: current_value
       values:
-        default: 868
-      min_value: 600
-      max_value: 2000
+        default: 694.4
+      min_value: 400
+      max_value: 1500
       step: 10
       unit: SEK/MWh
       description: Lämmön nykyhinta (SEK/MWh)
@@ -1269,6 +1283,16 @@ instance:
       description: Kustannusten nousuvauhti (%/a)
       description_en: Cost increase rate (%/a)
       description_sv: Kostnadsökningstakt (%/a)
+    - id: added_value_tax
+      value: 25
+    - id: network_price
+      value: 0
+    - id: handling_fee
+      value: 0
+    - id: certificate
+      value: 0
+    - id: energy_tax
+      value: 0
 
 # Grön logik: Småhus 24: next 24 actions
 # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=2083157528

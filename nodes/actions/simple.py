@@ -121,7 +121,7 @@ class ExponentialAction(ActionNode):
         ),
     ]
 
-    def compute_effect(self):
+    def compute_exponential(self):
         current_value = self.get_parameter('current_value')
         pt = pint_pandas.PintType(current_value.unit)
         base_value = self.get_parameter('annual_change')
@@ -145,3 +145,6 @@ class ExponentialAction(ActionNode):
         df[FORECAST_COLUMN] = df.index > current_year
 
         return df
+
+    def compute_effect(self):
+        return self.compute_exponential()

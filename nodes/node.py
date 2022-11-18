@@ -218,6 +218,11 @@ class Node:
     def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
         return self.get_parameter_value(id, required=required, units=True)
 
+    def get_parameter_and_unit(self, id: str):
+        value = float(self.get_parameter_value(id))
+        unit = self.get_parameter_value_w_unit(id).units
+        return value, pint_pandas.PintType(unit)
+
     def get_global_parameter_value(self, id: str, required: bool = True, units: bool = False) -> Any:
         if id not in self.global_parameters:
             raise NodeError(self, f"Attempting to access global parameter {id} which is not declared")
