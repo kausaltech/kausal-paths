@@ -62,7 +62,7 @@ instance:
       unit: SEK/kWh
       label: Sähkönsäästön marginaalikustannus
       label_en: Marginal cost in electricity savings
-      lavel_sv: Marginalnettokostnad för elbesparing
+      label_sv: Marginalnettokostnad för elbesparing
     - cost_node: cost_per_area_single_family
       impact_node: electricity_saving_per_area_single_family
       unit: SEK/kWh
@@ -516,8 +516,8 @@ instance:
 
   - id: electricity_per_area_apartment
     name: Sähkönkulutus per ala kerrostalossa
-    name_en: per area apartment
-    name_sv: per ytarea i flerbostadshus
+    name_en: Electricity per area apartment
+    name_sv: Elkonsumtion per ytarea i flerbostadshus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -3507,12 +3507,20 @@ instance:
     node: net_emissions
     lead_title: Grön logik -projektin päästöskenaariot
     lead_title_en: Grön logik project's emission scenarios
+    lead_title_sv: Projekt Grön logiks utsläppsscenarion
     lead_paragraph: Grön logik -projekti tarkastelee rakennusten energiankulutusta ja 
       eri toimien vaikutusta sen kautta ilmastopäästöihin.
     lead_paragraph_en: Grön logik project examines the energy consumption of buildings and
       how different actions reduce it and thus climate emissions.
     lead_paragrap_sv: Grön logik projektet undersöker byggnaders energiförbrukning och
       hur olika åtgärder minskar det och därmed klimatutsläppen.
+  
+#  - id: costs # Does not work yet
+#    name: Kustannukset
+#    path: /costs
+#    type: currency
+#    node: social_costs
+#    lead_title: Kustannusten jakautuminen
 
   scenarios:
   - id: baseline
@@ -3534,3 +3542,21 @@ instance:
     params:
     - id: window_replacement.enabled
       value: true
+
+#  - id: optimal
+#    default: true
+#    name: Vain kustannustehokkaat toimet
+#    name_en: Only cost-effective actions
+#    name_sv: Bara kosteffektiva åtgärder
+#    all_actions_enabled: true
+#    params:
+#    - id: f_heat_pump.enabled
+#      value: False
+#    - id: additional.facade_insulation.enabled
+#      value: False
+#    - id: window_replacement.enabled
+#      value: False
+#    - id: facade_insulation_single_family
+#      value: False
+#    - id: upgrade_to_ftx_ventilation_single_family.enabled
+#      value: False
