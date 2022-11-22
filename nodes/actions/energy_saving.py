@@ -287,7 +287,7 @@ class BuildingEnergySavingAction(ActionNode):
 
 class EnergyCostAction(ExponentialAction):
     dimensions = {
-        VALUE_COLUMN: NodeDimension('SEK/a', 'currency'),
+        VALUE_COLUMN: NodeDimension('SEK/MWh', 'currency'),
         'EnergyPrice': NodeDimension('SEK/MWh', 'currency'),
         'AddedValueTax': NodeDimension('SEK/MWh', 'currency'),
         'NetworkPrice': NodeDimension('SEK/MWh', 'currency'),
