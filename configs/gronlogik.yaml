@@ -1317,9 +1317,9 @@ actions:
     value: 411.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: -15.7
 
 - id: led_lighting_single_family
@@ -1343,9 +1343,9 @@ actions:
     value: 0.7
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.4
 
 - id: change_hot_water_heater_single_family
@@ -1369,9 +1369,9 @@ actions:
     value: 65.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 17.1
 
 - id: direct_el_to_aahp_single_family
@@ -1395,9 +1395,9 @@ actions:
     value: 144.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 23.52
 
 - id: control_and_management_measures_in_direct_el_single_family
@@ -1421,9 +1421,9 @@ actions:
     value: 62.5
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 6.65
 
 - id: water_el_to_geothermal_single_family
@@ -1447,9 +1447,9 @@ actions:
     value: 823.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 54.81
 
 - id: more_energy_efficient_fridge_freezer_lighting_single_family
@@ -1473,9 +1473,9 @@ actions:
     value: 36.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 3.8
 
 - id: direct_el_to_geothermal_with_water_single_family
@@ -1499,9 +1499,9 @@ actions:
     value: 1361.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 71.12
 
 - id: control_and_management_measures_for_heating_boiler_single_family
@@ -1525,9 +1525,9 @@ actions:
     value: 52.6
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 16.52
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: water_saving_tap_water_luminaires_single_family
@@ -1551,9 +1551,9 @@ actions:
     value: 25.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 10.4
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_wind_insulation_single_family
@@ -1577,9 +1577,9 @@ actions:
     value: 119.7
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 11.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: more_energy_efficient_dishwasher_single_family
@@ -1603,9 +1603,9 @@ actions:
     value: 11.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.8
 
 - id: thermostat_valves_and_adjustment_single_family
@@ -1629,9 +1629,9 @@ actions:
     value: 47.5
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 4.13
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_windows_single_family
@@ -1655,9 +1655,9 @@ actions:
     value: 176.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 13.3
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: new_energy_efficient_doors_single_family
@@ -1681,9 +1681,9 @@ actions:
     value: 49.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 3.3
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: solar_heating_single_family
@@ -1707,9 +1707,9 @@ actions:
     value: 476.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 38.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: solar_cells_single_family
@@ -1733,9 +1733,9 @@ actions:
     value: 421.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 18.0
 
 - id: more_energy_efficient_stove_single_family
@@ -1759,9 +1759,9 @@ actions:
     value: 19.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: more_energy_efficient_windows_single_family
@@ -1785,9 +1785,9 @@ actions:
     value: 611.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 19.5
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: more_energy_efficient_washing_and_drying_single_family
@@ -1811,9 +1811,9 @@ actions:
     value: 23.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.9
 
 - id: additional_insulation_of_facade_single_family
@@ -1837,9 +1837,9 @@ actions:
     value: 306.9
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 11.28
 
 - id: heat_recovery_from_exhaust_ventilation_single_family
@@ -1863,9 +1863,9 @@ actions:
     value: 865.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 21.8
-  - id: electricity_saving:
+  - id: electricity_saving
     value: -5.7
 
 - id: direct_heating_to_district_heating_single_family
@@ -1889,9 +1889,9 @@ actions:
     value: 296.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: -3.15
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 3.15
 
 - id: switching_from_direct_el_to_district_water_single_family
@@ -1915,9 +1915,9 @@ actions:
     value: 943.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: -1.05
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.05
 
 - id: low_energy_lamps_apartment
@@ -1941,9 +1941,9 @@ actions:
     value: 0.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: pressure_controlled_fans_apartment
@@ -1967,9 +1967,9 @@ actions:
     value: 55.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 4.0
 
 - id: adjustment_of_ventilation_system_apartment
@@ -1993,9 +1993,9 @@ actions:
     value: 0.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 5.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: water_saving_tap_water_luminaires_apartment
@@ -2019,9 +2019,9 @@ actions:
     value: 18.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 6.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: presence_controlled_led_lighting_apartment
@@ -2045,9 +2045,9 @@ actions:
     value: 23.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: thermostats_valves_adjustment_heating_system_apartment
@@ -2071,9 +2071,9 @@ actions:
     value: 73.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 13.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_wind_insulation_including_eaves_apartment
@@ -2097,9 +2097,9 @@ actions:
     value: 46.4
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 3.58
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: painting_and_sealing_of_windows_and_doors_apartment
@@ -2123,9 +2123,9 @@ actions:
     value: 19.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 2.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: new_more_energy_efficient_entrance_basement_doors_apartment
@@ -2149,9 +2149,9 @@ actions:
     value: 48.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 5.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: heat_exchanger_for_wastewater_apartment
@@ -2175,9 +2175,9 @@ actions:
     value: 56.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 5.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: individual_measurement_and_charge_of_hot_water_apartment
@@ -2201,9 +2201,9 @@ actions:
     value: 56.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 5.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: exhaust_air_heat_pump_apartment
@@ -2227,9 +2227,9 @@ actions:
     value: 296.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 33.6
-  - id: electricity_saving:
+  - id: electricity_saving
     value: -11.2
 
 - id: machine_ventilation_and_heat_recovery_apartment
@@ -2253,9 +2253,9 @@ actions:
     value: 565.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 34.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: -4.0
 
 - id: additional_insulation_of_windows_apartment
@@ -2279,9 +2279,9 @@ actions:
     value: 322.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 15.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_facade_apartment
@@ -2305,9 +2305,9 @@ actions:
     value: 162.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 8.86
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: more_energy_efficient_windows_apartment
@@ -2331,9 +2331,9 @@ actions:
     value: 275.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 6.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_warm_water_circulation_apartment
@@ -2357,9 +2357,9 @@ actions:
     value: 47.7
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 3.9
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_technical_spaces_apartment
@@ -2383,9 +2383,9 @@ actions:
     value: 52.6
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 2.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_incoming_ventilation_ducts_apartment
@@ -2409,9 +2409,9 @@ actions:
     value: 27.4
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 1.2
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_flanges_and_valves_apartment
@@ -2435,9 +2435,9 @@ actions:
     value: 13.6
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.48
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: additional_insulation_of_district_heating_center_apartment
@@ -2461,9 +2461,9 @@ actions:
     value: 8.75
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.73
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: need_adapted_control_of_ventilation_office
@@ -2487,9 +2487,9 @@ actions:
     value: 19.5
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 9.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 5.0
 
 - id: operation_optimization_of_cooling_office
@@ -2513,9 +2513,9 @@ actions:
     value: 11.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.5
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: upgrade_of_lighting_in_office_space_office
@@ -2539,9 +2539,9 @@ actions:
     value: 161.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: -5.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 10.0
 
 - id: upgrade_of_lighting_in_public_spaces_office
@@ -2565,9 +2565,9 @@ actions:
     value: 85.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: -0.5
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 4.0
 
 - id: upgrade_of_ventilation_office
@@ -2591,9 +2591,9 @@ actions:
     value: 276.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 15.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 4.0
 
 - id: more_energy_efficient_windows_office
@@ -2617,9 +2617,9 @@ actions:
     value: 411.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 13.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 3.0
 
 - id: heat_recovery_in_ventilation_school_wooden
@@ -2643,9 +2643,9 @@ actions:
     value: 65.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 5.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 3.0
 
 - id: thermostats_adjustment_of_heating_systems_school_stone
@@ -2669,9 +2669,9 @@ actions:
     value: 18.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 4.9
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: need_adjusted_ventilation_school_stone
@@ -2695,9 +2695,9 @@ actions:
     value: 120.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 15.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 4.0
 
 - id: thermostats_adjustment_of_heating_systems_school_wooden
@@ -2721,9 +2721,9 @@ actions:
     value: 25.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 6.3
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: need_adjusted_ventilation_school_wooden
@@ -2747,9 +2747,9 @@ actions:
     value: 72.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 6.5
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 2.0
 
 - id: radiation_collectors_on_warm_water_system_school_stone
@@ -2773,9 +2773,9 @@ actions:
     value: 3.5
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.5
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: radiation_collectors_on_warm_water_system_school_wooden
@@ -2799,9 +2799,9 @@ actions:
     value: 3.5
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.5
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: heat_recovery_in_ventilation_school_stone
@@ -2825,9 +2825,9 @@ actions:
     value: 235.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 10.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 3.5
 
 - id: heat_recovery_to_machine_ventilation_school_stone
@@ -2851,9 +2851,9 @@ actions:
     value: 295.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 22.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: heat_recovery_to_machine_ventilation_school_wooden
@@ -2877,9 +2877,9 @@ actions:
     value: 272.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 17.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: modern_outdoor_lighting_school_stone
@@ -2903,9 +2903,9 @@ actions:
     value: 33.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: modern_outdoor_lighting_school_wooden
@@ -2929,9 +2929,9 @@ actions:
     value: 33.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 0.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: additional_wind_insulation_for_roof_school_stone
@@ -2955,9 +2955,9 @@ actions:
     value: 100.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 6.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: more_energy_efficient_windows_school_stone
@@ -2981,9 +2981,9 @@ actions:
     value: 307.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 12.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 0.0
 
 - id: machine_exh_to_machine_vent_with_heat_recovery_school_stone
@@ -3007,9 +3007,9 @@ actions:
     value: 688.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 30.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: -2.5
 
 - id: machine_exh_to_machine_vent_with_heat_recovery_school_wooden
@@ -3033,9 +3033,9 @@ actions:
     value: 688.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 30.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: -2.5
 
 - id: more_energy_efficient_windows_school_wooden
@@ -3059,9 +3059,9 @@ actions:
     value: 532.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: 16.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 1.0
 
 - id: more_energy_efficient_lighting_school_stone
@@ -3085,9 +3085,9 @@ actions:
     value: 180.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: -3.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 5.0
 
 - id: more_energy_efficient_lighting_school_wooden
@@ -3111,9 +3111,9 @@ actions:
     value: 180.0
   - id: maintenance_cost
     value: 0.0
-  - id: heat_saving:
+  - id: heat_saving
     value: -3.0
-  - id: electricity_saving:
+  - id: electricity_saving
     value: 5.0
 
 pages:
@@ -3144,11 +3144,11 @@ scenarios:
   name: Nykykehitys
   name_en: Baseline
   name_sv: Baslinje
-  params:
-  - id: window_replacement.enabled
-    value: false
-  - id: energy_saving_lamps.enabled
-    value: true
+#  params:
+#  - id: window_replacement.enabled
+#    value: false
+#  - id: energy_saving_lamps.enabled
+#    value: true
 
 - id: default
   default: true
@@ -3156,9 +3156,9 @@ scenarios:
   name_en: All Grön logik actions
   name_sv: Alla Grön logik åtgärder
   all_actions_enabled: true
-  params:
-  - id: window_replacement.enabled
-    value: true
+#  params:
+#  - id: window_replacement.enabled
+#    value: true
 
 #  - id: optimal
 #    default: true

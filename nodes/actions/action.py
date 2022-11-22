@@ -155,6 +155,8 @@ class ActionEfficiencyPair:
             cost = df['Cost'].sum()
             impact = df['Impact'].sum()
             efficiency = (cost / impact).to(self.unit)
+            if impact < 0:
+                efficiency *= -1
             ae = ActionEfficiency(
                 action=action, df=df,
                 cumulative_cost=cost,
