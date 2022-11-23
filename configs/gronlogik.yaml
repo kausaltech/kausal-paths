@@ -2362,9 +2362,9 @@ actions:
   - id: electricity_saving
     value: 0.0
 
-- id: additional_insulation_of_technical_spaces_apartment
-  name: Huoltotilojen lisäeristys
-  name_en: Additional insulation of technical spaces
+- id: additional_insulation_of_heating_pipes_within_property_apartment
+  name: Kaukolämpöputkien lisäeristys tontilla
+  name_en: Additional insulation of district heating pipes within the property
   name_sv: Tilläggsisolering av kulvert
   type: energy_saving.BuildingEnergySavingAction
   quantity: fraction
@@ -2623,9 +2623,9 @@ actions:
     value: 3.0
 
 - id: heat_recovery_in_ventilation_school_wooden
-  name: 'Puukoulu: Lämmön talteenoton korvaaminen ilmanvaihdossa'
-  name_en: 'Wooden school: Replacement of heat recovery in ventilation'
-  name_sv: 'Träskola: Byte av FTX-ventilation'
+  name: 'Puukoulu: Koneellinen ilmanvaihto ja lämmön talteenotto'
+  name_en: 'Wooden school: Replacement to ventilation with exhaust and supply air and heat recovery'
+  name_sv: 'Träskola: Byte till FTX-ventilation'
   type: energy_saving.BuildingEnergySavingAction
   quantity: fraction
   unit: '%'
