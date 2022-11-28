@@ -13,6 +13,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from types import ModuleType
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -27,6 +29,12 @@ from wagtail.documents import urls as wagtaildocs_urls
 from .graphql_views import PathsGraphQLView
 from users.views import change_admin_instance
 
+kpe_urls: ModuleType | None
+try:
+    from kausal_paths_extensions import urls as kpe_urls
+except ImportError:
+    kpe_urls = None
+
 
 urlpatterns = [
     path('django-admin/', admin.site.urls),
@@ -37,7 +45,6 @@ urlpatterns = [
     ),
     path('admin/', include(wagtailadmin_urls)),
     path('documents/', include(wagtaildocs_urls)),
-
     # For anything not caught by a more specific rule above, hand over to
     # Wagtail's serving mechanism
     path('pages/', include(wagtail_urls)),
@@ -47,4 +54,9 @@ urlpatterns = [
     ), name='graphql-voyager'),
 
     path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view(graphiql=True)), name='graphql'),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+if kpe_urls is not None:
+    urlpatterns.append(path('', include(kpe_urls)))
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

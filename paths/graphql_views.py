@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from graphql import DirectiveNode
 
 import orjson
-from paths.authentication import InstanceTokenAuthentication
+from paths.authentication import IDTokenAuthentication, InstanceTokenAuthentication
 import sentry_sdk
 from django.conf import settings
 from django.utils.translation import activate, get_language_from_request
@@ -77,35 +77,33 @@ class InstanceMiddleware:
             raise GraphQLError("Instance matching hostname %s not found" % hostname, info.field_nodes if info else None)
         return instance
 
-    def process_instance_directive(self, info: GQLInfo, directive) -> Tuple[InstanceConfig, str | None]:
+    def process_instance_directive(self, info: GQLInfo, directive) -> InstanceConfig:
         qs = InstanceConfig.objects.all()
         arguments = {arg.name.value: _arg_value(arg, info.variable_values) for arg in directive.arguments}
         identifier = arguments.get('identifier')
         hostname = arguments.get('hostname')
         token = arguments.get('token')
         if identifier:
-            return self.get_instance_by_identifier(qs, identifier, info), token
+            return self.get_instance_by_identifier(qs, identifier, info)
         if hostname:
-            return self.get_instance_by_hostname(qs, hostname, info), token
+            return self.get_instance_by_hostname(qs, hostname, info)
         raise GraphQLError("Invalid instance directive", info.field_nodes)
 
-    def extract_auth_token(self, context: GQLContext) -> str | None:
-        auth = InstanceTokenAuthentication()
-        if auth is None:
-            return None
-
-    def process_instance_headers(self, context: GQLContext) -> Tuple[InstanceConfig | None, str | None]:
+    def process_instance_headers(self, context: GQLContext) -> InstanceConfig | None:
         identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
         hostname = context.headers.get(settings.INSTANCE_HOSTNAME_HEADER)
-        auth = InstanceTokenAuthentication()
-        token = auth.authenticate(context)
+        auth = IDTokenAuthentication()
+        ret = auth.authenticate(context)
+        if ret is not None:
+            user, token = ret
+            context.user = user
 
         qs = InstanceConfig.objects.all()
         if identifier:
-            return self.get_instance_by_identifier(qs, identifier), token
+            return self.get_instance_by_identifier(qs, identifier)
         if hostname:
-            return self.get_instance_by_hostname(qs, hostname), token
-        return None, None
+            return self.get_instance_by_hostname(qs, hostname)
+        return None
 
     def determine_instance(self, info: GQLInfo):
         instance_config: Optional[InstanceConfig] = None
@@ -114,15 +112,15 @@ class InstanceMiddleware:
 
         for directive in info.operation.directives or []:
             if directive.name.value == 'instance':
-                instance_config, token = self.process_instance_directive(info, directive)
+                instance_config = self.process_instance_directive(info, directive)
                 break
         else:
-            instance_config, token = self.process_instance_headers(info.context)
+            instance_config = self.process_instance_headers(info.context)
 
         if instance_config is None:
             return None
 
-        if instance_config.is_protected:
+        if instance_config.is_protected and not info.context.user.is_active:
             raise GraphQLError("Instance is protected", extensions=dict(code='instance_protected'))
 
         return instance_config.get_instance()

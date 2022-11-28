@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
-import importlib
+from importlib.util import find_spec
 from typing import Literal
 
 import environ
@@ -54,9 +54,9 @@ elif os.path.exists(os.path.join(BASE_DIR, '.env')):
     environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 DEBUG = env('DEBUG')
+ADMIN_BASE_URL = env('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
-INTERNAL_IPS = env.list('INTERNAL_IPS',
-                        default=(['127.0.0.1'] if DEBUG else []))
+INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))
 DATABASES = {
     'default': env.db()
 }
@@ -72,6 +72,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
 
+LOGIN_URL = '/admin/login/'
 
 # Application definition
 
@@ -105,6 +106,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'corsheaders',
 
     'django_extensions',
 
@@ -270,8 +273,10 @@ WAGTAILADMIN_BASE_URL = BASE_URL
 
 INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
-if importlib.util.find_spec('kausal_paths_extensions') is not None:
+if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
+    from kausal_paths_extensions import register_settings
+    register_settings(locals())
 
 
 # local_settings.py can be used to override environment-specific settings
@@ -396,3 +401,10 @@ CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
 CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
+
+if DEBUG:
+    try:
+        import django_stubs_ext
+        django_stubs_ext.monkeypatch()
+    except ImportError:
+        pass
