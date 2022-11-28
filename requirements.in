@@ -21,11 +21,12 @@ pytest-factoryboy
 orjson
 redis
 wagtailfontawesome
+pint-pandas
 https://github.com/kausaltech/django-modeltrans/archive/27bd15f13f091e9ac388241bfce902da98074a55.zip
-https://github.com/graphql-python/graphene-django/archive/2aeb86ba3bed7dc821cc8508e1dca8297aa7dea4.zip
+graphene-django
 https://github.com/kausaltech/graphene-django-optimizer/archive/f18d827d0d58c1148288b6b886c167dd2fc1931a.zip
-https://github.com/kausaltech/wagtail-localize/archive/3782adf.zip
-https://github.com/kausaltech/wagtail-grapple/archive/d899abc82047a1c22f0df8d19a8232b173ba17b0.zip
+wagtail-localize
+https://github.com/kausaltech/wagtail-grapple/archive/be8e27bee0d7eae6a943ca360d8b4211bfded4c4.zip
 graphql-core>=3.2.0
 graphql-relay>=3.2.0
 rich
@@ -33,4 +34,5 @@ Babel
 ruamel.yaml
 pygments-graphql
 watchfiles
-ipdb
+django-oauth-toolkit
+pycryptodome

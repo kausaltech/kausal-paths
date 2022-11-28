@@ -91,14 +91,14 @@ inhalationBq_m3 = 0 (m**3 / Bq)**3
     1 / [mass] -> 1 / [ingestion]: value * (period * incident)
     [inhalation] -> [exposure]: value * inhalation_rate / body_mass
     1 / [inhalation] -> 1 / [exposure]: value / (inhalation_rate / body_mass)
-    mg / capita / d -> [exposure]: value * capita / body_mass
+    #mg / capita / d -> [exposure]: value * capita / body_mass
     [ingestion] -> [exposure]: value / body_mass
     1 / [ingestion] -> 1 / [exposure]: value * body_mass
-    Lnight -> mg / kg / d: value * mg / kg / d / Lnight
-    Lden -> mg / kg / d: value * mg / kg / d / Lden
+    #Lnight -> mg / kg / d: value * mg / kg / d / Lnight
+    #Lden -> mg / kg / d: value * mg / kg / d / Lden
 
-    becquerel / m ** 3 -> g / m ** 3: value * (3.8215 d * 2 * 222.0175763 g / avogadro_number)
-    m ** 3 / becquerel -> m ** 3 / g: value / (3.8215 d * 2 * 222.0175763 g / avogadro_number)
+    #becquerel / m ** 3 -> g / m ** 3: value * (3.8215 d * 2 * 222.0175763 g / avogadro_number)
+    #m ** 3 / becquerel -> m ** 3 / g: value / (3.8215 d * 2 * 222.0175763 g / avogadro_number)
     # Radon-222 has half-life of 3.8215 d and isotope mass 222.0175763 g/mol.
     # The number of original atoms is activity * halflife * 2
 
@@ -106,7 +106,7 @@ inhalationBq_m3 = 0 (m**3 / Bq)**3
     [mass] / [mass] -> [inhalation]: value * airdensity * 47.997 / 28.89
     # Ozone molecular mass 47.997 g/mol, air 0.78 * 28.014 + 0.22 * 32.00 = 28.89 g/mol and 1.225 kg/m**3
 
-    cfu / d -> mg / kg / d: value  # nominal change to maintain dimensions
+    #cfu / d -> mg / kg / d: value  # nominal change to maintain dimensions
 
     [mass] -> [TEQ]: value * _a * g_teq / g  # FIXME This does not work without _a that must be defined
     [mass] / [mass] -> [TEQ] / [mass]: value * _a * g_teq / g

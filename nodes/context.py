@@ -30,7 +30,8 @@ unit_registry = pint.UnitRegistry(
     preprocessors=[
         lambda s: s.replace('%', ' percent '),
     ],
-    on_redefinition='raise'
+    on_redefinition='raise',
+    #cache_folder=":auto:",
 )
 
 # By default, kt is knots, but here kilotonne is the most common
@@ -41,8 +42,8 @@ del unit_registry._units['ton']  # The default is 2000 pounds and we don't want 
 unit_registry.define('ton = tonne')
 # Mega-kilometers is often used for mileage
 unit_registry.define('Mkm = gigameters')
-unit_registry.define(pint.unit.UnitDefinition(
-    'percent', '%', (), pint.converters.ScaleConverter(0.01)
+unit_registry.define(pint.facets.plain.UnitDefinition(
+    'percent', '%', (), pint.facets.plain.ScaleConverter(0.01), reference=unit_registry.UnitsContainer({})
 ))
 unit_registry.define('EUR = [currency]')
 unit_registry.define('USD = nan EUR')

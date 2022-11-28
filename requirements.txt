@@ -18,7 +18,7 @@ aiohttp-retry==2.8.3
     # via dvc-http
 aioitertools==0.11.0
     # via aiobotocore
-aiosignal==1.2.0
+aiosignal==1.3.1
     # via aiohttp
 amqp==5.1.1
     # via kombu
@@ -39,7 +39,7 @@ appdirs==1.4.4
     #   iterative-telemetry
 asgiref==3.5.2
     # via django
-asttokens==2.0.8
+asttokens==2.1.0
     # via stack-data
 async-timeout==4.0.2
     # via
@@ -54,7 +54,7 @@ attrs==22.1.0
     #   aiohttp
     #   dvc-data
     #   pytest
-babel==2.10.3
+babel==2.11.0
     # via -r requirements.in
 backcall==0.2.0
     # via ipython
@@ -97,18 +97,20 @@ click-repl==0.2.0
     # via celery
 colorama==0.4.6
     # via dvc
-colored==1.4.3
+colored==1.4.4
     # via -r requirements.in
 commonmark==0.9.1
     # via rich
 configobj==5.0.6
     # via dvc
-cryptography==38.0.1
-    # via asyncssh
+cryptography==38.0.4
+    # via
+    #   asyncssh
+    #   jwcrypto
 decorator==5.1.1
     # via ipython
 deprecated==1.2.13
-    # via redis
+    # via jwcrypto
 dictdiffer==0.9.0
     # via dvc-data
 diskcache==5.4.0
@@ -125,6 +127,7 @@ django==3.2.16
     #   django-filter
     #   django-modelcluster
     #   django-modeltrans
+    #   django-oauth-toolkit
     #   django-permissionedforms
     #   django-taggit
     #   django-treebeard
@@ -146,9 +149,11 @@ django-modelcluster==6.0
     # via wagtail
 django-modeltrans @ https://github.com/kausaltech/django-modeltrans/archive/27bd15f13f091e9ac388241bfce902da98074a55.zip
     # via -r requirements.in
+django-oauth-toolkit==2.2.0
+    # via -r requirements.in
 django-permissionedforms==0.1
     # via wagtail
-django-taggit==3.0.0
+django-taggit==3.1.0
     # via wagtail
 django-treebeard==4.5.1
     # via wagtail
@@ -156,46 +161,46 @@ djangorestframework==3.14.0
     # via
     #   -r requirements.in
     #   wagtail
-dpath==2.0.6
+dpath==2.1.0
     # via dvc
 draftjs-exporter==2.1.7
     # via wagtail
-dulwich==0.20.46
+dulwich==0.20.50
     # via scmrepo
-dvc[s3]==2.31.0
+dvc[s3]==2.35.2
     # via
     #   dvc-http
     #   dvc-pandas
     #   dvc-s3
-dvc-data==0.22.0
+dvc-data==0.28.0
     # via dvc
 dvc-http==2.27.2
     # via dvc
-dvc-objects==0.11.0
+dvc-objects==0.14.0
     # via dvc-data
 dvc-pandas==0.0.16
     # via -r requirements.in
-dvc-render[table]==0.0.12
+dvc-render[table]==0.0.14
     # via
     #   dvc
     #   dvclive
-dvc-s3==2.20.1
+dvc-s3==2.21.0
     # via dvc
-dvc-task==0.1.4
+dvc-task==0.1.6
     # via dvc
-dvclive==0.12.1
+dvclive==1.0.1
     # via dvc
 et-xmlfile==1.1.0
     # via openpyxl
-exceptiongroup==1.0.0rc9
+exceptiongroup==1.0.4
     # via pytest
-executing==1.1.1
+executing==1.2.0
     # via stack-data
 factory-boy==3.2.1
     # via
     #   -r requirements.in
     #   pytest-factoryboy
-faker==15.1.1
+faker==15.3.3
     # via factory-boy
 fasteners==0.18
     # via dvc-pandas
@@ -207,11 +212,11 @@ flatten-dict==0.4.2
     #   dvc-s3
 flufl-lock==7.1.1
     # via dvc
-frozenlist==1.3.1
+frozenlist==1.3.3
     # via
     #   aiohttp
     #   aiosignal
-fsspec[http]==2022.10.0
+fsspec[http]==2022.11.0
     # via
     #   dvc-http
     #   dvc-objects
@@ -226,7 +231,7 @@ funcy==1.17
     #   scmrepo
 future==0.18.2
     # via grandalf
-gitdb==4.0.9
+gitdb==4.0.10
     # via gitpython
 gitpython==3.1.29
     # via
@@ -236,7 +241,7 @@ grandalf==0.6
     # via dvc
 graphene==3.1.1
     # via graphene-django
-graphene-django @ https://github.com/graphql-python/graphene-django/archive/2aeb86ba3bed7dc821cc8508e1dca8297aa7dea4.zip
+graphene-django==3.0.0
     # via
     #   -r requirements.in
     #   wagtail-grapple
@@ -266,16 +271,18 @@ inflection==0.5.1
     # via pytest-factoryboy
 iniconfig==1.1.1
     # via pytest
-ipython==8.5.0
+ipython==8.6.0
     # via -r requirements.in
-iterative-telemetry==0.0.5
+iterative-telemetry==0.0.6
     # via dvc
-jedi==0.18.1
+jedi==0.18.2
     # via ipython
 jmespath==1.0.1
     # via
     #   boto3
     #   botocore
+jwcrypto==1.4.2
+    # via django-oauth-toolkit
 kombu==5.2.4
     # via
     #   celery
@@ -292,21 +299,23 @@ multidict==6.0.2
     #   yarl
 nanotime==0.5.2
     # via dvc-data
-networkx==2.8.7
+networkx==2.8.8
     # via dvc
-numba==0.56.3
+numba==0.56.4
     # via -r requirements.in
-numpy==1.23.4
+numpy==1.23.5
     # via
     #   numba
     #   pandas
     #   pyarrow
     #   scipy
+oauthlib==3.2.2
+    # via django-oauth-toolkit
 omegaconf==2.2.3
     # via hydra-core
 openpyxl==3.0.10
-    # via tablib
-orjson==3.8.0
+    # via wagtail
+orjson==3.8.2
     # via -r requirements.in
 packaging==21.3
     # via
@@ -314,7 +323,7 @@ packaging==21.3
     #   hydra-core
     #   pytest
     #   redis
-pandas==1.5.1
+pandas==1.5.2
     # via
     #   -r requirements.in
     #   dvc-pandas
@@ -329,13 +338,13 @@ pexpect==4.8.0
     # via ipython
 pickleshare==0.7.5
     # via ipython
-pillow==9.2.0
+pillow==9.3.0
     # via wagtail
-pint==0.19.2
+pint==0.20.1
     # via
     #   -r requirements.in
     #   pint-pandas
-pint-pandas==0.2
+pint-pandas==0.3
     # via
     #   -r requirements.in
     #   dvc-pandas
@@ -345,11 +354,11 @@ polib==1.1.1
     # via wagtail-localize
 promise==2.3
     # via graphene-django
-prompt-toolkit==3.0.31
+prompt-toolkit==3.0.33
     # via
     #   click-repl
     #   ipython
-psutil==5.9.3
+psutil==5.9.4
     # via
     #   dvc
     #   flufl-lock
@@ -359,13 +368,15 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
     # via stack-data
-pyarrow==9.0.0
+pyarrow==10.0.1
     # via dvc-pandas
 pycparser==2.21
     # via cffi
+pycryptodome==3.16.0
+    # via -r requirements.in
 pydot==1.4.2
     # via dvc
-pygit2==1.10.1
+pygit2==1.11.1
     # via scmrepo
 pygments==2.13.0
     # via
@@ -402,7 +413,7 @@ python-dotenv==0.21.0
     # via -r requirements.in
 python-snappy==0.6.1
     # via dvc-pandas
-pytz==2022.5
+pytz==2022.6
     # via
     #   babel
     #   celery
@@ -413,10 +424,11 @@ pytz==2022.5
     #   pandas
 pyyaml==6.0
     # via omegaconf
-redis==4.3.4
+redis==4.3.5
     # via -r requirements.in
 requests==2.28.1
     # via
+    #   django-oauth-toolkit
     #   dvc
     #   fsspec
     #   iterative-telemetry
@@ -433,23 +445,23 @@ ruamel-yaml==0.17.21
     #   dvclive
 ruamel-yaml-clib==0.2.7
     # via ruamel-yaml
-s3fs==2022.10.0
+s3fs==2022.11.0
     # via dvc-s3
 s3transfer==0.6.0
     # via boto3
 scipy==1.9.3
     # via -r requirements.in
-scmrepo==0.1.2
+scmrepo==0.1.3
     # via dvc
-sentry-sdk==1.10.1
+sentry-sdk==1.11.1
     # via -r requirements.in
-shortuuid==1.0.9
+shortuuid==1.0.11
     # via
     #   dvc
     #   dvc-data
     #   dvc-objects
     #   dvc-task
-shtab==1.5.5
+shtab==1.5.8
     # via dvc
 six==1.16.0
     # via
@@ -469,10 +481,8 @@ soupsieve==2.3.2.post1
     # via beautifulsoup4
 sqlparse==0.4.3
     # via django
-stack-data==0.5.1
+stack-data==0.6.2
     # via ipython
-tablib[xls,xlsx]==3.2.1
-    # via wagtail
 tabulate==0.9.0
     # via
     #   dvc
@@ -483,7 +493,7 @@ text-unidecode==1.3
     # via graphene-django
 tomli==2.0.1
     # via pytest
-tomlkit==0.11.5
+tomlkit==0.11.6
     # via dvc
 tqdm==4.64.1
     # via
@@ -500,7 +510,7 @@ typing-extensions==4.4.0
     #   dvc-objects
     #   pytest-factoryboy
     #   wagtail-localize
-urllib3==1.26.12
+urllib3==1.26.13
     # via
     #   botocore
     #   dulwich
@@ -513,22 +523,22 @@ vine==5.0.0
     #   kombu
 voluptuous==0.13.1
     # via dvc
-wagtail==4.0.4
+wagtail==4.1.1
     # via
     #   -r requirements.in
     #   wagtail-grapple
     #   wagtail-headless-preview
     #   wagtail-localize
     #   wagtailfontawesome
-wagtail-grapple @ https://github.com/kausaltech/wagtail-grapple/archive/d899abc82047a1c22f0df8d19a8232b173ba17b0.zip
+wagtail-grapple @ https://github.com/kausaltech/wagtail-grapple/archive/be8e27bee0d7eae6a943ca360d8b4211bfded4c4.zip
     # via -r requirements.in
-wagtail-headless-preview==0.4.0
+wagtail-headless-preview==0.5.0
     # via wagtail-grapple
-wagtail-localize @ https://github.com/kausaltech/wagtail-localize/archive/3782adf.zip
+wagtail-localize==1.3.2
     # via -r requirements.in
 wagtailfontawesome==1.2.1
     # via -r requirements.in
-watchfiles==0.18.0
+watchfiles==0.18.1
     # via -r requirements.in
 wcwidth==0.2.5
     # via prompt-toolkit
@@ -540,12 +550,6 @@ wrapt==1.14.1
     # via
     #   aiobotocore
     #   deprecated
-xlrd==2.0.1
-    # via tablib
-xlsxwriter==3.0.3
-    # via wagtail
-xlwt==1.3.0
-    # via tablib
 yarl==1.8.1
     # via aiohttp
 zc-lockfile==2.0

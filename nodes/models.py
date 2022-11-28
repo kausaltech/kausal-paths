@@ -1,7 +1,7 @@
 from __future__ import annotations
-from datetime import datetime
 
 import os
+from datetime import datetime
 from typing import Optional, Tuple, Union
 from urllib.parse import urlparse
 
@@ -14,8 +14,8 @@ from modeltrans.fields import TranslationField
 from wagtail.core.fields import RichTextField
 from wagtail.core.models import Locale, Page
 from wagtail.core.models.sites import Site
-from common.i18n import get_modeltrans_attrs_from_str
 
+from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
 from paths.utils import IdentifierField
 
@@ -46,6 +46,10 @@ class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
         return self.filter(lookup)
 
 
+class InstanceConfigManager(models.Manager['InstanceConfig']):
+    def for_hostname(self, hostname: str) -> InstanceConfigQuerySet: ...  # type: ignore
+
+
 class InstanceConfig(models.Model):
     identifier = IdentifierField(max_length=100)
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
@@ -62,7 +66,7 @@ class InstanceConfig(models.Model):
 
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
-    objects = InstanceConfigQuerySet.as_manager()
+    objects: InstanceConfigManager = InstanceConfigQuerySet.as_manager()  # type: ignore
 
     # Type annotations
     nodes: models.manager.RelatedManager[NodeConfig]
