@@ -54,7 +54,7 @@ class ActionNode(Node):
         # Reindex the forecasted series to fill in years that
         # are not defined.
         df[VALUE_COLUMN] = series.values
-        new_index = range(df.index.min(), self.get_target_year() + 1)
+        new_index = range(df.index.min(), self.get_end_year() + 1)
         df = df.reindex(new_index, fill_value=self.no_effect_value)
         df[FORECAST_COLUMN] = True
         return df

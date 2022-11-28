@@ -464,6 +464,9 @@ class Node:
     def get_target_year(self) -> int:
         return self.context.target_year
 
+    def get_end_year(self) -> int:
+        return self.context.model_end_year
+
     def compute(self) -> pd.DataFrame:
         raise Exception('Implement in subclass')
 

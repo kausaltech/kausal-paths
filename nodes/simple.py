@@ -121,7 +121,7 @@ class AdditiveNode(SimpleNode):
 
             df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
 
-            if df.index.max() < self.get_target_year():
+            if df.index.max() < self.get_end_year():
                 last_year = df.index.max()
                 last_val = df.loc[last_year]
                 new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
@@ -295,7 +295,7 @@ class YearlyPercentageChangeNode(SimpleNode):
         if len(self.input_nodes) != 0:
             raise NodeError(self, "YearlyPercentageChange can't have input nodes")
 
-        df = nafill_all_forecast_years(df, self.get_target_year())
+        df = nafill_all_forecast_years(df, self.get_end_year())
         mult = self.get_parameter_value('yearly_change') / 100 + 1
         df['Multiplier'] = 1
         df.loc[df[FORECAST_COLUMN], 'Multiplier'] = mult

@@ -68,6 +68,7 @@ class Context:
     scenarios: dict[str, Scenario]
     custom_scenario: CustomScenario
     target_year: int
+    model_end_year: int
     unit_registry: pint.UnitRegistry
     dataset_repo: dvc_pandas.Repository
     active_scenario: Scenario
@@ -81,6 +82,7 @@ class Context:
 
     def __init__(
         self, dataset_repo: dvc_pandas.Repository, target_year: int,
+        model_end_year: int | None = None,
     ):
         from nodes.actions import ActionNode
 
@@ -94,6 +96,7 @@ class Context:
         self.scenarios = {}
         self.custom_scenario = None
         self.target_year = target_year
+        self.model_end_year = model_end_year or target_year
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
         self.active_scenario = None
