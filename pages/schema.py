@@ -69,7 +69,7 @@ class OutcomePageType(PathsPageType):
 
 
 class Query:
-    pages = graphene.List(PageInterface, in_menu=graphene.Boolean(required=False))
+    pages = graphene.List(graphene.NonNull(PageInterface), in_menu=graphene.Boolean(required=False), required=True)
     page = graphene.Field(PageInterface, path=graphene.String(required=True))
 
     @ensure_instance

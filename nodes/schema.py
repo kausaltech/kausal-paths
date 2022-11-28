@@ -37,12 +37,12 @@ class InstanceFeaturesType(graphene.ObjectType):
 
 
 class InstanceType(graphene.ObjectType):
-    id = graphene.ID()
-    name = graphene.String()
+    id = graphene.ID(required=True)
+    name = graphene.String(required=True)
     owner = graphene.String()
-    default_language = graphene.String()
-    supported_languages = graphene.List(graphene.String)
-    base_path = graphene.String()
+    default_language = graphene.String(required=True)
+    supported_languages = graphene.List(graphene.NonNull(graphene.String), required=True)
+    base_path = graphene.String(required=True)
     target_year = graphene.Int()
     reference_year = graphene.Int()
     minimum_historical_year = graphene.Int()
@@ -52,7 +52,7 @@ class InstanceType(graphene.ObjectType):
     lead_title = graphene.String()
     lead_paragraph = graphene.String()
     theme_identifier = graphene.String()
-    action_groups = graphene.List(ActionGroupType)
+    action_groups = graphene.List(graphene.NonNull(ActionGroupType))
     features = graphene.Field(InstanceFeaturesType, required=True)
 
     @staticmethod
