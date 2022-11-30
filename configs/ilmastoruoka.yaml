@@ -1,6 +1,7 @@
 instance:
   id: ilmastoruoka
   default_language: fi
+  supported_languages: [en]
   dataset_repo:
     url: https://github.com/kausaltech/dvctest.git
 #    commit: 9490f80f8089ec3511d441ce7e9c5f40751d2a04
@@ -10,6 +11,7 @@ instance:
   site_url: https://ilmastoruoka.test.kausal.tech
   name: Suomen ilmastoruokaohjelma
   name_en: Finnish climate food program
+  owner: Maa- ja metsätalousministeriö
   target_year: 2035
   reference_year: 2017
   minimum_historical_year: 2017
