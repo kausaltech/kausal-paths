@@ -51,11 +51,11 @@ action_efficiency_pairs:
     label_en: Marginal cost in energy savings
     label_sv: Marginalnettokostnad för energibesparing
   - cost_node: social_cost
-    impact_node: emissions_reduction
+    impact_node: net_emissions
     unit: SEK/t
     label: Päästövähennysten marginaalikustannus
-    label_en: Marginal cost in emission reduction
-    label_sv: Marginalnettokostnad for utsläppsminskning
+    label_en: Marginal cost in net emissions
+    label_sv: Marginalnettokostnad för utsläppsminskning
   - cost_node: social_cost
     impact_node: electricity_saving
     unit: SEK/kWh
@@ -67,7 +67,7 @@ action_efficiency_pairs:
     unit: SEK/kWh
     label: Sähkönsäästön marginaalikustannus per ala
     label_en: Marginal cost in electricity savings per area
-    label_sv: Marginalnettokostnad for elbesparing per area
+    label_sv: Marginalnettokostnad för elbesparing per area
 
 params:
   - id: municipality_name
@@ -146,6 +146,7 @@ emission_sectors:
     name_en: Net emissions
     name_sv: Netutsläpp
     target_year_goal: 260
+    is_outcome: True
 
   - id: apartment_building_emissions
     name: Kerrostalojen päästöt
@@ -184,19 +185,6 @@ nodes:
     quantity: ratio
     unit: '%'
     type: costs.Discount
-
-  - id: emissions_reduction
-    name: Päästövähennys
-    name_en: Emissions reduction
-    name_sv: Utsläppsminskning
-    quantity: emissions
-    unit: kt/a
-    type: simple.FixedMultiplierNode
-    params:
-    - id: multiplier
-      value: -1
-    input_nodes:
-    - net_emissions
 
   - id: social_cost
     name: Sosiaaliset kustannukset
