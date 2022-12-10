@@ -232,7 +232,7 @@ instance:
   - id: vehicle_emissions_scope1
     name_de: Fahrzeugemissionen scope 1
     name_en: Vehicle emissions scope 1
-    type: simple.MultiplicativeNode
+    type: simple.EmissionFactorActivity
     quantity: emissions
     unit: kt/a
     input_nodes:
@@ -275,6 +275,25 @@ instance:
     unit: kg/km
     input_dataset_processors: [LinearInterpolation]
     historical_values: [[1990, 0.055], [2021, 0.055]]
+
+  - id: vehicle_energy_consumption
+    name_de: Energieverbrauch des Fahrzeugs
+    name_en: Vehicle energy consumption
+    type: simple.MultiplicativeNode
+    quantity: energy
+    unit: TJ/a
+    input_nodes:
+      - vehicle_distance
+      - energy_consumption_factor
+
+  - id: energy_consumption_factor
+    name_de: Energieverbrauchsfaktor
+    name_en: Energy consumption factor
+    type: simple.AdditiveNode
+    quantity: fuel_consumption
+    unit: MJ/km
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 2.3219], [2021, 2.3219]]
   #
   # ------- ACTIONS --------
   #

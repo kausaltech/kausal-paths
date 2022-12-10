@@ -180,6 +180,33 @@ emission_sectors:
 
 
 nodes:
+
+#
+# ESPOO NODES
+#
+#  - id: hsy_emissions
+#    name: HSY-päästöt
+#    type: finland.hsy.HsyNode
+#    quantity: emissions
+#    unit: kt/a
+#    input_datasets: 
+#    - id: hsy/pks_khk_paastot
+#      column: Energiankulutus
+#      dropna: True
+
+#  - id: all_hsy_emissions
+#    type: finland.hsy.HsyNode
+#    name: HSY:n päästöinventaario
+##    unit: kt/a
+
+#  - id: district_heating_residence_energy
+#    name: Kaukolämmön lämmönkulutus (Asuminen)
+#    params:
+#      sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+#    input_nodes: [all_hsy_emissions]
+#    type: finland.hsy.HsyEnergyConsumption
+#    unit: GWh/a
+
   - id: discount_node
     name: Diskontto
     quantity: ratio
