@@ -114,6 +114,7 @@ INSTALLED_APPS = [
     'modeltrans',
     'pages',
     'nodes',
+    'datasets',
 ]
 
 MIDDLEWARE = [
