@@ -12,7 +12,7 @@ owner: Espoon kaupunki
 owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
-target_year: 2030
+target_year: 2035
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
@@ -40,19 +40,10 @@ nodes:
 - id: population
   type: finland.population.Population
   name: Väestö
-  #forecast_values: [[2022, 301866], [2023, 306628], [2024, 311404], [2025, 316189], [2026, 320968], [2027, 325734], [2028, 330474], [2029, 335184], [2030, 339856], [2031, 344488], [2032, 349084], [2033, 353647], [2034, 358180], [2035, 362690]]
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
   name: HSY:n päästöinventaario
-
-#- id: electricity_production_emission_factor
-#  type: simple.AdditiveNode
-#  name: Kansallisen sähköntuotannon päästökerroin
-#  unit: g/kWh
-#  quantity: emission_factor
-#  input_nodes:
-#  - consumer_electricity_residence_emission_factor
 
 pages:
 - id: home
@@ -81,19 +72,78 @@ actions:
   quantity: emission_factor
   output_nodes:
   - electricity_production_emission_factor
+  - electric_heating_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2022, 0], [2030, -80]]
+  forecast_values: [[2022, 0], [2035, -79.4]]
   unit: g/kWh
   params:
   - id: target_year_level
     values:
-      default: -68
-    min_value: -70
+      default: -80
+    min_value: -85
     max_value: 0
     step: 1
     unit: g/kWh
-    description: Sähköntuotannon päästökertoimen muutos
+    description: Sähköntuotannon päästökertoimen muutos 2022-2035
     description_en: Change in electricity production emission factor
+
+- id: change_consumer_electricity
+  name: Muutos kulutussähkön käytössä
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - consumer_electricity_residence_energy
+  params:
+  - id: target_year_level
+    min_value: -500
+    max_value: 1600
+    unit: GWh/a
+    description: Kulutussähkön käytön muutos 2022-2035
+
+- id: heating_oil_bioshare
+  name: Lämmitysöljyn sekoitusvelvoite
+  decision_level: nation
+  quantity: emission_factor
+  output_nodes:
+  - oil_heating_emission_factor
+  type: simple.LinearCumulativeAdditiveAction
+  forecast_values: [[2022, 0], [2028, -31.9]]
+  unit: g/kWh
+
+- id: reduce_oil_heating_residence
+  name: Öljylämmityksen vähentäminen (Asuminen)
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  output_nodes:
+  - oil_heating_residence_energy
+  forecast_values: [[2021, 0], [2030, -115]]
+
+- id: reduce_oil_heating_industry
+  name: Öljylämmityksen vähentäminen (Teollisuus)
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  output_nodes:
+  - oil_heating_residence_energy
+  forecast_values: [[2021, 0], [2030, -24.4]]
+
+- id: reduce_oil_heating_services
+  name: Öljylämmityksen vähentäminen (Palvelut)
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  output_nodes:
+  - oil_heating_residence_energy
+  forecast_values: [[2021, 0], [2030, -5]]
+  params:
+  - id: target_year_level
+    description: Öljylämmityksen muutos palveluissa 2021-2030
+    unit: GWh/a
+    min_value: -37
+    max_value: 0
 
 - id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
@@ -102,7 +152,7 @@ actions:
   quantity: emission_factor
   output_nodes:
   - district_heating_emission_factor
-  forecast_values: [[2021, 0], [2025, -82], [2030, -116]]
+  forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -116.0]]  # FIXME These do not apply for Suomi2035
   unit: g/kWh
 
 - id: city_building_heat_optimization
@@ -122,13 +172,13 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2022, 0], [2030, 0]]
+  forecast_values: [[2021, 0], [2030, 0]]
   output_nodes:
   - waste_treatment_emissions
   params:
   - id: target_year_level
-    description: Jätteiden käsittelyn päästöjen muutos
-    min_value: -20
+    description: Jätteiden käsittelyn päästöjen muutos 2021-2030
+    min_value: -30
     max_value: +20
     step: 0.1
     unit: kt/a
@@ -144,7 +194,7 @@ actions:
   - transport_emissions
   params:
   - id: target_year_level
-    description: Tieliikenteen päästöjen muutos
+    description: Tieliikenteen päästöjen muutos 2022-2030
     min_value: -100
     max_value: +100
     step: 0.1
@@ -156,9 +206,35 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2022, 0], [2035, -0.1]]
+  forecast_values: [[2022, 0], [2035, -0.1079092776]]
   output_nodes:
-  - agricultural_field_emissions
+  - agriculture_emissions
+
+- id: reduce_industrial_fuel_emissions
+  name: Teollisuuden pollttoaineiden päästöt pienenevät
+  name_en: Industrial fuel emissions are reduced
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2022, 0], [2035, -3.0]]
+  output_nodes:
+  - industry_fuel_emissions
+
+- id: reduce_machinery_emissions
+  name: Työkoneiden päästöt pienenvät
+  name_en: Machinery emissions are reduced
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - machinery_emissions
+  params:
+  - id: target_year_level
+    description: Työkoneiden päästövähennys 2022-2035
+    min_value: -3.0
+    max_value: 0.0
+    unit: kt/a
 
 scenarios:
 - id: baseline
@@ -169,13 +245,32 @@ scenarios:
     value: true
 
   - id: reduce_waste_treatment_emissions.target_year_level
-    value: -0.9
+    value: -1.5
   - id: reduce_waste_treatment_emissions.enabled
     value: true
 
   - id: reduce_road_transport_emissions.target_year_level
     value: -62.4
   - id: reduce_road_transport_emissions.enabled
+    value: true
+
+  - id: reduce_machinery_emissions.target_year_level
+    value: -0.8
+  - id: reduce_machinery_emissions.enabled
+    value: true
+
+  - id: change_consumer_electricity.target_year_level
+    value: 115
+  - id: change_consumer_electricity.enabled
+    value: true
+
+  - id: reduce_oil_heating_services.target_year_level
+    value: -34
+  - id: reduce_oil_heating_services.enabled
+    value: true
+  - id: reduce_oil_heating_residence.enabled
+    value: true
+  - id: reduce_oil_heating_industry.enabled
     value: true
 
 - id: default
@@ -185,10 +280,17 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: reduce_waste_treatment_emissions.target_year_level
-    value: -16.1
+    value: -26.3
   - id: reduce_road_transport_emissions.target_year_level
     value: -67.6
+  - id: reduce_machinery_emissions.target_year_level
+    value: -2.0
+  - id: change_consumer_electricity.target_year_level
+    value: 1600
+  - id: reduce_oil_heating_services.target_year_level
+    value: -37
 
 - id: pessimistic
   name: Pessimistinen
   name_en: Pessimistic
+  all_actions_enabled: false
