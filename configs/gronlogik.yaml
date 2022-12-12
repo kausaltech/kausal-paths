@@ -51,7 +51,7 @@ action_efficiency_pairs:
     label_en: Marginal cost in energy savings
     label_sv: Marginalnettokostnad för energibesparing
   - cost_node: social_cost
-    impact_node: net_emissions
+    impact_node: emissions_reduction
     unit: SEK/t
     label: Päästövähennysten marginaalikustannus
     label_en: Marginal cost in net emissions
@@ -62,8 +62,8 @@ action_efficiency_pairs:
     label: Sähkönsäästön marginaalikustannus
     label_en: Marginal cost in electricity savings
     label_sv: Marginalnettokostnad för elbesparing
-  - cost_node: cost_per_area_single_family
-    impact_node: electricity_saving_per_area_single_family
+  - cost_node: cost_per_area
+    impact_node: electricity_saving_per_area
     unit: SEK/kWh
     label: Sähkönsäästön marginaalikustannus per ala
     label_en: Marginal cost in electricity savings per area
@@ -199,6 +199,19 @@ nodes:
     - cost_office
     - cost_school
 
+  - id: emissions_reduction
+    name: Päästövähennys
+    name_en: Emissions reduction
+    name_sv: Utsläppsminskning
+    type: simple.FixedMultiplierNode
+    quantity: emissions
+    unit: kt/a
+    params:
+    - id: multiplier
+      value: -1
+    input_nodes:
+    - net_emissions
+
   - id: net_energy_consumption
     name: Energiankulutus
     name_en: Energy consumption
@@ -250,6 +263,45 @@ nodes:
       value: -1
     input_nodes:
     - net_electricity_consumption
+
+  - id: net_electricity_consumption_per_area
+    name: Sähkönkulutus per ala
+    name_en: Electricity consumption per area
+    name_sv: Elkonsumtion per ytarea
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: kWh/a/m**2
+    input_nodes:
+    - electricity_per_area_single_family
+    - electricity_per_area_apartment
+    - electricity_per_area_office
+    - electricity_per_area_school
+
+  - id: electricity_saving_per_area
+    name: Sähkönsäästö per ala
+    name_en: Electricity saving per area
+    name_sv: Elbesparing per ytarea
+    type: simple.FixedMultiplierNode
+    quantity: energy
+    unit: kWh/a/m**2
+    params:
+    - id: multiplier
+      value: -1
+    input_nodes:
+    - net_electricity_consumption_per_area
+
+  - id: cost_per_area
+    name: Kustannus per ala
+    name_en: Cost per area
+    name_sv: Kostnad per ytarea
+    type: simple.AdditiveNode
+    quantity: currency
+    unit: SEK/a/m**2
+    input_nodes:
+    - cost_per_area_single_family
+    - cost_per_area_apartment
+    - cost_per_area_office
+    - cost_per_area_school
 
   ############## Single family houses
 
@@ -384,19 +436,6 @@ nodes:
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_single_family
-    - electricity_per_area_single_family
-
-  - id: electricity_saving_per_area_single_family
-    name: Sähkönsäästö per ala omakotitalossa
-    name_en: Electricity saving per area single family
-    name_sv: Elbesparing per ytarea i småhus
-    quantity: energy
-    unit: kWh/a/m**2
-    type: simple.FixedMultiplierNode
-    params:
-    - id: multiplier
-      value: -1
-    input_nodes:
     - electricity_per_area_single_family
 
   - id: electricity_cost_per_area_single_family
