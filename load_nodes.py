@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-from dotenv import load_dotenv
-from nodes.actions.action import ActionNode
+import cProfile
 import sys
 import time
+
+from dotenv import load_dotenv
+from nodes.actions.action import ActionNode
 from nodes.instance import Instance, InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
@@ -59,6 +61,7 @@ parser.add_argument('--update-instance', action='store_true', help='update an ex
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
 parser.add_argument('--print-action-efficiencies', action='store_true', help='calculate and print action efficiencies')
+parser.add_argument('--profile', action='store_true', help='profile computation performance')
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
@@ -72,14 +75,19 @@ if args.instance:
     instance_obj: InstanceConfig = InstanceConfig.objects.get(identifier=args.instance)
     instance = instance_obj.get_instance()
     context = instance.context
-
-if args.config:
+else:
     loader = InstanceLoader.from_yaml(args.config)
     context = loader.context
     instance = loader.instance
 
 if args.pull_datasets:
     context.pull_datasets()
+
+if args.profile:
+    context.perf_context.start()
+    profile = cProfile.Profile()
+else:
+    profile = None
 
 
 def print_metric(metric):
@@ -121,7 +129,12 @@ if args.debug:
 if args.baseline:
     pc = PerfCounter('Baseline')
     pc.display('generating')
+    if profile is not None:
+        profile.enable()
     context.generate_baseline_values()
+    if profile is not None:
+        profile.disable()
+        profile.dump_stats('baseline_profile.out')
     pc.display('done')
 
 if args.check or args.update_instance or args.update_nodes:
@@ -178,17 +191,34 @@ for node_id in (args.node or []):
             node.print_impact(n)
 
 if args.print_action_efficiencies:
-    for aep in context.action_efficiency_pairs:
-        print('%s / %s\n' % (aep.cost_node.id, aep.impact_node.id))
-        if args.node:
-            actions = [context.get_node(node_id) for node_id in args.node]
-        else:
-            actions = None
-        for out in aep.calculate_iter(context, actions=actions):
-            action = out.action
-            print('%s: %s' % (action.id, out.cumulative_efficiency))
-            action.print_pint_df(out.df)
-            print()
+    def print_action_efficiencies():
+        for aep in context.action_efficiency_pairs:
+            print('%s / %s\n' % (aep.cost_node.id, aep.impact_node.id))
+            if args.node:
+                actions = [context.get_node(node_id) for node_id in args.node]
+            else:
+                actions = None
+            count = 0
+            for out in aep.calculate_iter(context, actions=actions):
+                action = out.action
+                print('%s: %s' % (action.id, out.cumulative_efficiency))
+                action.print_pint_df(out.df)
+                print()
+                count += 1
+                if count == 3:
+                    break
+
+    if profile is not None:
+        profile.enable()
+    print_action_efficiencies()
+    if profile is not None:
+        profile.disable()
+        profile.dump_stats('action_efficiencies_profile.out')
+
+
+if args.profile:
+    context.perf_context.print()
+
 
 if False:
     loader.context.dataset_repo.pull_datasets()

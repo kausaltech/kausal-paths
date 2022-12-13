@@ -20,12 +20,12 @@ class PickledPintDataFrame:
     def to_df(self, ureg: UnitRegistry) -> pd.DataFrame:
         df = self.df
         for col, unit in self.units.items():
-            pt = pint_pandas.PintType(ureg(unit).units)
+            pt = pint_pandas.PintType(ureg.parse_units(unit))
             df[col] = df[col].astype(pt)
         return df
 
     @classmethod
-    def from_df(self, df: pd.DataFrame) -> Union[pd.DataFrame, PickledPintDataFrame]:
+    def from_df(cls, df: pd.DataFrame) -> Union[pd.DataFrame, PickledPintDataFrame]:
         units = {}
         df = df.copy()
         for col in df.columns:

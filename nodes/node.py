@@ -12,7 +12,6 @@ from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
-import pint
 import pint_pandas
 from rich import print as pprint
 
@@ -28,6 +27,7 @@ from params import Parameter
 from .context import Context
 from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
+from .units import Unit, Quantity
 
 if typing.TYPE_CHECKING:
     from .processors import Processor
@@ -35,20 +35,20 @@ if typing.TYPE_CHECKING:
 
 class NodeDimension:
     id: str
-    unit: pint.Unit
+    unit: Unit
     quantity: str
 
-    def __init__(self, unit: Union[str, pint.Unit], quantity: str):
+    def __init__(self, unit: Union[str, Unit], quantity: str):
         self._unit = unit
         ensure_known_quantity(quantity)
         self.quantity = quantity
 
     def populate_unit(self, context: Context):
         unit = self._unit
-        if isinstance(unit, pint.Unit):
+        if isinstance(unit, Unit):
             self.unit = unit
         else:
-            self.unit = context.unit_registry(unit).units
+            self.unit = context.unit_registry.parse_units(unit)
 
     def calculate_hash(self, id: str) -> bytes:
         s = '%s:%s' % (id, self.quantity)
@@ -80,7 +80,7 @@ class Node:
     is_outcome: bool = False
 
     # output unit (from pint)
-    unit: pint.Unit
+    unit: Unit
     # default unit for a node class (defined as a class variable)
     default_unit: ClassVar[str]
     # output quantity (like 'energy' or 'emissions')
@@ -188,13 +188,13 @@ class Node:
         return None
 
     @overload
-    def get_parameter_value(self, id: str, units: Literal[True]) -> pint.Quantity: ...
+    def get_parameter_value(self, id: str, units: Literal[True]) -> Quantity: ...
 
     @overload
-    def get_parameter_value(self, id: str, required: Literal[True], units: Literal[True]) -> pint.Quantity: ...
+    def get_parameter_value(self, id: str, required: Literal[True], units: Literal[True]) -> Quantity: ...
 
     @overload
-    def get_parameter_value(self, id: str, required: Literal[False], units: Literal[True]) -> pint.Quantity | None: ...
+    def get_parameter_value(self, id: str, required: Literal[False], units: Literal[True]) -> Quantity | None: ...
 
     @overload
     def get_parameter_value(self, id: str) -> Any: ...
@@ -206,16 +206,18 @@ class Node:
         if units:
             if not hasattr(param, 'unit'):
                 raise NodeError(self, f"Parameter {id} does not support units")
-            return param.value * param.unit
+            unit: Unit = param.unit
+            assert isinstance(unit, Unit)
+            return param.value * unit
         return param.value
 
     @overload
-    def get_parameter_value_w_unit(self, id: str) -> pint.Quantity: ...
+    def get_parameter_value_w_unit(self, id: str) -> Quantity: ...
 
     @overload
-    def get_parameter_value_w_unit(self, id: str, required: Literal[False]) -> Optional[pint.Quantity]: ...
+    def get_parameter_value_w_unit(self, id: str, required: Literal[False]) -> Optional[Quantity]: ...
 
-    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
+    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[Quantity]:
         return self.get_parameter_value(id, required=required, units=True)
 
     def get_parameter_and_unit(self, id: str):
@@ -312,7 +314,7 @@ class Node:
         self._last_historical_year = year
         return year
 
-    def calculate_hash(self, cache: dict = None) -> bytes:
+    def calculate_hash(self, cache: dict | None = None) -> bytes:
         h = hashlib.md5()
         debug = self.debug
         if cache is None:
@@ -343,9 +345,9 @@ class Node:
         for param in self.parameters.values():
             hash_part('param %s' % param.local_id, param.calculate_hash())
         for param_id in self.global_parameters:
-            param = self.context.get_parameter(param_id, required=False)
-            if param is not None:
-                hash_part('global param %s' % param.global_id, param.calculate_hash())
+            gp = self.context.get_parameter(param_id, required=False)
+            if gp is not None:
+                hash_part('global param %s' % gp.global_id, gp.calculate_hash())
 
         for ds in self.input_dataset_instances:
             hash_part('dataset %s' % ds.id, ds.calculate_hash(self.context))
@@ -371,6 +373,8 @@ class Node:
         return h.digest()
 
     def get_output(self, target_node: Node = None, dimension=None) -> pd.DataFrame:
+        self.context.perf_context.node_start(self)
+
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
         if self.debug:
@@ -407,6 +411,7 @@ class Node:
                 cols.append(FORECAST_COLUMN)
             out = out[cols]
             out = out.rename(columns={dimension: VALUE_COLUMN})
+            self.context.perf_context.node_end(self)
             return out.copy()
 
         if target_node is not None:
@@ -428,6 +433,7 @@ class Node:
                 out = out[cols]
                 out = out.rename(columns={col_name: VALUE_COLUMN})
 
+        self.context.perf_context.node_end(self)
         return out.copy()
 
     def print_output(self):
@@ -470,11 +476,11 @@ class Node:
     def compute(self) -> pd.DataFrame:
         raise Exception('Implement in subclass')
 
-    def is_compatible_unit(self, unit_a: Union[str, pint.Unit], unit_b: Union[str, pint.Unit]):
+    def is_compatible_unit(self, unit_a: Union[str, Unit], unit_b: Union[str, Unit]):
         if isinstance(unit_a, str):
-            unit_a = self.context.unit_registry(unit_a).units
+            unit_a = self.context.unit_registry.parse_units(unit_a)
         if isinstance(unit_b, str):
-            unit_b = self.context.unit_registry(unit_b).units
+            unit_b = self.context.unit_registry.parse_units(unit_b)
         if unit_a.dimensionality != unit_b.dimensionality:
             return False
         return True
@@ -484,34 +490,38 @@ class Node:
             return s
         return s.pint.m
 
-    def convert_to_unit(self, s: pd.Series, unit: pint.Unit) -> pd.Series:
-        if not s.pint.units.is_compatible_with(unit):
+    def convert_to_unit(self, s: pd.Series, unit: Unit) -> pd.Series:
+        if not s.Units.is_compatible_with(unit):
             raise NodeError(self, 'Series with type %s is not compatible with %s' % (
-                s.pint.units, unit
+                s.Units, unit
             ))
         return s.astype(pint_pandas.PintType(unit))
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
         if hasattr(s, 'pint'):
-            s_u: pint.Unit = s.pint.u
+            s_u: Unit = s.pint.u
             if self.unit.dimensionality != s_u.dimensionality:
                 if input_node is not None:
                     node_str = ' from node %s' % input_node.id
                 else:
                     node_str = ''
                 raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
-                    s.pint.units, node_str, self.unit
+                    s_u, node_str, self.unit
                 ))
             # Units match exactly
             if s_u == self.unit:
                 return s
-            s_pt = pint_pandas.PintType(s.pint.units)
+            s_pt = pint_pandas.PintType(s_u)
+            values_type = s.pint.m.dtype
         else:
             s_pt = None
+            values_type = s.dtype
 
-        s = s.astype(float)
-        if s_pt is not None:
-            s = s.astype(s_pt)
+        if values_type not in (np.float64, np.float32, np.int32, np.int64):
+            s = s.astype(np.float64)
+            if s_pt is not None:
+                s = s.astype(s_pt)
+
         node_pt = pint_pandas.PintType(self.unit)
         s = s.astype(node_pt)
         return s
@@ -529,7 +539,7 @@ class Node:
                 open += current.output_nodes
         return result
 
-    def get_upstream_nodes(self, filter: Callable[[Node], bool] = None) -> List[Node]:
+    def get_upstream_nodes(self, filter: Callable[[Node], bool] | None = None) -> List[Node]:
         result = []
         closed = set()
         open = self.input_nodes.copy()
@@ -598,7 +608,7 @@ class Node:
             if col == FORECAST_COLUMN:
                 continue
             if hasattr(df[col], 'pint'):
-                assert df[col].pint.units == unit
+                assert df[col].Units == unit
                 df[col] = df[col].pint.m
             units[col] = str(unit)
 

@@ -1,0 +1,106 @@
+import typing
+from datetime import datetime
+from dataclasses import dataclass, field
+
+from rich.table import Table
+from rich.console import Console
+
+if typing.TYPE_CHECKING:
+    from .node import Node
+
+
+@dataclass
+class PerfStats:
+    nr_calls: int = 0
+    exec_time: float = 0
+    cum_exec_time: float = 0
+
+@dataclass(slots=True)
+class PerfStackEntry:
+    node: 'Node'
+    exec_time: float = 0
+    cum_exec_time: float = 0
+    first_start: datetime = field(init=False)
+    start: datetime | None = field(init=False)
+
+    def __post_init__(self):
+        self.start = datetime.now()
+        self.first_start = self.start
+
+    def pause(self):
+        now = datetime.now()
+        assert self.start is not None
+        self.exec_time += (now - self.start).total_seconds()
+        self.start = None
+
+    def resume(self):
+        now = datetime.now()
+        self.start = now
+
+    def end(self):
+        now = datetime.now()
+        assert self.start is not None
+        self.exec_time += (now - self.start).total_seconds()
+        self.cum_exec_time = (now - self.first_start).total_seconds()
+
+
+class PerfContext:
+    stats_by_class: dict[typing.Type, PerfStats]
+    node_stack: list[PerfStackEntry]
+    enabled: bool = False
+
+    def __init__(self):
+        self.node_stack = []
+
+    def start(self):
+        self.enabled = True
+        assert not self.node_stack
+        self.stats_by_class = dict()
+
+    def stop(self):
+        self.enabled = False
+
+    def node_start(self, node: 'Node'):
+        if not self.enabled:
+            return
+        kls = type(node)
+        if kls not in self.stats_by_class:
+            self.stats_by_class[kls] = PerfStats()
+        if self.node_stack:
+            last_entry = self.node_stack[-1]
+            last_entry.pause()
+        self.node_stack.append(PerfStackEntry(node))
+
+    def node_end(self, node: 'Node'):
+        if not self.enabled:
+            return
+
+        entry = self.node_stack.pop()
+        assert entry.node == node
+        entry.end()
+
+        st = self.stats_by_class[type(node)]
+        st.exec_time += entry.exec_time
+        st.cum_exec_time += entry.cum_exec_time
+        st.nr_calls += 1
+
+        if self.node_stack:
+            last_entry = self.node_stack[-1]
+            last_entry.resume()
+
+
+    def print(self):
+        assert not self.node_stack
+
+        table = Table(title="Execution time by class")
+        table.add_column("Class", justify="left")
+        table.add_column("Calls")
+        table.add_column("Time (s)")
+        table.add_column("Cumulative time (s)")
+
+        kl_time = sorted(self.stats_by_class.items(), key=lambda x: x[1].exec_time, reverse=True)
+        for kls, st in kl_time:
+            mod_name = '%s.%s' % (kls.__module__, kls.__name__)
+            table.add_row(mod_name, '%d' % st.nr_calls, '%.3f' % st.exec_time, '%.3f' % st.cum_exec_time)
+        console = Console()
+        console.print(table)

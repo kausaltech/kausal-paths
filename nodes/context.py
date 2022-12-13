@@ -1,9 +1,12 @@
 from __future__ import annotations
+from dataclasses import dataclass, field
 
 import os
 import inspect
+from re import S
 from types import FrameType
-from typing import TYPE_CHECKING, Any, Dict, Optional, overload, Literal
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type, overload, Literal
+from datetime import datetime
 
 import dvc_pandas
 import pint
@@ -18,6 +21,8 @@ from params.discover import discover_parameter_types
 from params.storage import SettingStorage
 
 from .datasets import Dataset, DVCDataset, FixedDataset
+from .units import CachingUnitRegistry
+from .perf import PerfContext
 
 if TYPE_CHECKING:
     from .node import Node
@@ -26,12 +31,12 @@ if TYPE_CHECKING:
     from nodes.actions.action import ActionEfficiencyPair, ActionNode
 
 
-unit_registry = pint.UnitRegistry(
+unit_registry = CachingUnitRegistry(
     preprocessors=[
         lambda s: s.replace('%', ' percent '),
     ],
     on_redefinition='raise',
-    #cache_folder=":auto:",
+    cache_folder=":auto:",
 )
 
 # By default, kt is knots, but here kilotonne is the most common
@@ -70,7 +75,7 @@ class Context:
     custom_scenario: CustomScenario
     target_year: int
     model_end_year: int
-    unit_registry: pint.UnitRegistry
+    unit_registry: CachingUnitRegistry
     dataset_repo: dvc_pandas.Repository
     active_scenario: Scenario
     supported_parameter_types: dict[str, type]
@@ -80,6 +85,7 @@ class Context:
     instance: Instance
     action_efficiency_pairs: list[ActionEfficiencyPair]
     setting_storage: Optional[SettingStorage]
+    perf_context: PerfContext
 
     def __init__(
         self, dataset_repo: dvc_pandas.Repository, target_year: int,
@@ -90,6 +96,7 @@ class Context:
         # Avoid circular import
         self.Action = ActionNode
 
+        self.perf_context = PerfContext()
         self.nodes = {}
         self.datasets = {}
         self.dvc_datasets = {}

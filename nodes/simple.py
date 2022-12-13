@@ -5,7 +5,6 @@ from params.param import Parameter, BoolParameter, NumberParameter, StringParame
 from typing import Dict, List, ClassVar, Sequence
 import pandas as pd
 import pint
-from .context import unit_registry
 import numpy as np
 import math
 
