@@ -1988,7 +1988,7 @@ actions:
       value: 0.0
 
   - id: water_saving_tap_water_luminaires_apartment
-    name: Tiukasti flushing -vesijohtovesiläkki
+    name: Vettä säästävät vesikalusteet
     name_en: Water-saving tap water luminaires
     name_sv: Snålspolande tappvattenarmaturer
     type: energy_saving.BuildingEnergySavingAction
