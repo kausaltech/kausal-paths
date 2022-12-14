@@ -6,12 +6,12 @@ from typing import Iterable, Iterator, Optional
 import numpy as np
 
 import pandas as pd
-import pint
 import pint_pandas
 from common.i18n import TranslatedString
 
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, VALUE_WITHOUT_ACTION_COLUMN, DecisionLevel
 from nodes import Node, NodeError
+from nodes.units import Unit, Quantity
 from params import BoolParameter
 
 if typing.TYPE_CHECKING:
@@ -89,7 +89,7 @@ class ActionNode(Node):
         if self.enabled_param.get_scenario_setting(scenario) is None:
             self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
 
-    def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: pint.Unit) -> pd.DataFrame:
+    def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> pd.DataFrame:
         discount = self.context.get_parameter_value('discount_node_name')
         discount_factor = self.context.get_node(discount).compute()[VALUE_COLUMN]
 
@@ -108,32 +108,31 @@ class ActionNode(Node):
 class ActionEfficiency(typing.NamedTuple):
     action: ActionNode
     df: pd.DataFrame
-    cumulative_efficiency: pint.Quantity
-    cumulative_cost: pint.Quantity
-    cumulative_impact: pint.Quantity
+    cumulative_efficiency: Quantity
+    cumulative_cost: Quantity
+    cumulative_impact: Quantity
 
 
 @dataclass
 class ActionEfficiencyPair:
     cost_node: Node
     impact_node: Node
-    unit: pint.Unit
+    unit: Unit
     plot_limit_efficiency: float
     label: TranslatedString | str | None
 
     @classmethod
     def from_config(
-        self, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
-#        cost_is_benefit: bool = False, impact_is_benefit: bool = True,  # FIXME Not sure how to best do this
+        cls, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
         plot_limit_efficiency: float,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
-        unit_obj = context.unit_registry(unit).u
+        unit_obj = context.unit_registry.parse_units(unit)
         aep = ActionEfficiencyPair(
             cost_node=cost_node, impact_node=impact_node, unit=unit_obj,
-#            cost_is_benefit=cost_is_benefit, impact_is_benefit=impact_is_benefit,
+#            revert_cost=revert_cost, revert_impact=revert_impact,
             plot_limit_efficiency=plot_limit_efficiency, label=label)
         aep.validate()
         return aep
