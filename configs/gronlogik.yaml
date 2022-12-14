@@ -77,8 +77,6 @@ params:
   - id: municipality_name
     label: Municipality
     value: Tampere
-  - id: minuscule_limit
-    value: 0
   - id: discount_node_name
     label: Name of the discount node
     is_customizable: False

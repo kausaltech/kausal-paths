@@ -92,14 +92,10 @@ class ActionNode(Node):
     def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: pint.Unit) -> pd.DataFrame:
         discount = self.context.get_parameter_value('discount_node_name')
         discount_factor = self.context.get_node(discount).compute()[VALUE_COLUMN]
-        minuscule_limit = self.context.get_parameter_value('minuscule_limit')
-        # Consider impact as zero if deviates less than this.
 
         cost = self.compute_impact(cost_node)[IMPACT_COLUMN]
         cost.name = 'Cost'
         impact = self.compute_impact(impact_node)[IMPACT_COLUMN]
-        s = (minuscule_limit < impact.pint.m.abs()).astype(int)
-        impact *= s
         df = pd.concat([cost], axis=1)
         df['Cost'] *= discount_factor
         df['Impact'] = impact.replace({0: np.nan})
