@@ -292,6 +292,7 @@ class ActionEfficiencyPairType(graphene.ObjectType):
     cost_node = graphene.Field(NodeType)
     impact_node = graphene.Field(NodeType)
     efficiency_unit = graphene.Field('paths.schema.UnitType')
+    plot_limit_efficiency = graphene.Float()
     label = graphene.String()
     actions = graphene.List(ActionEfficiency)
 

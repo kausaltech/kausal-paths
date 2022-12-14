@@ -47,24 +47,28 @@ action_efficiency_pairs:
   - cost_node: social_cost
     impact_node: energy_saving
     unit: SEK/kWh
+    plot_limit_efficiency: 10
     label: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
     label_sv: Marginalnettokostnad för energibesparing
   - cost_node: social_cost
     impact_node: net_emissions
     unit: SEK/t
+    plot_limit_efficiency: 60000
     label: Päästövähennysten marginaalikustannus
     label_en: Marginal cost in net emissions
     label_sv: Marginalnettokostnad för utsläppsminskning
   - cost_node: social_cost
     impact_node: electricity_saving
     unit: SEK/kWh
+    plot_limit_efficiency: 10
     label: Sähkönsäästön marginaalikustannus
     label_en: Marginal cost in electricity savings
     label_sv: Marginalnettokostnad för elbesparing
   - cost_node: cost_per_area_single_family
     impact_node: electricity_saving_per_area_single_family
     unit: SEK/kWh
+    plot_limit_efficiency: 10
     label: Sähkönsäästön marginaalikustannus per ala
     label_en: Marginal cost in electricity savings per area
     label_sv: Marginalnettokostnad för elbesparing per area
@@ -74,7 +78,7 @@ params:
     label: Municipality
     value: Tampere
   - id: minuscule_limit
-    value: 3
+    value: 0
   - id: discount_node_name
     label: Name of the discount node
     is_customizable: False
@@ -126,7 +130,7 @@ params:
   - id: include_social
     label: Include social costs?
     is_customizable: True
-    value: False
+    value: True
   - id: include_co2
     label: Include CO2 costs?
     is_customizable: True
@@ -2194,7 +2198,7 @@ actions:
       value: 0.0
 
   - id: exhaust_air_heat_pump_apartment
-    name: Poistilmalämpöpumppu, COP 3.0
+    name: Poistoilmalämpöpumppu, COP 3.0
     name_en: Exhaust air heat pump, COP 3.0
     name_sv: Frånluftsvärmepump, COP 3,0
     type: energy_saving.BuildingEnergySavingAction

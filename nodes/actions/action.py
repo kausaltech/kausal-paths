@@ -122,17 +122,23 @@ class ActionEfficiencyPair:
     cost_node: Node
     impact_node: Node
     unit: pint.Unit
+    plot_limit_efficiency: float
     label: TranslatedString | str | None
 
     @classmethod
     def from_config(
         self, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
+#        cost_is_benefit: bool = False, impact_is_benefit: bool = True,  # FIXME Not sure how to best do this
+        plot_limit_efficiency: float,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
         unit_obj = context.unit_registry(unit).u
-        aep = ActionEfficiencyPair(cost_node=cost_node, impact_node=impact_node, unit=unit_obj, label=label)
+        aep = ActionEfficiencyPair(
+            cost_node=cost_node, impact_node=impact_node, unit=unit_obj,
+#            cost_is_benefit=cost_is_benefit, impact_is_benefit=impact_is_benefit,
+            plot_limit_efficiency=plot_limit_efficiency, label=label)
         aep.validate()
         return aep
 
