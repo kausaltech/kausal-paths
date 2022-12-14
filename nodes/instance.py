@@ -428,7 +428,8 @@ class InstanceLoader:
             label = self.make_trans_string(aepc, 'label', pop=False)
             aep = ActionEfficiencyPair.from_config(
                 self.context, aepc['cost_node'], aepc['impact_node'], aepc['unit'],
-                plot_limit_efficiency=aepc['plot_limit_efficiency'], label=label,
+                plot_limit_efficiency=aepc['plot_limit_efficiency'],
+                invert_cost=aepc['invert_cost'], invert_impact=aepc['invert_impact'], label=label,
             )
             self.context.action_efficiency_pairs.append(aep)
 

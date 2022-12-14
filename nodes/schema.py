@@ -285,6 +285,8 @@ class ActionEfficiency(graphene.ObjectType):
     cumulative_efficiency = graphene.Float()
     cumulative_cost = graphene.Float()
     cumulative_impact = graphene.Float()
+    cumulative_cost_unit = graphene.Field('paths.schema.UnitType')  # FIXME Does not work for some reason
+    cumulative_impact_unit = graphene.Field('paths.schema.UnitType')
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):

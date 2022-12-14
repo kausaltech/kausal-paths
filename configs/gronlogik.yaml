@@ -45,28 +45,36 @@ action_groups:
 
 action_efficiency_pairs:
   - cost_node: social_cost
-    impact_node: energy_saving
+    impact_node: net_energy_consumption
+    invert_cost: False
+    invert_impact: True
     unit: SEK/kWh
     plot_limit_efficiency: 10
     label: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
     label_sv: Marginalnettokostnad för energibesparing
   - cost_node: social_cost
-    impact_node: emissions_reduction
+    impact_node: net_emissions
+    invert_cost: False
+    invert_impact: True
     unit: SEK/t
     plot_limit_efficiency: 60000
     label: Päästövähennysten marginaalikustannus
     label_en: Marginal cost in net emissions
     label_sv: Marginalnettokostnad för utsläppsminskning
   - cost_node: social_cost
-    impact_node: electricity_saving
+    impact_node: net_electricity_consumption
+    invert_cost: False
+    invert_impact: True
     unit: SEK/kWh
     plot_limit_efficiency: 10
     label: Sähkönsäästön marginaalikustannus
     label_en: Marginal cost in electricity savings
     label_sv: Marginalnettokostnad för elbesparing
   - cost_node: cost_per_area
-    impact_node: electricity_saving_per_area
+    impact_node: net_electricity_consumption_per_area
+    invert_cost: False
+    invert_impact: True
     unit: SEK/kWh
     plot_limit_efficiency: 10
     label: Sähkönsäästön marginaalikustannus per ala
@@ -227,19 +235,6 @@ nodes:
     - energy_office
     - energy_school
 
-  - id: energy_saving
-    name: Energiansäästö
-    name_en: Energy saving
-    name_sv: Energibesparing
-    type: simple.FixedMultiplierNode
-    quantity: energy
-    unit: GWh/a
-    input_nodes:
-    - net_energy_consumption
-    params:
-    - id: multiplier
-      value: -1
-
   - id: net_electricity_consumption
     name: Sähkönkulutus
     name_en: Electricity consumption
@@ -253,19 +248,6 @@ nodes:
     - electricity_office
     - electricity_school
 
-  - id: electricity_saving
-    name: Sähkönsäästö
-    name_en: Electricity saving
-    name_sv: Elbesparing
-    type: simple.FixedMultiplierNode
-    quantity: energy
-    unit: GWh/a
-    params:
-    - id: multiplier
-      value: -1
-    input_nodes:
-    - net_electricity_consumption
-
   - id: net_electricity_consumption_per_area
     name: Sähkönkulutus per ala
     name_en: Electricity consumption per area
@@ -278,19 +260,6 @@ nodes:
     - electricity_per_area_apartment
     - electricity_per_area_office
     - electricity_per_area_school
-
-  - id: electricity_saving_per_area
-    name: Sähkönsäästö per ala
-    name_en: Electricity saving per area
-    name_sv: Elbesparing per ytarea
-    type: simple.FixedMultiplierNode
-    quantity: energy
-    unit: kWh/a/m**2
-    params:
-    - id: multiplier
-      value: -1
-    input_nodes:
-    - net_electricity_consumption_per_area
 
   - id: cost_per_area
     name: Kustannus per ala

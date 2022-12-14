@@ -111,6 +111,8 @@ class ActionEfficiency(typing.NamedTuple):
     cumulative_efficiency: Quantity
     cumulative_cost: Quantity
     cumulative_impact: Quantity
+    cumulative_cost_unit: Unit
+    cumulative_impact_unit: Unit
 
 
 @dataclass
@@ -119,12 +121,15 @@ class ActionEfficiencyPair:
     impact_node: Node
     unit: Unit
     plot_limit_efficiency: float
+    invert_cost: bool
+    invert_impact: bool
     label: TranslatedString | str | None
 
     @classmethod
     def from_config(
         cls, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
-        plot_limit_efficiency: float,
+        plot_limit_efficiency: float = None,
+        invert_cost: bool = False, invert_impact: bool = True,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
@@ -132,7 +137,7 @@ class ActionEfficiencyPair:
         unit_obj = context.unit_registry.parse_units(unit)
         aep = ActionEfficiencyPair(
             cost_node=cost_node, impact_node=impact_node, unit=unit_obj,
-#            revert_cost=revert_cost, revert_impact=revert_impact,
+            invert_cost=invert_cost, invert_impact=invert_impact,
             plot_limit_efficiency=plot_limit_efficiency, label=label)
         aep.validate()
         return aep
@@ -153,8 +158,12 @@ class ActionEfficiencyPair:
             if not len(df):
                 # No impact for this action, skip it
                 continue
-            cost = df['Cost'].sum()
-            impact = df['Impact'].sum()
+            cost = df['Cost'].sum() * Quantity('1 a')
+            if self.invert_cost:
+                cost *= -1
+            impact = df['Impact'].sum() * Quantity('1 a')
+            if self.invert_impact:
+                impact *= -1
             efficiency = (cost / impact).to(self.unit)
             if impact < 0:
                 efficiency *= -1
@@ -162,7 +171,9 @@ class ActionEfficiencyPair:
                 action=action, df=df,
                 cumulative_cost=cost,
                 cumulative_impact=impact,
-                cumulative_efficiency=efficiency
+                cumulative_efficiency=efficiency,
+                cumulative_cost_unit=cost.units,
+                cumulative_impact_unit=impact.units
             )
             yield ae
 
