@@ -608,7 +608,7 @@ class Node:
             if col == FORECAST_COLUMN:
                 continue
             if hasattr(df[col], 'pint'):
-                assert df[col].Units == unit
+                assert df[col].pint.units == unit
                 df[col] = df[col].pint.m
             units[col] = str(unit)
 
