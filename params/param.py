@@ -9,10 +9,11 @@ from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
     from nodes import Node
+    from nodes.scenario import Scenario
 
 
 class ValidationError(Exception):
-    def __init__(self, param: Parameter, msg: str = None):
+    def __init__(self, param: Parameter, msg: str = ''):
         if msg is not None:
             msg_str = ': %s' % msg
         else:
@@ -25,8 +26,13 @@ class Parameter:
     local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
     label: Optional[TranslatedString | str] = None
     description: Optional[TranslatedString | str] = None
-    # Set if this parameter is bound to a specific node
+
     node: Optional[Node] = None
+    "Set if this parameter is bound to a specific node"
+
+    subscription_nodes: list[Node] = field(default_factory=list)
+    "Nodes that should be notified when the parameter changes value"
+
     is_customized: bool = False
     is_customizable: bool = True
     # Maps a scenario ID to the value of this parameter in that scenario
@@ -37,10 +43,16 @@ class Parameter:
         self._hash = None
 
     def set(self, value: Any):
+        prev_val = getattr(self, 'value', None)
         self.value = self.clean(value)
-        self._hash = None
+        if self.value != prev_val:
+            self._hash = None
+            if self.node:
+                self.node.notify_parameter_change(self)
+            for node in self.subscription_nodes:
+                node.notify_parameter_change(self)
 
-    def reset_to_scenario_setting(self, scenario):
+    def reset_to_scenario_setting(self, scenario: Scenario):
         if scenario.id in self.scenario_settings:
             setting = self.scenario_settings[scenario.id]
             self.set(setting)

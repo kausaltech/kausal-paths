@@ -76,13 +76,20 @@ class Cache:
 
     def get(self, key: str) -> Any:
         full_key = '%s:%s' % (self.prefix, key)
+        if self.run_cache is not None and full_key in self.run_cache:
+            return self.run_cache[full_key]
+
         if self.client:
             data = self.client.get(full_key)
         else:
             data = self.local_cache.get(full_key)
         if data is None:
             return None
-        return self.load_object(data)
+
+        obj = self.load_object(data)
+        if self.run_cache is not None:
+            self.run_cache[full_key] = obj
+        return obj
 
     def set(self, key: str, obj: Any):
         full_key = '%s:%s' % (self.prefix, key)
@@ -91,3 +98,5 @@ class Cache:
             self.client.setex(full_key, time=self.timeout, value=data)
         else:
             self.local_cache[full_key] = data
+        if self.run_cache is not None:
+            self.run_cache[full_key] = obj

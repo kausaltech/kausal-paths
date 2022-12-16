@@ -9,6 +9,9 @@ from nodes.actions.action import ActionNode
 from nodes.instance import Instance, InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
+from rich.table import Table
+from rich.console import Console
+from rich.live import Live
 import pandas as pd
 
 
@@ -192,8 +195,10 @@ for node_id in (args.node or []):
 
 if args.print_action_efficiencies:
     def print_action_efficiencies():
+        context.cache.start_run()
         for aep in context.action_efficiency_pairs:
-            print('%s / %s\n' % (aep.cost_node.id, aep.impact_node.id))
+            table = Table(title='%s / %s\n' % (aep.cost_node.id, aep.impact_node.id))
+            table.add_column("Action", "Cumulative efficiency")
             if args.node:
                 actions = [context.get_node(node_id) for node_id in args.node]
             else:
@@ -201,12 +206,14 @@ if args.print_action_efficiencies:
             count = 0
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
-                print('%s: %s' % (action.id, out.cumulative_efficiency))
-                action.print_pint_df(out.df)
-                print()
+                table.add_row(action.id, str(out.cumulative_efficiency))
+                print(action.id)
+                # action.print_pint_df(out.df)
                 count += 1
-                if count == 3:
-                    break
+
+            console = Console()
+            console.print(table)
+        context.cache.end_run()
 
     if profile is not None:
         profile.enable()

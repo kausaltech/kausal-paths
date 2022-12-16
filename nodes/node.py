@@ -8,6 +8,7 @@ import io
 import inspect
 import json
 import typing
+from time import perf_counter_ns
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union, Set, overload
 
 import numpy as np
@@ -115,6 +116,11 @@ class Node:
     # Output for the node in the baseline scenario
     baseline_values: Optional[pd.DataFrame]
 
+    # When was this node last changed
+    modified_at: int | None
+    last_hash: bytes | None
+    last_hash_time: int | None
+
     # Cache last historical year
     _last_historical_year: Optional[int]
     context: Context
@@ -158,6 +164,9 @@ class Node:
         self.parameters = {}
         self.tags = set()
         self.input_dataset_processors = []
+        self.modified_at = None
+        self.last_hash_time = None
+        self.last_hash = None
 
         kls = type(self)
         self.logger = logging.getLogger('%s.%s' % (kls.__module__, kls.__name__))
@@ -174,6 +183,12 @@ class Node:
             raise Exception(f"Local parameter {param.local_id} already defined for node {self.id}")
         self.parameters[param.local_id] = param
         param.set_node(self)
+
+    def notify_parameter_change(self, param: Parameter):
+        """
+        Notify the node that an input parameter changed.
+        """
+        self.modified_at = perf_counter_ns()
 
     def get_parameters(self):
         for param in self.parameters.values():
@@ -314,7 +329,24 @@ class Node:
         self._last_historical_year = year
         return year
 
+    def _get_cached_hash(self) -> bytes | None:
+        if self.modified_at is None or self.last_hash is None or self.last_hash_time is None:
+            return None
+        max_modified_at = self.modified_at
+        for node in self.input_nodes:
+            if node.modified_at is None:
+                continue
+            if node.modified_at > max_modified_at:
+                max_modified_at = node.modified_at
+        if max_modified_at <= self.last_hash_time:
+            return self.last_hash
+        return None
+
     def calculate_hash(self, cache: dict | None = None) -> bytes:
+        cached_hash = self._get_cached_hash()
+        if cached_hash is not None:
+            return cached_hash
+
         h = hashlib.md5()
         debug = self.debug
         if cache is None:
@@ -370,9 +402,12 @@ class Node:
                 cache[klass] = mod_mtime
             hash_part('mtime %s' % klass.__name__, str(mod_mtime))
 
-        return h.digest()
+        ret = h.digest()
+        self.last_hash = ret
+        self.last_hash_time = perf_counter_ns()
+        return ret
 
-    def get_output(self, target_node: Node = None, dimension=None) -> pd.DataFrame:
+    def get_output(self, target_node: Node | None = None, dimension: str | None = None) -> pd.DataFrame:
         self.context.perf_context.node_start(self)
 
         node_hash = self.calculate_hash().hex()
