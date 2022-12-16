@@ -32,7 +32,10 @@ class HsyNode(Node):
         muni_name = self.get_global_parameter_value('municipality_name')
 
         df = self.get_input_dataset()
-        df = df[df['Kaupunki'] == muni_name].drop(columns=['Kaupunki', 'index'])
+        todrop = ['Kaupunki']
+        if 'index' in df.columns:
+            todrop += ['index']
+        df = df[df['Kaupunki'] == muni_name].drop(columns=todrop)
         df = df.rename(columns={
             'Vuosi': YEAR_COLUMN,
             'Päästöt': EMISSION_QUANTITY,
@@ -59,7 +62,10 @@ class HsyNode(Node):
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
         for dim_id, dim in self.dimensions.items():
-            df[dim_id] = self.convert_to_unit(df[dim_id], dim.unit)
+            if hasattr(df[dim_id], 'pint'):
+                df[dim_id] = self.convert_to_unit(df[dim_id], dim.unit)
+            else:
+                df[dim_id] = df[dim_id].astype('pint[' + str(dim.unit) + ']')
         return df
 
 

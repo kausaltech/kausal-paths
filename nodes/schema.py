@@ -285,6 +285,8 @@ class ActionEfficiency(graphene.ObjectType):
     cumulative_efficiency = graphene.Float()
     cumulative_cost = graphene.Float()
     cumulative_impact = graphene.Float()
+    cumulative_cost_unit = graphene.Field('paths.schema.UnitType')  # FIXME Does not work for some reason
+    cumulative_impact_unit = graphene.Field('paths.schema.UnitType')
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):
@@ -292,6 +294,7 @@ class ActionEfficiencyPairType(graphene.ObjectType):
     cost_node = graphene.Field(NodeType)
     impact_node = graphene.Field(NodeType)
     efficiency_unit = graphene.Field('paths.schema.UnitType')
+    plot_limit_efficiency = graphene.Float()
     label = graphene.String()
     actions = graphene.List(ActionEfficiency)
 
@@ -309,6 +312,8 @@ class ActionEfficiencyPairType(graphene.ObjectType):
                 action=ae.action,
                 cost_values=[YearlyValue(year, float(val)) for year, val in ae.df['Cost'].pint.m.items()],
                 impact_values=[YearlyValue(year, float(val)) for year, val in ae.df['Impact'].pint.m.items()],
+                cumulative_cost_unit=ae.cumulative_cost_unit,
+                cumulative_impact_unit=ae.cumulative_impact_unit,
                 **{f: float(getattr(ae, f).m) for f in sum_fields},
             )
             out.append(d)

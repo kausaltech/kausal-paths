@@ -177,6 +177,123 @@ instance:
     forecast_values: [[2030, 492900], [2040, 520000], [2050, 540000]]
     input_dataset_processors: [LinearInterpolation]
 
+  - id: global_warming_potential_100a
+    name_de: Treibhauspotenzial 100a
+    name_en: Global warming potential 100 a
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: dimensionless
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 1], [2021, 1]]
+
+  - id: primary_energy_consumption_total
+    name_de: Primärenergieverbrauch
+    name_en: Primary energy consumption, total
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: GWh/a
+    is_outcome: True
+
+  - id: primary_energy_consumption_housing
+    name_de: Primärenergieverbrauch Haushalte/Wirtschaft
+    name_en: Primary energy consumption, housing and commerce
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: GWh/a
+    input_dataset_processor: [LinearInterpolation]
+    historical_values: [[1990, 2750], [2021, 2750]]
+    output_nodes:
+      - primary_energy_consumption_total
+
+  - id: primary_energy_consumption_traffic
+    name_de: Primärenergieverbrauch Verkehr
+    name_en: Primary energy consumption, traffic
+    type: simple.AdditiveNode
+    quantity: energy
+    unit: GWh/a
+    input_dataset_processor: [LinearInterpolation]
+    historical_values: [[1990, 253], [2021, 253]]
+    output_nodes:
+      - primary_energy_consumption_total
+
+  - id: emission_factor_primary_energy_housing
+    name_de: Treibhausgasfaktoren Endenergie Haushalte und Wirtschaft
+    name_en: Emission factor for final energy, housing
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: g/kWh
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 54], [2021, 54]]
+
+  #
+  # TRANSPORT
+  #
+
+  - id: vehicle_emissions_scope1
+    name_de: Fahrzeugemissionen scope 1
+    name_en: Vehicle emissions scope 1
+    type: simple.EmissionFactorActivity
+    quantity: emissions
+    unit: kt/a
+    input_nodes:
+      - vehicle_distance
+      - emission_factor_traffic_scope1
+
+  - id: vehicle_distance
+    name_de: Fahrleistung
+    name_en: Vehicle distance
+    type: simple.AdditiveNode
+    quantity: mileage
+    unit: km/a
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 752025715.231601], [2021, 752025715.231601]]
+
+  - id: emission_factor_traffic_scope1
+    name_de: Emissionsfaktor Verkehr
+    name_en: Emission factor traffic scope 1
+    type: simple.AdditiveNode
+    quantity: emission_factor
+    unit: kg/km
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 0.147], [2021, 0.147]]
+
+  - id: vehicle_fuel_consumption
+    name_de: Kraftstoffverbrauch des Fahrzeugs
+    name_en: Vehicle fuel consumption
+    type: simple.MultiplicativeNode
+    quantity: energy
+    unit: t/a
+    input_nodes:
+      - vehicle_distance
+      - fuel_consumption_factor
+
+  - id: fuel_consumption_factor
+    name_de: Kraftstoffverbrauchsfaktor
+    name_en: Fuel consumption factor
+    type: simple.AdditiveNode
+    quantity: fuel_consumption
+    unit: kg/km
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 0.055], [2021, 0.055]]
+
+  - id: vehicle_energy_consumption
+    name_de: Energieverbrauch des Fahrzeugs
+    name_en: Vehicle energy consumption
+    type: simple.MultiplicativeNode
+    quantity: energy
+    unit: TJ/a
+    input_nodes:
+      - vehicle_distance
+      - energy_consumption_factor
+
+  - id: energy_consumption_factor
+    name_de: Energieverbrauchsfaktor
+    name_en: Energy consumption factor
+    type: simple.AdditiveNode
+    quantity: fuel_consumption
+    unit: MJ/km
+    input_dataset_processors: [LinearInterpolation]
+    historical_values: [[1990, 2.3219], [2021, 2.3219]]
   #
   # ------- ACTIONS --------
   #
