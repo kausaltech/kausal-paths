@@ -53,33 +53,33 @@ action_efficiency_pairs:
     label: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
     label_sv: Marginalnettokostnad för energibesparing
-  - cost_node: social_cost
-    impact_node: net_emissions
-    invert_cost: False
-    invert_impact: True
-    unit: SEK/t
-    plot_limit_efficiency: 60000
-    label: Päästövähennysten marginaalikustannus
-    label_en: Marginal cost in net emissions
-    label_sv: Marginalnettokostnad för utsläppsminskning
-  - cost_node: social_cost
-    impact_node: net_electricity_consumption
-    invert_cost: False
-    invert_impact: True
-    unit: SEK/kWh
-    plot_limit_efficiency: 10
-    label: Sähkönsäästön marginaalikustannus
-    label_en: Marginal cost in electricity savings
-    label_sv: Marginalnettokostnad för elbesparing
-  - cost_node: cost_per_area
-    impact_node: net_electricity_consumption_per_area
-    invert_cost: False
-    invert_impact: True
-    unit: SEK/kWh
-    plot_limit_efficiency: 10
-    label: Sähkönsäästön marginaalikustannus per ala
-    label_en: Marginal cost in electricity savings per area
-    label_sv: Marginalnettokostnad för elbesparing per area
+#  - cost_node: social_cost
+#    impact_node: net_emissions
+#    invert_cost: False
+#    invert_impact: True
+#    unit: SEK/t
+#    plot_limit_efficiency: 60000
+#    label: Päästövähennysten marginaalikustannus
+#    label_en: Marginal cost in net emissions
+#    label_sv: Marginalnettokostnad för utsläppsminskning
+#  - cost_node: social_cost
+#    impact_node: net_electricity_consumption
+#    invert_cost: False
+#    invert_impact: True
+#    unit: SEK/kWh
+#    plot_limit_efficiency: 10
+#    label: Sähkönsäästön marginaalikustannus
+#    label_en: Marginal cost in electricity savings
+#    label_sv: Marginalnettokostnad för elbesparing
+#  - cost_node: cost_per_area
+#    impact_node: net_electricity_consumption_per_area
+#    invert_cost: False
+#    invert_impact: True
+#    unit: SEK/kWh
+#    plot_limit_efficiency: 10
+#    label: Sähkönsäästön marginaalikustannus per ala
+#    label_en: Marginal cost in electricity savings per area
+#    label_sv: Marginalnettokostnad för elbesparing per area
 
 params:
   - id: municipality_name
