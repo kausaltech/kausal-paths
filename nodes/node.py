@@ -390,6 +390,7 @@ class Node:
             cache_hit = False
         else:
             cache_hit = True
+        self.context.perf_context.record_cache(self, is_hit=cache_hit)
 
         assert out is not None
         if out.index.duplicated().any():

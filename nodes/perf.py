@@ -14,12 +14,17 @@ class PerfStats:
     nr_calls: int = 0
     exec_time: float = 0
     cum_exec_time: float = 0
+    cache_hits: int = 0
+    cache_misses: int = 0
+
 
 @dataclass(slots=True)
 class PerfStackEntry:
     node: 'Node'
     exec_time: float = 0
     cum_exec_time: float = 0
+    cache_hits: int = 0
+    cache_misses: int = 0
     first_start: datetime = field(init=False)
     start: datetime | None = field(init=False)
 
@@ -82,12 +87,24 @@ class PerfContext:
         st = self.stats_by_class[type(node)]
         st.exec_time += entry.exec_time
         st.cum_exec_time += entry.cum_exec_time
+        st.cache_misses += entry.cache_misses
+        st.cache_hits += entry.cache_hits
         st.nr_calls += 1
 
         if self.node_stack:
             last_entry = self.node_stack[-1]
             last_entry.resume()
 
+    def record_cache(self, node: 'Node', is_hit: bool):
+        if not self.enabled:
+            return
+
+        entry = self.node_stack[-1]
+        assert entry.node == node
+        if is_hit:
+            entry.cache_hits += 1
+        else:
+            entry.cache_misses += 1
 
     def print(self):
         assert not self.node_stack
@@ -97,10 +114,19 @@ class PerfContext:
         table.add_column("Calls")
         table.add_column("Time (s)")
         table.add_column("Cumulative time (s)")
+        table.add_column("Cache hits")
+        table.add_column("Cache misses")
 
         kl_time = sorted(self.stats_by_class.items(), key=lambda x: x[1].exec_time, reverse=True)
         for kls, st in kl_time:
             mod_name = '%s.%s' % (kls.__module__, kls.__name__)
-            table.add_row(mod_name, '%d' % st.nr_calls, '%.3f' % st.exec_time, '%.3f' % st.cum_exec_time)
+            table.add_row(
+                mod_name,
+                '%d' % st.nr_calls,
+                '%.3f' % st.exec_time,
+                '%.3f' % st.cum_exec_time,
+                '%d' % st.cache_hits,
+                '%d' % st.cache_misses
+            )
         console = Console()
         console.print(table)

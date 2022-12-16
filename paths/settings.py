@@ -43,6 +43,7 @@ env = environ.FileAwareEnv(
     INTERNAL_IPS=(list, []),
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
     CONFIGURE_LOGGING=(bool, True),
+    LOG_GRAPHQL_QUERIES=(bool, True)
 )
 
 BASE_DIR = root()
@@ -317,6 +318,8 @@ if DEBUG:
     from paths.watchfiles_reloader import replace_reloader
     replace_reloader()
 
+
+LOG_GRAPHQL_QUERIES = env('LOG_GRAPHQL_QUERIES')
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):

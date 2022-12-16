@@ -42,6 +42,7 @@ class PickledPintDataFrame:
 class Cache:
     client: Optional[redis.Redis]
     local_cache: Dict[str, bytes]
+    run_cache: Dict[str, Any] | None
     prefix: str
 
     def __init__(self, ureg: UnitRegistry, redis_url: Optional[str] = None):
@@ -53,6 +54,13 @@ class Cache:
         self.prefix = 'kausal-paths'
         self.timeout = 600
         self.ureg = ureg
+        self.run_cache = None
+
+    def start_run(self):
+        self.run_cache = {}
+
+    def end_run(self):
+        self.run_cache = None
 
     def dump_object(self, obj: Any) -> bytes:
         if isinstance(obj, pd.DataFrame) and hasattr(obj, 'pint'):

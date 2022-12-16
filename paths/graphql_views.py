@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 from graphql import DirectiveNode
 
 import orjson
+from common.perf import PerfCounter
 from paths.authentication import IDTokenAuthentication, InstanceTokenAuthentication
 import sentry_sdk
 from django.conf import settings
@@ -16,7 +17,7 @@ from rest_framework.authentication import TokenAuthentication
 
 from nodes.models import Instance, InstanceConfig
 from params.storage import SessionStorage
-from .graphql_helpers import GQLContext, GQLInfo, GQLInstanceInfo
+from .graphql_helpers import GQLContext, GQLInfo, GQLInstanceContext, GQLInstanceInfo
 
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
@@ -145,7 +146,8 @@ class InstanceMiddleware:
             scenario = context.get_default_scenario()
 
         context.activate_scenario(scenario)
-
+        context.perf_context.start()
+        context.cache.start_run()
         info.context.instance = instance
 
     def resolve(self, next, root, info: GQLInfo, **kwargs):
@@ -173,12 +175,11 @@ class PathsGraphQLView(GraphQLView):
             return orjson.dumps(d)
         return orjson.dumps(d, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS)
 
-    def execute_graphql_request(self, request, data, query, variables, operation_name, *args, **kwargs):
+    def execute_graphql_request(self, request: GQLInstanceContext, data, query, variables, operation_name, *args, **kwargs):
         request._referer = self.request.META.get('HTTP_REFERER')
         transaction = sentry_sdk.Hub.current.scope.transaction
         logger.info('GraphQL request %s from %s' % (operation_name, request._referer))
-        debug_logging = settings.DEBUG and logger.isEnabledFor(logging.DEBUG)
-        if debug_logging and query:
+        if settings.LOG_GRAPHQL_QUERIES:
             console = Console()
             syntax = Syntax(query, "graphql")
             console.print(syntax)
@@ -200,13 +201,25 @@ class PathsGraphQLView(GraphQLView):
                 span = sentry_sdk.tracing.Span()
 
             with span:
+                pc = PerfCounter('graphql query')
                 result = super().execute_graphql_request(
                     request, data, query, variables, operation_name, *args, **kwargs
                 )
+                query_time = pc.measure()
+                logger.debug("GQL response took %.1f ms" % query_time)
+
+                # log perf data on slow queries
+                instance: Instance = getattr(request, 'instance', None)
+                if instance is not None:
+                    ctx = instance.context
+                    ctx.cache.end_run()
+                    if query_time > 3000:
+                        ctx.perf_context.print()
+                        ctx.perf_context.stop()
 
             # If 'invalid' is set, it's a bad request
             if result and result.errors:
-                if debug_logging:
+                if settings.LOG_GRAPHQL_QUERIES:
                     from rich.traceback import Traceback
                     console = Console()
 
