@@ -295,7 +295,7 @@ class EnergyCostAction(ExponentialAction):
         'Certificate': NodeDimension('SEK/MWh', 'currency'),
         'EnergyTax': NodeDimension('SEK/MWh', 'currency')
     }
-    global_parameters: list[str] = ['include_social']
+    global_parameters: list[str] = ['include_energy_taxes']
     allowed_parameters = ExponentialAction.allowed_parameters + [
         NumberParameter(
             local_id='added_value_tax',
@@ -335,7 +335,7 @@ class EnergyCostAction(ExponentialAction):
         handling_fee, han_pt = self.get_parameter_and_unit('handling_fee')
         certificate, cer_pt = self.get_parameter_and_unit('certificate')
         energy_tax, ene_pt = self.get_parameter_and_unit('energy_tax')
-        include_social = self.get_global_parameter_value('include_social')
+        include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
 
         df = self.compute_exponential()
         df['EnergyPrice'] = df[VALUE_COLUMN]
@@ -346,10 +346,10 @@ class EnergyCostAction(ExponentialAction):
         df['Certificate'] = pd.Series(certificate, index=df.index, dtype=cer_pt)
         df['EnergyTax'] = pd.Series(energy_tax, index=df.index, dtype=ene_pt)
 
-        if include_social:
-            cols = ['NetworkPrice']
-        else:
+        if include_energy_taxes:
             cols = ['AddedValueTax', 'NetworkPrice', 'HandlingFee', 'Certificate', 'EnergyTax']
+        else:
+            cols = ['NetworkPrice']
         for col in cols:
             df[VALUE_COLUMN] += df[col]
 

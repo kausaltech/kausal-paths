@@ -10,7 +10,7 @@ name_en: Grön logik project about climate actions on buildings
 name_sv: Grön logik projekt om byggnaders klimatåtgärder
 owner: Kausal & Anthesis
 owner_en: Kausal & Anthesis
-target_year: 2065
+target_year: 2045
 reference_year: 1990
 minimum_historical_year: 2019
 maximum_historical_year: 2021
@@ -53,15 +53,15 @@ action_efficiency_pairs:
     label: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
     label_sv: Marginalnettokostnad för energibesparing
-#  - cost_node: social_cost
-#    impact_node: net_emissions
-#    invert_cost: False
-#    invert_impact: True
-#    unit: SEK/t
-#    plot_limit_efficiency: 60000
-#    label: Päästövähennysten marginaalikustannus
-#    label_en: Marginal cost in net emissions
-#    label_sv: Marginalnettokostnad för utsläppsminskning
+  - cost_node: social_cost
+    impact_node: net_emissions
+    invert_cost: False
+    invert_impact: True
+    unit: SEK/t
+    plot_limit_efficiency: 60000
+    label: Päästövähennysten marginaalikustannus
+    label_en: Marginal cost in net emissions
+    label_sv: Marginalnettokostnad för utsläppsminskning
 #  - cost_node: social_cost
 #    impact_node: net_electricity_consumption
 #    invert_cost: False
@@ -90,7 +90,8 @@ params:
     is_customizable: False
     value: discount_node
   - id: discount_rate
-    label: Discount rate (%/a)
+#    label: Discount rate (%/a)
+    label: Diskonteringsränta (%/a)
     description: Speed of value decrease for monetary variables
     is_customizable: True
     value: 3.5
@@ -113,40 +114,47 @@ params:
     max_value: 0.08
     unit: SEK/kWh
   - id: heat_co2_ef
-    label: Emission factor of heat production (g CO2/kWh)
+#    label: Emission factor of heat production (g CO2/kWh)
+    label: Emissionsfaktor för värmeproduktion (g CO2/kWh)
     is_customizable: True
     value: 52
     min_value: 40
     max_value: 70
     unit: g/kWh
   - id: electricity_co2_ef
-    label: Emission factor of electricity production (g CO2/kWh)
+#    label: Emission factor of electricity production (g CO2/kWh)
+    label: Emissionsfaktor för elproduktion (g CO2/kWh)
     is_customizable: True
     value: 93.2
     min_value: 80
     max_value: 140
     unit: g/kWh
   - id: renovation_rate_baseline
-    label: Baseline renovation rate (%/a)
+#    label: Baseline renovation rate (%/a)
+    label: Baslinje renoveringstakt (%/a)
     is_customizable: True
     value: 0.5
     min_value: 0
     max_value: 2
     unit: '%/a'
-  - id: include_social
-    label: Include social costs?
+  - id: include_energy_taxes
+#    label: Include energy taxes?
+    label: Inkludera energiskatter?
     is_customizable: True
-    value: True
+    value: False
   - id: include_co2
-    label: Include CO2 costs?
+#    label: Include CO2 costs?
+    label: Inkludera CO2-kostnader?
     is_customizable: True
     value: True
   - id: include_health
-    label: Include health impacts?
+#    label: Include health impacts?
+    label: Inkludera hälsoeffekter?
     is_customizable: True
     value: True
   - id: include_el_avoided
-    label: Include 'avoiding new capacity'?
+#    label: Include electricity capacity savings?
+    label: Inkludera elkapacitetsbesparingar?
     is_customizable: True
     value: True
 
