@@ -1,5 +1,5 @@
 from .context import Context
-from .node import Node, NodeDimension, NodeError
+from .node import Node, NodeMetric, NodeError
 from .datasets import Dataset, DVCDataset, FixedDataset
 
 

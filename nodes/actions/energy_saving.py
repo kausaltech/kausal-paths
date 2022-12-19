@@ -7,7 +7,7 @@ from pint_pandas import PintType
 from nodes.context import unit_registry
 
 from common.i18n import gettext_lazy as _
-from nodes import NodeDimension
+from nodes import NodeMetric
 from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
 from nodes.calc import nafill_all_forecast_years
 from params import NumberParameter
@@ -37,9 +37,9 @@ def simulate_led_retrofit(
 
 
 class LEDRetrofitAction(ActionNode):
-    dimensions = {
-        ENERGY_QUANTITY: NodeDimension('MWh/a', ENERGY_QUANTITY),
-        CURRENCY_QUANTITY: NodeDimension('EUR/a', CURRENCY_QUANTITY),
+    metrics = {
+        ENERGY_QUANTITY: NodeMetric('MWh/a', ENERGY_QUANTITY),
+        CURRENCY_QUANTITY: NodeMetric('EUR/a', CURRENCY_QUANTITY),
     }
     allowed_parameters = [
         NumberParameter(
@@ -178,8 +178,8 @@ class LEDRetrofitAction(ActionNode):
             + df['LEDEnergyCost'] + df['LEDMaintenanceCost'] + df['LEDInvestmentCost']
         )
         energy_consumption = df['TraditionalEnergy'] + df['LEDEnergy']
-        df[CURRENCY_QUANTITY] = total_cost.astype(PintType(self.dimensions[CURRENCY_QUANTITY].unit))
-        df[ENERGY_QUANTITY] = energy_consumption.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
+        df[CURRENCY_QUANTITY] = total_cost.astype(PintType(self.metrics[CURRENCY_QUANTITY].unit))
+        df[ENERGY_QUANTITY] = energy_consumption.astype(PintType(self.metrics[ENERGY_QUANTITY].unit))
         df = df[[CURRENCY_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN]]
         return df
 
@@ -191,11 +191,11 @@ class BuildingEnergySavingAction(ActionNode):
     not per RENOVATEABLE building floor area. This is useful because
     the costs and savings from total renovations sum up to a meaningful
     impact on nodes that are given per floor area.'''
-    dimensions = {
-        VALUE_COLUMN: NodeDimension('%', 'fraction'),
-        'RenovCost': NodeDimension('SEK/a/m**2', 'currency'),
-        'Heat': NodeDimension('kWh/a/m**2', 'energy_per_area'),
-        'Electricity': NodeDimension('kWh/a/m**2', 'energy_per_area')
+    metrics = {
+        VALUE_COLUMN: NodeMetric('%', 'fraction'),
+        'RenovCost': NodeMetric('SEK/a/m**2', 'currency'),
+        'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
+        'Electricity': NodeMetric('kWh/a/m**2', 'energy_per_area')
     }
     allowed_parameters = [
         NumberParameter(
@@ -286,14 +286,14 @@ class BuildingEnergySavingAction(ActionNode):
 
 
 class EnergyCostAction(ExponentialAction):
-    dimensions = {
-        VALUE_COLUMN: NodeDimension('SEK/MWh', 'currency'),
-        'EnergyPrice': NodeDimension('SEK/MWh', 'currency'),
-        'AddedValueTax': NodeDimension('SEK/MWh', 'currency'),
-        'NetworkPrice': NodeDimension('SEK/MWh', 'currency'),
-        'HandlingFee': NodeDimension('SEK/MWh', 'currency'),
-        'Certificate': NodeDimension('SEK/MWh', 'currency'),
-        'EnergyTax': NodeDimension('SEK/MWh', 'currency')
+    metrics = {
+        VALUE_COLUMN: NodeMetric('SEK/MWh', 'currency'),
+        'EnergyPrice': NodeMetric('SEK/MWh', 'currency'),
+        'AddedValueTax': NodeMetric('SEK/MWh', 'currency'),
+        'NetworkPrice': NodeMetric('SEK/MWh', 'currency'),
+        'HandlingFee': NodeMetric('SEK/MWh', 'currency'),
+        'Certificate': NodeMetric('SEK/MWh', 'currency'),
+        'EnergyTax': NodeMetric('SEK/MWh', 'currency')
     }
     global_parameters: list[str] = ['include_energy_taxes']
     allowed_parameters = ExponentialAction.allowed_parameters + [

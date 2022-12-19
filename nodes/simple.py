@@ -72,10 +72,10 @@ class SimpleNode(Node):
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
     allowed_parameters: ClassVar[list[Parameter]] = [
-        StringParameter(local_id='dimension', is_customizable=False),
+        StringParameter(local_id='metric', is_customizable=False),
     ] + SimpleNode.allowed_parameters
 
-    def add_nodes(self, df: pd.DataFrame, nodes: List[Node], dimension=None) -> pd.DataFrame:
+    def add_nodes(self, df: pd.DataFrame, nodes: List[Node], metric=None) -> pd.DataFrame:
         if self.debug:
             print('%s: input dataset:' % self.id)
             if df is not None:
@@ -83,7 +83,7 @@ class AdditiveNode(SimpleNode):
             else:
                 print('\tNo input dataset')
         for node in nodes:
-            node_df = node.get_output(self, dimension=dimension)
+            node_df = node.get_output(self, metric=metric)
             if node_df is None:
                 continue
 
@@ -134,12 +134,12 @@ class AdditiveNode(SimpleNode):
                 df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
                 df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
-        dimension = self.get_parameter_value('dimension', required=False)
+        metric = self.get_parameter_value('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes(None, self.input_nodes, dimension)
+            df = self.add_nodes(None, self.input_nodes, metric)
             df = self.fill_gaps_using_input_dataset(df)
         else:
-            df = self.add_nodes(df, self.input_nodes, dimension)
+            df = self.add_nodes(df, self.input_nodes, metric)
 
         df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)

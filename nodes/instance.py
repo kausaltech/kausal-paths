@@ -156,13 +156,13 @@ class InstanceLoader:
         ds_config = config.get('input_datasets', None)
         datasets: list[Dataset] = []
 
-        dimensions = getattr(node_class, 'dimensions', None)
+        metrics = getattr(node_class, 'metrics', None)
         unit = config.get('unit')
         if unit is None:
             unit = getattr(node_class, 'default_unit', None)
             if unit is None:
                 unit = getattr(node_class, 'unit', None)
-            if not unit and not dimensions:
+            if not unit and not metrics:
                 raise Exception('Node %s has no unit set' % config['id'])
         if unit and not isinstance(unit, pint.Unit):
             unit = self.context.unit_registry(unit).units
@@ -170,7 +170,7 @@ class InstanceLoader:
         quantity = config.get('quantity')
         if quantity is None:
             quantity = getattr(node_class, 'quantity', None)
-            if not quantity and not dimensions:
+            if not quantity and not metrics:
                 raise Exception('Node %s has no quantity set' % config['id'])
 
         # If the graph doesn't specify input datasets, the node

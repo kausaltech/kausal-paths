@@ -34,7 +34,7 @@ if typing.TYPE_CHECKING:
     from .processors import Processor
 
 
-class NodeDimension:
+class NodeMetric:
     id: str
     unit: Unit
     quantity: str
@@ -91,7 +91,7 @@ class Node:
     tags: Set[str]
 
     # output units and quantities (for multi-dimensional nodes)
-    dimensions: Optional[dict[str, NodeDimension]] = None
+    metrics: Optional[dict[str, NodeMetric]] = None
 
     # set if this node has a specific goal for the simulation target year
     target_year_goal: Optional[float]
@@ -135,8 +135,8 @@ class Node:
         color: str | None = None, order: int | None = None, is_outcome: bool = False,
         unit=None, target_year_goal=None, input_datasets: List[Dataset] | None = None,
     ):
-        if self.dimensions:
-            for dim in self.dimensions.values():
+        if self.metrics:
+            for dim in self.metrics.values():
                 dim.populate_unit(context)
         else:
             ensure_known_quantity(quantity)
@@ -153,7 +153,7 @@ class Node:
         self.order = order
         self.is_outcome = is_outcome
         self.unit = unit
-        if unit is None and not self.dimensions:
+        if unit is None and not self.metrics:
             raise NodeError(self, "Attempting to initialize node without a unit")
         self.quantity = quantity
         self.target_year_goal = target_year_goal
@@ -368,8 +368,8 @@ class Node:
             # __str__() of Unit is very slow, try another way
             hash_part('unit', hash_unit(self.unit))
 
-        if self.dimensions:
-            for dim_id, dim in self.dimensions.items():
+        if self.metrics:
+            for dim_id, dim in self.metrics.items():
                 hash_part('dim %s' % dim_id, dim.calculate_hash(dim_id))
 
         for node in self.input_nodes:
@@ -407,7 +407,7 @@ class Node:
         self.last_hash_time = perf_counter_ns()
         return ret
 
-    def get_output(self, target_node: Node | None = None, dimension: str | None = None) -> pd.DataFrame:
+    def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         self.context.perf_context.node_start(self)
 
         node_hash = self.calculate_hash().hex()
@@ -440,13 +440,13 @@ class Node:
 
         # If a node has multiple outputs, we can specify only one series
         # to include.
-        if dimension is not None:
-            assert dimension in out.columns
-            cols = [dimension]  # FIXME This assumes that the column name and dimension are identical
+        if metric is not None:
+            assert metric in out.columns
+            cols = [metric]  # FIXME This assumes that the column name and metric are identical
             if FORECAST_COLUMN in out.columns:
                 cols.append(FORECAST_COLUMN)
             out = out[cols]
-            out = out.rename(columns={dimension: VALUE_COLUMN})
+            out = out.rename(columns={metric: VALUE_COLUMN})
             self.context.perf_context.node_end(self)
             return out.copy()
 
@@ -455,12 +455,12 @@ class Node:
 
             if target_node.id in out.columns:
                 col_name = target_node.id
-            elif self.dimensions:
-                assert isinstance(self.dimensions, dict)
-                if target_node.quantity in self.dimensions:
+            elif self.metrics:
+                assert isinstance(self.metrics, dict)
+                if target_node.quantity in self.metrics:
                     col_name = target_node.quantity
                 else:
-                    raise NodeError(self, "Quantity '%s' for node %s not found dimensions" % (target_node.quantity, target_node))
+                    raise NodeError(self, "Quantity '%s' for node %s not found metrics" % (target_node.quantity, target_node))
 
             if col_name:
                 cols = [col_name]
@@ -527,7 +527,7 @@ class Node:
         return s.pint.m
 
     def convert_to_unit(self, s: pd.Series, unit: Unit) -> pd.Series:
-        if not s.Units.is_compatible_with(unit):
+        if not s.pint.units.is_compatible_with(unit):
             raise NodeError(self, 'Series with type %s is not compatible with %s' % (
                 s.Units, unit
             ))

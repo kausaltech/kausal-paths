@@ -305,7 +305,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
-      - id: dimension
+      - id: metric
         value: Electricity
 
   - id: heat_per_area_single_family
@@ -317,7 +317,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 101.6]]  # Energimyndigheten 31.8 TWh / 313 M m2
     params:
-      - id: dimension
+      - id: metric
         value: Heat
 
   - id: renovation_cost_per_area_single_family
@@ -328,7 +328,7 @@ nodes:
     unit: SEK/a/m**2
     type: simple.AdditiveNode
     params:
-      - id: dimension
+      - id: metric
         value: RenovCost
 
   - id: emissions_electricity_per_area_single_family
@@ -528,7 +528,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
-      - id: dimension
+      - id: metric
         value: Electricity
 
   - id: heat_per_area_apartment
@@ -540,7 +540,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 129.4]]  # Energimyndigheten 27.3 TWh / 211 M km
     params:
-      - id: dimension
+      - id: metric
         value: Heat
 
   - id: renovation_cost_per_area_apartment
@@ -551,7 +551,7 @@ nodes:
     unit: SEK/a/m**2
     type: simple.AdditiveNode
     params:
-      - id: dimension
+      - id: metric
         value: RenovCost
 
   - id: emissions_electricity_per_area_apartment
@@ -750,7 +750,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
-      - id: dimension
+      - id: metric
         value: Electricity
 
   - id: heat_per_area_office
@@ -762,7 +762,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 110]]  # Energimyndigheten
     params:
-      - id: dimension
+      - id: metric
         value: Heat
 
   - id: renovation_cost_per_area_office
@@ -773,7 +773,7 @@ nodes:
     unit: SEK/a/m**2
     type: simple.AdditiveNode
     params:
-      - id: dimension
+      - id: metric
         value: RenovCost
 
   - id: emissions_electricity_per_area_office
@@ -972,7 +972,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
-      - id: dimension
+      - id: metric
         value: Electricity
 
   - id: heat_per_area_school
@@ -984,7 +984,7 @@ nodes:
     type: simple.AdditiveNode
     historical_values: [[2019, 110]]  # Energimyndigheten for offices
     params:
-      - id: dimension
+      - id: metric
         value: Heat
 
   - id: renovation_cost_per_area_school
@@ -995,7 +995,7 @@ nodes:
     unit: SEK/a/m**2
     type: simple.AdditiveNode
     params:
-      - id: dimension
+      - id: metric
         value: RenovCost
 
   - id: emissions_electricity_per_area_school
