@@ -24,7 +24,7 @@ class Dataset(ClusterableModel):
     identifier = IdentifierField()
     name = models.CharField(max_length=200)
 
-    #dimensions = ParentalManyToManyField(
+    #metrics = ParentalManyToManyField(
     #    'DatasetDimension', related_name='datasets', blank=True
     #)
     data = models.JSONField(null=True)

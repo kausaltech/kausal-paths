@@ -6,7 +6,7 @@ from nodes.constants import (
     VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.exceptions import NodeError
-from nodes.node import NodeDimension
+from nodes.node import NodeMetric
 
 
 class AlasNode(Node):
@@ -14,10 +14,10 @@ class AlasNode(Node):
         'syke/alas_emissions',
     ]
     global_parameters = ['municipality_name']
-    dimensions = {
-        EMISSION_QUANTITY: NodeDimension(unit='kt/a', quantity=EMISSION_QUANTITY),
-        ENERGY_QUANTITY: NodeDimension(unit='GWh/a', quantity=ENERGY_QUANTITY),
-        EMISSION_FACTOR_QUANTITY: NodeDimension(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
+    metrics = {
+        EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
+        ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
+        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
 
     def compute(self) -> pd.DataFrame:
@@ -42,7 +42,7 @@ class AlasNode(Node):
         df = df.set_index(['Year', 'Sector'])
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        for dim_id, dim in self.dimensions.items():
+        for dim_id, dim in self.metrics.items():
             df[dim_id] = self.convert_to_unit(df[dim_id], dim.unit)
         return df
 

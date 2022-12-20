@@ -8,7 +8,7 @@ from numba import njit, int32
 from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
-from nodes import NodeDimension
+from nodes import NodeMetric
 from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
 from nodes.calc import nafill_all_forecast_years
 from params import Parameter, NumberParameter
@@ -39,9 +39,9 @@ def simulate_led_retrofit(
 
 
 class LEDRetrofitAction(ActionNode):
-    dimensions = {
-        ENERGY_QUANTITY: NodeDimension('MWh/a', ENERGY_QUANTITY),
-        CURRENCY_QUANTITY: NodeDimension('EUR/a', CURRENCY_QUANTITY),
+    metrics = {
+        ENERGY_QUANTITY: NodeMetric('MWh/a', ENERGY_QUANTITY),
+        CURRENCY_QUANTITY: NodeMetric('EUR/a', CURRENCY_QUANTITY),
     }
     allowed_parameters = [
         NumberParameter(
@@ -180,8 +180,8 @@ class LEDRetrofitAction(ActionNode):
             + df['LEDEnergyCost'] + df['LEDMaintenanceCost'] + df['LEDInvestmentCost']
         )
         energy_consumption = df['TraditionalEnergy'] + df['LEDEnergy']
-        df[CURRENCY_QUANTITY] = total_cost.astype(PintType(self.dimensions[CURRENCY_QUANTITY].unit))
-        df[ENERGY_QUANTITY] = energy_consumption.astype(PintType(self.dimensions[ENERGY_QUANTITY].unit))
+        df[CURRENCY_QUANTITY] = total_cost.astype(PintType(self.metrics[CURRENCY_QUANTITY].unit))
+        df[ENERGY_QUANTITY] = energy_consumption.astype(PintType(self.metrics[ENERGY_QUANTITY].unit))
         df = df[[CURRENCY_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN]]
         return df
 
@@ -255,11 +255,11 @@ class BuildingEnergySavingAction(ActionNode):
     impact on nodes that are given per floor area.
     """
 
-    dimensions = {
-        VALUE_COLUMN: NodeDimension('%', 'fraction'),
-        'RenovCost': NodeDimension('SEK/a/m**2', 'currency'),
-        'Heat': NodeDimension('kWh/a/m**2', 'energy_per_area'),
-        'Electricity': NodeDimension('kWh/a/m**2', 'energy_per_area')
+    metrics = {
+        VALUE_COLUMN: NodeMetric('%', 'fraction'),
+        'RenovCost': NodeMetric('SEK/a/m**2', 'currency'),
+        'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
+        'Electricity': NodeMetric('kWh/a/m**2', 'energy_per_area')
     }
     allowed_parameters: typing.ClassVar[list[Parameter]] = [
         NumberParameter(
@@ -402,16 +402,16 @@ class BuildingEnergySavingAction(ActionNode):
 
 
 class EnergyCostAction(ExponentialAction):
-    dimensions = {
-        VALUE_COLUMN: NodeDimension('SEK/MWh', 'currency'),
-        'EnergyPrice': NodeDimension('SEK/MWh', 'currency'),
-        'AddedValueTax': NodeDimension('SEK/MWh', 'currency'),
-        'NetworkPrice': NodeDimension('SEK/MWh', 'currency'),
-        'HandlingFee': NodeDimension('SEK/MWh', 'currency'),
-        'Certificate': NodeDimension('SEK/MWh', 'currency'),
-        'EnergyTax': NodeDimension('SEK/MWh', 'currency')
+    metrics = {
+        VALUE_COLUMN: NodeMetric('SEK/MWh', 'currency'),
+        'EnergyPrice': NodeMetric('SEK/MWh', 'currency'),
+        'AddedValueTax': NodeMetric('SEK/MWh', 'currency'),
+        'NetworkPrice': NodeMetric('SEK/MWh', 'currency'),
+        'HandlingFee': NodeMetric('SEK/MWh', 'currency'),
+        'Certificate': NodeMetric('SEK/MWh', 'currency'),
+        'EnergyTax': NodeMetric('SEK/MWh', 'currency')
     }
-    global_parameters: list[str] = ['include_social']
+    global_parameters: list[str] = ['include_energy_taxes']
     allowed_parameters = ExponentialAction.allowed_parameters + [
         NumberParameter(
             local_id='added_value_tax',
@@ -451,7 +451,7 @@ class EnergyCostAction(ExponentialAction):
         handling_fee, han_pt = sep_unit_pt(self.get_parameter_value('handling_fee', units=True))
         certificate, cer_pt = sep_unit_pt(self.get_parameter_value('certificate', units=True))
         energy_tax, ene_pt = sep_unit_pt(self.get_parameter_value('energy_tax', units=True))
-        include_social = self.get_global_parameter_value('include_social')
+        include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
 
         df = self.compute_exponential()
         df['EnergyPrice'] = df[VALUE_COLUMN]
@@ -462,10 +462,10 @@ class EnergyCostAction(ExponentialAction):
         df['Certificate'] = pd.Series(certificate, index=df.index, dtype=cer_pt)
         df['EnergyTax'] = pd.Series(energy_tax, index=df.index, dtype=ene_pt)
 
-        if include_social:
-            cols = ['NetworkPrice']
-        else:
+        if include_energy_taxes:
             cols = ['AddedValueTax', 'NetworkPrice', 'HandlingFee', 'Certificate', 'EnergyTax']
+        else:
+            cols = ['NetworkPrice']
         for col in cols:
             df[VALUE_COLUMN] += df[col]
 
