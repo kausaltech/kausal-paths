@@ -54,7 +54,7 @@ parser.add_argument('--baseline', action='store_true', help='generate baseline s
 parser.add_argument('--scenario', type=str, help='select scenario')
 parser.add_argument('--param', action='append', type=str, help='set a parameter')
 parser.add_argument('--list-params', action='store_true', help='list parameters')
-parser.add_argument('--debug', action='store_true', help='enable debug messages and disable cache')
+parser.add_argument('--debug-nodes', type=str, nargs='+', help='enable debug messages for nodes')
 parser.add_argument('--check', action='store_true', help='perform sanity checking')
 parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
@@ -64,6 +64,7 @@ parser.add_argument('--update-instance', action='store_true', help='update an ex
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
 parser.add_argument('--print-action-efficiencies', action='store_true', help='calculate and print action efficiencies')
+parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -86,8 +87,15 @@ else:
 if args.pull_datasets:
     context.pull_datasets()
 
-if args.profile:
+if args.show_perf:
+    from common.perf import PerfCounter
+
+    PerfCounter.change_level(PerfCounter.Level.DEBUG)
     context.perf_context.start()
+
+
+profile: cProfile.Profile | None
+if args.profile:
     profile = cProfile.Profile()
 else:
     profile = None
@@ -124,21 +132,22 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
-if args.debug:
-    for node_id in (args.node or []):
-        node = context.get_node(node_id)
-        node.debug = True
+for node_id in (args.debug_nodes or []):
+    node = context.get_node(node_id)
+    node.debug = True
 
 if args.baseline:
     pc = PerfCounter('Baseline')
-    pc.display('generating')
     if profile is not None:
         profile.enable()
+    pc.display('generating baseline values')
+    context.cache.start_run()
     context.generate_baseline_values()
+    context.cache.end_run()
+    pc.display('done')
     if profile is not None:
         profile.disable()
         profile.dump_stats('baseline_profile.out')
-    pc.display('done')
 
 if args.check or args.update_instance or args.update_nodes:
     if args.check:
@@ -196,23 +205,25 @@ for node_id in (args.node or []):
 if args.print_action_efficiencies:
     def print_action_efficiencies():
         context.cache.start_run()
+        pc = PerfCounter("Action efficiencies")
         for aep in context.action_efficiency_pairs:
-            table = Table(title='%s / %s\n' % (aep.cost_node.id, aep.impact_node.id))
+            title = '%s / %s' % (aep.cost_node.id, aep.impact_node.id)
+            pc.display('%s starting' % title)
+            table = Table(title=title)
             table.add_column("Action", "Cumulative efficiency")
             if args.node:
-                actions = [context.get_node(node_id) for node_id in args.node]
+                actions = [context.get_action(node_id) for node_id in args.node]
             else:
                 actions = None
-            count = 0
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
+                pc.display('%s computed' % action.id)
                 table.add_row(action.id, str(out.cumulative_efficiency))
-                print(action.id)
                 # action.print_pint_df(out.df)
-                count += 1
 
             console = Console()
             console.print(table)
+            break
         context.cache.end_run()
 
     if profile is not None:
@@ -223,7 +234,7 @@ if args.print_action_efficiencies:
         profile.dump_stats('action_efficiencies_profile.out')
 
 
-if args.profile:
+if args.show_perf:
     context.perf_context.print()
 
 

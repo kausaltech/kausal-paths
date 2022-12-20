@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, Tuple
 import pickle
 
 import pandas as pd
 import pint_pandas
 from pint import UnitRegistry
 import redis
+
+from common.perf import PerfCounter
 
 
 class PickledPintDataFrame:
@@ -41,9 +43,11 @@ class PickledPintDataFrame:
 
 class Cache:
     client: Optional[redis.Redis]
+    prefix: str
+
     local_cache: Dict[str, bytes]
     run_cache: Dict[str, Any] | None
-    prefix: str
+    run_pipe: list[Tuple[str, Any]] | None
 
     def __init__(self, ureg: UnitRegistry, redis_url: Optional[str] = None):
         if redis_url is not None:
@@ -55,12 +59,37 @@ class Cache:
         self.timeout = 600
         self.ureg = ureg
         self.run_cache = None
+        self.run_pipe = None
 
     def start_run(self):
         self.run_cache = {}
+        if self.client is not None:
+            self.run_pipe = []
 
     def end_run(self):
         self.run_cache = None
+
+        if self.run_pipe:
+            pc = PerfCounter('end run')
+            if self.client is not None:
+                pipe = self.client.pipeline(transaction=False)
+            else:
+                pipe = None
+
+            pc.display('dumping %d objects' % len(self.run_pipe))
+            for key, obj in self.run_pipe:
+                data = self.dump_object(obj)
+                if pipe is not None:
+                    pipe.setex(key, self.timeout, data)
+                else:
+                    self.local_cache[key] = data
+            pc.display('dumped')
+
+            if pipe is not None:
+                pipe.execute()
+                pc.display('executed')
+
+        self.run_pipe = None
 
     def dump_object(self, obj: Any) -> bytes:
         if isinstance(obj, pd.DataFrame) and hasattr(obj, 'pint'):
@@ -93,10 +122,14 @@ class Cache:
 
     def set(self, key: str, obj: Any):
         full_key = '%s:%s' % (self.prefix, key)
-        data = self.dump_object(obj)
-        if self.client:
-            self.client.setex(full_key, time=self.timeout, value=data)
+        if self.run_pipe is not None:
+            self.run_pipe.append((full_key, obj))
         else:
-            self.local_cache[full_key] = data
+            data = self.dump_object(obj)
+            if self.client:
+                self.client.setex(full_key, time=self.timeout, value=data)
+            else:
+                self.local_cache[full_key] = data
+
         if self.run_cache is not None:
             self.run_cache[full_key] = obj

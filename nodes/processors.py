@@ -49,7 +49,7 @@ class Processor(ABC):
         return None
 
     @abstractmethod
-    def process_input_dataset(self, df: pd.DataFrame):
+    def process_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
         pass
 
 

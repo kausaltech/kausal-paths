@@ -1,8 +1,8 @@
 from cmath import nan
-from threading import local
+from typing import ClassVar
 from params.param import Parameter
 from params import PercentageParameter, NumberParameter
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.node import NodeError
 from .action import ActionNode
 
@@ -25,7 +25,7 @@ class AdditiveAction(ActionNode):
 class CumulativeAdditiveAction(ActionNode):
     """Additive action where the effect is cumulative and remains in the future."""
 
-    allowed_parameters: list[Parameter] = [
+    allowed_parameters: ClassVar[list[Parameter]] = [
         PercentageParameter('target_year_ratio', min_value=0),
     ]
 
@@ -111,21 +111,21 @@ class ExponentialAction(ActionNode):
     allowed_parameters = [
         NumberParameter(
             local_id='current_value',
-            unit='EUR/t',
+            unit_str='EUR/t',
             is_customizable=True,
         ),
         NumberParameter(
             local_id='annual_change',
-            unit='%',
+            unit_str='%',
             is_customizable=True,
         ),
     ]
 
     def compute_exponential(self):
-        current_value = self.get_parameter('current_value')
-        pt = pint_pandas.PintType(current_value.unit)
-        base_value = self.get_parameter('annual_change')
-        base_unit = base_value.unit
+        current_value = self.get_parameter('current_value', required=True)
+        pt = pint_pandas.PintType(current_value.get_unit())
+        base_value = self.get_parameter('annual_change', required=True)
+        base_unit = base_value.get_unit()
         if self.is_enabled():
             current_value = current_value.value
             base_value = base_value.value

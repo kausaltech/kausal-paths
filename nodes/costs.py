@@ -54,7 +54,7 @@ class Discount(SimpleNode):
     def compute(self):
         target_year = self.context.target_year
         current_year = self.context.instance.maximum_historical_year + 1
-        base_value = self.context.get_parameter_value_w_unit('discount_rate')
+        base_value = self.get_global_parameter_value('discount_rate', units=True)
         base_value = 1 / (1 + base_value.to('dimensionless').m)
 
         df = pd.DataFrame(

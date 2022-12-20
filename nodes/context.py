@@ -8,6 +8,7 @@ from types import FrameType
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type, overload, Literal
 from datetime import datetime
 
+import networkx as nx
 import dvc_pandas
 import pint
 import pint_pandas
@@ -15,13 +16,12 @@ import rich
 from rich.tree import Tree
 
 from common.cache import Cache
-from common.i18n import TranslatedString
 from params import Parameter
 from params.discover import discover_parameter_types
 from params.storage import SettingStorage
 
 from .datasets import Dataset, DVCDataset, FixedDataset
-from .units import CachingUnitRegistry
+from .units import CachingUnitRegistry, Unit
 from .perf import PerfContext
 
 if TYPE_CHECKING:
@@ -39,24 +39,29 @@ unit_registry = CachingUnitRegistry(
     cache_folder=":auto:",
 )
 
-# By default, kt is knots, but here kilotonne is the most common
-# usage.
-del unit_registry._units['kt']
-unit_registry.define('kt = kilotonne')
-del unit_registry._units['ton']  # The default is 2000 pounds and we don't want to accidentally use that.
-unit_registry.define('ton = tonne')
-# Mega-kilometers is often used for mileage
-unit_registry.define('Mkm = gigameters')
-unit_registry.define(pint.facets.plain.UnitDefinition(
-    'percent', '%', (), pint.facets.plain.ScaleConverter(0.01), reference=unit_registry.UnitsContainer({})
-))
-unit_registry.define('EUR = [currency]')
-unit_registry.define('USD = nan EUR')
-unit_registry.define('SEK = 0.1 EUR')
-unit_registry.define('pcs = [number] = pieces')
-unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
+
+def define_custom_units(unit_registry: CachingUnitRegistry):
+    from pint.facets import plain as plain_facets
+
+    # By default, kt is knots, but here kilotonne is the most common
+    # usage.
+    del unit_registry._units['kt']
+    unit_registry.define('kt = kilotonne')
+    del unit_registry._units['ton']  # The default is 2000 pounds and we don't want to accidentally use that.
+    unit_registry.define('ton = tonne')
+    # Mega-kilometers is often used for mileage
+    unit_registry.define('Mkm = gigameters')
+    unit_registry.define(plain_facets.UnitDefinition(
+        'percent', '%', (), plain_facets.ScaleConverter(0.01), reference=unit_registry.UnitsContainer({})
+    ))
+    unit_registry.define('EUR = [currency]')
+    unit_registry.define('USD = nan EUR')
+    unit_registry.define('SEK = 0.1 EUR')
+    unit_registry.define('pcs = [number] = pieces')
+    unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
 
 
+define_custom_units(unit_registry)
 unit_registry.default_format = '~P'
 pint.set_application_registry(unit_registry)
 pint_pandas.PintType.ureg = unit_registry  # type: ignore
@@ -86,6 +91,7 @@ class Context:
     action_efficiency_pairs: list[ActionEfficiencyPair]
     setting_storage: Optional[SettingStorage]
     perf_context: PerfContext
+    node_graph: nx.DiGraph
 
     def __init__(
         self, dataset_repo: dvc_pandas.Repository, target_year: int,
@@ -102,16 +108,34 @@ class Context:
         self.dvc_datasets = {}
         self.global_parameters = {}
         self.scenarios = {}
-        self.custom_scenario = None
         self.target_year = target_year
         self.model_end_year = model_end_year or target_year
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
-        self.active_scenario = None
         self.supported_parameter_types = discover_parameter_types()
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
-        self.instance = None  # will be set later
+        # will be set later
+        self.instance = None  # type: ignore
+        self.active_scenario = None  # type: ignore
+        self.custom_scenario = None  # type: ignore
         self.action_efficiency_pairs = []
+
+    def finalize_nodes(self):
+        """Finalize the node graph.
+
+        Called when nodes and their connections have been configured.
+        """
+
+        g = nx.DiGraph()
+        g.add_nodes_from([n.id for n in self.nodes.values()])
+        for node in self.nodes.values():
+            for output in node.output_nodes:
+                g.add_edge(node.id, output.id)
+
+        if not nx.is_directed_acyclic_graph(g):
+            raise Exception("Node graph is not directed (there are loops between nodes)")
+
+        self.node_graph = g
 
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
@@ -141,6 +165,12 @@ class Context:
     def get_node(self, id: str) -> Node:
         return self.nodes[id]
 
+    def get_action(self, id: str) -> 'ActionNode':
+        node = self.nodes[id]
+        if not isinstance(node, self.Action):
+            raise Exception("Node %s is not an action node" % id)
+        return node
+
     def add_global_parameter(self, parameter: Parameter):
         if parameter.local_id in self.global_parameters:
             raise Exception(f"Global parameter {parameter.local_id} already defined")
@@ -164,7 +194,16 @@ class Context:
                 break
         return None
 
-    def get_parameter(self, id: str, required: bool = True) -> Optional[Parameter]:
+    @overload
+    def get_parameter(self, id: str, *, required: Literal[True] = True) -> Parameter: ...
+
+    @overload
+    def get_parameter(self, id: str, *, required: Literal[False]) -> Optional[Parameter]: ...
+
+    @overload
+    def get_parameter(self, id: str, *, required: bool) -> Optional[Parameter]: ...
+
+    def get_parameter(self, id: str, *, required: bool = True) -> Optional[Parameter]:
         if self.check_mode:
             frame = inspect.currentframe()
             if frame is not None:
@@ -187,23 +226,11 @@ class Context:
             raise Exception(f"Parameter {id} not found")
         return param
 
-    def get_parameter_value(self, id: str, required: bool = True) -> Any:
+    def get_parameter_value(self, id: str, *, required: bool = True) -> Any:
         param = self.get_parameter(id, required=required)
         if param is None:
             return None
         return param.value
-
-    @overload
-    def get_parameter_value_w_unit(self, id: str, required: Literal[True]) -> pint.Quantity: ...
-
-    @overload
-    def get_parameter_value_w_unit(self, id: str) -> pint.Quantity: ...
-
-    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[pint.Quantity]:
-        param = self.get_parameter(id, required=required)
-        if param is None:
-            return None
-        return param.value * param.unit
 
     def set_parameter_value(self, id: str, value: Any):
         param = self.global_parameters.get(id)
@@ -272,7 +299,7 @@ class Context:
     def print_graph(self, include_datasets=False):
         import inspect
 
-        def make_node_tree(node: Node, tree: Tree = None) -> Tree:
+        def make_node_tree(node: Node, tree: Tree | None = None) -> Tree:
             node_icon = ''
             node_color = 'yellow'
             if isinstance(node, self.Action):
@@ -317,14 +344,14 @@ class Context:
             tree = make_node_tree(node, tree)
             rich.print(tree)
 
-    def describe_unit(self, unit: pint.Unit):
+    def describe_unit(self, unit: Unit):
         formats = dict(
             short='~P',
             long='P',
             html_short='~H',
             html_long='H',
         )
-        return {k: unit.format_babel(v) for k, v in formats.items()}
+        return {k: unit.format_babel(v) for k, v in formats.items()}  # type: ignore
 
     def get_actions(self) -> list['ActionNode']:
         from nodes.actions.action import ActionNode

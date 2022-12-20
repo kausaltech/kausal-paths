@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pint_pandas
 from common.i18n import TranslatedString
+from common.perf import PerfCounter
 
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, VALUE_WITHOUT_ACTION_COLUMN, DecisionLevel
 from nodes import Node, NodeError
@@ -90,18 +91,23 @@ class ActionNode(Node):
             self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
 
     def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> pd.DataFrame:
+        pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
         discount = self.context.get_parameter_value('discount_node_name')
         discount_factor = self.context.get_node(discount).compute()[VALUE_COLUMN]
 
+        pc.display('starting')
         cost = self.compute_impact(cost_node)[IMPACT_COLUMN]
+        pc.display('cost impact of %s on %s computed' % (self.id, cost_node.id))
         cost.name = 'Cost'
         impact = self.compute_impact(impact_node)[IMPACT_COLUMN]
+        pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
         df = pd.concat([cost], axis=1)
         df['Cost'] *= discount_factor
         df['Impact'] = impact.replace({0: np.nan})
         pd_pt = pint_pandas.PintType(unit)
         df['Efficiency'] = (df['Cost'] / df['Impact']).astype(pd_pt)
         df = df.dropna()
+        pc.display('done')
         return df
 
 
@@ -153,7 +159,14 @@ class ActionEfficiencyPair:
     ) -> Iterator[ActionEfficiency]:
         if actions is None:
             actions = list(context.get_actions())
+
+        pc = PerfCounter("Action efficiency %s / %s" % (self.cost_node.id, self.impact_node.id), level=PerfCounter.Level.DEBUG)
+        pc.display('starting')
         for action in actions:
+            if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.impact_node):
+                # Action is not connected to either cost or impact nodes, skip it
+                continue
+
             df = action.compute_efficiency(self.cost_node, self.impact_node, self.unit)
             if not len(df):
                 # No impact for this action, skip it
@@ -176,6 +189,8 @@ class ActionEfficiencyPair:
                 cumulative_impact_unit=impact.units
             )
             yield ae
+
+        pc.display("done")
 
     def calculate(self, context: 'Context', actions: Iterable[ActionNode] | None = None) -> list[ActionEfficiency]:
         out = list(self.calculate_iter(context, actions))
