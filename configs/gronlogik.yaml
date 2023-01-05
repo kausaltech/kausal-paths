@@ -1,13 +1,13 @@
 id: gronlogik
-default_language: fi
-supported_languages: [en, sv]
+default_language: sv
+supported_languages: [en, fi]
 site_url: https://gronlogik.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: af84a46c532a0d4d976767c6f4371601e9b41255
-name: Grön logik -projekti rakennusten ilmastotoimista
-name_en: Grön logik project about climate actions on buildings
-name_sv: Grön logik projekt om byggnaders klimatåtgärder
+name_fi: Grön logik -projekti rakennusten ilmastotoimista
+name_en: Green logic, potential of energy efficiency actions on buildings
+name: Grön logik, potential för energieffektivisering i byggnader
 owner: Kausal & Anthesis
 owner_en: Kausal & Anthesis
 target_year: 2045
@@ -19,28 +19,29 @@ emission_unit: kt/a
 emission_forecast_from: 2021
 action_groups:
   - id: apartment
-    name: Kerrostalot
+    name_fi: Kerrostalot
     name_en: Apartment buildings
-    name_sv: Flerbostadshus
+    name: Flerbostadshus
     color: '#AD3963'
   - id: single_family
-    name: Omakotitalot
+    name_fi: Omakotitalot
     name_en: Single-family houses
-    name_sv: Småhus
+    name: Småhus
     color: '#E8B455'
   - id: office
-    name: Toimistorakennukset
+    name_fi: Toimistorakennukset
     name_en: Office buildings
-    name_sv: Kontor
+    name: Kontor
     color: '#668EC9'
   - id: school
-    name: Koulut
+    name_fi: Koulut
     name_en: Schools
-    name_sv: Skolor
+    name: Skolor
     color: '#397368'
   - id: general
-    name: Yleinen
+    name_fi: Yleinen
     name_en: General
+    name: Allmän
     color: '#cccccc'
 
 action_efficiency_pairs:
@@ -50,36 +51,36 @@ action_efficiency_pairs:
     invert_impact: True
     unit: SEK/kWh
     plot_limit_efficiency: 10
-    label: Energiansäästön marginaalikustannus
+    label_fi: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
-    label_sv: Marginalnettokostnad för energibesparing
+    label: Marginalnettokostnad för energibesparing
   - cost_node: social_cost
     impact_node: net_emissions
     invert_cost: False
     invert_impact: True
     unit: SEK/t
     plot_limit_efficiency: 60000
-    label: Päästövähennysten marginaalikustannus
+    label_fi: Päästövähennysten marginaalikustannus
     label_en: Marginal cost in net emissions
-    label_sv: Marginalnettokostnad för utsläppsminskning
-#  - cost_node: social_cost
-#    impact_node: net_electricity_consumption
-#    invert_cost: False
-#    invert_impact: True
-#    unit: SEK/kWh
-#    plot_limit_efficiency: 10
-#    label: Sähkönsäästön marginaalikustannus
-#    label_en: Marginal cost in electricity savings
-#    label_sv: Marginalnettokostnad för elbesparing
-#  - cost_node: cost_per_area
-#    impact_node: net_electricity_consumption_per_area
-#    invert_cost: False
-#    invert_impact: True
-#    unit: SEK/kWh
-#    plot_limit_efficiency: 10
-#    label: Sähkönsäästön marginaalikustannus per ala
-#    label_en: Marginal cost in electricity savings per area
-#    label_sv: Marginalnettokostnad för elbesparing per area
+    label: Marginalnettokostnad för utsläppsminskning
+  - cost_node: social_cost
+    impact_node: net_electricity_consumption
+    invert_cost: False
+    invert_impact: True
+    unit: SEK/kWh
+    plot_limit_efficiency: 10
+    label_fi: Sähkönsäästön marginaalikustannus
+    label_en: Marginal cost in electricity savings
+    label: Marginalnettokostnad för elbesparing
+  - cost_node: cost_per_area
+    impact_node: net_electricity_consumption_per_area
+    invert_cost: False
+    invert_impact: True
+    unit: SEK/kWh
+    plot_limit_efficiency: 10
+    label_fi: Sähkönsäästön marginaalikustannus per ala
+    label_en: Marginal cost in electricity savings per area
+    label: Marginalnettokostnad för elbesparing per area
 
 params:
   - id: municipality_name
@@ -160,37 +161,37 @@ params:
 
 emission_sectors:
   - id: net_emissions
-    name: Kokonaispäästöt
+    name_fi: Kokonaispäästöt
     name_en: Net emissions
-    name_sv: Netutsläpp
+    name: Netutsläpp
     target_year_goal: 260
     is_outcome: True
 
   - id: apartment_building_emissions
-    name: Kerrostalojen päästöt
+    name_fi: Kerrostalojen päästöt
     name_en: Apartment building emissions
-    name_sv: Flerbostadshusutsläpp
+    name: Flerbostadshusutsläpp
     column: Heating total
     part_of: net_emissions
     color: '#AD3963'
   - id: single_family_emissions
-    name: Omakotitalojen päästöt
+    name_fi: Omakotitalojen päästöt
     name_en: Single house emissions
-    name_sv: Småhusutsläpp
+    name: Småhusutsläpp
     column: Trucks and lorries
     part_of: net_emissions
     color: '#E8B455'
   - id: office_building_emissions
-    name: Toimistorakennusten päästöt
+    name_fi: Toimistorakennusten päästöt
     name_en: Office building emissions
-    name_sv: Kontorutsläpp
+    name: Kontorutsläpp
     column: Trucks and lorries
     part_of: net_emissions
     color: '#668EC9'
   - id: school_emissions
-    name: Koulujen päästöt
+    name_fi: Koulujen päästöt
     name_en: School emissions
-    name_sv: Skolutsläpp
+    name: Skolutsläpp
     column: Trucks and lorries
     part_of: net_emissions
     color: '#397368'
@@ -199,15 +200,17 @@ emission_sectors:
 
 nodes:
   - id: discount_node
-    name: Diskontto
+    name_fi: Diskontto
+    name_en: Discount
+    name: Discount
     quantity: ratio
     unit: '%'
     type: costs.Discount
 
   - id: social_cost
-    name: Sosiaaliset kustannukset
+    name_fi: Sosiaaliset kustannukset
     name_en: Social cost
-    name_sv: Sociala kostnader
+    name: Sociala kostnader
     type: simple.AdditiveNode
     quantity: currency
     unit: MSEK/a
@@ -218,9 +221,9 @@ nodes:
     - cost_school
 
   - id: emissions_reduction
-    name: Päästövähennys
+    name_fi: Päästövähennys
     name_en: Emissions reduction
-    name_sv: Utsläppsminskning
+    name: Utsläppsminskning
     type: simple.FixedMultiplierNode
     quantity: emissions
     unit: kt/a
@@ -231,9 +234,9 @@ nodes:
     - net_emissions
 
   - id: net_energy_consumption
-    name: Energiankulutus
+    name_fi: Energiankulutus
     name_en: Energy consumption
-    name_sv: Energikonsumtion
+    name: Energikonsumtion
     type: simple.AdditiveNode
     quantity: energy
     unit: GWh/a
@@ -244,9 +247,9 @@ nodes:
     - energy_school
 
   - id: net_electricity_consumption
-    name: Sähkönkulutus
+    name_fi: Sähkönkulutus
     name_en: Electricity consumption
-    name_sv: Elkonsumtion
+    name: Elkonsumtion
     type: simple.AdditiveNode
     quantity: energy
     unit: GWh/a
@@ -257,9 +260,9 @@ nodes:
     - electricity_school
 
   - id: net_electricity_consumption_per_area
-    name: Sähkönkulutus per ala
+    name_fi: Sähkönkulutus per ala
     name_en: Electricity consumption per area
-    name_sv: Elkonsumtion per ytarea
+    name: Elkonsumtion per ytarea
     type: simple.AdditiveNode
     quantity: energy
     unit: kWh/a/m**2
@@ -270,9 +273,9 @@ nodes:
     - electricity_per_area_school
 
   - id: cost_per_area
-    name: Kustannus per ala
+    name_fi: Kustannus per ala
     name_en: Cost per area
-    name_sv: Kostnad per ytarea
+    name: Kostnad per ytarea
     type: simple.AdditiveNode
     quantity: currency
     unit: SEK/a/m**2
@@ -285,9 +288,9 @@ nodes:
   ############## Single family houses
 
   - id: floor_area_single_family
-    name: Omakotitalojen rakennusala 
+    name_fi: Omakotitalojen rakennusala 
     name_en: Floor area of single family houses
-    name_sv: Ytarea i småhus
+    name: Ytarea i småhus
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
@@ -297,9 +300,9 @@ nodes:
     tags: floor_area
 
   - id: electricity_per_area_single_family
-    name: Sähkönkulutus per ala omakotitalossa
+    name_fi: Sähkönkulutus per ala omakotitalossa
     name_en: Electricity per area single family
-    name_sv: El per ytarea i småhus
+    name: El per ytarea i småhus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -309,9 +312,9 @@ nodes:
         value: Electricity
 
   - id: heat_per_area_single_family
-    name: Lämmönkulutus per ala omakotitalossa
+    name_fi: Lämmönkulutus per ala omakotitalossa
     name_en: Heat per area single family
-    name_sv: Värme per ytarea i småhus
+    name: Värme per ytarea i småhus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -321,9 +324,9 @@ nodes:
         value: Heat
 
   - id: renovation_cost_per_area_single_family
-    name: Korjauskustannus per ala omakotitalossa
+    name_fi: Korjauskustannus per ala omakotitalossa
     name_en: Renovation cost per area single family
-    name_sv: Reparationskostnad per ytarea i småhus
+    name: Reparationskostnad per ytarea i småhus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.AdditiveNode
@@ -332,9 +335,9 @@ nodes:
         value: RenovCost
 
   - id: emissions_electricity_per_area_single_family
-    name: Sähkönkulutuksen päästöt per ala omakotitalossa
+    name_fi: Sähkönkulutuksen päästöt per ala omakotitalossa
     name_en: Emissions electricity per area single family
-    name_sv: Utsläpp av elkonsumtion per ytarea i småhus
+    name: Utsläpp av elkonsumtion per ytarea i småhus
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -347,9 +350,9 @@ nodes:
     - emissions_per_area_single_family
 
   - id: emissions_heat_per_area_single_family
-    name: Lämmönkulutuksen päästöt per ala omakotitalossa
+    name_fi: Lämmönkulutuksen päästöt per ala omakotitalossa
     name_en: Emissions from heat per area single family
-    name_sv: Utsläpp av värme per ytarea i småhus
+    name: Utsläpp av värme per ytarea i småhus
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -362,9 +365,9 @@ nodes:
     - emissions_per_area_single_family
 
   - id: emissions_per_area_single_family
-    name: Päästöt per ala omakotitalossa
+    name_fi: Päästöt per ala omakotitalossa
     name_en: Emissions per area single family
-    name_sv: Utsläpp per ytarea i småhus
+    name: Utsläpp per ytarea i småhus
     quantity: emissions
     unit: kg/a/m**2
     type: simple.AdditiveNode
@@ -372,9 +375,9 @@ nodes:
     - emissions_single_family
 
   - id: emissions_single_family
-    name: Omakotitalon päästöt
+    name_fi: Omakotitalon päästöt
     name_en: Emissions single family
-    name_sv: Utsläpp i småhus
+    name: Utsläpp i småhus
     quantity: emissions
     unit: kt/a
     type: simple.MultiplicativeNode
@@ -384,9 +387,9 @@ nodes:
     - single_family_emissions
 
   - id: energy_per_area_single_family
-    name: Energiankulutus per ala omakotitalossa
+    name_fi: Energiankulutus per ala omakotitalossa
     name_en: Energy per area single family
-    name_sv: Energi per ytarea i småhus
+    name: Energi per ytarea i småhus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -396,9 +399,9 @@ nodes:
     - electricity_per_area_single_family
 
   - id: energy_single_family
-    name: Energiankulutus omakotitalossa
+    name_fi: Energiankulutus omakotitalossa
     name_en: Energy consumption single family
-    name_sv: Energikonsumtion i småhus
+    name: Energikonsumtion i småhus
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -407,9 +410,9 @@ nodes:
     - energy_per_area_single_family
 
   - id: electricity_single_family
-    name: Sähkönkulutus omakotitalossa
+    name_fi: Sähkönkulutus omakotitalossa
     name_en: Electricity consumption isingle family
-    name_sv: Elkonsumtion is småhus
+    name: Elkonsumtion is småhus
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -418,9 +421,9 @@ nodes:
     - electricity_per_area_single_family
 
   - id: electricity_cost_per_area_single_family
-    name: Sähkökustannus per ala omakotitalossa
+    name_fi: Sähkökustannus per ala omakotitalossa
     name_en: Electricity cost per area single family
-    name_sv: Elkostnad per ytarea i småhus
+    name: Elkostnad per ytarea i småhus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -429,9 +432,9 @@ nodes:
     - price_of_electricity
 
   - id: heat_cost_per_area_single_family
-    name: Lämpökustannus per ala omakotitalossa
+    name_fi: Lämpökustannus per ala omakotitalossa
     name_en: Heat cost per area singe family
-    name_sv: Värmekostnad per ytarea i småhus
+    name: Värmekostnad per ytarea i småhus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -440,9 +443,9 @@ nodes:
     - price_of_heat
 
   - id: avoided_capacity_cost_per_area_single_family
-    name: Vältetty sähköntuotantokapasiteetti per ala omakotitalossa
+    name_fi: Vältetty sähköntuotantokapasiteetti per ala omakotitalossa
     name_en: Avoided capacity cost per area single family
-    name:sv: Undvikt elutbuggnad per ytarea is småhus
+    name: Undvikt elutbuggnad per ytarea is småhus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -454,9 +457,9 @@ nodes:
     tags: capacity_cost
 
   - id: health_cost_per_area_single_family
-    name: Terveysvaikutus per ala omakotitalossa
+    name_fi: Terveysvaikutus per ala omakotitalossa
     name_en: Health cost per area single family
-    name_sv: Hälsokostnad per ytarea is småhus
+    name: Hälsokostnad per ytarea is småhus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -468,9 +471,9 @@ nodes:
     tags: health_cost
 
   - id: co2_cost_per_area_single_family
-    name: CO2-kustannus per ala omakotitalossa
+    name_fi: CO2-kustannus per ala omakotitalossa
     name_en: CO2 cost per area single family
-    name_sv: CO2-kostnad per ytarea i småhus
+    name: CO2-kostnad per ytarea i småhus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -480,9 +483,9 @@ nodes:
     tags: co2_cost
 
   - id: cost_per_area_single_family
-    name: Kustannus per ala omakotitalossa
+    name_fi: Kustannus per ala omakotitalossa
     name_en: Cost per area single family
-    name_sv: Kostnad per ytarea i småhus
+    name: Kostnad per ytarea i småhus
     quantity: currency
     unit: SEK/a/m**2
     type: costs.SelectiveNode
@@ -495,9 +498,9 @@ nodes:
     - co2_cost_per_area_single_family
 
   - id: cost_single_family
-    name: Kustannukset omakotitalossa
+    name_fi: Kustannukset omakotitalossa
     name_en: Cost single family
-    name_sv: Kostnader i småhus
+    name: Kostnader i småhus
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -508,9 +511,9 @@ nodes:
   ############## Apartment buildings
 
   - id: floor_area_apartment
-    name: Kerrostalojen rakennusala 
+    name_fi: Kerrostalojen rakennusala 
     name_en: Floor area of apartment houses
-    name_sv: Ytarea flerbostadshus
+    name: Ytarea flerbostadshus
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
@@ -520,9 +523,9 @@ nodes:
     tags: floor_area
 
   - id: electricity_per_area_apartment
-    name: Sähkönkulutus per ala kerrostalossa
+    name_fi: Sähkönkulutus per ala kerrostalossa
     name_en: Electricity per area apartment
-    name_sv: Elkonsumtion per ytarea i flerbostadshus
+    name: Elkonsumtion per ytarea i flerbostadshus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -532,9 +535,9 @@ nodes:
         value: Electricity
 
   - id: heat_per_area_apartment
-    name: Lämmönkulutus per ala kerrostalossa
+    name_fi: Lämmönkulutus per ala kerrostalossa
     name_en: Heat consumption per area apartment
-    name_sv: Värmekonsumtion per ytarea i flerbostadshus
+    name: Värmekonsumtion per ytarea i flerbostadshus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -544,9 +547,9 @@ nodes:
         value: Heat
 
   - id: renovation_cost_per_area_apartment
-    name: Korjauskustannus per ala kerrostalossa
+    name_fi: Korjauskustannus per ala kerrostalossa
     name_en: Renovation cost per area apartment
-    name_sv: Reparationskostnad per ytarea i flerbostadshus
+    name: Reparationskostnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.AdditiveNode
@@ -555,9 +558,9 @@ nodes:
         value: RenovCost
 
   - id: emissions_electricity_per_area_apartment
-    name: Sähkönkulutuksen päästöt per ala kerrostalossa
+    name_fi: Sähkönkulutuksen päästöt per ala kerrostalossa
     name_en: Emissions from electricity per area apartment
-    name_sv: Uttsläpp av elkonsumtion per ytarea i flerbostadshus
+    name: Uttsläpp av elkonsumtion per ytarea i flerbostadshus
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -570,9 +573,9 @@ nodes:
     - emissions_per_area_apartment
 
   - id: emissions_heat_per_area_apartment
-    name: Lämmönkulutuksen päästöt per ala kerrostalossa
+    name_fi: Lämmönkulutuksen päästöt per ala kerrostalossa
     name_en: Emissions from heat per area apartment
-    name_sv: Utsläpp av värmekonsumtion per ytarea i flerbostadshus
+    name: Utsläpp av värmekonsumtion per ytarea i flerbostadshus
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -585,9 +588,9 @@ nodes:
     - emissions_per_area_apartment
 
   - id: emissions_per_area_apartment
-    name: Päästöt per ala kerrostalossa
+    name_fi: Päästöt per ala kerrostalossa
     name_en: Emissions per area apartment
-    name_sv: Utsläpp per ytarea i flerbostadshus
+    name: Utsläpp per ytarea i flerbostadshus
     quantity: emissions
     unit: kg/a/m**2
     type: simple.AdditiveNode
@@ -595,9 +598,9 @@ nodes:
     - emissions_apartment
 
   - id: emissions_apartment
-    name: Omakotitalon päästöt
+    name_fi: Omakotitalon päästöt
     name_en: Emissions apartment
-    name_sv: Utsläpp i flerbostadshus
+    name: Utsläpp i flerbostadshus
     quantity: emissions
     unit: kt/a
     type: simple.MultiplicativeNode
@@ -607,9 +610,9 @@ nodes:
     - apartment_building_emissions
 
   - id: energy_per_area_apartment
-    name: Energiankulutus per ala kerrostalossa
+    name_fi: Energiankulutus per ala kerrostalossa
     name_en: Energy consumption per area apartment
-    name_sv: Energikonsumtion per ytarea i flerbostadshus
+    name: Energikonsumtion per ytarea i flerbostadshus
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -618,9 +621,9 @@ nodes:
     - electricity_per_area_apartment
 
   - id: energy_apartment
-    name: Energiankulutus kerrostalossa
+    name_fi: Energiankulutus kerrostalossa
     name_en: Energy consumption apartment
-    name_sv: Energikonsumtion i flerbostadshus
+    name: Energikonsumtion i flerbostadshus
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -629,9 +632,9 @@ nodes:
     - energy_per_area_apartment
 
   - id: electricity_apartment
-    name: Sähkönkulutus kerrostalossa
+    name_fi: Sähkönkulutus kerrostalossa
     name_en: Electricity consumption apartment
-    name_sv: Elkonsumtion i flerbostadshus
+    name: Elkonsumtion i flerbostadshus
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -640,9 +643,9 @@ nodes:
     - electricity_per_area_apartment
 
   - id: electricity_cost_per_area_apartment
-    name: Sähkökustannus per ala kerrostalossa
+    name_fi: Sähkökustannus per ala kerrostalossa
     name_en: Electricity cost per area apartment
-    name_sv: Elkostnad per ytarea i flerbostadshus
+    name: Elkostnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -651,9 +654,9 @@ nodes:
     - price_of_electricity
 
   - id: heat_cost_per_area_apartment
-    name: Lämpökustannus per ala kerrostalossa
+    name_fi: Lämpökustannus per ala kerrostalossa
     name_en: Heat cost per area apartment
-    name_sv: Värmekostnad per ytarea i flerbostadshus
+    name: Värmekostnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -662,9 +665,9 @@ nodes:
     - price_of_heat
 
   - id: avoided_capacity_cost_per_area_apartment
-    name: Vältetty sähköntuotantokapasiteetti per ala kerrostalossa
+    name_fi: Vältetty sähköntuotantokapasiteetti per ala kerrostalossa
     name_en: Avoided capacity cost per area apartment
-    name_sv: Undvikt elutbuggnad per ytarea i flerbostadshus
+    name: Undvikt elutbuggnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -676,9 +679,9 @@ nodes:
     tags: capacity_cost
 
   - id: health_cost_per_area_apartment
-    name: Terveysvaikutus per ala kerrostalossa
+    name_fi: Terveysvaikutus per ala kerrostalossa
     name_en: Health cost per area apartment
-    name_sv: Hälsokostnad per ytarea i flerbostadshus
+    name: Hälsokostnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -690,9 +693,9 @@ nodes:
     tags: health_cost
 
   - id: co2_cost_per_area_apartment
-    name: CO2-kustannus per ala kerrostalossa
+    name_fi: CO2-kustannus per ala kerrostalossa
     name_en: CO2 cost per area apartment
-    name_sv: CO2-kostnad per ytarea i flerbostadshus
+    name: CO2-kostnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -702,9 +705,9 @@ nodes:
     tags: co2_cost
 
   - id: cost_per_area_apartment
-    name: Kustannus per ala kerrostalossa
+    name_fi: Kustannus per ala kerrostalossa
     name_en: Cost per area apartment
-    name_sv: Kostnad per ytarea i flerbostadshus
+    name: Kostnad per ytarea i flerbostadshus
     quantity: currency
     unit: SEK/a/m**2
     type: costs.SelectiveNode
@@ -717,9 +720,9 @@ nodes:
     - co2_cost_per_area_apartment
 
   - id: cost_apartment
-    name: Kustannukset kerrostalossa
+    name_fi: Kustannukset kerrostalossa
     name_en: Cost apartment
-    name_sv: Kostnader i flerbostadshus
+    name: Kostnader i flerbostadshus
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -730,9 +733,9 @@ nodes:
   ############## Offices
 
   - id: floor_area_office
-    name: Toimistojen rakennusala 
+    name_fi: Toimistojen rakennusala 
     name_en: Floor area of offices
-    name_sv: Ytarea kontor
+    name: Ytarea kontor
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
@@ -742,9 +745,9 @@ nodes:
     tags: floor_area
 
   - id: electricity_per_area_office
-    name: Sähkönkulutus per ala toimistossa
+    name_fi: Sähkönkulutus per ala toimistossa
     name_en: Electricity consumption per area office
-    name_sv: Elkonsumtion per ytarea i kontor
+    name: Elkonsumtion per ytarea i kontor
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -754,9 +757,9 @@ nodes:
         value: Electricity
 
   - id: heat_per_area_office
-    name: Lämmönkulutus per ala toimistossa
+    name_fi: Lämmönkulutus per ala toimistossa
     name_en: Heat consumption per area office
-    name_sv: Värmekonsumtion per ytarea i kontor
+    name: Värmekonsumtion per ytarea i kontor
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -766,9 +769,9 @@ nodes:
         value: Heat
 
   - id: renovation_cost_per_area_office
-    name: Korjauskustannus per ala toimistossa
+    name_fi: Korjauskustannus per ala toimistossa
     name_en: Renovation cost per area office
-    name_sv: Reparationskostnad per ytarea i kontor
+    name: Reparationskostnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.AdditiveNode
@@ -777,9 +780,9 @@ nodes:
         value: RenovCost
 
   - id: emissions_electricity_per_area_office
-    name: Sähkönkulutuksen päästöt per ala toimistossa
+    name_fi: Sähkönkulutuksen päästöt per ala toimistossa
     name_en: Emissions from electricity consumption per area office
-    name_sv: Utsläpp av elkonsumtion per ytarea i kontor
+    name: Utsläpp av elkonsumtion per ytarea i kontor
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -792,9 +795,9 @@ nodes:
     - emissions_per_area_office
 
   - id: emissions_heat_per_area_office
-    name: Lämmönkulutuksen päästöt per ala toimistossa
+    name_fi: Lämmönkulutuksen päästöt per ala toimistossa
     name_en: Emissions from heat per area office
-    name_sv: Utsläpp av värmekonsumtion per ytarea i kontor
+    name: Utsläpp av värmekonsumtion per ytarea i kontor
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -807,9 +810,9 @@ nodes:
     - emissions_per_area_office
 
   - id: emissions_per_area_office
-    name: Päästöt per ala toimistossa
+    name_fi: Päästöt per ala toimistossa
     name_en: Emissions per area office
-    name_sv: Utsläpp per ytarea i kontor
+    name: Utsläpp per ytarea i kontor
     quantity: emissions
     unit: kg/a/m**2
     type: simple.AdditiveNode
@@ -817,9 +820,9 @@ nodes:
     - emissions_office
 
   - id: emissions_office
-    name: Toimistojen päästöt
+    name_fi: Toimistojen päästöt
     name_en: Emissions per area office
-    name_sv: Utsläpp per ytarea i kontor
+    name: Utsläpp per ytarea i kontor
     quantity: emissions
     unit: kt/a
     type: simple.MultiplicativeNode
@@ -829,9 +832,9 @@ nodes:
     - office_building_emissions
 
   - id: energy_per_area_office
-    name: Energiankulutus per ala toimistossa
+    name_fi: Energiankulutus per ala toimistossa
     name_en: Energy consumption per area office
-    name_sv: Energikonsumtion per ytarea i kontor
+    name: Energikonsumtion per ytarea i kontor
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -840,9 +843,9 @@ nodes:
     - electricity_per_area_office
 
   - id: energy_office
-    name: Energiankulutus toimistossa
+    name_fi: Energiankulutus toimistossa
     name_en: Energy consumption office
-    name_sv: Energikonsumtion i kontor
+    name: Energikonsumtion i kontor
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -851,9 +854,9 @@ nodes:
     - energy_per_area_office
 
   - id: electricity_office
-    name: Sähkönkulutus toimistossa
+    name_fi: Sähkönkulutus toimistossa
     name_en: Electricity consumption office
-    name_sv: Elkonsumtion i kontor
+    name: Elkonsumtion i kontor
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -862,9 +865,9 @@ nodes:
     - electricity_per_area_office
 
   - id: electricity_cost_per_area_office
-    name: Sähkökustannus per ala toimistossa
+    name_fi: Sähkökustannus per ala toimistossa
     name_en: Electricity cost per area office
-    name_sv: Elkostnad per ytarea i kontor
+    name: Elkostnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -873,9 +876,9 @@ nodes:
     - price_of_electricity
 
   - id: heat_cost_per_area_office
-    name: Lämpökustannus per ala toimistossa
+    name_fi: Lämpökustannus per ala toimistossa
     name_en: Heat cost per area office
-    name_sv: Värmekosotnad per ytarea i kontor
+    name: Värmekosotnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -884,9 +887,9 @@ nodes:
     - price_of_heat
 
   - id: avoided_capacity_cost_per_area_office
-    name: Vältetty sähköntuotantokapasiteetti per ala toimistossa
+    name_fi: Vältetty sähköntuotantokapasiteetti per ala toimistossa
     name_en: Avoided capacity cost per area office
-    name_sv: Undvikt elutbuggnadkostnad per ytarea i kontor
+    name: Undvikt elutbuggnadkostnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -898,9 +901,9 @@ nodes:
     tags: capacity_cost
 
   - id: health_cost_per_area_office
-    name: Terveysvaikutus per ala toimistossa
+    name_fi: Terveysvaikutus per ala toimistossa
     name_en: Health cost per area office
-    name_sv: Hälsokostnad per ytarea i kontor
+    name: Hälsokostnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -912,9 +915,9 @@ nodes:
     tags: health_cost
 
   - id: co2_cost_per_area_office
-    name: CO2-kustannus per ala toimistossa
+    name_fi: CO2-kustannus per ala toimistossa
     name_en: CO2 cost per area office
-    name_sv: CO2-kostnad per ytarea i kontor
+    name: CO2-kostnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -924,9 +927,9 @@ nodes:
     tags: co2_cost
 
   - id: cost_per_area_office
-    name: Kustannus per ala toimistossa
+    name_fi: Kustannus per ala toimistossa
     name_en: Cost per area office
-    name_sv: Kostnad per ytarea i kontor
+    name: Kostnad per ytarea i kontor
     quantity: currency
     unit: SEK/a/m**2
     type: costs.SelectiveNode
@@ -939,9 +942,9 @@ nodes:
     - co2_cost_per_area_office
 
   - id: cost_office
-    name: Kustannukset toimistossa
+    name_fi: Kustannukset toimistossa
     name_en: Cost per area office
-    name_sv: Kostnader per ytarea i kontor
+    name: Kostnader per ytarea i kontor
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -952,9 +955,9 @@ nodes:
   ############## Schools
 
   - id: floor_area_school
-    name: Koulujen rakennusala 
+    name_fi: Koulujen rakennusala 
     name_en: Floor area of schools
-    name_sv: Ytarea i skolor
+    name: Ytarea i skolor
     quantity: number
     unit: m**2
     type: simple.YearlyPercentageChangeNode
@@ -964,9 +967,9 @@ nodes:
     tags: floor_area
 
   - id: electricity_per_area_school
-    name: Sähkönkulutus per ala koulussa
+    name_fi: Sähkönkulutus per ala koulussa
     name_en: Electricity consumption per area schools
-    name_sv: Elkonsumtion per ytarea i skolor
+    name: Elkonsumtion per ytarea i skolor
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -976,9 +979,9 @@ nodes:
         value: Electricity
 
   - id: heat_per_area_school
-    name: Lämmönkulutus per ala koulussa
+    name_fi: Lämmönkulutus per ala koulussa
     name_en: Heat consumption per area schools
-    name_sv: Värmekonsumtion per ytarea i skolor
+    name: Värmekonsumtion per ytarea i skolor
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -988,9 +991,9 @@ nodes:
         value: Heat
 
   - id: renovation_cost_per_area_school
-    name: Korjauskustannus per ala koulussa
+    name_fi: Korjauskustannus per ala koulussa
     name_en: Renovation cost per area schools
-    name_sv: Reparationskostnad per ytarea i skolor
+    name: Reparationskostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.AdditiveNode
@@ -999,9 +1002,9 @@ nodes:
         value: RenovCost
 
   - id: emissions_electricity_per_area_school
-    name: Sähkönkulutuksen päästöt per ala koulussa
+    name_fi: Sähkönkulutuksen päästöt per ala koulussa
     name_en: Emissions from electricity per area schools
-    name_sv: Utsläpp av elkonsumtion per ytarea i skolor
+    name: Utsläpp av elkonsumtion per ytarea i skolor
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -1014,9 +1017,9 @@ nodes:
     - emissions_per_area_school
 
   - id: emissions_heat_per_area_school
-    name: Lämmönkulutuksen päästöt per ala koulussa
+    name_fi: Lämmönkulutuksen päästöt per ala koulussa
     name_en: Emissions from heat per area schools
-    name_sv: Utsläpp av värmekonsumtion per ytarea i skolor
+    name: Utsläpp av värmekonsumtion per ytarea i skolor
     quantity: emissions
     unit: kg/a/m**2
     type: simple.FixedMultiplierNode
@@ -1029,9 +1032,9 @@ nodes:
     - emissions_per_area_school
 
   - id: emissions_per_area_school
-    name: Päästöt per ala koulussa
+    name_fi: Päästöt per ala koulussa
     name_en: Emissions per area schools
-    name_sv: Utsläpp per ytarea i skolor
+    name: Utsläpp per ytarea i skolor
     quantity: emissions
     unit: kg/a/m**2
     type: simple.AdditiveNode
@@ -1039,9 +1042,9 @@ nodes:
     - emissions_school
 
   - id: emissions_school
-    name: Koulujen päästöt
+    name_fi: Koulujen päästöt
     name_en: Emissions schools
-    name_sv: Utsläpp i skolor
+    name: Utsläpp i skolor
     quantity: emissions
     unit: kt/a
     type: simple.MultiplicativeNode
@@ -1051,9 +1054,9 @@ nodes:
     - school_emissions
 
   - id: energy_per_area_school
-    name: Energiankulutus per ala koulussa
+    name_fi: Energiankulutus per ala koulussa
     name_en: Energy consumption per area schools
-    name_sv: Energikonsumtion per ytarea i skolor
+    name: Energikonsumtion per ytarea i skolor
     quantity: energy
     unit: kWh/a/m**2
     type: simple.AdditiveNode
@@ -1062,9 +1065,9 @@ nodes:
     - electricity_per_area_school
 
   - id: energy_school
-    name: Energiankulutus koulussa
+    name_fi: Energiankulutus koulussa
     name_en: Energy consumption schools
-    name_sv: Energikonsumtion i skolor
+    name: Energikonsumtion i skolor
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -1073,9 +1076,9 @@ nodes:
     - energy_per_area_school
 
   - id: electricity_school
-    name: Sähkönkulutus koulussa
+    name_fi: Sähkönkulutus koulussa
     name_en: Electricity consumption schools
-    name_sv: Elkonsumtion i skolor
+    name: Elkonsumtion i skolor
     quantity: energy
     unit: GWh/a
     type: simple.MultiplicativeNode
@@ -1084,9 +1087,9 @@ nodes:
     - electricity_per_area_school
 
   - id: electricity_cost_per_area_school
-    name: Sähkökustannus per ala koulussa
+    name_fi: Sähkökustannus per ala koulussa
     name_en: Electricity cost per area schools
-    name_sv: Elkostnad per ytarea i skolor
+    name: Elkostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -1095,9 +1098,9 @@ nodes:
     - price_of_electricity
 
   - id: heat_cost_per_area_school
-    name: Lämpökustannus per ala koulussa
+    name_fi: Lämpökustannus per ala koulussa
     name_en: Heat cost per area schools
-    name_sv: Värmekostnad per ytarea i skolor
+    name: Värmekostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -1106,9 +1109,9 @@ nodes:
     - price_of_heat
 
   - id: avoided_capacity_cost_per_area_school
-    name: Vältetty sähköntuotantokapasiteetti per ala koulussa
+    name_fi: Vältetty sähköntuotantokapasiteetti per ala koulussa
     name_en: Avoided capacity cost per area schools
-    name_sv: Undvikt utbuggnadskostnad per ytarea i skolor
+    name: Undvikt utbuggnadskostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -1120,9 +1123,9 @@ nodes:
     tags: capacity_cost
 
   - id: health_cost_per_area_school
-    name: Terveysvaikutus per ala koulussa
+    name_fi: Terveysvaikutus per ala koulussa
     name_en: Health cost per area schools
-    name_sv: Hälsokostnad per ytarea i skolor
+    name: Hälsokostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.FixedMultiplierNode
@@ -1134,9 +1137,9 @@ nodes:
     tags: health_cost
 
   - id: co2_cost_per_area_school
-    name: CO2-kustannus per ala koulussa
+    name_fi: CO2-kustannus per ala koulussa
     name_en: CO2 cost per area schools
-    name_sv: CO2-kostnad per ytarea i skolor
+    name: CO2-kostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: simple.MultiplicativeNode
@@ -1146,9 +1149,9 @@ nodes:
     tags: co2_cost
 
   - id: cost_per_area_school
-    name: Kustannus per ala koulussa
+    name_fi: Kustannus per ala koulussa
     name_en: Cost per area schools
-    name_sv: Kostnad per ytarea i skolor
+    name: Kostnad per ytarea i skolor
     quantity: currency
     unit: SEK/a/m**2
     type: costs.SelectiveNode
@@ -1161,9 +1164,9 @@ nodes:
     - co2_cost_per_area_school
 
   - id: cost_school
-    name: Kustannukset koulussa
+    name_fi: Kustannukset koulussa
     name_en: Costs schools
-    name_sv: Kostnader i skolor
+    name: Kostnader i skolor
     quantity: currency
     unit: MSEK/a
     type: simple.MultiplicativeNode
@@ -1179,9 +1182,9 @@ actions:
   # National actions for sensitivity analyses
 
   - id: price_of_co2
-    name: Hiilidioksidikustannus
+    name_fi: Hiilidioksidikustannus
     name_en: Cost of carbon dioxide
-    name_sv: Koldioxidkostnad
+    name: Koldioxidkostnad
     quantity: unit_price
     unit: SEK/t
     tags: cost_co2
@@ -1215,9 +1218,9 @@ actions:
       description_sv: Kostnadsökningstakt (%/a)
 
   - id: price_of_electricity
-    name: Sähkön hinta
+    name_fi: Sähkön hinta
     name_en: Price of electricity
-    name_sv: Elpris
+    name: Elpris
     quantity: unit_price
     unit: SEK/MWh
     type: energy_saving.EnergyCostAction
@@ -1257,9 +1260,9 @@ actions:
       value: 450
 
   - id: price_of_heat
-    name: Lämmityksen hinta
+    name_fi: Lämmityksen hinta
     name_en: Price of heat
-    name_sv: Värmepris
+    name: Värmepris
     quantity: unit_price
     unit: SEK/MWh
     type: energy_saving.EnergyCostAction
@@ -1302,9 +1305,11 @@ actions:
   # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=2083157528
 
   - id: improved_ventilation_single_family
-    name: Parannettu ilmanvaihto
+    name_fi: Parannettu ilmanvaihto
     name_en: Improved ventilation
-    name_sv: Förbättrad ventilation
+    name: Förbättrad ventilation
+    description: Förbättrad ventilation är en nödvändig åtgärd för att förbättra inomhusklimatet. 
+      Åtgärden ökar dock husets energianvändning.
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1328,9 +1333,9 @@ actions:
       value: -15.7
 
   - id: led_lighting_single_family
-    name: Vaihto LED -valaistukseen
+    name_fi: Vaihto LED -valaistukseen
     name_en: Change to LED lighting
-    name_sv: Byte till LED-belysning
+    name: Byte till LED-belysning
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1354,9 +1359,9 @@ actions:
       value: 1.4
 
   - id: change_hot_water_heater_single_family
-    name: Vaihda kuuman vedenlämmitin
+    name_fi: Vaihda kuuman vedenlämmitin
     name_en: Change hot water heater
-    name_sv: Byte varmvattenberedare
+    name: Byte varmvattenberedare
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1380,9 +1385,9 @@ actions:
       value: 17.1
 
   - id: direct_el_to_aahp_single_family
-    name: Vaihto suorasta sähköisestä sähköstä ilma-ilmalämpöpumppuun
+    name_fi: Vaihto suorasta sähköisestä sähköstä ilma-ilmalämpöpumppuun
     name_en: Change from direct electricity heating to air/air heat pump
-    name_sv: Byte från direktverkande el till luft/luftvärmepump
+    name: Byte från direktverkande el till luft/luftvärmepump
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1406,9 +1411,9 @@ actions:
       value: 23.52
 
   - id: control_and_management_measures_in_direct_el_single_family
-    name: Ohjaus- ja valvontatoimenpiteet suoralämmitetyissä taloissa
+    name_fi: Ohjaus- ja valvontatoimenpiteet suoralämmitetyissä taloissa
     name_en: Control and management measures in direct-heated houses
-    name_sv: Styr- och regleråtgärder i direktelvärmda hus
+    name: Styr- och regleråtgärder i direktelvärmda hus
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1432,9 +1437,9 @@ actions:
       value: 6.65
 
   - id: water_el_to_geothermal_single_family
-    name: Vaihto vesikiertosähkölämmityksestä geotermisen lämpöpumppuun
+    name_fi: Vaihto vesikiertosähkölämmityksestä geotermisen lämpöpumppuun
     name_en: Change from waterborne electric heating to geothermal heat pump
-    name_sv: Byte från vattenburen elvärme till bergvärmepump
+    name: Byte från vattenburen elvärme till bergvärmepump
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1458,9 +1463,9 @@ actions:
       value: 54.81
 
   - id: more_energy_efficient_fridge_freezer_lighting_single_family
-    name: Energiatehokkaampi jääkaappi-pakastin ja valaistus
+    name_fi: Energiatehokkaampi jääkaappi-pakastin ja valaistus
     name_en: More energy efficient fridge/freezer & lighting
-    name_sv: Mer energieffektiv kyl/frys & belysning
+    name: Mer energieffektiv kyl/frys & belysning
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1484,9 +1489,9 @@ actions:
       value: 3.8
 
   - id: direct_el_to_geothermal_with_water_single_family
-    name: Vaihto suorasta sähkölämmityksestä vesikiertoiseen maalämpöön
+    name_fi: Vaihto suorasta sähkölämmityksestä vesikiertoiseen maalämpöön
     name_en: Change from direct electric heating to geothermal with water distribution
-    name_sv: Byte från direktelvärme till bergvärmepump med vattenburen värmedistribution
+    name: Byte från direktelvärme till bergvärmepump med vattenburen värmedistribution
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1510,9 +1515,9 @@ actions:
       value: 71.12
 
   - id: control_and_management_measures_for_heating_boiler_single_family
-    name: Kattilan huolto- ja ohjaustoimenpiteet
+    name_fi: Kattilan huolto- ja ohjaustoimenpiteet
     name_en: Control and management measures for heating boiler
-    name_sv: Styr- och regleråtgärder för värmepanna
+    name: Styr- och regleråtgärder för värmepanna
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1536,9 +1541,9 @@ actions:
       value: 0.0
 
   - id: water_saving_tap_water_luminaires_single_family
-    name: Vesipihit suihkupäät ja hanat
+    name_fi: Vesipihit suihkupäät ja hanat
     name_en: Water-saving tap water luminaires
-    name_sv: Snålspolande tappvattenarmaturer
+    name: Snålspolande tappvattenarmaturer
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1562,9 +1567,9 @@ actions:
       value: 0.0
 
   - id: additional_wind_insulation_single_family
-    name: Lisätuulieristys
+    name_fi: Lisätuulieristys
     name_en: Additional wind insulation
-    name_sv: Tilläggsisolering av vind
+    name: Tilläggsisolering av vind
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1588,9 +1593,9 @@ actions:
       value: 0.0
 
   - id: more_energy_efficient_dishwasher_single_family
-    name: Energiatehokkaampi astianpesukone
+    name_fi: Energiatehokkaampi astianpesukone
     name_en: More energy efficient dishwasher
-    name_sv: Mer energieffektiv diskmaskin
+    name: Mer energieffektiv diskmaskin
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1614,9 +1619,9 @@ actions:
       value: 0.8
 
   - id: thermostat_valves_and_adjustment_single_family
-    name: Termostaattiventtiilit ja säätö
+    name_fi: Termostaattiventtiilit ja säätö
     name_en: Thermostat valves and adjustment
-    name_sv: Termostatventiler och injustering
+    name: Termostatventiler och injustering
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1640,9 +1645,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_windows_single_family
-    name: Ikkunoiden lisäeristys
+    name_fi: Ikkunoiden lisäeristys
     name_en: Additional insulation of windows
-    name_sv: Tilläggsisolering fönster
+    name: Tilläggsisolering fönster
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1666,9 +1671,9 @@ actions:
       value: 0.0
 
   - id: new_energy_efficient_doors_single_family
-    name: Uudet energiatehokkaat ovet
+    name_fi: Uudet energiatehokkaat ovet
     name_en: New energy efficient doors
-    name_sv: Nya energieffektiva dörrar
+    name: Nya energieffektiva dörrar
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1692,9 +1697,9 @@ actions:
       value: 0.0
 
   - id: solar_heating_single_family
-    name: Aurinkosälämmitys (25%)
+    name_fi: Aurinkosälämmitys (25%)
     name_en: Solar heating (25%)
-    name_sv: Solvärme (25%)
+    name: Solvärme (25%)
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1718,9 +1723,9 @@ actions:
       value: 0.0
 
   - id: solar_cells_single_family
-    name: Aurinkokennot (25%)
+    name_fi: Aurinkokennot (25%)
     name_en: Solar cells (25%)
-    name_sv: Solceller (25%)
+    name: Solceller (25%)
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1744,9 +1749,9 @@ actions:
       value: 18.0
 
   - id: more_energy_efficient_stove_single_family
-    name: Energiatehokkaampi liesi
+    name_fi: Energiatehokkaampi liesi
     name_en: More energy efficient stove
-    name_sv: Mer energieffektiv spis
+    name: Mer energieffektiv spis
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1770,9 +1775,9 @@ actions:
       value: 1.0
 
   - id: more_energy_efficient_windows_single_family
-    name: Vaihto energiatehokkaampiin ikkunoihin
+    name_fi: Vaihto energiatehokkaampiin ikkunoihin
     name_en: Change to more energy efficient windows
-    name_sv: Byte till mer energieffektiva fönster
+    name: Byte till mer energieffektiva fönster
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1796,9 +1801,9 @@ actions:
       value: 0.0
 
   - id: more_energy_efficient_washing_and_drying_single_family
-    name: Energiatehokkaampi pesu ja kuivaus
+    name_fi: Energiatehokkaampi pesu ja kuivaus
     name_en: More energy efficient washing and drying
-    name_sv: Mer energieffektiv tvätt/tork
+    name: Mer energieffektiv tvätt/tork
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1822,9 +1827,9 @@ actions:
       value: 0.9
 
   - id: additional_insulation_of_facade_single_family
-    name: Julkisivun lisäeristys
+    name_fi: Julkisivun lisäeristys
     name_en: Additional insulation of facade
-    name_sv: Tilläggsisolering av fasad
+    name: Tilläggsisolering av fasad
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1848,9 +1853,9 @@ actions:
       value: 11.28
 
   - id: heat_recovery_from_exhaust_ventilation_single_family
-    name: Päivitys poistoilman lämmön talteenottoon
+    name_fi: Päivitys poistoilman lämmön talteenottoon
     name_en: Upgrade to heat recovery from exhaust ventilation
-    name_sv: Uppgradering till FTX-ventilation
+    name: Uppgradering till FTX-ventilation
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1874,9 +1879,9 @@ actions:
       value: -5.7
 
   - id: direct_heating_to_district_heating_single_family
-    name: Vaihtaminen suorasta lämmityksestä piirilämmitykseen
+    name_fi: Vaihtaminen suorasta lämmityksestä piirilämmitykseen
     name_en: Change from direct heating to district heating
-    name_sv: Byte från direktelvärme till fjärrvärme
+    name: Byte från direktelvärme till fjärrvärme
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1900,9 +1905,9 @@ actions:
       value: 3.15
 
   - id: switching_from_direct_el_to_district_water_single_family
-    name: Siirtyminen suorasta sähkölämmityksestä kaukolämmitykseen ja vesikiertoon
+    name_fi: Siirtyminen suorasta sähkölämmityksestä kaukolämmitykseen ja vesikiertoon
     name_en: Switching from direct electric heating to district heating and waterborne heating distribution
-    name_sv: Byte från direktelvärme till fjärrvärme och vattenburen värmedistribution
+    name: Byte från direktelvärme till fjärrvärme och vattenburen värmedistribution
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1926,9 +1931,9 @@ actions:
       value: 1.05
 
   - id: low_energy_lamps_apartment
-    name: Vaihto vähäenergisiin valaisimiin
+    name_fi: Vaihto vähäenergisiin valaisimiin
     name_en: Replacement to low-energy lamps
-    name_sv: Byte till lågenergilampor
+    name: Byte till lågenergilampor
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1952,9 +1957,9 @@ actions:
       value: 1.0
 
   - id: pressure_controlled_fans_apartment
-    name: Vaihto paineohjattuihin puhaltimiin
+    name_fi: Vaihto paineohjattuihin puhaltimiin
     name_en: Change to pressure-controlled fans
-    name_sv: Byte till tryckstyrda fläktar
+    name: Byte till tryckstyrda fläktar
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -1978,9 +1983,9 @@ actions:
       value: 4.0
 
   - id: adjustment_of_ventilation_system_apartment
-    name: Ilmanvaihtojärjestelmän säätö
+    name_fi: Ilmanvaihtojärjestelmän säätö
     name_en: Adjustment of ventilation system
-    name_sv: Injustering ventilationssystem
+    name: Injustering ventilationssystem
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2004,9 +2009,9 @@ actions:
       value: 0.0
 
   - id: water_saving_tap_water_luminaires_apartment
-    name: Vettä säästävät vesikalusteet
+    name_fi: Vettä säästävät vesikalusteet
     name_en: Water-saving tap water luminaires
-    name_sv: Snålspolande tappvattenarmaturer
+    name: Snålspolande tappvattenarmaturer
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2030,9 +2035,9 @@ actions:
       value: 0.0
 
   - id: presence_controlled_led_lighting_apartment
-    name: Läsnäolokontrolloitu LED-valaistus
+    name_fi: Läsnäolokontrolloitu LED-valaistus
     name_en: Presence-controlled LED lighting
-    name_sv: Närvarostyrd LED-belysning
+    name: Närvarostyrd LED-belysning
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2056,9 +2061,9 @@ actions:
       value: 1.0
 
   - id: thermostats_valves_adjustment_heating_system_apartment
-    name: Termostaattien ja venttiilien vaihto sekä lämmitysjärjestelmän säätö
+    name_fi: Termostaattien ja venttiilien vaihto sekä lämmitysjärjestelmän säätö
     name_en: Replacement thermostats/valves + adjustment heating system
-    name_sv: Byte termostater/ventiler + injustering värmesystem
+    name: Byte termostater/ventiler + injustering värmesystem
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2082,9 +2087,9 @@ actions:
       value: 0.0
 
   - id: additional_wind_insulation_including_eaves_apartment
-    name: Tuulen lisäeristys, mukaan lukien räystäs
+    name_fi: Tuulen lisäeristys, mukaan lukien räystäs
     name_en: Additional wind insulation including eaves
-    name_sv: Tilläggsisolering av vind inkl takfot
+    name: Tilläggsisolering av vind inkl takfot
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2108,9 +2113,9 @@ actions:
       value: 0.0
 
   - id: painting_and_sealing_of_windows_and_doors_apartment
-    name: Ikkunoiden ja ovien maalaus ja tiivistäminen
+    name_fi: Ikkunoiden ja ovien maalaus ja tiivistäminen
     name_en: Painting and sealing of windows and doors
-    name_sv: Målning/tätning fönster/dörrar
+    name: Målning/tätning fönster/dörrar
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2134,9 +2139,9 @@ actions:
       value: 0.0
 
   - id: new_more_energy_efficient_entrance_basement_doors_apartment
-    name: Uudet energiatehokkaammat ulko- ja kellariovet
+    name_fi: Uudet energiatehokkaammat ulko- ja kellariovet
     name_en: New more energy efficient entrance/basement doors
-    name_sv: Nya mer energieffektiva entré-/källardörrar
+    name: Nya mer energieffektiva entré-/källardörrar
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2160,9 +2165,9 @@ actions:
       value: 0.0
 
   - id: heat_exchanger_for_wastewater_apartment
-    name: Jäteveden lämmönvaihdin
+    name_fi: Jäteveden lämmönvaihdin
     name_en: Heat exchanger for wastewater
-    name_sv: Värmeväxlare spillvatten
+    name: Värmeväxlare spillvatten
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2186,9 +2191,9 @@ actions:
       value: 0.0
 
   - id: individual_measurement_and_charge_of_hot_water_apartment
-    name: Kuuman veden yksilöllinen mittaus ja laskutus
+    name_fi: Kuuman veden yksilöllinen mittaus ja laskutus
     name_en: Individual measurement and charge of hot water
-    name_sv: Individuell mätning och debitering av varmvatten
+    name: Individuell mätning och debitering av varmvatten
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2212,9 +2217,9 @@ actions:
       value: 0.0
 
   - id: exhaust_air_heat_pump_apartment
-    name: Poistoilmalämpöpumppu, COP 3.0
+    name_fi: Poistoilmalämpöpumppu, COP 3.0
     name_en: Exhaust air heat pump, COP 3.0
-    name_sv: Frånluftsvärmepump, COP 3,0
+    name: Frånluftsvärmepump, COP 3,0
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2238,9 +2243,9 @@ actions:
       value: -11.2
 
   - id: machine_ventilation_and_heat_recovery_apartment
-    name: 'Vaihto koneelliseen ilmanvaihtoon ja lämmön talteenottoon 85 %:n tehokkuudella'
+    name_fi: 'Vaihto koneelliseen ilmanvaihtoon ja lämmön talteenottoon 85 %:n tehokkuudella'
     name_en: Upgrade to machine ventilation and heat recovery with 85 % efficiency
-    name_sv: Uppgradering till FTX-ventilation med 85 % verkningsgrad
+    name: Uppgradering till FTX-ventilation med 85 % verkningsgrad
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2264,9 +2269,9 @@ actions:
       value: -4.0
 
   - id: additional_insulation_of_windows_apartment
-    name: Ikkunoiden lisäeristys
+    name_fi: Ikkunoiden lisäeristys
     name_en: Additional insulation of windows
-    name_sv: Tilläggsisolering av fönster
+    name: Tilläggsisolering av fönster
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2290,9 +2295,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_facade_apartment
-    name: Julkisivun lisäeristys
+    name_fi: Julkisivun lisäeristys
     name_en: Additional insulation of facade
-    name_sv: Tilläggsisolering av fasad
+    name: Tilläggsisolering av fasad
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2316,9 +2321,9 @@ actions:
       value: 0.0
 
   - id: more_energy_efficient_windows_apartment
-    name: Vaihto energiatehokkaampiin ikkunoihin
+    name_fi: Vaihto energiatehokkaampiin ikkunoihin
     name_en: Change to more energy efficient windows
-    name_sv: Byte till mer energieffektiva fönster
+    name: Byte till mer energieffektiva fönster
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2342,9 +2347,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_warm_water_circulation_apartment
-    name: Lämpimän käyttöveden kierron lisäeristys
+    name_fi: Lämpimän käyttöveden kierron lisäeristys
     name_en: Additional insulation of warm water circulation
-    name_sv: Tilläggsisolering av VVC-system
+    name: Tilläggsisolering av VVC-system
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2368,9 +2373,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_heating_pipes_within_property_apartment
-    name: Kaukolämpöputkien lisäeristys tontilla
+    name_fi: Kaukolämpöputkien lisäeristys tontilla
     name_en: Additional insulation of district heating pipes within the property
-    name_sv: Tilläggsisolering av kulvert
+    name: Tilläggsisolering av kulvert
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2394,9 +2399,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_incoming_ventilation_ducts_apartment
-    name: Tuloilmakanavien lisäeristys
+    name_fi: Tuloilmakanavien lisäeristys
     name_en: Additional insulation of incoming ventilation ducts
-    name_sv: Tilläggsisolering av kanaler på kallvind
+    name: Tilläggsisolering av kanaler på kallvind
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2420,9 +2425,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_flanges_and_valves_apartment
-    name: Laippojen ja venttiilien lisäeristys
+    name_fi: Laippojen ja venttiilien lisäeristys
     name_en: Additional insulation of flanges and valves
-    name_sv: Tilläggsisolering av flänsar och ventiler
+    name: Tilläggsisolering av flänsar och ventiler
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2446,9 +2451,9 @@ actions:
       value: 0.0
 
   - id: additional_insulation_of_district_heating_center_apartment
-    name: Kaukolämmön lämmönvaihtimen lisäeristys
+    name_fi: Kaukolämmön lämmönvaihtimen lisäeristys
     name_en: Additional insulation of district heating center
-    name_sv: Tilläggsisolering av fjärrvärmeundercentral
+    name: Tilläggsisolering av fjärrvärmeundercentral
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2472,9 +2477,9 @@ actions:
       value: 0.0
 
   - id: need_adapted_control_of_ventilation_office
-    name: Tarpeenmukainen ilmanvaihdon säätö
+    name_fi: Tarpeenmukainen ilmanvaihdon säätö
     name_en: Need-adapted control of ventilation
-    name_sv: Behovsanpassad styrning av ventilation
+    name: Behovsanpassad styrning av ventilation
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2498,9 +2503,9 @@ actions:
       value: 5.0
 
   - id: operation_optimization_of_cooling_office
-    name: Jäähdytyksen käytön mukainen optimointi
+    name_fi: Jäähdytyksen käytön mukainen optimointi
     name_en: Operation optimization of cooling
-    name_sv: Driftoptimering av kyla
+    name: Driftoptimering av kyla
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2524,9 +2529,9 @@ actions:
       value: 1.0
 
   - id: upgrade_of_lighting_in_office_space_office
-    name: Valaistuksen päivitys toimistotilassa
+    name_fi: Valaistuksen päivitys toimistotilassa
     name_en: Upgrade of lighting in office space
-    name_sv: Uppgradering av belysning i kontorsytor
+    name: Uppgradering av belysning i kontorsytor
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2550,9 +2555,9 @@ actions:
       value: 10.0
 
   - id: upgrade_of_lighting_in_public_spaces_office
-    name: Valaistuksen päivitys julkisissa tiloissa
+    name_fi: Valaistuksen päivitys julkisissa tiloissa
     name_en: Upgrade of lighting in public spaces
-    name_sv: Uppgradering av belysning i allmänna utrymmen
+    name: Uppgradering av belysning i allmänna utrymmen
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2576,9 +2581,9 @@ actions:
       value: 4.0
 
   - id: upgrade_of_ventilation_office
-    name: Ilmanvaihdon päivitys
+    name_fi: Ilmanvaihdon päivitys
     name_en: Upgrade of ventilation
-    name_sv: Uppgradering av ventilation
+    name: Uppgradering av ventilation
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2602,9 +2607,9 @@ actions:
       value: 4.0
 
   - id: more_energy_efficient_windows_office
-    name: Vaihto energiatehokkaampiin ikkunoihin
+    name_fi: Vaihto energiatehokkaampiin ikkunoihin
     name_en: Change to more energy efficient windows
-    name_sv: Byte till mer energieffektiva fönster
+    name: Byte till mer energieffektiva fönster
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2628,9 +2633,9 @@ actions:
       value: 3.0
 
   - id: heat_recovery_in_ventilation_school_wooden
-    name: 'Puukoulu: Koneellinen ilmanvaihto ja lämmön talteenotto'
+    name_fi: 'Puukoulu: Koneellinen ilmanvaihto ja lämmön talteenotto'
     name_en: 'Wooden school: Replacement to ventilation with exhaust and supply air and heat recovery'
-    name_sv: 'Träskola: Byte till FTX-ventilation'
+    name: 'Träskola: Byte till FTX-ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2654,9 +2659,9 @@ actions:
       value: 3.0
 
   - id: thermostats_adjustment_of_heating_systems_school_stone
-    name: 'Kivikoulu: Termostaattien vaihto ja lämmitysjärjestelmän säätö'
+    name_fi: 'Kivikoulu: Termostaattien vaihto ja lämmitysjärjestelmän säätö'
     name_en: 'Stone school: Replacement of thermostats & adjustment of heating systems'
-    name_sv: 'Stenskola: Byte termostater & injustering värmesystem'
+    name: 'Stenskola: Byte termostater & injustering värmesystem'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2680,9 +2685,9 @@ actions:
       value: 0.0
 
   - id: need_adjusted_ventilation_school_stone
-    name: 'Kivikoulu: Tarveohjattu ilmanvaihto'
+    name_fi: 'Kivikoulu: Tarveohjattu ilmanvaihto'
     name_en: 'Stone school: Need-adjusted ventilation'
-    name_sv: 'Stenskola: Behovsstyrd ventilation'
+    name: 'Stenskola: Behovsstyrd ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2706,9 +2711,9 @@ actions:
       value: 4.0
 
   - id: thermostats_adjustment_of_heating_systems_school_wooden
-    name: 'Puukoulu: Termostaattien vaihto ja lämmitysjärjestelmän säätö'
+    name_fi: 'Puukoulu: Termostaattien vaihto ja lämmitysjärjestelmän säätö'
     name_en: 'Wooden school: Replacement of thermostats & adjustment of heating systems'
-    name_sv: 'Träskola: Byte termostater & injustering värmesystem'
+    name: 'Träskola: Byte termostater & injustering värmesystem'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2732,9 +2737,9 @@ actions:
       value: 0.0
 
   - id: need_adjusted_ventilation_school_wooden
-    name: 'Puukoulu: Tarveohjattu ilmanvaihto'
+    name_fi: 'Puukoulu: Tarveohjattu ilmanvaihto'
     name_en: 'Wooden school: Need-adjusted ventilation'
-    name_sv: 'Träskola: Behovsstyrd ventilation'
+    name: 'Träskola: Behovsstyrd ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2758,9 +2763,9 @@ actions:
       value: 2.0
 
   - id: radiation_collectors_on_warm_water_system_school_stone
-    name: 'Kivikoulu: Säteilykeräimien asennus lämpimän käyttöveden järjestelmään'
+    name_fi: 'Kivikoulu: Säteilykeräimien asennus lämpimän käyttöveden järjestelmään'
     name_en: 'Stone school: Installation of radiation collectors on warm water system'
-    name_sv: 'Stenskola: Installation av strålsamlare på tappvattenarmaturer'
+    name: 'Stenskola: Installation av strålsamlare på tappvattenarmaturer'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2784,9 +2789,9 @@ actions:
       value: 0.0
 
   - id: radiation_collectors_on_warm_water_system_school_wooden
-    name: 'Puukoulu: Säteilykeräimien asennus lämpimän käyttöveden järjestelmään'
+    name_fi: 'Puukoulu: Säteilykeräimien asennus lämpimän käyttöveden järjestelmään'
     name_en: 'Wooden school: Installation of radiation collectors on warm water system'
-    name_sv: 'Träskola: Installation av strålsamlare på tappvattenarmaturer'
+    name: 'Träskola: Installation av strålsamlare på tappvattenarmaturer'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2810,9 +2815,9 @@ actions:
       value: 0.0
 
   - id: heat_recovery_in_ventilation_school_stone
-    name: 'Kivikoulu: Lämmön talteenoton korvaaminen ilmanvaihdossa'
+    name_fi: 'Kivikoulu: Lämmön talteenoton korvaaminen ilmanvaihdossa'
     name_en: 'Stone school: Replacement of heat recovery in ventilation'
-    name_sv: 'Stenskola: Byte av FTX-ventilation'
+    name: 'Stenskola: Byte av FTX-ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2836,9 +2841,9 @@ actions:
       value: 3.5
 
   - id: heat_recovery_to_machine_ventilation_school_stone
-    name: 'Kivikoulu: Lämmön talteenoton lisäys koneelliseen ilmanvaihtoon'
+    name_fi: 'Kivikoulu: Lämmön talteenoton lisäys koneelliseen ilmanvaihtoon'
     name_en: 'Stone school: Add heat recovery to machine ventilation'
-    name_sv: 'Stenskola: Byte från FT-ventilation till FTX-ventilation'
+    name: 'Stenskola: Byte från FT-ventilation till FTX-ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2862,9 +2867,9 @@ actions:
       value: 0.0
 
   - id: heat_recovery_to_machine_ventilation_school_wooden
-    name: 'Puukoulu: Lämmön talteenoton lisäys koneelliseen ilmanvaihtoon'
+    name_fi: 'Puukoulu: Lämmön talteenoton lisäys koneelliseen ilmanvaihtoon'
     name_en: 'Wooden school: Add heat recovery to machine ventilation'
-    name_sv: 'Träskola: Byte från FT-ventilation till FTX-ventilation'
+    name: 'Träskola: Byte från FT-ventilation till FTX-ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2888,9 +2893,9 @@ actions:
       value: 1.0
 
   - id: modern_outdoor_lighting_school_stone
-    name: 'Kivikoulu: Moderni ulkoilmavalaistus'
+    name_fi: 'Kivikoulu: Moderni ulkoilmavalaistus'
     name_en: 'Stone school: Modern outdoor lighting'
-    name_sv: 'Stenskola: Modern utomhusbelysning'
+    name: 'Stenskola: Modern utomhusbelysning'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2914,9 +2919,9 @@ actions:
       value: 1.0
 
   - id: modern_outdoor_lighting_school_wooden
-    name: 'Puukoulu: Moderni ulkovalaistus'
+    name_fi: 'Puukoulu: Moderni ulkovalaistus'
     name_en: 'Wooden school: Modern outdoor lighting'
-    name_sv: 'Träskola: Modern utomhusbelysning'
+    name: 'Träskola: Modern utomhusbelysning'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2940,9 +2945,9 @@ actions:
       value: 1.0
 
   - id: additional_wind_insulation_for_roof_school_stone
-    name: 'Kivikoulu: Katon lisätuulieristys'
+    name_fi: 'Kivikoulu: Katon lisätuulieristys'
     name_en: 'Stone school: Additional wind insulation for roof'
-    name_sv: 'Stenskola: Tilläggsisolering tak/vind'
+    name: 'Stenskola: Tilläggsisolering tak/vind'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2966,9 +2971,9 @@ actions:
       value: 0.0
 
   - id: more_energy_efficient_windows_school_stone
-    name: 'Kivikoulu: Vaihda energiatehokkaampiin ikkunoihin'
+    name_fi: 'Kivikoulu: Vaihda energiatehokkaampiin ikkunoihin'
     name_en: 'Stone school: Switch to more energy efficient windows'
-    name_sv: 'Stenskola: Byte till mer energieffektiva fönster'
+    name: 'Stenskola: Byte till mer energieffektiva fönster'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -2992,9 +2997,9 @@ actions:
       value: 0.0
 
   - id: machine_exh_to_machine_vent_with_heat_recovery_school_stone
-    name: 'Kivikoulu: Vaihto koneellisesta poistosta koneelliseen ilmanvaihtoon ja lämmön talteenottoon'
+    name_fi: 'Kivikoulu: Vaihto koneellisesta poistosta koneelliseen ilmanvaihtoon ja lämmön talteenottoon'
     name_en: 'Stone school: Switch from machine exhaust to machine ventilation with heat recovery'
-    name_sv: 'Stenskola: Byte från F-ventilation till FTX-ventilation'
+    name: 'Stenskola: Byte från F-ventilation till FTX-ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -3018,9 +3023,9 @@ actions:
       value: -2.5
 
   - id: machine_exh_to_machine_vent_with_heat_recovery_school_wooden
-    name: 'Puukoulu: Vaihto koneellisesta poistosta koneelliseen ilmanvaihtoon ja lämmön talteenottoon'
+    name_fi: 'Puukoulu: Vaihto koneellisesta poistosta koneelliseen ilmanvaihtoon ja lämmön talteenottoon'
     name_en: 'Wooden school: Switch from machine exhaust to machine ventilation with heat recovery'
-    name_sv: 'Träskola: Byte F-ventilation till FTX-ventilation'
+    name: 'Träskola: Byte F-ventilation till FTX-ventilation'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -3044,9 +3049,9 @@ actions:
       value: -2.5
 
   - id: more_energy_efficient_windows_school_wooden
-    name: 'Puukoulu: Vaihto energiatehokkaampiin ikkunoihin'
+    name_fi: 'Puukoulu: Vaihto energiatehokkaampiin ikkunoihin'
     name_en: 'Wooden school: Switch to more energy efficient windows'
-    name_sv: 'Träskola: Byte till mer energieffektiva fönster'
+    name: 'Träskola: Byte till mer energieffektiva fönster'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -3070,9 +3075,9 @@ actions:
       value: 1.0
 
   - id: more_energy_efficient_lighting_school_stone
-    name: 'Kivikoulu: Energiatehokkaampi valaistus'
+    name_fi: 'Kivikoulu: Energiatehokkaampi valaistus'
     name_en: 'Stone school: More energy efficient lighting'
-    name_sv: 'Stenskola: Mer energieffektiv belysning'
+    name: 'Stenskola: Mer energieffektiv belysning'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -3096,9 +3101,9 @@ actions:
       value: 5.0
 
   - id: more_energy_efficient_lighting_school_wooden
-    name: 'Puukoulu: Energiatehokkaampi valaistus'
+    name_fi: 'Puukoulu: Energiatehokkaampi valaistus'
     name_en: 'Wooden school: More energy efficient lighting'
-    name_sv: 'Träskola: Mer energieffektiv belysning'
+    name: 'Träskola: Mer energieffektiv belysning'
     type: energy_saving.BuildingEnergySavingAction
     quantity: fraction
     unit: '%'
@@ -3123,22 +3128,22 @@ actions:
 
 pages:
   - id: home
-    name: Grön logik -projekti
+    name: Grön logik -projekt
     path: /
     type: emission
     node: net_emissions
-    lead_title: Grön logik -projektin päästöskenaariot
+    lead_title_fi: Grön logik -projektin päästöskenaariot
     lead_title_en: Grön logik project's emission scenarios
-    lead_title_sv: Projekt Grön logiks utsläppsscenarion
-    lead_paragraph: Grön logik -projekti tarkastelee rakennusten energiankulutusta ja 
+    lead_title: Projekt Grön logiks utsläppsscenarion
+    lead_paragraph_fi: Grön logik -projekti tarkastelee rakennusten energiankulutusta ja 
       eri toimien vaikutusta sen kautta ilmastopäästöihin.
     lead_paragraph_en: Grön logik project examines the energy consumption of buildings and
       how different actions reduce it and thus climate emissions.
-    lead_paragrap_sv: Grön logik projektet undersöker byggnaders energiförbrukning och
+    lead_paragraph: Grön logik projektet undersöker byggnaders energiförbrukning och
       hur olika åtgärder minskar det och därmed klimatutsläppen.
 
 #    - id: costs # Does not work yet
-#      name: Kustannukset
+#      name_fi: Kustannukset
 #      path: /costs
 #      type: currency
 #      node: social_costs
@@ -3146,30 +3151,47 @@ pages:
 
 scenarios:
   - id: baseline
-    name: Nykykehitys
+    name_fi: Nykykehitys
     name_en: Baseline
-    name_sv: Baslinje
-#    params:
-#    - id: window_replacement.enabled
-#      value: false
-#    - id: energy_saving_lamps.enabled
-#      value: true
+    name: Baslinje
+    all_actions_enabled: false
 
   - id: default
     default: true
-    name: Kaikki Grön logik -toimet
-    name_en: All Grön logik actions
-    name_sv: Alla Grön logik åtgärder
+    name_fi: Yhteiskunnalliset kustannukset
+    name_en: Social costs
+    name: Sociala kostnader
     all_actions_enabled: true
-#    params:
-#    - id: window_replacement.enabled
-#      value: true
+    params:
+    - id: include_energy_taxes
+      value: False
+    - id: include_co2
+      value: True
+    - id: include_health
+      value: True
+    - id: include_el_avoided
+      value: True
+
+  - id: private_costs
+    name_fi: Vain yksilölliset kustannukset
+    name_en: Only private costs costs
+    name: Privata kostnader
+    all_actions_enabled: true
+    params:
+    - id: include_energy_taxes
+      value: True
+    - id: include_co2
+      value: False
+    - id: include_health
+      value: False
+    - id: include_el_avoided
+      value: False
 
 #    - id: optimal
 #      default: true
-#      name: Vain kustannustehokkaat toimet
+#      name_fi: Vain kustannustehokkaat toimet
 #      name_en: Only cost-effective actions
-#      name_sv: Bara kosteffektiva åtgärder
+#      name: Bara kosteffektiva åtgärder
 #      all_actions_enabled: true
 #      params:
 #      - id: f_heat_pump.enabled
@@ -3178,7 +3200,7 @@ scenarios:
 #        value: False
 #      - id: window_replacement.enabled
 #        value: False
-#      - id: facade_insulation_single_family
+#      - id: facade_insulation_single_family.enabled
 #        value: False
 #      - id: upgrade_to_ftx_ventilation_single_family.enabled
 #        value: False
