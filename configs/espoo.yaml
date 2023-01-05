@@ -5,7 +5,8 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bf422ab63b0b33090925b2a141d7d275687355a1
+#  commit: bf422ab63b0b33090925b2a141d7d275687355a1
+  commit: 61d63424e744b72c6faef2d2c06780a467045b40
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
 owner: Espoon kaupunki
@@ -44,6 +45,12 @@ nodes:
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
   name: HSY:n päästöinventaario
+
+- id: building_heating
+  name: Rakennusten lämmitys
+  type: finland.hsy.AluesarjatNode
+  quantity: energy
+  unit: GWh/a
 
 pages:
 - id: home

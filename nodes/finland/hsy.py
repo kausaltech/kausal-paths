@@ -7,7 +7,8 @@ from nodes.calc import extend_last_historical_value
 from params import StringParameter, BoolParameter, Parameter
 from nodes import Node
 from nodes.constants import (
-    VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
+    VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, 
+    EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.simple import AdditiveNode
 from nodes.exceptions import NodeError
@@ -15,6 +16,46 @@ from nodes.node import NodeMetric
 
 
 BELOW_ZERO_WARNED = False
+
+
+class AluesarjatNode(Node):
+    input_datasets = [
+        'helsinki/aluesarjat/02um_rakennukset_lammitys'
+    ]
+    global_parameters = ['municipality_name']
+    metrics = {
+        VALUE_COLUMN: NodeMetric(unit='m**2', quantity='area'),
+    }
+
+    def compute(self) -> pd.DataFrame:
+        df = self.get_input_dataset()
+        muni_name = self.get_global_parameter_value('municipality_name')
+
+        df = self.get_input_dataset()
+        self.print_pint_df(df)
+        todrop = ['Alue', 'Tiedot']
+        if 'index' in df.columns:
+            todrop += ['index']
+        df = df[df['Alue'] == muni_name]
+        df = df[df['Tiedot'] == 'Kerrosala (m2)'].drop(columns=todrop)
+        df = df.rename(columns={'Vuosi': YEAR_COLUMN, 'value': VALUE_COLUMN})
+        for metric_id, metric in self.metrics.items():
+            if hasattr(df[metric_id], 'pint'):
+                df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
+            else:
+                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+
+        dimensions = ['Rakennuksen käyttötarkoitus', 'Rakennuksen lämmitystapa', 'Rakennuksen lämmitysaine']
+        df['Dimension'] = ''
+        for i in range(3):
+            if i > 0:
+                df['Dimension'] += '|'
+            df['Dimension'] += df[dimensions[i]].astype(str)
+        df[FORECAST_COLUMN] = False
+        keeps = list(set(df.columns) - set(dimensions))
+        df = df[keeps]
+        df = df.set_index([YEAR_COLUMN, 'Dimension'])
+        return df
 
 
 class HsyNode(Node):
@@ -61,11 +102,11 @@ class HsyNode(Node):
         df = df.set_index(['Year', 'Sector'])
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        for dim_id, dim in self.metrics.items():
-            if hasattr(df[dim_id], 'pint'):
-                df[dim_id] = self.convert_to_unit(df[dim_id], dim.unit)
+        for metric_id, metric in self.metrics.items():
+            if hasattr(df[metric_id], 'pint'):
+                df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
-                df[dim_id] = df[dim_id].astype('pint[' + str(dim.unit) + ']')
+                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
         return df
 
 
