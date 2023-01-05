@@ -1,15 +1,19 @@
 from __future__ import annotations
+from abc import ABC
+from dataclasses import InitVar, dataclass, field
 
 import hashlib
 import orjson
 from common.i18n import TranslatedString
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING, Union
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
     from nodes import Node
     from nodes.scenario import Scenario
+    from django.utils.functional import _StrPromise as StrPromise  # type: ignore
+
+I18nString = Union[TranslatedString, str, 'StrPromise']
 
 
 class ValidationError(Exception):
@@ -24,8 +28,8 @@ class ValidationError(Exception):
 @dataclass
 class Parameter:
     local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
-    label: Optional[TranslatedString | str] = None
-    description: Optional[TranslatedString | str] = None
+    label: Optional[I18nString] = None
+    description: Optional[I18nString] = None
 
     node: Optional[Node] = None
     "Set if this parameter is bound to a specific node"
@@ -98,25 +102,51 @@ class Parameter:
             return self.local_id
         return f'{self.node.id}.{self.local_id}'
 
-    def set_node(self, node):
+    def set_node(self, node: 'Node'):
         if self.node is not None:
             raise Exception(f"Node for parameter {self.global_id} already set")
         self.node = node
 
+    def has_unit(self) -> bool:
+        if isinstance(self, ParameterWithUnit) and self.unit is not None:
+            return True
+        return False
+
+    def get_unit(self) -> Unit:
+        if not self.has_unit():
+            raise Exception(f"Parameter ${self.global_id} does not have units")
+        return self.unit  # type: ignore
+
 
 @dataclass
-class NumberParameter(Parameter):
+class ParameterWithUnit:
+    unit: Unit | None = None
+    unit_str: InitVar[str | None] = None
+
+    def _init_unit(self, unit_str: str | None = None):
+        if hasattr(self, 'unit_str'):
+            if unit_str is None:
+                unit_str = self.unit_str  # type: ignore
+
+        if unit_str is not None:
+            from nodes.context import unit_registry
+            self.unit = unit_registry.parse_units(unit_str)
+
+        if self.unit is not None:
+            if not isinstance(self.unit, Unit):
+                raise Exception("str given for unit for parameter %s" % self.local_id)  # type: ignore
+
+
+@dataclass
+class NumberParameter(ParameterWithUnit, Parameter):
     value: Optional[float] = None
     min_value: Optional[float] = None
     max_value: Optional[float] = None
     step: Optional[float] = None
-    unit: Optional[Unit | str] = None
 
-    def __post_init__(self):
+    def __post_init__(self, unit_str: str | None = None):
+        self._init_unit(unit_str)
         super().__post_init__()
-        if self.unit is not None and isinstance(self.unit, str):
-            from nodes.context import unit_registry
-            self.unit = unit_registry(self.unit).units
 
     def clean(self, value: float | Quantity) -> float:
         # Store unit first if available
@@ -151,7 +181,7 @@ class NumberParameter(Parameter):
 
 @dataclass
 class PercentageParameter(NumberParameter):
-    unit = '%'
+    unit_str = '%'
 
 
 @dataclass

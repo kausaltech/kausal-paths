@@ -256,7 +256,7 @@ class ExposureResponse(Ovariable):
             incidence = incidence.Incidence[0]
             self.set_parameter_value('default_incidence', incidence)
         else:
-            incidence = self.get_parameter_value_w_unit('default_incidences')
+            incidence = self.get_parameter_value('default_incidences', units=True)
 
         erf = erfs.loc[erfs.Erf_context == erf_context].reset_index()
         assert len(erf) == 1
@@ -306,22 +306,22 @@ class ExposureResponse(Ovariable):
         print('erf_contexts:', self.get_parameter_value('erf_contexts'))
         print('route:', self.get_parameter_value('route'))
         print('erf_type:', self.get_parameter_value('erf_type'))
-        print('period:', self.get_parameter_value_w_unit('period'))
-        print('default_incidence:', self.get_parameter_value_w_unit('default_incidence'))
-        print('default_frexposed:', self.get_parameter_value_w_unit('default_frexposed'))
-        print('p_illness:', self.get_parameter_value_w_unit('p_illness'))
+        print('period:', self.get_parameter_value('period', units=True))
+        print('default_incidence:', self.get_parameter_value('default_incidence', units=True))
+        print('default_frexposed:', self.get_parameter_value('default_frexposed', units=True))
+        print('p_illness:', self.get_parameter_value('p_illness', units=True))
         print('exposure_agent:', self.get_parameter_value('exposure_agent'))
         print('response:', self.get_parameter_value('response'))
-        print('target_population_size:', self.get_parameter_value_w_unit('target_population_size'))
-        print('exposure_unit:', self.get_parameter_value_w_unit('exposure_unit'))
-        print('case_burden:', self.get_parameter_value_w_unit('case_burden'))
-        print('p1:', self.get_parameter_value_w_unit('p1'))
+        print('target_population_size:', self.get_parameter_value('target_population_size', units=True))
+        print('exposure_unit:', self.get_parameter_value('exposure_unit', units=True))
+        print('case_burden:', self.get_parameter_value('case_burden', units=True))
+        print('p1:', self.get_parameter_value('p1', units=True))
 #        print(self.get_parameter_value_w_unit('p1_2'))  # FIXME If not exists, give warning not error
-        print('p0:', self.get_parameter_value_w_unit('p0'))
+        print('p0:', self.get_parameter_value('p0', units=True))
 #        print(self.get_parameter_value_w_unit('p0_2'))
-        print('m1:', self.get_parameter_value_w_unit('m1'))
-        print('m2:', self.get_parameter_value_w_unit('m2'))
-        print('m3:', self.get_parameter_value_w_unit('m3'))
+        print('m1:', self.get_parameter_value('m1', units=True))
+        print('m2:', self.get_parameter_value('m2', units=True))
+        print('m3:', self.get_parameter_value('m3', units=True))
 
         classification = self.add_years(classification)
 
@@ -330,7 +330,7 @@ class ExposureResponse(Ovariable):
 
 class AttributableFraction(Ovariable):
     quantity = 'fraction'
-    unit = 'dimensionless'
+    default_unit = 'dimensionless'
 
     def postprocess_relative(self, rr, frexposed):
         '''AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
@@ -351,13 +351,13 @@ class AttributableFraction(Ovariable):
         # FIXME If erf has restrictions about e.g. pollutant or subgroup, these are NOT taken into account in exposures.
         frexposed = self.get_input('fraction', required=False)
         if frexposed is None:
-            frexposed = erf.get_parameter_value_w_unit('default_frexposed')
+            frexposed = erf.get_parameter_value('default_frexposed', units=True)
         incidence = self.get_input('incidence', required=False)
         if incidence is None:
-            incidence = erf.get_parameter_value_w_unit('default_incidence')
+            incidence = erf.get_parameter_value('default_incidence', units=True)
         erf_type = erf.get_parameter_value('erf_type')
-        period = erf.get_parameter_value_w_unit('period')
-        exposure_unit = erf.get_parameter_value_w_unit('exposure_unit')
+        period = erf.get_parameter_value('period', units=True)
+        exposure_unit = erf.get_parameter_value('exposure_unit', units=True)
         is_erf_compatible = exposures.Value.pint.units.is_compatible_with(exposure_unit)
 
         # If erf and exposures nodes are not in compatible units, converts both to exposure units
@@ -374,7 +374,7 @@ class AttributableFraction(Ovariable):
             exposure[VALUE_COLUMN] = exposure[VALUE_COLUMN].pint.to('mg/kg/d', 'exposure_generic')
 
         def pick_parameter(local_id):
-            value = erf.get_parameter_value_w_unit(local_id)
+            value = erf.get_parameter_value(local_id, units=True)
             if not is_erf_compatible:
                 power = local_id.split(' ')[0]
                 if power != 'p0':
@@ -470,7 +470,7 @@ class PopulationAttributableFraction(Ovariable):
     ] + Ovariable.allowed_parameters
 
     quantity = 'fraction'
-    unit = 'dimensionless'
+    default_unit = 'dimensionless'
 
     def compute(self):
         exposures = self.get_input('exposure')

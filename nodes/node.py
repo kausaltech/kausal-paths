@@ -15,8 +15,10 @@ import numpy as np
 import pandas as pd
 import pint_pandas
 from rich import print as pprint
+import networkx as nx
 
 from common.i18n import TranslatedString, get_modeltrans_attrs_from_str
+from common.perf import PerfCounter
 from common.utils import hash_unit
 from nodes.constants import (
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
@@ -24,6 +26,7 @@ from nodes.constants import (
     ensure_known_quantity
 )
 from params import Parameter
+from params.param import ParameterWithUnit
 
 from .context import Context
 from .datasets import Dataset, JSONDataset
@@ -117,9 +120,12 @@ class Node:
     baseline_values: Optional[pd.DataFrame]
 
     # When was this node last changed
-    modified_at: int | None
-    last_hash: bytes | None
-    last_hash_time: int | None
+    modified_at: int | None = None
+    last_hash: bytes | None = None
+    last_hash_time: int | None = None
+    param_hash: bytes | None = None
+    mtime_hash: bytes | None = None
+    dim_hash: bytes | None = None
 
     # Cache last historical year
     _last_historical_year: Optional[int]
@@ -131,9 +137,10 @@ class Node:
     def __post_init__(self): ...
 
     def __init__(
-        self, id: str, context: Context, name, quantity: str, description,
+        self, id: str, context: Context, name, unit: Unit, quantity: str,
+        description: Optional[Union[TranslatedString, str]] = None,
         color: str | None = None, order: int | None = None, is_outcome: bool = False,
-        unit=None, target_year_goal=None, input_datasets: List[Dataset] | None = None,
+        target_year_goal: float | None = None, input_datasets: List[Dataset] | None = None,
     ):
         if self.metrics:
             for dim in self.metrics.values():
@@ -164,9 +171,6 @@ class Node:
         self.parameters = {}
         self.tags = set()
         self.input_dataset_processors = []
-        self.modified_at = None
-        self.last_hash_time = None
-        self.last_hash = None
 
         kls = type(self)
         self.logger = logging.getLogger('%s.%s' % (kls.__module__, kls.__name__))
@@ -184,15 +188,31 @@ class Node:
         self.parameters[param.local_id] = param
         param.set_node(self)
 
+    def _mark_modified(self):
+        self.modified_at = perf_counter_ns()
+        for node in self.output_nodes:
+            node._mark_modified()
+
     def notify_parameter_change(self, param: Parameter):
         """
         Notify the node that an input parameter changed.
         """
-        self.modified_at = perf_counter_ns()
+        self.param_hash = None
+        # Propagate change notification to downstream nodes
+        self._mark_modified()
 
     def get_parameters(self):
         for param in self.parameters.values():
             yield param
+
+    @overload
+    def get_parameter(self, local_id: str, *, required: Literal[True] = True) -> Parameter: ...
+
+    @overload
+    def get_parameter(self, local_id: str, *, required: Literal[False]) -> Parameter | None: ...
+
+    @overload
+    def get_parameter(self, local_id: str, *, required: bool) -> Parameter | None: ...
 
     def get_parameter(self, local_id: str, required: bool = True):
         """Get the parameter with the given local id from this node's parameters."""
@@ -202,45 +222,41 @@ class Node:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         return None
 
-    @overload
-    def get_parameter_value(self, id: str, units: Literal[True]) -> Quantity: ...
 
     @overload
-    def get_parameter_value(self, id: str, required: Literal[True], units: Literal[True]) -> Quantity: ...
+    def get_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[True]) -> Quantity: ...
 
     @overload
-    def get_parameter_value(self, id: str, required: Literal[False], units: Literal[True]) -> Quantity | None: ...
+    def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[True]) -> Quantity | None: ...
 
     @overload
-    def get_parameter_value(self, id: str) -> Any: ...
+    def get_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[False] = False) -> Any: ...
 
-    def get_parameter_value(self, id: str, required: bool = True, units: bool = False) -> Any:
+    @overload
+    def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> Any | None: ...
+
+    def get_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> Any:
         param = self.get_parameter(id, required=required)
         if param is None:
             return None
         if units:
-            if not hasattr(param, 'unit'):
-                raise NodeError(self, f"Parameter {id} does not support units")
-            unit: Unit = param.unit
-            assert isinstance(unit, Unit)
+            unit = param.get_unit()
             return param.value * unit
         return param.value
 
     @overload
-    def get_parameter_value_w_unit(self, id: str) -> Quantity: ...
+    def get_global_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[True]) -> Quantity: ...
 
     @overload
-    def get_parameter_value_w_unit(self, id: str, required: Literal[False]) -> Optional[Quantity]: ...
+    def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[True]) -> Quantity | None: ...
 
-    def get_parameter_value_w_unit(self, id: str, required: bool = True) -> Optional[Quantity]:
-        return self.get_parameter_value(id, required=required, units=True)
+    @overload
+    def get_global_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[False] = False) -> Any: ...
 
-    def get_parameter_and_unit(self, id: str):
-        value = float(self.get_parameter_value(id))
-        unit = self.get_parameter_value_w_unit(id).units
-        return value, pint_pandas.PintType(unit)
+    @overload
+    def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> Any | None: ...
 
-    def get_global_parameter_value(self, id: str, required: bool = True, units: bool = False) -> Any:
+    def get_global_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> Any:
         if id not in self.global_parameters:
             raise NodeError(self, f"Attempting to access global parameter {id} which is not declared")
         if units:
@@ -249,6 +265,8 @@ class Node:
                 return None
             if not hasattr(param, 'unit'):
                 raise NodeError(self, f"Parameter {id} does not support units")
+            assert isinstance(param, ParameterWithUnit)
+            assert param.unit is not None
             return param.value * param.unit
         return self.context.get_parameter_value(id, required=required)
 
@@ -271,6 +289,7 @@ class Node:
         if self.input_dataset_processors:
             for proc in self.input_dataset_processors:
                 for idx, df in enumerate(list(dfs)):
+                    assert isinstance(df, pd.DataFrame)
                     df = proc.process_input_dataset(df)
                     dfs[idx] = df
         return dfs
@@ -332,13 +351,7 @@ class Node:
     def _get_cached_hash(self) -> bytes | None:
         if self.modified_at is None or self.last_hash is None or self.last_hash_time is None:
             return None
-        max_modified_at = self.modified_at
-        for node in self.input_nodes:
-            if node.modified_at is None:
-                continue
-            if node.modified_at > max_modified_at:
-                max_modified_at = node.modified_at
-        if max_modified_at <= self.last_hash_time:
+        if self.modified_at <= self.last_hash_time:
             return self.last_hash
         return None
 
@@ -357,11 +370,11 @@ class Node:
         def hash_part(part: str, val: str | bytes):
             if isinstance(val, str):
                 if debug:
-                    print('\t%10s: "%s"' % (part, val))
+                    print('\t%s: "%s"' % (part, val))
                 val = val.encode('utf8')
             else:
                 if debug:
-                    print('\t%10s: %s' % (part, base64.b64encode(val)))
+                    print('\t%s: "%s"' % (part, base64.b64encode(val).decode('ascii')))
             h.update(val)
 
         if self.unit:
@@ -369,38 +382,54 @@ class Node:
             hash_part('unit', hash_unit(self.unit))
 
         if self.metrics:
-            for dim_id, dim in self.metrics.items():
-                hash_part('dim %s' % dim_id, dim.calculate_hash(dim_id))
+            if self.dim_hash is None:
+                dim_hash = bytes()
+                for dim_id, dim in self.metrics.items():
+                    dim_hash += dim.calculate_hash(dim_id)
+                self.dim_hash = dim_hash
+            hash_part('metrics', self.dim_hash)
 
         for node in self.input_nodes:
             hash_part('input %s' % node.id, node.calculate_hash(cache=cache))
-        for param in self.parameters.values():
-            hash_part('param %s' % param.local_id, param.calculate_hash())
-        for param_id in self.global_parameters:
-            gp = self.context.get_parameter(param_id, required=False)
-            if gp is not None:
-                hash_part('global param %s' % gp.global_id, gp.calculate_hash())
+
+        if self.param_hash is None:
+            param_hash = bytes()
+            for param in self.parameters.values():
+                param_hash += param.calculate_hash()
+                # hash_part('param %s' % param.local_id, param.calculate_hash())
+            for param_id in self.global_parameters:
+                gp = self.context.get_parameter(param_id, required=False)
+                if gp is not None:
+                    param_hash += gp.calculate_hash()
+                    # hash_part('global param %s' % gp.global_id, gp.calculate_hash())
+            self.param_hash = param_hash
+        hash_part('params', self.param_hash)
 
         for ds in self.input_dataset_instances:
             hash_part('dataset %s' % ds.id, ds.calculate_hash(self.context))
 
-        for klass in type(self).mro():
-            if klass == object:
-                continue
-            if klass in cache:
-                mod_mtime = cache[klass]
-            else:
-                fn = getattr(klass, '_paths_fname', None)
-                if fn is None:
-                    fn = inspect.getfile(klass)
-                    setattr(klass, '_paths_fname', fn)
+        if self.mtime_hash is None:
+            mtime_hash = bytes()
 
-                try:
-                    mod_mtime = os.path.getmtime(fn)
-                except TypeError:
+            for klass in type(self).mro():
+                if klass == object:
                     continue
-                cache[klass] = mod_mtime
-            hash_part('mtime %s' % klass.__name__, str(mod_mtime))
+                if klass in cache:
+                    mod_mtime = cache[klass]
+                else:
+                    fn = getattr(klass, '_paths_fname', None)
+                    if fn is None:
+                        fn = inspect.getfile(klass)
+                        setattr(klass, '_paths_fname', fn)
+
+                    try:
+                        mod_mtime = os.path.getmtime(fn)
+                    except TypeError:
+                        continue
+                    cache[klass] = mod_mtime
+                mtime_hash += str(mod_mtime).encode('ascii')
+            self.mtime_hash = mtime_hash
+        hash_part('mtime', self.mtime_hash)
 
         ret = h.digest()
         self.last_hash = ret
@@ -408,32 +437,36 @@ class Node:
         return ret
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
+        pc = PerfCounter(
+            '%s [%s.%s]' % (self.id, type(self).__module__, type(self).__name__),
+            level=PerfCounter.Level.INFO if self.debug else PerfCounter.Level.DEBUG
+        )
         self.context.perf_context.node_start(self)
 
         node_hash = self.calculate_hash().hex()
         out = self.context.cache.get(node_hash)
-        if self.debug:
-            print('%s: cache %s' % (self.id, 'hit' if out is not None else 'miss'))
-        if out is None or self.debug or self.context.skip_cache:
+        pc.display("Cache %s" % ('hit' if out is not None else 'miss'))
+        if out is None or self.context.skip_cache:
             try:
                 out = self.compute()
+                pc.display('Computation done')
             except Exception as e:
                 print('Exception when computing node %s' % self.id)
                 raise e
             if out is None:
                 raise NodeError(self, "Node returned no output")
+
+            if out.index.duplicated().any():
+                raise NodeError(self, "Node output has duplicate index rows")
+
+            if FORECAST_COLUMN in out.columns:
+                if out.dtypes[FORECAST_COLUMN] != bool:
+                    raise NodeError(self, "Forecast column is not a boolean")
+
             cache_hit = False
         else:
             cache_hit = True
         self.context.perf_context.record_cache(self, is_hit=cache_hit)
-
-        assert out is not None
-        if out.index.duplicated().any():
-            raise NodeError(self, "Node output has duplicate index rows")
-
-        if FORECAST_COLUMN in out.columns:
-            if out.dtypes[FORECAST_COLUMN] != bool:
-                raise NodeError(self, "Forecast column is not a boolean")
 
         if not cache_hit:
             self.context.cache.set(node_hash, out)
@@ -448,6 +481,7 @@ class Node:
             out = out[cols]
             out = out.rename(columns={metric: VALUE_COLUMN})
             self.context.perf_context.node_end(self)
+            pc.display('Done (with dimensions)')
             return out.copy()
 
         if target_node is not None:
@@ -468,7 +502,9 @@ class Node:
                     cols.append(FORECAST_COLUMN)
                 out = out[cols]
                 out = out.rename(columns={col_name: VALUE_COLUMN})
-
+            pc.display('Done (with target node)')
+        else:
+            pc.display('Done (normal exit)')
         self.context.perf_context.node_end(self)
         return out.copy()
 
@@ -529,7 +565,7 @@ class Node:
     def convert_to_unit(self, s: pd.Series, unit: Unit) -> pd.Series:
         if not s.pint.units.is_compatible_with(unit):
             raise NodeError(self, 'Series with type %s is not compatible with %s' % (
-                s.Units, unit
+                s.pint.units, unit
             ))
         return s.astype(pint_pandas.PintType(unit))
 
@@ -610,15 +646,18 @@ class Node:
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
 
-    def add_input_node(self, node):
+    def add_input_node(self, node: Node):
         if node in self.input_nodes:
             raise Exception(f"Node {node} already added to input nodes for {self.id}")
         self.input_nodes.append(node)
 
-    def add_output_node(self, node):
+    def add_output_node(self, node: Node):
         if node in self.output_nodes:
             raise Exception(f"Node {node} already added to output nodes for {self.id}")
         self.output_nodes.append(node)
+
+    def is_connected_to(self, other: Node):
+        return nx.has_path(self.context.node_graph, self.id, other.id)
 
     def generate_baseline_values(self):
         assert self.baseline_values is None

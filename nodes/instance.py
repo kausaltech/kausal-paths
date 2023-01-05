@@ -20,6 +20,7 @@ from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
+from nodes.units import Unit
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
@@ -164,7 +165,7 @@ class InstanceLoader:
                 unit = getattr(node_class, 'unit', None)
             if not unit and not metrics:
                 raise Exception('Node %s has no unit set' % config['id'])
-        if unit and not isinstance(unit, pint.Unit):
+        if unit and not isinstance(unit, Unit):
             unit = self.context.unit_registry(unit).units
 
         quantity = config.get('quantity')
@@ -203,12 +204,12 @@ class InstanceLoader:
             id=config['id'],
             context=self.context,
             name=self.make_trans_string(config, 'name'),
+            quantity=quantity,
+            unit=unit,
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
             is_outcome=config.get('is_outcome', False),
-            unit=unit,
-            quantity=quantity,
             target_year_goal=config.get('target_year_goal'),
             input_datasets=datasets,
         )
@@ -241,6 +242,10 @@ class InstanceLoader:
                     fields['description'] = description
                 if name is not None:
                     fields['name'] = description
+                unit = fields.get('unit', None)
+                if unit is not None:
+                    if isinstance(unit, str):
+                        fields['unit'] = self.context.unit_registry.parse_units(unit)
                 param = type(param_obj)(**fields)
                 node.add_parameter(param)
 
@@ -301,8 +306,8 @@ class InstanceLoader:
         node_class = getattr(mod, 'SectorEmissions')
         dataset_id = self.config.get('emission_dataset')
         emission_unit = self.config.get('emission_unit')
-        if emission_unit is not None:
-            emission_unit = self.context.unit_registry(emission_unit).units
+        assert emission_unit is not None
+        emission_unit = self.context.unit_registry.parse_units(emission_unit)
 
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
@@ -370,14 +375,7 @@ class InstanceLoader:
                 in_node.add_output_node(node)
                 node.add_input_node(in_node)
 
-        g = nx.DiGraph()
-        g.add_nodes_from([n.id for n in ctx.nodes.values()])
-        for node in ctx.nodes.values():
-            for output in node.output_nodes:
-                g.add_edge(node.id, output.id)
-
-        if not nx.is_directed_acyclic_graph(g):
-            raise Exception("Node graph is not directed (there might be loops)")
+        ctx.finalize_nodes()
 
     def setup_scenarios(self):
         default_scenario = None
@@ -414,6 +412,10 @@ class InstanceLoader:
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
             pc['local_id'] = param_id
+            unit_str = pc.get('unit', None)
+            if unit_str is not None:
+                unit = context.unit_registry.parse_units(unit_str)
+                pc['unit'] = unit
             param_type = context.get_parameter_type(param_id)
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:

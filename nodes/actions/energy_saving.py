@@ -1,16 +1,18 @@
+import typing
+
 import pandas as pd
 import numpy as np
 import pint_pandas
 
 from numba import njit, int32
 from pint_pandas import PintType
-from nodes.context import unit_registry
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeMetric
 from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
 from nodes.calc import nafill_all_forecast_years
-from params import NumberParameter
+from params import Parameter, NumberParameter
+from params.utils import sep_unit_pt
 
 from .action import ActionNode
 from .simple import ExponentialAction
@@ -45,65 +47,65 @@ class LEDRetrofitAction(ActionNode):
         NumberParameter(
             local_id='yearly_retrofit_number_baseline',
             label=_('Number of LED bulbs changed per year (baseline)'),
-            unit='pcs/a',
+            unit_str='pcs/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='yearly_retrofit_number',
             label=_('Number of additional LED bulbs changed per year'),
-            unit='pcs/a',
+            unit_str='pcs/a',
         ),
         NumberParameter(
             local_id='yearly_demand_increase',
             label=_('Yearly increase in total number of luminaires'),
-            unit='pcs/a',
+            unit_str='pcs/a',
         ),
         NumberParameter(
             local_id='traditional_luminaire_maintenance_cost',
             label=_('Yearly maintenance cost of traditional luminaires'),
-            unit='EUR/pcs/a',
+            unit_str='EUR/pcs/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='led_luminaire_maintenance_cost',
             label=_('Yearly maintenance cost of LED luminaires'),
-            unit='EUR/pcs/a',
+            unit_str='EUR/pcs/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='traditional_luminaire_power',
             label=_('Traditional luminaire power consumption'),
-            unit='W',
+            unit_str='W',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='led_luminaire_power',
             label=_('LED luminaire power consumption'),
-            unit='W',
+            unit_str='W',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='traditional_luminaire_active_time',
             label=_('Traditional luminaire yearly active time'),
-            unit='h/pcs/a',
+            unit_str='h/pcs/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='led_luminaire_active_time',
             label=_('LED luminaire yearly active time'),
-            unit='h/pcs/a',
+            unit_str='h/pcs/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='led_luminaire_maintenance_cost',
             label=_('Yearly maintenance cost of LED luminaires'),
-            unit='EUR/pcs/a',
+            unit_str='EUR/pcs/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='led_luminaire_investment_cost',
             label=_('Investment cost of one LED retrofit'),
-            unit='EUR/pcs',
+            unit_str='EUR/pcs',
             is_customizable=False,
         ),
     ]
@@ -155,22 +157,22 @@ class LEDRetrofitAction(ActionNode):
 
         # Calculate energy consumption, energy cost and maintenance cost
         # for traditional luminaires
-        active_time = self.get_parameter_value_w_unit('traditional_luminaire_active_time')
-        power = self.get_parameter_value_w_unit('traditional_luminaire_power')
-        maint_cost = self.get_parameter_value_w_unit('traditional_luminaire_maintenance_cost')
+        active_time = self.get_parameter_value('traditional_luminaire_active_time', units=True)
+        power = self.get_parameter_value('traditional_luminaire_power', units=True)
+        maint_cost = self.get_parameter_value('traditional_luminaire_maintenance_cost', units=True)
         df['TraditionalEnergy'] = df['NrTraditional'] * active_time * power
         df['TraditionalEnergy'] = df['NrTraditional'] * active_time * power
         df['TraditionalEnergyCost'] = (df['TraditionalEnergy'] * el_price).astype('pint[EUR/a]')
-        df['TraditionalMaintenanceCost'] = (df['NrTraditional'] * maint_cost).astype('pint[EUR/a]')
+        df['TraditionalMaintenanceCost'] = (df['NrTraditional'] * maint_cost).astype('pint[EUR/a]')  # type: ignore
 
         # Ditto for LEDs, but include yearly investment costs
-        active_time = self.get_parameter_value_w_unit('led_luminaire_active_time')
-        power = self.get_parameter_value_w_unit('led_luminaire_power')
-        maint_cost = self.get_parameter_value_w_unit('led_luminaire_maintenance_cost')
-        inv_cost = self.get_parameter_value_w_unit('led_luminaire_investment_cost')
+        active_time = self.get_parameter_value('led_luminaire_active_time', units=True)
+        power = self.get_parameter_value('led_luminaire_power', units=True)
+        maint_cost = self.get_parameter_value('led_luminaire_maintenance_cost', units=True)
+        inv_cost = self.get_parameter_value('led_luminaire_investment_cost', units=True)
         df['LEDEnergy'] = df['NrLED'] * active_time * power
         df['LEDEnergyCost'] = (df['LEDEnergy'] * el_price).astype('pint[EUR/a]')
-        df['LEDMaintenanceCost'] = (df['NrLED'] * maint_cost).astype('pint[EUR/a]')
+        df['LEDMaintenanceCost'] = (df['NrLED'] * maint_cost).astype('pint[EUR/a]')  # type: ignore
         df['LEDInvestmentCost'] = (df['NrNewLED'] * inv_cost)
 
         total_cost = (
@@ -186,52 +188,114 @@ class LEDRetrofitAction(ActionNode):
 ############################################
 
 
+class BuildingEnergyParams(typing.NamedTuple):
+    start_year: int
+    nr_years: int
+    lifetime: int
+    renovation_rate: float
+    renovation_potential: float
+    investment_cost: float
+    maint_cost: float
+    he_saving: float
+    el_saving: float
+
+
+class BuildingEnergyRet(typing.NamedTuple):
+    year: np.ndarray
+    forecast: np.ndarray
+    total_renovated: np.ndarray
+    cost: np.ndarray
+    he_saving: np.ndarray
+    el_saving: np.ndarray
+
+
+@njit(cache=True, nogil=True)
+def simulate_building_energy_saving(params: BuildingEnergyParams):
+    years = np.arange(params.start_year, params.start_year + params.nr_years)
+    total_renovated = np.zeros(params.nr_years, dtype=float)
+    renovated_per_year = np.zeros(params.nr_years, dtype=float)
+    cost = np.zeros(params.nr_years, dtype=float)
+    he_saving = np.zeros(params.nr_years, dtype=float)
+    el_saving = np.zeros(params.nr_years, dtype=float)
+    forecast = np.zeros(params.nr_years, dtype=int32)
+
+    for i in range(params.nr_years):
+        share = i * params.renovation_rate
+        if share > params.renovation_potential:
+              share = params.renovation_potential
+        total_renovated[i] = share
+
+        if i:
+            renovated_per_year[i] = share - total_renovated[i - 1]
+            forecast[i] = 1
+        else:
+            forecast[i] = 0
+        investment_round = i // params.lifetime
+        if investment_round:
+            renovated_per_year[i] += renovated_per_year[i - params.lifetime]
+
+        cost[i] = renovated_per_year[i] * params.investment_cost
+        cost[i] += total_renovated[i] * params.maint_cost
+        he_saving[i] = -total_renovated[i] * params.he_saving
+        el_saving[i] = -total_renovated[i] * params.el_saving
+
+    return BuildingEnergyRet(
+        year=years, forecast=forecast, total_renovated=total_renovated, cost=cost,
+        he_saving=he_saving, el_saving=el_saving
+    )
+
+
 class BuildingEnergySavingAction(ActionNode):
-    '''NOTE! The output values are given per TOTAL building floor area,
+    """
+    Action that has an energy saving effect on building stock (per floor area).
+
+    The output values are given per TOTAL building floor area,
     not per RENOVATEABLE building floor area. This is useful because
     the costs and savings from total renovations sum up to a meaningful
-    impact on nodes that are given per floor area.'''
+    impact on nodes that are given per floor area.
+    """
+
     metrics = {
         VALUE_COLUMN: NodeMetric('%', 'fraction'),
         'RenovCost': NodeMetric('SEK/a/m**2', 'currency'),
         'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
         'Electricity': NodeMetric('kWh/a/m**2', 'energy_per_area')
     }
-    allowed_parameters = [
+    allowed_parameters: typing.ClassVar[list[Parameter]] = [
         NumberParameter(
             local_id='investment_lifetime',
             label=_('Investment lifetime (a)'),
-            unit='a',
+            unit_str='a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='investment_cost',
             label=_('Investment cost (SEK/m2)'),
-            unit='SEK/m**2',
+            unit_str='SEK/m**2',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='maintenance_cost',
             label=_('Maintenance cost (SEK/m2/a)'),
-            unit='SEK/m**2/a',
+            unit_str='SEK/m**2/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='heat_saving',
             label=_('Heat saving (kWh/m2/a)'),
-            unit='kWh/m**2/a',
+            unit_str='kWh/m**2/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='electricity_saving',
             label=_('Electricity saving (kWh/m2/a)'),
-            unit='kWh/m**2/a',
+            unit_str='kWh/m**2/a',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='renovation_potential',
             label=_('Renovation potential (% of floor area)'),
-            unit='%',
+            unit_str='%',
             is_customizable=False,
         ),
     ]
@@ -240,23 +304,73 @@ class BuildingEnergySavingAction(ActionNode):
     ]
 
     def compute_effect(self) -> pd.DataFrame:
-
         # Global parameters
-        renovation_rate_baseline = self.context.get_parameter_value_w_unit('renovation_rate_baseline')
+        renovation_rate_param = self.get_global_parameter_value('renovation_rate_baseline', units=True)
+        renovation_rate_baseline = renovation_rate_param.to('1/a').m
+        target_year = self.context.target_year
+        current_year = self.context.instance.maximum_historical_year
+        assert current_year is not None
+
+        # Local parameters
+        lifetime = self.get_parameter_value('investment_lifetime', units=True).to('a').m
+        renovation_potential_param = self.get_parameter_value('renovation_potential', units=True)
+        renovation_potential: float = renovation_potential_param.to('dimensionless').m  # type: ignore
+        investment_cost = self.get_parameter_value('investment_cost', units=True)
+        maint_cost = self.get_parameter_value('maintenance_cost', units=True)
+        he_saving = self.get_parameter_value('heat_saving', units=True)
+        el_saving = self.get_parameter_value('electricity_saving', units=True)
+
+        cost_pt = pint_pandas.PintType(maint_cost.units)
+        he_pt = pint_pandas.PintType(he_saving.units)
+        el_pt = pint_pandas.PintType(el_saving.units)
+
+        # Calculations
+        if self.is_enabled():
+            renovation_rate = 1 / lifetime
+        else:
+            renovation_rate = renovation_rate_baseline
+
+        params = BuildingEnergyParams(
+            start_year=current_year,
+            nr_years=target_year - current_year + 1,
+            lifetime=lifetime,
+            renovation_rate=renovation_rate,
+            renovation_potential=renovation_potential,
+            investment_cost=investment_cost.m,
+            maint_cost=maint_cost.m,
+            he_saving=he_saving.m,
+            el_saving=el_saving.m
+        )
+
+        ret = simulate_building_energy_saving(params)
+
+        cols = {
+            VALUE_COLUMN: pint_pandas.PintArray(ret.total_renovated * 100, '%'),
+            'RenovCost': pint_pandas.PintArray(ret.cost, cost_pt),
+            'Heat': pint_pandas.PintArray(ret.he_saving, he_pt),
+            'Electricity': pint_pandas.PintArray(ret.el_saving, el_pt),
+            'Forecast': ret.forecast.astype(bool),
+        }
+        df = pd.DataFrame(cols, index=ret.year)
+        return df
+
+    def compute_effect_old(self) -> pd.DataFrame:
+        # Global parameters
+        renovation_rate_baseline = self.context.get_parameter_value('renovation_rate_baseline', units=True)
         renovation_rate_baseline = renovation_rate_baseline.to('1/a').m
         target_year = self.context.target_year
         current_year = self.context.instance.maximum_historical_year
 
         # Local parameters
-        lifetime = self.get_parameter_value_w_unit('investment_lifetime').to('a').m
-        renovation_potential = self.get_parameter_value_w_unit('renovation_potential')
+        lifetime = self.get_parameter_value('investment_lifetime', units=True).to('a').m
+        renovation_potential = self.get_parameter_value('renovation_potential', units=True)
         renovation_potential = renovation_potential.to('dimensionless').m
-        investment_cost = self.get_parameter_value_w_unit('investment_cost')
-        maint_cost = self.get_parameter_value_w_unit('maintenance_cost')
+        investment_cost = self.get_parameter_value('investment_cost', units=True)
+        maint_cost = self.get_parameter_value('maintenance_cost', units=True)
         cost_pt = pint_pandas.PintType(maint_cost.units)
-        he_saving = self.get_parameter_value_w_unit('heat_saving')
+        he_saving = self.get_parameter_value('heat_saving', units=True)
         he_pt = pint_pandas.PintType(he_saving.units)
-        el_saving = self.get_parameter_value_w_unit('electricity_saving')
+        el_saving = self.get_parameter_value('electricity_saving', units=True)
         el_pt = pint_pandas.PintType(el_saving.units)
 
         # Calculations
@@ -273,7 +387,9 @@ class BuildingEnergySavingAction(ActionNode):
 
         # Reinvestments after renovation potential reached
         for round in range(1, len(df.index) // lifetime):
-            cost += df[VALUE_COLUMN].shift(lifetime * round, fill_value=0)
+            s = df[VALUE_COLUMN].shift(lifetime * round, fill_value=0)
+            cost += s
+
         cost = cost.diff().fillna(0)
         cost = cost * investment_cost.m
         cost += df[VALUE_COLUMN] * maint_cost.m
@@ -300,41 +416,41 @@ class EnergyCostAction(ExponentialAction):
         NumberParameter(
             local_id='added_value_tax',
             label='Added value tax (%)',
-            unit='%',
+            unit_str='%',
             is_customizable=False
         ),
         NumberParameter(
             local_id='network_price',
             label='Network price (SEK/MWh)',
-            unit='SEK/MWh',
+            unit_str='SEK/MWh',
             is_customizable=False
         ),
         NumberParameter(
             local_id='handling_fee',
             label='Handling fee (SEK/MWh)',
-            unit='SEK/MWh',
+            unit_str='SEK/MWh',
             is_customizable=False
         ),
         NumberParameter(
             local_id='certificate',
             label='Certificate (SEK/MWh)',
-            unit='SEK/MWh',
+            unit_str='SEK/MWh',
             is_customizable=False
         ),
         NumberParameter(
             local_id='energy_tax',
             label='Energy tax (SEK/MEh)',
-            unit='SEK/MWh',
+            unit_str='SEK/MWh',
             is_customizable=False
         )
     ]
 
     def compute_effect(self):
-        added_value_tax = self.get_parameter_value_w_unit('added_value_tax')
-        network_price, net_pt = self.get_parameter_and_unit('network_price')
-        handling_fee, han_pt = self.get_parameter_and_unit('handling_fee')
-        certificate, cer_pt = self.get_parameter_and_unit('certificate')
-        energy_tax, ene_pt = self.get_parameter_and_unit('energy_tax')
+        added_value_tax = self.get_parameter_value('added_value_tax', units=True)
+        network_price, net_pt = sep_unit_pt(self.get_parameter_value('network_price', units=True))
+        handling_fee, han_pt = sep_unit_pt(self.get_parameter_value('handling_fee', units=True))
+        certificate, cer_pt = sep_unit_pt(self.get_parameter_value('certificate', units=True))
+        energy_tax, ene_pt = sep_unit_pt(self.get_parameter_value('energy_tax', units=True))
         include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
 
         df = self.compute_exponential()
