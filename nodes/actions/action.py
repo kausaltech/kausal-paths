@@ -171,8 +171,6 @@ class ActionEfficiencyPair:
             if not len(df):
                 # No impact for this action, skip it
                 continue
-            # df = df.loc[df.index <= context.target_year]  
-            # FIXME target_year should slice this differently. Or should this be done at frontend?
             cost = df['Cost'].sum() * Quantity('1 a')
             if self.invert_cost:
                 cost *= -1
