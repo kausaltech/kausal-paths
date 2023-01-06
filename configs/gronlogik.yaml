@@ -138,6 +138,41 @@ params:
     min_value: 0
     max_value: 2
     unit: '%/a'
+  - id: price_of_co2
+    value: 6450
+    unit: SEK/t
+    is_customizable: True
+    label: Koldioxidkostnad (SEK/t)
+#    description: Koldioxidkostnad. Uppdaterade utifrån ASEK - EU ETS, eftersom kostnaderna
+#      för utsläppsrätter redan är internaliserade i privatekonomiska kostnader. 
+#      Förut 7000kr/ton co2. Nu 7000-550=6450. (550 var genomsnittspriset 2021)
+#      ASEK 7.0, Trafikverkets Analysmetod och samhällsekonomiska kalkylvärden (2020)
+#      https://www.naturvardsverket.se/om-oss/aktuellt/nyheter-och-pressmeddelanden/utslappen-okade-med-106-procent-i-eus-utslappshandel-2021/
+  - id: price_of_co2_annual_change
+    value: 3
+    unit: '%'
+    is_customizable: True
+    label: CO2 kostnadsökningtakt (%/år)
+  - id: price_of_electricity
+    value: 0.670
+    unit: SEK/kWh
+    is_customizable: True
+    label: Nuvarande elpris (SEK/kWh)
+  - id: price_of_electricity_annual_change
+    value: 0
+    unit: '%'
+    is_customizable: True
+    label: Kostnadsökningstakt av elpris (%/år)
+  - id: price_of_heat
+    value: 0.6944
+    unit: SEK/kWh
+    is_customizable: True
+    label: Nuvarande värmepris (SEK/kWh)
+  - id: price_of_heat_annual_change
+    value: 0
+    unit: '%'
+    is_customizable: True
+    label: Kostnadsökningstakt av värmepris (%/a)
   - id: include_energy_taxes
 #    label: Include energy taxes?
     label: Inkludera energiskatter?
@@ -202,10 +237,102 @@ nodes:
   - id: discount_node
     name_fi: Diskontto
     name_en: Discount
-    name: Discount
+    name: Diskontering
     quantity: ratio
     unit: '%'
-    type: costs.Discount
+    type: costs.ExponentialNode
+    params:
+    - id: current_value
+      value: 1
+      unit: dimensionless
+    - id: annual_change_name
+      value: discount_rate
+    - id: decreasing_rate
+      value: True
+
+  - id: price_of_co2
+    name_fi: Hiilidioksidikustannus
+    name_en: Cost of carbon dioxide
+    name: Koldioxidkostnad
+    quantity: unit_price
+    unit: SEK/t
+    tags: cost_co2
+    type: costs.ExponentialNode
+    params:
+    - id: current_value_name
+      value: price_of_co2
+    - id: annual_change_name
+      value: price_of_co2_annual_change
+
+  - id: base_price_of_electricity
+    name_fi: Sähkön veroton hinta
+    name_en: Price of electricity wo tax
+    name: Elpris utan skatt
+    quantity: unit_price
+    unit: SEK/kWh
+    type: costs.ExponentialNode
+    historical_values: [[2019, 1.330], [2021, 2.5365]]
+    params:
+    - id: current_value_name
+      value: price_of_electricity
+    - id: annual_change_name
+      value: price_of_electricity_annual_change
+
+  - id: price_of_electricity
+    name_fi: Sähkön hinta
+    name_en: Price of electricity
+    name: Elpris
+    quantity: unit_price
+    unit: SEK/kWh
+    type: costs.EnergyCostNode
+    input_nodes:
+    - base_price_of_electricity
+    params:
+    - id: added_value_tax
+      value: 25
+    - id: network_price
+      value: 0.989
+    - id: handling_fee
+      value: 0.228
+    - id: certificate
+      value: 0.32
+    - id: energy_tax
+      value: 0.450
+
+  - id: base_price_of_heat
+    name_fi: Lämmityksen veroton hinta
+    name_en: Price of heat wo tax
+    name: Värmepris utan skatt
+    quantity: unit_price
+    unit: SEK/kWh
+    type: costs.ExponentialNode
+    historical_values: [[2019, 0.940], [2021, 0.868]]
+    params:
+    - id: current_value_name
+      value: price_of_heat
+    - id: annual_change_name
+      value: price_of_heat_annual_change
+
+  - id: price_of_heat
+    name_fi: Lämmön hinta
+    name_en: Price of heat
+    name: Värmepris
+    quantity: unit_price
+    unit: SEK/kWh
+    type: costs.EnergyCostNode
+    input_nodes:
+    - base_price_of_heat
+    params:
+    - id: added_value_tax
+      value: 25
+    - id: network_price
+      value: 0.0
+    - id: handling_fee
+      value: 0.0
+    - id: certificate
+      value: 0.0
+    - id: energy_tax
+      value: 0.0
 
   - id: social_cost
     name_fi: Sosiaaliset kustannukset
@@ -1179,127 +1306,6 @@ nodes:
 #
 
 actions:
-  # National actions for sensitivity analyses
-
-  - id: price_of_co2
-    name_fi: Hiilidioksidikustannus
-    name_en: Cost of carbon dioxide
-    name: Koldioxidkostnad
-    quantity: unit_price
-    unit: SEK/t
-    tags: cost_co2
-    decision_level: nation
-    group: general
-    type: simple.ExponentialAction
-    params:
-    - id: current_value
-      values:
-        default: 6450
-      min_value: 3000
-      max_value: 15000
-      step: 100
-      unit: SEK/t
-      description: Hiilidioksidin nykykustannukset
-      description_en: Current cost of CO2
-      description_sv: Koldioxidkostnad. Uppdaterade utifrån ASEK - EU ETS, eftersom kostnaderna
-        för utsläppsrätter redan är internaliserade i privatekonomiska kostnader. 
-        Förut 7000kr/ton co2. Nu 7000-550=6450. (550 var genomsnittspriset 2021)
-        ASEK 7.0, Trafikverkets Analysmetod och samhällsekonomiska kalkylvärden (2020)
-        https://www.naturvardsverket.se/om-oss/aktuellt/nyheter-och-pressmeddelanden/utslappen-okade-med-106-procent-i-eus-utslappshandel-2021/
-    - id: annual_change
-      values:
-        default: 3
-      min_value: 0
-      max_value: 10
-      step: 0.5
-      unit: '%'
-      description: Kustannusten nousuvauhti (%/a)
-      description_en: Cost increase rate (%/a)
-      description_sv: Kostnadsökningstakt (%/a)
-
-  - id: price_of_electricity
-    name_fi: Sähkön hinta
-    name_en: Price of electricity
-    name: Elpris
-    quantity: unit_price
-    unit: SEK/MWh
-    type: energy_saving.EnergyCostAction
-    historical_values: [[2019, 1330], [2021, 2536.5]]
-    tags: price_of_electricity
-    decision_level: nation
-    params:
-    - id: current_value
-      values:
-        default: 670
-      min_value: 400
-      max_value: 3000
-      step: 100
-      unit: SEK/MWh
-      description: Sähkön nykyhinta (SEK/MWh)
-      description_en: Current electricity price (SEK/MWh)
-      description_sv: Nuvarande elpris (SEK/MWh)
-    - id: annual_change
-      values:
-        default: 0
-      min_value: -2
-      max_value: 4
-      step: 0.5
-      unit: '%'
-      description: Kustannusten nousuvauhti (%/a)
-      description_en: Cost increase rate (%/a)
-      description_sv: Kostnadsökningstakt (%/a)
-    - id: added_value_tax
-      value: 25
-    - id: network_price
-      value: 989
-    - id: handling_fee
-      value: 228
-    - id: certificate
-      value: 32
-    - id: energy_tax
-      value: 450
-
-  - id: price_of_heat
-    name_fi: Lämmityksen hinta
-    name_en: Price of heat
-    name: Värmepris
-    quantity: unit_price
-    unit: SEK/MWh
-    type: energy_saving.EnergyCostAction
-    historical_values: [[2019, 940], [2021, 868]]
-    tags: price_of_heat
-    decision_level: nation
-    params:
-    - id: current_value
-      values:
-        default: 694.4
-      min_value: 400
-      max_value: 1500
-      step: 10
-      unit: SEK/MWh
-      description: Lämmön nykyhinta (SEK/MWh)
-      description_en: Current heat price (SEK/MWh)
-      description_sv: Nuvarande värmepris (SEK/MWh)
-    - id: annual_change
-      values:
-        default: 0
-      min_value: -2
-      max_value: 4
-      step: 0.5
-      unit: '%'
-      description: Kustannusten nousuvauhti (%/a)
-      description_en: Cost increase rate (%/a)
-      description_sv: Kostnadsökningstakt (%/a)
-    - id: added_value_tax
-      value: 25
-    - id: network_price
-      value: 0
-    - id: handling_fee
-      value: 0
-    - id: certificate
-      value: 0
-    - id: energy_tax
-      value: 0
 
   # Grön logik: ACTIONS
   # Data from https://docs.google.com/spreadsheets/d/1pJLc6al6Hi-aCTz6gsQhaRwcMWqW0GqI/edit#gid=2083157528

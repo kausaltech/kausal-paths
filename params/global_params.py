@@ -73,3 +73,33 @@ class IncludeHealth(BoolParameter):
 class IncludeElAvoided(BoolParameter):
     name = _('Include avoided electricity capacity variable in calculations?')
     id = 'include_el_avoided'
+
+
+class PriceOfCo2(NumberParameter):
+    name = _('Price of CO2')
+    id = 'price_of_co2'
+
+
+class PriceOfCo2AnnualChange(NumberParameter):
+    name = _('Price of CO2 annual change')
+    id = 'price_of_co2_annual_change'
+
+
+class PriceOfElectricity(NumberParameter):
+    name = _('Price of electricity')
+    id = 'price_of_electricity'
+
+
+class PriceOfElectricityAnnualChange(NumberParameter):
+    name = _('Price of electricity annual change')
+    id = 'price_of_electricity_annual_change'
+
+
+class PriceOfHeat(NumberParameter):
+    name = _('Price of Heat')
+    id = 'price_of_heat'
+
+
+class PriceOfHeatAnnualChange(NumberParameter):
+    name = _('Price of heat annual change')
+    id = 'price_of_heat_annual_change'

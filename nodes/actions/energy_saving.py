@@ -403,13 +403,13 @@ class BuildingEnergySavingAction(ActionNode):
 
 class EnergyCostAction(ExponentialAction):
     metrics = {
-        VALUE_COLUMN: NodeMetric('SEK/MWh', 'currency'),
-        'EnergyPrice': NodeMetric('SEK/MWh', 'currency'),
-        'AddedValueTax': NodeMetric('SEK/MWh', 'currency'),
-        'NetworkPrice': NodeMetric('SEK/MWh', 'currency'),
-        'HandlingFee': NodeMetric('SEK/MWh', 'currency'),
-        'Certificate': NodeMetric('SEK/MWh', 'currency'),
-        'EnergyTax': NodeMetric('SEK/MWh', 'currency')
+        VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
+        'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
+        'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),
+        'NetworkPrice': NodeMetric('SEK/kWh', 'currency'),
+        'HandlingFee': NodeMetric('SEK/kWh', 'currency'),
+        'Certificate': NodeMetric('SEK/kWh', 'currency'),
+        'EnergyTax': NodeMetric('SEK/kWh', 'currency')
     }
     global_parameters: list[str] = ['include_energy_taxes']
     allowed_parameters = ExponentialAction.allowed_parameters + [
@@ -421,26 +421,26 @@ class EnergyCostAction(ExponentialAction):
         ),
         NumberParameter(
             local_id='network_price',
-            label='Network price (SEK/MWh)',
-            unit_str='SEK/MWh',
+            label='Network price (SEK/kWh)',
+            unit_str='SEK/kWh',
             is_customizable=False
         ),
         NumberParameter(
             local_id='handling_fee',
-            label='Handling fee (SEK/MWh)',
-            unit_str='SEK/MWh',
+            label='Handling fee (SEK/kWh)',
+            unit_str='SEK/kWh',
             is_customizable=False
         ),
         NumberParameter(
             local_id='certificate',
-            label='Certificate (SEK/MWh)',
-            unit_str='SEK/MWh',
+            label='Certificate (SEK/kWh)',
+            unit_str='SEK/kWh',
             is_customizable=False
         ),
         NumberParameter(
             local_id='energy_tax',
-            label='Energy tax (SEK/MEh)',
-            unit_str='SEK/MWh',
+            label='Energy tax (SEK/kWh)',
+            unit_str='SEK/kWh',
             is_customizable=False
         )
     ]
