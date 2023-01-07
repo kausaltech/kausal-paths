@@ -36,3 +36,4 @@ pygments-graphql
 watchfiles
 django-oauth-toolkit
 pycryptodome
+pydantic

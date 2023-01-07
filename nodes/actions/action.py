@@ -126,7 +126,7 @@ class ActionEfficiencyPair:
     cost_node: Node
     impact_node: Node
     unit: Unit
-    plot_limit_efficiency: float
+    plot_limit_efficiency: float | None
     invert_cost: bool
     invert_impact: bool
     label: TranslatedString | str | None
@@ -134,7 +134,7 @@ class ActionEfficiencyPair:
     @classmethod
     def from_config(
         cls, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
-        plot_limit_efficiency: float = None,
+        plot_limit_efficiency: float | None = None,
         invert_cost: bool = False, invert_impact: bool = True,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:

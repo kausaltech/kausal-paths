@@ -12,7 +12,7 @@ class CachingUnitRegistry(pint.UnitRegistry):
     unit_cache: dict[str, pint.Unit] | None = None
     Unit: Type[PlainUnit]
 
-    def parse_units(self, input_string: str, as_delta: Optional[bool] = None, case_sensitive: Optional[bool] = None) -> pint.Unit:
+    def parse_units(self, input_string: str, as_delta: Optional[bool] = None, case_sensitive: Optional[bool] = None) -> PlainUnit:
         if self.unit_cache is None:
             self.unit_cache = dict()
         cached_unit = self.unit_cache.get(input_string)

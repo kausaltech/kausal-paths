@@ -4,14 +4,13 @@ from typing import ClassVar, Tuple, Union
 import numpy as np
 import pandas as pd
 from nodes.calc import extend_last_historical_value
-from params import StringParameter, BoolParameter, Parameter
-from nodes import Node
+from params import StringParameter, Parameter
+from nodes import Node, NodeMetric
 from nodes.constants import (
-    VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
+    FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.simple import AdditiveNode
 from nodes.exceptions import NodeError
-from nodes.node import NodeMetric
 
 
 BELOW_ZERO_WARNED = False
@@ -25,7 +24,6 @@ class HsyNode(Node):
     metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
 
     def compute(self) -> pd.DataFrame:
@@ -35,7 +33,7 @@ class HsyNode(Node):
         todrop = ['Kaupunki']
         if 'index' in df.columns:
             todrop += ['index']
-        df = df[df['Kaupunki'] == muni_name].drop(columns=todrop)
+        df = df.loc[df['Kaupunki'] == muni_name].drop(columns=todrop)
         df = df.rename(columns={
             'Vuosi': YEAR_COLUMN,
             'Päästöt': EMISSION_QUANTITY,
@@ -50,14 +48,14 @@ class HsyNode(Node):
                 BELOW_ZERO_WARNED = True
             df.loc[below_zero, [EMISSION_QUANTITY, ENERGY_QUANTITY]] = 0
 
-        df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
+        # df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
         df['Sector'] = ''
         for i in range(1, 5):
             if i > 1:
                 df['Sector'] += '|'
             df['Sector'] += df['Sektori%d' % i].astype(str)
 
-        df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
+        df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, 'Sector']]
         df = df.set_index(['Year', 'Sector'])
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
@@ -73,12 +71,12 @@ class HsyNodeMixin:
     allowed_parameters: ClassVar[list[Parameter]] = [
         StringParameter(
             local_id='sector',
-            label='Sector path in ALaS',
+            label='Sector path in HSY emission database',
             is_customizable=False
         ),
     ]
 
-    def get_sector(self: Union[Node, 'HsyNodeMixin'], column: str) -> Tuple[pd.DataFrame, list[Node]]:
+    def get_sector(self: Union[Node, 'HsyNodeMixin'], columns: str | list[str], sector: str | None = None, multi_index: bool = False) -> Tuple[pd.DataFrame, list[Node]]:
         assert isinstance(self, Node)
         nodes = list(self.input_nodes)
         for node in nodes:
@@ -90,18 +88,30 @@ class HsyNodeMixin:
         # Remove the HsyNode from the list of nodes to be added together
         nodes.remove(node)
         df = node.get_output()
-        sector = self.get_parameter_value('sector')
-        try:
-            df_xs = df.xs(sector, level='Sector')
-            assert isinstance(df_xs, pd.DataFrame)
-            df = df_xs
-        except KeyError:
-            raise NodeError(self, "'Sector' level not found in input")
 
-        df = df[[column]]
-        df = df.rename(columns={column: VALUE_COLUMN})
+        sector_name: str
+        if sector is None:
+            sector_name = self.get_parameter_value('sector')
+        else:
+            sector_name = sector
+
+        matching_sectors = df.index.get_level_values('Sector').str.startswith(sector_name)
+        if not matching_sectors.any():
+            raise NodeError(self, "Sector level '%s' not found in input" % sector_name)
+
+        df = df.loc[matching_sectors]
+        if multi_index:
+            df_xs = df.groupby(['Year', 'Sector']).sum()
+        else:
+            df_xs = df.groupby('Year').sum()
+        assert isinstance(df_xs, pd.DataFrame)
+        df = df_xs
+
+        if isinstance(columns, str):
+            columns = [columns]
+        df = df[columns].copy()
         df['Forecast'] = False
-        df = extend_last_historical_value(df, self.context.target_year)
+        df = extend_last_historical_value(df, self.context.model_end_year)
         return df, nodes
 
 
@@ -112,19 +122,10 @@ class HsyEnergyConsumption(AdditiveNode, HsyNodeMixin):
 
     def compute(self) -> pd.DataFrame:
         df, other_nodes = self.get_sector(ENERGY_QUANTITY)
+        df = df.rename(columns={ENERGY_QUANTITY: VALUE_COLUMN})
+        assert VALUE_COLUMN in df
+
         # If there are other input nodes connected, add them with this one.
-        if len(other_nodes):
-            df = self.add_nodes(df, other_nodes)
-        return df
-
-
-class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
-    default_unit = 'g/kWh'
-    quantity = EMISSION_FACTOR_QUANTITY
-    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
-
-    def compute(self) -> pd.DataFrame:
-        df, other_nodes = self.get_sector(EMISSION_FACTOR_QUANTITY)
         if len(other_nodes):
             df = self.add_nodes(df, other_nodes)
         return df
@@ -137,6 +138,63 @@ class HsyEmissions(AdditiveNode, HsyNodeMixin):
 
     def compute(self) -> pd.DataFrame:
         df, other_nodes = self.get_sector(EMISSION_QUANTITY)
+        df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
+        assert VALUE_COLUMN in df
         if len(other_nodes):
             df = self.add_nodes(df, other_nodes)
         return df
+
+
+class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
+    default_unit = 'g/kWh'
+    quantity = EMISSION_FACTOR_QUANTITY
+    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
+
+    def compute(self) -> pd.DataFrame:
+        df, other_nodes = self.get_sector([ENERGY_QUANTITY, EMISSION_QUANTITY])
+        df[VALUE_COLUMN] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
+        df = df.drop(columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
+
+        # If there are other input nodes connected, add them with this one.
+        if len(other_nodes):
+            df = self.add_nodes(df, other_nodes)
+        return df
+
+
+class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
+    default_unit = 'GWh/a'
+    quantity = ENERGY_QUANTITY
+
+    output_dimension_ids = [
+        'building_heat_source',
+        'building_use',
+    ]
+
+    def compute(self) -> pd.DataFrame:
+        df, _ = self.get_sector(ENERGY_QUANTITY, sector='Lämmitys', multi_index=True)
+        df = df.reset_index().set_index(YEAR_COLUMN)
+        df['building_use'] = df['Sector'].apply(lambda x: x.split('|')[-1])
+        df['building_heat_source'] = df['Sector'].apply(lambda x: x.split('|')[-2])
+
+        use_dim = self.output_dimensions['building_use']
+        df['building_use'] = use_dim.series_to_ids(df['building_use'])
+        heat_dim = self.output_dimensions['building_heat_source']
+        df['building_heat_source'] = heat_dim.series_to_ids(df['building_heat_source'])
+
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[ENERGY_QUANTITY])
+        df = df.reset_index()
+        df = df.set_index([YEAR_COLUMN, 'building_use', 'building_heat_source'])[[VALUE_COLUMN, FORECAST_COLUMN]]
+        return df
+
+
+class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin):
+    default_unit = 'kWh/cap/a'
+    quantity = PER_CAPITA_QUANTITY
+    input_datasets = ['population']
+
+    def compute(self) -> pd.DataFrame:
+        df, other_nodes = self.get_sector(ENERGY_QUANTITY)
+        pop_df = self.get_input_dataset()
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].div(pop_df[VALUE_COLUMN], axis='index')
+        print(df)
+        exit()

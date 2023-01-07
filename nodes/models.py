@@ -226,6 +226,7 @@ class InstanceConfig(models.Model):
             self.save()
             site.delete()
             rp.get_descendants(inclusive=True).delete()
+        self.nodes.all().delete()
         super().delete(**kwargs)
 
     def save(self, *args, **kwargs):

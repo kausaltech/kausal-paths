@@ -22,16 +22,21 @@ MILEAGE_QUANTITY = 'mileage'
 EMISSION_FACTOR_QUANTITY = 'emission_factor'
 CURRENCY_QUANTITY = 'currency'
 UNIT_PRICE_QUANTITY = 'unit_price'
+FLOOR_AREA_QUANTITY = 'floor_area'
 NUMBER_QUANTITY = 'number'
+PER_CAPITA_QUANTITY = 'per_capita'
 ACTIVITY_QUANTITIES = [EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'mass']
 
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
     EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, UNIT_PRICE_QUANTITY,
-    'population', 'per_capita', 'fuel_consumption', 'ratio', 'exposure', 'exposure-response',
-    'disease_burden', 'case_burden',
+    PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
+    'population', 'per_capita', 'fuel_consumption', 'ratio',
+    'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'energy_per_area', 'area',
 ]
+
+DEFAULT_METRIC = 'default'
 
 
 def ensure_known_quantity(quantity: str):

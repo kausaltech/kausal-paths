@@ -25,7 +25,7 @@ from .units import CachingUnitRegistry, Unit
 from .perf import PerfContext
 
 if TYPE_CHECKING:
-    from .node import Node
+    from .node import Node, Dimension
     from .instance import Instance
     from .scenario import CustomScenario, Scenario
     from nodes.actions.action import ActionEfficiencyPair, ActionNode
@@ -78,6 +78,10 @@ class Context:
     global_parameters: dict[str, Parameter]
     scenarios: dict[str, Scenario]
     custom_scenario: CustomScenario
+
+    dimensions: dict[str, Dimension]
+    """Global dimensions available for nodes."""
+
     target_year: int
     model_end_year: int
     unit_registry: CachingUnitRegistry
@@ -119,6 +123,7 @@ class Context:
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
         self.action_efficiency_pairs = []
+        self.dimensions = {}
 
     def finalize_nodes(self):
         """Finalize the node graph.

@@ -86,7 +86,10 @@ class AdditiveNode(SimpleNode):
             node_outputs.append((node, node_df))
 
         if df is None:
-            df = node_outputs.pop(0)[1]
+            node, df = node_outputs.pop(0)
+            if self.debug:
+                print('%s: adding output from node %s' % (self.id, node.id))
+                self.print_pint_df(df)
 
         cols = df.columns.values
         if VALUE_COLUMN not in cols:

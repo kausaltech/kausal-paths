@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 
+from dataclasses import dataclass
 import logging
 import hashlib
 import os
@@ -9,7 +10,7 @@ import inspect
 import json
 import typing
 from time import perf_counter_ns
-from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union, Set, overload
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Sequence, Union, Set, overload
 
 import numpy as np
 import pandas as pd
@@ -17,13 +18,14 @@ import pint_pandas
 from rich import print as pprint
 import networkx as nx
 
-from common.i18n import TranslatedString, get_modeltrans_attrs_from_str
+from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
 from common.perf import PerfCounter
+from common.types import Identifier, MixedCaseIdentifier
 from common.utils import hash_unit
 from nodes.constants import (
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
     MILEAGE_QUANTITY, VALUE_COLUMN, YEAR_COLUMN,
-    ensure_known_quantity
+    ensure_known_quantity, DEFAULT_METRIC
 )
 from params import Parameter
 from params.param import ParameterWithUnit
@@ -31,6 +33,7 @@ from params.param import ParameterWithUnit
 from .context import Context
 from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
+from .dimensions import Dimension
 from .units import Unit, Quantity
 
 if typing.TYPE_CHECKING:
@@ -38,43 +41,89 @@ if typing.TYPE_CHECKING:
 
 
 class NodeMetric:
-    id: str
+    id: MixedCaseIdentifier  # FIXME: Convert to Identifier
+    column_id: str
     unit: Unit
     quantity: str
+    node: Node
+    label: I18nString | None
+    default_unit: str | Unit
 
-    def __init__(self, unit: Union[str, Unit], quantity: str):
-        self._unit = unit
+    __slots__ = ('id', 'unit', 'quantity', 'default_unit', 'label', 'column_id', 'node')
+
+    def __init__(
+        self, unit: Union[str, Unit], quantity: str, id: str | None = None,
+        label: I18nString | None = None, column_id: str | None = None,
+    ):
+        if id is not None:
+            self.id = MixedCaseIdentifier.validate(id)
+        if isinstance(unit, Unit):
+            self.unit = unit
+        self.default_unit = unit
         ensure_known_quantity(quantity)
         self.quantity = quantity
+        self.label = label
+        if column_id is not None:
+            self.column_id = MixedCaseIdentifier.validate(column_id)
+        else:
+            self.column_id = None  # type: ignore
 
     def populate_unit(self, context: Context):
-        unit = self._unit
+        unit = self.default_unit
         if isinstance(unit, Unit):
             self.unit = unit
         else:
             self.unit = context.unit_registry.parse_units(unit)
 
-    def calculate_hash(self, id: str) -> bytes:
-        s = '%s:%s' % (id, self.quantity)
+    def calculate_hash(self) -> bytes:
+        s = '%s:%s:%s' % (self.id, self.quantity, self.column_id)
         return s.encode('utf-8') + hash_unit(self.unit)
+
+    def ensure_output_unit(self, s: pd.Series, input_node: Node | None = None):
+        if hasattr(s, 'pint'):
+            s_u: Unit = s.pint.u
+            if self.unit.dimensionality != s_u.dimensionality:
+                if input_node is not None:
+                    node_str = ' from node %s' % input_node.id
+                else:
+                    node_str = ''
+                raise NodeError(self.node, 'Series with type %s%s is not compatible with %s' % (
+                    s_u, node_str, self.unit
+                ))
+            # Units match exactly
+            if s_u == self.unit:
+                return s
+            s_pt = pint_pandas.PintType(s_u)
+            values_type = s.pint.m.dtype
+        else:
+            s_pt = None
+            values_type = s.dtype
+
+        if values_type not in (np.float64, np.float32):
+            s = s.astype(np.float64)
+            if s_pt is not None:
+                s = s.astype(s_pt)
+
+        node_pt = pint_pandas.PintType(self.unit)
+        s = s.astype(node_pt)
+        return s
 
 
 class Node:
-    # identifier of the Node instance
-    id: str
-    # output_metrics: Iterable[Metric]
+    id: Identifier
+    "Identifier of the Node instance."
 
-    # the id of the database row corresponding to this node
     database_id: Optional[int]
+    "The database row that corresponds to this Node instance."
 
-    # name is the human-readable label for the Node instance
-    name: Optional[Union[TranslatedString, str]]
+    name: I18nString
+    "Human-readable label for the Node instance."
 
     # Description for the Node instance
     #
     # This gets mapped to NodeType.short_description in the GraphQL schema and
     # wrapped in a <p> tag.
-    description: Optional[Union[TranslatedString, str]]
+    description: I18nString | None
 
     # if the node has an established visualisation color
     color: Optional[str]
@@ -84,17 +133,23 @@ class Node:
     is_outcome: bool = False
 
     # output unit (from pint)
-    unit: Unit
+    unit: Optional[Unit]
     # default unit for a node class (defined as a class variable)
     default_unit: ClassVar[str]
     # output quantity (like 'energy' or 'emissions')
-    quantity: str
+    quantity: Optional[str]
 
     # optional tags to differentiate between multiple input/output nodes
     tags: Set[str]
 
-    # output units and quantities (for multi-dimensional nodes)
-    metrics: Optional[dict[str, NodeMetric]] = None
+    # output units and quantities (for multi-metric nodes)
+    metrics: dict[str, NodeMetric] = {}
+
+    output_dimensions: dict[str, Dimension]
+    "The dimensions that this node's output will contain."
+
+    output_dimension_ids: list[str] = []
+    "References to the dimensions that this node's output will contain (typically set in a class)."
 
     # set if this node has a specific goal for the simulation target year
     target_year_goal: Optional[float]
@@ -126,6 +181,7 @@ class Node:
     param_hash: bytes | None = None
     mtime_hash: bytes | None = None
     dim_hash: bytes | None = None
+    metrics_hash: bytes | None = None
 
     # Cache last historical year
     _last_historical_year: Optional[int]
@@ -136,33 +192,59 @@ class Node:
 
     def __post_init__(self): ...
 
+    def _init_metrics(self, unit: Unit | None, quantity: str | None):
+        self.metrics = self.metrics.copy()
+        if self.metrics:
+            for met_id, met in self.metrics.items():
+                met.populate_unit(self.context)
+                met.id = MixedCaseIdentifier.validate(met_id)
+
+            if len(self.metrics) == 1:
+                # Single-metric node
+                metric = list(self.metrics.values())[0]
+                self.unit = metric.unit
+                self.quantity = metric.quantity
+                if not metric.column_id:
+                    metric.column_id = VALUE_COLUMN
+            else:
+                for met_id, met in self.metrics.items():
+                    if not met.column_id:
+                        met.column_id = VALUE_COLUMN
+        else:
+            quantity = quantity or getattr(self, 'quantity', None)
+            if quantity is None:
+                raise NodeError(self, "Must provide quantity")
+            ensure_known_quantity(quantity)
+            self.quantity = quantity
+            self.unit = unit
+            if unit is None:
+                raise NodeError(self, "Attempting to initialize node without a unit")
+            # Create the default metric automatically for now
+            self.metrics[DEFAULT_METRIC] = NodeMetric(
+                unit, self.quantity, id=DEFAULT_METRIC, column_id=VALUE_COLUMN
+            )
+
+        for m in self.metrics.values():
+            m.node = self
+
     def __init__(
-        self, id: str, context: Context, name, unit: Unit, quantity: str,
-        description: Optional[Union[TranslatedString, str]] = None,
+        self, id: str, context: Context, name: I18nString, unit: Unit | None = None,
+        quantity: str | None = None, description: I18nString | None = None,
         color: str | None = None, order: int | None = None, is_outcome: bool = False,
         target_year_goal: float | None = None, input_datasets: List[Dataset] | None = None,
     ):
-        if self.metrics:
-            for dim in self.metrics.values():
-                dim.populate_unit(context)
-        else:
-            ensure_known_quantity(quantity)
-
+        self.id = Identifier.validate(id)
+        self.context = context
+        self._init_metrics(unit, quantity)
         if input_datasets is None:
             input_datasets = []
 
-        self.id = id
-        self.context = context
         self.database_id = None
         self.name = name
         self.description = description
         self.color = color
         self.order = order
         self.is_outcome = is_outcome
-        self.unit = unit
-        if unit is None and not self.metrics:
-            raise NodeError(self, "Attempting to initialize node without a unit")
-        self.quantity = quantity
         self.target_year_goal = target_year_goal
         self.input_dataset_instances = input_datasets
         self.input_nodes = []
@@ -177,6 +259,14 @@ class Node:
 
         if not hasattr(self, 'global_parameters'):
             self.global_parameters = []
+
+        self.output_dimensions = {}
+        if self.output_dimension_ids:
+            for dim_id in self.output_dimension_ids:
+                dim = self.context.dimensions.get(dim_id)
+                if not dim:
+                    raise NodeError(self, "Dimension %s not found" % dim_id)
+                self.output_dimensions[dim_id] = dim
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -278,7 +368,7 @@ class Node:
         self.parameters[local_id].set(value)
 
     def get_input_datasets(self) -> List[Union[pd.DataFrame, pd.Series]]:
-        dfs = []
+        dfs: List[Union[pd.DataFrame, pd.Series]] = []
         for ds in self.input_dataset_instances:
             df = ds.get_copy(self.context)
             if df.index.duplicated().any():
@@ -295,15 +385,12 @@ class Node:
         return dfs
 
     @overload
-    def get_input_dataset(self, required: Literal[True]) -> pd.DataFrame: ...
-
-    @overload
-    def get_input_dataset(self) -> pd.DataFrame: ...
+    def get_input_dataset(self, required: Literal[True] = True) -> pd.DataFrame: ...
 
     @overload
     def get_input_dataset(self, required: Literal[False]) -> Optional[pd.DataFrame]: ...
 
-    def get_input_dataset(self, required: bool = True):
+    def get_input_dataset(self, required: bool = True) -> pd.DataFrame | None:
         """Gets the first (and only) dataset if it exists."""
         datasets = self.get_input_datasets()
         if not datasets:
@@ -316,12 +403,17 @@ class Node:
         assert isinstance(df, pd.DataFrame)
         return df
 
-    def get_input_node(self, tag: Optional[str] = None) -> Node:
+    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None) -> Node:
         matching_nodes = []
         for node in self.input_nodes:
             if tag is not None:
-                if tag in node.tags:
-                    matching_nodes.append(node)
+                if tag not in node.tags:
+                    continue
+            if quantity is not None:
+                if node.quantity != quantity:
+                    # FIXME: Multi-metric support
+                    continue
+            matching_nodes.append(node)
         if len(matching_nodes) != 1:
             tag_str = (' with tag %s' % tag) if tag is not None else ''
             raise NodeError(self, 'Found %d input nodes %s' % (len(matching_nodes), tag_str))
@@ -377,17 +469,21 @@ class Node:
                     print('\t%s: "%s"' % (part, base64.b64encode(val).decode('ascii')))
             h.update(val)
 
-        if self.unit:
-            # __str__() of Unit is very slow, try another way
-            hash_part('unit', hash_unit(self.unit))
 
-        if self.metrics:
-            if self.dim_hash is None:
-                dim_hash = bytes()
-                for dim_id, dim in self.metrics.items():
-                    dim_hash += dim.calculate_hash(dim_id)
-                self.dim_hash = dim_hash
-            hash_part('metrics', self.dim_hash)
+        hash_part('id', self.id.encode('ascii'))
+        if self.metrics_hash is None:
+            metrics_hash = bytes()
+            for m in self.metrics.values():
+                metrics_hash += m.calculate_hash()
+            self.metrics_hash = metrics_hash
+        hash_part('metrics', self.metrics_hash)
+
+        if self.output_dimensions:
+            dim_hash = bytes()
+            for dim_id, dim in self.output_dimensions.items():
+                dim_hash += dim.calculate_hash()
+            self.dim_hash = dim_hash
+            hash_part('dimensions', self.dim_hash)
 
         for node in self.input_nodes:
             hash_part('input %s' % node.id, node.calculate_hash(cache=cache))
@@ -436,6 +532,13 @@ class Node:
         self.last_hash_time = perf_counter_ns()
         return ret
 
+    def validate_output(self, df: pd.DataFrame):
+        if df.index.duplicated().any():
+            raise NodeError(self, "Node output has duplicate index rows")
+        if FORECAST_COLUMN in df.columns:
+            if df.dtypes[FORECAST_COLUMN] != bool:
+                raise NodeError(self, "Forecast column is not a boolean")
+
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         pc = PerfCounter(
             '%s [%s.%s]' % (self.id, type(self).__module__, type(self).__name__),
@@ -456,12 +559,8 @@ class Node:
             if out is None:
                 raise NodeError(self, "Node returned no output")
 
-            if out.index.duplicated().any():
-                raise NodeError(self, "Node output has duplicate index rows")
-
-            if FORECAST_COLUMN in out.columns:
-                if out.dtypes[FORECAST_COLUMN] != bool:
-                    raise NodeError(self, "Forecast column is not a boolean")
+            if self.context.check_mode:
+                self.validate_output(out)
 
             cache_hit = False
         else:
@@ -485,11 +584,12 @@ class Node:
             return out.copy()
 
         if target_node is not None:
-            col_name = None
+            col_name: Optional[str] = None
 
             if target_node.id in out.columns:
                 col_name = target_node.id
-            elif self.metrics:
+            elif self.unit is None:
+                # multi-metric node
                 assert isinstance(self.metrics, dict)
                 if target_node.quantity in self.metrics:
                     col_name = target_node.quantity
@@ -530,6 +630,12 @@ class Node:
             out[col] = df[col]
         pprint(out)
 
+    def print(self, obj: Any):
+        if isinstance(obj, (pd.DataFrame, pd.Series)):
+            self.print_pint_df(obj)
+            return
+        pprint(obj)
+
     def print_outline(self, df):
         if YEAR_COLUMN in df.index.names:
             pick_rows = df.index.get_level_values(YEAR_COLUMN).isin([2017, 2021, 2022])
@@ -569,34 +675,15 @@ class Node:
             ))
         return s.astype(pint_pandas.PintType(unit))
 
-    def ensure_output_unit(self, s: pd.Series, input_node: Node = None):
-        if hasattr(s, 'pint'):
-            s_u: Unit = s.pint.u
-            if self.unit.dimensionality != s_u.dimensionality:
-                if input_node is not None:
-                    node_str = ' from node %s' % input_node.id
-                else:
-                    node_str = ''
-                raise NodeError(self, 'Series with type %s%s is not compatible with %s' % (
-                    s_u, node_str, self.unit
-                ))
-            # Units match exactly
-            if s_u == self.unit:
-                return s
-            s_pt = pint_pandas.PintType(s_u)
-            values_type = s.pint.m.dtype
-        else:
-            s_pt = None
-            values_type = s.dtype
+    def ensure_output_unit(self, s: pd.Series, input_node: Node | None = None):
+        if self.unit is None:
+            raise NodeError(self, 'Does currently not work on multi-metric nodes')
 
-        if values_type not in (np.float64, np.float32, np.int32, np.int64):
-            s = s.astype(np.float64)
-            if s_pt is not None:
-                s = s.astype(s_pt)
-
-        node_pt = pint_pandas.PintType(self.unit)
-        s = s.astype(node_pt)
-        return s
+        metric = self.metrics.get(DEFAULT_METRIC)
+        if metric is None:
+            assert len(self.metrics) == 1
+            metric = list(self.metrics.values())[0]
+        return metric.ensure_output_unit(s, input_node)
 
     def get_downstream_nodes(self) -> List[Node]:
         # Depth-first traversal
@@ -724,7 +811,7 @@ class Node:
 
     def as_node_config_attributes(self):
         """Return a dict that can be used to set corresponding fields of NodeConfig."""
-        attributes = {
+        attributes: dict[str, str] = {
             'identifier': self.id,
         }
 

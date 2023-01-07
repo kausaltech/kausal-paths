@@ -5,7 +5,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bf422ab63b0b33090925b2a141d7d275687355a1
+  commit: 61d63424e744b72c6faef2d2c06780a467045b40
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
 owner: Espoon kaupunki
@@ -19,6 +19,31 @@ maximum_historical_year: 2021
 params:
 - id: municipality_name
   value: Espoo
+
+dimensions:
+  - id: building_heat_source
+    label: Lämmitystapa
+    categories:
+      - id: district_heat
+        label: Kaukolämpö
+      - id: oil
+        label: Öljylämmitys
+      - id: direct_electric
+        label: Sähkölämmitys
+      - id: geothermal
+        label: Maalämpö
+      - id: other
+        label: Muu tai tuntematon
+        aliases: [Muu]
+  - id: building_use
+    label: Rakennuksen käyttötarkoitus
+    categories:
+      - id: residence
+        label: Asuminen
+      - id: services
+        label: Palvelut
+      - id: industry
+        label: Teollisuus
 
 emission_sectors:
 - id: net_emissions
@@ -45,6 +70,34 @@ nodes:
   type: finland.hsy.HsyNode
   name: HSY:n päästöinventaario
 
+- id: building_floor_area_existing
+  type: finland.aluesarjat.BuildingStock
+  name: Nykyisen rakennuskannan kerrosala
+  tags: [historical_floor_area]
+
+- id: building_floor_area_future
+  type: finland.aluesarjat.FutureBuildingStock
+  name: Uuden rakennuskannan kerrosala
+  input_nodes:
+    - population
+    - building_floor_area_existing
+
+- id: building_floor_area_renovated
+  type: finland.aluesarjat.BuildingStock
+  name: Energiasaneeratun rakennuskannan kerrosala
+
+- id: building_heat_existing_historical
+  type: finland.hsy.HsyBuildingHeatConsumption
+  name: Nykyisen rakennuskannan lämmönkulutus
+  tags: [historical_heat]
+  input_nodes: [all_hsy_emissions]
+
+- id: building_heat_existing
+  type: finland.aluesarjat.BuildingHeatPredict
+  name: Nykyisen rakennuskannan lämmönkulutus
+  input_nodes: [building_heat_existing_historical, building_floor_area_existing]
+
+
 pages:
 - id: home
   name: Hiilineutraali Espoo -päästöskenaario
@@ -53,16 +106,16 @@ pages:
   node: net_emissions
   lead_title: Espoon päästöskenaariot
   lead_title_en: Espoo emission scenarios
-  lead_paragraph: "<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
+  lead_paragraph: '<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
     kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät ja
-    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on:
-    <b>Suomi 2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla toteutettavat
-    ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen; 
-    <b>Hiilineutraali Espoo 2030-skenaario (HNE2030)</b>, jossa oletetaan, että kaupungin
-    päästökehitykseen vaikuttavat kansallisten toimien lisäksi myös kaupungin ja
-    sen yhteistyökumppaneiden, kuten Fortumin ja HSY:n, toteuttamat
-    ilmastotoimet; sekä <b>pessimistinen skenaario</b> skenaario, jossa oletetaan, että
-    uusia päästövähennystoimia ei kaupungissa suunnitella tai toteuteta."
+    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on: <b>Suomi
+    2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla toteutettavat
+    ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen; <b>Hiilineutraali
+    Espoo 2030-skenaario (HNE2030)</b>, jossa oletetaan, että kaupungin päästökehitykseen
+    vaikuttavat kansallisten toimien lisäksi myös kaupungin ja sen yhteistyökumppaneiden,
+    kuten Fortumin ja HSY:n, toteuttamat ilmastotoimet; sekä <b>pessimistinen skenaario</b>
+    skenaario, jossa oletetaan, että uusia päästövähennystoimia ei kaupungissa suunnitella
+    tai toteuteta.'
 
 actions:
 - id: cleaner_electricity_production
@@ -162,8 +215,8 @@ actions:
   quantity: energy
   output_nodes:
   - district_heating_services_energy
-  forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
-    [2029, -14], [2030, -6]]
+  forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
+      2029, -14], [2030, -6]]
   unit: GWh/a
 
 - id: reduce_waste_treatment_emissions
@@ -179,7 +232,7 @@ actions:
   - id: target_year_level
     description: Jätteiden käsittelyn päästöjen muutos 2021-2030
     min_value: -30
-    max_value: +20
+    max_value: 20
     step: 0.1
     unit: kt/a
 
@@ -196,7 +249,7 @@ actions:
   - id: target_year_level
     description: Tieliikenteen päästöjen muutos 2022-2030
     min_value: -100
-    max_value: +100
+    max_value: 100
     step: 0.1
     unit: kt/a
 

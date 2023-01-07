@@ -1,6 +1,6 @@
 import pandas as pd
 from nodes import Node
-from nodes.constants import VALUE_COLUMN
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 
 
@@ -57,6 +57,7 @@ class Population(Node):
 
         df = pd.DataFrame(s.values, index=s.index, columns=[VALUE_COLUMN])
         df.index = df.index.astype(int)
+        df.index.name = YEAR_COLUMN
         df['Forecast'] = False
         if first_forecast_year is not None:
             df.loc[df.index >= first_forecast_year, 'Forecast'] = True

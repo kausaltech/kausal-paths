@@ -4,16 +4,14 @@ import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-import typing
 from typing import Dict, Iterable, Literal, Optional, Type, overload
 
 import dvc_pandas
 import pint
 from ruamel.yaml import YAML as RuamelYAML
 import yaml
-import networkx as nx
 
-from common.i18n import TranslatedString, gettext_lazy as _
+from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
@@ -87,6 +85,8 @@ class InstanceLoader:
     instance: Instance
     default_language: str
     yaml_file_path: Optional[str] = None
+    _input_nodes: dict[str, dict]
+    _output_nodes: dict[str, dict]
 
     @overload
     def make_trans_string(
@@ -166,7 +166,7 @@ class InstanceLoader:
             if not unit and not metrics:
                 raise Exception('Node %s has no unit set' % config['id'])
         if unit and not isinstance(unit, Unit):
-            unit = self.context.unit_registry(unit).units
+            unit = self.context.unit_registry.parse_units(unit)
 
         quantity = config.get('quantity')
         if quantity is None:
@@ -288,6 +288,14 @@ class InstanceLoader:
                     raise Exception("%s is a subclass of disallowed %s" % (klass, disallowed_classes))
         return klass
 
+    def setup_dimensions(self):
+        from .dimensions import Dimension
+
+        for dc in self.config.get('dimensions', []):
+            dim = Dimension.parse_obj(dc)
+            assert dim.id not in self.context.dimensions
+            self.context.dimensions[dim.id] = dim
+
     def setup_nodes(self):
         for nc in self.config.get('nodes', []):
             try:
@@ -347,7 +355,7 @@ class InstanceLoader:
                     if decision_level == name.lower():
                         break
                 else:
-                    raise Exception('Invalid decision level for action %s: %s' % (nc['id'], val))
+                    raise Exception('Invalid decision level for action %s: %s' % (nc['id'], decision_level))
                 node.decision_level = val
             ag_id = nc.get('group', None)
             if ag_id is not None:
@@ -387,12 +395,15 @@ class InstanceLoader:
                 param.add_scenario_setting(sc['id'], param.clean(pc['value']))
 
             name = self.make_trans_string(sc, 'name', pop=True)
-            scenario = Scenario(**sc, name=name, notified_nodes=self.context.nodes.values())
+            scenario = Scenario(**sc, name=name, notified_nodes=list(self.context.nodes.values()))
 
             if scenario.default:
                 assert default_scenario is None
                 default_scenario = scenario
             self.context.add_scenario(scenario)
+
+        if default_scenario is None:
+            raise Exception("Default scenario not defined")
 
         self.context.set_custom_scenario(
             CustomScenario(
@@ -430,8 +441,8 @@ class InstanceLoader:
             label = self.make_trans_string(aepc, 'label', pop=False)
             aep = ActionEfficiencyPair.from_config(
                 self.context, aepc['cost_node'], aepc['impact_node'], aepc['unit'],
-                plot_limit_efficiency=aepc['plot_limit_efficiency'],
-                invert_cost=aepc['invert_cost'], invert_impact=aepc['invert_impact'], label=label,
+                plot_limit_efficiency=aepc.get('plot_limit_efficiency', None),
+                invert_cost=aepc.get('invert_cost', False), invert_impact=aepc.get('invert_impact', False), label=label,
             )
             self.context.action_efficiency_pairs.append(aep)
 
@@ -466,7 +477,7 @@ class InstanceLoader:
 
         return cls(data, yaml_file_path=filename)
 
-    def __init__(self, config: dict, yaml_file_path: str = None):
+    def __init__(self, config: dict, yaml_file_path: str | None = None):
         self.config = config
         self.default_language = config['default_language']
 
@@ -515,6 +526,8 @@ class InstanceLoader:
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}
         self._output_nodes = {}
+        with set_default_language(self.instance.default_language):
+            self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_nodes()
         self.setup_actions()

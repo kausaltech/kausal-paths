@@ -4,16 +4,13 @@ from dataclasses import InitVar, dataclass, field
 
 import hashlib
 import orjson
-from common.i18n import TranslatedString
-from typing import Any, Dict, Optional, TYPE_CHECKING, Union
+from common.i18n import I18nString
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
     from nodes import Node
     from nodes.scenario import Scenario
-    from django.utils.functional import _StrPromise as StrPromise  # type: ignore
-
-I18nString = Union[TranslatedString, str, 'StrPromise']
 
 
 class ValidationError(Exception):

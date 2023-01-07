@@ -38,7 +38,7 @@ django==3.2.16
     #   -c requirements.txt
     #   django-stubs
     #   django-stubs-ext
-django-stubs==1.13.0
+django-stubs==1.13.1
     # via -r requirements-dev.in
 django-stubs-ext==0.7.0
     # via django-stubs
@@ -57,7 +57,7 @@ ipython==8.7.0
     #   -c requirements.txt
     #   -r requirements-dev.in
     #   ipdb
-isort==5.10.1
+isort==5.11.1
     # via pylint
 jedi==0.18.2
     # via
@@ -65,6 +65,8 @@ jedi==0.18.2
     #   ipython
 lazy-object-proxy==1.8.0
     # via astroid
+line-profiler==4.0.2
+    # via -r requirements-dev.in
 matplotlib-inline==0.1.6
     # via
     #   -c requirements.txt
@@ -80,7 +82,7 @@ mypy==0.991
     #   graphene-stubs
 mypy-extensions==0.4.3
     # via mypy
-packaging==21.3
+packaging==22.0
     # via
     #   -c requirements.txt
     #   build
@@ -135,10 +137,6 @@ pylint-django==2.5.3
     # via -r requirements-dev.in
 pylint-plugin-utils==0.7
     # via pylint-django
-pyparsing==3.0.9
-    # via
-    #   -c requirements.txt
-    #   packaging
 pytz==2022.6
     # via
     #   -c requirements.txt
@@ -171,7 +169,7 @@ tomlkit==0.11.6
     # via
     #   -c requirements.txt
     #   pylint
-traitlets==5.6.0
+traitlets==5.7.1
     # via
     #   -c requirements.txt
     #   ipython
