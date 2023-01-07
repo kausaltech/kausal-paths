@@ -45,7 +45,7 @@ action_groups:
     color: '#cccccc'
 
 action_efficiency_pairs:
-  - cost_node: social_cost
+  - cost_node: total_net_cost
     impact_node: net_energy_consumption
     invert_cost: False
     invert_impact: True
@@ -54,7 +54,7 @@ action_efficiency_pairs:
     label_fi: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
     label: Marginalnettokostnad för energibesparing
-  - cost_node: social_cost
+  - cost_node: total_net_cost
     impact_node: net_emissions
     invert_cost: False
     invert_impact: True
@@ -63,7 +63,7 @@ action_efficiency_pairs:
     label_fi: Päästövähennysten marginaalikustannus
     label_en: Marginal cost in net emissions
     label: Marginalnettokostnad för utsläppsminskning
-  - cost_node: social_cost
+  - cost_node: total_net_cost
     impact_node: net_electricity_consumption
     invert_cost: False
     invert_impact: True
@@ -91,8 +91,7 @@ params:
     is_customizable: False
     value: discount_node
   - id: discount_rate
-#    label: Discount rate (%/a)
-    label: Diskonteringsränta (%/a)
+    label: Diskonteringsränta (%/år)
     description: Speed of value decrease for monetary variables
     is_customizable: True
     value: 3.5
@@ -131,8 +130,7 @@ params:
     max_value: 140
     unit: g/kWh
   - id: renovation_rate_baseline
-#    label: Baseline renovation rate (%/a)
-    label: Baslinje renoveringstakt (%/a)
+    label: Baslinje renoveringstakt (%/år)
     is_customizable: True
     value: 0.5
     min_value: 0
@@ -172,24 +170,20 @@ params:
     value: 0
     unit: '%'
     is_customizable: True
-    label: Kostnadsökningstakt av värmepris (%/a)
+    label: Kostnadsökningstakt av värmepris (%/år)
   - id: include_energy_taxes
-#    label: Include energy taxes?
     label: Inkludera energiskatter?
     is_customizable: True
     value: False
   - id: include_co2
-#    label: Include CO2 costs?
     label: Inkludera CO2-kostnader?
     is_customizable: True
     value: True
   - id: include_health
-#    label: Include health impacts?
     label: Inkludera hälsoeffekter?
     is_customizable: True
     value: True
   - id: include_el_avoided
-#    label: Include electricity capacity savings?
     label: Inkludera elkapacitetsbesparingar?
     is_customizable: True
     value: True
@@ -334,13 +328,13 @@ nodes:
     - id: energy_tax
       value: 0.0
 
-  - id: social_cost
-    name_fi: Sosiaaliset kustannukset
-    name_en: Social cost
-    name: Sociala kostnader
+  - id: total_net_cost
+    name_fi: Nettokustannukset
+    name_en: Total net cost
+    name: Totala nettokostnader
     type: simple.AdditiveNode
     quantity: currency
-    unit: MSEK/a
+    unit: MSEK/år
     input_nodes:
     - cost_single_family
     - cost_apartment
@@ -366,7 +360,7 @@ nodes:
     name: Energikonsumtion
     type: simple.AdditiveNode
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     input_nodes:
     - energy_single_family
     - energy_apartment
@@ -379,7 +373,7 @@ nodes:
     name: Elkonsumtion
     type: simple.AdditiveNode
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     input_nodes:
     - electricity_single_family
     - electricity_apartment
@@ -392,7 +386,7 @@ nodes:
     name: Elkonsumtion per ytarea
     type: simple.AdditiveNode
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     input_nodes:
     - electricity_per_area_single_family
     - electricity_per_area_apartment
@@ -405,7 +399,7 @@ nodes:
     name: Kostnad per ytarea
     type: simple.AdditiveNode
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     input_nodes:
     - cost_per_area_single_family
     - cost_per_area_apartment
@@ -431,7 +425,7 @@ nodes:
     name_en: Electricity per area single family
     name: El per ytarea i småhus
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
@@ -443,7 +437,7 @@ nodes:
     name_en: Heat per area single family
     name: Värme per ytarea i småhus
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 101.6]]  # Energimyndigheten 31.8 TWh / 313 M m2
     params:
@@ -455,7 +449,7 @@ nodes:
     name_en: Renovation cost per area single family
     name: Reparationskostnad per ytarea i småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.AdditiveNode
     params:
       - id: metric
@@ -466,7 +460,7 @@ nodes:
     name_en: Emissions electricity per area single family
     name: Utsläpp av elkonsumtion per ytarea i småhus
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -481,7 +475,7 @@ nodes:
     name_en: Emissions from heat per area single family
     name: Utsläpp av värme per ytarea i småhus
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -496,7 +490,7 @@ nodes:
     name_en: Emissions per area single family
     name: Utsläpp per ytarea i småhus
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.AdditiveNode
     output_nodes:
     - emissions_single_family
@@ -518,7 +512,7 @@ nodes:
     name_en: Energy per area single family
     name: Energi per ytarea i småhus
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 200]]  # Placeholder
     input_nodes:
@@ -530,7 +524,7 @@ nodes:
     name_en: Energy consumption single family
     name: Energikonsumtion i småhus
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_single_family
@@ -541,7 +535,7 @@ nodes:
     name_en: Electricity consumption isingle family
     name: Elkonsumtion is småhus
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_single_family
@@ -552,7 +546,7 @@ nodes:
     name_en: Electricity cost per area single family
     name: Elkostnad per ytarea i småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - electricity_per_area_single_family
@@ -563,7 +557,7 @@ nodes:
     name_en: Heat cost per area singe family
     name: Värmekostnad per ytarea i småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - heat_per_area_single_family
@@ -574,7 +568,7 @@ nodes:
     name_en: Avoided capacity cost per area single family
     name: Undvikt elutbuggnad per ytarea is småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -588,7 +582,7 @@ nodes:
     name_en: Health cost per area single family
     name: Hälsokostnad per ytarea is småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -602,7 +596,7 @@ nodes:
     name_en: CO2 cost per area single family
     name: CO2-kostnad per ytarea i småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - price_of_co2
@@ -614,7 +608,7 @@ nodes:
     name_en: Cost per area single family
     name: Kostnad per ytarea i småhus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: costs.SelectiveNode
     input_nodes:
     - renovation_cost_per_area_single_family
@@ -629,7 +623,7 @@ nodes:
     name_en: Cost single family
     name: Kostnader i småhus
     quantity: currency
-    unit: MSEK/a
+    unit: MSEK/år
     type: simple.MultiplicativeNode
     input_nodes:
     - cost_per_area_single_family
@@ -654,7 +648,7 @@ nodes:
     name_en: Electricity per area apartment
     name: Elkonsumtion per ytarea i flerbostadshus
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
@@ -666,7 +660,7 @@ nodes:
     name_en: Heat consumption per area apartment
     name: Värmekonsumtion per ytarea i flerbostadshus
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 129.4]]  # Energimyndigheten 27.3 TWh / 211 M km
     params:
@@ -678,7 +672,7 @@ nodes:
     name_en: Renovation cost per area apartment
     name: Reparationskostnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.AdditiveNode
     params:
       - id: metric
@@ -689,7 +683,7 @@ nodes:
     name_en: Emissions from electricity per area apartment
     name: Uttsläpp av elkonsumtion per ytarea i flerbostadshus
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -704,7 +698,7 @@ nodes:
     name_en: Emissions from heat per area apartment
     name: Utsläpp av värmekonsumtion per ytarea i flerbostadshus
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -719,7 +713,7 @@ nodes:
     name_en: Emissions per area apartment
     name: Utsläpp per ytarea i flerbostadshus
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.AdditiveNode
     output_nodes:
     - emissions_apartment
@@ -741,7 +735,7 @@ nodes:
     name_en: Energy consumption per area apartment
     name: Energikonsumtion per ytarea i flerbostadshus
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     input_nodes:
     - heat_per_area_apartment
@@ -752,7 +746,7 @@ nodes:
     name_en: Energy consumption apartment
     name: Energikonsumtion i flerbostadshus
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_apartment
@@ -763,7 +757,7 @@ nodes:
     name_en: Electricity consumption apartment
     name: Elkonsumtion i flerbostadshus
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_apartment
@@ -774,7 +768,7 @@ nodes:
     name_en: Electricity cost per area apartment
     name: Elkostnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - electricity_per_area_apartment
@@ -785,7 +779,7 @@ nodes:
     name_en: Heat cost per area apartment
     name: Värmekostnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - heat_per_area_apartment
@@ -796,7 +790,7 @@ nodes:
     name_en: Avoided capacity cost per area apartment
     name: Undvikt elutbuggnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -810,7 +804,7 @@ nodes:
     name_en: Health cost per area apartment
     name: Hälsokostnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -824,7 +818,7 @@ nodes:
     name_en: CO2 cost per area apartment
     name: CO2-kostnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - price_of_co2
@@ -836,7 +830,7 @@ nodes:
     name_en: Cost per area apartment
     name: Kostnad per ytarea i flerbostadshus
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: costs.SelectiveNode
     input_nodes:
     - renovation_cost_per_area_apartment
@@ -851,7 +845,7 @@ nodes:
     name_en: Cost apartment
     name: Kostnader i flerbostadshus
     quantity: currency
-    unit: MSEK/a
+    unit: MSEK/år
     type: simple.MultiplicativeNode
     input_nodes:
     - cost_per_area_apartment
@@ -876,7 +870,7 @@ nodes:
     name_en: Electricity consumption per area office
     name: Elkonsumtion per ytarea i kontor
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
@@ -888,7 +882,7 @@ nodes:
     name_en: Heat consumption per area office
     name: Värmekonsumtion per ytarea i kontor
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 110]]  # Energimyndigheten
     params:
@@ -900,7 +894,7 @@ nodes:
     name_en: Renovation cost per area office
     name: Reparationskostnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.AdditiveNode
     params:
       - id: metric
@@ -911,7 +905,7 @@ nodes:
     name_en: Emissions from electricity consumption per area office
     name: Utsläpp av elkonsumtion per ytarea i kontor
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -926,7 +920,7 @@ nodes:
     name_en: Emissions from heat per area office
     name: Utsläpp av värmekonsumtion per ytarea i kontor
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -941,7 +935,7 @@ nodes:
     name_en: Emissions per area office
     name: Utsläpp per ytarea i kontor
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.AdditiveNode
     output_nodes:
     - emissions_office
@@ -963,7 +957,7 @@ nodes:
     name_en: Energy consumption per area office
     name: Energikonsumtion per ytarea i kontor
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     input_nodes:
     - heat_per_area_office
@@ -974,7 +968,7 @@ nodes:
     name_en: Energy consumption office
     name: Energikonsumtion i kontor
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_office
@@ -985,7 +979,7 @@ nodes:
     name_en: Electricity consumption office
     name: Elkonsumtion i kontor
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_office
@@ -996,7 +990,7 @@ nodes:
     name_en: Electricity cost per area office
     name: Elkostnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - electricity_per_area_office
@@ -1007,7 +1001,7 @@ nodes:
     name_en: Heat cost per area office
     name: Värmekosotnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - heat_per_area_office
@@ -1018,7 +1012,7 @@ nodes:
     name_en: Avoided capacity cost per area office
     name: Undvikt elutbuggnadkostnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -1032,7 +1026,7 @@ nodes:
     name_en: Health cost per area office
     name: Hälsokostnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -1046,7 +1040,7 @@ nodes:
     name_en: CO2 cost per area office
     name: CO2-kostnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - price_of_co2
@@ -1058,7 +1052,7 @@ nodes:
     name_en: Cost per area office
     name: Kostnad per ytarea i kontor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: costs.SelectiveNode
     input_nodes:
     - renovation_cost_per_area_office
@@ -1073,7 +1067,7 @@ nodes:
     name_en: Cost per area office
     name: Kostnader per ytarea i kontor
     quantity: currency
-    unit: MSEK/a
+    unit: MSEK/år
     type: simple.MultiplicativeNode
     input_nodes:
     - cost_per_area_office
@@ -1098,7 +1092,7 @@ nodes:
     name_en: Electricity consumption per area schools
     name: Elkonsumtion per ytarea i skolor
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 50]]  # Placeholder from http://en.opasnet.org/w/Energy_use_of_buildings
     params:
@@ -1110,7 +1104,7 @@ nodes:
     name_en: Heat consumption per area schools
     name: Värmekonsumtion per ytarea i skolor
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     historical_values: [[2019, 110]]  # Energimyndigheten for offices
     params:
@@ -1122,7 +1116,7 @@ nodes:
     name_en: Renovation cost per area schools
     name: Reparationskostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.AdditiveNode
     params:
       - id: metric
@@ -1133,7 +1127,7 @@ nodes:
     name_en: Emissions from electricity per area schools
     name: Utsläpp av elkonsumtion per ytarea i skolor
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -1148,7 +1142,7 @@ nodes:
     name_en: Emissions from heat per area schools
     name: Utsläpp av värmekonsumtion per ytarea i skolor
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -1163,7 +1157,7 @@ nodes:
     name_en: Emissions per area schools
     name: Utsläpp per ytarea i skolor
     quantity: emissions
-    unit: kg/a/m**2
+    unit: kg/år/m**2
     type: simple.AdditiveNode
     output_nodes:
     - emissions_school
@@ -1185,7 +1179,7 @@ nodes:
     name_en: Energy consumption per area schools
     name: Energikonsumtion per ytarea i skolor
     quantity: energy
-    unit: kWh/a/m**2
+    unit: kWh/år/m**2
     type: simple.AdditiveNode
     input_nodes:
     - heat_per_area_school
@@ -1196,7 +1190,7 @@ nodes:
     name_en: Energy consumption schools
     name: Energikonsumtion i skolor
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_school
@@ -1207,7 +1201,7 @@ nodes:
     name_en: Electricity consumption schools
     name: Elkonsumtion i skolor
     quantity: energy
-    unit: GWh/a
+    unit: GWh/år
     type: simple.MultiplicativeNode
     input_nodes:
     - floor_area_school
@@ -1218,7 +1212,7 @@ nodes:
     name_en: Electricity cost per area schools
     name: Elkostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - electricity_per_area_school
@@ -1229,7 +1223,7 @@ nodes:
     name_en: Heat cost per area schools
     name: Värmekostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - heat_per_area_school
@@ -1240,7 +1234,7 @@ nodes:
     name_en: Avoided capacity cost per area schools
     name: Undvikt utbuggnadskostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -1254,7 +1248,7 @@ nodes:
     name_en: Health cost per area schools
     name: Hälsokostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.FixedMultiplierNode
     params:
     - id: global_multiplier
@@ -1268,7 +1262,7 @@ nodes:
     name_en: CO2 cost per area schools
     name: CO2-kostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: simple.MultiplicativeNode
     input_nodes:
     - price_of_co2
@@ -1280,7 +1274,7 @@ nodes:
     name_en: Cost per area schools
     name: Kostnad per ytarea i skolor
     quantity: currency
-    unit: SEK/a/m**2
+    unit: SEK/år/m**2
     type: costs.SelectiveNode
     input_nodes:
     - renovation_cost_per_area_school
@@ -1295,7 +1289,7 @@ nodes:
     name_en: Costs schools
     name: Kostnader i skolor
     quantity: currency
-    unit: MSEK/a
+    unit: MSEK/år
     type: simple.MultiplicativeNode
     input_nodes:
     - cost_per_area_school
@@ -3147,13 +3141,6 @@ pages:
       how different actions reduce it and thus climate emissions.
     lead_paragraph: Grön logik projektet undersöker byggnaders energiförbrukning och
       hur olika åtgärder minskar det och därmed klimatutsläppen.
-
-#    - id: costs # Does not work yet
-#      name_fi: Kustannukset
-#      path: /costs
-#      type: currency
-#      node: social_costs
-#      lead_title: Kustannusten jakautuminen
 
 scenarios:
   - id: baseline

@@ -49,26 +49,6 @@ class SelectiveNode(AdditiveNode):
         return out
 
 
-class Discount(SimpleNode):
-    global_parameters: list[str] = [
-        'discount_rate'
-    ]
-
-    def compute(self):
-        target_year = self.context.target_year
-        current_year = self.context.instance.maximum_historical_year + 1
-        base_value = self.get_global_parameter_value('discount_rate', units=True)
-        base_value = 1 / (1 + base_value.to('dimensionless').m)
-
-        df = pd.DataFrame(
-            {VALUE_COLUMN: range(target_year - current_year + 1)},
-            index=range(current_year, target_year + 1))
-        df[VALUE_COLUMN] = base_value ** df[VALUE_COLUMN]
-        df[FORECAST_COLUMN] = True
-
-        return df
-
-
 class ExponentialNode(SimpleNode):
     allowed_parameters = [
         NumberParameter(

@@ -9,7 +9,7 @@ from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeMetric
-from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
+from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY
 from nodes.calc import nafill_all_forecast_years
 from params import Parameter, NumberParameter
 from params.utils import sep_unit_pt
@@ -222,7 +222,7 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
     for i in range(params.nr_years):
         share = i * params.renovation_rate
         if share > params.renovation_potential:
-              share = params.renovation_potential
+            share = params.renovation_potential
         total_renovated[i] = share
 
         if i:

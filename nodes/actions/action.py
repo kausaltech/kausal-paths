@@ -160,7 +160,9 @@ class ActionEfficiencyPair:
         if actions is None:
             actions = list(context.get_actions())
 
-        pc = PerfCounter("Action efficiency %s / %s" % (self.cost_node.id, self.impact_node.id), level=PerfCounter.Level.DEBUG)
+        pc = PerfCounter(
+            "Action efficiency %s / %s" % (self.cost_node.id, self.impact_node.id),
+            level=PerfCounter.Level.DEBUG)
         pc.display('starting')
         for action in actions:
             if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.impact_node):
