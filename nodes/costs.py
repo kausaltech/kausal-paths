@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
+import pint_pandas
 
 from nodes.exceptions import NodeError
 
+from nodes import NodeMetric
 from .context import unit_registry
-from params.param import NumberParameter, PercentageParameter, StringParameter
+from params.param import NumberParameter, PercentageParameter, StringParameter, BoolParameter
+from params.utils import sep_unit_pt
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
 from .node import Node
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
@@ -46,25 +49,140 @@ class SelectiveNode(AdditiveNode):
         return out
 
 
-class Discount(SimpleNode):
-    global_parameters: list[str] = [
-        'discount_rate'
+class ExponentialNode(SimpleNode):
+    allowed_parameters = [
+        NumberParameter(
+            local_id='current_value',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='annual_change',
+            is_customizable=True,
+        ),
+        StringParameter(
+            local_id='current_value_name',
+            is_customizable=True,
+        ),
+        StringParameter(
+            local_id='annual_change_name',
+            is_customizable=True,
+        ),
+        BoolParameter(
+            local_id='decreasing_rate',
+            is_customizable=True
+        )
     ]
 
-    def compute(self):
-        target_year = self.context.target_year
-        current_year = self.context.instance.maximum_historical_year + 1
-        base_value = self.get_global_parameter_value('discount_rate', units=True)
-        base_value = 1 / (1 + base_value.to('dimensionless').m)
+    def compute_exponential(self):
+        current_value = self.get_parameter('current_value', required=False)
+        if not current_value:  # If the local parameter is not given, use a global parameter
+            current_value_name = self.get_parameter_value('current_value_name', required=True)
+            current_value = self.context.get_parameter(current_value_name, required=True)
+        pt = pint_pandas.PintType(current_value.get_unit())
+        annual_change = self.get_parameter('annual_change', required=False)
+        if not annual_change:
+            annual_change_name = self.get_parameter_value('annual_change_name', required=True)
+            annual_change = self.context.get_parameter(annual_change_name, required=True)
+        base_unit = annual_change.get_unit()
+        current_value = current_value.value
+        annual_change = annual_change.value
+        base_value = 1 + (annual_change * base_unit).to('dimensionless').m
+        decreasing_rate = self.get_parameter_value('decreasing_rate', required=False)
+        if decreasing_rate:
+            base_value = 1 / base_value
+        start_year = self.context.instance.minimum_historical_year
+        target_year = self.get_target_year()
+        current_year = self.context.instance.maximum_historical_year
 
         df = pd.DataFrame(
-            {VALUE_COLUMN: range(target_year - current_year + 1)},
-            index=range(current_year, target_year + 1))
-        df[VALUE_COLUMN] = base_value ** df[VALUE_COLUMN]
-        df[FORECAST_COLUMN] = True
+            {VALUE_COLUMN: range(start_year - current_year, target_year - current_year + 1)},
+            index=range(start_year, target_year + 1))
+        val = current_value * base_value ** df[VALUE_COLUMN]
+        df[VALUE_COLUMN] = val.astype(pt)
+        df[FORECAST_COLUMN] = df.index > current_year
 
         return df
 
+    def compute(self):
+        return self.compute_exponential()
+
+
+class EnergyCostNode(AdditiveNode):
+    metrics = {
+        VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
+        'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
+        'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),
+        'NetworkPrice': NodeMetric('SEK/kWh', 'currency'),
+        'HandlingFee': NodeMetric('SEK/kWh', 'currency'),
+        'Certificate': NodeMetric('SEK/kWh', 'currency'),
+        'EnergyTax': NodeMetric('SEK/kWh', 'currency')
+    }
+    global_parameters: list[str] = ['include_energy_taxes']
+    allowed_parameters = AdditiveNode.allowed_parameters + [
+        NumberParameter(
+            local_id='added_value_tax',
+            label='Added value tax (%)',
+            unit_str='%',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='network_price',
+            label='Network price (SEK/kWh)',
+            unit_str='SEK/kWh',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='handling_fee',
+            label='Handling fee (SEK/kWh)',
+            unit_str='SEK/kWh',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='certificate',
+            label='Certificate (SEK/kWh)',
+            unit_str='SEK/kWh',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='energy_tax',
+            label='Energy tax (SEK/kWh)',
+            unit_str='SEK/kWh',
+            is_customizable=False
+        ),
+    ]
+
+    def compute(self):
+        added_value_tax = self.get_parameter_value('added_value_tax', units=True)
+        network_price, net_pt = sep_unit_pt(self.get_parameter_value('network_price', units=True))
+        handling_fee, han_pt = sep_unit_pt(self.get_parameter_value('handling_fee', units=True))
+        certificate, cer_pt = sep_unit_pt(self.get_parameter_value('certificate', units=True))
+        energy_tax, ene_pt = sep_unit_pt(self.get_parameter_value('energy_tax', units=True))
+        include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
+        print('include energy taxes: ', include_energy_taxes)
+
+        metric = self.get_parameter_value('metric', required=False)
+        if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
+            df = self.add_nodes(None, self.input_nodes, metric)
+            df = self.fill_gaps_using_input_dataset(df)
+        else:
+            df = self.add_nodes(None, self.input_nodes, metric)
+        df['EnergyPrice'] = df[VALUE_COLUMN]
+        self.print_pint_df(df)
+        added_value_tax = added_value_tax.to('dimensionless').m
+        df['AddedValueTax'] = df['EnergyPrice'] * added_value_tax
+        df['NetworkPrice'] = pd.Series(network_price, index=df.index, dtype=net_pt)
+        df['HandlingFee'] = pd.Series(handling_fee, index=df.index, dtype=han_pt)
+        df['Certificate'] = pd.Series(certificate, index=df.index, dtype=cer_pt)
+        df['EnergyTax'] = pd.Series(energy_tax, index=df.index, dtype=ene_pt)
+
+        if include_energy_taxes:
+            cols = ['AddedValueTax', 'NetworkPrice', 'HandlingFee', 'Certificate', 'EnergyTax']
+        else:
+            cols = ['NetworkPrice']
+        for col in cols:
+            df[VALUE_COLUMN] += df[col]
+
+        return df
 
 
 # Grön logik and marginal abatement cost (MAC) curves, notes

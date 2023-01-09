@@ -160,7 +160,9 @@ class ActionEfficiencyPair:
         if actions is None:
             actions = list(context.get_actions())
 
-        pc = PerfCounter("Action efficiency %s / %s" % (self.cost_node.id, self.impact_node.id), level=PerfCounter.Level.DEBUG)
+        pc = PerfCounter(
+            "Action efficiency %s / %s" % (self.cost_node.id, self.impact_node.id),
+            level=PerfCounter.Level.DEBUG)
         pc.display('starting')
         for action in actions:
             if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.impact_node):
@@ -171,8 +173,6 @@ class ActionEfficiencyPair:
             if not len(df):
                 # No impact for this action, skip it
                 continue
-            # df = df.loc[df.index <= context.target_year]  
-            # FIXME target_year should slice this differently. Or should this be done at frontend?
             cost = df['Cost'].sum() * Quantity('1 a')
             if self.invert_cost:
                 cost *= -1
