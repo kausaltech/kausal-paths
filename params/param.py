@@ -4,12 +4,15 @@ from dataclasses import InitVar, dataclass, field
 
 import hashlib
 import orjson
+import pandas as pd
 from common.i18n import I18nString
 from typing import Any, Dict, Optional, TYPE_CHECKING
+from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
-    from nodes import Node
+    from nodes import Node, NodeMetric
+    from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
 
 
@@ -46,7 +49,7 @@ class Parameter:
     def set(self, value: Any):
         prev_val = getattr(self, 'value', None)
         self.value = self.clean(value)
-        if self.value != prev_val:
+        if self.is_value_equal(prev_val):
             self._hash = None
             if self.node:
                 self.node.notify_parameter_change(self)
@@ -62,11 +65,17 @@ class Parameter:
     def get(self) -> Any:
         return self.value
 
+    def serialize_value(self) -> Any:
+        return self.value
+
+    def is_value_equal(self, value: Any) -> bool:
+        return self.value == value
+
     def calculate_hash(self) -> bytes:
         h = getattr(self, '_hash', None)
         if h is not None:
             return h
-        s = orjson.dumps({'id': self.global_id, 'value': self.value})
+        s = orjson.dumps({'id': self.global_id, 'value': self.serialize_value()})
         h = hashlib.md5(s).digest()
         self._hash = h
         return h
@@ -174,6 +183,33 @@ class NumberParameter(ParameterWithUnit, Parameter):
         super().set(value)
         if unit is not None:
             self.unit = unit
+
+
+@dataclass
+class DatasetParameter(Parameter):
+    """Multi-dimensional time-series."""
+    dimensions: list[Dimension] = field(default_factory=list)
+    metrics: list[NodeMetric] = field(default_factory=list)
+    value: pd.DataFrame | None = None
+
+    def __post_init__(self):
+        if not self.metrics:
+            raise Exception('Must have at least one metric')
+        super().__post_init__()
+
+    def is_value_equal(self, value: pd.DataFrame) -> bool:
+        assert self.value is not None
+        return self.value.equals(value)
+
+    def serialize_value(self) -> Any:
+        assert self.value is not None
+        return JSONDataset.serialize_df(self.value)
+
+    def clean(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise ValidationError(self, "Must get a dict as value")
+
+        return super().clean(value)
 
 
 @dataclass

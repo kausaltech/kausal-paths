@@ -108,7 +108,7 @@ class ExponentialNode(SimpleNode):
 
 
 class EnergyCostNode(AdditiveNode):
-    metrics = {
+    output_metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
         'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
         'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),

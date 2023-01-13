@@ -39,7 +39,7 @@ def simulate_led_retrofit(
 
 
 class LEDRetrofitAction(ActionNode):
-    metrics = {
+    output_metrics = {
         ENERGY_QUANTITY: NodeMetric('MWh/a', ENERGY_QUANTITY),
         CURRENCY_QUANTITY: NodeMetric('EUR/a', CURRENCY_QUANTITY),
     }
@@ -180,8 +180,8 @@ class LEDRetrofitAction(ActionNode):
             + df['LEDEnergyCost'] + df['LEDMaintenanceCost'] + df['LEDInvestmentCost']
         )
         energy_consumption = df['TraditionalEnergy'] + df['LEDEnergy']
-        df[CURRENCY_QUANTITY] = total_cost.astype(PintType(self.metrics[CURRENCY_QUANTITY].unit))
-        df[ENERGY_QUANTITY] = energy_consumption.astype(PintType(self.metrics[ENERGY_QUANTITY].unit))
+        df[CURRENCY_QUANTITY] = total_cost.astype(PintType(self.output_metrics[CURRENCY_QUANTITY].unit))
+        df[ENERGY_QUANTITY] = energy_consumption.astype(PintType(self.output_metrics[ENERGY_QUANTITY].unit))
         df = df[[CURRENCY_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN]]
         return df
 
@@ -255,7 +255,7 @@ class BuildingEnergySavingAction(ActionNode):
     impact on nodes that are given per floor area.
     """
 
-    metrics = {
+    output_metrics = {
         VALUE_COLUMN: NodeMetric('%', 'fraction'),
         'RenovCost': NodeMetric('SEK/a/m**2', 'currency'),
         'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
@@ -402,7 +402,7 @@ class BuildingEnergySavingAction(ActionNode):
 
 
 class EnergyCostAction(ExponentialAction):
-    metrics = {
+    output_metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
         'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
         'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),

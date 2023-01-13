@@ -4,7 +4,7 @@ import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, Iterable, Literal, Optional, Type, overload
+from typing import Dict, Iterable, Literal, Optional, Sequence, Type, overload
 
 import dvc_pandas
 import pint
@@ -15,7 +15,7 @@ from common.i18n import TranslatedString, gettext_lazy as _, set_default_languag
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
-from nodes.node import Node
+from nodes.node import Edge, Node
 from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
 from nodes.units import Unit
@@ -85,8 +85,8 @@ class InstanceLoader:
     instance: Instance
     default_language: str
     yaml_file_path: Optional[str] = None
-    _input_nodes: dict[str, dict]
-    _output_nodes: dict[str, dict]
+    _input_nodes: dict[str, Sequence[dict | str]]
+    _output_nodes: dict[str, Sequence[dict | str]]
 
     @overload
     def make_trans_string(
@@ -157,7 +157,7 @@ class InstanceLoader:
         ds_config = config.get('input_datasets', None)
         datasets: list[Dataset] = []
 
-        metrics = getattr(node_class, 'metrics', None)
+        metrics = getattr(node_class, 'output_metrics', None)
         unit = config.get('unit')
         if unit is None:
             unit = getattr(node_class, 'default_unit', None)
@@ -212,6 +212,7 @@ class InstanceLoader:
             is_outcome=config.get('is_outcome', False),
             target_year_goal=config.get('target_year_goal'),
             input_datasets=datasets,
+            output_dimension_ids=config.get('output_dimensions'),
         )
 
         if node.id in self._input_nodes or node.id in self._output_nodes:
@@ -270,7 +271,10 @@ class InstanceLoader:
         self, path: str, path_prefix: str | None = None,
         allowed_classes: Iterable[Type] | None = None,
         disallowed_classes: Iterable[Type] | None = None,
+        node_id: str | None = None
     ) -> Type:
+        if not path:
+            raise Exception("Node %s: no class path given" % node_id)
         parts = path.split('.')
         class_name = parts.pop(-1)
         if path_prefix:
@@ -300,7 +304,8 @@ class InstanceLoader:
         for nc in self.config.get('nodes', []):
             try:
                 node_class = self.import_class(
-                    nc['type'], 'nodes', allowed_classes=[Node], disallowed_classes=[ActionNode]
+                    nc['type'], 'nodes', allowed_classes=[Node], disallowed_classes=[ActionNode],
+                    node_id=nc['id'],
                 )
             except ImportError:
                 logger.error('Unable to import node class for %s' % nc.get('id'))
@@ -373,15 +378,15 @@ class InstanceLoader:
         # Setup edges
         ctx = self.context
         for node in ctx.nodes.values():
-            for out_id in self._output_nodes.get(node.id, []):
-                out_node = ctx.get_node(out_id)
-                out_node.add_input_node(node)
-                node.add_output_node(out_node)
+            for ec in self._output_nodes.get(node.id, []):
+                edge = Edge.from_config(ec, node=node, is_output=True, context=ctx)
+                node.add_edge(edge)
+                edge.output_node.add_edge(edge)
 
-            for in_id in self._input_nodes.get(node.id, []):
-                in_node = ctx.get_node(in_id)
-                in_node.add_output_node(node)
-                node.add_input_node(in_node)
+            for ec in self._input_nodes.get(node.id, []):
+                edge = Edge.from_config(ec, node=node, is_output=False, context=ctx)
+                node.add_edge(edge)
+                edge.input_node.add_edge(edge)
 
         ctx.finalize_nodes()
 
@@ -529,11 +534,11 @@ class InstanceLoader:
         with set_default_language(self.instance.default_language):
             self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
+        self.setup_global_parameters()
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
         self.setup_action_efficiency_pairs()
-        self.setup_global_parameters()
         self.setup_scenarios()
 
         for scenario in self.context.scenarios.values():

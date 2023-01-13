@@ -57,7 +57,7 @@ HEAT_CONSUMPTION = 'heat_consumption'
 
 
 class BuildingStock(AdditiveNode):
-    metrics = {
+    output_metrics = {
         FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
     }
     input_datasets = [
@@ -88,18 +88,22 @@ class BuildingStock(AdditiveNode):
         )
 
         df[YEAR_COLUMN] = df['Vuosi'].astype(int)
-        m = self.metrics[FLOOR_AREA]
+        m = self.output_metrics[FLOOR_AREA]
         s = df.groupby(['building_heat_source', 'building_use', YEAR_COLUMN])['value'].sum()
         s = m.ensure_output_unit(s)
         df = pd.DataFrame(data=s.values, index=s.index, columns=[VALUE_COLUMN])
         df[FORECAST_COLUMN] = False
 
-        df = extend_last_historical_value(df, self.context.model_end_year)
+        df = extend_last_historical_value(
+            df, self.context.model_end_year, dimensions=self.output_dimensions,
+            metrics=self.output_metrics
+        )
+        df = self.add_nodes(df, self.input_nodes)
         return df
 
 
 class FutureBuildingStock(AdditiveNode):
-    metrics = {
+    output_metrics = {
         FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
     }
     output_dimension_ids = [
@@ -109,7 +113,7 @@ class FutureBuildingStock(AdditiveNode):
 
     def compute(self) -> pd.DataFrame:
         # First compute m2 / capita
-        hist_node = self.get_input_node(tag='historical_floor_area')
+        hist_node = self.get_input_node(tag='existing_floor_area')
         hist_df = hist_node.get_output()
 
         pop_node = self.get_input_node(quantity='population')
@@ -138,7 +142,7 @@ class FutureBuildingStock(AdditiveNode):
         area_sum = df.sum(axis=1).astype(pc_dt)
         # Count the ratios of new area per building type
         df = df.div(area_sum, axis=0)
-        # Scale back to total sum
+        # Scale back to total sum -> and there it is
         area_per_new_cap_df = df.mul(total_sum, axis=0)
 
         # Now look into the future
@@ -151,6 +155,8 @@ class FutureBuildingStock(AdditiveNode):
         df = df.astype(area_dt)
 
         df = df.stack(self.output_dimension_ids)  # type: ignore
+        assert isinstance(df, pd.DataFrame)
+        df = df.rename(columns={'Area': VALUE_COLUMN})
         df[FORECAST_COLUMN] = True
 
         nodes = self.input_nodes.copy()
@@ -163,7 +169,7 @@ class FutureBuildingStock(AdditiveNode):
 
 
 class BuildingHeatPredict(Node):
-    metrics = {
+    output_metrics = {
         HEAT_CONSUMPTION: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY)
     }
     output_dimension_ids = [
@@ -192,19 +198,23 @@ class BuildingHeatPredict(Node):
 
         # Calculate heat consumption per area
         rows = ~df[FORECAST_COLUMN]
-        if True:
-            s = (df.loc[rows, 'HeatConsumption'] / df.loc[rows, 'Area']).dropna()
-            dt = s.dtype
-            pa_df = s.unstack(self.output_dimension_ids)  # type: ignore
-            pa_df = pa_df.rolling(window=5).mean().astype(dt)
-        else:
-            self.print(df)
+
+        s = (df.loc[rows, 'HeatConsumption'] / df.loc[rows, 'Area']).dropna()
+        dt = s.dtype
+        pa_df = s.unstack(self.output_dimension_ids)  # type: ignore
+        pa_df = pa_df.rolling(window=5).mean().astype(dt)
+
+        """
+            df = df.loc[rows].dropna()
             df = df.drop(columns=FORECAST_COLUMN)
             df = df.unstack(self.output_dimension_ids)
-            df = df.loc[(df.index >= last_hist_year - 10) & (df.index <= last_hist_year)]
+            df = df.loc[(df.index >= last_hist_year - 12) & (df.index <= last_hist_year)]
             df = df.diff().cumsum().dropna()
             df = df.stack(self.output_dimension_ids)
             df['PerArea'] = df['HeatConsumption'].astype(heat_dt) / df['Area'].astype(area_dt)
+            self.print(df['PerArea'].unstack(self.output_dimension_ids).astype('pint[kWh/a/m**2]'))
+            exit()
+        """
 
         s = pa_df.stack(self.output_dimension_ids) # type: ignore
         s = s.astype(dt)

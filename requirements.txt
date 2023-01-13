@@ -161,22 +161,22 @@ djangorestframework==3.14.0
     # via
     #   -r requirements.in
     #   wagtail
-dpath==2.1.3
+dpath==2.1.4
     # via dvc
 draftjs-exporter==2.1.7
     # via wagtail
 dulwich==0.20.50
     # via scmrepo
-dvc[s3]==2.39.0
+dvc[s3]==2.41.1
     # via
     #   dvc-http
     #   dvc-pandas
     #   dvc-s3
-dvc-data==0.28.5
+dvc-data==0.29.0
     # via dvc
 dvc-http==2.30.0
     # via dvc
-dvc-objects==0.14.0
+dvc-objects==0.14.1
     # via dvc-data
 dvc-pandas==0.0.16
     # via -r requirements.in
@@ -204,7 +204,7 @@ factory-boy==3.2.1
     # via
     #   -r requirements.in
     #   pytest-factoryboy
-faker==15.3.4
+faker==16.4.0
     # via factory-boy
 fasteners==0.18
     # via dvc-pandas
@@ -233,7 +233,7 @@ funcy==1.17
     #   dvc-objects
     #   dvc-task
     #   scmrepo
-future==0.18.2
+future==0.18.3
     # via grandalf
 gitdb==4.0.10
     # via gitpython
@@ -304,7 +304,7 @@ multidict==6.0.4
     #   yarl
 nanotime==0.5.2
     # via dvc-data
-networkx==2.8.8
+networkx==3.0
     # via dvc
 numba==0.56.4
     # via -r requirements.in
@@ -320,9 +320,9 @@ omegaconf==2.3.0
     # via hydra-core
 openpyxl==3.0.10
     # via wagtail
-orjson==3.8.4
+orjson==3.8.5
     # via -r requirements.in
-packaging==22.0
+packaging==23.0
     # via
     #   dvc
     #   hydra-core
@@ -354,6 +354,8 @@ pint-pandas==0.3
     #   dvc-pandas
 pluggy==1.0.0
     # via pytest
+polars==0.15.14
+    # via -r requirements.in
 polib==1.1.1
     # via wagtail-localize
 promise==2.3
@@ -429,9 +431,9 @@ pytz==2022.7
     #   pandas
 pyyaml==6.0
     # via omegaconf
-redis==4.4.0
+redis==4.4.2
     # via -r requirements.in
-requests==2.28.1
+requests==2.28.2
     # via
     #   django-oauth-toolkit
     #   dvc
@@ -459,7 +461,7 @@ scipy==1.10.0
     # via -r requirements.in
 scmrepo==0.1.5
     # via dvc
-sentry-sdk==1.12.1
+sentry-sdk==1.13.0
     # via -r requirements.in
 shortuuid==1.0.11
     # via
@@ -505,7 +507,7 @@ tqdm==4.64.1
     # via
     #   dvc
     #   dvc-objects
-traitlets==5.8.0
+traitlets==5.8.1
     # via
     #   ipython
     #   matplotlib-inline
@@ -517,7 +519,7 @@ typing-extensions==4.4.0
     #   pydantic
     #   pytest-factoryboy
     #   wagtail-localize
-urllib3==1.26.13
+urllib3==1.26.14
     # via
     #   botocore
     #   dulwich

@@ -2,9 +2,6 @@ emission_sectors:
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
   part_of: net_emissions
-- id: district_heating_emissions
-  name: Kaukolämmön päästöt
-  part_of: building_heating_emissions
 - id: oil_heating_emissions
   name: Öljylämmityksen päästöt
   part_of: building_heating_emissions
@@ -51,43 +48,17 @@ emission_sectors:
   name: Maatalouden päästöt
   part_of: net_emissions
 nodes:
-- id: district_heating_residence_energy
-  name: Kaukolämmön lämmönkulutus (Asuminen)
+- id: district_heating_energy
+  name: Kaukolämmön lämmönkulutus
   params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: district_heating_residence_emissions
-  name: Kaukolämmön päästöt (Asuminen)
-  output_nodes: [district_heating_emissions]
-  input_nodes: [district_heating_emission_factor, district_heating_residence_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: district_heating_services_energy
-  name: Kaukolämmön lämmönkulutus (Palvelut)
-  params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: district_heating_services_emissions
-  name: Kaukolämmön päästöt (Palvelut)
-  output_nodes: [district_heating_emissions]
-  input_nodes: [district_heating_emission_factor, district_heating_services_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: district_heating_industry_energy
-  name: Kaukolämmön lämmönkulutus (Teollisuus)
-  params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: district_heating_industry_emissions
-  name: Kaukolämmön päästöt (Teollisuus)
-  output_nodes: [district_heating_emissions]
-  input_nodes: [district_heating_emission_factor, district_heating_industry_energy]
+- id: district_heating_emissions
+  name: Kaukolämmön päästöt
+  output_nodes: [building_heating_emissions]
+  input_nodes: [district_heating_emission_factor, district_heating_energy]
   type: simple.EmissionFactorActivity
   unit: kt/a
 - id: oil_heating_residence_energy

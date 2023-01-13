@@ -10,7 +10,10 @@ import pint_pandas
 from common.i18n import TranslatedString
 from common.perf import PerfCounter
 
-from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, VALUE_WITHOUT_ACTION_COLUMN, DecisionLevel
+from nodes.constants import (
+    FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, VALUE_WITH_ACTION_GROUP,
+    VALUE_WITHOUT_ACTION_GROUP, DecisionLevel
+)
 from nodes import Node, NodeError
 from nodes.units import Unit, Quantity
 from params import BoolParameter
@@ -38,9 +41,6 @@ class ActionNode(Node):
     # actions, 1.0.
     no_effect_value: Optional[float] = None
     enabled_param: BoolParameter
-    global_parameters: list[str] = [
-        'discount_node_name'
-    ]
 
     def __post_init__(self):
         self.enabled_param = BoolParameter(local_id=ENABLED_PARAM_ID)
@@ -69,16 +69,29 @@ class ActionNode(Node):
     def compute_impact(self, target_node: Node) -> pd.DataFrame:
         # Determine the impact of this action in the target node
         enabled = self.is_enabled()
+        metrics = target_node.output_metrics
+
         self.enabled_param.set(False)
-        disabled_df = target_node.get_output()
-        if disabled_df is None:
-            raise NodeError(self, 'Output for node %s was null' % target_node.id)
-        if VALUE_COLUMN not in disabled_df.columns:
-            raise NodeError(self, 'Output for node %s did not contain the Value column' % target_node.id)
+        ddf = target_node.get_output()
         self.enabled_param.set(enabled)
-        df = target_node.get_output()
-        df[VALUE_WITHOUT_ACTION_COLUMN] = disabled_df[VALUE_COLUMN]
-        df[IMPACT_COLUMN] = df[VALUE_COLUMN] - df[VALUE_WITHOUT_ACTION_COLUMN]
+        edf = target_node.get_output()
+
+        for metric in metrics.values():
+            if metric.column_id not in ddf.columns:
+                raise NodeError(self, 'Output for node %s did not contain the %s column' % (target_node.id, metric.column_id))
+
+        fc = edf.pop(FORECAST_COLUMN)
+        ddf.pop(FORECAST_COLUMN)
+
+        if isinstance(edf.columns, pd.MultiIndex):
+            other_cols = edf.columns.levels
+        else:
+            other_cols = [edf.columns]
+        new_cols = [[VALUE_WITH_ACTION_GROUP, VALUE_WITHOUT_ACTION_GROUP, IMPACT_GROUP]] + other_cols
+        df = pd.DataFrame(columns=pd.MultiIndex.from_product(new_cols), index=edf.index)
+        df[VALUE_WITH_ACTION_GROUP] = edf
+        df[VALUE_WITHOUT_ACTION_GROUP] = ddf[VALUE_COLUMN]
+        df[IMPACT_GROUP] = df[VALUE_WITH_ACTION_GROUP] - df[VALUE_WITHOUT_ACTION_GROUP]
         return df
 
     def print_impact(self, target_node: Node):
@@ -92,8 +105,10 @@ class ActionNode(Node):
 
     def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> pd.DataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
-        discount = self.context.get_parameter_value('discount_node_name')
-        discount_factor = self.context.get_node(discount).compute()[VALUE_COLUMN]
+
+        # FIXME: Discount needs to be handled maybe through ActionEfficiencyPairs?
+        # discount = self.context.get_parameter_value('discount_node_name')
+        # discount_factor = self.context.get_node(discount).compute()[VALUE_COLUMN]
 
         pc.display('starting')
         cost = self.compute_impact(cost_node)[IMPACT_COLUMN]
@@ -102,7 +117,7 @@ class ActionNode(Node):
         impact = self.compute_impact(impact_node)[IMPACT_COLUMN]
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
         df = pd.concat([cost], axis=1)
-        df['Cost'] *= discount_factor
+        # df['Cost'] *= discount_factor  # FIXME
         df['Impact'] = impact.replace({0: np.nan})
         pd_pt = pint_pandas.PintType(unit)
         df['Efficiency'] = (df['Cost'] / df['Impact']).astype(pd_pt)

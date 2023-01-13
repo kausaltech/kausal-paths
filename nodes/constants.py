@@ -3,8 +3,12 @@ from enum import Enum
 FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
-VALUE_WITHOUT_ACTION_COLUMN = 'ValueWithoutAction'
-IMPACT_COLUMN = 'Impact'
+
+VALUE_WITH_ACTION_GROUP = 'Action'
+VALUE_WITHOUT_ACTION_GROUP = 'WithoutAction'
+IMPACT_GROUP = 'Impact'
+
+
 FORECAST_x = 'Forecast_x'
 FORECAST_y = 'Forecast_y'
 VALUE_x = 'Value_x'
@@ -25,6 +29,7 @@ UNIT_PRICE_QUANTITY = 'unit_price'
 FLOOR_AREA_QUANTITY = 'floor_area'
 NUMBER_QUANTITY = 'number'
 PER_CAPITA_QUANTITY = 'per_capita'
+POPULATION_QUANTITY = 'quantity'
 ACTIVITY_QUANTITIES = [EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'mass']
 
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES + [
@@ -48,3 +53,18 @@ class DecisionLevel(Enum):
     MUNICIPALITY = 1
     NATION = 2
     EU = 3
+
+
+def get_quantity_icon(quantity: str) -> str | None:
+    if quantity == EMISSION_QUANTITY:
+        return '💨'
+    elif quantity == ENERGY_QUANTITY:
+        return '⚡'
+    elif quantity == MILEAGE_QUANTITY:
+        return '🚗'
+    elif quantity == EMISSION_FACTOR_QUANTITY:
+        return '✖'
+    elif quantity == POPULATION_QUANTITY:
+        return '👪'
+    return None
+

@@ -14,7 +14,7 @@ class AlasNode(Node):
         'syke/alas_emissions',
     ]
     global_parameters = ['municipality_name']
-    metrics = {
+    output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
@@ -42,7 +42,7 @@ class AlasNode(Node):
         df = df.set_index(['Year', 'Sector'])
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        for dim_id, dim in self.metrics.items():
+        for dim_id, dim in self.output_metrics.items():
             df[dim_id] = self.convert_to_unit(df[dim_id], dim.unit)
         return df
 

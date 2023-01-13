@@ -1,7 +1,7 @@
 from __future__ import annotations
 import base64
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import hashlib
 import os
@@ -25,7 +25,7 @@ from common.utils import hash_unit
 from nodes.constants import (
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
     MILEAGE_QUANTITY, VALUE_COLUMN, YEAR_COLUMN,
-    ensure_known_quantity, DEFAULT_METRIC
+    ensure_known_quantity, DEFAULT_METRIC, get_quantity_icon
 )
 from params import Parameter
 from params.param import ParameterWithUnit
@@ -33,7 +33,7 @@ from params.param import ParameterWithUnit
 from .context import Context
 from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
-from .dimensions import Dimension
+from .dimensions import Dimension, DimensionCategory
 from .units import Unit, Quantity
 
 if typing.TYPE_CHECKING:
@@ -109,6 +109,47 @@ class NodeMetric:
         return s
 
 
+@dataclass
+class Edge:
+    input_node: Node
+    output_node: Node
+    tags: list[str] = field(default_factory=list)
+    dimensions: dict[str, list[DimensionCategory]] = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.tags = self.tags.copy()
+        self.dimensions = self.dimensions.copy()
+
+    @classmethod
+    def from_config(cls, config: dict | str, node: Node, is_output: bool, context: Context) -> Edge:
+        if isinstance(config, str):
+            other_id = config
+        else:
+            other_id = config.get('id')
+            if other_id is None:
+                raise KeyError("node id not given in edge definition")
+        other = context.nodes.get(other_id)
+        if other is None:
+            raise KeyError("node %s not found" % other_id)
+
+        args = {}
+        args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)
+        if isinstance(config, dict):
+            args['tags'] = config.get('tags', [])
+            dcs = config.get('dimensions', [])
+            dims = {}
+            for dc in dcs:
+                dim_id = dc.get('id')
+                if dim_id not in context.dimensions:
+                    raise KeyError("dimension %s not found" % dim_id)
+                dim = context.dimensions[dim_id]
+                cat_ids = dc['categories']
+                cats = [dim.get(cat_id) for cat_id in cat_ids]
+                dims[dim.id] = cats
+            args['dimensions'] = dims
+        return Edge(**args)
+
+
 class Node:
     id: Identifier
     "Identifier of the Node instance."
@@ -143,7 +184,7 @@ class Node:
     tags: Set[str]
 
     # output units and quantities (for multi-metric nodes)
-    metrics: dict[str, NodeMetric] = {}
+    output_metrics: dict[str, NodeMetric] = {}
 
     output_dimensions: dict[str, Dimension]
     "The dimensions that this node's output will contain."
@@ -159,8 +200,7 @@ class Node:
     input_dataset_instances: List[Dataset]
     input_dataset_processors: List[Processor]
 
-    input_nodes: List[Node]
-    output_nodes: List[Node]
+    edges: List[Edge]
 
     # Global input parameters the node needs
     global_parameters: List[str]
@@ -190,24 +230,27 @@ class Node:
     logger: logging.Logger
     debug: bool = False
 
+
     def __post_init__(self): ...
 
     def _init_metrics(self, unit: Unit | None, quantity: str | None):
-        self.metrics = self.metrics.copy()
-        if self.metrics:
-            for met_id, met in self.metrics.items():
+        self.output_metrics = self.output_metrics.copy()
+        if self.output_metrics:
+            for met_id, met in self.output_metrics.items():
                 met.populate_unit(self.context)
                 met.id = MixedCaseIdentifier.validate(met_id)
 
-            if len(self.metrics) == 1:
+            if len(self.output_metrics) == 1:
                 # Single-metric node
-                metric = list(self.metrics.values())[0]
+                metric = list(self.output_metrics.values())[0]
                 self.unit = metric.unit
                 self.quantity = metric.quantity
                 if not metric.column_id:
                     metric.column_id = VALUE_COLUMN
             else:
-                for met_id, met in self.metrics.items():
+                self.unit = None
+                self.quantity = None
+                for met_id, met in self.output_metrics.items():
                     if not met.column_id:
                         met.column_id = VALUE_COLUMN
         else:
@@ -220,11 +263,11 @@ class Node:
             if unit is None:
                 raise NodeError(self, "Attempting to initialize node without a unit")
             # Create the default metric automatically for now
-            self.metrics[DEFAULT_METRIC] = NodeMetric(
+            self.output_metrics[DEFAULT_METRIC] = NodeMetric(
                 unit, self.quantity, id=DEFAULT_METRIC, column_id=VALUE_COLUMN
             )
 
-        for m in self.metrics.values():
+        for m in self.output_metrics.values():
             m.node = self
 
     def __init__(
@@ -232,6 +275,7 @@ class Node:
         quantity: str | None = None, description: I18nString | None = None,
         color: str | None = None, order: int | None = None, is_outcome: bool = False,
         target_year_goal: float | None = None, input_datasets: List[Dataset] | None = None,
+        output_dimension_ids: list[str] | None = None,
     ):
         self.id = Identifier.validate(id)
         self.context = context
@@ -247,8 +291,7 @@ class Node:
         self.is_outcome = is_outcome
         self.target_year_goal = target_year_goal
         self.input_dataset_instances = input_datasets
-        self.input_nodes = []
-        self.output_nodes = []
+        self.edges = []
         self.baseline_values = None
         self.parameters = {}
         self.tags = set()
@@ -261,7 +304,13 @@ class Node:
             self.global_parameters = []
 
         self.output_dimensions = {}
-        if self.output_dimension_ids:
+        if output_dimension_ids and self.output_dimension_ids:
+            if set(output_dimension_ids) != set(self.output_dimension_ids):
+                raise NodeError(self, "Invalid dimensions supplied: %s" % ', '.join(output_dimension_ids))
+        elif self.output_dimension_ids:
+            output_dimension_ids = self.output_dimension_ids
+
+        if output_dimension_ids:
             for dim_id in self.output_dimension_ids:
                 dim = self.context.dimensions.get(dim_id)
                 if not dim:
@@ -405,9 +454,12 @@ class Node:
 
     def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None) -> Node:
         matching_nodes = []
-        for node in self.input_nodes:
+        for edge in self.edges:
+            if edge.output_node != self:
+                continue
+            node = edge.input_node
             if tag is not None:
-                if tag not in node.tags:
+                if tag not in edge.tags and tag not in node.tags:
                     continue
             if quantity is not None:
                 if node.quantity != quantity:
@@ -416,8 +468,16 @@ class Node:
             matching_nodes.append(node)
         if len(matching_nodes) != 1:
             tag_str = (' with tag %s' % tag) if tag is not None else ''
-            raise NodeError(self, 'Found %d input nodes %s' % (len(matching_nodes), tag_str))
+            raise NodeError(self, 'Found %d input nodes%s' % (len(matching_nodes), tag_str))
         return matching_nodes[0]
+
+    @property
+    def input_nodes(self) -> list[Node]:
+        return [edge.input_node for edge in self.edges if edge.output_node == self]
+
+    @property
+    def output_nodes(self) -> list[Node]:
+        return [edge.output_node for edge in self.edges if edge.input_node == self]
 
     def get_last_historical_year(self) -> Optional[int]:
         year = getattr(self, '_last_historical_year', None)
@@ -473,7 +533,7 @@ class Node:
         hash_part('id', self.id.encode('ascii'))
         if self.metrics_hash is None:
             metrics_hash = bytes()
-            for m in self.metrics.values():
+            for m in self.output_metrics.values():
                 metrics_hash += m.calculate_hash()
             self.metrics_hash = metrics_hash
         hash_part('metrics', self.metrics_hash)
@@ -532,12 +592,55 @@ class Node:
         self.last_hash_time = perf_counter_ns()
         return ret
 
+    def _get_output_for_target(self, df: pd.DataFrame, target_node: Node) -> pd.DataFrame:
+        col_name: Optional[str] = None
+
+        for edge in self.edges:
+            if edge.output_node == target_node:
+                break
+        else:
+            raise NodeError(self, "No connection to target node %s" % target_node.id)
+
+        # If target node is given, check first if there is a level in the df's
+        # multi-index called 'node'.
+        if isinstance(df.index, pd.MultiIndex) and 'node' in df.index.names:
+            df = df.xs(target_node.id, level='node')  # type: ignore
+            assert isinstance(df, pd.DataFrame)
+            return df
+
+        # Other possibility is that the node id is one of the columns.
+        if target_node.id in df.columns:
+            col_name = target_node.id
+        elif self.unit is None:
+            # multi-metric node
+            if target_node.quantity in self.output_metrics:
+                col_name = target_node.quantity
+            else:
+                raise NodeError(self, "Quantity '%s' for node %s not found metrics" % (target_node.quantity, target_node))
+
+        if col_name:
+            cols = [col_name]
+            if FORECAST_COLUMN in df.columns:
+                cols.append(FORECAST_COLUMN)
+            df = df[cols]
+            df = df.rename(columns={col_name: VALUE_COLUMN})
+        return df
+
     def validate_output(self, df: pd.DataFrame):
         if df.index.duplicated().any():
             raise NodeError(self, "Node output has duplicate index rows")
         if FORECAST_COLUMN in df.columns:
             if df.dtypes[FORECAST_COLUMN] != bool:
                 raise NodeError(self, "Forecast column is not a boolean")
+
+        if self.output_dimensions:
+            assert isinstance(df.index, pd.MultiIndex)
+            names = set(df.index.names)
+            dim_ids = set(df.output_dimensions.keys())
+            if names != dim_ids:
+                raise NodeError(self, "Invalid dimensions")
+            for idx, name in enumerate(names):
+                pass
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         pc = PerfCounter(
@@ -567,6 +670,8 @@ class Node:
             cache_hit = True
         self.context.perf_context.record_cache(self, is_hit=cache_hit)
 
+        assert isinstance(out, pd.DataFrame)
+
         if not cache_hit:
             self.context.cache.set(node_hash, out)
 
@@ -584,24 +689,7 @@ class Node:
             return out.copy()
 
         if target_node is not None:
-            col_name: Optional[str] = None
-
-            if target_node.id in out.columns:
-                col_name = target_node.id
-            elif self.unit is None:
-                # multi-metric node
-                assert isinstance(self.metrics, dict)
-                if target_node.quantity in self.metrics:
-                    col_name = target_node.quantity
-                else:
-                    raise NodeError(self, "Quantity '%s' for node %s not found metrics" % (target_node.quantity, target_node))
-
-            if col_name:
-                cols = [col_name]
-                if FORECAST_COLUMN in out.columns:
-                    cols.append(FORECAST_COLUMN)
-                out = out[cols]
-                out = out.rename(columns={col_name: VALUE_COLUMN})
+            out = self._get_output_for_target(out, target_node)
             pc.display('Done (with target node)')
         else:
             pc.display('Done (normal exit)')
@@ -679,10 +767,10 @@ class Node:
         if self.unit is None:
             raise NodeError(self, 'Does currently not work on multi-metric nodes')
 
-        metric = self.metrics.get(DEFAULT_METRIC)
+        metric = self.output_metrics.get(DEFAULT_METRIC)
         if metric is None:
-            assert len(self.metrics) == 1
-            metric = list(self.metrics.values())[0]
+            assert len(self.output_metrics) == 1
+            metric = list(self.output_metrics.values())[0]
         return metric.ensure_output_unit(s, input_node)
 
     def get_downstream_nodes(self) -> List[Node]:
@@ -719,29 +807,34 @@ class Node:
         from nodes.actions import ActionNode
         if isinstance(self, ActionNode):
             return '⚒'
-        elif self.quantity == EMISSION_QUANTITY:
-            return '💨'
-        elif self.quantity == ENERGY_QUANTITY:
-            return '⚡'
-        elif self.quantity == MILEAGE_QUANTITY:
-            return '🚗'
-        elif self.quantity == EMISSION_FACTOR_QUANTITY:
-            return '✖'
-        else:
+
+        icons = []
+        for metric in self.output_metrics.values():
+            icon = get_quantity_icon(metric.quantity)
+            if icon:
+                icons.append(icon)
+        if not icons:
             return None
+        return '+'.join(icons)
 
     def __str__(self):
         return '%s [%s]' % (self.id, str(type(self)))
 
-    def add_input_node(self, node: Node):
+    def add_input_node(self, node: Node, tags: list[str] = []):
         if node in self.input_nodes:
             raise Exception(f"Node {node} already added to input nodes for {self.id}")
-        self.input_nodes.append(node)
+        self.edges.append(Edge(input_node=node, output_node=self, tags=tags))
 
-    def add_output_node(self, node: Node):
-        if node in self.output_nodes:
-            raise Exception(f"Node {node} already added to output nodes for {self.id}")
-        self.output_nodes.append(node)
+    def add_edge(self, edge: Edge):
+        if edge.input_node == self:
+            if edge.output_node in self.output_nodes:
+                raise NodeError(self, f"Node {edge.output_node} already added to output nodes")
+        elif edge.output_node == self:
+            if edge.input_node in self.input_nodes:
+                raise NodeError(self, f"Node {edge.input_node} already added to input nodes")
+        else:
+            raise NodeError(self, f"Attempting to add edge: {edge.input_node} -> {edge.output_node}")
+        self.edges.append(edge)
 
     def is_connected_to(self, other: Node):
         return nx.has_path(self.context.node_graph, self.id, other.id)
@@ -760,26 +853,8 @@ class Node:
         if not isinstance(df, pd.DataFrame) or FORECAST_COLUMN not in df.columns:
             raise Exception('Dataset %s is not suitable for serialization')
 
-        try:
-            unit = ds.get_unit(self.context)
-        except Exception:
-            # FIXME: Make this more robust
-            unit = self.unit
-        units = {}
-        for col in df.columns:
-            if col == FORECAST_COLUMN:
-                continue
-            if hasattr(df[col], 'pint'):
-                assert df[col].pint.units == unit
-                df[col] = df[col].pint.m
-            units[col] = str(unit)
-
-        d = json.loads(df.to_json(orient='table'))
-        fields = d['schema']['fields']
-        for field in fields:
-            if field['name'] in units:
-                field['unit'] = units[field['name']]
-        return d
+        out = JSONDataset.serialize_df(df)
+        return out
 
     def validate_input_data(self, data: dict):
         return self._make_input_dataset(data)

@@ -11,7 +11,7 @@ from .metric import Metric
 from . import Node
 from .instance import Instance
 from .actions import ActionNode, ActionEfficiencyPair, ActionGroup
-from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_COLUMN, VALUE_COLUMN, DecisionLevel
+from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, DecisionLevel
 from .scenario import Scenario
 
 

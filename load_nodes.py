@@ -6,12 +6,11 @@ import time
 
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
-from nodes.instance import Instance, InstanceLoader
+from nodes.instance import InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
 from rich.table import Table
 from rich.console import Console
-from rich.live import Live
 import pandas as pd
 
 
@@ -191,7 +190,12 @@ for node_id in (args.node or []):
     node = context.get_node(node_id)
     node.print_output()
     if isinstance(node, ActionNode):
-        downstream_nodes = set(node.get_downstream_nodes())
+        output_nodes = node.output_nodes
+        for n in output_nodes:
+            print("Impact of %s on %s" % (node, n))
+            node.print_impact(n)
+
+        """
         for n in context.nodes.values():
             if n.output_nodes:
                 # Not a leaf node
@@ -199,8 +203,7 @@ for node_id in (args.node or []):
             if n not in downstream_nodes:
                 print("%s has no impact on %s" % (node, n))
                 continue
-            print("Impact of %s on %s" % (node, n))
-            node.print_impact(n)
+        """
 
 if args.print_action_efficiencies:
     def print_action_efficiencies():
@@ -244,3 +247,4 @@ if False:
     loader.context.generate_baseline_values()
     # for sector in page.get_sectors():
     #    print(sector)
+

@@ -22,7 +22,7 @@ class AluesarjatNode(Node):
         'helsinki/aluesarjat/02um_rakennukset_lammitys'
     ]
     global_parameters = ['municipality_name']
-    metrics = {
+    output_metrics = {
         VALUE_COLUMN: NodeMetric(unit='m**2', quantity='area'),
     }
 
@@ -38,7 +38,7 @@ class AluesarjatNode(Node):
         df = df[df['Alue'] == muni_name]
         df = df[df['Tiedot'] == 'Kerrosala (m2)'].drop(columns=todrop)
         df = df.rename(columns={'Vuosi': YEAR_COLUMN, 'value': VALUE_COLUMN})
-        for metric_id, metric in self.metrics.items():
+        for metric_id, metric in self.output_metrics.items():
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
@@ -62,7 +62,7 @@ class HsyNode(Node):
         'hsy/pks_khk_paastot',
     ]
     global_parameters = ['municipality_name']
-    metrics = {
+    output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
     }
@@ -100,7 +100,7 @@ class HsyNode(Node):
         df = df.set_index(['Year', 'Sector'])
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        for metric_id, metric in self.metrics.items():
+        for metric_id, metric in self.output_metrics.items():
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:

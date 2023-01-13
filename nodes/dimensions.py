@@ -31,9 +31,16 @@ class Dimension(BaseModel):
     id: Identifier
     categories: List[DimensionCategory] = Field(default_factory=list)
     _hash: bytes | None = PrivateAttr(default=None)
+    _cat_map: dict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
+        self._cat_map = {cat.id: cat for cat in self.categories}
+
+    def get(self, cat_id: str) -> DimensionCategory:
+        if cat_id not in self._cat_map:
+            raise KeyError("Dimension %s: category %s not found" % (self.id, cat_id))
+        return self._cat_map[cat_id]
 
     def labels_to_ids(self) -> dict[str, Identifier]:
         all_labels = {}

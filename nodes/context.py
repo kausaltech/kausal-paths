@@ -13,6 +13,8 @@ import dvc_pandas
 import pint
 import pint_pandas
 import rich
+from common import polars as pl
+from common import polars_ext  # noqa
 from rich.tree import Tree
 
 from common.cache import Cache
@@ -167,6 +169,10 @@ class Context:
         if node.id in self.nodes:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
+        for param_id in node.global_parameters:
+            param = self.global_parameters[param_id]
+            assert node not in param.subscription_nodes
+            param.subscription_nodes.append(node)
 
     def get_node(self, id: str) -> Node:
         return self.nodes[id]
@@ -306,17 +312,13 @@ class Context:
         import inspect
 
         def make_node_tree(node: Node, tree: Tree | None = None) -> Tree:
-            node_icon = ''
             node_color = 'yellow'
             if isinstance(node, self.Action):
                 node_color = 'green'
             elif node.quantity == 'emissions':
                 node_color = 'magenta'
-                node_icon = '💨'
-            elif node.quantity == 'population':
-                node_icon = '👪'
-            if node_icon:
-                node_icon += ' '
+
+            node_icon = node.get_icon() or ''
 
             node_class = type(node)
             node_module = node_class.__module__
@@ -324,8 +326,9 @@ class Context:
             line_nr = inspect.getsourcelines(node_class)[1]
             link = 'file://%s#%d' % (module_file, line_nr)
             node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
-            unit_quantity = f'[orchid]({node.quantity}: {node.unit})'
-            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} {unit_quantity} {node_class_str}'
+            metrics = ', '.join([f"{m.quantity} [#a63fa4]{m.unit}[orchid]" for m in node.output_metrics.values()])
+            unit_quantity = f'({metrics})'
+            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} [orchid]{unit_quantity} {node_class_str}'
             if include_datasets:
                 for ds in node.input_dataset_instances:
                     if isinstance(ds, FixedDataset):

@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass, field
 import io
 import json
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, Union, overload
 import orjson
 
 import pandas as pd
@@ -14,6 +14,7 @@ from dvc_pandas import Dataset as DVCPandasDataset
 from pint_pandas.pint_array import PintType
 
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.units import Unit
 
 if TYPE_CHECKING:
     from .context import Context
@@ -267,21 +268,13 @@ class FixedDataset(Dataset):
 class JSONDataset(Dataset):
     data: dict
     unit: pint.Unit
+    df: pd.DataFrame
 
     def __post_init__(self):
         super().__post_init__()
-        sio = io.StringIO(json.dumps(self.data))
-        df = pd.read_json(sio, orient='table')
-        units = []
-        for f in self.data['schema']['fields']:
-            unit = f.get('unit')
-            if unit:
-                pt = pint_pandas.PintType(unit)
-                df[f['name']] = df[f['name']].astype(float).astype(pt)
-                units.append(pt.units)
-        self.df = df
+        self.df, units = JSONDataset.deserialize_df(self.data, return_units=True)
         if len(units) == 1:
-            self.unit = units[0]
+            self.unit = list(units.values())[0]
 
     def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
         assert self.df is not None
@@ -292,3 +285,43 @@ class JSONDataset(Dataset):
 
     def get_unit(self, context: Context) -> pint.Unit:
         return self.unit
+
+    @overload
+    @classmethod
+    def deserialize_df(cls, value: dict, return_units: Literal[False] = False) -> pd.DataFrame: ...
+
+    @overload
+    @classmethod
+    def deserialize_df(cls, value: dict, return_units: Literal[True]) -> Tuple[pd.DataFrame, dict[str, Unit]]: ...
+
+    @classmethod
+    def deserialize_df(cls, value: dict, return_units: bool = False):
+        sio = io.StringIO(json.dumps(value))
+        df = pd.read_json(sio, orient='table')
+        units = {}
+        for f in value['schema']['fields']:
+            unit = f.get('unit')
+            col = f['name']
+            if unit:
+                pt = pint_pandas.PintType(unit)
+                df[col] = df[col].astype(float).astype(pt)
+                units[col] = unit
+        if return_units:
+            return (df, units)
+        return df
+
+    @classmethod
+    def serialize_df(cls, df: pd.DataFrame) -> dict:
+        units = {}
+        df = df.copy()
+        for col in df.columns:
+            if hasattr(df[col], 'pint'):
+                df[col] = df[col].pint.m
+                units[col] = str(df[col].pint.units)
+
+        d = json.loads(df.to_json(orient='table'))
+        fields = d['schema']['fields']
+        for field in fields:
+            if field['name'] in units:
+                field['unit'] = units[field['name']]
+        return d

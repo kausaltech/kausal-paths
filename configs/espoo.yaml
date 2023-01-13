@@ -73,14 +73,14 @@ nodes:
 - id: building_floor_area_existing
   type: finland.aluesarjat.BuildingStock
   name: Nykyisen rakennuskannan kerrosala
-  tags: [historical_floor_area]
 
 - id: building_floor_area_future
   type: finland.aluesarjat.FutureBuildingStock
   name: Uuden rakennuskannan kerrosala
   input_nodes:
     - population
-    - building_floor_area_existing
+    - id: building_floor_area_existing
+      tags: [existing_floor_area]
 
 - id: building_floor_area_renovated
   type: finland.aluesarjat.BuildingStock
@@ -96,7 +96,11 @@ nodes:
   type: finland.aluesarjat.BuildingHeatPredict
   name: Nykyisen rakennuskannan lämmönkulutus
   input_nodes: [building_heat_existing_historical, building_floor_area_existing]
-
+  output_nodes:
+    - id: district_heating_energy
+      dimensions:
+        - id: building_heat_source
+          categories: ['district_heat']
 
 pages:
 - id: home
@@ -167,12 +171,13 @@ actions:
 
 - id: reduce_oil_heating_residence
   name: Öljylämmityksen vähentäminen (Asuminen)
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
+  type: simple.ShiftAction
+  quantity: floor_area
+  unit: m**2
+  output_dimensions: [building_heat_source, building_use]
   output_nodes:
-  - oil_heating_residence_energy
-  forecast_values: [[2021, 0], [2030, -115]]
+    - building_floor_area_existing
+    - building_floor_area_renovated
 
 - id: reduce_oil_heating_industry
   name: Öljylämmityksen vähentäminen (Teollisuus)
@@ -214,7 +219,7 @@ actions:
   type: simple.CumulativeAdditiveAction
   quantity: energy
   output_nodes:
-  - district_heating_services_energy
+  - district_heating_energy
   forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
       2029, -14], [2030, -6]]
   unit: GWh/a

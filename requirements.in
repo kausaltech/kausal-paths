@@ -37,3 +37,4 @@ watchfiles
 django-oauth-toolkit
 pycryptodome
 pydantic
+polars

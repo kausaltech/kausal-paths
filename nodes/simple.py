@@ -111,9 +111,29 @@ class AdditiveNode(SimpleNode):
             if VALUE_COLUMN not in node_df.columns.values:
                 raise NodeError(self, "Value column missing in output of %s" % node.id)
 
+            if self.output_dimensions:
+                assert isinstance(node_df.index, pd.MultiIndex)
+                if node_df.index.names != val_s.index.names:
+                    node_df = node_df.reorder_levels(val_s.index.names)
+                    assert isinstance(node_df.index, pd.MultiIndex)
+                assert isinstance(val_s.index, pd.MultiIndex)
+                for idx, level in enumerate(val_s.index.names):
+                    df_levels = set(val_s.index.levels[idx].values)
+                    node_df_levels = set(node_df.index.levels[idx].values)  # type: ignore
+                    diff = node_df_levels.difference(df_levels)
+                    if diff:
+                        raise NodeError(
+                            node, "In input from node %s, invalid dimension '%s' categories: %s" % (
+                                node.id, level, diff
+                            )
+                        )
+            else:
+                assert not isinstance(node_df.index, pd.MultiIndex)
+
             val2 = self.ensure_output_unit(node_df[VALUE_COLUMN], input_node=node)
             if hasattr(val2, 'pint'):
                 val2 = val2.pint.m
+
             val_s = val_s.add(val2, fill_value=0)
             forecast_s |= node_df[FORECAST_COLUMN]
 
@@ -173,6 +193,7 @@ class MultiplicativeNode(AdditiveNode):
     operation_label = 'multiplication'
 
     def perform_operation(self, n1: Node, n2: Node, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+        assert n1.unit is not None and n2.unit is not None and self.unit is not None
         output_unit = n1.unit * n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
@@ -185,7 +206,9 @@ class MultiplicativeNode(AdditiveNode):
     def compute(self):
         additive_nodes = []
         operation_nodes = []
+        assert self.unit is not None
         for node in self.input_nodes:
+            assert node.unit is not None
             if self.is_compatible_unit(node.unit, self.unit):
                 additive_nodes.append(node)
             else:
@@ -234,6 +257,7 @@ class DivisiveNode(MultiplicativeNode):
     operation_label = 'division'
 
     def perform_operation(self, n1: Node, n2: Node, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+        assert n1.unit is not None and n2.unit is not None and self.unit is not None
         output_unit = n1.unit / n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
