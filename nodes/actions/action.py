@@ -173,10 +173,11 @@ class ActionEfficiencyPair:
             if not len(df):
                 # No impact for this action, skip it
                 continue
-            cost = df['Cost'].sum() * Quantity('1 a')
+            cost = df['Cost'].sum() * Quantity('1 år')
+            # FIXME If time unit is something else than år, time/time will remain in the unit.
             if self.invert_cost:
                 cost *= -1
-            impact = df['Impact'].sum() * Quantity('1 a')
+            impact = df['Impact'].sum() * Quantity('1 år')
             if self.invert_impact:
                 impact *= -1
             efficiency = (cost / impact).to(self.unit)
