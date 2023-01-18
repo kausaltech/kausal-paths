@@ -12,7 +12,7 @@ owner: Espoon kaupunki
 owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
-target_year: 2035
+target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
@@ -185,7 +185,7 @@ actions:
   quantity: energy
   unit: GWh/a
   output_nodes:
-  - oil_heating_residence_energy
+  - oil_heating_industry_energy
   forecast_values: [[2021, 0], [2030, -24.4]]
 
 - id: reduce_oil_heating_services
@@ -194,8 +194,8 @@ actions:
   quantity: energy
   unit: GWh/a
   output_nodes:
-  - oil_heating_residence_energy
-  forecast_values: [[2021, 0], [2030, -5]]
+  - oil_heating_services_energy
+  forecast_values: [[2021, 0], [2030, -4.9975]]
   params:
   - id: target_year_level
     description: Öljylämmityksen muutos palveluissa 2021-2030

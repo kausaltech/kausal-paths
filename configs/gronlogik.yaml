@@ -99,6 +99,8 @@ params:
     max_value: 18
     step: 0.5
     unit: '%'
+    subscription_nodes:
+    - discount_node
   - id: avoided_electricity_capacity_price
     label: Benefit for avoiding new electricity capacity (SEK/kWh)
     is_customizable: False
@@ -175,18 +177,36 @@ params:
     label: Inkludera energiskatter?
     is_customizable: True
     value: False
+    subscription_nodes:
+    - price_of_heat
+    - price_of_electricity
   - id: include_co2
     label: Inkludera CO2-kostnader?
     is_customizable: True
     value: True
+    subscription_nodes:
+    - cost_per_area_single_family
+    - cost_per_area_apartment
+    - cost_per_area_school
+    - cost_per_area_office
   - id: include_health
     label: Inkludera hälsoeffekter?
     is_customizable: True
     value: True
+    subscription_nodes:
+    - cost_per_area_single_family
+    - cost_per_area_apartment
+    - cost_per_area_school
+    - cost_per_area_office
   - id: include_el_avoided
     label: Inkludera elkapacitetsbesparingar?
     is_customizable: True
     value: True
+    subscription_nodes:
+    - cost_per_area_single_family
+    - cost_per_area_apartment
+    - cost_per_area_school
+    - cost_per_area_office
 
 emission_sectors:
   - id: net_emissions
@@ -3144,16 +3164,16 @@ pages:
 
 scenarios:
   - id: baseline
-    name_fi: Nykykehitys
-    name_en: Baseline
-    name: Baslinje
+    name_fi: Perusura, ei toimia
+    name_en: Baseline, no actions
+    name: Baslinje, inga åtgärder
     all_actions_enabled: false
 
   - id: default
     default: true
-    name_fi: Yhteiskunnalliset kustannukset
-    name_en: Social costs
-    name: Sociala kostnader
+    name_fi: Yhteiskunnalliset kustannukset, kaikki toimet
+    name_en: Social costs, all actions
+    name: Sociala kostnader, alla åtgärder
     all_actions_enabled: true
     params:
     - id: include_energy_taxes
@@ -3166,9 +3186,9 @@ scenarios:
       value: True
 
   - id: private_costs
-    name_fi: Vain yksilölliset kustannukset
-    name_en: Only private costs costs
-    name: Privata kostnader
+    name_fi: Vain yksilölliset kustannukset, kaikki toimet
+    name_en: Only private costs costs, all actions
+    name: Privata kostnader, ala åtgärder
     all_actions_enabled: true
     params:
     - id: include_energy_taxes

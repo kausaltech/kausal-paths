@@ -437,6 +437,13 @@ class InstanceLoader:
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
             param = param_type(**pc)
+            sub_node_ids = pc.get('subscription_nodes', None)
+            if sub_node_ids is not None:
+                sub_nodes = []
+                for node_id in sub_node_ids:
+                    sub_nodes += [context.get_node(node_id)]
+                param.subscription_nodes = sub_nodes
+                print(param)
             param.set(param_val)
             context.add_global_parameter(param)
 
