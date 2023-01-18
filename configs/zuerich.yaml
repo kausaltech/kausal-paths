@@ -4,7 +4,8 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: af84a46c532a0d4d976767c6f4371601e9b41255
+  commit: 14b0c8755dae4a8994ee5d8dbbd502d559a8ddb2
+  dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
 owner_en: City of Zürich
@@ -18,6 +19,44 @@ emission_unit: t/inh/a
 emission_forecast_from: 2021
 features:
   baseline_visible_in_graphs: false
+
+dimensions:
+  - id: energy_carrier
+    label: Energieträger
+    categories:
+      - id: electricity
+        label: Strom
+        label_en: Electricity
+      - id: heating_oil
+        label: Heizöl EL
+        label_en: Heating oil
+      - id: petrol
+        label: Benzin
+        label_en: Petrol
+      - id: diesel
+        label: Diesel
+        label_en: Diesel
+      - id: kerosene
+        label: Kerosin
+        label_en: Kerosene
+      - id: natural_gas
+        label: Erdgas
+        label_en: Natural gas
+      - id: biogas
+        label: Biogas
+        label_en: biogas
+      - id: district_heat
+        label: Fernwärme
+        label_en: District heating
+      - id: wood
+        label: Holz
+        label_en: Wood
+      - id: environmental_heat
+        label: Umweltwärme
+        label_en: Environmental heat
+      - id: solar_collectors
+        label: Sonnenkollektoren
+        label_en: Solar thermal collectors
 
 params:
 - id: municipality_name
@@ -196,13 +235,11 @@ nodes:
 - id: primary_energy_consumption_housing
   name_de: Primärenergieverbrauch Haushalte/Wirtschaft
   name_en: Primary energy consumption, housing and commerce
-  type: simple.AdditiveNode
+  type: ch.zuerich.BuildingEnergy
   quantity: energy
   unit: GWh/a
-  input_dataset_processor: [LinearInterpolation]
-  historical_values: [[1990, 2750], [2021, 2750]]
-  output_nodes:
-    - primary_energy_consumption_total
+  input_datasets:
+    - zuerich/building_energy
 
 - id: primary_energy_consumption_traffic
   name_de: Primärenergieverbrauch Verkehr

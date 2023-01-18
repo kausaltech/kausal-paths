@@ -504,7 +504,7 @@ class InstanceLoader:
             dataset_repo_config = self.config['dataset_repo']
             repo_url = dataset_repo_config['url']
             commit = dataset_repo_config.get('commit')
-            dataset_repo = dvc_pandas.Repository(repo_url=repo_url)
+            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, dvc_remote=dataset_repo_config.get('dvc_remote'))
             dataset_repo.set_target_commit(commit)
         target_year = self.config['target_year']
         self.context = Context(dataset_repo, target_year)
