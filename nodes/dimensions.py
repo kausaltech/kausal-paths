@@ -55,6 +55,7 @@ class Dimension(BaseModel):
         if s.hasnans:
             raise Exception("Series contains NaNs")
         cat_map = self.labels_to_ids()
+        s = s.str.strip()
         cs = s.map(cat_map)
         if cs.hasnans:
             missing_cats = s[~s.isin(cat_map)].unique()
