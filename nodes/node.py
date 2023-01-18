@@ -915,6 +915,11 @@ class Node:
             raise Exception(f"Node {node} already added to input nodes for {self.id}")
         self.edges.append(Edge(input_node=node, output_node=self, tags=tags))
 
+    def add_output_node(self, node: Node, tags: list[str] = []):
+        if node in self.output_nodes:
+            raise Exception(f"Node {node} already added to input nodes for {self.id}")
+        self.edges.append(Edge(output_node=node, input_node=self, tags=tags))
+
     def add_edge(self, edge: Edge):
         if edge.input_node == self:
             if edge.output_node in self.output_nodes:
