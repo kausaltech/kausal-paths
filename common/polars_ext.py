@@ -34,18 +34,27 @@ class PathsExt:
 
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
         df = self._df.to_pandas()
-        if meta is not None:
-            if meta.primary_keys:
-                df = df.set_index(meta.primary_keys)
-            for col, unit in meta.units.items():
-                pt = PintType(unit)
-                df[col] = df[col].astype(pt)
+        primary_keys = meta.primary_keys if meta else self._df._primary_keys
+        units = meta.units if meta else self._df._units
+        if primary_keys:
+            df = df.set_index(primary_keys)
+        for col, unit in units.items():
+            pt = PintType(unit)
+            df[col] = df[col].astype(pt)
         return df
 
     def to_wide(self, dimensions: Dimensions = {}, metrics: Metrics = {}, meta: ppl.DataFrameMeta | None = None) -> ppl.PathsDataFrame:
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
+        df = self._df
+
         dim_ids = list(dimensions.keys())
+        if not dim_ids and meta is not None:
+            dim_ids = list(meta.primary_keys)
+            if YEAR_COLUMN in dim_ids:
+                dim_ids.remove(YEAR_COLUMN)
+        dim_ids = [dim for dim in dim_ids if dim in self._df.columns]
+
         if metrics:
             metric_cols = [m.column_id for m in metrics.values()]
         else:
@@ -57,7 +66,6 @@ class PathsExt:
             metric_cols = [VALUE_COLUMN]
 
         # Create a column '_dims' with all the categories included
-        df = self._df
         if not dim_ids:
             return df
 
@@ -112,6 +120,7 @@ class PathsExt:
         assert isinstance(last_hist_year, int)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), columns=[YEAR_COLUMN])
         df = df.join(years, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
+        df = df.with_column(pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(True)).otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN))
         return ppl.to_ppdf(df)
 
     def nafill_pad(self) -> ppl.PathsDataFrame:

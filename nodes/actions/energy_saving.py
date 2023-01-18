@@ -9,7 +9,7 @@ from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeMetric
-from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY
+from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
 from nodes.calc import nafill_all_forecast_years
 from params import Parameter, NumberParameter
 from params.utils import sep_unit_pt
@@ -352,6 +352,7 @@ class BuildingEnergySavingAction(ActionNode):
             'Forecast': ret.forecast.astype(bool),
         }
         df = pd.DataFrame(cols, index=ret.year)
+        df.index.name = YEAR_COLUMN
         return df
 
     def compute_effect_old(self) -> pd.DataFrame:
@@ -381,6 +382,7 @@ class BuildingEnergySavingAction(ActionNode):
         df = pd.DataFrame({
             VALUE_COLUMN: range(target_year - current_year + 1),
         }, index=range(current_year, target_year + 1))
+        df.index.name = YEAR_COLUMN
         df[FORECAST_COLUMN] = df.index > current_year
         df[VALUE_COLUMN] = (df[VALUE_COLUMN] * reno).clip(None, renovation_potential)
         cost = df[VALUE_COLUMN].copy()

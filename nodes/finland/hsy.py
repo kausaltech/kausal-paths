@@ -152,7 +152,8 @@ class HsyNodeMixin:
             columns = [columns]
         df = df[columns].copy()
         df['Forecast'] = False
-        df = extend_last_historical_value(df, self.context.model_end_year)
+        df = extend_last_historical_value(df, end_year=self.context.model_end_year)
+
         return df, nodes
 
 

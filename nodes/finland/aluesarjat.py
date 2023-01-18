@@ -67,6 +67,10 @@ class BuildingStock(AdditiveNode):
         'building_heat_source',
         'building_use',
     ]
+    input_dimension_ids = [
+        'building_heat_source',
+        'building_use',
+    ]
     global_parameters = ['municipality_name']
 
     def compute(self) -> pd.DataFrame:

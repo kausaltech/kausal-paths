@@ -15,12 +15,13 @@ pl.Config.set_tbl_rows(100)
 
 def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
     pldf = ppl.from_pandas(df)
+    meta = pldf.get_meta()
     pldf = (
-        pldf.paths.to_wide(dimensions={}, metrics={})
+        pldf.paths.to_wide(meta=meta)
             .paths.make_forecast_rows(end_year)
             .paths.to_narrow()
     )
-
+    df = pldf.paths.to_pandas(meta=meta)
     return df
 
 
@@ -31,10 +32,8 @@ def extend_last_historical_value(
 ) -> pd.DataFrame:
     pdf = ppl.from_pandas(df)
     meta = pdf.get_meta()
-    pdf = (
-        pdf.paths.to_wide(dimensions=dimensions or {}, metrics=metrics or {}, meta=meta)
-            .paths.make_forecast_rows(end_year)
-    )
+    pdf = pdf.paths.to_wide(dimensions=dimensions or {}, metrics=metrics or {}, meta=meta)
+    pdf = pdf.paths.make_forecast_rows(end_year)
     last_hist_year = pdf.filter(pl.col(FORECAST_COLUMN) == False)[YEAR_COLUMN].max()
     pdf = pdf.paths.nafill_pad()
     fc = pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(True).otherwise(False)

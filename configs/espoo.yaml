@@ -98,9 +98,29 @@ nodes:
   input_nodes: [building_heat_existing_historical, building_floor_area_existing]
   output_nodes:
     - id: district_heating_energy
-      dimensions:
+      from_dimensions:
         - id: building_heat_source
-          categories: ['district_heat']
+          categories: [district_heat]
+    - id: oil_heating_energy
+      from_dimensions:
+        - id: building_heat_source
+          categories: [oil]
+    - id: geothermal_heating_energy
+      from_dimensions:
+        - id: building_heat_source
+          categories: [geothermal]
+
+- id: district_heating_energy
+  name: Kaukolämmön lämmönkulutus
+  type: simple.AdditiveNode
+  unit: GWh/a
+  quantity: energy
+
+- id: oil_heating_energy
+  name: Öljylämmityksen lämmönkulutus
+  type: simple.AdditiveNode
+  unit: GWh/a
+  quantity: energy
 
 pages:
 - id: home
@@ -179,29 +199,29 @@ actions:
     - building_floor_area_existing
     - building_floor_area_renovated
 
-- id: reduce_oil_heating_industry
-  name: Öljylämmityksen vähentäminen (Teollisuus)
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  output_nodes:
-  - oil_heating_industry_energy
-  forecast_values: [[2021, 0], [2030, -24.4]]
+# - id: reduce_oil_heating_industry
+#   name: Öljylämmityksen vähentäminen (Teollisuus)
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: energy
+#   unit: GWh/a
+#   output_nodes:
+#   - oil_heating_industry_energy
+#   forecast_values: [[2021, 0], [2030, -24.4]]
 
-- id: reduce_oil_heating_services
-  name: Öljylämmityksen vähentäminen (Palvelut)
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  output_nodes:
-  - oil_heating_services_energy
-  forecast_values: [[2021, 0], [2030, -4.9975]]
-  params:
-  - id: target_year_level
-    description: Öljylämmityksen muutos palveluissa 2021-2030
-    unit: GWh/a
-    min_value: -37
-    max_value: 0
+# - id: reduce_oil_heating_services
+#   name: Öljylämmityksen vähentäminen (Palvelut)
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: energy
+#   unit: GWh/a
+#   output_nodes:
+#   - oil_heating_services_energy
+#   forecast_values: [[2021, 0], [2030, -4.9975]]
+#   params:
+#   - id: target_year_level
+#     description: Öljylämmityksen muutos palveluissa 2021-2030
+#     unit: GWh/a
+#     min_value: -37
+#     max_value: 0
 
 - id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
@@ -322,14 +342,14 @@ scenarios:
   - id: change_consumer_electricity.enabled
     value: true
 
-  - id: reduce_oil_heating_services.target_year_level
-    value: -34
-  - id: reduce_oil_heating_services.enabled
-    value: true
-  - id: reduce_oil_heating_residence.enabled
-    value: true
-  - id: reduce_oil_heating_industry.enabled
-    value: true
+  # - id: reduce_oil_heating_services.target_year_level
+  #   value: -34
+  # - id: reduce_oil_heating_services.enabled
+  #   value: true
+  # - id: reduce_oil_heating_residence.enabled
+  #   value: true
+  # - id: reduce_oil_heating_industry.enabled
+  #   value: true
 
 - id: default
   default: true
@@ -345,8 +365,8 @@ scenarios:
     value: -2.0
   - id: change_consumer_electricity.target_year_level
     value: 1600
-  - id: reduce_oil_heating_services.target_year_level
-    value: -37
+  # - id: reduce_oil_heating_services.target_year_level
+  #   value: -37
 
 - id: pessimistic
   name: Pessimistinen

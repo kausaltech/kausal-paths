@@ -3,6 +3,7 @@ from enum import Enum
 FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
+NODE_COLUMN = 'Node'
 
 VALUE_WITH_ACTION_GROUP = 'Action'
 VALUE_WITHOUT_ACTION_GROUP = 'WithoutAction'

@@ -6,5 +6,5 @@ if TYPE_CHECKING:
 
 class NodeError(Exception):
     def __init__(self, node: Node, msg: str, *args, **kwargs):
-        msg = '[%s] %s' % (node.id, msg)
+        msg = '[%s] %s' % (str(node), msg)
         super().__init__(msg, *args, **kwargs)

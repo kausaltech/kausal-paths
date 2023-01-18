@@ -2,15 +2,6 @@ emission_sectors:
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
   part_of: net_emissions
-- id: oil_heating_emissions
-  name: Öljylämmityksen päästöt
-  part_of: building_heating_emissions
-- id: direct_electric_heating_emissions
-  name: Sähkölämmityksen päästöt
-  part_of: building_heating_emissions
-- id: geothermal_heating_emissions
-  name: Maalämmön päästöt
-  part_of: building_heating_emissions
 - id: consumer_electricity_emissions
   name: Kulutussähkön päästöt
   part_of: net_emissions
@@ -61,121 +52,43 @@ nodes:
   input_nodes: [district_heating_emission_factor, district_heating_energy]
   type: simple.EmissionFactorActivity
   unit: kt/a
-- id: oil_heating_residence_energy
-  name: Öljylämmityksen lämmönkulutus (Asuminen)
+- id: oil_heating_energy
+  name: Öljylämmityksen lämmönkulutus
   params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
+    sector: Lämmitys|Öljylämmitys|Öljylämmitys
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: oil_heating_residence_emissions
-  name: Öljylämmityksen päästöt (Asuminen)
-  output_nodes: [oil_heating_emissions]
-  input_nodes: [oil_heating_emission_factor, oil_heating_residence_energy]
+- id: oil_heating_emissions
+  name: Öljylämmityksen päästöt
+  output_nodes: [building_heating_emissions]
+  input_nodes: [oil_heating_emission_factor, oil_heating_energy]
   type: simple.EmissionFactorActivity
   unit: kt/a
-- id: oil_heating_services_energy
-  name: Öljylämmityksen lämmönkulutus (Palvelut)
+- id: direct_electric_heating_energy
+  name: Sähkölämmityksen sähkönkulutus
   params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Palvelut
+    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: oil_heating_services_emissions
-  name: Öljylämmityksen päästöt (Palvelut)
-  output_nodes: [oil_heating_emissions]
-  input_nodes: [oil_heating_emission_factor, oil_heating_services_energy]
+- id: direct_electric_heating_emissions
+  name: Sähkölämmityksen päästöt
+  output_nodes: [building_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, direct_electric_heating_energy]
   type: simple.EmissionFactorActivity
   unit: kt/a
-- id: oil_heating_industry_energy
-  name: Öljylämmityksen lämmönkulutus (Teollisuus)
+- id: geothermal_heating_energy
+  name: Maalämmön sähkönkulutus
   params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
+    sector: Lämmitys|Maalämpö|Maalämpö
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: oil_heating_industry_emissions
-  name: Öljylämmityksen päästöt (Teollisuus)
-  output_nodes: [oil_heating_emissions]
-  input_nodes: [oil_heating_emission_factor, oil_heating_industry_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: direct_electric_heating_residence_energy
-  name: Sähkölämmityksen sähkönkulutus (Asuminen)
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: direct_electric_heating_residence_emissions
-  name: Sähkölämmityksen päästöt (Asuminen)
-  output_nodes: [direct_electric_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, direct_electric_heating_residence_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: direct_electric_heating_services_energy
-  name: Sähkölämmityksen sähkönkulutus (Palvelut)
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: direct_electric_heating_services_emissions
-  name: Sähkölämmityksen päästöt (Palvelut)
-  output_nodes: [direct_electric_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, direct_electric_heating_services_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: direct_electric_heating_industry_energy
-  name: Sähkölämmityksen sähkönkulutus (Teollisuus)
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: direct_electric_heating_industry_emissions
-  name: Sähkölämmityksen päästöt (Teollisuus)
-  output_nodes: [direct_electric_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, direct_electric_heating_industry_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: geothermal_heating_residence_energy
-  name: Maalämmön sähkönkulutus (Asuminen)
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: geothermal_heating_residence_emissions
-  name: Maalämmön päästöt (Asuminen)
-  output_nodes: [geothermal_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, geothermal_heating_residence_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: geothermal_heating_services_energy
-  name: Maalämmön sähkönkulutus (Palvelut)
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: geothermal_heating_services_emissions
-  name: Maalämmön päästöt (Palvelut)
-  output_nodes: [geothermal_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, geothermal_heating_services_energy]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-- id: geothermal_heating_industry_energy
-  name: Maalämmön sähkönkulutus (Teollisuus)
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: geothermal_heating_industry_emissions
-  name: Maalämmön päästöt (Teollisuus)
-  output_nodes: [geothermal_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, geothermal_heating_industry_energy]
+- id: geothermal_heating_emissions
+  name: Maalämmön päästöt
+  output_nodes: [building_heating_emissions]
+  input_nodes: [electric_heating_emission_factor, geothermal_heating_energy]
   type: simple.EmissionFactorActivity
   unit: kt/a
 - id: consumer_electricity_residence_energy

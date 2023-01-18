@@ -114,6 +114,31 @@ class ForecastMetricType(graphene.ObjectType):
         return root.get_cumulative_forecast_value()
 
 
+class JSONStatCategory(graphene.ObjectType):
+    id = graphene.String(required=True)
+    label = graphene.String()
+
+
+class JSONStatDimension(graphene.ObjectType):
+    id = graphene.String(required=True)
+    category = graphene.List(graphene.NonNull(JSONStatCategory), required=True)
+
+
+class JSONStatRole(graphene.ObjectType):
+    time = graphene.List(graphene.NonNull(graphene.String), required=True)
+    metric = graphene.List(graphene.NonNull(graphene.String), required=True)
+
+
+class JSONStatDataset(graphene.ObjectType):
+    version = graphene.String(required=True)
+    klass = graphene.String(name='class', required=True)
+    id = graphene.List(graphene.NonNull(graphene.String), required=True)
+    size = graphene.List(graphene.NonNull(graphene.Int), required=True)
+    dimension = graphene.List(graphene.NonNull(JSONStatDimension), required=True)
+    value = graphene.List(graphene.Int, required=True)
+    role = graphene.Field(JSONStatRole, required=True)
+
+
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
 
 
@@ -146,6 +171,8 @@ class NodeType(graphene.ObjectType):
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
+
+    data = graphene.Field(JSONStatDataset)
 
     # TODO: input_datasets, baseline_values, context
     parameters = graphene.List('params.schema.ParameterInterface')

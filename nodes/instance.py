@@ -213,6 +213,7 @@ class InstanceLoader:
             target_year_goal=config.get('target_year_goal'),
             input_datasets=datasets,
             output_dimension_ids=config.get('output_dimensions'),
+            input_dimension_ids=config.get('input_dimensions'),
         )
 
         if node.id in self._input_nodes or node.id in self._output_nodes:
@@ -463,13 +464,14 @@ class InstanceLoader:
         by_id = {d['id']: d for d in confs}
         for fwn in fw_confs:
             n = by_id.get(fwn['id'])
-            if n is not None:
+            if n is None:
+                confs.append(fwn)
+            else:
+                continue
                 # Merge the configs with the node config overriding framework config
                 for key, val in fwn.items():
                     if key not in n:
                         n[key] = val
-            else:
-                confs.append(fwn)
 
     @classmethod
     def from_yaml(cls, filename):

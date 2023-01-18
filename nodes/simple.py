@@ -332,7 +332,6 @@ class YearlyPercentageChangeNode(SimpleNode):
         df = self.get_input_dataset()
         if len(self.input_nodes) != 0:
             raise NodeError(self, "YearlyPercentageChange can't have input nodes")
-
         df = nafill_all_forecast_years(df, self.get_end_year())
         mult = self.get_parameter_value('yearly_change') / 100 + 1
         df['Multiplier'] = 1

@@ -1,7 +1,7 @@
 from cmath import nan
 from typing import ClassVar, Iterable
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, Field
 
 import pandas as pd
 import pint_pandas
@@ -10,7 +10,7 @@ import polars as pl
 
 from params.param import Parameter
 from params import PercentageParameter, NumberParameter
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.node import NodeError
 from .action import ActionNode
 
@@ -159,7 +159,8 @@ class ExponentialAction(ActionNode):
 
 class ShiftTarget(BaseModel):
     node_id: str
-    categories: dict[str, str]  # dimension_id -> category_id
+    # dimension_id -> category_id
+    categories: dict[str, str] = Field(default_factory=dict)
 
 
 class ShiftAmount(BaseModel):
@@ -223,10 +224,10 @@ class ShiftAction(ActionNode):
             ),
             dests=[
                 ShiftTarget(
-                    node_id='building_floor_area_renovated', categories=dict(building_use='residence', building_heat_source='geothermal'),
+                    node_id='building_floor_area_existing', categories=dict(building_use='residence', building_heat_source='geothermal'),
                 ),
                 ShiftTarget(
-                    node_id='building_floor_area_renovated', categories=dict(building_use='residence', building_heat_source='district_heat'),
+                    node_id='building_floor_area_existing', categories=dict(building_use='residence', building_heat_source='district_heat'),
                 ),
             ],
             amounts=[
@@ -264,7 +265,7 @@ class ShiftAction(ActionNode):
             target_dims = [(dim, target.categories[dim]) for dim in dims]
             tdf = df.select([
                 pl.col(YEAR_COLUMN),
-                pl.lit(target.node_id).alias('node'),
+                pl.lit(target.node_id).alias(NODE_COLUMN),
                 *[pl.lit(cat).alias(dim) for dim, cat in target_dims],
                 pl.col(valuecol).alias(VALUE_COLUMN),
             ])
@@ -273,8 +274,8 @@ class ShiftAction(ActionNode):
         dfs = [make_target_df(target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
 
-        df = df.groupby(['node', *dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
-        pdf = df.to_pandas().set_index(['node', *dims, YEAR_COLUMN])
+        df = df.groupby([NODE_COLUMN, *dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
+        pdf = df.to_pandas().set_index([NODE_COLUMN, *dims, YEAR_COLUMN])
         pdf[VALUE_COLUMN] = pdf[VALUE_COLUMN].astype(pint_pandas.PintType(self.unit))
         pdf[FORECAST_COLUMN] = True
         return pdf

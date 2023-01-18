@@ -5,7 +5,7 @@ from pydantic import ConstrainedStr, errors
 
 
 class MixedCaseIdentifier(ConstrainedStr):
-    regex = r'^[A-Za-z_]+$'
+    regex = r'^[A-Za-z0-9_]+$'
 
     @classmethod
     def validate(cls, value: str) -> MixedCaseIdentifier:
@@ -16,11 +16,11 @@ class MixedCaseIdentifier(ConstrainedStr):
 
 
 class Identifier(ConstrainedStr):
-    regex = r'^[a-z_]+$'
+    regex = r'^[a-z0-9_]+$'
 
     @classmethod
     def validate(cls, value: str) -> Identifier:
         try:
             return super().validate(value)  # type: ignore
         except Exception as e:
-            raise ValueError("string is not a valid identifier (only lower case and '_' allowed)")
+            raise ValueError("string '%s' is not a valid identifier (only lower case and '_' allowed)" % value)

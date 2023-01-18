@@ -86,6 +86,9 @@ else:
 if args.pull_datasets:
     context.pull_datasets()
 
+if args.check:
+    context.check_mode = True
+
 if args.show_perf:
     from common.perf import PerfCounter
 
@@ -189,6 +192,7 @@ for param_arg in (args.param or []):
 for node_id in (args.node or []):
     node = context.get_node(node_id)
     node.print_output()
+    node.plot_output()
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
         for n in output_nodes:
