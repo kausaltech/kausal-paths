@@ -3188,7 +3188,7 @@ scenarios:
   - id: private_costs
     name_fi: Vain yksilölliset kustannukset, kaikki toimet
     name_en: Only private costs costs, all actions
-    name: Privata kostnader, ala åtgärder
+    name: Privata kostnader, alla åtgärder
     all_actions_enabled: true
     params:
     - id: include_energy_taxes

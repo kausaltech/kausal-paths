@@ -13,6 +13,7 @@ owner: Espoon kaupunki
 owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
+model_end_year: 2035
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
@@ -301,3 +302,13 @@ scenarios:
   name: Pessimistinen
   name_en: Pessimistic
   all_actions_enabled: false
+
+#######################
+# DATA SOURCES
+# Ilmastotiekartan skenaariot_Espoo_09012023.xlsx, sheets:
+# DATA_HSY_päästöt: HSY emissions, same as in node all_hsy_emissions
+# DATA_HSY_energiankulutus: HSY energy consumption, same as in node all_hsy_emissions
+# DATA_HSY_erillislämmitys: HSY data on non-district heating, same as in ####
+# DATA_Tilastokeskus_Rakennukset: STATFI building data from
+# https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__rakke/statfin_rakke_pxt_116h.px/
+# https://pxdata.stat.fi:443/PxWeb/sq/874cf998-375e-4a64-882b-454ef320fea5
