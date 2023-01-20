@@ -107,6 +107,22 @@ class ExponentialNode(SimpleNode):
         return self.compute_exponential()
 
 
+class DiscountNode(ExponentialNode):
+    global_parameters = ['discount_rate']
+
+
+class Co2PriceNode(ExponentialNode):
+    global_parameters = ['price_of_co2', 'price_of_co2_annual_change']
+
+
+class HeatPriceNode(ExponentialNode):
+    global_parameters = ['price_of_heat', 'price_of_heat_annual_change']        
+
+
+class ElectricityPriceNode(ExponentialNode):
+    global_parameters = ['price_of_electricity', 'price_of_electricity_annual_change']
+
+
 class EnergyCostNode(AdditiveNode):
     metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
