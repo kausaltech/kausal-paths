@@ -543,3 +543,46 @@ scenarios:
   name_en: Net Zero 2040
   name_de: Netto-Null 2040
   all_actions_enabled: true
+
+########################
+# DESCRIPTIONS OF DATA AND CALCULATIONS
+#
+# R_E (Result end energy): copy right only
+# Typically E_HH_WS + W_Verk but exceptions:
+# Different electricity sources are calculated differently: total is multiplied by fractions of shares.
+# Collection category is a sum of subcategories: wood, environmental heat, biogas, solar
+#
+# R_CO2 (Result of CO2 emissions): copy right only
+# Typically F_CO2 * (either E_HH_WS ot E_HH_Verk), with unit correction
+# 
+# R_GPC NOT DONE AT THIS STAGE; contains w.g. climate-corrected values
+#
+# R_PE1 (Result primary energy with electricity mix): copy down and right
+# E_HH_WS * F_PE_THG_HH_WS / M_HH_WS, with unit scaling, i.e.
+# Households: end energy * primary energy factor divided by population size
+# Electriity: Same, but multiplied by E_St_Mix shares separately for E_H_WS and E_Verk
+# District heating: Same, but multiplied by E_FWMix shares.
+# Traffic: Same, but for traffic
+# Primary energy balance: collection of the tables on this sheet (listed above)
+#
+# R PE2 (Result end energy by household/industry/traffic): copy down and right
+# Households: E_HH_WS_haushalte * F_PE_THG_HH_WS / population size
+# Industry: E_HH_WS_wirtschaft * F_PE_THG_HH_WS / population size
+# Traffic: E_Verk * F_PE_THG_Verk / population size
+#
+# R PE3 (Result primary energy, renewables): copy down and right
+# Households & industry: E_HH_WS * F_PE_THG_HH_WS_neuerbart / population size
+# Electricity: (E_HH_WS * E_STMix * F_PE_THG_St_erneuertbar + E_Verk * E_StMix_Verkehr * F_PE_THG_St_Verkehr) / population size
+# NOTE! TWO OF THE SHEETS MENTIONED ABOVE ARE HIDDEN?!?
+# Traffic: E_Verk * F_PE_THG_Verk / population size
+# Renewable primary energy balance: a summary of the tables above on this sheet
+#
+# R_THG1 (Result GHG emissions by household+industry, traffic): copy down and right
+# Households: E_HH_WS * F_PE_THG_HH_WS_ghg / population size
+# Traffic: E_Verk * F_PE_THG_Verk / population size
+# Zuerich: Summary table of the tables above on this sheet.
+#
+# R_THG2 (Result GHG emissions household, industry, traffic): copy down and right
+# Households: EE_HH_WS_haushalte * F_PE_THG_HH_WS_ghg / population size
+# Industry: E_HH_WS_wirtschaft * F_PR_THG_HH_WS_ghg / population size
+# Traffic: Same as in R_THG1
