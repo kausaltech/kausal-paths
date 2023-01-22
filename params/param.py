@@ -69,7 +69,7 @@ class Parameter:
         return self.value
 
     def is_value_equal(self, value: Any) -> bool:
-        return self.value == value
+        return self.value != value
 
     def calculate_hash(self) -> bytes:
         h = getattr(self, '_hash', None)

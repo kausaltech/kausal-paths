@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
@@ -75,7 +75,7 @@ class PathsDataFrame(pl.DataFrame):
         meta.units = units
         meta.primary_keys = primary_keys
         df = super().rename(mapping)
-        return to_ppdf(df)
+        return to_ppdf(df, meta=meta)
 
     def drop(self, columns: str | Sequence[str]) -> PathsDataFrame:
         meta = self.get_meta()
@@ -89,6 +89,11 @@ class PathsDataFrame(pl.DataFrame):
         df._units = meta.units
         df._primary_keys = meta.primary_keys
         return df
+
+    def select(self, exprs: (str | pli.Expr | pli.Series | Iterable[str | pli.Expr | pli.Series | pli.WhenThen | pli.WhenThenThen])) -> PathsDataFrame:
+        meta = self.get_meta()
+        df = super().select(exprs)
+        return PathsDataFrame._from_pydf(df._df, meta=meta)
 
     def get_meta(self) -> DataFrameMeta:
         return DataFrameMeta(units=self._units, primary_keys=self._primary_keys)

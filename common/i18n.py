@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing
 import threading
+import re
 from contextlib import contextmanager
 
 from django.utils.translation import gettext_lazy, gettext, get_language  # noqa
@@ -29,7 +30,7 @@ local.default_language = DEFAULT_LANGUAGE
 
 @contextmanager
 def set_default_language(lang: str):
-    old = local.default_language
+    old = getattr(local, 'default_language', DEFAULT_LANGUAGE)
     local.default_language = lang
     try:
         yield
@@ -66,7 +67,7 @@ class TranslatedString:
         dl = self.default_language
         if dl in self.i18n:
             return self.i18n[dl]
-        elif '_' in dl:
+        if '_' in dl:
             lang, _ = dl.split('_')
             if lang in self.i18n:
                 return self.i18n[lang]
@@ -96,8 +97,10 @@ class TranslatedString:
     def validate(cls, v):
         if isinstance(v, str):
             return cls(v)
+        elif isinstance(v, TranslatedString):
+            return cls(default_language=v.default_language, **v.i18n)
         if not isinstance(v, dict):
-            raise ValueError('expecting a dict')
+            raise ValueError('TranslatedString expects a dict or str, not %s' % type(v))
         languages = list(v.keys())
         if 'default_language' in languages:
             languages.pop('default_language')
@@ -122,6 +125,23 @@ def get_modeltrans_attrs_from_str(
         i18n[f'{field_name}_{default_lang}'] = s
 
     return field_val, i18n
+
+
+def get_translated_string_from_modeltrans(
+    obj: Model, field_name: str, primary_language: str
+) -> TranslatedString:
+    val = getattr(obj, field_name)
+    langs = {}
+    langs[primary_language] = val
+    i18n: dict[str, str] = obj.i18n or {}  # type: ignore
+    for key, val in i18n.items():
+        parts = key.split('_')
+        lang = parts.pop(-1)
+        field = '_'.join(parts)
+        if field != field_name:
+            continue
+        langs[lang] = val
+    return TranslatedString(default_language=primary_language, **langs)
 
 
 I18nString = typing.Union[TranslatedString, str, 'StrPromise']

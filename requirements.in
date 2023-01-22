@@ -38,3 +38,5 @@ django-oauth-toolkit
 pycryptodome
 pydantic
 polars
+drf-nested-routers
+drf-spectacular

@@ -108,7 +108,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'drf_spectacular',
     'corsheaders',
+    'rest_framework',
+    'rest_framework.authtoken',
 
     'django_extensions',
 
@@ -196,6 +199,26 @@ GRAPHENE = {
 }
 GRAPPLE = {
     'APPS': ['pages'],
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissions',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'paths.openapi.PathsSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Kausal Paths REST API',
+    'DESCRIPTION': 'REST API for R/W access to Paths',
+    'VERSION': '0.1.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SCHEMA_PATH_PREFIX': '^/v1',
+    'SCHEMA_COERCE_PATH_PK_SUFFIX': True,
 }
 
 # Internationalization

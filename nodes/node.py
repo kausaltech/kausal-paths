@@ -630,7 +630,7 @@ class Node:
             cols = [YEAR_COLUMN, col_name]
             if FORECAST_COLUMN in df.columns:
                 cols.append(FORECAST_COLUMN)
-            df = df[cols]
+            df = df.select(cols)
             df = df.rename({col_name: VALUE_COLUMN})
 
         return df
@@ -970,7 +970,7 @@ class Node:
         old_ds = self.input_dataset_instances[0]
         try:
             unit = old_ds.get_unit(self.context)
-        except Exception:
+        except:
             # FIXME: Make this more robust
             unit = self.unit
         self.input_dataset_instances[0] = JSONDataset(

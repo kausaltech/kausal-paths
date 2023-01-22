@@ -92,6 +92,7 @@ class ActionNode(Node):
         df[VALUE_WITH_ACTION_GROUP] = edf
         df[VALUE_WITHOUT_ACTION_GROUP] = ddf[VALUE_COLUMN]
         df[IMPACT_GROUP] = df[VALUE_WITH_ACTION_GROUP] - df[VALUE_WITHOUT_ACTION_GROUP]
+        df[FORECAST_COLUMN] = fc
         return df
 
     def print_impact(self, target_node: Node):

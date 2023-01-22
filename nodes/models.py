@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+import threading
 from datetime import datetime
-from typing import Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -17,11 +18,18 @@ from wagtail.core.models.sites import Site
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
-from paths.utils import IdentifierField
+from nodes.dimensions import Dimension
+from paths.utils import (
+    IdentifierField, get_supported_languages, get_default_language, ChoiceArrayField
+)
 
 from .instance import Instance, InstanceLoader
 
-instance_cache: dict[str, Instance] = {}
+if TYPE_CHECKING:
+    from datasets.models import Dimension as DimensionModel
+
+
+instance_cache = threading.local()
 
 
 def get_instance_identifier_from_wildcard_domain(hostname: str) -> Union[Tuple[str, str], Tuple[None, None]]:
@@ -64,6 +72,11 @@ class InstanceConfig(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
+    primary_language = models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language)
+    other_languages = ChoiceArrayField(
+        models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language),
+        default=list, null=True, blank=True
+    )
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
     objects: InstanceConfigManager = InstanceConfigQuerySet.as_manager()  # type: ignore
@@ -71,6 +84,7 @@ class InstanceConfig(models.Model):
     # Type annotations
     nodes: models.manager.RelatedManager[NodeConfig]
     hostnames: models.manager.RelatedManager[InstanceHostname]
+    dimensions: models.manager.RelatedManager['DimensionModel']
 
     class Meta:
         verbose_name = _('Instance')
@@ -102,9 +116,9 @@ class InstanceConfig(models.Model):
                     self.i18n = {}
                 self.i18n.update(i18n)
 
-    def get_instance(self) -> Instance:
-        if self.identifier in instance_cache:
-            instance = instance_cache[self.identifier]
+    def _get_instance(self) -> Instance:
+        if hasattr(instance_cache, self.identifier):
+            instance: Instance = getattr(instance_cache, self.identifier)
             if not self.nodes.exists():
                 return instance
             latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
@@ -118,8 +132,13 @@ class InstanceConfig(models.Model):
         instance = loader.instance
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
-        instance.context.generate_baseline_values()
-        instance_cache[self.identifier] = instance
+        setattr(instance_cache, self.identifier, instance)
+        return instance
+
+    def get_instance(self, generate_baseline: bool = False) -> Instance:
+        instance = self._get_instance()
+        if generate_baseline:
+            instance.context.generate_baseline_values()
         return instance
 
     def get_name(self) -> str:
@@ -171,6 +190,24 @@ class InstanceConfig(models.Model):
             print("Node %s exists in database, but it's not found in node graph" % node.identifier)
             if delete_stale:
                 node.delete()
+
+    def sync_dimension(self, dim: Dimension, update_existing=False, delete_stale=False):
+        from datasets.models import Dimension as DimensionModel
+
+        dim_obj = self.dimensions.filter(identifier=dim.id).first()
+        if dim_obj is None:
+            dim_obj = DimensionModel(instance=self, identifier=dim.id, label=dim.label)
+            print("Creating dimension %s" % dim.id)
+            dim_obj.save()
+        dim_obj.sync_categories(update_existing=update_existing, delete_stale=delete_stale)
+
+    def sync_dimensions(self, update_existing=False, delete_stale=False):
+        instance = self.get_instance()
+        # dims = {dim.identifier: dim for dim in self.dimensions.all()}
+        found_dims = set()
+        for dim in instance.context.dimensions.values():
+            self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
+            found_dims.add(dim.id)
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()

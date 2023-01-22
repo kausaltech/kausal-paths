@@ -29,6 +29,7 @@ class DimensionCategory(BaseModel):
 
 class Dimension(BaseModel):
     id: Identifier
+    label: I18nString | None = None
     categories: List[DimensionCategory] = Field(default_factory=list)
     _hash: bytes | None = PrivateAttr(default=None)
     _cat_map: dict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
@@ -67,7 +68,6 @@ class Dimension(BaseModel):
         if self._hash is not None:
             return self._hash
         h = hashlib.md5()
-        h.update(self.json(exclude={'categories': {'__all__': {'label'}}}).encode('utf8'))
+        h.update(self.json(exclude={'label': True, 'categories': {'__all__': {'label'}}}).encode('utf8'))
         self._hash = h.digest()
         return self._hash
-

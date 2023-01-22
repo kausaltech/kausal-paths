@@ -4,6 +4,7 @@ import hashlib
 from dataclasses import dataclass, field
 import io
 import json
+import uuid
 from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, Union, overload
 import orjson
 
@@ -268,7 +269,7 @@ class FixedDataset(Dataset):
 class JSONDataset(Dataset):
     data: dict
     unit: pint.Unit
-    df: pd.DataFrame
+    df: pd.DataFrame = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
@@ -311,17 +312,30 @@ class JSONDataset(Dataset):
         return df
 
     @classmethod
-    def serialize_df(cls, df: pd.DataFrame) -> dict:
+    def serialize_df(cls, df: pd.DataFrame, add_uuids: bool = False) -> dict:
         units = {}
         df = df.copy()
         for col in df.columns:
             if hasattr(df[col], 'pint'):
-                df[col] = df[col].pint.m
                 units[col] = str(df[col].pint.units)
+                df[col] = df[col].pint.m
 
         d = json.loads(df.to_json(orient='table'))
         fields = d['schema']['fields']
-        for field in fields:
-            if field['name'] in units:
-                field['unit'] = units[field['name']]
+        for f in fields:
+            if f['name'] in units:
+                f['unit'] = units[f['name']]
+
+        if add_uuids:
+            for row in d['data']:
+                if 'uuid' not in row:
+                    row['uuid'] = str(uuid.uuid4())
+            for f in fields:
+                if f['name'] == 'uuid':
+                    break
+            else:
+                f = dict(name='uuid', type='string')
+                fields.append(f)
+            f['format'] = 'uuid'
+
         return d

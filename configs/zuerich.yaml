@@ -57,6 +57,9 @@ dimensions:
       - id: solar_collectors
         label: Sonnenkollektoren
         label_en: Solar thermal collectors
+      - id: waste
+        label: Abfall
+        label_en: Waste
 
   - id: electricity_source
     label: Electricity source

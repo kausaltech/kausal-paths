@@ -4,11 +4,11 @@ ipython
 pylint
 pip-tools
 pylint-django
-# restrict versions for jupyterlab
-autopep8<1.7.0
-flake8<4.1.0
+autopep8
+flake8
 pandas-stubs
 graphene-stubs
 django-stubs
 types-orjson
 ipdb
+djangorestframework-stubs

@@ -99,6 +99,7 @@ class Context:
     setting_storage: Optional[SettingStorage]
     perf_context: PerfContext
     node_graph: nx.DiGraph
+    baseline_values_generated: bool = False
 
     def __init__(
         self, dataset_repo: dvc_pandas.Repository, target_year: int,
@@ -279,6 +280,8 @@ class Context:
         raise Exception("No default scenario found")
 
     def generate_baseline_values(self):
+        if self.baseline_values_generated:
+            return
         assert self.active_scenario
         old_scenario = self.active_scenario
 
@@ -287,6 +290,7 @@ class Context:
         for node in self.nodes.values():
             node.generate_baseline_values()
         self.activate_scenario(old_scenario)
+        self.baseline_values_generated = True
 
     def get_all_parameters(self):
         """Return global and node-specific parameters."""

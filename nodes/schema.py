@@ -1,11 +1,12 @@
 from typing import Optional
+
 import graphene
 from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
-from nodes.models import InstanceConfig, NodeConfig
 
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
+from .models import InstanceConfig, NodeConfig
 from .metric import Metric
 
 from . import Node
@@ -254,8 +255,10 @@ class NodeType(graphene.ObjectType):
             return None
 
         df = source_node.compute_impact(target_node)
-        df = df[[IMPACT_COLUMN, FORECAST_COLUMN]]
-        df = df.rename(columns={IMPACT_COLUMN: VALUE_COLUMN})
+        fc = df.pop(FORECAST_COLUMN)
+        df: pd.DataFrame = df[IMPACT_GROUP]  # type: ignore
+        df = df[[VALUE_COLUMN]]
+        df[FORECAST_COLUMN] = fc
         metric = Metric(
             id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df,
             unit=target_node.unit

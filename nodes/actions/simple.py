@@ -99,7 +99,8 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             dt = df.dtypes[col]
             df[col] = df[col].pint.m.interpolate(method='linear').diff().fillna(0).astype(dt)
 
-        return self.add_cumulatively(df)
+        df = self.add_cumulatively(df)
+        return df
 
 
 class EmissionReductionAction(ActionNode):
