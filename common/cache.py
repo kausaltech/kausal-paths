@@ -106,7 +106,10 @@ class Cache:
     def get(self, key: str) -> Any:
         full_key = '%s:%s' % (self.prefix, key)
         if self.run_cache is not None and full_key in self.run_cache:
-            return self.run_cache[full_key]
+            obj = self.run_cache[full_key]
+            if isinstance(obj, pd.DataFrame):
+                return obj.copy()
+            return obj
 
         if self.client:
             data = self.client.get(full_key)
