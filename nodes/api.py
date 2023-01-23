@@ -48,7 +48,7 @@ class InstanceViewSet(viewsets.ViewSet, generics.GenericAPIView):
     def retrieve(self, request: APIRequest, pk: str | None = None):
         qs = self.get_queryset()
         obj = get_object_or_404(qs, pk=pk)
-        serializer = self.get_serializer(obj, many=True)
+        serializer = self.get_serializer(obj)
         return response.Response(serializer.data)
 
 
