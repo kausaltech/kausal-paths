@@ -260,7 +260,7 @@ class Node:
                 self.quantity = None
                 for met_id, met in self.output_metrics.items():
                     if not met.column_id:
-                        met.column_id = VALUE_COLUMN
+                        met.column_id = met_id
         else:
             quantity = quantity or getattr(self, 'quantity', None)
             if quantity is None:
@@ -274,6 +274,12 @@ class Node:
             self.output_metrics[DEFAULT_METRIC] = NodeMetric(
                 unit, self.quantity, id=DEFAULT_METRIC, column_id=VALUE_COLUMN
             )
+
+        metric_cols = set()
+        for metric in self.output_metrics.values():
+            if metric.column_id in metric_cols:
+                raise NodeError(self, "Duplicate metric column IDs: %s" % metric.column_id)
+            metric_cols.add(metric.column_id)
 
         for m in self.output_metrics.values():
             m.node = self
@@ -328,6 +334,9 @@ class Node:
 
         if not hasattr(self, 'global_parameters'):
             self.global_parameters = []
+        else:
+            # Copy the parameters so that the list can be mutated later
+            self.global_parameters = list(self.global_parameters)
 
         self.output_dimensions = self._init_dimensions(output_dimension_ids, self.output_dimension_ids)
         self.input_dimensions = self._init_dimensions(input_dimension_ids, self.input_dimension_ids)
@@ -685,8 +694,11 @@ class Node:
         for metric in self.output_metrics.values():
             if metric.column_id not in df.columns:
                 raise NodeError(self, "Output does not have a column '%s'" % metric.column_id)
-            if not isinstance(df.dtypes[metric.column_id], pint_pandas.PintType):
+            dt = df.dtypes[metric.column_id]
+            if not isinstance(dt, pint_pandas.PintType):
                 raise NodeError(self, "Output column '%s' does not have units" % metric.column_id)
+            if dt.units != metric.unit:
+                raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, dt.units))
 
         if isinstance(df.index, pd.MultiIndex):
             if YEAR_COLUMN not in df.index.names:
@@ -694,7 +706,6 @@ class Node:
         else:
             if df.index.name != YEAR_COLUMN:
                 raise NodeError(self, "DataFrame index must be named '%s'" % YEAR_COLUMN)
-            assert df.index.name == YEAR_COLUMN
 
         if self.output_dimensions:
             assert isinstance(df.index, pd.MultiIndex)
@@ -725,18 +736,19 @@ class Node:
             if out is None:
                 raise NodeError(self, "Node returned no output")
 
-            if self.context.check_mode:
-                self.validate_output(out)
+            self.validate_output(out)
 
             cache_hit = False
         else:
             cache_hit = True
         self.context.perf_context.record_cache(self, is_hit=cache_hit)
+        if self.id == 'electricity_per_area_single_family' and not hasattr(out[VALUE_COLUMN], 'pint'):
+            import ipdb; ipdb.set_trace()
 
         assert isinstance(out, pd.DataFrame)
 
         if not cache_hit:
-            self.context.cache.set(node_hash, out)
+            self.context.cache.set(node_hash, out.copy())
 
         # If a node has multiple outputs, we can specify only one series
         # to include.

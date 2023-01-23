@@ -37,6 +37,9 @@ class Parameter:
     subscription_nodes: list[Node] = field(default_factory=list)
     "Nodes that should be notified when the parameter changes value"
 
+    subscription_params: list[Parameter] = field(default_factory=list)
+    "Parametres that should be notified when the parameter changes value"
+
     is_customized: bool = False
     is_customizable: bool = True
     # Maps a scenario ID to the value of this parameter in that scenario
@@ -46,15 +49,20 @@ class Parameter:
         assert '.' not in self.local_id
         self._hash = None
 
+    def notify_change(self):
+        self._hash = None
+        if self.node:
+            self.node.notify_parameter_change(self)
+        for node in self.subscription_nodes:
+            node.notify_parameter_change(self)
+        for param in self.subscription_params:
+            param.notify_change()
+
     def set(self, value: Any):
         prev_val = getattr(self, 'value', None)
         self.value = self.clean(value)
-        if self.is_value_equal(prev_val):
-            self._hash = None
-            if self.node:
-                self.node.notify_parameter_change(self)
-            for node in self.subscription_nodes:
-                node.notify_parameter_change(self)
+        if not self.is_value_equal(prev_val):
+            self.notify_change()
 
     def reset_to_scenario_setting(self, scenario: Scenario):
         if scenario.id in self.scenario_settings:
@@ -69,7 +77,7 @@ class Parameter:
         return self.value
 
     def is_value_equal(self, value: Any) -> bool:
-        return self.value != value
+        return self.value == value
 
     def calculate_hash(self) -> bytes:
         h = getattr(self, '_hash', None)
@@ -120,8 +128,43 @@ class Parameter:
 
     def get_unit(self) -> Unit:
         if not self.has_unit():
-            raise Exception(f"Parameter ${self.global_id} does not have units")
+            raise Exception(f"Parameter {self.global_id} does not have units")
         return self.unit  # type: ignore
+
+
+@dataclass
+class ReferenceParameter(Parameter):
+    """Parameter that is a reference to another parameter.
+
+    This parameter cannot be changed.
+    """
+
+    target: Parameter | None = None
+    _target: Parameter = field(init=False)
+    is_customizable: bool = False
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert self.target is not None
+        self._target = self.target
+        self.target.subscription_params.append(self)
+
+    @property
+    def unit(self) -> Any:
+        return getattr(self._target, 'unit')
+
+    @property
+    def value(self) -> Any:
+        return self._target.value
+
+    def has_unit(self) -> bool:
+        return self._target.has_unit()
+
+    def get_unit(self) -> Unit:
+        return self._target.get_unit()
+
+    def clean(self, value: Any) -> Any:
+        raise NotImplementedError()
 
 
 @dataclass

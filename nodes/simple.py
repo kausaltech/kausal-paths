@@ -208,7 +208,8 @@ class MultiplicativeNode(AdditiveNode):
         operation_nodes = []
         assert self.unit is not None
         for node in self.input_nodes:
-            assert node.unit is not None
+            if node.unit is None:
+                raise NodeError(self, "Input node %s does not have a unit" % str(node))
             if self.is_compatible_unit(node.unit, self.unit):
                 additive_nodes.append(node)
             else:
@@ -309,6 +310,7 @@ class FixedMultiplierNode(SimpleNode):
         multiplier = multiplier_param.value
         if isinstance(multiplier_param, ParameterWithUnit):
             multiplier = pint.Quantity(multiplier, multiplier_param.unit)
+
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue

@@ -19,6 +19,7 @@ from nodes.node import Edge, Node
 from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
 from nodes.units import Unit
+from params.param import ReferenceParameter
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
@@ -231,24 +232,46 @@ class InstanceLoader:
             class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
             for pc in params:
                 param_id = pc.pop('id')
-                name = self.make_trans_string(pc, 'name', pop=True)
-                description = self.make_trans_string(pc, 'description', pop=True)
-                scenario_values = pc.pop('values', {})
+
                 param_obj = class_allowed_params.get(param_id)
                 if param_obj is None:
                     raise NodeError(node, "Parameter %s not allowed by node class" % param_id)
+                param_class = type(param_obj)
+
+                label = self.make_trans_string(pc, 'label', pop=True) or param_obj.label
+                ref = pc.pop('ref', None)
+                description = self.make_trans_string(pc, 'description', pop=True) or param_obj.description
+
+                if ref is not None:
+                    target = self.context.global_parameters.get(ref)
+                    if target is None:
+                        raise NodeError(node, "Parameter %s refers to an unknown global parameter: %s" % ref)
+
+                    if not isinstance(target, param_class):
+                        raise NodeError(node, "Node requires parameter of type %s, but referenced parameter %s is %s" % (
+                            param_class, ref, type(target)
+                        ))
+                    param = ReferenceParameter(
+                        local_id=param_obj.local_id, label=param_obj.label, target=target
+                    )
+                    node.add_parameter(param)
+                    continue
+
+                scenario_values = pc.pop('values', {})
                 # Merge parameter values
                 fields = asdict(param_obj)
                 fields.update(pc)
                 if description is not None:
                     fields['description'] = description
-                if name is not None:
-                    fields['name'] = description
+                if label is not None:
+                    fields['label'] = description
+
                 unit = fields.get('unit', None)
                 if unit is not None:
                     if isinstance(unit, str):
                         fields['unit'] = self.context.unit_registry.parse_units(unit)
-                param = type(param_obj)(**fields)
+                param = param_class(**fields)
+
                 node.add_parameter(param)
 
                 for scenario_id, value in scenario_values.items():

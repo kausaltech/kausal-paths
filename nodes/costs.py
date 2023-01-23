@@ -1,18 +1,14 @@
 import pandas as pd
-import numpy as np
+import polars as pl
 import pint_pandas
 
-from nodes.exceptions import NodeError
-
 from nodes import NodeMetric
-from .context import unit_registry
-from params.param import NumberParameter, PercentageParameter, StringParameter, BoolParameter
+from nodes.units import Quantity
+import common.polars as ppl
+from params.param import NumberParameter, StringParameter, BoolParameter
 from params.utils import sep_unit_pt
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
-from .node import Node
-from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
-from .ovariable import Ovariable, OvariableFrame
-from .actions.energy_saving import BuildingEnergySavingAction
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .simple import AdditiveNode, SimpleNode
 
 
 class SelectiveNode(AdditiveNode):
@@ -49,6 +45,26 @@ class SelectiveNode(AdditiveNode):
         return out
 
 
+def compute_exponential(
+    start_year: int, current_year: int, target_year: int, current_value: Quantity | float, annual_change: Quantity,
+    decreasing_rate: bool
+):
+    base_value = 1 + annual_change.to('dimensionless').m
+    if decreasing_rate:
+        base_value = 1 / base_value
+
+    values = range(start_year - current_year, target_year - current_year + 1)
+    years = range(start_year, target_year + 1)
+    df = pl.DataFrame({YEAR_COLUMN: years, 'nr': values})
+    df = df.with_column((pl.lit(base_value) ** pl.col('nr')).alias('mult'))
+    val = current_value.m if isinstance(current_value, Quantity) else current_value
+    df = df.with_columns([
+        (pl.lit(val) * pl.col('mult')).alias(VALUE_COLUMN),
+        (pl.col(YEAR_COLUMN) > current_year).alias(FORECAST_COLUMN)
+    ])
+    return df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
+
+
 class ExponentialNode(SimpleNode):
     allowed_parameters = [
         NumberParameter(
@@ -76,32 +92,30 @@ class ExponentialNode(SimpleNode):
     def compute_exponential(self):
         current_value = self.get_parameter('current_value', required=False)
         if not current_value:  # If the local parameter is not given, use a global parameter
+            # FIXME: Remove this
             current_value_name = self.get_parameter_value('current_value_name', required=True)
             current_value = self.context.get_parameter(current_value_name, required=True)
-        pt = pint_pandas.PintType(current_value.get_unit())
         annual_change = self.get_parameter('annual_change', required=False)
         if not annual_change:
+            # FIXME: Remove this
             annual_change_name = self.get_parameter_value('annual_change_name', required=True)
             annual_change = self.context.get_parameter(annual_change_name, required=True)
-        base_unit = annual_change.get_unit()
-        current_value = current_value.value
-        annual_change = annual_change.value
-        base_value = 1 + (annual_change * base_unit).to('dimensionless').m
-        decreasing_rate = self.get_parameter_value('decreasing_rate', required=False)
-        if decreasing_rate:
-            base_value = 1 / base_value
+
+        assert current_value is not None
+        assert annual_change is not None
+
+        cv = current_value.value * current_value.get_unit()
+        ac = annual_change.value * annual_change.get_unit()
+        decreasing_rate = self.get_parameter_value('decreasing_rate', required=False) or False
         start_year = self.context.instance.minimum_historical_year
         target_year = self.get_target_year()
         current_year = self.context.instance.maximum_historical_year
 
-        df = pd.DataFrame(
-            {VALUE_COLUMN: range(start_year - current_year, target_year - current_year + 1)},
-            index=range(start_year, target_year + 1))
-        val = current_value * base_value ** df[VALUE_COLUMN]
-        df[VALUE_COLUMN] = val.astype(pt)
-        df[FORECAST_COLUMN] = df.index > current_year
-
-        return df
+        ldf = compute_exponential(start_year, current_year, target_year, cv, ac, decreasing_rate)
+        ndf = ldf.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN]).to_pandas().set_index(YEAR_COLUMN)
+        pt = pint_pandas.PintType(cv.units)
+        ndf[VALUE_COLUMN] = ndf[VALUE_COLUMN].astype(pt)
+        return ndf
 
     def compute(self):
         return self.compute_exponential()
@@ -111,12 +125,29 @@ class DiscountNode(ExponentialNode):
     global_parameters = ['discount_rate']
 
 
+class DiscountedNode(AdditiveNode):
+    global_parameters = ['discount_rate']
+
+    def compute(self):
+        df = ppl.from_pandas(super().compute())
+        meta = df.get_meta()
+        fc = df.filter(pl.col(FORECAST_COLUMN))
+        current_year = fc[YEAR_COLUMN].min()
+        target_year = fc[YEAR_COLUMN].max()
+        discount_rate = self.get_global_parameter_value('discount_rate', units=True)
+        exp = compute_exponential(current_year, current_year, target_year, 1.0, discount_rate, decreasing_rate=True)
+        df = df.join(exp.rename({VALUE_COLUMN: 'exp'}), on=YEAR_COLUMN, how='left')
+        df = df.select([YEAR_COLUMN, pl.col(VALUE_COLUMN) * pl.col('exp'), FORECAST_COLUMN])
+        df = ppl.to_ppdf(df, meta=meta)
+        return df.paths.to_pandas()
+
+
 class Co2PriceNode(ExponentialNode):
     global_parameters = ['price_of_co2', 'price_of_co2_annual_change']
 
 
 class HeatPriceNode(ExponentialNode):
-    global_parameters = ['price_of_heat', 'price_of_heat_annual_change']        
+    global_parameters = ['price_of_heat', 'price_of_heat_annual_change']
 
 
 class ElectricityPriceNode(ExponentialNode):
@@ -126,12 +157,12 @@ class ElectricityPriceNode(ExponentialNode):
 class EnergyCostNode(AdditiveNode):
     output_metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
-        'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
-        'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),
-        'NetworkPrice': NodeMetric('SEK/kWh', 'currency'),
-        'HandlingFee': NodeMetric('SEK/kWh', 'currency'),
-        'Certificate': NodeMetric('SEK/kWh', 'currency'),
-        'EnergyTax': NodeMetric('SEK/kWh', 'currency')
+        #'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
+        #'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),
+        #'NetworkPrice': NodeMetric('SEK/kWh', 'currency'),
+        #'HandlingFee': NodeMetric('SEK/kWh', 'currency'),
+        #'Certificate': NodeMetric('SEK/kWh', 'currency'),
+        #'EnergyTax': NodeMetric('SEK/kWh', 'currency')
     }
     global_parameters: list[str] = ['include_energy_taxes']
     allowed_parameters = AdditiveNode.allowed_parameters + [
@@ -174,7 +205,6 @@ class EnergyCostNode(AdditiveNode):
         certificate, cer_pt = sep_unit_pt(self.get_parameter_value('certificate', units=True))
         energy_tax, ene_pt = sep_unit_pt(self.get_parameter_value('energy_tax', units=True))
         include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
-        print('include energy taxes: ', include_energy_taxes)
 
         metric = self.get_parameter_value('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
@@ -183,7 +213,6 @@ class EnergyCostNode(AdditiveNode):
         else:
             df = self.add_nodes(None, self.input_nodes, metric)
         df['EnergyPrice'] = df[VALUE_COLUMN]
-        self.print_pint_df(df)
         added_value_tax = added_value_tax.to('dimensionless').m
         df['AddedValueTax'] = df['EnergyPrice'] * added_value_tax
         df['NetworkPrice'] = pd.Series(network_price, index=df.index, dtype=net_pt)
@@ -197,7 +226,6 @@ class EnergyCostNode(AdditiveNode):
             cols = ['NetworkPrice']
         for col in cols:
             df[VALUE_COLUMN] += df[col]
-
         return df
 
 

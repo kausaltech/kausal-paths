@@ -45,7 +45,7 @@ action_groups:
     color: '#cccccc'
 
 action_efficiency_pairs:
-  - cost_node: total_net_cost
+  - cost_node: discounted_net_cost
     impact_node: net_energy_consumption
     invert_cost: False
     invert_impact: True
@@ -54,7 +54,7 @@ action_efficiency_pairs:
     label_fi: Energiansäästön marginaalikustannus
     label_en: Marginal cost in energy savings
     label: Marginalnettokostnad för energibesparing
-  - cost_node: total_net_cost
+  - cost_node: discounted_net_cost
     impact_node: net_emissions
     invert_cost: False
     invert_impact: True
@@ -63,7 +63,7 @@ action_efficiency_pairs:
     label_fi: Päästövähennysten marginaalikustannus
     label_en: Marginal cost in net emissions
     label: Marginalnettokostnad för utsläppsminskning
-  - cost_node: total_net_cost
+  - cost_node: discounted_net_cost
     impact_node: net_electricity_consumption
     invert_cost: False
     invert_impact: True
@@ -86,10 +86,6 @@ params:
   - id: municipality_name
     label: Municipality
     value: Tampere
-  - id: discount_node_name
-    label: Name of the discount node
-    is_customizable: False
-    value: discount_node
   - id: discount_rate
     label: Diskonteringsränta (%/år)
     description: Speed of value decrease for monetary variables
@@ -99,8 +95,6 @@ params:
     max_value: 18
     step: 0.5
     unit: '%'
-    subscription_nodes:
-    - discount_node
   - id: avoided_electricity_capacity_price
     label: Benefit for avoiding new electricity capacity (SEK/kWh)
     is_customizable: False
@@ -108,11 +102,6 @@ params:
     min_value: 0.3
     max_value: 0.5
     unit: SEK/kWh
-    subscription_nodes:
-    - avoided_capacity_cost_per_area_single_family
-    - avoided_capacity_cost_per_area_apartment
-    - avoided_capacity_cost_per_area_office
-    - avoided_capacity_cost_per_area_school
   - id: health_impacts_per_kwh
     is_customizable: False
     label: Cost of health impacts (SEK/kWh)
@@ -128,11 +117,6 @@ params:
     min_value: 40
     max_value: 70
     unit: g/kWh
-    subscription_nodes:
-    - emissions_heat_per_area_single_family
-    - emissions_heat_per_area_apartment
-    - emissions_heat_per_area_office
-    - emissions_heat_per_area_school
   - id: electricity_co2_ef
 #    label: Emission factor of electricity production (g CO2/kWh)
     label: Emissionsfaktor för elproduktion (g CO2/kWh)
@@ -141,11 +125,6 @@ params:
     min_value: 80
     max_value: 140
     unit: g/kWh
-    subscription_nodes:
-    - emissions_electricity_per_area_single_family
-    - emissions_electricity_per_area_apartment
-    - emissions_electricity_per_area_office
-    - emissions_electricity_per_area_school
   - id: renovation_rate_baseline
     label: Baslinje renoveringstakt (%/år)
     is_customizable: True
@@ -160,8 +139,6 @@ params:
     unit: SEK/t
     is_customizable: True
     label: Koldioxidkostnad (SEK/t)
-    subscription_nodes:
-    - price_of_co2
 #    description: Koldioxidkostnad. Uppdaterade utifrån ASEK - EU ETS, eftersom kostnaderna
 #      för utsläppsrätter redan är internaliserade i privatekonomiska kostnader. 
 #      Förut 7000kr/ton co2. Nu 7000-550=6450. (550 var genomsnittspriset 2021)
@@ -174,8 +151,6 @@ params:
     unit: '%'
     is_customizable: True
     label: CO2 kostnadsökningtakt (%/år)
-    subscription_nodes:
-    - price_of_co2
   - id: price_of_electricity
     value: 0.670
     min_value: 0.4
@@ -183,8 +158,6 @@ params:
     unit: SEK/kWh
     is_customizable: True
     label: Nuvarande elpris (SEK/kWh)
-    subscription_nodes:
-    - base_price_of_electricity
   - id: price_of_electricity_annual_change
     value: 0
     min_value: 0
@@ -192,8 +165,6 @@ params:
     unit: '%'
     is_customizable: True
     label: Kostnadsökningstakt av elpris (%/år)
-    subscription_nodes:
-    - base_price_of_electricity
   - id: price_of_heat
     value: 0.6944
     min_value: 0.4
@@ -201,8 +172,6 @@ params:
     unit: SEK/kWh
     is_customizable: True
     label: Nuvarande värmepris (SEK/kWh)
-    subscription_nodes:
-    - base_price_of_heat
   - id: price_of_heat_annual_change
     value: 0
     min_value: 0
@@ -210,42 +179,22 @@ params:
     unit: '%'
     is_customizable: True
     label: Kostnadsökningstakt av värmepris (%/år)
-    subscription_nodes:
-    - base_price_of_heat
   - id: include_energy_taxes
     label: Inkludera energiskatter?
     is_customizable: True
     value: False
-    subscription_nodes:
-    - price_of_heat
-    - price_of_electricity
   - id: include_co2
     label: Inkludera CO2-kostnader?
     is_customizable: True
     value: True
-    subscription_nodes:
-    - cost_per_area_single_family
-    - cost_per_area_apartment
-    - cost_per_area_school
-    - cost_per_area_office
   - id: include_health
     label: Inkludera hälsoeffekter?
     is_customizable: True
     value: True
-    subscription_nodes:
-    - cost_per_area_single_family
-    - cost_per_area_apartment
-    - cost_per_area_school
-    - cost_per_area_office
   - id: include_el_avoided
     label: Inkludera elkapacitetsbesparingar?
     is_customizable: True
     value: True
-    subscription_nodes:
-    - cost_per_area_single_family
-    - cost_per_area_apartment
-    - cost_per_area_school
-    - cost_per_area_office
 
 emission_sectors:
   - id: net_emissions
@@ -287,22 +236,6 @@ emission_sectors:
 
 
 nodes:
-  - id: discount_node
-    name_fi: Diskontto
-    name_en: Discount
-    name: Diskontering
-    quantity: ratio
-    unit: '%'
-    type: costs.DiscountNode
-    params:
-    - id: current_value
-      value: 1
-      unit: dimensionless
-    - id: annual_change_name
-      value: discount_rate
-    - id: decreasing_rate
-      value: True
-
   - id: price_of_co2
     name_fi: Hiilidioksidikustannus
     name_en: Cost of carbon dioxide
@@ -310,12 +243,12 @@ nodes:
     quantity: unit_price
     unit: SEK/t
     tags: cost_co2
-    type: costs.Co2PriceNode
+    type: costs.ExponentialNode
     params:
-    - id: current_value_name
-      value: price_of_co2
-    - id: annual_change_name
-      value: price_of_co2_annual_change
+    - id: current_value
+      ref: price_of_co2
+    - id: annual_change
+      ref: price_of_co2_annual_change
 
   - id: base_price_of_electricity
     name_fi: Sähkön veroton hinta
@@ -399,6 +332,15 @@ nodes:
     - cost_apartment
     - cost_office
     - cost_school
+
+  - id: discounted_net_cost
+    name: Diskonterade nettokostnader
+    name_fi: Diskontatut nettokustannukset
+    name_en: Discounted net cost
+    type: costs.DiscountedNode
+    quantity: currency
+    unit: MSEK/år
+    input_nodes: [total_net_cost]
 
   - id: emissions_reduction
     name_fi: Päästövähennys
@@ -1994,8 +1936,6 @@ actions:
     name_en: Replacement to low-energy lamps
     name: Byte till lågenergilampor
     type: energy_saving.BuildingEnergySavingAction
-    quantity: fraction
-    unit: '%'
     group: apartment
     output_nodes:
     - electricity_per_area_apartment
