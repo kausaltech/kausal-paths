@@ -708,9 +708,12 @@ class Node:
                 raise NodeError(self, "DataFrame index must be named '%s'" % YEAR_COLUMN)
 
         if self.output_dimensions:
+            if not isinstance(df.index, pd.MultiIndex):
+                raise NodeError(self, "Node output does not have a multi-index")
             assert isinstance(df.index, pd.MultiIndex)
-            names = set(df.index.names)
-            dim_ids = set(df.output_dimensions.keys())
+            names = set(df.index.names) - set([YEAR_COLUMN])
+            dim_ids = set(self.output_dimensions.keys())
+
             if names != dim_ids:
                 raise NodeError(self, "Invalid dimensions")
             for idx, name in enumerate(names):

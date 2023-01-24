@@ -35,9 +35,9 @@ class ElectricityEmissionFactor(AdditiveNode):
     output_metrics = {
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
-    output_dimension_ids = [
-        'electricity_source',
-    ]
+    #output_dimension_ids = [
+    #    'electricity_source',
+    #]
     input_dimension_ids = [
         'electricity_source',
     ]
@@ -57,7 +57,7 @@ class ElectricityEmissionFactor(AdditiveNode):
         if ef_df is None:
             raise NodeError(self, "Emission factor dataset not supplied")
 
-        es_dim = self.output_dimensions['electricity_source']
+        es_dim = self.input_dimensions['electricity_source']
 
         mix_df[es_dim.id] = es_dim.series_to_ids(mix_df['electricity_source'])
         mix_df[YEAR_COLUMN] = mix_df.pop('year')
