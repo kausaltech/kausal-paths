@@ -95,7 +95,7 @@ class InstanceRelatedField(serializers.PrimaryKeyRelatedField):
 
 
 class DatasetSerializer(serializers.ModelSerializer):
-    table = DatasetTableSerializer()
+    table = DatasetTableSerializer(required=False, allow_null=True)
     metrics = DatasetMetricSerializer(many=True)
     dimensions = InstanceRelatedField(many=True, queryset=Dimension.objects.all())
 
