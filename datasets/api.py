@@ -251,10 +251,13 @@ class DatasetSerializer(serializers.ModelSerializer):
     def update(self, instance: Dataset, validated_data: dict) -> Dataset:
         self.inject_common_data(validated_data=validated_data, is_create=False)
 
-        metrics = validated_data.pop('metrics')
-        metric_s = [DatasetMetricSerializer(data=m) for m in metrics]
-        for s in metric_s:
-            s.is_valid(raise_exception=True)
+        try:
+            metrics = validated_data.pop('metrics')
+            metric_s = [DatasetMetricSerializer(data=m) for m in metrics]
+            for s in metric_s:
+                s.is_valid(raise_exception=True)
+        except KeyError:
+            metric_s = []
 
         ds: Dataset = super().update(instance, validated_data)
 
