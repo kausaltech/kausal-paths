@@ -21,6 +21,97 @@ features:
   baseline_visible_in_graphs: false
 
 dimensions:
+- id: emission_scope
+  label: Emission-scope
+  label_en: Emission scopes
+  categories:
+  - id: scope1
+    label: Scope 1
+    label_en: Scope 1
+  - id: scope2
+    label: Scope 2
+    label_en: Scope 2
+  - id: scope3
+    label: Scope 3
+    label_en: Scope 3
+
+- id: vehicle_type
+  label: Fahrzeugtyp
+  label_en: Vehicle type
+  categories:
+  - id: car_petrol
+    label: Personenwagen / Benzin
+    label_en: Passenger cars / Petrol
+  - id: car_diesel
+    label: Personenwagen / Diesel
+    label_en: Passenger cars / Diesel
+  - id: car_natural_gas_biogas
+    label: Personenwagen / Erdgas/Biogas
+    label_en: Passenger cars / Natural gas / biogas
+  - id: car_plugin_hybrid
+    label: Personenwagen / Plug-in Hybrid
+    label_en: Passenger cars / Plug-in hybrid
+  - id: car_batteryelectric
+    label: Personenwagen / Elektrisch
+    label_en: Passenger cars / Battery-Electric
+  - id: car_fuel_cell
+    label: Personenwagen / Brennstoffzelle
+    label_en: Passenger cars / Fuel cell
+  - id: motorbike_petrol_4stroke
+    label: Motorräder / Benzin (4-Takt-Motor)
+    label_en: Motorbikes / Petrol 4-stroke engine
+  - id: motorbike_petrol_2stroke
+    label: Motorräder / Benzin (2-Takt-Motor)
+    label_en: Motorbikes / Petrol 2-stroke engine
+  - id: motorbike_batteryelectric
+    label: Motorräder / Elektrisch
+    label_en: Motorbikes / Battery-Electric
+  - id: buses_diesel
+    label: Linienbusse / Diesel
+    label_en: Regular buses / Diesel
+  - id: buses_diesel_hybrid
+    label: Linienbusse / Diesel Hybrid
+    label_en: Regular buses / Diesel hybrid
+  - id: buses_diesel_plugin_hybrid
+    label: Linienbusse / Diesel Plug- in Hybrid
+    label_en: Regular buses / Diesel plug-in hybrid
+  - id: buses_batteryelectric
+    label: Linienbusse / Elektrisch
+    label_en: Regular buses / Battery-Electric
+  - id: buses_fuel_cell
+    label: Linienbusse / Brennstoffzelle
+    label_en: Regular buses / Fuel cell
+
+- id: greenhouse_gases
+  label: Treibhausgase
+  label_en: Greenhouse gases
+  categories:
+  - id: co2_fossil
+    label: CO2, fossil
+    label_en: CO2, fossil
+    aliases: [CO2]
+  - id: ch4
+    label: CH4
+    label_en: CH4
+  - id: n2o
+    label: N2O
+    label_en: N2O
+  - id: hfc
+    label: HFC
+    label_en: HFC
+  - id: pfc
+    label: PFC
+    label_en: PFC
+  - id: sf6
+    label: SF6
+    label_en: SF6
+  - id: nf3
+    label: NF3
+    label_en: NF3
+  - id: co2_biogen
+    label: CO2, biogenic
+    label_en: CO2, biogen
+
 - id: energy_carrier
   label: Energieträger
   categories:
@@ -94,7 +185,13 @@ dimensions:
   - id: import
     label: Strommix Europa
     label_en: European import
-    aliases: [UCTE-Mix / ENTSO-E Mix]
+    aliases:
+    - UCTE-Mix / ENTSO-E Mix
+    - Nicht deklariert (UCTE)
+    - Nicht deklariert (UCTE-Mix)
+  - id: subsidized
+    label: Geförderter Strom
+    label_en: Subsidized electricity
 
 params:
 - id: municipality_name
@@ -425,21 +522,60 @@ actions:
 - id: fossil_fuels_from_heating
   name_en: Replacement of fossil fuels in heating
   name_de: Ersatz fossiler Heizungen
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
+  type: shift.ShiftAction
+  quantity: energy
   description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
     district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
   description_de: Werden alle 21 000 Öl- und Gasheizungen mit Erdsonden oder einem
     Anschluss ans Fernwärmenetz ersetzt, reduzieren sich die direkten Emissionen von
     Gebäuden um 1.6 tCO<sub>2</sub>eq/(Einw.*a).
-  output_nodes:
-  - building_emissions
-  forecast_values: [[2021, 0], [2040, -1.6]]
-  input_dataset_processors:
-  - type: FixedMultiplier
-    params:
-      multiplier: 0.775
-  unit: t/inh/a
+  output_nodes: [building_primary_energy_consumption]
+  unit: GWh/a
+  params:
+  - id: shift
+    unit: GWh/a
+    value:
+    - source:
+        categories:
+          energy_carrier: fuel_oil
+      dests:
+      - categories:
+          energy_carrier: district_heat
+      - categories:
+          energy_carrier: environmental_heat
+      - categories:
+          energy_carrier: wood
+      amounts:
+      - year: 2023
+        source_amount: -50
+        dest_amounts: [500, 250, 250]
+      - year: 2025
+        source_amount: -70
+        dest_amounts: [500, 250, 250]
+      - year: 2035
+        source_amount: -50
+        dest_amounts: [500, 250, 250]
+
+    - source:
+        categories:
+          energy_carrier: natural_gas
+      dests:
+      - categories:
+          energy_carrier: district_heat
+      - categories:
+          energy_carrier: environmental_heat
+      - categories:
+          energy_carrier: wood
+      amounts:
+      - year: 2023
+        source_amount: -100
+        dest_amounts: [500, 250, 250]
+      - year: 2025
+        source_amount: -150
+        dest_amounts: [500, 250, 250]
+      - year: 2035
+        source_amount: -100
+        dest_amounts: [500, 250, 250]
 
 - id: building_energy_retrofit
   name_en: Energetic retrofitting of buildings

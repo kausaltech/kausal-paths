@@ -207,3 +207,7 @@ def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
     pldf._units = units
     pldf._primary_keys = primary_keys
     return pldf
+
+
+if not pl.using_string_cache():
+    pl.toggle_string_cache(True)

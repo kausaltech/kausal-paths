@@ -6,6 +6,7 @@ from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
 
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
+from common import polars as ppl
 from .models import InstanceConfig, NodeConfig
 from .metric import Metric
 
@@ -260,7 +261,7 @@ class NodeType(graphene.ObjectType):
         df = df[[VALUE_COLUMN]]
         df[FORECAST_COLUMN] = fc
         metric = Metric(
-            id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=df,
+            id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=ppl.from_pandas(df),
             unit=target_node.unit
         )
         return metric

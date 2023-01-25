@@ -9,6 +9,7 @@ import pandas as pd
 import pint_pandas
 from common.i18n import TranslatedString
 from common.perf import PerfCounter
+from common import polars as ppl
 
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, VALUE_WITH_ACTION_GROUP,
@@ -60,10 +61,10 @@ class ActionNode(Node):
         df[FORECAST_COLUMN] = True
         return df
 
-    def compute_effect(self) -> pd.DataFrame:
+    def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:
         raise Exception("Implement in subclass")
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         return self.compute_effect()
 
     def compute_impact(self, target_node: Node) -> pd.DataFrame:
@@ -97,6 +98,7 @@ class ActionNode(Node):
 
     def print_impact(self, target_node: Node):
         df = self.compute_impact(target_node)
+        df.columns = [col[0] for col in df.columns]
         self.print_pint_df(df)
 
     def on_scenario_created(self, scenario):

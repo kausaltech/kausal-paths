@@ -767,6 +767,10 @@ class Node:
         if YEAR_COLUMN not in meta.primary_keys:
             raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
 
+        if NODE_COLUMN in meta.primary_keys:
+            # FIXME
+            return
+
         for dim_id, dim in self.output_dimensions.items():
             if dim_id not in meta.primary_keys:
                 raise NodeError(self, "Dimension column '%s' not included in index" % dim_id)
@@ -849,6 +853,10 @@ class Node:
 
     def print_output(self):
         df = self.get_output_pl()
+        meta = df.get_meta()
+        if meta.dim_ids:
+            self.print(df.paths.to_wide())
+            return
         if self.baseline_values is not None and VALUE_COLUMN in df.columns:
             meta = df.get_meta()
             df = df.with_columns(self.baseline_values[VALUE_COLUMN].alias(BASELINE_VALUE_COLUMN))

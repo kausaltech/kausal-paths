@@ -44,7 +44,7 @@ class Instance:
     reference_year: Optional[int] = None
     minimum_historical_year: Optional[int] = None
     maximum_historical_year: Optional[int] = None
-    supported_languages: Optional[list[str]] = None
+    supported_languages: list[str] = field(default_factory=list)
     lead_title: Optional[TranslatedString] = None
     lead_paragraph: Optional[TranslatedString] = None
     theme_identifier: Optional[str] = None
@@ -270,9 +270,13 @@ class InstanceLoader:
                 if unit is not None:
                     if isinstance(unit, str):
                         fields['unit'] = self.context.unit_registry.parse_units(unit)
-                param = param_class(**fields)
 
+                value = fields.pop('value', None)
+                param = param_class(**fields)
                 node.add_parameter(param)
+
+                if value is not None:
+                    param.set(value)
 
                 for scenario_id, value in scenario_values.items():
                     param.add_scenario_setting(scenario_id, param.clean(value))

@@ -32,7 +32,8 @@ def discover_parameter_types():
                 continue
             if not issubclass(attr, param_base.Parameter):
                 continue
-
+            if not hasattr(attr, 'id'):
+                continue
             if attr.id in all_params:
                 raise Exception("Module %s has duplicated parameter id: %s" % (p.name, attr.id))
             all_params[attr.id] = attr

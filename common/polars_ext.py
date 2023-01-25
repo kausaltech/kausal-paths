@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeAlias, TYPE_CHECKING, Union
+from typing import Literal, TypeAlias, TYPE_CHECKING, Union
 
 from polars.datatypes import Float32, Float64
 import pandas as pd
@@ -169,3 +169,37 @@ class PathsExt:
         ldf = df.lazy()
         dupes = ldf.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).limit(1).collect()
         return len(dupes) > 0
+
+    def add_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
+        df = self._df
+        val_col = VALUE_COLUMN
+
+        output_unit = df.get_unit(val_col)
+        meta = df.get_meta()
+        cols = df.columns
+        odf = odf.ensure_unit(val_col, output_unit).select([YEAR_COLUMN, *meta.dim_ids, val_col, FORECAST_COLUMN])
+
+        for dim in meta.dim_ids:
+            dt = df[dim].dtype
+            if odf[dim].dtype != dt:
+                odf = odf.with_column(pl.col(dim).cast(df[dim].dtype))
+
+        left_fc = pl.col(FORECAST_COLUMN)
+        right_fc = pl.col(FORECAST_COLUMN + '_right')
+        left_val = pl.col(val_col)
+        right_val = pl.col(val_col + '_right')
+        if how == 'outer':
+            left_fc = left_fc.fill_null(False)
+            right_fc = right_fc.fill_null(False)
+
+            left_val = left_val.fill_null(0)
+            right_val = right_val.fill_null(0)
+        elif how == 'left':
+            right_fc = right_fc.fill_null(False)
+            right_val = right_val.fill_null(False)
+
+        df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=how), meta=meta)
+        df = df.with_column(left_val + right_val)
+        df = df.with_column(left_fc | right_fc)
+        df = df.select(cols)
+        return df

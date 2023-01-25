@@ -43,6 +43,11 @@ class BuildingEnergy(AdditiveNode):
         df = df.set_unit(VALUE_COLUMN, output_unit)
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        for node in self.input_nodes:
+            ndf = node.get_output_pl(self)
+            df = df.paths.add_with_dims(ndf)
+
         return df
 
 

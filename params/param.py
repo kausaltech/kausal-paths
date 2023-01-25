@@ -5,8 +5,9 @@ from dataclasses import InitVar, dataclass, field
 import hashlib
 import orjson
 import pandas as pd
+from pydantic import BaseModel
 from common.i18n import I18nString
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING, Type
 from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
@@ -74,6 +75,8 @@ class Parameter:
         return self.value
 
     def serialize_value(self) -> Any:
+        if isinstance(self.value, BaseModel):
+            return self.value.dict()
         return self.value
 
     def is_value_equal(self, value: Any) -> bool:
@@ -279,3 +282,12 @@ class StringParameter(Parameter):
         if not isinstance(value, str):
             raise ValidationError(self)
         return value
+
+
+param_type_registry: set[Type[Parameter]] = set()
+
+
+def register_parameter_type(cls: Type[Parameter]):
+    if cls in param_type_registry:
+        raise Exception("Parameter class %s already registered", str(cls))
+    param_type_registry.add(cls)

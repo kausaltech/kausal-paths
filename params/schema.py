@@ -48,7 +48,7 @@ class ParameterInterface(graphene.Interface):
         for param_type in type(parameter).mro():
             if param_type in type_map:
                 return type_map[param_type]
-        raise Exception(f"{parameter} has invalid type")
+        return UnknownParameterType
 
 
 class BoolParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
@@ -77,6 +77,11 @@ class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
 
     value = graphene.String()
     default_value = graphene.String()
+
+
+class UnknownParameterType(graphene.ObjectType):
+    class Meta:
+        interfaces = (ParameterInterface,)
 
 
 class SetParameterMutation(graphene.Mutation):
@@ -216,4 +221,5 @@ types = [
     BoolParameterType,
     NumberParameterType,
     StringParameterType,
+    UnknownParameterType
 ]
