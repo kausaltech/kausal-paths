@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e0660fdfe5888d554c802d1d9ca192e7a78587ca
+  commit: 27ccf840669a2ff3c67edc1998b0a9a9819751de
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -21,80 +21,80 @@ features:
   baseline_visible_in_graphs: false
 
 dimensions:
-  - id: energy_carrier
-    label: Energieträger
-    categories:
-      - id: electricity
-        label: Strom
-        label_en: Electricity
-      - id: fuel_oil
-        label: Heizöl EL
-        label_en: Heating oil
-      - id: petrol
-        label: Benzin
-        label_en: Petrol
-      - id: diesel
-        label: Diesel
-        label_en: Diesel
-      - id: kerosene
-        label: Kerosin
-        label_en: Kerosene
-      - id: natural_gas
-        label: Erdgas
-        label_en: Natural gas
-      - id: biogas
-        label: Biogas
-        label_en: biogas
-      - id: district_heat
-        label: Fernwärme
-        label_en: District heating
-      - id: wood
-        label: Holz
-        label_en: Wood
-      - id: environmental_heat
-        label: Umweltwärme
-        label_en: Environmental heat
-      - id: solar_collectors
-        label: Sonnenkollektoren
-        label_en: Solar thermal collectors
-      - id: waste
-        label: Abfall
-        label_en: Waste
+- id: energy_carrier
+  label: Energieträger
+  categories:
+  - id: electricity
+    label: Strom
+    label_en: Electricity
+  - id: fuel_oil
+    label: Heizöl EL
+    label_en: Heating oil
+  - id: petrol
+    label: Benzin
+    label_en: Petrol
+  - id: diesel
+    label: Diesel
+    label_en: Diesel
+  - id: kerosene
+    label: Kerosin
+    label_en: Kerosene
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+  - id: biogas
+    label: Biogas
+    label_en: biogas
+  - id: district_heat
+    label: Fernwärme
+    label_en: District heating
+  - id: wood
+    label: Holz
+    label_en: Wood
+  - id: environmental_heat
+    label: Umweltwärme
+    label_en: Environmental heat
+  - id: solar_collectors
+    label: Sonnenkollektoren
+    label_en: Solar thermal collectors
+  - id: waste
+    label: Abfall
+    label_en: Waste
 
-  - id: electricity_source
-    label: Electricity source
-    categories:
-      - id: hydro
-        label: Wasser
-        label_en: Hydropower
-      - id: nuclear
-        label: Atomkraft
-        label_en: Nuclear power
-      - id: natural_gas
-        label: Erdgas
-        label_en: Natural gas
-      - id: solar
-        label: Sonne
-        label_en: Solar
-      - id: biogas
-        label: Biogas
-        label_en: Biogas
-      - id: waste
-        label: Abfall
-        label_en: Waste incineration
-      - id: wind
-        label: Wind
-        label_en: Wind
-      - id: wood
-        label: Holz
-        label_en: Wood
-      - id: fuel_oil
-        label: Heizöl
-        label_en: Heating oil
-      - id: import
-        label: Strommix Europa
-        label_en: European import
-        aliases: [UCTE-Mix / ENTSO-E Mix]
+- id: electricity_source
+  label: Electricity source
+  categories:
+  - id: hydro
+    label: Wasser
+    label_en: Hydropower
+  - id: nuclear
+    label: Atomkraft
+    label_en: Nuclear power
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+  - id: solar
+    label: Sonne
+    label_en: Solar
+  - id: biogas
+    label: Biogas
+    label_en: Biogas
+  - id: waste
+    label: Abfall
+    label_en: Waste incineration
+  - id: wind
+    label: Wind
+    label_en: Wind
+  - id: wood
+    label: Holz
+    label_en: Wood
+  - id: fuel_oil
+    label: Heizöl
+    label_en: Heating oil
+  - id: import
+    label: Strommix Europa
+    label_en: European import
+    aliases: [UCTE-Mix / ENTSO-E Mix]
 
 params:
 - id: municipality_name
@@ -113,22 +113,6 @@ emission_sectors:
   part_of: net_emissions
   color: '#0F05A0'
   order: 10
-
-  #
-  # Buildings
-  #
-- id: building_emissions
-  name_en: Building emissions
-  name_de: Gebäude
-  part_of: direct_emissions
-  color: '#002F96'
-  historical_values: [[1990, 2.96942], [1991, 2.90150], [1992, 2.86149], [1993, 2.82878],
-    [1994, 2.80427], [1995, 2.75521], [1996, 2.73391], [1997, 2.72130], [1998, 2.66890],
-    [1999, 2.63333], [2000, 2.60462], [2001, 2.29287], [2002, 2.50596], [2003, 2.43821],
-    [2004, 2.46960], [2005, 2.52127], [2006, 2.50572], [2007, 2.23755], [2008, 2.24559],
-    [2009, 2.19389], [2010, 2.23294], [2011, 2.11615], [2012, 2.18573], [2013, 2.10383],
-    [2014, 1.76327], [2015, 1.73161], [2016, 1.83536], [2017, 1.57945], [2018, 1.45222],
-    [2019, 1.51281], [2020, 1.71186]]
 
   #
   # Transportation
@@ -288,7 +272,7 @@ nodes:
   unit: GWh/a
   is_outcome: true
 
-- id: primary_energy_consumption_housing
+- id: building_primary_energy_consumption
   name_de: Primärenergieverbrauch Haushalte/Wirtschaft
   name_en: Primary energy consumption, housing and commerce
   type: ch.zuerich.BuildingEnergy
@@ -306,6 +290,44 @@ nodes:
   input_datasets:
   - zuerich/electricity_production_mix
   - zuerich/electricity_emission_factor
+
+- id: building_primary_energy_emission_factor
+  name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte
+  name_en: Emission factor of housing and commerce energy consumption
+  type: ch.zuerich.EmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - zuerich/buildings_energy_emission_factor
+  input_nodes:
+  - id: electricity_production_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      category: electricity
+
+- id: building_emissions
+  name_en: Building emissions
+  name_de: Gebäude
+  part_of: direct_emissions
+  color: '#002F96'
+  unit: t/cap/a
+  quantity: emissions
+  type: ch.zuerich.ToPerCapita
+  input_nodes:
+  - population
+  - id: building_emissions_net
+    tags: activity
+  output_nodes: [direct_emissions]
+
+- id: building_emissions_net
+  name_en: Emissions from households and businesses
+  name_de: Treibhausgasemissionen Haushalte/Wirtschaft
+  unit: kt/a
+  quantity: emissions
+  type: ch.zuerich.EmissionFactorActivity
+  input_nodes:
+  - building_primary_energy_emission_factor
+  - building_primary_energy_consumption
 
 - id: primary_energy_consumption_traffic
   name_de: Primärenergieverbrauch Verkehr

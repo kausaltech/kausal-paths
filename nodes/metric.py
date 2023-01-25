@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import numpy as np
-from typing import Dict, List, Optional
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union, TypedDict
+from dataclasses import dataclass, field
 
 import pandas as pd
 import pint
+import polars as pl
+
+from common import polars as ppl
 from nodes import Node
-from nodes.constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import ACTIVITY_QUANTITIES, BASELINE_VALUE_COLUMN, DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 
 @dataclass
@@ -16,46 +19,76 @@ class YearlyValue:
     value: float
 
 
+class SplitValues(TypedDict):
+    historical: list[YearlyValue]
+    forecast: list[YearlyValue]
+    baseline: list[YearlyValue]
+    cumulative_forecast_value: float | None
+
+
 @dataclass
 class Metric:
     id: str
     name: str
-    df: pd.DataFrame
-    unit: Optional[pint.Unit] = None
+    df: ppl.PathsDataFrame
     node: Optional[Node] = None
+    unit: Optional[pint.Unit] = None
+
+    split_values: SplitValues | None = field(init=False)
+
+    def __post_init__(self):
+        self.split_values = None
 
     @staticmethod
     def from_node(node: Node):
-        df = node.get_output()
-        if df is None:
-            return None
+        df = node.get_output_pl()
         if VALUE_COLUMN not in df.columns:
             return None
-        if node.baseline_values is not None:
-            df[BASELINE_VALUE_COLUMN] = node.baseline_values[VALUE_COLUMN]
+        if len(node.output_metrics) > 1 and DEFAULT_METRIC not in node.output_metrics:
+            return None
+
+        if len(node.output_metrics) == 1:
+            m = list(node.output_metrics.values())[0]
+        else:
+            m = node.output_metrics[DEFAULT_METRIC]
+
+        assert node.baseline_values is not None
+
+        if m.column_id != VALUE_COLUMN:
+            df = df.rename({m.column_id: VALUE_COLUMN})
+
+        bdf = node.baseline_values
+        if node.output_dimensions:
+            if m.quantity not in ACTIVITY_QUANTITIES:
+                return None
+            df = df.paths.sum_over_dims()
+            bdf = bdf.paths.sum_over_dims()
+
+        meta = df.get_meta()
+        bdf = bdf.select([
+            YEAR_COLUMN,
+            pl.col(m.column_id).alias(BASELINE_VALUE_COLUMN)
+        ])
+        tdf = df.join(bdf, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(tdf, meta=meta)
         return Metric(id=node.id, name=str(node.name), unit=node.unit, node=node, df=df)
 
-    def split_df(self) -> Dict[str, List[YearlyValue]]:
-        if hasattr(self, 'split_values'):
+    def split_df(self) -> SplitValues | None:
+        if self.split_values is not None:
             return self.split_values
 
         if self.df is None or VALUE_COLUMN not in self.df.columns:
-            self.split_values = None
             return None
 
-        df = self.df.copy().dropna()
-        # Drop units
-        for col in df.columns:
-            if hasattr(df[col], 'pint'):
-                df[col] = df[col].pint.m
+        df = self.df.drop_nulls()
 
         hist = []
         forecast = []
         baseline = []
-        for row in df.itertuples():
+        for row in df.iterrows(named=True):
             is_fc = getattr(row, FORECAST_COLUMN)
             val = getattr(row, VALUE_COLUMN)
-            year = row.Index
+            year = getattr(row, YEAR_COLUMN)
             if np.isnan(val):
                 raise Exception("Metric %s contains NaN values" % self.id)
             if not is_fc:
@@ -68,13 +101,13 @@ class Metric:
                     baseline.append(YearlyValue(year=year, value=bl_val))
                 forecast.append(YearlyValue(year=year, value=val))
 
-        cumulative_forecast_value = float(df.loc[df[FORECAST_COLUMN], VALUE_COLUMN].sum())
+        cum_fc = df.filter(pl.col(FORECAST_COLUMN))[VALUE_COLUMN].sum()
 
-        out = dict(
+        out = SplitValues(
             historical=hist,
             forecast=forecast,
-            cumulative_forecast_value=cumulative_forecast_value,
-            baseline=baseline if baseline else None
+            cumulative_forecast_value=cum_fc,
+            baseline=baseline
         )
         self.split_values = out
         return out

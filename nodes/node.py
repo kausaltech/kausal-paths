@@ -25,7 +25,7 @@ from common.types import Identifier, MixedCaseIdentifier
 from common.utils import hash_unit
 from common import polars as ppl
 from nodes.constants import (
-    EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
+    BASELINE_VALUE_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
     MILEAGE_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN,
     ensure_known_quantity, DEFAULT_METRIC, get_quantity_icon
 )
@@ -117,29 +117,36 @@ class Edge:
     output_node: Node
     tags: list[str] = field(default_factory=list)
     from_dimensions: dict[str, list[DimensionCategory]] = field(default_factory=dict)
+    to_dimensions: dict[str, DimensionCategory] = field(default_factory=dict)
 
     def __post_init__(self):
         self.tags = self.tags.copy()
         self.from_dimensions = self.from_dimensions.copy()
+        self.to_dimensions = self.to_dimensions.copy()
 
     @classmethod
     def from_config(cls, config: dict | str, node: Node, is_output: bool, context: Context) -> Edge:
         if isinstance(config, str):
             other_id = config
         else:
-            other_id = config.get('id')
-            if other_id is None:
+            s = config.get('id')
+            if s is None:
                 raise KeyError("node id not given in edge definition")
+            assert isinstance(s, str)
+            other_id = s
         other = context.nodes.get(other_id)
         if other is None:
             raise KeyError("node %s not found" % other_id)
 
-        args = {}
+        args: dict[str, Any] = {}
         args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)
         if isinstance(config, dict):
-            args['tags'] = config.get('tags', [])
+            tags = config.get('tags', [])
+            if isinstance(tags, str):
+                tags = [tags]
+            args['tags'] = tags
             dcs = config.get('from_dimensions', [])
-            dims = {}
+            ndims: dict[str, list[DimensionCategory]] = {}
             for dc in dcs:
                 dim_id = dc.get('id')
                 if dim_id not in context.dimensions:
@@ -147,8 +154,21 @@ class Edge:
                 dim = context.dimensions[dim_id]
                 cat_ids = dc['categories']
                 cats = [dim.get(cat_id) for cat_id in cat_ids]
-                dims[dim.id] = cats
-            args['from_dimensions'] = dims
+                ndims[dim.id] = cats
+            args['from_dimensions'] = ndims
+
+            dcs = config.get('to_dimensions', [])
+            dims: dict[str, DimensionCategory] = {}
+            for dc in dcs:
+                dim_id = dc.get('id')
+                if dim_id not in context.dimensions:
+                    raise KeyError("dimension %s not found" % dim_id)
+                dim = context.dimensions[dim_id]
+                cat_id = dc['category']
+                cat = dim.get(cat_id)
+                dims[dim.id] = cat
+            args['to_dimensions'] = dims
+
         return Edge(**args)
 
 
@@ -220,7 +240,7 @@ class Node:
     allowed_parameters: ClassVar[list[Parameter]]
 
     # Output for the node in the baseline scenario
-    baseline_values: Optional[pd.DataFrame]
+    baseline_values: Optional[ppl.PathsDataFrame]
 
     # When was this node last changed
     modified_at: int | None = None
@@ -440,22 +460,49 @@ class Node:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         self.parameters[local_id].set(value)
 
-    def get_input_datasets(self) -> List[Union[pd.DataFrame, pd.Series]]:
-        dfs: List[Union[pd.DataFrame, pd.Series]] = []
+    def get_input_datasets_pl(self) -> List[ppl.PathsDataFrame]:
+        dfs: List[ppl.PathsDataFrame] = []
         for ds in self.input_dataset_instances:
             df = ds.get_copy(self.context)
-            if df.index.duplicated().any():
+            if df.paths.index_has_duplicates():
                 raise NodeError(self, "Input dataset has duplicate index rows")
-            assert isinstance(df, pd.DataFrame)
+            assert isinstance(df, ppl.PathsDataFrame)
             dfs.append(df)
 
         if self.input_dataset_processors:
             for proc in self.input_dataset_processors:
                 for idx, df in enumerate(list(dfs)):
-                    assert isinstance(df, pd.DataFrame)
                     df = proc.process_input_dataset(df)
                     dfs[idx] = df
         return dfs
+
+    def get_input_datasets(self) -> List[pd.DataFrame]:
+        dfs = self.get_input_datasets_pl()
+        return [df.to_pandas() for df in dfs]
+
+
+    @overload
+    def get_input_dataset_pl(self, required: Literal[False]) -> Optional[ppl.PathsDataFrame]: ...
+
+    @overload
+    def get_input_dataset_pl(self, required: Literal[True] = True) -> ppl.PathsDataFrame: ...
+
+    @overload
+    def get_input_dataset_pl(self, required: bool) -> Optional[ppl.PathsDataFrame]: ...
+
+    def get_input_dataset_pl(self, required: bool = True) -> ppl.PathsDataFrame | None:
+        """Gets the first (and only) dataset if it exists."""
+        datasets = self.get_input_datasets_pl()
+        if not datasets:
+            if required:
+                raise NodeError(self, 'No input datasets, but node requires one')
+            return None
+        if len(datasets) != 1:
+            raise NodeError(self, 'Expected only 1 input dataset, got %d' % len(datasets))
+        df = datasets[0]
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df
+
 
     @overload
     def get_input_dataset(self, required: Literal[True] = True) -> pd.DataFrame: ...
@@ -464,17 +511,10 @@ class Node:
     def get_input_dataset(self, required: Literal[False]) -> Optional[pd.DataFrame]: ...
 
     def get_input_dataset(self, required: bool = True) -> pd.DataFrame | None:
-        """Gets the first (and only) dataset if it exists."""
-        datasets = self.get_input_datasets()
-        if not datasets:
-            if required:
-                raise NodeError(self, 'No input datasets, but node requires one')
+        df = self.get_input_dataset_pl(required=required)
+        if df is None:
             return None
-        if len(datasets) != 1:
-            raise NodeError(self, 'Expected only 1 input dataset, got %d' % len(datasets))
-        df = datasets[0]
-        assert isinstance(df, pd.DataFrame)
-        return df
+        return df.to_pandas()
 
     def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None) -> Node:
         matching_nodes = []
@@ -515,11 +555,10 @@ class Node:
         if FORECAST_COLUMN not in df:
             return None
 
-        year = df[~df[FORECAST_COLUMN]].index.max()
-        if np.isnan(year):
-            year = None
-        else:
-            year = int(year)
+        year = df[~df[FORECAST_COLUMN]][YEAR_COLUMN].max()
+        if year is None:
+            return None
+        year = int(year)  # type: ignore
 
         self._last_historical_year = year
         return year
@@ -654,14 +693,14 @@ class Node:
         df = self._get_output_for_node(df, edge)
         if edge.from_dimensions:
             meta = df.get_meta()
-            if not meta.primary_keys:
+            if not meta.dim_ids:
                 raise NodeError(self, "No dimensions in node output")
             for dim_id, cats in edge.from_dimensions.items():
                 cat_ids = [cat.id for cat in cats]
                 if dim_id not in meta.primary_keys:
                     raise NodeError(self, "Dimension %s not in output df" % dim_id)
                 df = df.filter(pl.col(dim_id).is_in(cat_ids)).drop(dim_id)
-                if not len(df):
+                if len(df) == 0:
                     raise NodeError(self, "No rows left after filtering by %s" % dim_id)
 
             # Sum over the rest of the dimensions
@@ -671,6 +710,16 @@ class Node:
             zdf = df.with_columns([pl.sum(pl.col('^%s@.*$' % col)).alias(col) for col in metric_cols])
             zdf = zdf.select([YEAR_COLUMN, FORECAST_COLUMN, *metric_cols])
             df = ppl.to_ppdf(zdf, meta=meta)
+
+        if edge.to_dimensions:
+            meta = df.get_meta()
+            if meta.dim_ids:
+                raise NodeError(self, "Output must not have dimensions")
+
+            new_cols = [pl.lit(cat.id).alias(dim_id) for dim_id, cat in edge.to_dimensions.items()]
+            for dim_id in edge.to_dimensions.keys():
+                meta.primary_keys.append(dim_id)
+            df = ppl.to_ppdf(df.with_columns(new_cols), meta=meta)
 
         meta = df.get_meta()
         if set(meta.dim_ids) != set(target_node.input_dimensions.keys()):
@@ -684,42 +733,62 @@ class Node:
 
         return df
 
-    def validate_output(self, df: pd.DataFrame):
-        if df.index.duplicated().any():
+    def validate_output(self, df: ppl.PathsDataFrame):
+        meta = df.get_meta()
+        ldf = df.lazy()
+
+        dupes = (
+            ldf.groupby(meta.primary_keys)
+            .agg(pl.count())
+            .filter(pl.col('count') > 1)
+            .limit(1)
+            .collect()
+        )
+        if len(dupes):
+            self.print(df)
             raise NodeError(self, "Node output has duplicate index rows")
+
         if FORECAST_COLUMN in df.columns:
-            if df.dtypes[FORECAST_COLUMN] != bool:
+            if df[FORECAST_COLUMN].dtype != pl.Boolean:
                 raise NodeError(self, "Forecast column is not a boolean")
 
         for metric in self.output_metrics.values():
+            # FIXME
+            # if metric.column_id not in df.columns:
+            #   raise NodeError(self, "Output does not have a column '%s'" % metric.column_id)
             if metric.column_id not in df.columns:
-                raise NodeError(self, "Output does not have a column '%s'" % metric.column_id)
-            dt = df.dtypes[metric.column_id]
-            if not isinstance(dt, pint_pandas.PintType):
+                continue
+            if not df.has_unit(metric.column_id):
                 raise NodeError(self, "Output column '%s' does not have units" % metric.column_id)
-            if dt.units != metric.unit:
+            unit = df.get_unit(metric.column_id)
+            if unit != metric.unit:
                 raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, dt.units))
 
-        if isinstance(df.index, pd.MultiIndex):
-            if YEAR_COLUMN not in df.index.names:
-                raise NodeError(self, "'%s' not in DataFrame multi-index levels" % YEAR_COLUMN)
-        else:
-            if df.index.name != YEAR_COLUMN:
-                raise NodeError(self, "DataFrame index must be named '%s'" % YEAR_COLUMN)
+        if YEAR_COLUMN not in meta.primary_keys:
+            raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
 
-        if self.output_dimensions:
-            if not isinstance(df.index, pd.MultiIndex):
-                raise NodeError(self, "Node output does not have a multi-index")
-            assert isinstance(df.index, pd.MultiIndex)
-            names = set(df.index.names) - set([YEAR_COLUMN])
-            dim_ids = set(self.output_dimensions.keys())
+        for dim_id, dim in self.output_dimensions.items():
+            if dim_id not in meta.primary_keys:
+                raise NodeError(self, "Dimension column '%s' not included in index" % dim_id)
+            dt = df[dim_id].dtype
+            if dt not in (pl.Utf8, pl.Categorical):
+                raise NodeError(self, "Dimension column '%s' is of wrong type (%s)" % (dim_id, dt))
+            cats = set(df[dim_id].unique())
+            dim_cats = dim.get_cat_ids()
+            diff = cats - dim_cats
+            if diff:
+                raise NodeError(self, "Unknown categories in dimension column '%s': %s" % (dim_id, ', '.join(diff)))
 
-            if names != dim_ids:
-                raise NodeError(self, "Invalid dimensions")
-            for idx, name in enumerate(names):
-                pass
+        dim_ids = set(meta.dim_ids)
+        node_dims = set(self.output_dimensions.keys())
+        if dim_ids != node_dims:
+            raise NodeError(self, "Output has unknown dimensions")
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
+        df = self.get_output_pl(target_node, metric)
+        return df.to_pandas()
+
+    def get_output_pl(self, target_node: Node | None = None, metric: str | None = None) -> ppl.PathsDataFrame:
         pc = PerfCounter(
             '%s [%s.%s]' % (self.id, type(self).__module__, type(self).__name__),
             level=PerfCounter.Level.INFO if self.debug else PerfCounter.Level.DEBUG
@@ -739,47 +808,52 @@ class Node:
             if out is None:
                 raise NodeError(self, "Node returned no output")
 
-            self.validate_output(out)
+            if isinstance(out, pd.DataFrame):
+                out = ppl.from_pandas(out)
 
             cache_hit = False
         else:
             cache_hit = True
         self.context.perf_context.record_cache(self, is_hit=cache_hit)
-        if self.id == 'electricity_per_area_single_family' and not hasattr(out[VALUE_COLUMN], 'pint'):
-            import ipdb; ipdb.set_trace()
 
-        assert isinstance(out, pd.DataFrame)
+        assert isinstance(out, ppl.PathsDataFrame)
 
         if not cache_hit:
             self.context.cache.set(node_hash, out.copy())
+
+        meta = out.get_meta()
 
         # If a node has multiple outputs, we can specify only one series
         # to include.
         if metric is not None:
             assert metric in out.columns
-            cols = [metric]  # FIXME This assumes that the column name and metric are identical
+            cols = meta.primary_keys.copy()
+            cols.append(metric)  # FIXME This assumes that the column name and metric are identical
             if FORECAST_COLUMN in out.columns:
                 cols.append(FORECAST_COLUMN)
-            out = out[cols]
-            out = out.rename(columns={metric: VALUE_COLUMN})
+            out = out.select(cols)
+            out = out.rename({metric: VALUE_COLUMN})
             self.context.perf_context.node_end(self)
             pc.display('Done (with dimensions)')
-            return out.copy()
+            self.validate_output(out)
+            return out
 
         if target_node is not None:
-            pdf = self._get_output_for_target(ppl.from_pandas(out), target_node)
-            out = pdf.paths.to_pandas()
+            out = self._get_output_for_target(out, target_node)
             pc.display('Done (with target node)')
         else:
             pc.display('Done (normal exit)')
         self.context.perf_context.node_end(self)
-        return out.copy()
+        self.validate_output(out)
+        return out
 
     def print_output(self):
-        df = self.get_output()
+        df = self.get_output_pl()
         if self.baseline_values is not None and VALUE_COLUMN in df.columns:
-            df['Baseline'] = self.baseline_values[VALUE_COLUMN]
-        self.print_pint_df(df)
+            meta = df.get_meta()
+            df = df.with_columns(self.baseline_values[VALUE_COLUMN].alias(BASELINE_VALUE_COLUMN))
+            df = ppl.to_ppdf(df, meta=meta)
+        self.print(df)
 
     def plot_output(self):
         try:
@@ -823,6 +897,9 @@ class Node:
         if isinstance(obj, (pd.DataFrame, pd.Series)):
             self.print_pint_df(obj)
             return
+        elif isinstance(obj, ppl.PathsDataFrame):
+            meta = obj.get_meta()
+            obj = obj.rename({col: '[%s] %s' % (str(unit), col) for col, unit in meta.units.items()})
         pprint(obj)
 
     def print_outline(self, df):
@@ -840,7 +917,7 @@ class Node:
     def get_end_year(self) -> int:
         return self.context.model_end_year
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         raise Exception('Implement in subclass')
 
     def is_compatible_unit(self, unit_a: Union[str, Unit], unit_b: Union[str, Unit]):
@@ -952,7 +1029,7 @@ class Node:
     def generate_baseline_values(self):
         assert self.baseline_values is None
         assert self.context.active_scenario.id == 'baseline'
-        self.baseline_values = self.get_output()
+        self.baseline_values = self.get_output_pl()
 
     def serialize_input_data(self):
         if len(self.input_dataset_instances) != 1:
@@ -960,10 +1037,10 @@ class Node:
             raise NodeError(self, 'Too many input datasets: %s' % ', '.join(datasets))
         ds = self.input_dataset_instances[0]
         df = ds.get_copy(self.context)
-        if not isinstance(df, pd.DataFrame) or FORECAST_COLUMN not in df.columns:
+        if not isinstance(df, ppl.PathsDataFrame) or FORECAST_COLUMN not in df.columns:
             raise Exception('Dataset %s is not suitable for serialization')
 
-        out = JSONDataset.serialize_df(df)
+        out = JSONDataset.serialize_df(df.to_pandas())
         return out
 
     def validate_input_data(self, data: dict):

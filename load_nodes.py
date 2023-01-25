@@ -164,10 +164,11 @@ if args.check or args.update_instance or args.update_nodes:
                 node.print_output()
 
             if node.baseline_values is not None:
-                na_count = node.baseline_values.isna().sum().sum()
+                bdf = node.baseline_values
+                na_count = bdf.null_count().sum(axis=1).sum()
                 if na_count:
                     print('Node %s baseline forecast has NaN values:' % node.id)
-                    node.print_pint_df(node.baseline_values)
+                    node.print(node.baseline_values)
         context.cache.prefix = old_cache_prefix
 
     init_django()

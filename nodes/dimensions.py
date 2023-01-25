@@ -1,6 +1,7 @@
 import hashlib
 import typing
 from typing import List
+import polars as pl
 
 from pydantic import BaseModel, Field, PrivateAttr
 
@@ -43,6 +44,9 @@ class Dimension(BaseModel):
             raise KeyError("Dimension %s: category %s not found" % (self.id, cat_id))
         return self._cat_map[cat_id]
 
+    def get_cat_ids(self) -> set[str]:
+        return set(self._cat_map.keys())
+
     def labels_to_ids(self) -> dict[str, Identifier]:
         all_labels = {}
         for cat in self.categories:
@@ -60,9 +64,23 @@ class Dimension(BaseModel):
         cs = s.map(cat_map)
         if cs.hasnans:
             missing_cats = s[~s.isin(cat_map)].unique()
-            print(missing_cats)
             raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
         return cs
+
+    def series_to_ids_pl(self, s: pl.Series) -> pl.Series:
+        if s.null_count():
+            raise Exception("Series contains NaNs")
+        s = s.cast(str).str.strip()
+        cat_map = self.labels_to_ids()
+        label = cat_map.keys()
+        id = cat_map.values()
+        map_df = pl.DataFrame(dict(label=label, id=id))
+        df = pl.DataFrame(dict(cat=s))
+        df = df.join(map_df, left_on='cat', right_on='label', how='left')
+        if df['id'].null_count():
+            missing_cats = df.filter(~pl.col('id'))['cat'].unique()
+            raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
+        return df['id'].cast(pl.Categorical)
 
     def calculate_hash(self) -> bytes:
         if self._hash is not None:

@@ -31,6 +31,10 @@ class DataFrameMeta:
             keys.remove(YEAR_COLUMN)
         return keys
 
+    @property
+    def metric_cols(self) -> list[str]:
+        return list(self.units.keys())
+
 
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
@@ -95,8 +99,74 @@ class PathsDataFrame(pl.DataFrame):
         df = super().select(exprs)
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
+    def with_column(self, column: pli.Series | pli.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
+        meta = self.get_meta()
+        if unit is None and not is_primary_key:
+            df = super().with_column(column)
+            return PathsDataFrame._from_pydf(df._df, meta=meta)
+
+        if isinstance(column, pli.Series):
+            name = column.name
+            df = super().with_column(column)
+        else:
+            old_cols = set(self.columns)
+            df = super().with_column(column)
+            new_cols = set(df.columns)
+            diff = new_cols - old_cols
+            if len(diff) != 1:
+                raise Exception("Unable to determine name for the new column")
+            name = list(diff)[0]
+
+        if unit is not None:
+            meta.units[name] = unit
+        if is_primary_key:
+            if name not in meta.primary_keys:
+                meta.primary_keys.append(name)
+        return PathsDataFrame._from_pydf(df._df, meta=meta)
+
     def get_meta(self) -> DataFrameMeta:
         return DataFrameMeta(units=self._units, primary_keys=self._primary_keys)
+
+    def get_unit(self, col: str) -> Unit:
+        return self._units[col]
+
+    def has_unit(self, col: str) -> bool:
+        return col in self._units
+
+    def set_unit(self, col: str, unit: Unit) -> PathsDataFrame:
+        assert col in self.columns
+        if col in self._units:
+            raise Exception("Column %s already has a unit set" % col)
+        self._units[col] = unit
+        return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
+
+    def ensure_unit(self, col: str, unit: Unit) -> PathsDataFrame:
+        col_unit = self._units[col]
+        if col_unit == unit:
+            return self
+        if not col_unit.is_compatible_with(unit):
+            raise Exception("Unit '%s' for column %s is not compatible with '%s'" % (col_unit, col, unit))
+
+        vls = self[col].to_numpy(zero_copy_only=True)
+        vls = (vls * col_unit).to(unit).m
+        df = self.with_column(pl.Series(name=col, values=vls), unit=unit)
+        return df
+
+    def to_pandas(self, *args: Any, date_as_object: bool = False, meta: DataFrameMeta | None = None, **kwargs: Any) -> pd.DataFrame:
+        if meta is None:
+            meta = self.get_meta()
+        df = super().to_pandas(*args, date_as_object=date_as_object, **kwargs)
+        primary_keys = meta.primary_keys if meta else self._primary_keys
+        units = meta.units if meta else self._units
+        if primary_keys:
+            df = df.set_index(primary_keys)
+        for col, unit in units.items():
+            pt = PintType(unit)
+            df[col] = df[col].astype(pt)
+        return df
+
+    def copy(self) -> PathsDataFrame:
+        return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
 
 
 class Series(pl.Series):  # type: ignore
@@ -104,7 +174,7 @@ class Series(pl.Series):  # type: ignore
 
 
 def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
-    if isinstance(df, PathsDataFrame):
+    if isinstance(df, PathsDataFrame) and meta is None:
         return df
     pdf = PathsDataFrame._from_pydf(df._df, meta=meta)
     return pdf

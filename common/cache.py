@@ -4,10 +4,12 @@ from typing import Any, Dict, Optional, Union, Tuple
 import pickle
 
 import pandas as pd
+import polars as pl
 import pint_pandas
 from pint import UnitRegistry
 import redis
 
+from common import polars as ppl
 from common.perf import PerfCounter
 
 
@@ -39,6 +41,32 @@ class PickledPintDataFrame:
         if not units:
             return df
         return PickledPintDataFrame(df, units)
+
+
+class PickledPathsDataFrame:
+    df: pl.DataFrame
+    units: Dict[str, str]
+    primary_keys: list[str]
+
+    def __init__(self, df, units, primary_keys):
+        self.df = df
+        self.units = units
+        self.primary_keys = primary_keys
+
+    def to_df(self, ureg: UnitRegistry) -> ppl.PathsDataFrame:
+        df = self.df
+        units = {}
+        for col, unit in self.units.items():
+            units[col] = ureg.parse_units(unit)
+        meta = ppl.DataFrameMeta(units, self.primary_keys)
+        return ppl.to_ppdf(df, meta=meta)
+
+    @classmethod
+    def from_df(cls, df: ppl.PathsDataFrame) -> PickledPathsDataFrame:
+        meta = df.get_meta()
+        pldf = pl.DataFrame._from_pydf(df._df)
+        units = {col: str(unit) for col, unit in meta.units.items()}
+        return cls(pldf, units, meta.primary_keys)
 
 
 class Cache:
@@ -92,14 +120,18 @@ class Cache:
         self.run_pipe = None
 
     def dump_object(self, obj: Any) -> bytes:
-        if isinstance(obj, pd.DataFrame) and hasattr(obj, 'pint'):
+        if isinstance(obj, ppl.PathsDataFrame):
+            obj = PickledPathsDataFrame.from_df(obj)
+        elif isinstance(obj, pd.DataFrame) and hasattr(obj, 'pint'):
             obj = PickledPintDataFrame.from_df(obj)
         data = pickle.dumps(obj)
         return data
 
     def load_object(self, data: bytes) -> Any:
         obj = pickle.loads(data)
-        if isinstance(obj, PickledPintDataFrame):
+        if isinstance(obj, PickledPathsDataFrame):
+            return obj.to_df(self.ureg)
+        elif isinstance(obj, PickledPintDataFrame):
             return obj.to_df(self.ureg)
         return obj
 
@@ -107,7 +139,7 @@ class Cache:
         full_key = '%s:%s' % (self.prefix, key)
         if self.run_cache is not None and full_key in self.run_cache:
             obj = self.run_cache[full_key]
-            if isinstance(obj, pd.DataFrame):
+            if isinstance(obj, (pd.DataFrame, ppl.PathsDataFrame)):
                 return obj.copy()
             return obj
 

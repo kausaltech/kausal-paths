@@ -44,7 +44,7 @@ class AdminMiddleware(MiddlewareMixin):
         translation.activate(lang)
 
         assert instance_config is not None
-        instance = instance_config.get_instance(generate_baseline=True)
+        instance = instance_config.get_instance()
         context = instance.context
         context.activate_scenario(context.get_default_scenario())
         request.admin_instance = instance_config

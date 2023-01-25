@@ -1,9 +1,12 @@
 import pandas as pd
+import polars as pl
 from pint_pandas import PintType
 
-from nodes.node import NodeMetric, NodeError
+import common.polars as ppl
+from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
+from nodes.node import NodeMetric, NodeError, Node
 from nodes.simple import AdditiveNode
-from nodes.constants import EMISSION_FACTOR_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 
 
 class BuildingEnergy(AdditiveNode):
@@ -28,6 +31,9 @@ class BuildingEnergy(AdditiveNode):
         df[FORECAST_COLUMN] = False
         df = df[[ENERGY_QUANTITY, FORECAST_COLUMN]]
         df = df.rename(columns={ENERGY_QUANTITY: VALUE_COLUMN})
+
+        df = extend_last_historical_value(df, self.get_end_year())
+
         return df
 
 
@@ -74,4 +80,121 @@ class ElectricityEmissionFactor(AdditiveNode):
         s = s.astype(PintType(self.unit))
         df = pd.DataFrame(data=s, index=s.index, columns=[VALUE_COLUMN])
         df[FORECAST_COLUMN] = False
+
+        df = extend_last_historical_value(df, self.get_end_year())
+
+        return df
+
+
+class EmissionFactor(Node):
+    input_dimension_ids = ['energy_carrier']
+    output_dimension_ids = ['energy_carrier']
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = ppl.from_pandas(self.get_input_dataset())
+        meta = df.get_meta()
+
+        metric_cols = list(meta.units.keys())
+        if len(metric_cols) == 1:
+            metric_col = metric_cols[0]
+        else:
+            metric_col = 'emission_factor'
+
+        dim = self.input_dimensions['energy_carrier']
+        ids = dim.series_to_ids_pl(df[dim.id])
+        df = ppl.to_ppdf(df.with_column(ids.alias(dim.id)), meta=meta)\
+            .with_column(pl.lit(False).alias(FORECAST_COLUMN))\
+            .with_column(pl.col(dim.id).cast(str))
+
+        df = df.rename({metric_col: VALUE_COLUMN})
+        meta = df.get_meta()
+        if dim.id not in meta.primary_keys:
+            meta.primary_keys.append(dim.id)
+        if YEAR_COLUMN not in meta.primary_keys:
+            meta.primary_keys.append(YEAR_COLUMN)
+        for node in self.input_nodes:
+            ndf = node.get_output_pl(self)
+            ndf = ndf.ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
+            ndf = ndf.select(df.columns)
+            df = ppl.to_ppdf(pl.concat([df, ndf], how='vertical'), meta=meta)
+
+        counts = df.groupby([YEAR_COLUMN, dim.id]).count()
+        duplicates = counts.filter(pl.col('count') > 1)
+        if len(duplicates):
+            raise NodeError(self, "Duplicate rows detected")
+
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        return df
+
+
+class EmissionFactorActivity(Node):
+    output_metrics = {
+        DEFAULT_METRIC: NodeMetric('kt/a', quantity=EMISSION_QUANTITY, column_id=VALUE_COLUMN),
+    }
+    input_dimension_ids = ['energy_carrier']
+
+    def compute(self) -> ppl.PathsDataFrame:
+        en = self.get_input_node(quantity=ENERGY_QUANTITY)
+        fn = self.get_input_node(quantity=EMISSION_FACTOR_QUANTITY)
+        edf = ppl.from_pandas(en.get_output(self))
+        edf = edf.rename({VALUE_COLUMN: 'Energy'})
+        fdf = ppl.from_pandas(fn.get_output(self))
+        fdf = fdf.rename({VALUE_COLUMN: 'EF'})
+        dim_cols = list(self.input_dimensions.keys())
+        emdf = edf.join(fdf, on=[YEAR_COLUMN, *dim_cols], how='left')
+        if emdf['EF'].has_validity():
+            raise NodeError(self, "Emission factor not found for some categories")
+        df = ppl.to_ppdf(emdf, edf.get_meta())
+        df = df.set_unit('EF', fdf.get_unit('EF'))
+        em = pl.col('Energy') * pl.col('EF')
+        em_unit = df.get_unit('EF') * df.get_unit('Energy')
+        df = df.with_column(em.alias('Emissions'), unit=em_unit)
+        output_unit = self.output_metrics[DEFAULT_METRIC].unit
+        df = df.ensure_unit('Emissions', output_unit)
+        meta = df.get_meta()
+        if YEAR_COLUMN not in meta.primary_keys:
+            meta.primary_keys.append(YEAR_COLUMN)
+        df = df.groupby([YEAR_COLUMN]).agg([pl.sum('Emissions').alias(VALUE_COLUMN), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(df, meta=meta)
+        df = df.set_unit(VALUE_COLUMN, output_unit)
+        df = extend_last_historical_value_pl(df, self.context.model_end_year)
+        return df
+
+
+class ToPerCapita(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        input_nodes = list(self.input_nodes)
+        pop_node = self.get_input_node(quantity=POPULATION_QUANTITY)
+        input_nodes.remove(pop_node)
+        if len(input_nodes) > 1:
+            act_node = self.get_input_node(tag='activity')
+        else:
+            act_node = input_nodes[0]
+        input_nodes.remove(act_node)
+
+        pop_df = ppl.from_pandas(pop_node.get_output(self))
+        pop_df = pop_df.rename({VALUE_COLUMN: 'Pop'})
+        act_df = ppl.from_pandas(act_node.get_output(self))
+
+        meta = act_df.get_meta()
+        df = ppl.to_ppdf(act_df.join(pop_df, on=YEAR_COLUMN, how='left'), meta=meta)
+
+        pc_unit = act_df.get_unit('Value') / pop_df.get_unit('Pop')
+        df = df.with_column((pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'))
+        df = df.with_column((pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').alias(FORECAST_COLUMN)))
+        df = df.set_unit('PerCapita', pc_unit)
+        output_unit = self.output_metrics[DEFAULT_METRIC].unit
+        df = df.ensure_unit('PerCapita', output_unit)
+        df = df.drop(VALUE_COLUMN).rename(dict(PerCapita=VALUE_COLUMN))
+        meta = df.get_meta()
+        df = df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
+        for node in input_nodes:
+            ndf = ppl.from_pandas(node.get_output(self))
+            ndf = ndf.ensure_unit(VALUE_COLUMN, output_unit)
+            df = ppl.to_ppdf(df.join(ndf, on=YEAR_COLUMN, how='left'), meta=meta)
+            other = df[VALUE_COLUMN + '_right'].fill_null(0)
+            df = df.with_column(pl.col(VALUE_COLUMN) + other)
+            df = df.with_column(pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').fill_null(False))
+            df = df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
+        df = ppl.to_ppdf(df, meta=meta)
         return df

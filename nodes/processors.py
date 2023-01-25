@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, List, Dict, Literal, overload
 import pandas as pd
+import polars as pl
 import numpy as np
 from dataclasses import asdict
 
 from params.param import NumberParameter, Parameter
+from common import polars as ppl
 from common.i18n import gettext_lazy as _
 
 from .node import Node, NodeError
@@ -49,12 +51,13 @@ class Processor(ABC):
         return None
 
     @abstractmethod
-    def process_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process_input_dataset(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         pass
 
 
 class LinearInterpolation(Processor):
-    def process_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process_input_dataset(self, pldf: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = pldf.to_pandas()
         index_name = df.index.name
         df = df.reindex(pd.RangeIndex(df.index.min(), df.index.max() + 1))
         for col_name in df.columns:
@@ -67,7 +70,7 @@ class LinearInterpolation(Processor):
             else:
                 df[col_name] = col.interpolate()
         df.index.name = index_name
-        return df
+        return ppl.from_pandas(df)
 
 
 class FixedMultiplier(Processor):
@@ -78,10 +81,12 @@ class FixedMultiplier(Processor):
         ),
     ]
 
-    def process_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process_input_dataset(self, pldf: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = pldf.to_pandas()
         for col_name in df.columns:
             col = df[col_name]
             if isinstance(col.iloc[0], (bool, np.bool_)):
                 continue
             df[col_name] *= self.get_parameter('multiplier').value
-        return df
+        return ppl.from_pandas(df)
+

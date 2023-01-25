@@ -25,19 +25,20 @@ def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
     return df
 
 
-def extend_last_historical_value(
-    df: pd.DataFrame, end_year: int,
-    dimensions: dict[str, Dimension] | None = None,
-    metrics: dict[str, NodeMetric] | None = None
-) -> pd.DataFrame:
-    pdf = ppl.from_pandas(df)
-    meta = pdf.get_meta()
-    pdf = pdf.paths.to_wide(dimensions=dimensions or {}, metrics=metrics or {}, meta=meta)
-    pdf = pdf.paths.make_forecast_rows(end_year)
-    last_hist_year = pdf.filter(pl.col(FORECAST_COLUMN) == False)[YEAR_COLUMN].max()
-    pdf = pdf.paths.nafill_pad()
+def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.PathsDataFrame:
+    meta = df.get_meta()
+    df = df.paths.to_wide()
+    df = df.paths.make_forecast_rows(end_year)
+    last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
+    df = df.paths.nafill_pad()
     fc = pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(True).otherwise(False)
-    pdf = ppl.to_ppdf(pdf.with_column(fc.alias(FORECAST_COLUMN)))
-    pdf = pdf.paths.to_narrow()
-    df = pdf.paths.to_pandas(meta=meta)
+    df = ppl.to_ppdf(df.with_column(fc.alias(FORECAST_COLUMN)))
+    df = df.paths.to_narrow()
+    return ppl.to_ppdf(df, meta=meta)
+
+
+def extend_last_historical_value(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
+    pdf = ppl.from_pandas(df)
+    pdf = extend_last_historical_value_pl(pdf, end_year)
+    df = pdf.paths.to_pandas()
     return df

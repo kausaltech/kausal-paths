@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, Union, ov
 import orjson
 
 import pandas as pd
+import polars as pl
 import pint
 import pint_pandas
 from dvc_pandas import Dataset as DVCPandasDataset
@@ -16,6 +17,7 @@ from pint_pandas.pint_array import PintType
 
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import Unit
+from common import polars as ppl
 
 if TYPE_CHECKING:
     from .context import Context
@@ -27,8 +29,7 @@ pd.set_option('io.parquet.engine', 'pyarrow')
 @dataclass
 class Dataset:
     id: str
-
-    df: Optional[pd.DataFrame] = field(init=False)
+    df: Optional[ppl.PathsDataFrame] = field(init=False)
     hash: Optional[bytes] = field(init=False)
 
     def __post_init__(self):
@@ -37,7 +38,7 @@ class Dataset:
         if getattr(self, 'unit', None) is None:
             self.unit = None
 
-    def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+    def load(self, context: Context) -> ppl.PathsDataFrame:
         raise NotImplementedError()
 
     def hash_data(self, context: Context) -> dict[str, Any]:
@@ -52,7 +53,7 @@ class Dataset:
         self.hash = h
         return h
 
-    def get_copy(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+    def get_copy(self, context: Context) -> ppl.PathsDataFrame:
         return self.load(context).copy()
 
     def get_unit(self, context: Context) -> pint.Unit:
@@ -95,7 +96,7 @@ class DVCDataset(Dataset):
             dvc_dataset_id = self.id
         return context.load_dvc_dataset(dvc_dataset_id)
 
-    def _process_output(self, df: Union[pd.DataFrame, pd.Series], ds_hash: str, context: Context):
+    def _process_output(self, df: pd.DataFrame, ds_hash: str, context: Context) -> ppl.PathsDataFrame:
         df = df.copy()
         if self.max_year:
             df = df[df.index <= self.max_year]  # type: ignore
@@ -113,10 +114,12 @@ class DVCDataset(Dataset):
                     assert df[col].pint.units == self.unit
                 else:
                     df[col] = df[col].astype(float).astype(PintType(self.unit))
-        context.cache.set(ds_hash, df)
-        return df
 
-    def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+        ldf = ppl.from_pandas(df)
+        context.cache.set(ds_hash, ldf)
+        return ldf
+
+    def load(self, context: Context) -> ppl.PathsDataFrame:
         if self.df is not None:
             return self.df
 
@@ -146,7 +149,7 @@ class DVCDataset(Dataset):
         cols = df.columns
         if self.column:
             if self.column not in cols:
-                available = ', '.join(cols)
+                available = ', '.join(cols)  # type: ignore
                 raise Exception(
                     "Column '%s' not found in dataset '%s'. Available columns: %s" % (
                         self.column, self.id, available
@@ -164,8 +167,7 @@ class DVCDataset(Dataset):
                 df.loc[df.index >= self.forecast_from, FORECAST_COLUMN] = True
                 return self._process_output(df, ds_hash, context)
             else:
-                s = df[self.column]
-                return self._process_output(s, ds_hash, context)
+                raise Exception("Not supported")
 
         df = df[cols]
         return self._process_output(df, ds_hash, context)
@@ -175,11 +177,10 @@ class DVCDataset(Dataset):
             return self.unit
         df = self.load(context)
         if VALUE_COLUMN in df.columns:
-            s = df[VALUE_COLUMN]
-            if hasattr(s, 'pint'):
-                unit = self.unit = s.pint.units
-                return unit
-            raise Exception("Dataset %s does not have a unit" % self.id)
+            meta = df.get_meta()
+            if VALUE_COLUMN not in meta.units:
+                raise Exception("Dataset %s does not have a unit" % self.id)
+            return meta.units[VALUE_COLUMN]
         else:
             raise Exception("Dataset %s does not have the value column" % self.id)
 
@@ -252,14 +253,16 @@ class FixedDataset(Dataset):
                 continue
             df[col] = df[col].astype(float).astype(pt)
 
-        self.df = df
+        self.df = ppl.from_pandas(df)
 
-    def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+    def load(self, context: Context) -> ppl.PathsDataFrame:
         assert self.df is not None
         return self.df
 
     def hash_data(self, context: Context) -> dict[str, Any]:
-        return dict(hash=int(pd.util.hash_pandas_object(self.df).sum()))
+        assert self.df is not None
+        df = self.df.to_pandas()
+        return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
     def get_unit(self, context: Context) -> pint.Unit:
         return self.unit
@@ -268,23 +271,25 @@ class FixedDataset(Dataset):
 @dataclass
 class JSONDataset(Dataset):
     data: dict
-    unit: pint.Unit
-    df: pd.DataFrame = field(init=False)
+    unit: pint.Unit | None
+    df: ppl.PathsDataFrame = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
-        self.df, units = JSONDataset.deserialize_df(self.data, return_units=True)
+        df, units = JSONDataset.deserialize_df(self.data, return_units=True)
+        self.df = ppl.from_pandas(df)
         if len(units) == 1:
             self.unit = list(units.values())[0]
 
-    def load(self, context: Context) -> Union[pd.DataFrame, pd.Series]:
+    def load(self, context: Context) -> ppl.PathsDataFrame:
         assert self.df is not None
         return self.df
 
     def hash_data(self, context: Context) -> dict[str, Any]:
-        return dict(hash=int(pd.util.hash_pandas_object(self.df).sum()))
+        df = self.df.to_pandas()
+        return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
-    def get_unit(self, context: Context) -> pint.Unit:
+    def get_unit(self, context: Context) -> pint.Unit | None:
         return self.unit
 
     @overload

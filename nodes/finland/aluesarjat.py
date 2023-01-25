@@ -96,12 +96,10 @@ class BuildingStock(AdditiveNode):
         s = df.groupby(['building_heat_source', 'building_use', YEAR_COLUMN])['value'].sum()
         s = m.ensure_output_unit(s)
         df = pd.DataFrame(data=s.values, index=s.index, columns=[VALUE_COLUMN])
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(s.dtype)
         df[FORECAST_COLUMN] = False
 
-        df = extend_last_historical_value(
-            df, self.context.model_end_year, dimensions=self.output_dimensions,
-            metrics=self.output_metrics
-        )
+        df = extend_last_historical_value(df, self.context.model_end_year)
         df = self.add_nodes(df, self.input_nodes)
         return df
 

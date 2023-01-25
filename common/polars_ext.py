@@ -33,37 +33,22 @@ class PathsExt:
         self._df = df
 
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
-        df = self._df.to_pandas()
-        primary_keys = meta.primary_keys if meta else self._df._primary_keys
-        units = meta.units if meta else self._df._units
-        if primary_keys:
-            df = df.set_index(primary_keys)
-        for col, unit in units.items():
-            pt = PintType(unit)
-            df[col] = df[col].astype(pt)
-        return df
+        return self._df.to_pandas(meta=meta)
 
-    def to_wide(self, dimensions: Dimensions = {}, metrics: Metrics = {}, meta: ppl.DataFrameMeta | None = None) -> ppl.PathsDataFrame:
+    def to_wide(self, meta: ppl.DataFrameMeta | None = None) -> ppl.PathsDataFrame:
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
 
-        dim_ids = list(dimensions.keys())
-        if not dim_ids and meta is not None:
-            dim_ids = list(meta.primary_keys)
-            if YEAR_COLUMN in dim_ids:
-                dim_ids.remove(YEAR_COLUMN)
-        dim_ids = [dim for dim in dim_ids if dim in self._df.columns]
-
-        if metrics:
-            metric_cols = [m.column_id for m in metrics.values()]
-        else:
-            if meta:
-                metric_cols = list(meta.units.keys())
-            else:
-                metric_cols = []
+        if meta is None:
+            meta = df.get_meta()
+        dim_ids = meta.dim_ids
+        metric_cols = list(meta.units.keys())
         if not metric_cols:
             metric_cols = [VALUE_COLUMN]
+        for col in dim_ids + metric_cols:
+            if col not in df.columns:
+                raise Exception("Column %s from metadata is not present in DF")
 
         # Create a column '_dims' with all the categories included
         if not dim_ids:
@@ -75,9 +60,14 @@ class PathsExt:
             ]).arr.join('/').alias('_dims')
         ))
         mdf = None
+        units = {}
         for metric_col in metric_cols:
             tdf = df.pivot(index=[YEAR_COLUMN, FORECAST_COLUMN], columns='_dims', values=metric_col)
             cols = [col for col in tdf.columns if col not in (YEAR_COLUMN, FORECAST_COLUMN)]
+            metric_unit = meta.units.get(metric_col)
+            if metric_unit is not None:
+                for col in cols:
+                    units['%s@%s' % (metric_col, col)] = metric_unit
             tdf = ppl.to_ppdf(tdf.rename({col: '%s@%s' % (metric_col, col) for col in cols}))
             if mdf is None:
                 mdf = tdf
@@ -85,7 +75,10 @@ class PathsExt:
                 tdf = tdf.drop(columns=FORECAST_COLUMN)
                 mdf = mdf.join(tdf, on=YEAR_COLUMN)
         assert mdf is not None
-        return ppl.PathsDataFrame._from_pydf(mdf._df)
+        return ppl.PathsDataFrame._from_pydf(
+            mdf._df,
+            meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
+        )
 
     def to_narrow(self) -> ppl.PathsDataFrame:
         df: ppl.PathsDataFrame | pl.DataFrame = self._df
@@ -137,15 +130,23 @@ class PathsExt:
         df = df.fill_null(strategy='forward')
         return df
 
+    def sum_over_dims(self) -> ppl.PathsDataFrame:
+        df = self._df
+        meta = df.get_meta()
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.first(FORECAST_COLUMN)]
+        else:
+            fc = []
+        zdf = df.groupby(YEAR_COLUMN).agg([
+            *[pl.sum(col).alias(col) for col in meta.metric_cols],
+            *fc,
+        ])
+        return ppl.to_ppdf(zdf, meta=meta)
 
-@pl.api.register_series_namespace('units')
-class UnitsExt:
-    unit: Unit | None
-
-    def __init__(self, s: pl.Series):
-        self._s = s
-        self.unit = None
-
-    def set(self, unit: Unit):
-        assert self._s.dtype in (Float32, Float64)
-        self.unit = unit
+    def index_has_duplicates(self) -> bool:
+        df = self._df
+        if not df._primary_keys:
+            return False
+        ldf = df.lazy()
+        dupes = ldf.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).limit(1).collect()
+        return len(dupes) > 0

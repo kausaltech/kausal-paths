@@ -124,7 +124,7 @@ class InstanceMiddleware:
         if instance_config.is_protected and not info.context.user.is_active:
             raise GraphQLError("Instance is protected", extensions=dict(code='instance_protected'))
 
-        return instance_config.get_instance()
+        return instance_config.get_instance(generate_baseline=True)
 
     def activate_instance(self, instance: Instance, info: GQLInstanceInfo):
         context = instance.context
