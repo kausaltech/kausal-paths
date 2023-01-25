@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.db.transaction import atomic
 from rest_framework import serializers, viewsets, exceptions, permissions, generics, mixins
 from rest_framework.response import Response
+from rest_framework_nested import routers, relations
 
 from paths.types import APIRequest
 from nodes.api import instance_router
@@ -43,16 +44,34 @@ class DatasetSchemaSerializer(serializers.Serializer):
 class UserSerializer(serializers.Serializer):
     full_name = serializers.SerializerMethodField()
 
-    def get_full_name(self):
-        return 'Esko'
+    def get_full_name(self, instance):
+        return instance.get_full_name()
 
 
 class DatasetCommentSerializer(serializers.ModelSerializer):
-    created_by = UserSerializer()
+    created_by = UserSerializer(required=False)
     text = serializers.CharField()
+    dataset = serializers.PrimaryKeyRelatedField(queryset=Dataset.objects.all())
+
+    def create(self, validated_data: dict):
+        request = self.context.get('request')
+        if request is None:
+            raise exceptions.NotAuthenticated()
+        user = request.user
+        validated_data['created_by'] = user
+        return super().create(validated_data)
 
     class Meta:
         model = DatasetComment
+        fields = ('text', 'created_by', 'created_at', 'dataset')
+
+
+class DatasetCommentViewSet(viewsets.ModelViewSet):
+    serializer_class = DatasetCommentSerializer
+
+    def get_queryset(self):
+        dataset_id = self.kwargs.get('dataset_pk')
+        return DatasetComment.objects.filter(dataset_id=dataset_id)
 
 
 class DatasetTableSerializer(serializers.Serializer):
@@ -322,3 +341,8 @@ class DimensionViewSet(viewsets.ViewSet, generics.GenericAPIView):
 
 instance_router.register(r'datasets', DatasetViewSet, basename='instance-datasets')
 instance_router.register(r'dimensions', DimensionViewSet, basename='instance-dimensions')
+
+dataset_router = routers.NestedSimpleRouter(instance_router, r'datasets', lookup='dataset')
+dataset_router.register(r'comments', DatasetCommentViewSet, basename='dataset-comments')
+
+all_routers.append(dataset_router)

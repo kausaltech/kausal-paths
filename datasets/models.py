@@ -65,8 +65,8 @@ class DatasetMetric(OrderedModel):
 
 class DatasetComment(UserModifiableModel):
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='comments')
-    uuid = UUIDIdentifierField()
-    row_uuid = models.UUIDField()
+    uuid = UUIDIdentifierField(null=True, blank=True)
+    row_uuid = models.UUIDField(null=True, blank=True)
     text = models.TextField()
 
     class Meta:
