@@ -1,6 +1,6 @@
 import hashlib
 import typing
-from typing import List
+from typing import List, OrderedDict
 import polars as pl
 
 from pydantic import BaseModel, Field, PrivateAttr
@@ -33,11 +33,12 @@ class Dimension(BaseModel):
     label: I18nString | None = None
     categories: List[DimensionCategory] = Field(default_factory=list)
     _hash: bytes | None = PrivateAttr(default=None)
-    _cat_map: dict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
+    _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
-        self._cat_map = {cat.id: cat for cat in self.categories}
+        cat_map = OrderedDict([(str(cat.id), cat) for cat in self.categories])
+        self._cat_map = cat_map
 
     def get(self, cat_id: str) -> DimensionCategory:
         if cat_id not in self._cat_map:
@@ -46,6 +47,9 @@ class Dimension(BaseModel):
 
     def get_cat_ids(self) -> set[str]:
         return set(self._cat_map.keys())
+
+    def get_cat_ids_ordered(self) -> list[str]:
+        return list(self._cat_map.keys())
 
     def labels_to_ids(self) -> dict[str, Identifier]:
         all_labels = {}

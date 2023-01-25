@@ -1,5 +1,7 @@
 # pylint: disable=abstract-method
 from typing import Any, List, Sequence, Union
+
+import pandas as pd
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.transaction import atomic
@@ -95,7 +97,7 @@ class InstanceRelatedField(serializers.PrimaryKeyRelatedField):
 
 
 class DatasetSerializer(serializers.ModelSerializer):
-    table = DatasetTableSerializer()
+    table = DatasetTableSerializer(required=False)
     metrics = DatasetMetricSerializer(many=True)
     dimensions = InstanceRelatedField(many=True, queryset=Dimension.objects.all())
 
@@ -104,7 +106,7 @@ class DatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dataset
         fields = [
-            'id', 'identifier', 'uuid', 'name', 'dimensions', 'metrics', 'table', 'comments',
+            'id', 'identifier', 'uuid', 'name', 'years', 'dimensions', 'metrics', 'table', 'comments',
             'created_at', 'created_by', 'updated_at', 'updated_by'
         ]
         extra_kwargs = dict(
@@ -240,6 +242,9 @@ class DatasetSerializer(serializers.ModelSerializer):
         for s in metric_s:
             s.save(dataset=ds)
 
+        if ds.table is None:
+            ds.table = ds.generate_empty_table()  # type: ignore
+
         return ds
 
     @atomic
@@ -259,6 +264,10 @@ class DatasetSerializer(serializers.ModelSerializer):
 
         for s in metric_s:
             s.save(dataset=ds)
+
+        if ds.table is None:
+            ds.table = ds.generate_empty_table()  # type: ignore
+
         return ds
 
 

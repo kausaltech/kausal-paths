@@ -1,16 +1,20 @@
 from __future__ import annotations
+from datetime import date
 
+import pandas as pd
+import pint_pandas
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.contrib.postgres.fields import ArrayField
 
 from modeltrans.fields import TranslationField
-from modelcluster.models import ClusterableModel, ParentalKey, ParentalManyToManyField
-from wagtail.admin.panels import FieldPanel, InlinePanel
-from wagtail.models import Orderable
+from modelcluster.models import ClusterableModel, ParentalManyToManyField
+from wagtail.admin.panels import FieldPanel
 
 from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, UnitField, UserModifiableModel
 from nodes.models import InstanceConfig
-from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import YEAR_COLUMN
+from nodes.datasets import JSONDataset
 
 
 class Dataset(ClusterableModel, UserModifiableModel):
@@ -19,6 +23,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
     )
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
+    years = ArrayField(models.IntegerField(), null=True, blank=True)
     name = models.CharField(max_length=200)
 
     dimensions = ParentalManyToManyField(
@@ -41,6 +46,25 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
     def __str__(self):
         return '%s [%s]' % (self.name, self.identifier)
+
+    def generate_empty_table(self) -> dict:
+        dtypes = {}
+        metric_cols = []
+        for m in self.metrics.all():
+            dtypes[m.identifier] = pint_pandas.PintType(m.unit)
+            metric_cols.append(m.identifier)
+
+        ctx = self.instance.get_instance().context
+        dims = [ctx.dimensions[dim.identifier] for dim in self.dimensions.all()]
+        dim_cats = [dim.get_cat_ids_ordered() for dim in dims]
+        today = date.today()
+        years = self.years if self.years is not None else range(2000, today.year + 1)
+        index = pd.MultiIndex.from_product([years, *dim_cats], names=[YEAR_COLUMN, *[dim.id for dim in dims]])
+        df = pd.DataFrame(index=index)
+        for m in metric_cols:
+            df[m] = pd.Series(dtype=dtypes[m])
+        data = JSONDataset.serialize_df(df)
+        return data
 
 
 class DatasetMetric(OrderedModel):
