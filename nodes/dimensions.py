@@ -72,6 +72,7 @@ class Dimension(BaseModel):
         return cs
 
     def series_to_ids_pl(self, s: pl.Series) -> pl.Series:
+        name = s.name
         if s.null_count():
             raise Exception("Series contains NaNs")
         s = s.cast(str).str.strip()
@@ -84,7 +85,10 @@ class Dimension(BaseModel):
         if df['id'].null_count():
             missing_cats = df.filter(~pl.col('id'))['cat'].unique()
             raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
-        return df['id'].cast(pl.Categorical)
+        ret = df['id'].cast(pl.Categorical)
+        if name:
+            ret = ret.alias(name)
+        return ret
 
     def calculate_hash(self) -> bytes:
         if self._hash is not None:

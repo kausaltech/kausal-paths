@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import reduce
 
 import typing
 from typing import Any, Iterable, Sequence
@@ -139,6 +140,13 @@ class PathsDataFrame(pl.DataFrame):
             raise Exception("Column %s already has a unit set" % col)
         self._units[col] = unit
         return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
+
+    def multiply_cols(self, cols: list[str], out_col: str) -> PathsDataFrame:
+        res_unit = reduce(lambda x, y: x * y, [self._units[col] for col in cols])
+        s = reduce(lambda x, y: x * y, [self[col] for col in cols])
+        df = self.with_column(s.alias(out_col))
+        df._units[out_col] = res_unit
+        return df
 
     def ensure_unit(self, col: str, unit: Unit) -> PathsDataFrame:
         col_unit = self._units[col]

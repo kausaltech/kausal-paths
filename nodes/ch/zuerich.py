@@ -20,20 +20,29 @@ class BuildingEnergy(AdditiveNode):
         'energy_carrier',
     ]
 
-    def compute(self) -> pd.DataFrame:
-        df = self.get_input_dataset()
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
 
         ec_dim = self.output_dimensions['energy_carrier']
-        df[ec_dim.id] = ec_dim.series_to_ids(df['energy_carrier'])
-        df[YEAR_COLUMN] = df['year']
-        df[ENERGY_QUANTITY] = df['energy'].astype('pint[GWh/a]')
-        df = df.set_index([YEAR_COLUMN, ec_dim.id])
-        df[FORECAST_COLUMN] = False
-        df = df[[ENERGY_QUANTITY, FORECAST_COLUMN]]
-        df = df.rename(columns={ENERGY_QUANTITY: VALUE_COLUMN})
+        df = df.with_column(ec_dim.series_to_ids_pl(df['energy_carrier']))
+        meta = df.get_meta()
+        metric_ids = meta.metric_cols
+        if len(metric_ids) == 1:
+            col = metric_ids[0]
+        else:
+            col = ENERGY_QUANTITY
+            assert col in df.columns
 
-        df = extend_last_historical_value(df, self.get_end_year())
+        m = self.output_metrics[ENERGY_QUANTITY]
+        output_unit = m.unit
 
+        df = df.ensure_unit(col, output_unit)
+        df = df.with_column(pl.col(col).alias(VALUE_COLUMN))
+        df = df.with_column(pl.lit(False).alias(FORECAST_COLUMN))
+        df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
+        df = df.set_unit(VALUE_COLUMN, output_unit)
+
+        df = extend_last_historical_value_pl(df, self.get_end_year())
         return df
 
 
@@ -49,8 +58,8 @@ class ElectricityEmissionFactor(AdditiveNode):
     ]
     default_unit = 'g/kWh'
 
-    def compute(self) -> pd.DataFrame:
-        dfs = self.get_input_datasets()
+    def compute(self) -> ppl.PathsDataFrame:
+        dfs = self.get_input_datasets_pl()
         mix_df = None
         ef_df = None
         for df in dfs:
@@ -63,25 +72,22 @@ class ElectricityEmissionFactor(AdditiveNode):
         if ef_df is None:
             raise NodeError(self, "Emission factor dataset not supplied")
 
-        es_dim = self.input_dimensions['electricity_source']
+        dim_id = 'electricity_source'
+        es_dim = self.input_dimensions[dim_id]
 
-        mix_df[es_dim.id] = es_dim.series_to_ids(mix_df['electricity_source'])
-        mix_df[YEAR_COLUMN] = mix_df.pop('year')
-        mix_df = mix_df.set_index([YEAR_COLUMN, es_dim.id])
+        mix_df = mix_df.with_column(es_dim.series_to_ids_pl(mix_df[dim_id]))
+        mix_df = mix_df.ensure_unit('share', self.context.unit_registry.parse_units('dimensionless'))
+        ef_df = ef_df.with_column(es_dim.series_to_ids_pl(ef_df[dim_id]))
 
-        ef_df[es_dim.id] = es_dim.series_to_ids(ef_df['electricity_source'])
-        ef_df[YEAR_COLUMN] = ef_df.pop('year')
-        ef_df = ef_df.set_index([YEAR_COLUMN, es_dim.id])
-
-        df = ef_df
-        df['Share'] = mix_df['share'].astype('pint[dimensionless]')
-        df['EF'] = (df['Share'] * df['emission_factor']).fillna(0)
-        s = df['EF'].unstack(es_dim.id).sum(axis=1)
-        s = s.astype(PintType(self.unit))
-        df = pd.DataFrame(data=s, index=s.index, columns=[VALUE_COLUMN])
-        df[FORECAST_COLUMN] = False
-
-        df = extend_last_historical_value(df, self.get_end_year())
+        df = ef_df.paths.join_over_index(mix_df)
+        df = df.multiply_cols(['share', 'emission_factor'], 'EF')
+        df = df.with_column(pl.col('EF').fill_null(0))
+        meta = df.get_meta()
+        zdf = df.groupby(YEAR_COLUMN).agg(pl.sum('EF')).sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        df = df.rename(dict(EF=VALUE_COLUMN))
+        df = df.with_column(pl.lit(False).alias(FORECAST_COLUMN))
+        df = extend_last_historical_value_pl(df, self.get_end_year())
 
         return df
 
@@ -136,12 +142,13 @@ class EmissionFactorActivity(Node):
     def compute(self) -> ppl.PathsDataFrame:
         en = self.get_input_node(quantity=ENERGY_QUANTITY)
         fn = self.get_input_node(quantity=EMISSION_FACTOR_QUANTITY)
-        edf = ppl.from_pandas(en.get_output(self))
-        edf = edf.rename({VALUE_COLUMN: 'Energy'})
-        fdf = ppl.from_pandas(fn.get_output(self))
-        fdf = fdf.rename({VALUE_COLUMN: 'EF'})
-        dim_cols = list(self.input_dimensions.keys())
-        emdf = edf.join(fdf, on=[YEAR_COLUMN, *dim_cols], how='left')
+        with pl.StringCache():
+            edf = ppl.from_pandas(en.get_output(self))
+            edf = edf.rename({VALUE_COLUMN: 'Energy'})
+            fdf = ppl.from_pandas(fn.get_output(self))
+            fdf = fdf.rename({VALUE_COLUMN: 'EF'})
+            dim_cols = list(self.input_dimensions.keys())
+            emdf = edf.join(fdf, on=[YEAR_COLUMN, *dim_cols], how='left')
         if emdf['EF'].has_validity():
             raise NodeError(self, "Emission factor not found for some categories")
         df = ppl.to_ppdf(emdf, edf.get_meta())

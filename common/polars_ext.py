@@ -143,6 +143,25 @@ class PathsExt:
         ])
         return ppl.to_ppdf(zdf, meta=meta)
 
+    def join_over_index(self, other: ppl.PathsDataFrame):
+        sdf = self._df
+        sm = sdf.get_meta()
+        om = other.get_meta()
+        df = sdf.join(other, on=sm.primary_keys, how='left')
+        fc_right = '%s_right' % FORECAST_COLUMN
+        if FORECAST_COLUMN in df.columns and fc_right in df.columns:
+            df = df.with_column(pl.col(FORECAST_COLUMN) | pl.col(fc_right).fill_null(False))
+            df = df.drop(fc_right)
+        for col in om.metric_cols:
+            col_right = '%s_right' % col
+            if col_right in df.columns:
+                sm.units[col_right] = om.units[col]
+            elif col in df.columns:
+                sm.units[col] = om.units[col]
+
+        out = ppl.to_ppdf(df, meta=sm)
+        return out
+
     def index_has_duplicates(self) -> bool:
         df = self._df
         if not df._primary_keys:
