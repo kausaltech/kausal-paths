@@ -70,7 +70,7 @@ class DatasetComment(UserModifiableModel):
     text = models.TextField()
 
     class Meta:
-        ordering = ('dataset', 'created_at')
+        ordering = ('dataset', '-created_at')
 
     def __str__(self):
         return 'Comment on %s (created by %s at %s)' % (self.dataset, self.created_by, self.created_at)
