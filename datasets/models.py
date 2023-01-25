@@ -63,7 +63,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
         df = pd.DataFrame(index=index)
         for m in metric_cols:
             df[m] = pd.Series(dtype=dtypes[m])
-        data = JSONDataset.serialize_df(df)
+        data = JSONDataset.serialize_df(df, add_uuids=True)
         return data
 
 
