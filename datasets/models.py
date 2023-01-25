@@ -8,8 +8,8 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.postgres.fields import ArrayField
 
 from modeltrans.fields import TranslationField
-from modelcluster.models import ClusterableModel, ParentalManyToManyField
-from wagtail.admin.panels import FieldPanel
+from modelcluster.models import ClusterableModel, ParentalManyToManyField, ParentalKey
+from wagtail.admin.panels import FieldPanel, InlinePanel
 
 from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, UnitField, UserModifiableModel
 from nodes.models import InstanceConfig
@@ -100,7 +100,7 @@ class DatasetComment(UserModifiableModel):
         return 'Comment on %s (created by %s at %s)' % (self.dataset, self.created_by, self.created_at)
 
 
-class Dimension(UserModifiableModel):
+class Dimension(ClusterableModel, UserModifiableModel):
     instance = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name='dimensions', editable=False)
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
@@ -115,9 +115,12 @@ class Dimension(UserModifiableModel):
         ordering = ('instance', 'label')
 
     panels = [
-        FieldPanel('instance'),
         FieldPanel('identifier'),
         FieldPanel('label'),
+        InlinePanel('categories', [
+            FieldPanel('label'),
+            FieldPanel('identifier'),
+        ]),
     ]
 
     def __str__(self):
@@ -154,7 +157,7 @@ class DatasetDimension(OrderedModel):
 
 
 class DimensionCategory(UserModifiableModel, OrderedModel):
-    dimension = models.ForeignKey(Dimension, on_delete=models.CASCADE, related_name='categories')
+    dimension = ParentalKey(Dimension, on_delete=models.CASCADE, related_name='categories')
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
     label = models.CharField(max_length=50)
