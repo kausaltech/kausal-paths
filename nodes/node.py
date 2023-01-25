@@ -782,7 +782,7 @@ class Node:
         dim_ids = set(meta.dim_ids)
         node_dims = set(self.output_dimensions.keys())
         if dim_ids != node_dims:
-            raise NodeError(self, "Output has unknown dimensions")
+            raise NodeError(self, "Output has unknown dimensions: %s (expecting %s)" % (', '.join(dim_ids), ', '.join(node_dims)))
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         df = self.get_output_pl(target_node, metric)
@@ -811,6 +811,8 @@ class Node:
             if isinstance(out, pd.DataFrame):
                 out = ppl.from_pandas(out)
 
+            self.validate_output(out)
+
             cache_hit = False
         else:
             cache_hit = True
@@ -835,7 +837,6 @@ class Node:
             out = out.rename({metric: VALUE_COLUMN})
             self.context.perf_context.node_end(self)
             pc.display('Done (with dimensions)')
-            self.validate_output(out)
             return out
 
         if target_node is not None:
@@ -844,7 +845,6 @@ class Node:
         else:
             pc.display('Done (normal exit)')
         self.context.perf_context.node_end(self)
-        self.validate_output(out)
         return out
 
     def print_output(self):
