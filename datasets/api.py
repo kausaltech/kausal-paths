@@ -253,6 +253,8 @@ class DatasetSerializer(serializers.ModelSerializer):
         for s in metric_s:
             s.is_valid(raise_exception=True)
 
+        if Dataset.objects.filter(identifier=validated_data['identifier']).exists():
+            raise exceptions.ValidationError(dict(identifier='identifier already exists'))
         ds: Dataset = super().create(validated_data)
 
         for s in metric_s:
