@@ -245,7 +245,7 @@ class DatasetSerializer(serializers.ModelSerializer):
         validated_data['updated_by'] = user
         if is_create:
             validated_data['created_by'] = validated_data['updated_by']
-            validated_data['created_at'] = validated_data['updated_at'] 
+            validated_data['created_at'] = validated_data['updated_at']
 
     @atomic
     def update(self, instance: Dataset, validated_data: dict) -> Dataset:
@@ -286,6 +286,7 @@ class DatasetSerializer(serializers.ModelSerializer):
 
         if ds.table is None:
             ds.table = ds.generate_empty_table()  # type: ignore
+            ds.save()
 
         return ds
 
