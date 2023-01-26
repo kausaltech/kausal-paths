@@ -53,6 +53,7 @@ class UserSerializer(serializers.Serializer):
 class DatasetCommentSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(required=False)
     text = serializers.CharField()
+    id = serializers.IntegerField(required=False)
     dataset = serializers.PrimaryKeyRelatedField(queryset=Dataset.objects.all())
     type = serializers.CharField(required=False, allow_null=True)
     state = serializers.CharField(required=False, allow_null=True)
@@ -67,7 +68,8 @@ class DatasetCommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DatasetComment
-        fields = ('text', 'created_by', 'created_at', 'dataset', 'type', 'state')
+        fields = ('id', 'text', 'created_by', 'created_at', 'dataset', 'type', 'state')
+        read_only_fields = ('id',)
 
 
 class DatasetCommentViewSet(viewsets.ModelViewSet):
