@@ -93,6 +93,15 @@ class DatasetComment(UserModifiableModel):
     row_uuid = models.UUIDField(null=True, blank=True)
     text = models.TextField()
 
+    type = models.CharField(null=True, blank=True, max_length=20)
+    state = models.CharField(null=True, blank=True, max_length=20)
+    resolved_at = models.DateTimeField(
+        verbose_name=_('resolved at'), editable=False, null=True
+    )
+    resolved_by = models.ForeignKey(
+        'users.User', null=True, on_delete=models.SET_NULL, related_name='resolved_comments'
+    )
+
     class Meta:
         ordering = ('dataset', '-created_at')
 
