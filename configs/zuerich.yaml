@@ -114,6 +114,7 @@ dimensions:
 
 - id: energy_carrier
   label: Energieträger
+  label_en: Energy carrier
   categories:
   - id: electricity
     label: Strom
@@ -197,6 +198,7 @@ dimensions:
 params:
 - id: municipality_name
   value: zurich
+
 emission_sectors:
 - id: net_emissions
   name_en: Greenhouse gas emissions
