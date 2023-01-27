@@ -260,10 +260,10 @@ nodes:
     type: costs.ElectricityPriceNode
     historical_values: [[2019, 1.330], [2021, 2.5365]]
     params:
-    - id: current_value_name
-      value: price_of_electricity
-    - id: annual_change_name
-      value: price_of_electricity_annual_change
+    - id: current_value
+      ref: price_of_electricity
+    - id: annual_change
+      ref: price_of_electricity_annual_change
 
   - id: price_of_electricity
     name_fi: Sähkön hinta
@@ -295,10 +295,10 @@ nodes:
     type: costs.HeatPriceNode
     historical_values: [[2019, 0.940], [2021, 0.868]]
     params:
-    - id: current_value_name
-      value: price_of_heat
-    - id: annual_change_name
-      value: price_of_heat_annual_change
+    - id: current_value
+      ref: price_of_heat
+    - id: annual_change
+      ref: price_of_heat_annual_change
 
   - id: price_of_heat
     name_fi: Lämmön hinta
