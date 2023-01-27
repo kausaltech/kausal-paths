@@ -153,7 +153,8 @@ dimensions:
     label_en: Waste
 
 - id: electricity_source
-  label: Electricity source
+  label: Verfahren zur Stromerzeugung
+  label_de: Electricity generation method
   categories:
   - id: hydro
     label: Wasser
