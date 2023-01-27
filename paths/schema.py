@@ -1,19 +1,23 @@
+from django.core.exceptions import ValidationError
 import graphene
 from graphql.type.definition import GraphQLArgument, GraphQLNonNull
 from graphql.type.directives import (
     DirectiveLocation, GraphQLDirective, specified_directives
 )
+from graphql.error import GraphQLError
 from graphql.type.scalars import GraphQLID, GraphQLString
-from django.utils.translation import get_language
+from django.utils.translation import get_language, gettext_lazy as _
 
-import pint
 from grapple.registry import registry as grapple_registry
 
 from nodes.schema import Query as NodesQuery
+from nodes.units import Unit
 from pages.schema import Query as PagesQuery
 from params.schema import (
     Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 )
+from paths.graphql_helpers import GQLInfo
+from paths.utils import validate_unit
 
 CO2E = 'CO<sub>2</sub>e'
 
@@ -24,9 +28,9 @@ class UnitType(graphene.ObjectType):
     html_short = graphene.String()
     html_long = graphene.String()
 
-    def resolve_short(self: pint.Unit, info):  # type: ignore
+    def resolve_short(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~P', locale=lang)
+        val = self.format_babel('~P', locale=lang)  # type: ignore
         if val == 't/a/cap':
             if lang == 'de':
                 return 't/a/Einw.'
@@ -34,9 +38,9 @@ class UnitType(graphene.ObjectType):
                 return 't/a/inh.'
         return val
 
-    def resolve_long(self: pint.Unit, info):  # type: ignore
+    def resolve_long(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~P', locale=lang)
+        val = self.format_babel('~P', locale=lang)  # type: ignore
         if val == 't/a/cap':
             if lang == 'de':
                 return 't CO₂e/Jahr/Einw.'
@@ -44,18 +48,18 @@ class UnitType(graphene.ObjectType):
                 return 't CO₂e/year/inh.'
         return val
 
-    def resolve_html_short(self: pint.Unit, info):  # type: ignore
+    def resolve_html_short(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~H', locale=lang)
+        val = self.format_babel('~H', locale=lang)  # type: ignore
         # FIXME: remove this hack
         if val == 't/(a cap)':
             if lang == 'de':
                 return 't∕a∕Einw.'
         return val
 
-    def resolve_html_long(self: pint.Unit, info):  # type: ignore
+    def resolve_html_long(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~H', locale=lang)
+        val = self.format_babel('~H', locale=lang)  # type: ignore
         if val == 't/(a cap)':
             if lang == 'de':
                 return f't {CO2E}∕Jahr∕Einw.'
@@ -72,7 +76,15 @@ class UnitType(graphene.ObjectType):
 
 
 class Query(NodesQuery, ParamsQuery, PagesQuery):
-    pass
+    unit = graphene.Field(UnitType, value=graphene.String(required=True))
+
+    @staticmethod
+    def resolve_unit(root: 'Query', info: GQLInfo, value: str):
+        try:
+            unit = validate_unit(value)
+        except ValidationError as e:
+            raise GraphQLError(_("Invalid unit"), info.field_nodes)
+        return unit
 
 
 class Mutations(ParamsMutations):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-27 15:12+0300\n"
+"POT-Creation-Date: 2023-01-26 08:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,18 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: datasets/models.py
+msgid "dataset"
+msgstr "Datensatz"
+
+#: datasets/models.py
+msgid "datasets"
+msgstr "Datensätze"
+
+#: datasets/models.py
+msgid "label"
+msgstr ""
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
@@ -63,12 +75,8 @@ msgid "Investment lifetime (a)"
 msgstr "Lebensdauer der Investition (a)"
 
 #: nodes/actions/energy_saving.py
-msgid "Investment cost (EUR/m2)"
-msgstr "Investitionskosten (EUR/m2)"
-
-#: nodes/actions/energy_saving.py
-msgid "Maintenance cost (EUR/m2/a)"
-msgstr "Betriebskosten (EUR/m2/a)"
+msgid "Maintenance cost (SEK/m2/a)"
+msgstr ""
 
 #: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
@@ -143,6 +151,10 @@ msgstr "Knoten"
 msgid "Nodes"
 msgstr "Knoten"
 
+#: nodes/processors.py
+msgid "Multiplier"
+msgstr ""
+
 #: pages/models.py
 msgid "show in footer"
 msgstr "in Fußzeile anzeigen"
@@ -175,53 +187,77 @@ msgstr "Maßnahmenlistenseiten"
 msgid "Choose instance"
 msgstr "Wähle Instanz"
 
-#: params/global.py
+#: params/global_params.py
+msgid "Cost node"
+msgstr ""
+
+#: params/global_params.py
 msgid "Municipality name"
 msgstr "Gemeindename"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Discount rate"
 msgstr "Diskontrate"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Avoided electricity capacity price"
 msgstr "Vermiedener Stromleistungspreis"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Health impacts per kWh"
 msgstr "Gesundheitsauswirkungen pro kWh"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Heat CO2 emission factor"
 msgstr "Wärme CO2-Emissionsfaktor"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Electricity CO2 emission factor"
 msgstr "Strom CO2-Emissionsfaktor"
 
-#: params/global.py
-msgid "Cost of CO2"
-msgstr "CO2-Kosten"
-
-#: params/global.py
+#: params/global_params.py
 msgid "Renovation rate baseline"
 msgstr "Renovierungsrate Basis"
 
-#: params/global.py
-msgid "Change in carbon emission price"
-msgstr "Änderung des Kohlenstoffemissionspreises"
-
-#: params/global.py
+#: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
 msgstr "CO2-Kostenvariable in Berechnungen einbeziehen?"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Include health impact variable in calculations?"
 msgstr "Gesundheitsauswirkungsvariable in Berechnungen einbeziehen?"
 
-#: params/global.py
+#: params/global_params.py
 msgid "Include avoided electricity capacity variable in calculations?"
 msgstr "Variable für vermiedene Stromkapazität in Berechnungen einbeziehen?"
+
+#: params/global_params.py
+msgid "Price of CO2"
+msgstr ""
+
+#: params/global_params.py
+msgid "Price of CO2 annual change"
+msgstr ""
+
+#: params/global_params.py
+msgid "Price of electricity"
+msgstr ""
+
+#: params/global_params.py
+msgid "Price of electricity annual change"
+msgstr ""
+
+#: params/global_params.py
+msgid "Price of Heat"
+msgstr ""
+
+#: params/global_params.py
+msgid "Price of heat annual change"
+msgstr ""
+
+#: paths/authentication.py
+msgid "Invalid token."
+msgstr ""
 
 #: paths/settings.py
 msgid "Finnish"
@@ -246,3 +282,35 @@ msgstr "Deutsch (Schweiz)"
 #: paths/utils.py
 msgid "identifier"
 msgstr "Kennung"
+
+#: paths/utils.py
+#, python-format
+msgid "Invalid unit: %(msg)s"
+msgstr ""
+
+#: paths/utils.py
+msgid "unit"
+msgstr "Einheit"
+
+#: paths/utils.py
+msgid "uuid"
+msgstr ""
+
+#: paths/utils.py
+msgid "created at"
+msgstr ""
+
+#: paths/utils.py
+msgid "updated at"
+msgstr ""
+
+#: paths/utils.py
+msgid "order"
+msgstr "Sortierung"
+
+#: users/models.py
+msgid "email address"
+msgstr ""
+
+#~ msgid "Change in carbon emission price"
+#~ msgstr "Änderung des Kohlenstoffemissionspreises"

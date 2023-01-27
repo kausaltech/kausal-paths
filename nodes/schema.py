@@ -13,7 +13,7 @@ from .metric import Metric
 from . import Node
 from .instance import Instance
 from .actions import ActionNode, ActionEfficiencyPair, ActionGroup
-from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, DecisionLevel
+from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN, DecisionLevel
 from .scenario import Scenario
 
 
@@ -260,8 +260,15 @@ class NodeType(graphene.ObjectType):
         df: pd.DataFrame = df[IMPACT_GROUP]  # type: ignore
         df = df[[VALUE_COLUMN]]
         df[FORECAST_COLUMN] = fc
+
+        ldf = ppl.from_pandas(df)
+        # FIXME
+        meta = ldf.get_meta()
+        if meta.dim_ids:
+            ldf = ldf.paths.sum_over_dims()
+
         metric = Metric(
-            id='%s-%s-impact' % (root.id, target_node.id), name='Impact', df=ppl.from_pandas(df),
+            id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=ldf,
             unit=target_node.unit
         )
         return metric

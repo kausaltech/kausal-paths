@@ -36,6 +36,8 @@ class Dataset(ClusterableModel, UserModifiableModel):
     class Meta:
         unique_together = (('instance', 'identifier'),)
         ordering = ('instance', 'name')
+        verbose_name = _('dataset')
+        verbose_name_plural = _('datasets')
 
     panels = [
         FieldPanel('instance'),
