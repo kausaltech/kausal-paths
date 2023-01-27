@@ -43,7 +43,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
         FieldPanel('instance'),
         FieldPanel('identifier'),
         FieldPanel('name'),
-        #InlinePanel('columns'),
+        # InlinePanel('columns'),
     ]
 
     def __str__(self):
@@ -90,13 +90,31 @@ class DatasetMetric(OrderedModel):
 
 
 class DatasetComment(UserModifiableModel):
+    class CommentType(models.TextChoices):
+        REVIEW = 'review', _('Review comment'),
+        STICKY = 'sticky', _('Sticky comment'),
+
+    class State(models.TextChoices):
+        RESOLVED = 'resolved', _('Resolved'),
+        UNERSOLVED = 'unresolved', _('Unresolved'),
+
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='comments')
     uuid = UUIDIdentifierField(null=True, blank=True)
     row_uuid = models.UUIDField(null=True, blank=True)
     text = models.TextField()
 
-    type = models.CharField(null=True, blank=True, max_length=20)
-    state = models.CharField(null=True, blank=True, max_length=20)
+    type = models.CharField(
+        null=True,
+        blank=True,
+        max_length=20,
+        choices=CommentType.choices
+    )
+    state = models.CharField(
+        null=True,
+        blank=True,
+        max_length=20,
+        choices=State.choices
+    )
     resolved_at = models.DateTimeField(
         verbose_name=_('resolved at'), editable=False, null=True
     )
