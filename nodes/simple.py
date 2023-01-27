@@ -2,10 +2,12 @@ from common.perf import PerfCounter
 from nodes.calc import nafill_all_forecast_years
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
 from typing import List, ClassVar, Tuple
+import polars as pl
 import pandas as pd
 import pint
 
 from common.i18n import TranslatedString
+from common import polars as ppl
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .node import Node
 from .exceptions import NodeError
@@ -54,15 +56,21 @@ class SimpleNode(Node):
         return data_df
 
     def fill_gaps_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
-        data_df = self.get_input_dataset(required=False)
+        ndf = ppl.from_pandas(df)
+        out = self.fill_gaps_using_input_dataset_pl(ndf)
+        return out.to_pandas()
+
+    def fill_gaps_using_input_dataset_pl(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        data_df = self.get_input_dataset_pl(required=False)
         if data_df is None:
             return df
 
-        index_diff = data_df.index.difference(df.index)
-        if not len(index_diff):
-            return df
-        df = df.reindex(index_diff.append(df.index))
-        df.loc[df.index.isin(index_diff)] = data_df
+        meta = df.get_meta()
+        df = df.paths.join_over_index(data_df, how='outer')
+        for metric_col in meta.metric_cols:
+            right = '%s_right' % metric_col
+            df = df.ensure_unit(right, meta.units[metric_col])
+            df = df.with_column(pl.col(metric_col).fill_null(pl.col(right)))
         return df
 
 
@@ -72,108 +80,74 @@ class AdditiveNode(SimpleNode):
         StringParameter(local_id='metric', is_customizable=False),
     ] + SimpleNode.allowed_parameters
 
-    def add_nodes(self, df: pd.DataFrame | None, nodes: List[Node], metric=None) -> pd.DataFrame:
+    def add_nodes_pl(self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None) -> ppl.PathsDataFrame:
         if self.debug:
             print('%s: input dataset:' % self.id)
             if df is not None:
-                print(self.print_pint_df(df))
+                print(self.print(df))
             else:
                 print('\tNo input dataset')
 
-        node_outputs: List[Tuple[Node, pd.DataFrame]] = []
+        node_outputs: List[Tuple[Node, ppl.PathsDataFrame]] = []
         for node in nodes:
-            node_df = node.get_output(self, metric=metric)
+            node_df = node.get_output_pl(self, metric=metric)
             node_outputs.append((node, node_df))
 
         if df is None:
             node, df = node_outputs.pop(0)
             if self.debug:
                 print('%s: adding output from node %s' % (self.id, node.id))
-                self.print_pint_df(df)
+                self.print(df)
 
-        cols = df.columns.values
+        cols = df.columns
         if VALUE_COLUMN not in cols:
             raise NodeError(self, "Value column missing in data")
         if FORECAST_COLUMN not in cols:
             raise NodeError(self, "Forecast column missing in data")
 
-        val_s = self.ensure_output_unit(df[VALUE_COLUMN])
-        pt = val_s.dtype
-        if hasattr(val_s, 'pint'):
-            val_s = val_s.pint.m
-        forecast_s = df[FORECAST_COLUMN]
+        unit = self.unit
+        assert unit is not None
 
+        df = df.ensure_unit(VALUE_COLUMN, unit)
+        meta = df.get_meta()
         for node, node_df in node_outputs:
             if self.debug:
                 print('%s: adding output from node %s' % (self.id, node.id))
-                self.print_pint_df(node_df)
+                self.print(node_df)
 
-            if VALUE_COLUMN not in node_df.columns.values:
+            if VALUE_COLUMN not in node_df.columns:
                 raise NodeError(self, "Value column missing in output of %s" % node.id)
 
-            if self.output_dimensions:
-                assert isinstance(node_df.index, pd.MultiIndex)
-                if node_df.index.names != val_s.index.names:
-                    node_df = node_df.reorder_levels(val_s.index.names)
-                    assert isinstance(node_df.index, pd.MultiIndex)
-                assert isinstance(val_s.index, pd.MultiIndex)
-                for idx, level in enumerate(val_s.index.names):
-                    df_levels = set(val_s.index.levels[idx].values)
-                    node_df_levels = set(node_df.index.levels[idx].values)  # type: ignore
-                    diff = node_df_levels.difference(df_levels)
-                    if diff:
-                        raise NodeError(
-                            node, "In input from node %s, invalid dimension '%s' categories: %s" % (
-                                node.id, level, diff
-                            )
-                        )
-            else:
-                assert not isinstance(node_df.index, pd.MultiIndex)
+            ndf_meta = node_df.get_meta()
+            if set(ndf_meta.dim_ids) != set(meta.dim_ids):
+                raise NodeError(self, "Dimensions do not match with %s" % node.id)
+            df = df.paths.add_with_dims(node_df, how='outer')
 
-            val2 = self.ensure_output_unit(node_df[VALUE_COLUMN], input_node=node)
-            if hasattr(val2, 'pint'):
-                val2 = val2.pint.m
-
-            val_s = val_s.add(val2, fill_value=0)
-            forecast_s |= node_df[FORECAST_COLUMN]
-
-        val_s = val_s.astype(pt)
-        df = pd.DataFrame({VALUE_COLUMN: val_s, FORECAST_COLUMN: forecast_s})
+        df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
         return df
 
+    def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
+        if ndf is not None:
+            df = ppl.from_pandas(ndf)
+        else:
+            df = None
+        out = self.add_nodes_pl(df, nodes, metric)
+        return out.to_pandas()
+
     def compute(self):
-        df = self.get_input_dataset(required=False)
+        df = self.get_input_dataset_pl(required=False)
+        assert self.unit is not None
         if df is not None:
-            if not isinstance(df, pd.DataFrame):
-                raise NodeError(self, "Input is not a DataFrame")
             if VALUE_COLUMN not in df.columns:
                 raise NodeError(self, "Input dataset doesn't have Value column")
-
-            df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-
-            if df.index.max() < self.get_end_year():
-                last_year = df.index.max()
-                last_val = df.loc[last_year]
-                new_index = df.index.append(pd.RangeIndex(last_year + 1, self.get_target_year() + 1))
-                assert df.index.name == YEAR_COLUMN
-                new_index.name = YEAR_COLUMN
-                df = df.reindex(new_index)
-                df.iloc[-1] = last_val
-                dt = df.dtypes[VALUE_COLUMN]
-                df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.m
-                df = df.fillna(method='bfill')
-                df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(dt)
-                df.loc[df.index > last_year, FORECAST_COLUMN] = True
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         metric = self.get_parameter_value('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes(None, self.input_nodes, metric)
-            df = self.fill_gaps_using_input_dataset(df)
+            df = self.add_nodes_pl(None, self.input_nodes, metric)
+            df = self.fill_gaps_using_input_dataset_pl(df)
         else:
-            df = self.add_nodes(df, self.input_nodes, metric)
-
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+            df = self.add_nodes_pl(df, self.input_nodes, metric)
 
         return df
 

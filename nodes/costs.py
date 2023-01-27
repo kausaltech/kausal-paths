@@ -1,3 +1,5 @@
+import functools
+
 import pandas as pd
 import polars as pl
 import pint_pandas
@@ -6,7 +8,7 @@ from nodes import NodeMetric
 from nodes.units import Quantity
 import common.polars as ppl
 from params.param import NumberParameter, StringParameter, BoolParameter
-from params.utils import sep_unit_pt
+from params.utils import sep_unit, sep_unit_pt
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .simple import AdditiveNode, SimpleNode
 
@@ -129,11 +131,14 @@ class DiscountedNode(AdditiveNode):
     global_parameters = ['discount_rate']
 
     def compute(self):
-        df = ppl.from_pandas(super().compute())
+        df = super().compute()
+
         meta = df.get_meta()
         fc = df.filter(pl.col(FORECAST_COLUMN))
         current_year = fc[YEAR_COLUMN].min()
+        assert isinstance(current_year, int)
         target_year = fc[YEAR_COLUMN].max()
+        assert isinstance(target_year, int)
         discount_rate = self.get_global_parameter_value('discount_rate', units=True)
         exp = compute_exponential(current_year, current_year, target_year, 1.0, discount_rate, decreasing_rate=True)
         df = df.join(exp.rename({VALUE_COLUMN: 'exp'}), on=YEAR_COLUMN, how='left')
@@ -199,33 +204,47 @@ class EnergyCostNode(AdditiveNode):
     ]
 
     def compute(self):
-        added_value_tax = self.get_parameter_value('added_value_tax', units=True)
-        network_price, net_pt = sep_unit_pt(self.get_parameter_value('network_price', units=True))
-        handling_fee, han_pt = sep_unit_pt(self.get_parameter_value('handling_fee', units=True))
-        certificate, cer_pt = sep_unit_pt(self.get_parameter_value('certificate', units=True))
-        energy_tax, ene_pt = sep_unit_pt(self.get_parameter_value('energy_tax', units=True))
+        added_value_tax = self.get_parameter_value('added_value_tax', units=True).to('dimensionless').m
+        output_unit = self.output_metrics[VALUE_COLUMN].unit
+        network_price, net_pt = sep_unit(self.get_parameter_value('network_price', units=True), output_unit)
+        handling_fee, han_pt = sep_unit(self.get_parameter_value('handling_fee', units=True), output_unit)
+        certificate, cer_pt = sep_unit(self.get_parameter_value('certificate', units=True), output_unit)
+        energy_tax, ene_pt = sep_unit(self.get_parameter_value('energy_tax', units=True), output_unit)
         include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
 
         metric = self.get_parameter_value('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes(None, self.input_nodes, metric)
-            df = self.fill_gaps_using_input_dataset(df)
+            df = self.add_nodes_pl(None, self.input_nodes, metric)
+            df = self.fill_gaps_using_input_dataset_pl(df)
         else:
-            df = self.add_nodes(None, self.input_nodes, metric)
-        df['EnergyPrice'] = df[VALUE_COLUMN]
-        added_value_tax = added_value_tax.to('dimensionless').m
-        df['AddedValueTax'] = df['EnergyPrice'] * added_value_tax
-        df['NetworkPrice'] = pd.Series(network_price, index=df.index, dtype=net_pt)
-        df['HandlingFee'] = pd.Series(handling_fee, index=df.index, dtype=han_pt)
-        df['Certificate'] = pd.Series(certificate, index=df.index, dtype=cer_pt)
-        df['EnergyTax'] = pd.Series(energy_tax, index=df.index, dtype=ene_pt)
+            df = self.add_nodes_pl(None, self.input_nodes, metric)
+
+        meta = df.get_meta()
+        df = df.with_columns([
+            pl.col(VALUE_COLUMN).alias('EnergyPrice'),
+            (pl.col(VALUE_COLUMN) * added_value_tax).alias('AddedValueTax'),
+            pl.lit(network_price).alias('NetworkPrice'),
+            pl.lit(handling_fee).alias('HandlingFee'),
+            pl.lit(certificate).alias('Certificate'),
+            pl.lit(energy_tax).alias('EnergyTax'),
+        ])
+        meta.units.update(dict(
+            EnergyPrice=meta.units[VALUE_COLUMN],
+            AddedValueTax=meta.units[VALUE_COLUMN],
+            NetworkPrice=net_pt,
+            HandlingFee=han_pt,
+            Certificate=cer_pt,
+            EnergyTax=ene_pt,
+        ))
+        df = ppl.to_ppdf(df=df, meta=meta)
 
         if include_energy_taxes:
             cols = ['AddedValueTax', 'NetworkPrice', 'HandlingFee', 'Certificate', 'EnergyTax']
         else:
             cols = ['NetworkPrice']
-        for col in cols:
-            df[VALUE_COLUMN] += df[col]
+
+        add_expr = functools.reduce(lambda x, y: x + y, [pl.col(x) for x in cols])
+        df = df.with_column((pl.col(VALUE_COLUMN) + add_expr).alias(VALUE_COLUMN))
         return df
 
 

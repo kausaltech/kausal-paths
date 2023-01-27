@@ -143,14 +143,14 @@ class PathsExt:
         ]).sort(YEAR_COLUMN)
         return ppl.to_ppdf(zdf, meta=meta)
 
-    def join_over_index(self, other: ppl.PathsDataFrame):
+    def join_over_index(self, other: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left'):
         sdf = self._df
         sm = sdf.get_meta()
         om = other.get_meta()
-        df = sdf.join(other, on=sm.primary_keys, how='left')
+        df = sdf.join(other, on=sm.primary_keys, how=how)
         fc_right = '%s_right' % FORECAST_COLUMN
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
-            df = df.with_column(pl.col(FORECAST_COLUMN) | pl.col(fc_right).fill_null(False))
+            df = df.with_column(pl.col(FORECAST_COLUMN).fill_null(False) | pl.col(fc_right).fill_null(False))
             df = df.drop(fc_right)
         for col in om.metric_cols:
             col_right = '%s_right' % col

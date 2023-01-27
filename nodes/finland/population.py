@@ -1,7 +1,10 @@
 import pandas as pd
+import polars as pl
+
 from nodes import Node
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
+from common import polars as ppl
 
 
 HISTORICAL_DATASET = 'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re'
@@ -18,50 +21,43 @@ class Population(Node):
     default_unit = 'person'
     quantity = 'population'
 
-    def get_historical_input(self) -> pd.DataFrame:
-        df = self.get_input_datasets()[0]
-        assert isinstance(df, pd.DataFrame)
-        return df
+    def get_historical_input(self) -> ppl.PathsDataFrame:
+        return self.get_input_datasets_pl()[0]
 
-    def get_forecast_input(self) -> pd.DataFrame | None:
-        df = self.get_input_datasets()[1]
-        assert isinstance(df, pd.DataFrame)
-        return df
+    def get_forecast_input(self) -> ppl.PathsDataFrame:
+        return self.get_input_datasets_pl()[1]
 
     def compute(self):
         muni_name = self.get_global_parameter_value('municipality_name')
 
-        df_hist = self.get_historical_input()
-        df_hist = df_hist.xs(muni_name, level='Alue')
+        df_hist = self.get_historical_input().lazy()
+        df_hist = df_hist.filter(pl.col('Alue') == muni_name)
+        df_hist = df_hist.groupby('Vuosi').agg(pl.col(self.TOTAL_POPULATION_COLUMN).sum().alias(VALUE_COLUMN))
+        df_hist = df_hist.with_column(pl.col('Vuosi').cast(pl.Int32))
+        df_hist = df_hist.with_column(pl.lit(False).alias(FORECAST_COLUMN))
+        df = df_hist.collect()
 
-        sh = df_hist.groupby('Vuosi', axis=0)[self.TOTAL_POPULATION_COLUMN].sum()
-        sh.index = sh.index.astype(int)
 
         df_forecast = self.get_forecast_input()
         if df_forecast is not None:
-            df_forecast = df_forecast.xs(muni_name, level='Alue')
+            df_forecast = df_forecast.lazy()
+            df_forecast = df_forecast.filter(pl.col('Alue') == muni_name)
             pop_col = [col for col in df_forecast.columns if col.startswith(self.TOTAL_POPULATION_COLUMN)]
             if len(pop_col) != 1:
                 raise NodeError(self, 'Unable to find population forecast column')
+            col = pop_col[0]
+            df_forecast = df_forecast.groupby('Vuosi').agg(pl.col(col).sum().alias(VALUE_COLUMN))
+            df_forecast = df_forecast.with_column(pl.col('Vuosi').cast(pl.Utf8).cast(pl.Int32))
+            # remove years that are also in historical df
+            df_forecast = df_forecast.filter(~pl.col('Vuosi').is_in(df['Vuosi']))
+            df_forecast = df_forecast.with_column(pl.lit(True).alias(FORECAST_COLUMN))
+            df_forecast = df_forecast.collect()
+            df = pl.concat([df, df_forecast])
 
-            sf = df_forecast.groupby('Vuosi', axis=0)[pop_col[0]].sum()
-            sf.index = sf.index.astype(int)
-
-            # Drop forecast rows that are in the historical series
-            sf = sf[~sf.index.isin(sh.index)]
-            s = pd.concat([sh, sf])
-            first_forecast_year = sf.index.min()
-        else:
-            s = sh
-            first_forecast_year = None
-
-        df = pd.DataFrame(s.values, index=s.index, columns=[VALUE_COLUMN])
-        df.index = df.index.astype(int)
-        df.index.name = YEAR_COLUMN
-        df['Forecast'] = False
-        if first_forecast_year is not None:
-            df.loc[df.index >= first_forecast_year, 'Forecast'] = True
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(float).astype('pint[person]')
+        df = df.sort('Vuosi').rename(dict(Vuosi=YEAR_COLUMN))
+        df = df.with_column(pl.col(VALUE_COLUMN).cast(pl.Float32))
+        assert self.unit is not None
+        df = ppl.to_ppdf(df, meta=ppl.DataFrameMeta(units={VALUE_COLUMN: self.unit}, primary_keys=[YEAR_COLUMN]))
         return df
 
 

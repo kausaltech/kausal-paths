@@ -56,7 +56,7 @@ class Dataset:
     def get_copy(self, context: Context) -> ppl.PathsDataFrame:
         return self.load(context).copy()
 
-    def get_unit(self, context: Context) -> pint.Unit:
+    def get_unit(self, context: Context) -> Unit:
         raise NotImplementedError()
 
 
@@ -77,14 +77,14 @@ class DVCDataset(Dataset):
 
     # The year from which the time series becomes a forecast
     forecast_from: Optional[int] = None
-    unit: Optional[pint.Unit] = None
+    unit: Optional[Unit] = None
 
     dvc_dataset: Optional[DVCPandasDataset] = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
         if self.unit is not None:
-            assert isinstance(self.unit, pint.Unit)
+            assert isinstance(self.unit, Unit)
         self.dvc_dataset = None
 
     def _load_dvc_dataset(self, context: Context) -> DVCPandasDataset:
@@ -172,7 +172,7 @@ class DVCDataset(Dataset):
         df = df[cols]
         return self._process_output(df, ds_hash, context)
 
-    def get_unit(self, context: Context) -> pint.Unit:
+    def get_unit(self, context: Context) -> Unit:
         if self.unit:
             return self.unit
         df = self.load(context)
@@ -193,8 +193,8 @@ class DVCDataset(Dataset):
         for f in extra_fields:
             d[f] = getattr(self, f)
 
-        ds = self._load_dvc_dataset(context)
-        d['modified_at'] = str(ds.modified_at.isoformat())
+        d['commit_id'] = context.dataset_repo.commit_id
+        d['dvc_id'] = self.input_dataset or self.id
         return d
 
 
@@ -203,7 +203,7 @@ class FixedDataset(Dataset):
     """Dataset from fixed values."""
 
     # Use `dimensionless` for `unit` if the quantities should be dimensionless.
-    unit: pint.Unit
+    unit: Unit
     historical: Optional[List[Tuple[int, float]]]
     forecast: Optional[List[Tuple[int, float]]]
 
@@ -264,14 +264,14 @@ class FixedDataset(Dataset):
         df = self.df.to_pandas()
         return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
-    def get_unit(self, context: Context) -> pint.Unit:
+    def get_unit(self, context: Context) -> Unit:
         return self.unit
 
 
 @dataclass
 class JSONDataset(Dataset):
     data: dict
-    unit: pint.Unit | None
+    unit: Unit | None
     df: ppl.PathsDataFrame = field(init=False)
 
     def __post_init__(self):
@@ -289,7 +289,7 @@ class JSONDataset(Dataset):
         df = self.df.to_pandas()
         return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
-    def get_unit(self, context: Context) -> pint.Unit | None:
+    def get_unit(self, context: Context) -> Unit | None:
         return self.unit
 
     @overload

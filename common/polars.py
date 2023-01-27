@@ -126,7 +126,7 @@ class PathsDataFrame(pl.DataFrame):
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
     def get_meta(self) -> DataFrameMeta:
-        return DataFrameMeta(units=self._units, primary_keys=self._primary_keys)
+        return DataFrameMeta(units=self._units.copy(), primary_keys=self._primary_keys.copy())
 
     def get_unit(self, col: str) -> Unit:
         return self._units[col]

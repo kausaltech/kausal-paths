@@ -236,6 +236,7 @@ instance:
     - id: tampere/scenarios/activity/bau
       column: District heating
       dropna: true
+      unit: GWh/a
     output_nodes:
     - district_heating_emissions
 
@@ -250,6 +251,7 @@ instance:
     - id: tampere/scenarios/emission_factors/bau
       column: District heating utility method
       dropna: true
+      unit: g/kWh
     output_nodes:
     - district_heating_emissions
 
@@ -280,6 +282,7 @@ instance:
     - id: tampere/scenarios/activity/bau
       column: Total oil heating
       dropna: true
+      unit: GWh/a
     output_nodes:
     - oil_heating_emissions
 
@@ -294,6 +297,7 @@ instance:
     - id: tampere/scenarios/emission_factors/bau
       column: Oil heating
       dropna: true
+      unit: g/kWh
     output_nodes:
     - oil_heating_emissions
 
@@ -323,6 +327,7 @@ instance:
     - id: tampere/scenarios/activity/bau
       column: Geothermal heating residential
       dropna: true
+      unit: GWh/a
     output_nodes:
     - geothermal_heating_emissions
 
@@ -349,6 +354,7 @@ instance:
     - id: tampere/scenarios/activity/bau
       column: Electric heating total
       dropna: true
+      unit: GWh/a
     output_nodes:
     - direct_electric_heating_emissions
 
@@ -365,6 +371,7 @@ instance:
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: Other electricity consumption per capita
+      unit: kWh/cap/a
     output_nodes:
     - other_electricity_consumption
 
@@ -393,6 +400,7 @@ instance:
       column: Other power consumption
       forecast_from: 2019
       max_year: 2018
+      unit: kt/a
     input_nodes:
     - other_electricity_consumption_emission_factor
     output_nodes:
@@ -409,6 +417,7 @@ instance:
     - id: tampere/scenarios/emission_factors/bau
       column: Other power consumption
       max_year: 2019
+      unit: g/kWh
 
   - id: electric_heating_emission_factor
     name: Lämmityssähkön päästökerroin
@@ -473,6 +482,7 @@ instance:
       column: Local train
       min_year: 2016
       dropna: true
+      unit: Mkm/a
     output_nodes:
     - local_train_emissions
 
@@ -501,6 +511,7 @@ instance:
       column: Private car street
       min_year: 2016
       dropna: true
+      unit: Mkm/a
     output_nodes:
     - car_emissions_streets
 
@@ -516,6 +527,7 @@ instance:
       column: Private car road
       min_year: 2016
       dropna: true
+      unit: Mkm/a
     output_nodes:
     - car_emissions_roads
 
@@ -531,6 +543,7 @@ instance:
       column: Bus street
       min_year: 2016
       dropna: true
+      unit: Mkm/a
     output_nodes:
     - bus_emissions_streets
 
@@ -546,6 +559,7 @@ instance:
       column: Bus road
       min_year: 2016
       dropna: true
+      unit: Mkm/a
     output_nodes:
     - bus_emissions_roads
 
@@ -592,6 +606,7 @@ instance:
     - id: tampere/scenarios/emission_factors/bau
       column: Private car street
       dropna: true
+      unit: g/km
     output_nodes:
     - car_emissions_streets
 
@@ -606,6 +621,7 @@ instance:
     - id: tampere/scenarios/emission_factors/bau
       column: Private car road
       dropna: true
+      unit: g/km
     output_nodes:
     - car_emissions_roads
 
@@ -635,6 +651,7 @@ instance:
     - id: tampere/scenarios/emission_factors/bau
       column: Bus road
       dropna: true
+      unit: g/km
     output_nodes:
     - bus_emissions_roads
 
@@ -690,6 +707,7 @@ instance:
     - id: tampere/scenarios/emissions/bau
       column: Private cars
       forecast_from: 2019
+      unit: kt/a
     output_nodes:
     - transportation_emissions
 
@@ -726,6 +744,7 @@ instance:
     - id: tampere/scenarios/emissions/bau
       column: Buses
       forecast_from: 2019
+      unit: kt/a
     output_nodes:
     - transportation_emissions
 
@@ -752,6 +771,7 @@ instance:
     input_datasets:
     - id: tampere/scenarios/activity/bau
       column: City machinery fuel consumption
+      unit: l/a
     output_nodes:
     - city_machinery_emissions
 
@@ -765,6 +785,7 @@ instance:
     input_datasets:
     - id: tampere/scenarios/emission_factors/bau
       column: Machinery
+      unit: g/l
     output_nodes:
     - city_machinery_emissions
 

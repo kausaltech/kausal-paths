@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 import pint_pandas
 
-from numba import njit, int32
+from numba import njit, int32, types as nbt
+import numba as nb
 from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
@@ -209,7 +210,13 @@ class BuildingEnergyRet(typing.NamedTuple):
     el_saving: np.ndarray
 
 
-@njit(cache=True, nogil=True)
+def named_tuple_to_nb(cls: typing.Type[typing.NamedTuple]):
+    nb_types = [nb.typeof(x()) for x in typing.get_type_hints(cls).values()]
+    nb_param = nbt.NamedTuple(nb_types, cls)
+    return nb_param
+
+
+@njit((named_tuple_to_nb(BuildingEnergyParams),), cache=True)
 def simulate_building_energy_saving(params: BuildingEnergyParams):
     years = np.arange(params.start_year, params.start_year + params.nr_years)
     total_renovated = np.zeros(params.nr_years, dtype=float)
@@ -217,7 +224,7 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
     cost = np.zeros(params.nr_years, dtype=float)
     he_saving = np.zeros(params.nr_years, dtype=float)
     el_saving = np.zeros(params.nr_years, dtype=float)
-    forecast = np.zeros(params.nr_years, dtype=int32)
+    forecast = np.zeros(params.nr_years, dtype='int')
 
     for i in range(params.nr_years):
         share = i * params.renovation_rate
@@ -333,7 +340,7 @@ class BuildingEnergySavingAction(ActionNode):
         params = BuildingEnergyParams(
             start_year=current_year,
             nr_years=target_year - current_year + 1,
-            lifetime=lifetime,
+            lifetime=int(lifetime),
             renovation_rate=renovation_rate,
             renovation_potential=renovation_potential,
             investment_cost=investment_cost.m,

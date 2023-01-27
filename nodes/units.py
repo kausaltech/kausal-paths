@@ -52,7 +52,6 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     unit_registry.define('SEK = 0.1 EUR')
     unit_registry.define('pcs = [number] = pieces')
     unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
-    unit_registry.define('år = a')
 
     unit_registry.load_definitions('nodes/health_impact_units.txt')
 

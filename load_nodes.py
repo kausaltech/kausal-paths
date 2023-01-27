@@ -232,7 +232,7 @@ if args.print_action_efficiencies:
 
             console = Console()
             console.print(table)
-            break
+
         context.cache.end_run()
 
     if profile is not None:
