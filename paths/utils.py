@@ -54,9 +54,13 @@ def validate_unit(s: str):
     try:
         unit_registry.parse_units(s)
     except UndefinedUnitError as e:
-        raise ValidationError(str(e))
-    except ValueError as e:
-        raise ValidationError(gettext("Invalid unit: %(msg)s") % str(e))
+        if isinstance(e.unit_names, str):
+            unit_str = e.unit_names
+        else:
+            unit_str = ', '.join(e.unit_names)
+        raise ValidationError('%s: %s' % (gettext("Invalid unit"), unit_str))
+    except (ValueError, TypeError) as e:
+        raise ValidationError(gettext("Invalid unit"))
 
 
 class UnitField(models.CharField):
