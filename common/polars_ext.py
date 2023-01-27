@@ -140,7 +140,7 @@ class PathsExt:
         zdf = df.groupby(YEAR_COLUMN).agg([
             *[pl.sum(col).alias(col) for col in meta.metric_cols],
             *fc,
-        ])
+        ]).sort(YEAR_COLUMN)
         return ppl.to_ppdf(zdf, meta=meta)
 
     def join_over_index(self, other: ppl.PathsDataFrame):

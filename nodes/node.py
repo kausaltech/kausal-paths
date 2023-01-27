@@ -555,7 +555,7 @@ class Node:
         if FORECAST_COLUMN not in df:
             return None
 
-        year = df[~df[FORECAST_COLUMN]][YEAR_COLUMN].max()
+        year = df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max()
         if year is None:
             return None
         year = int(year)  # type: ignore

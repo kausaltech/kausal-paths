@@ -58,7 +58,8 @@ class Metric:
             df = df.rename({m.column_id: VALUE_COLUMN})
 
         bdf = node.baseline_values
-        if node.output_dimensions:
+        meta = df.get_meta()
+        if meta.dim_ids:
             if m.quantity not in ACTIVITY_QUANTITIES:
                 return None
             df = df.paths.sum_over_dims()
