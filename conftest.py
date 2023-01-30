@@ -96,8 +96,8 @@ def instance(context, default_scenario):
     # instance.context.generate_baseline_values()  # TODO
     from pages import global_instance
     global_instance.instance = instance
-    import nodes
-    nodes.models.instance_cache = {instance.id: instance}
+    from nodes import models
+    setattr(models.instance_cache, instance.id, instance)
     return instance
 
 

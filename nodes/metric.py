@@ -52,26 +52,26 @@ class Metric:
         else:
             m = node.output_metrics[DEFAULT_METRIC]
 
-        assert node.baseline_values is not None
-
         if m.column_id != VALUE_COLUMN:
             df = df.rename({m.column_id: VALUE_COLUMN})
 
-        bdf = node.baseline_values
         meta = df.get_meta()
         if meta.dim_ids:
             if m.quantity not in ACTIVITY_QUANTITIES:
                 return None
             df = df.paths.sum_over_dims()
-            bdf = bdf.paths.sum_over_dims()
 
         meta = df.get_meta()
-        bdf = bdf.select([
-            YEAR_COLUMN,
-            pl.col(m.column_id).alias(BASELINE_VALUE_COLUMN)
-        ])
-        tdf = df.join(bdf, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
-        df = ppl.to_ppdf(tdf, meta=meta)
+        if node.baseline_values is not None:
+            bdf = node.baseline_values
+            if meta.dim_ids:
+                bdf = bdf.paths.sum_over_dims()
+            bdf = bdf.select([
+                YEAR_COLUMN,
+                pl.col(m.column_id).alias(BASELINE_VALUE_COLUMN)
+            ])
+            tdf = df.join(bdf, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+            df = ppl.to_ppdf(tdf, meta=meta)
         return Metric(id=node.id, name=str(node.name), unit=node.unit, node=node, df=df)
 
     def split_df(self) -> SplitValues | None:

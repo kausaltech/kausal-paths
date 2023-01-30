@@ -243,6 +243,8 @@ class Context:
     def generate_baseline_values(self):
         if self.baseline_values_generated:
             return
+        if not 'baseline' in self.scenarios:
+            return
         assert self.active_scenario
         old_scenario = self.active_scenario
 
