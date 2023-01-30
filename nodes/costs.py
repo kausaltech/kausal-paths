@@ -4,12 +4,12 @@ import pandas as pd
 import polars as pl
 import pint_pandas
 
-from nodes import NodeMetric
+from nodes import NodeMetric, Node
 from nodes.units import Quantity
 import common.polars as ppl
 from params.param import NumberParameter, StringParameter, BoolParameter
 from params.utils import sep_unit, sep_unit_pt
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .simple import AdditiveNode, SimpleNode
 
 
@@ -18,7 +18,7 @@ class SelectiveNode(AdditiveNode):
         'include_co2', 'include_health', 'include_el_avoided',
     ]
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         # Global parameters
         include_co2 = self.get_global_parameter_value('include_co2')
         include_health = self.get_global_parameter_value('include_health')
@@ -27,23 +27,29 @@ class SelectiveNode(AdditiveNode):
         # Input nodes
         nodes = self.input_nodes
         out = None
+        included_nodes: list[Node] = []
+
         for node in nodes:
-            df = node.get_output()
+            df = node.get_output_pl()
             if 'co2_cost' in node.tags:
-                if not include_co2:
-                    df[VALUE_COLUMN] *= 0
+                if include_co2:
+                    included_nodes.append(node)
             if 'capacity_cost' in node.tags:
-                if not include_el_avoided:
-                    df[VALUE_COLUMN] *= 0
+                if include_el_avoided:
+                    included_nodes.append(node)
             if 'health_cost' in node.tags:
-                if not include_health:
-                    df[VALUE_COLUMN] *= 0
+                if include_health:
+                    included_nodes.append(node)
+
+        assert len(included_nodes)
+        output_unit = self.output_metrics[DEFAULT_METRIC].unit
+        for node in included_nodes:
+            df = node.get_output_pl().ensure_unit(VALUE_COLUMN, output_unit)
             if out is None:
                 out = df
             else:
-                out[VALUE_COLUMN] += df[VALUE_COLUMN]
-
-        out[VALUE_COLUMN] = self.ensure_output_unit(out[VALUE_COLUMN])
+                out = out.paths.add_with_dims(df, how='outer')
+        assert out is not None
         return out
 
 
@@ -58,7 +64,9 @@ def compute_exponential(
     values = range(start_year - current_year, target_year - current_year + 1)
     years = range(start_year, target_year + 1)
     df = pl.DataFrame({YEAR_COLUMN: years, 'nr': values})
-    df = df.with_column((pl.lit(base_value) ** pl.col('nr')).alias('mult'))
+    df = df.with_columns([
+        (pl.lit(base_value) ** pl.col('nr')).alias('mult')
+    ])
     val = current_value.m if isinstance(current_value, Quantity) else current_value
     df = df.with_columns([
         (pl.lit(val) * pl.col('mult')).alias(VALUE_COLUMN),
@@ -244,7 +252,9 @@ class EnergyCostNode(AdditiveNode):
             cols = ['NetworkPrice']
 
         add_expr = functools.reduce(lambda x, y: x + y, [pl.col(x) for x in cols])
-        df = df.with_column((pl.col(VALUE_COLUMN) + add_expr).alias(VALUE_COLUMN))
+        df = df.with_columns([
+            (pl.col(VALUE_COLUMN) + add_expr).alias(VALUE_COLUMN)
+        ])
         return df
 
 

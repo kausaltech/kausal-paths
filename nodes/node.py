@@ -908,6 +908,7 @@ class Node:
         elif isinstance(obj, ppl.PathsDataFrame):
             meta = obj.get_meta()
             obj = obj.rename({col: '[%s] %s' % (str(unit), col) for col, unit in meta.units.items()})
+            obj = obj.rename({col: '[idx] %s' % col for col in meta.primary_keys})
         pprint(obj)
 
     def print_outline(self, df):

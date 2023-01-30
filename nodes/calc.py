@@ -32,7 +32,7 @@ def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> pp
     last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
     df = df.paths.nafill_pad()
     fc = pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(True).otherwise(False)
-    df = ppl.to_ppdf(df.with_column(fc.alias(FORECAST_COLUMN)))
+    df = ppl.to_ppdf(df.with_columns([fc.alias(FORECAST_COLUMN)]))
     df = df.paths.to_narrow()
     return ppl.to_ppdf(df, meta=meta)
 

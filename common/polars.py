@@ -95,35 +95,67 @@ class PathsDataFrame(pl.DataFrame):
         df._primary_keys = meta.primary_keys
         return df
 
-    def select(self, exprs: (str | pli.Expr | pli.Series | Iterable[str | pli.Expr | pli.Series | pli.WhenThen | pli.WhenThenThen])) -> PathsDataFrame:
+    def _pyexprs_to_meta(self, exprs: list[polars.PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
         meta = self.get_meta()
+        for expr in exprs:
+            root_cols = expr.meta_roots()
+            output_col = expr.meta_output_name()
+            if output_col in units:
+                meta.units[output_col] = units[output_col]
+                continue
+            else:
+                if len(root_cols) == 1 and root_cols[0] in meta.units:
+                    meta.units[output_col] = meta.units[root_cols[0]]
+        return meta
+
+    def select(
+        self,
+        exprs: (str | pli.Expr | pli.Series | Iterable[str | pli.Expr | pli.Series | pli.WhenThen | pli.WhenThenThen]),
+        units: dict[str, Unit] | None = None
+    ) -> PathsDataFrame:
+        pyexprs = pli.selection_to_pyexpr_list(exprs)
         df = super().select(exprs)
+        meta = self._pyexprs_to_meta(pyexprs, units or {})
+        return PathsDataFrame._from_pydf(df._df, meta=meta)
+
+    def with_columns(
+        self,
+        exprs: pli.Expr | pli.Series | Sequence[pli.Expr | pli.Series] | None = None,
+        units: dict[str, Unit] | None = None,
+        **named_exprs: Any
+    ) -> PathsDataFrame:
+        df = super().with_columns(exprs, **named_exprs)
+        if exprs is None:
+            exprs = []
+        elif isinstance(exprs, pli.Expr):
+            exprs = [exprs]
+        elif isinstance(exprs, pli.Series):
+            exprs = [pli.lit(exprs)]
+        else:
+            exprs = list(exprs)
+        exprs.extend(
+            pli.expr_to_lit_or_expr(expr).alias(name)
+            for name, expr in named_exprs.items()
+        )
+
+        conv_exprs: list[polars.PyExpr] = []
+        for e in exprs:
+            if isinstance(e, pli.Expr):
+                conv_exprs.append(e._pyexpr)
+            elif isinstance(e, pli.Series):
+                conv_exprs.append(pli.lit(e)._pyexpr)
+            else:
+                raise ValueError(f"Expected an expression, got {e}")
+
+        meta = self._pyexprs_to_meta(conv_exprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
     def with_column(self, column: pli.Series | pli.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
-        meta = self.get_meta()
-        if unit is None and not is_primary_key:
-            df = super().with_column(column)
-            return PathsDataFrame._from_pydf(df._df, meta=meta)
+        raise NotImplementedError("Use with_columns() instead")
 
-        if isinstance(column, pli.Series):
-            name = column.name
-            df = super().with_column(column)
-        else:
-            old_cols = set(self.columns)
-            df = super().with_column(column)
-            new_cols = set(df.columns)
-            diff = new_cols - old_cols
-            if len(diff) != 1:
-                raise Exception("Unable to determine name for the new column")
-            name = list(diff)[0]
-
-        if unit is not None:
-            meta.units[name] = unit
-        if is_primary_key:
-            if name not in meta.primary_keys:
-                meta.primary_keys.append(name)
-        return PathsDataFrame._from_pydf(df._df, meta=meta)
+    def drop_nulls(self, subset: str | Sequence[str] | None = None) -> PathsDataFrame:
+        df = super().drop_nulls(subset)
+        return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
     def get_meta(self) -> DataFrameMeta:
         return DataFrameMeta(units=self._units.copy(), primary_keys=self._primary_keys.copy())
@@ -144,7 +176,14 @@ class PathsDataFrame(pl.DataFrame):
     def multiply_cols(self, cols: list[str], out_col: str) -> PathsDataFrame:
         res_unit = reduce(lambda x, y: x * y, [self._units[col] for col in cols])
         s = reduce(lambda x, y: x * y, [self[col] for col in cols])
-        df = self.with_column(s.alias(out_col))
+        df = self.with_columns([s.alias(out_col)])
+        df._units[out_col] = res_unit
+        return df
+
+    def divide_cols(self, cols: list[str], out_col: str) -> PathsDataFrame:
+        res_unit = reduce(lambda x, y: x / y, [self._units[col] for col in cols])
+        s = reduce(lambda x, y: x / y, [self[col] for col in cols])
+        df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
         return df
 
@@ -157,7 +196,7 @@ class PathsDataFrame(pl.DataFrame):
 
         vls = self[col].to_numpy(zero_copy_only=True)
         vls = (vls * col_unit).to(unit).m
-        df = self.with_column(pl.Series(name=col, values=vls), unit=unit)
+        df = self.with_columns([pl.Series(name=col, values=vls)], units={col: unit})
         return df
 
     def to_pandas(self, *args: Any, date_as_object: bool = False, meta: DataFrameMeta | None = None, **kwargs: Any) -> pd.DataFrame:
@@ -211,3 +250,5 @@ def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
 
 if not pl.using_string_cache():
     pl.toggle_string_cache(True)
+
+pl.Config.with_columns_kwargs = True

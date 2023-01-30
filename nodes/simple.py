@@ -1,5 +1,5 @@
 from common.perf import PerfCounter
-from nodes.calc import nafill_all_forecast_years
+from nodes.calc import extend_last_historical_value_pl, nafill_all_forecast_years
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
 from typing import List, ClassVar, Tuple
 import polars as pl
@@ -30,30 +30,30 @@ class SimpleNode(Node):
         )
     ]
 
-    def replace_output_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+    def replace_output_using_input_dataset_pl(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # If we have also data from an input dataset, we only fill in the gaps from the
         # calculated data.
-        df = df.dropna()
+        df = df.drop_nulls()
 
-        data_df = self.get_input_dataset(required=False)
+        data_df = self.get_input_dataset_pl(required=False)
         if data_df is None:
             return df
 
-        latest_year = data_df.index.max()
-        if latest_year < df.index.max():
-            merge_df = df[df.index > latest_year]
-            data_df = data_df.reindex(data_df.index.append(merge_df.index))
-            if not set(merge_df.columns).issubset(set(data_df.columns)):
-                missing_cols = [col for col in merge_df.columns if col not in data_df.coluns]
-                raise Exception('Columns missing from input dataset: %s' % ', '.join(missing_cols))
-            for col in data_df.columns:
-                if col == FORECAST_COLUMN:
-                    continue
-                data_df[col] = self.ensure_output_unit(data_df[col])
-            data_df.loc[data_df.index > latest_year] = merge_df
+        data_latest_year: int = data_df[YEAR_COLUMN].max()  # type: ignore
+        df_latest_year: int = df[YEAR_COLUMN].max()  # type: ignore
+        df_meta = df.get_meta()
+        data_meta = data_df.get_meta()
+        if df_latest_year > data_latest_year:
+            for col in data_meta.metric_cols:
+                data_df = data_df.ensure_unit(col, df_meta.units[col])
+            data_df.paths.join_over_index(df, how='outer')
+            fills = [pl.col(col).fill_null(pl.col(col + '_right')) for col in data_meta.metric_cols]
+            data_df = data_df.select([YEAR_COLUMN, *data_meta.dim_ids, FORECAST_COLUMN, *fills], units=df_meta.units)
 
-        data_df[FORECAST_COLUMN] = data_df[FORECAST_COLUMN].astype(bool)
         return data_df
+
+    def replace_output_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
+        return self.replace_output_using_input_dataset_pl(ppl.from_pandas(df)).to_pandas()
 
     def fill_gaps_using_input_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
         ndf = ppl.from_pandas(df)
@@ -70,7 +70,9 @@ class SimpleNode(Node):
         for metric_col in meta.metric_cols:
             right = '%s_right' % metric_col
             df = df.ensure_unit(right, meta.units[metric_col])
-            df = df.with_column(pl.col(metric_col).fill_null(pl.col(right)))
+            df = df.with_columns([
+                pl.col(metric_col).fill_null(pl.col(right))
+            ])
         return df
 
 
@@ -141,6 +143,7 @@ class AdditiveNode(SimpleNode):
             if VALUE_COLUMN not in df.columns:
                 raise NodeError(self, "Input dataset doesn't have Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
+            df = extend_last_historical_value_pl(df, self.get_end_year())
 
         metric = self.get_parameter_value('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
@@ -166,7 +169,7 @@ class MultiplicativeNode(AdditiveNode):
 
     operation_label = 'multiplication'
 
-    def perform_operation(self, n1: Node, n2: Node, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         assert n1.unit is not None and n2.unit is not None and self.unit is not None
         output_unit = n1.unit * n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
@@ -174,12 +177,14 @@ class MultiplicativeNode(AdditiveNode):
                 self,
                 "Multiplying inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
-        df1[VALUE_COLUMN] *= df2[VALUE_COLUMN]
-        return df1
+        df = df1.paths.join_over_index(df2, how='left')
+        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
+        return df
 
-    def compute(self):
-        additive_nodes = []
-        operation_nodes = []
+    def compute(self) -> ppl.PathsDataFrame:
+        additive_nodes: list[Node] = []
+        operation_nodes: list[Node] = []
         assert self.unit is not None
         for node in self.input_nodes:
             if node.unit is None:
@@ -193,32 +198,26 @@ class MultiplicativeNode(AdditiveNode):
             raise NodeError(self, "Must receive exactly two inputs to operate %s on" % self.operation_label)
 
         n1, n2 = operation_nodes
-        df1 = n1.get_output()
-        df2 = n2.get_output()
+        df1 = n1.get_output_pl()
+        df2 = n2.get_output_pl()
 
         if self.debug:
             print('%s: %s input from node 1 (%s):' % (self.operation_label, self.id, n1.id))
-            self.print_pint_df(df1)
+            self.print(df1)
             print('%s: %s input from node 2 (%s):' % (self.operation_label, self.id, n2.id))
-            self.print_pint_df(df2)
+            self.print(df2)
 
-        df = self.perform_operation(n1, n2, df1.copy(), df2)
-
-        df[FORECAST_COLUMN] = df1[FORECAST_COLUMN] | df2[FORECAST_COLUMN]
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].pint.to(self.unit)
-
-        df = self.add_nodes(df, additive_nodes)
+        df = self.perform_operation(n1, n2, df1, df2)
+        df = self.add_nodes_pl(df, additive_nodes)
         fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
-            df = self.fill_gaps_using_input_dataset(df)
+            df = self.fill_gaps_using_input_dataset_pl(df)
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(df)
+            df = self.replace_output_using_input_dataset_pl(df)
         if self.debug:
             print('%s: Output:' % self.id)
-            self.print_pint_df(df)
-
-        df[FORECAST_COLUMN] = df[FORECAST_COLUMN].astype(bool)
+            self.print(df)
 
         return df
 
@@ -231,7 +230,7 @@ class DivisiveNode(MultiplicativeNode):
 
     operation_label = 'division'
 
-    def perform_operation(self, n1: Node, n2: Node, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         assert n1.unit is not None and n2.unit is not None and self.unit is not None
         output_unit = n1.unit / n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
@@ -239,7 +238,13 @@ class DivisiveNode(MultiplicativeNode):
                 self,
                 "Division inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
-        df1[VALUE_COLUMN] /= df2[VALUE_COLUMN]
+        df2_meta = df2.get_meta()
+        inv_unit = (1 / df2_meta.units[VALUE_COLUMN]).units  # type: ignore
+        df2 = df2.with_columns([(pl.lit(1) / pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)], units={VALUE_COLUMN: 1 / inv_unit })
+        df = df1.paths.join_over_index(df2, how='left')
+        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
+
         return df1
 
 
@@ -264,38 +269,30 @@ class FixedMultiplierNode(SimpleNode):
         StringParameter(local_id='global_multiplier'),
     ] + SimpleNode.allowed_parameters
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         if len(self.input_nodes) != 1:
             raise NodeError(self, 'FixedMultiplier needs exactly one input node')
 
         node = self.input_nodes[0]
 
-        df = node.get_output()
-        multiplier_param = self.get_parameter('multiplier', required=False)
-        if multiplier_param is None:
-            global_multiplier = self.get_parameter_value('global_multiplier', required=True)
-            assert isinstance(global_multiplier, str)
-            # This is a bit of a hack. We need to ensure the dynamically defined (by "global_multiplier") multiplier
-            # parameter is in our list of global_parameters.
-            if global_multiplier not in self.global_parameters:
-                self.global_parameters = list(self.global_parameters) + [global_multiplier]
-            multiplier_param = self.context.get_parameter(global_multiplier)
+        df = node.get_output_pl()
+        multiplier_param = self.get_parameter('multiplier')
+        multiplier = multiplier_param.get()
+        if multiplier_param.has_unit():
+            m_unit = multiplier_param.get_unit()
+        else:
+            m_unit = self.context.unit_registry.parse_units('dimensionless')
 
-        multiplier = multiplier_param.value
-        if isinstance(multiplier_param, ParameterWithUnit):
-            multiplier = pint.Quantity(multiplier, multiplier_param.unit)
-
-        for col in df.columns:
-            if col == FORECAST_COLUMN:
-                continue
-            df[col] *= multiplier
+        meta = df.get_meta()
+        exprs = [pl.col(col) * multiplier for col in meta.metric_cols]
+        units = {col: meta.units[col] * m_unit for col in meta.metric_cols}
+        df = df.with_columns(exprs, units=units)
+        for metric in self.output_metrics.values():
+            df = df.ensure_unit(metric.column_id, metric.unit)
 
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
-            df = self.replace_output_using_input_dataset(df)
-
-        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
-
+            df = self.replace_output_using_input_dataset_pl(df)
         return df
 
 

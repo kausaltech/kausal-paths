@@ -224,13 +224,17 @@ if args.print_action_efficiencies:
                 actions = [context.get_action(node_id) for node_id in args.node]
             else:
                 actions = None
+            rows = []
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
                 pc.display('%s computed' % action.id)
-                table.add_row(action.id, str(out.cumulative_efficiency))
+                rows.append((action.id, out.cumulative_efficiency))
                 # action.print_pint_df(out.df)
 
             console = Console()
+            rows = sorted(rows, key=lambda x: x[1])
+            for row in rows:
+                table.add_row(row[0], str(row[1]))
             console.print(table)
 
         context.cache.end_run()

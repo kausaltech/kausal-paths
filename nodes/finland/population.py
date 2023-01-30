@@ -24,7 +24,7 @@ class Population(Node):
     def get_historical_input(self) -> ppl.PathsDataFrame:
         return self.get_input_datasets_pl()[0]
 
-    def get_forecast_input(self) -> ppl.PathsDataFrame:
+    def get_forecast_input(self) -> ppl.PathsDataFrame | None:
         return self.get_input_datasets_pl()[1]
 
     def compute(self):
@@ -33,10 +33,11 @@ class Population(Node):
         df_hist = self.get_historical_input().lazy()
         df_hist = df_hist.filter(pl.col('Alue') == muni_name)
         df_hist = df_hist.groupby('Vuosi').agg(pl.col(self.TOTAL_POPULATION_COLUMN).sum().alias(VALUE_COLUMN))
-        df_hist = df_hist.with_column(pl.col('Vuosi').cast(pl.Int32))
-        df_hist = df_hist.with_column(pl.lit(False).alias(FORECAST_COLUMN))
+        df_hist = df_hist.with_columns([
+            pl.col('Vuosi').cast(pl.Int32),
+            pl.lit(False).alias(FORECAST_COLUMN)
+        ])
         df = df_hist.collect()
-
 
         df_forecast = self.get_forecast_input()
         if df_forecast is not None:
@@ -47,24 +48,29 @@ class Population(Node):
                 raise NodeError(self, 'Unable to find population forecast column')
             col = pop_col[0]
             df_forecast = df_forecast.groupby('Vuosi').agg(pl.col(col).sum().alias(VALUE_COLUMN))
-            df_forecast = df_forecast.with_column(pl.col('Vuosi').cast(pl.Utf8).cast(pl.Int32))
+            df_forecast = df_forecast.with_columns([
+                pl.col('Vuosi').cast(pl.Utf8).cast(pl.Int32)
+            ])
             # remove years that are also in historical df
             df_forecast = df_forecast.filter(~pl.col('Vuosi').is_in(df['Vuosi']))
-            df_forecast = df_forecast.with_column(pl.lit(True).alias(FORECAST_COLUMN))
+            df_forecast = df_forecast.with_columns([
+                pl.lit(True).alias(FORECAST_COLUMN)
+            ])
             df_forecast = df_forecast.collect()
             df = pl.concat([df, df_forecast])
 
         df = df.sort('Vuosi').rename(dict(Vuosi=YEAR_COLUMN))
-        df = df.with_column(pl.col(VALUE_COLUMN).cast(pl.Float32))
+        df = df.with_columns([
+            pl.col(VALUE_COLUMN).cast(pl.Float32)
+        ])
         assert self.unit is not None
         df = ppl.to_ppdf(df, meta=ppl.DataFrameMeta(units={VALUE_COLUMN: self.unit}, primary_keys=[YEAR_COLUMN]))
         return df
 
 
 class HistoricalPopulation(Population):
-    def get_forecast_input(self) -> pd.DataFrame | None:
+    def get_forecast_input(self) -> ppl.PathsDataFrame | None:
         return None
 
     def compute(self):
-        df = super().compute()
-        return df
+        return super().compute()

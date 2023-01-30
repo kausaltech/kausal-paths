@@ -15,7 +15,6 @@ target_year: 2045
 reference_year: 1990
 minimum_historical_year: 2019
 maximum_historical_year: 2021
-emission_dataset: tampere/scenarios/emissions/bau
 emission_unit: kt/a
 emission_forecast_from: 2021
 action_groups:
@@ -209,28 +208,24 @@ emission_sectors:
   name_fi: Kerrostalojen päästöt
   name_en: Apartment building emissions
   name: Flerbostadshusutsläpp
-  column: Heating total
   part_of: net_emissions
   color: '#AD3963'
 - id: single_family_emissions
   name_fi: Omakotitalojen päästöt
   name_en: Single house emissions
   name: Småhusutsläpp
-  column: Trucks and lorries
   part_of: net_emissions
   color: '#E8B455'
 - id: office_building_emissions
   name_fi: Toimistorakennusten päästöt
   name_en: Office building emissions
   name: Kontorutsläpp
-  column: Trucks and lorries
   part_of: net_emissions
   color: '#668EC9'
 - id: school_emissions
   name_fi: Koulujen päästöt
   name_en: School emissions
   name: Skolutsläpp
-  column: Trucks and lorries
   part_of: net_emissions
   color: '#397368'
 #    color: '#F4D240'
@@ -465,8 +460,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: electricity_co2_ef
+  - id: multiplier
+    ref: electricity_co2_ef
   input_nodes:
   - electricity_per_area_single_family
   output_nodes:
@@ -480,8 +475,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: heat_co2_ef
+  - id: multiplier
+    ref: heat_co2_ef
   input_nodes:
   - heat_per_area_single_family
   output_nodes:
@@ -573,8 +568,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: avoided_electricity_capacity_price
+  - id: multiplier
+    ref: avoided_electricity_capacity_price
   input_nodes:
   - electricity_per_area_single_family
   tags: capacity_cost
@@ -587,8 +582,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: health_impacts_per_kwh
+  - id: multiplier
+    ref: health_impacts_per_kwh
   input_nodes:
   - energy_per_area_single_family
   tags: health_cost
@@ -688,8 +683,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: electricity_co2_ef
+  - id: multiplier
+    ref: electricity_co2_ef
   input_nodes:
   - electricity_per_area_apartment
   output_nodes:
@@ -703,8 +698,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: heat_co2_ef
+  - id: multiplier
+    ref: heat_co2_ef
   input_nodes:
   - heat_per_area_apartment
   output_nodes:
@@ -795,8 +790,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: avoided_electricity_capacity_price
+  - id: multiplier
+    ref: avoided_electricity_capacity_price
   input_nodes:
   - electricity_per_area_apartment
   tags: capacity_cost
@@ -809,8 +804,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: health_impacts_per_kwh
+  - id: multiplier
+    ref: health_impacts_per_kwh
   input_nodes:
   - energy_per_area_apartment
   tags: health_cost
@@ -910,8 +905,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: electricity_co2_ef
+  - id: multiplier
+    ref: electricity_co2_ef
   input_nodes:
   - electricity_per_area_office
   output_nodes:
@@ -925,8 +920,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: heat_co2_ef
+  - id: multiplier
+    ref: heat_co2_ef
   input_nodes:
   - heat_per_area_office
   output_nodes:
@@ -1017,8 +1012,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: avoided_electricity_capacity_price
+  - id: multiplier
+    ref: avoided_electricity_capacity_price
   input_nodes:
   - electricity_per_area_office
   tags: capacity_cost
@@ -1031,8 +1026,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: health_impacts_per_kwh
+  - id: multiplier
+    ref: health_impacts_per_kwh
   input_nodes:
   - energy_per_area_office
   tags: health_cost
@@ -1132,8 +1127,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: electricity_co2_ef
+  - id: multiplier
+    ref: electricity_co2_ef
   input_nodes:
   - electricity_per_area_school
   output_nodes:
@@ -1147,8 +1142,8 @@ nodes:
   unit: kg/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: heat_co2_ef
+  - id: multiplier
+    ref: heat_co2_ef
   input_nodes:
   - heat_per_area_school
   output_nodes:
@@ -1239,8 +1234,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: avoided_electricity_capacity_price
+  - id: multiplier
+    ref: avoided_electricity_capacity_price
   input_nodes:
   - electricity_per_area_school
   tags: capacity_cost
@@ -1253,8 +1248,8 @@ nodes:
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
   params:
-  - id: global_multiplier
-    value: health_impacts_per_kwh
+  - id: multiplier
+    ref: health_impacts_per_kwh
   input_nodes:
   - energy_per_area_school
   tags: health_cost

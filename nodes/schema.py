@@ -62,14 +62,14 @@ class InstanceType(graphene.ObjectType):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
-        return obj.lead_title_i18n
+        return obj.lead_title_i18n  # type: ignore
 
     @staticmethod
     def resolve_lead_paragraph(root, info):
         obj = InstanceConfig.objects.filter(identifier=root.id).first()
         if obj is None:
             return None
-        return obj.lead_paragraph_i18n
+        return obj.lead_paragraph_i18n  # type: ignore
 
     @staticmethod
     def resolve_hostname(root, info, hostname):
@@ -85,8 +85,7 @@ class YearlyValue(graphene.ObjectType):
 class ForecastMetricType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String()
-    # output_node will be set if the node outputs multiple time-series
-    output_node = graphene.Field(lambda: NodeType)
+    output_node = graphene.Field(lambda: NodeType, description="Will be set if the node outputs multiple time-series")
     unit = graphene.Field('paths.schema.UnitType')
     yearly_cumulative_unit = graphene.Field('paths.schema.UnitType')
     historical_values = graphene.List(graphene.NonNull(YearlyValue), latest=graphene.Int(required=False))
@@ -116,29 +115,24 @@ class ForecastMetricType(graphene.ObjectType):
         return root.get_cumulative_forecast_value()
 
 
-class JSONStatCategory(graphene.ObjectType):
-    id = graphene.String(required=True)
-    label = graphene.String()
+class DimensionCategoryType(graphene.ObjectType):
+    id = graphene.ID(required=True)
+    label = graphene.String(required=True)
 
 
-class JSONStatDimension(graphene.ObjectType):
-    id = graphene.String(required=True)
-    category = graphene.List(graphene.NonNull(JSONStatCategory), required=True)
+class DimensionType(graphene.ObjectType):
+    id = graphene.ID(required=True)
+    label = graphene.String(required=True)
+    categories = graphene.List(graphene.NonNull(DimensionCategoryType), required=True)
 
 
-class JSONStatRole(graphene.ObjectType):
-    time = graphene.List(graphene.NonNull(graphene.String), required=True)
-    metric = graphene.List(graphene.NonNull(graphene.String), required=True)
-
-
-class JSONStatDataset(graphene.ObjectType):
-    version = graphene.String(required=True)
-    klass = graphene.String(name='class', required=True)
-    id = graphene.List(graphene.NonNull(graphene.String), required=True)
-    size = graphene.List(graphene.NonNull(graphene.Int), required=True)
-    dimension = graphene.List(graphene.NonNull(JSONStatDimension), required=True)
-    value = graphene.List(graphene.Int, required=True)
-    role = graphene.Field(JSONStatRole, required=True)
+class DimensionalMetricType(graphene.ObjectType):
+    id = graphene.ID(required=True)
+    name = graphene.String(required=True)
+    dimensions = graphene.List(graphene.NonNull(DimensionType), required=True)
+    values = graphene.List(graphene.Float)
+    years = graphene.List(graphene.NonNull(graphene.Int), required=True)
+    forecast_from = graphene.Int(required=False)
 
 
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
@@ -174,7 +168,7 @@ class NodeType(graphene.ObjectType):
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
 
-    data = graphene.Field(JSONStatDataset)
+    metrics = graphene.List(graphene.NonNull(ForecastMetricType))
 
     # TODO: input_datasets, baseline_values, context
     parameters = graphene.List('params.schema.ParameterInterface')
@@ -199,7 +193,7 @@ class NodeType(graphene.ObjectType):
 
     @staticmethod
     def resolve_downstream_nodes(root: Node, info: GQLInstanceInfo):
-        info.context._upstream_node = root
+        info.context._upstream_node = root  # type: ignore
         return root.get_downstream_nodes()
 
     @staticmethod
@@ -255,43 +249,46 @@ class NodeType(graphene.ObjectType):
         if not isinstance(source_node, ActionNode):
             return None
 
-        df = source_node.compute_impact(target_node)
-        fc = df.pop(FORECAST_COLUMN)
-        df: pd.DataFrame = df[IMPACT_GROUP]  # type: ignore
-        df = df[[VALUE_COLUMN]]
-        df[FORECAST_COLUMN] = fc
-
-        ldf = ppl.from_pandas(df)
-        # FIXME
-        meta = ldf.get_meta()
+        df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
+        meta = df.get_meta()
         if meta.dim_ids:
-            ldf = ldf.paths.sum_over_dims()
+            # FIXME: Check if can be summed?
+            df = df.paths.sum_over_dims()
+            meta = df.get_meta()
+
+        df = df.select([*meta.primary_keys, FORECAST_COLUMN, VALUE_COLUMN])
 
         metric = Metric(
-            id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=ldf,
+            id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=df,
             unit=target_node.unit
         )
         return metric
 
+    @staticmethod
     def resolve_group(root: Node, info: GQLInstanceInfo):
         if not isinstance(root, ActionNode):
             return None
         return root.group
 
-    def resolve_parameters(root, info):
+    @staticmethod
+    def resolve_parameters(root: Node, info):
         return [param for param in root.parameters.values() if param.is_customizable]
 
-    def resolve_short_description(root, info: GQLInstanceInfo) -> Optional[str]:
-        obj: NodeConfig = (NodeConfig.objects
-                           .filter(instance__identifier=info.context.instance.id, identifier=root.id)
-                           .first())
+    @staticmethod
+    def resolve_short_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:
+        obj: NodeConfig | None = (
+            NodeConfig.objects
+            .filter(instance__identifier=info.context.instance.id, identifier=root.id)
+            .first()
+        )
         if obj is not None and obj.short_description_i18n:
             return expand_db_html(obj.short_description_i18n)
         if root.description:
             return '<p>%s</p>' % root.description
         return None
 
-    def resolve_description(root, info: GQLInstanceInfo) -> Optional[str]:
+    @staticmethod
+    def resolve_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:
         obj = (NodeConfig.objects
                .filter(instance__identifier=info.context.instance.id, identifier=root.id)
                .first())
@@ -348,10 +345,11 @@ class ActionEfficiencyPairType(graphene.ObjectType):
         out = []
         for ae in all_aes:
             sum_fields = ['cumulative_efficiency', 'cumulative_cost', 'cumulative_impact']
+            years = ae.df[YEAR_COLUMN]
             d = dict(
                 action=ae.action,
-                cost_values=[YearlyValue(year, float(val)) for year, val in ae.df['Cost'].pint.m.items()],
-                impact_values=[YearlyValue(year, float(val)) for year, val in ae.df['Impact'].pint.m.items()],
+                cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']))],
+                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']))],
                 cumulative_cost_unit=ae.cumulative_cost_unit,
                 cumulative_impact_unit=ae.cumulative_impact_unit,
                 **{f: float(getattr(ae, f).m) for f in sum_fields},

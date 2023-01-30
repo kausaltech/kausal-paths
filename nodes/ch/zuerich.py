@@ -24,7 +24,7 @@ class BuildingEnergy(AdditiveNode):
         df = self.get_input_dataset_pl()
 
         ec_dim = self.output_dimensions['energy_carrier']
-        df = df.with_column(ec_dim.series_to_ids_pl(df['energy_carrier']))
+        df = df.with_columns([ec_dim.series_to_ids_pl(df['energy_carrier'])])
         meta = df.get_meta()
         metric_ids = meta.metric_cols
         if len(metric_ids) == 1:
@@ -37,10 +37,12 @@ class BuildingEnergy(AdditiveNode):
         output_unit = m.unit
 
         df = df.ensure_unit(col, output_unit)
-        df = df.with_column(pl.col(col).alias(VALUE_COLUMN))
-        df = df.with_column(pl.lit(False).alias(FORECAST_COLUMN))
+        df = df.with_columns([
+            pl.col(col).alias(VALUE_COLUMN),
+            pl.lit(False).alias(FORECAST_COLUMN)
+        ])
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
-        df = df.set_unit(VALUE_COLUMN, output_unit)
+        # df = df.set_unit(VALUE_COLUMN, output_unit)
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
@@ -80,18 +82,18 @@ class ElectricityEmissionFactor(AdditiveNode):
         dim_id = 'electricity_source'
         es_dim = self.input_dimensions[dim_id]
 
-        mix_df = mix_df.with_column(es_dim.series_to_ids_pl(mix_df[dim_id]))
+        mix_df = mix_df.with_columns([es_dim.series_to_ids_pl(mix_df[dim_id])])
         mix_df = mix_df.ensure_unit('share', self.context.unit_registry.parse_units('dimensionless'))
-        ef_df = ef_df.with_column(es_dim.series_to_ids_pl(ef_df[dim_id]))
+        ef_df = ef_df.with_columns([es_dim.series_to_ids_pl(ef_df[dim_id])])
 
         df = ef_df.paths.join_over_index(mix_df)
         df = df.multiply_cols(['share', 'emission_factor'], 'EF')
-        df = df.with_column(pl.col('EF').fill_null(0))
+        df = df.with_columns([pl.col('EF').fill_null(0)])
         meta = df.get_meta()
         zdf = df.groupby(YEAR_COLUMN).agg(pl.sum('EF')).sort(YEAR_COLUMN)
         df = ppl.to_ppdf(zdf, meta=meta)
         df = df.rename(dict(EF=VALUE_COLUMN))
-        df = df.with_column(pl.lit(False).alias(FORECAST_COLUMN))
+        df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
         return df
@@ -112,10 +114,11 @@ class EmissionFactor(Node):
             metric_col = 'emission_factor'
 
         dim = self.input_dimensions['energy_carrier']
-        ids = dim.series_to_ids_pl(df[dim.id])
-        df = ppl.to_ppdf(df.with_column(ids.alias(dim.id)), meta=meta)\
-            .with_column(pl.lit(False).alias(FORECAST_COLUMN))\
-            .with_column(pl.col(dim.id).cast(str))
+        ids = dim.series_to_ids_pl(df[dim.id]).cast(pl.Utf8)
+        df = df.with_columns([
+            ids.alias(dim.id).cast(str),
+            pl.lit(False).alias(FORECAST_COLUMN),
+        ])
 
         df = df.rename({metric_col: VALUE_COLUMN})
         meta = df.get_meta()
@@ -160,14 +163,14 @@ class EmissionFactorActivity(Node):
         df = df.set_unit('EF', fdf.get_unit('EF'))
         em = pl.col('Energy') * pl.col('EF')
         em_unit = df.get_unit('EF') * df.get_unit('Energy')
-        df = df.with_column(em.alias('Emissions'), unit=em_unit)
+        df = df.with_columns([em.alias('Emissions')], units=dict(Emissions=em_unit))
         output_unit = self.output_metrics[DEFAULT_METRIC].unit
         df = df.ensure_unit('Emissions', output_unit)
         meta = df.get_meta()
         if YEAR_COLUMN not in meta.primary_keys:
             meta.primary_keys.append(YEAR_COLUMN)
-        df = df.groupby([YEAR_COLUMN]).agg([pl.sum('Emissions').alias(VALUE_COLUMN), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
-        df = ppl.to_ppdf(df, meta=meta)
+        zdf = df.groupby([YEAR_COLUMN]).agg([pl.sum('Emissions').alias(VALUE_COLUMN), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
         df = df.set_unit(VALUE_COLUMN, output_unit)
         df = extend_last_historical_value_pl(df, self.context.model_end_year)
         return df
@@ -192,8 +195,10 @@ class ToPerCapita(Node):
         df = ppl.to_ppdf(act_df.join(pop_df, on=YEAR_COLUMN, how='left'), meta=meta)
 
         pc_unit = act_df.get_unit('Value') / pop_df.get_unit('Pop')
-        df = df.with_column((pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'))
-        df = df.with_column((pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').alias(FORECAST_COLUMN)))
+        df = df.with_columns([
+            (pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'),
+            (pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN)
+        ])
         df = df.set_unit('PerCapita', pc_unit)
         output_unit = self.output_metrics[DEFAULT_METRIC].unit
         df = df.ensure_unit('PerCapita', output_unit)
@@ -205,8 +210,10 @@ class ToPerCapita(Node):
             ndf = ndf.ensure_unit(VALUE_COLUMN, output_unit)
             df = ppl.to_ppdf(df.join(ndf, on=YEAR_COLUMN, how='left'), meta=meta)
             other = df[VALUE_COLUMN + '_right'].fill_null(0)
-            df = df.with_column(pl.col(VALUE_COLUMN) + other)
-            df = df.with_column(pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').fill_null(False))
+            df = df.with_columns([
+                pl.col(VALUE_COLUMN) + other,
+                pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').fill_null(False)
+            ])
             df = df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
         return df

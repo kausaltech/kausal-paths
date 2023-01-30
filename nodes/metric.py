@@ -86,7 +86,7 @@ class Metric:
         hist = []
         forecast = []
         baseline = []
-        for row in df.iterrows(named=True):
+        for row in df.iter_rows(named=True):
             is_fc = getattr(row, FORECAST_COLUMN)
             val = getattr(row, VALUE_COLUMN)
             year = getattr(row, YEAR_COLUMN)

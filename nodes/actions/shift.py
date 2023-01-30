@@ -167,7 +167,7 @@ class ShiftAction(ActionNode):
         df = pl.concat(dfs).sort(YEAR_COLUMN)
 
         df = df.groupby([NODE_COLUMN, *dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
-        df = df.with_column(pl.lit(True).alias(FORECAST_COLUMN))
+        df = df.with_columns([pl.lit(True).alias(FORECAST_COLUMN)])
         meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN, NODE_COLUMN, *dims])
         return ppl.to_ppdf(df, meta=meta)
 

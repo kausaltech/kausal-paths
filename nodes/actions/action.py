@@ -7,13 +7,14 @@ import numpy as np
 
 import pandas as pd
 import pint_pandas
+import polars as pl
 from common.i18n import TranslatedString
 from common.perf import PerfCounter
 from common import polars as ppl
 
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, VALUE_WITH_ACTION_GROUP,
-    VALUE_WITHOUT_ACTION_GROUP, DecisionLevel
+    VALUE_WITHOUT_ACTION_GROUP, YEAR_COLUMN, DecisionLevel
 )
 from nodes import Node, NodeError
 from nodes.units import Unit, Quantity
@@ -67,66 +68,65 @@ class ActionNode(Node):
     def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         return self.compute_effect()
 
-    def compute_impact(self, target_node: Node) -> pd.DataFrame:
+    def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
         # Determine the impact of this action in the target node
         enabled = self.is_enabled()
         metrics = target_node.output_metrics
 
         self.enabled_param.set(False)
-        ddf = target_node.get_output()
+        ddf = target_node.get_output_pl()
         self.enabled_param.set(enabled)
-        edf = target_node.get_output()
+        edf = target_node.get_output_pl()
 
         for metric in metrics.values():
             if metric.column_id not in ddf.columns:
                 raise NodeError(self, 'Output for node %s did not contain the %s column' % (target_node.id, metric.column_id))
 
-        fc = edf.pop(FORECAST_COLUMN)
-        ddf.pop(FORECAST_COLUMN)
-
-        if isinstance(edf.columns, pd.MultiIndex):
-            other_cols = edf.columns.levels
-        else:
-            other_cols = [edf.columns]
-        new_cols = [[VALUE_WITH_ACTION_GROUP, VALUE_WITHOUT_ACTION_GROUP, IMPACT_GROUP]] + other_cols
-        df = pd.DataFrame(columns=pd.MultiIndex.from_product(new_cols), index=edf.index)
-        df[VALUE_WITH_ACTION_GROUP] = edf
-        df[VALUE_WITHOUT_ACTION_GROUP] = ddf[VALUE_COLUMN]
-        df[IMPACT_GROUP] = df[VALUE_WITH_ACTION_GROUP] - df[VALUE_WITHOUT_ACTION_GROUP]
-        df[FORECAST_COLUMN] = fc
+        assert len(ddf) == len(edf)
+        ddf = ddf.rename({VALUE_COLUMN: VALUE_WITHOUT_ACTION_GROUP})
+        df = edf.paths.join_over_index(ddf)
+        df = df.with_columns(
+            [(pl.col(VALUE_COLUMN) - pl.col(VALUE_WITHOUT_ACTION_GROUP)).alias(IMPACT_GROUP)],
+            units={IMPACT_GROUP: df.get_unit(VALUE_COLUMN)}
+        )
         return df
 
     def print_impact(self, target_node: Node):
         df = self.compute_impact(target_node)
-        df.columns = [col[0] for col in df.columns]
-        self.print_pint_df(df)
+        self.print(df)
 
     def on_scenario_created(self, scenario):
         super().on_scenario_created(scenario)
         if self.enabled_param.get_scenario_setting(scenario) is None:
             self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
 
-    def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> pd.DataFrame:
+    def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
-        cost = self.compute_impact(cost_node)[IMPACT_GROUP][VALUE_COLUMN]
+        cost_df = self.compute_impact(cost_node)
+        cost_meta = cost_df.get_meta()
+        cost_df = cost_df.select([*cost_meta.primary_keys, FORECAST_COLUMN, pl.col(IMPACT_GROUP).alias('Cost')])
         pc.display('cost impact of %s on %s computed' % (self.id, cost_node.id))
-        cost.name = 'Cost'
-        impact = self.compute_impact(impact_node)[IMPACT_GROUP][VALUE_COLUMN]
+        impact_df = self.compute_impact(impact_node)
+        impact_meta = impact_df.get_meta()
+        # Replace impact values that are very close to zero with null
+        zero_to_nan = pl.when(pl.col(IMPACT_GROUP).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(IMPACT_GROUP))
+        impact_df = impact_df.select([*impact_meta.primary_keys, FORECAST_COLUMN, zero_to_nan.alias(IMPACT_GROUP)])
+
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
-        df = pd.concat([cost], axis=1)
-        df['Impact'] = impact.replace({0: np.nan})
-        pd_pt = pint_pandas.PintType(unit)
-        df['Efficiency'] = (df['Cost'] / df['Impact']).astype(pd_pt)
-        df = df.dropna()
-        pc.display('done')
+        df = cost_df.paths.join_over_index(impact_df, how='left')
+        df = df.with_columns(Efficiency=pl.col('Cost') / pl.col('Impact'))
+
+        df = df.drop_nulls()
+        df = df.set_unit('Efficiency', df.get_unit('Cost') / df.get_unit('Impact'))
+        df = df.ensure_unit('Efficiency', unit)
         return df
 
 
 class ActionEfficiency(typing.NamedTuple):
     action: ActionNode
-    df: pd.DataFrame
+    df: ppl.PathsDataFrame
     cumulative_efficiency: Quantity
     cumulative_cost: Quantity
     cumulative_impact: Quantity
@@ -163,6 +163,8 @@ class ActionEfficiencyPair:
 
     def validate(self):
         # Ensure units are compatible
+        if self.cost_node.unit is None or self.impact_node.unit is None:
+            raise Exception("Cost or impact node does not have a unit")
         div_unit = self.cost_node.unit / self.impact_node.unit
         if not self.unit.is_compatible_with(div_unit):
             raise Exception("Unit %s is not compatible with %s" % (self.unit, div_unit))
@@ -186,16 +188,17 @@ class ActionEfficiencyPair:
             if not len(df):
                 # No impact for this action, skip it
                 continue
-            cost = df['Cost'].sum() * Quantity('1 år')
-            # FIXME If time unit is something else than år, time/time will remain in the unit.
+
+            cost: Quantity = df['Cost'].sum() * df.get_unit('Cost') * Quantity('1 a')  # type: ignore
             if self.invert_cost:
                 cost *= -1
-            impact = df['Impact'].sum() * Quantity('1 år')
+            impact: Quantity = df['Impact'].sum() * df.get_unit('Impact') * Quantity('1 a')  # type: ignore
             if self.invert_impact:
                 impact *= -1
-            efficiency = (cost / impact).to(self.unit)
+            efficiency: Quantity = (cost / impact).to(self.unit)  # type: ignore
             if impact < 0:
                 efficiency *= -1
+
             ae = ActionEfficiency(
                 action=action, df=df,
                 cumulative_cost=cost,
