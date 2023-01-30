@@ -40,3 +40,4 @@ pydantic
 polars
 drf-nested-routers
 drf-spectacular
+social-auth-app-django

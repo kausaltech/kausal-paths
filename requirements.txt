@@ -106,8 +106,13 @@ cryptography==39.0.0
     # via
     #   asyncssh
     #   jwcrypto
+    #   social-auth-core
 decorator==5.1.1
     # via ipython
+defusedxml==0.7.1
+    # via
+    #   python3-openid
+    #   social-auth-core
 deprecated==1.2.13
     # via jwcrypto
 dictdiffer==0.9.0
@@ -211,7 +216,7 @@ factory-boy==3.2.1
     # via
     #   -r requirements.in
     #   pytest-factoryboy
-faker==16.6.0
+faker==16.6.1
     # via factory-boy
 fasteners==0.18
     # via dvc-pandas
@@ -233,7 +238,7 @@ fsspec[http]==2023.1.0
     #   dvc-objects
     #   s3fs
     #   scmrepo
-funcy==1.17
+funcy==1.18
     # via
     #   dvc
     #   dvc-data
@@ -283,7 +288,7 @@ inflection==0.5.1
     #   pytest-factoryboy
 iniconfig==2.0.0
     # via pytest
-ipython==8.8.0
+ipython==8.9.0
     # via -r requirements.in
 iterative-telemetry==0.0.6
     # via dvc
@@ -328,7 +333,10 @@ numpy==1.23.5
     #   pyarrow
     #   scipy
 oauthlib==3.2.2
-    # via django-oauth-toolkit
+    # via
+    #   django-oauth-toolkit
+    #   requests-oauthlib
+    #   social-auth-core
 omegaconf==2.3.0
     # via hydra-core
 openpyxl==3.0.10
@@ -349,7 +357,7 @@ pandas==1.5.3
     #   pint-pandas
 parso==0.8.3
     # via jedi
-pathspec==0.10.3
+pathspec==0.11.0
     # via
     #   dvc
     #   scmrepo
@@ -369,7 +377,7 @@ pint-pandas==0.3
     #   dvc-pandas
 pluggy==1.0.0
     # via pytest
-polars==0.15.16
+polars==0.15.18
     # via -r requirements.in
 polib==1.1.1
     # via wagtail-localize
@@ -389,11 +397,11 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
     # via stack-data
-pyarrow==10.0.1
+pyarrow==11.0.0
     # via dvc-pandas
 pycparser==2.21
     # via cffi
-pycryptodome==3.16.0
+pycryptodome==3.17
     # via -r requirements.in
 pydantic==1.10.4
     # via -r requirements.in
@@ -413,6 +421,8 @@ pygtrie==2.5.0
     #   dvc
     #   dvc-data
     #   scmrepo
+pyjwt==2.6.0
+    # via social-auth-core
 pyparsing==3.0.9
     # via
     #   dvc
@@ -437,6 +447,8 @@ python-dotenv==0.21.1
     # via -r requirements.in
 python-snappy==0.6.1
     # via dvc-pandas
+python3-openid==3.2.0
+    # via social-auth-core
 pytz==2022.7.1
     # via
     #   babel
@@ -459,8 +471,12 @@ requests==2.28.2
     #   dvc-studio-client
     #   fsspec
     #   iterative-telemetry
+    #   requests-oauthlib
+    #   social-auth-core
     #   wagtail
-rich==13.2.0
+requests-oauthlib==1.3.1
+    # via social-auth-core
+rich==13.3.1
     # via
     #   -r requirements.in
     #   dvc
@@ -504,6 +520,10 @@ smmap==5.0.0
     # via gitdb
 sniffio==1.3.0
     # via anyio
+social-auth-app-django==5.0.0
+    # via -r requirements.in
+social-auth-core==4.3.0
+    # via social-auth-app-django
 soupsieve==2.3.2.post1
     # via beautifulsoup4
 sqlparse==0.4.3
