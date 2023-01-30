@@ -34,12 +34,14 @@ class SelectiveNode(AdditiveNode):
             if 'co2_cost' in node.tags:
                 if include_co2:
                     included_nodes.append(node)
-            if 'capacity_cost' in node.tags:
+            elif 'capacity_cost' in node.tags:
                 if include_el_avoided:
                     included_nodes.append(node)
-            if 'health_cost' in node.tags:
+            elif 'health_cost' in node.tags:
                 if include_health:
                     included_nodes.append(node)
+            else:
+                included_nodes.append(node)
 
         assert len(included_nodes)
         output_unit = self.output_metrics[DEFAULT_METRIC].unit

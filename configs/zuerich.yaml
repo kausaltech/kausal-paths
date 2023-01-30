@@ -537,6 +537,7 @@ actions:
   params:
   - id: shift
     unit: GWh/a
+    is_customizable: false
     value:
     - source:
         categories:
