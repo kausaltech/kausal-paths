@@ -37,18 +37,18 @@ def set_default_language(lang: str):
     finally:
         local.default_language = old
 
+def get_default_language() -> str | None:
+    return getattr(local, 'default_language', DEFAULT_LANGUAGE)
+
 
 class TranslatedString:
     i18n: dict[str, str]
     default_language: str
 
-    def __init__(self, *args: str, **kwargs: str):
+    def __init__(self, *args: str, default_language: str | None = None, **kwargs: str):
         self.i18n = {}
-        default_language: str | None
-        if 'default_language' in kwargs:
-            default_language = kwargs.pop('default_language')
-        else:
-            default_language = local.default_language
+        if default_language is None:
+            default_language = get_default_language()
 
         if len(args) > 1:
             raise Exception('You can supply at most one default translation')

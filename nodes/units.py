@@ -63,6 +63,9 @@ pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
 
 def add_unit_translations():
+    """Add translations for some commonly used units.
+
+    Called from Django's App.ready() handler."""
     from pint.babel_names import _babel_units
     from babel import Locale as Loc
     try:
@@ -72,18 +75,24 @@ def add_unit_translations():
     from django.utils import translation
     from django.utils.translation import gettext_lazy as _, pgettext_lazy
 
-
     def set_one(u: str, t: str):
         bu = 'kausal-%s' % u
         if u not in _babel_units:
             _babel_units[u] = bu
         for lang in [l[0] for l in settings.LANGUAGES]:
             loc = Loc(lang.replace('-', '_'))
-            pats = loc._data['unit_patterns']  # type: ignore
+            loc_data: dict = loc._data  # type: ignore
+            pats = loc_data['unit_patterns']
             with translation.override(lang):
                 pats[bu] = dict(long=dict(one=str(t)))
+
+            # Work around a bug in pint
+            cup = loc_data.get('compound_unit_patterns', {})
+            if 'per' in cup:
+                del cup['per']
+
 
     set_one('capita', _('capita'))
     set_one('cap', pgettext_lazy('capita short', 'cap'))
     set_one('kt', pgettext_lazy('kilotonne short', 'kt'))
-
+    set_one('a', pgettext_lazy('year short', 'yr.'))
