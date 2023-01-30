@@ -1,0 +1,95 @@
+{% extends "wagtailadmin/login.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block branding_login %}{% trans "Sign in to Kausal Paths admin" %}{% endblock %}
+
+{% block above_login %}
+<script type="text/javascript">
+    $(function() {
+        const setError = (detail) => {
+            $('.messages').append(`<ul><li class="error">${detail}</li></ul>`);
+        };
+        const setUnknownError = () => {
+            const msg = detail || "{% trans 'Our apologies, the server is temporarily experiencing difficulties.' %}"
+            setError(msg);
+        };
+        const socialUrlBase = "{% url 'social:begin' 'BACKEND' %}"
+        const methodCheckUrl = "{% url 'admin_check_login_method' %}";
+        const pwField = $('input#id_password').closest('.w-field__wrapper ');
+        const pwInput = pwField.find('input');
+        const emailInput = $('input#id_username');
+        const resetToggle = $('a.reset-password');
+        const rememberMe = $('.remember-me');
+        const hiddenEls = [
+            pwField,
+            resetToggle,
+            rememberMe,
+        ];
+        let emailChecked = false;
+        const ITEM_NAME = 'admin-default-email';
+
+        if (!emailInput.val()) {
+            // If the form is empty, prefill the email address from local storage.
+            const storedEmail = localStorage.getItem(ITEM_NAME);
+            if (storedEmail) {
+                emailInput.val(storedEmail);
+            }
+        } else {
+            // If email has already been filled, we let the form function as usual.
+            return;
+        }
+
+        hiddenEls.forEach((el) => el.hide());
+        $('.login-form').submit(async (ev) => {
+            // If the password field was previously enabled, we let the
+            // form submission go through.
+            if (emailChecked || pwField.is(':visible')) {
+                return;
+            }
+
+            ev.preventDefault();
+            ev.stopPropagation();
+
+            const form = $(ev.currentTarget).closest('form');
+            const email = emailInput.val();
+
+            const ret = await fetch(methodCheckUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({email}),
+            });
+            const resp = await ret.json();
+            if (ret.status != 200) {
+                const { detail, code } = resp;
+                if (detail) {
+                    setError(detail);
+                } else {
+                    setUnknownError();
+                }
+            }
+            const { method } = resp;
+            if (!method) {
+                setUnknownError();
+                return;
+            }
+            window.localStorage.setItem(ITEM_NAME, email);
+            if (method == 'password') {
+                hiddenEls.forEach((el) => el.show());
+                try {
+                    window.cancelSpinner();
+                } catch (error) {};
+            } else {
+                let url = socialUrlBase.replace(/BACKEND/, method);
+                const next = form.find('input[name="next"]').val();
+                if (next) {
+                    url += '?' + (new URLSearchParams({next})).toString();
+                }
+                window.location = url;
+            }
+        });
+    })
+</script>
+{% endblock %}

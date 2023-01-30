@@ -23,11 +23,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 
 from wagtail.core import urls as wagtail_urls
-from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from social_django import urls as social_urls
 
 from .graphql_views import PathsGraphQLView
+from admin_site import urls as admin_urls
 from users.views import change_admin_instance
 from nodes.api import all_routers as nodes_routers
 from datasets.api import all_routers as datasets_routers
@@ -49,14 +50,16 @@ api_urls = [
 ]
 
 
+from admin_site.api import check_login_method
+
 urlpatterns = [
-    path('django-admin/', admin.site.urls),
+    # path('django-admin/', admin.site.urls),
     re_path(
         r'^admin/change-admin-instance/(?:(?P<instance_id>\d+)/)?$',
         change_admin_instance,
         name='change-admin-instance'
     ),
-    path('admin/', include(wagtailadmin_urls)),
+    path('admin/', include(admin_urls)),
     path('documents/', include(wagtaildocs_urls)),
     # For anything not caught by a more specific rule above, hand over to
     # Wagtail's serving mechanism
@@ -71,7 +74,7 @@ urlpatterns = [
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-
+    path('sso/', include(social_urls, namespace='social'))
 ]
 
 if kpe_urls is not None:

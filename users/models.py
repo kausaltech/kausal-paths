@@ -1,14 +1,14 @@
 import uuid
 
-from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from nodes.models import InstanceConfig
 
+from .base import AbstractUser
+
 
 class User(AbstractUser):
-    uuid = models.UUIDField(default=uuid.uuid4, unique=True)
     selected_instance = models.ForeignKey(
         'nodes.InstanceConfig', null=True, blank=True, on_delete=models.SET_NULL
     )
@@ -26,3 +26,10 @@ class User(AbstractUser):
     def get_adminable_instances(self):
         # TODO
         return InstanceConfig.objects.all()
+
+    def can_access_admin(self) -> bool:
+        if not self.is_active:
+            return False
+        if not self.is_staff:
+            return False
+        return True

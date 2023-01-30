@@ -30,7 +30,7 @@ class UnitType(graphene.ObjectType):
 
     def resolve_short(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~P', locale=lang)  # type: ignore
+        val = self.format_babel('~P', locale=lang, sort=False)  # type: ignore
         if val == 't/a/cap':
             if lang == 'de':
                 return 't/a/Einw.'
@@ -40,7 +40,7 @@ class UnitType(graphene.ObjectType):
 
     def resolve_long(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~P', locale=lang)  # type: ignore
+        val = self.format_babel('~P', locale=lang, sort=False)  # type: ignore
         if val == 't/a/cap':
             if lang == 'de':
                 return 't CO₂e/Jahr/Einw.'
@@ -50,16 +50,14 @@ class UnitType(graphene.ObjectType):
 
     def resolve_html_short(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~H', locale=lang)  # type: ignore
-        # FIXME: remove this hack
-        if val == 't/(a cap)':
-            if lang == 'de':
-                return 't∕a∕Einw.'
-        return val
+        val = self.format_babel('~H', locale=lang, sort=False)  # type: ignore
+        return val.replace('/', '∕')
 
     def resolve_html_long(self: Unit, info):  # type: ignore
         lang = get_language()
         val = self.format_babel('~H', locale=lang)  # type: ignore
+        return val.replace('/', '∕')
+        # FIXME
         if val == 't/(a cap)':
             if lang == 'de':
                 return f't {CO2E}∕Jahr∕Einw.'
