@@ -252,3 +252,4 @@ if not pl.using_string_cache():
     pl.toggle_string_cache(True)
 
 pl.Config.with_columns_kwargs = True
+pl.Config.set_fmt_str_lengths(60)
