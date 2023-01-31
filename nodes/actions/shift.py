@@ -126,11 +126,11 @@ class ShiftAction(ActionNode):
         dest_cols = ['Dest%d' % idx for idx in range(len(param.dests))]
         cols = [YEAR_COLUMN, 'Source', *dest_cols]
 
-        df = pl.DataFrame(data, columns=cols)
+        df = pl.DataFrame(data, schema=cols)
         dest_sum = df.select(pl.col(dest_cols)).sum(axis=1)
         df = df.with_columns(pl.col(dest_cols) / dest_sum * (pl.col('Source') * -1))
 
-        years = pl.DataFrame(range(amounts[0].year, self.context.model_end_year + 1), columns=[YEAR_COLUMN])
+        years = pl.DataFrame(range(amounts[0].year, self.get_end_year() + 1), schema=[YEAR_COLUMN])
         df = pl.concat([df, years], how='diagonal').sort(YEAR_COLUMN)
         df = df.groupby(YEAR_COLUMN).agg([pl.sum(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
         df = df.interpolate().fill_null(0)
@@ -142,7 +142,10 @@ class ShiftAction(ActionNode):
             df = df.with_columns([pl.lit(float(0)).alias(col) for col in value_cols])
 
         targets = [('Source', param.source), *[('Dest%d' % idx, param.dests[idx]) for idx in range(len(param.dests))]]
-        dims = list(param.source.categories.keys())
+
+        all_dims = set(list(param.source.categories.keys()))
+        for dest in param.dests:
+            all_dims.update(list(dest.categories.keys()))
 
         def get_node_id(node: str | int | None):
             if isinstance(node, str):
@@ -154,22 +157,29 @@ class ShiftAction(ActionNode):
             return self.output_nodes[nr].id
 
         def make_target_df(target: ShiftTarget, valuecol: str):
-            target_dims = [(dim, target.categories[dim]) for dim in dims]
+            target_dims = set(target.categories.keys())
+            null_dims = all_dims - target_dims
+            cat_exprs = [pl.lit(cat).alias(dim) for dim, cat in target.categories.items()]
+            if not self.is_enabled():
+                value_expr = pl.lit(0.0)
+            else:
+                value_expr = pl.col(valuecol)
             tdf = df.select([
                 pl.col(YEAR_COLUMN),
                 pl.lit(get_node_id(target.node)).alias(NODE_COLUMN),
-                *[pl.lit(cat).alias(dim) for dim, cat in target_dims],
-                pl.col(valuecol).alias(VALUE_COLUMN),
+                *cat_exprs,
+                *[pl.lit(None).cast(pl.Utf8).alias(null_dim) for null_dim in null_dims],
+                value_expr.alias(VALUE_COLUMN),
             ])
             return tdf
 
         dfs = [make_target_df(target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
-
-        df = df.groupby([NODE_COLUMN, *dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
+        df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([pl.lit(True).alias(FORECAST_COLUMN)])
-        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN, NODE_COLUMN, *dims])
-        return ppl.to_ppdf(df, meta=meta)
+        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN, NODE_COLUMN, *all_dims])
+        ret = ppl.to_ppdf(df, meta=meta)
+        return ret
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         po = self.get_parameter('shift')

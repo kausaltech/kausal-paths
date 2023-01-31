@@ -10,7 +10,7 @@ import inspect
 import json
 import typing
 from time import perf_counter_ns
-from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Sequence, Union, Set, overload
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Sequence, Tuple, Union, Set, overload
 
 import numpy as np
 import pandas as pd
@@ -112,12 +112,39 @@ class NodeMetric:
 
 
 @dataclass
+class EdgeDimension:
+    categories: list[DimensionCategory]
+    exclude: bool
+    flatten: bool
+
+    @classmethod
+    def from_config(cls, dc: dict, context: Context, node_dims: dict[str, Dimension]) -> Tuple[str, EdgeDimension]:
+        if 'id' not in dc:
+            # If 'id' is not supplied, assume it's the first and only dimension
+            if len(node_dims) == 1:
+                dim_id, dim = list(node_dims.items())[0]
+            else:
+                raise KeyError("dimension id not supplied")
+        else:
+            dim_id = dc['id']
+            if dim_id not in node_dims:
+                raise KeyError("dimension %s not found" % dim_id)
+            dim = node_dims[dim_id]
+
+        cat_ids = dc['categories']
+        cats = [dim.get(cat_id) for cat_id in cat_ids]
+        exclude = bool(dc.get('exclude', False))
+        flatten = bool(dc.get('flatten', False))
+        return (dim_id, cls(categories=cats, exclude=exclude, flatten=flatten))
+
+
+@dataclass
 class Edge:
     input_node: Node
     output_node: Node
     tags: list[str] = field(default_factory=list)
-    from_dimensions: dict[str, list[DimensionCategory]] = field(default_factory=dict)
-    to_dimensions: dict[str, DimensionCategory] = field(default_factory=dict)
+    from_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
+    to_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
 
     def __post_init__(self):
         self.tags = self.tags.copy()
@@ -138,6 +165,7 @@ class Edge:
         if other is None:
             raise KeyError("node %s not found" % other_id)
 
+
         args: dict[str, Any] = {}
         args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)
         if isinstance(config, dict):
@@ -145,29 +173,20 @@ class Edge:
             if isinstance(tags, str):
                 tags = [tags]
             args['tags'] = tags
+
             dcs = config.get('from_dimensions', [])
-            ndims: dict[str, list[DimensionCategory]] = {}
+            ndims: dict[str, EdgeDimension] = {}
             for dc in dcs:
-                dim_id = dc.get('id')
-                if dim_id not in context.dimensions:
-                    raise KeyError("dimension %s not found" % dim_id)
-                dim = context.dimensions[dim_id]
-                cat_ids = dc['categories']
-                cats = [dim.get(cat_id) for cat_id in cat_ids]
-                ndims[dim.id] = cats
+                dim_id, ed = EdgeDimension.from_config(dc, context, args['input_node'].output_dimensions)
+                ndims[dim_id] = ed
             args['from_dimensions'] = ndims
 
             dcs = config.get('to_dimensions', [])
-            dims: dict[str, DimensionCategory] = {}
+            ndims = {}
             for dc in dcs:
-                dim_id = dc.get('id')
-                if dim_id not in context.dimensions:
-                    raise KeyError("dimension %s not found" % dim_id)
-                dim = context.dimensions[dim_id]
-                cat_id = dc['category']
-                cat = dim.get(cat_id)
-                dims[dim.id] = cat
-            args['to_dimensions'] = dims
+                dim_id, ed = EdgeDimension.from_config(dc, context, args['output_node'].input_dimensions)
+                ndims[dim_id] = ed
+            args['to_dimensions'] = ndims
 
         return Edge(**args)
 
@@ -695,34 +714,46 @@ class Node:
             meta = df.get_meta()
             if not meta.dim_ids:
                 raise NodeError(self, "No dimensions in node output")
-            for dim_id, cats in edge.from_dimensions.items():
-                cat_ids = [cat.id for cat in cats]
-                if dim_id not in meta.primary_keys:
+            for dim_id, edge_dim in edge.from_dimensions.items():
+                cat_ids = [cat.id for cat in edge_dim.categories]
+                if dim_id not in meta.dim_ids:
                     raise NodeError(self, "Dimension %s not in output df" % dim_id)
-                df = df.filter(pl.col(dim_id).is_in(cat_ids)).drop(dim_id)
+                filter_expr = pl.col(dim_id).is_in(cat_ids)
+                if edge_dim.exclude:
+                    filter_expr = ~filter_expr
+                df = df.filter(filter_expr)
                 if len(df) == 0:
                     raise NodeError(self, "No rows left after filtering by %s" % dim_id)
-
-            # Sum over the rest of the dimensions
-            # FIXME: Make this more refined
-            metric_cols = list(meta.units.keys())
-            df = df.paths.to_wide(meta=meta)
-            zdf = df.with_columns([pl.sum(pl.col('^%s@.*$' % col)).alias(col) for col in metric_cols])
-            zdf = zdf.select([YEAR_COLUMN, FORECAST_COLUMN, *metric_cols])
-            df = ppl.to_ppdf(zdf, meta=meta)
+                if edge_dim.flatten:
+                    meta = df.get_meta()
+                    df = df.paths.sum_over_dims([dim_id])
 
         if edge.to_dimensions:
+            new_cols = []
             meta = df.get_meta()
             if meta.dim_ids:
-                raise NodeError(self, "Output must not have dimensions")
+                raise NodeError(self, "Output for %s can't be dimensional" % target_node)
+            for dim_id, edge_dim in edge.to_dimensions.items():
+                if len(edge_dim.categories) > 1:
+                    raise NodeError(self, "to_dimensions can have only one category for now")
+                cat = edge_dim.categories[0]
+                new_cols.append((dim_id, cat.id))
 
-            new_cols = [pl.lit(cat.id).alias(dim_id) for dim_id, cat in edge.to_dimensions.items()]
-            for dim_id in edge.to_dimensions.keys():
+            exprs = [pl.lit(cat).alias(dim_id) for dim_id, cat in new_cols]
+            df = df.with_columns(exprs)
+            for dim_id, _ in new_cols:
                 meta.primary_keys.append(dim_id)
-            df = ppl.to_ppdf(df.with_columns(new_cols), meta=meta)
+            df = ppl.to_ppdf(df=df, meta=meta)
 
+        # Validate output
+        meta = df.get_meta()
+        # Drop dim columns that only have nulls
+        for dim_col in meta.dim_ids:
+            if df[dim_col].null_count() == df[dim_col].len():
+                df = df.drop(dim_col)
         meta = df.get_meta()
         if set(meta.dim_ids) != set(target_node.input_dimensions.keys()):
+            self.print(df)
             out_dims = ', '.join(meta.dim_ids)
             target_in_dims = ', '.join(target_node.input_dimensions.keys())
             raise NodeError(
@@ -851,38 +882,49 @@ class Node:
         self.context.perf_context.node_end(self)
         return out
 
-    def print_output(self):
+    def _get_output_with_baseline(self):
         df = self.get_output_pl()
         meta = df.get_meta()
         if meta.dim_ids:
-            self.print(df.paths.to_wide())
-            return
+            return df.paths.to_wide()
         if self.baseline_values is not None and VALUE_COLUMN in df.columns:
-            meta = df.get_meta()
-            df = df.with_columns(self.baseline_values[VALUE_COLUMN].alias(BASELINE_VALUE_COLUMN))
-            df = ppl.to_ppdf(df, meta=meta)
+            df = df.with_columns(
+                self.baseline_values[VALUE_COLUMN].alias(BASELINE_VALUE_COLUMN),
+                units={BASELINE_VALUE_COLUMN: self.baseline_values.get_unit(VALUE_COLUMN)}
+            )
+        return df
+
+    def print_output(self):
+        df = self._get_output_with_baseline()
         self.print(df)
 
     def plot_output(self):
+        df = self._get_output_with_baseline()
+        self.plot(df)
+
+    def plot(self, df: ppl.PathsDataFrame):
         try:
             import plotext as plt
         except ImportError:
             return
-        if self.output_dimensions:
+        meta = df.get_meta()
+        if meta.dim_ids:
             return
-        df = self.get_output()
-        pdf = ppl.from_pandas(df)
-        pdf = pdf.paths.to_wide()
-        x = pdf[YEAR_COLUMN]
+        df = df.paths.to_wide()
+        x = df[YEAR_COLUMN]
+        unique_units = set(meta.units.values())
         plt.title(self.name)
-        plt.subplots(1, len(self.output_metrics))
-        for idx, metric in enumerate(self.output_metrics.values()):
-            y = pdf[metric.column_id]
+        plt.subplots(1, len(unique_units))
+        for idx, unit in enumerate(unique_units):
             plt.subplot(1, idx + 1)
             plt.xlabel('Year')
-            plt.ylabel(metric.unit)
-            plt.plot(x, y)
-            plt.theme('dark')
+            plt.ylabel(unit)
+            for col, unit in meta.units.items():
+                if unit != unit:
+                    continue
+                y = df[col]
+                plt.plot(x, y, label=col)
+        plt.theme('dark')
         plt.show()
 
     def print_pint_df(self, df: Union[pd.DataFrame, pd.Series]):
@@ -906,6 +948,10 @@ class Node:
             self.print_pint_df(obj)
             return
         elif isinstance(obj, ppl.PathsDataFrame):
+            meta = obj.get_meta()
+            for col in meta.units.keys():
+                if '@' in col:
+                    obj = obj.rename({col: col.replace('@', '\n')})
             meta = obj.get_meta()
             obj = obj.rename({col: '[%s] %s' % (str(unit), col) for col, unit in meta.units.items()})
             obj = obj.rename({col: '[idx] %s' % col for col in meta.primary_keys})
@@ -1006,7 +1052,7 @@ class Node:
 
     def __str__(self):
         cls = type(self)
-        return '%s [%s.%s]' % (self.id, cls.__module__, cls.__name__)
+        return '%s <%s.%s>' % (self.id, cls.__module__, cls.__name__)
 
     def __repr__(self):
         return self.__str__()
