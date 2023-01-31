@@ -53,16 +53,16 @@ class BuildingEnergy(AdditiveNode):
         return df
 
 
-class ElectricityEmissionFactor(AdditiveNode):
+class EnergyProductionEmissionFactor(AdditiveNode):
     output_metrics = {
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
     #output_dimension_ids = [
     #    'electricity_source',
     #]
-    input_dimension_ids = [
-        'electricity_source',
-    ]
+    #input_dimension_ids = [
+    #    'electricity_source',
+    #]
     default_unit = 'g/kWh'
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -79,7 +79,10 @@ class ElectricityEmissionFactor(AdditiveNode):
         if ef_df is None:
             raise NodeError(self, "Emission factor dataset not supplied")
 
-        dim_id = 'electricity_source'
+        if len(self.input_dimensions) != 1:
+            raise NodeError(self, "Must have exactly 1 input dimensions (%d given)" % len(self.input_dimensions))
+
+        dim_id = list(self.input_dimensions.keys())[0]
         es_dim = self.input_dimensions[dim_id]
 
         mix_df = mix_df.with_columns([es_dim.series_to_ids_pl(mix_df[dim_id])])
@@ -145,7 +148,7 @@ class EmissionFactorActivity(Node):
     output_metrics = {
         DEFAULT_METRIC: NodeMetric('kt/a', quantity=EMISSION_QUANTITY, column_id=VALUE_COLUMN),
     }
-    input_dimension_ids = ['energy_carrier']
+    # input_dimension_ids = ['energy_carrier']
 
     def compute(self) -> ppl.PathsDataFrame:
         en = self.get_input_node(quantity=ENERGY_QUANTITY)

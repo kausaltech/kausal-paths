@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 676d333cdb0c68659b0248b0de1274bbe887f64e
+  commit: 7f5db4ad772954fd5e0b770fa6dc736f0b218b6f
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -12,6 +12,7 @@ owner_en: City of Zürich
 owner_de: Stadt Zürich
 theme_identifier: zurich
 target_year: 2040
+model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2020
@@ -372,26 +373,96 @@ nodes:
   unit: GWh/a
   is_outcome: true
 
-- id: building_primary_energy_consumption
-  name_de: Primärenergieverbrauch Haushalte/Wirtschaft
-  name_en: Primary energy consumption, housing and commerce
+- id: building_final_energy_consumption
+  name_de: Endenergieverbrauch Haushalte/Wirtschaft
+  name_en: Husing and commerce final energy consumption
   type: ch.zuerich.BuildingEnergy
   quantity: energy
   unit: GWh/a
   input_datasets:
   - zuerich/building_energy
+  output_nodes:
+  - id: district_heat_consumption
+    from_dimensions:
+    - categories: [district_heat]
+      flatten: true
+  - id: electricity_consumption
+    from_dimensions:
+    - categories: [electricity]
+      flatten: true
+  - id: environmental_heat_consumption
+    from_dimensions:
+    - categories: [environmental_heat]
+      flatten: true
+  - id: building_other_energy_consumption
+    from_dimensions:
+    - categories: ['district_heat', 'electricity', 'environmental_heat']
+      exclude: true
+
+- id: district_heat_consumption
+  name_de: Endenergieverbrauch Fernwärme
+  name_en: District heat consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: district_heat_emissions
+  name_de: Treibhausgasemissionen Fernwärme
+  name_en: District heat emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - district_heat_consumption
+  - district_heat_emission_factor
+  output_nodes: [building_emissions]
+
+- id: district_heat_emission_factor
+  name_de: Treibhausgasfaktoren Fernwärme
+  name_en: District heat emission factor
+  unit: g/kWh
+  quantity: emission_factor
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  input_nodes:
+  - id: electricity_production_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  input_datasets:
+  - zuerich/district_heat_production_mix
+  - zuerich/district_heat_emission_factors
+  input_dimensions: [energy_carrier]
+
+- id: electricity_consumption
+  name_de: Endenergieverbrauch Strom
+  name_en: Electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
 
 - id: electricity_production_emission_factor
   name_de: Treibhausgasfaktoren Strom
   name_en: Emission factor of electricity production
-  type: ch.zuerich.ElectricityEmissionFactor
+  type: ch.zuerich.EnergyProductionEmissionFactor
   quantity: emission_factor
   unit: g/kWh
   input_datasets:
   - zuerich/electricity_production_mix
   - zuerich/electricity_emission_factor
+  input_dimensions: [electricity_source]
 
-- id: building_primary_energy_emission_factor
+- id: electricity_consumption_emissions
+  name_de: Treibhausgasemissionen Strom
+  name_en: Electricity consumption emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - electricity_consumption
+  - electricity_production_emission_factor
+  output_nodes: [building_emissions]
+
+- id: building_energy_consumption_emission_factor
   name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte
   name_en: Emission factor of housing and commerce energy consumption
   type: ch.zuerich.EmissionFactor
@@ -403,9 +474,62 @@ nodes:
   - id: electricity_production_emission_factor
     to_dimensions:
     - id: energy_carrier
-      category: electricity
+      categories: [electricity]
 
-- id: building_emissions
+- id: environmental_heat_consumption
+  name_de: Endenergieverbrauch Umweltwärme
+  name_en: Environmental heat consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: environmental_heat_emission_factor
+  name_de: Treibhausgasfaktoren Umweltwärme
+  name_en: Emission factor of environmental heat
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+    - id: building_energy_consumption_emission_factor
+      from_dimensions:
+        - categories: [environmental_heat]
+          flatten: true
+
+- id: environmental_heat_emissions
+  name_de: Treibhausgasemissionen Umweltwärme
+  name_en: Environmental heat emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - environmental_heat_consumption
+  - environmental_heat_emission_factor
+  output_nodes: [building_emissions]
+
+
+- id: building_other_energy_consumption
+  name_de: Endenergieverbrauch Sonstiges
+  name_en: Other building heat consumption
+  type: simple.AdditiveNode
+  input_dimensions:
+  - energy_carrier
+  output_dimensions:
+  - energy_carrier
+  quantity: energy
+  unit: GWh/a
+  output_nodes: [building_other_energy_emissions]
+
+- id: building_other_energy_emissions
+  name_de: Treibhausgasemissionen Sonstiges
+  name_en: Other building heat consumption emissions
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_energy_consumption_emission_factor]
+  input_dimensions: [energy_carrier]
+  output_nodes: [building_emissions]
+
+- id: building_emissions_per_capita
   name_en: Building emissions
   name_de: Gebäude
   part_of: direct_emissions
@@ -415,19 +539,16 @@ nodes:
   type: ch.zuerich.ToPerCapita
   input_nodes:
   - population
-  - id: building_emissions_net
+  - id: building_emissions
     tags: activity
   output_nodes: [direct_emissions]
 
-- id: building_emissions_net
-  name_en: Emissions from households and businesses
+- id: building_emissions
+  name_en: Households' and businesses' energy consumption emissions
   name_de: Treibhausgasemissionen Haushalte/Wirtschaft
   unit: kt/a
   quantity: emissions
-  type: ch.zuerich.EmissionFactorActivity
-  input_nodes:
-  - building_primary_energy_emission_factor
-  - building_primary_energy_consumption
+  type: simple.SectorEmissions
 
 - id: primary_energy_consumption_traffic
   name_de: Primärenergieverbrauch Verkehr
@@ -532,7 +653,7 @@ actions:
   description_de: Werden alle 21 000 Öl- und Gasheizungen mit Erdsonden oder einem
     Anschluss ans Fernwärmenetz ersetzt, reduzieren sich die direkten Emissionen von
     Gebäuden um 1.6 tCO<sub>2</sub>eq/(Einw.*a).
-  output_nodes: [building_primary_energy_consumption]
+  output_nodes: [building_other_energy_consumption, environmental_heat_consumption, district_heat_consumption]
   unit: GWh/a
   params:
   - id: shift
@@ -540,14 +661,14 @@ actions:
     is_customizable: false
     value:
     - source:
+        node: building_other_energy_consumption
         categories:
           energy_carrier: fuel_oil
       dests:
-      - categories:
-          energy_carrier: district_heat
-      - categories:
-          energy_carrier: environmental_heat
-      - categories:
+      - node: district_heat_consumption
+      - node: environmental_heat_consumption
+      - node: building_other_energy_consumption
+        categories:
           energy_carrier: wood
       amounts:
       - year: 2023
@@ -564,11 +685,10 @@ actions:
         categories:
           energy_carrier: natural_gas
       dests:
-      - categories:
-          energy_carrier: district_heat
-      - categories:
-          energy_carrier: environmental_heat
-      - categories:
+      - node: district_heat_consumption
+      - node: environmental_heat_consumption
+      - node: building_other_energy_consumption
+        categories:
           energy_carrier: wood
       amounts:
       - year: 2023
@@ -590,7 +710,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   output_nodes:
-  - building_emissions
+  - building_emissions_per_capita
   forecast_values: [[2021, 0], [2040, -0.34]]
   input_dataset_processors:
   - type: FixedMultiplier
@@ -606,7 +726,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   output_nodes:
-  - building_emissions
+  - building_emissions_per_capita
   forecast_values: [[2021, 0], [2030, -0.1]]
   input_dataset_processors:
   - type: FixedMultiplier
