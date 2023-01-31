@@ -53,7 +53,8 @@ class PerfCounter:
         if self.level.value > PerfCounter.shown_level:
             return
 
-        pc_data.depth -= 1
+        if hasattr(pc_data, 'depth'):
+            pc_data.depth -= 1
 
     def measure(self) -> float:
         now = time.perf_counter_ns()
