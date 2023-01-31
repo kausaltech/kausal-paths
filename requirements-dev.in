@@ -12,3 +12,4 @@ django-stubs
 types-orjson
 ipdb
 djangorestframework-stubs
+plotext
