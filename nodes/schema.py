@@ -5,6 +5,8 @@ from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
 from wagtail.core.rich_text import expand_db_html
 
+import polars as pl
+
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from common import polars as ppl
 from .models import InstanceConfig, NodeConfig
@@ -256,7 +258,7 @@ class NodeType(graphene.ObjectType):
             df = df.paths.sum_over_dims()
             meta = df.get_meta()
 
-        df = df.select([*meta.primary_keys, FORECAST_COLUMN, VALUE_COLUMN])
+        df = df.select([*meta.primary_keys, FORECAST_COLUMN, pl.col(IMPACT_GROUP).alias(VALUE_COLUMN)])
 
         metric = Metric(
             id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=df,

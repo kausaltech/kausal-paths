@@ -11,6 +11,7 @@ import polars as pl
 from common import polars as ppl
 from nodes import Node
 from nodes.constants import ACTIVITY_QUANTITIES, BASELINE_VALUE_COLUMN, DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
 
 
 @dataclass
@@ -64,14 +65,20 @@ class Metric:
         meta = df.get_meta()
         if node.baseline_values is not None:
             bdf = node.baseline_values
-            if meta.dim_ids:
+            bdf_meta = bdf.get_meta()
+            if bdf_meta.dim_ids:
                 bdf = bdf.paths.sum_over_dims()
             bdf = bdf.select([
                 YEAR_COLUMN,
                 pl.col(m.column_id).alias(BASELINE_VALUE_COLUMN)
             ])
             tdf = df.join(bdf, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+            meta.units[BASELINE_VALUE_COLUMN] = bdf_meta.units[m.column_id]
             df = ppl.to_ppdf(tdf, meta=meta)
+
+        if len(df.filter(df[YEAR_COLUMN].is_duplicated())):
+            raise NodeError(node, "Metric has duplicated years")
+
         return Metric(id=node.id, name=str(node.name), unit=node.unit, node=node, df=df)
 
     def split_df(self) -> SplitValues | None:
