@@ -42,6 +42,9 @@ class Scenario:
         for param in context.get_all_parameters():
             param.reset_to_scenario_setting(self)
 
+    def __str__(self) -> str:
+        return self.id
+
 
 class CustomScenario(Scenario):
     base_scenario: Scenario

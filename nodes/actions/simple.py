@@ -35,8 +35,8 @@ class CumulativeAdditiveAction(ActionNode):
     ]
 
     def add_cumulatively(self, df):
-        target_year = self.get_target_year()
-        df = df.reindex(range(df.index.min(), target_year + 1))
+        end_year = self.get_end_year()
+        df = df.reindex(range(df.index.min(), end_year + 1))
         df[FORECAST_COLUMN] = True
 
         for col in df.columns:
@@ -80,7 +80,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         delay = self.get_parameter_value('action_delay', required=False)
         if delay is not None:
             start_year = start_year + int(delay)
-        end_year = df.index.max()
+        end_year = self.get_end_year()
         df = df.reindex(range(start_year, end_year + 1))
         df[FORECAST_COLUMN] = True
 

@@ -18,7 +18,7 @@ class DimensionCategory(BaseModel):
     aliases: List[str] = Field(default_factory=list)
 
     def all_labels(self) -> set[str]:
-        labels = set()
+        labels = set([str(self.id)])
         if isinstance(self.label, TranslatedString):
             labels.update(self.label.all())
         elif isinstance(self.label, str):
@@ -83,7 +83,7 @@ class Dimension(BaseModel):
         df = pl.DataFrame(dict(cat=s))
         df = df.join(map_df, left_on='cat', right_on='label', how='left')
         if df['id'].null_count():
-            missing_cats = df.filter(~pl.col('id'))['cat'].unique()
+            missing_cats = df.filter(pl.col('id').is_null())['cat'].unique()
             raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
         ret = df['id'].cast(pl.Categorical)
         if name:

@@ -302,7 +302,15 @@ LANGUAGES = (
 LOCAL_LANGUAGE_NAMES = {
     'de-CH': "Deutsch (Schweiz)",
 }
-MODELTRANS_AVAILABLE_LANGUAGES = [x[0] for x in LANGUAGES]
+MODELTRANS_AVAILABLE_LANGUAGES = [x[0].lower() for x in LANGUAGES]
+MODELTRANS_FALLBACK = {
+    'default': (),
+    #'en-au': ('en',),
+    #'en-gb': ('en',),
+    'de-ch': ('de',),
+}  # use language in default_language_field instead of a global fallback
+
+
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
 LANGUAGE_CODE = 'fi'
 TIME_ZONE = 'Europe/Helsinki'

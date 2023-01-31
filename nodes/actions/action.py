@@ -93,6 +93,9 @@ class ActionNode(Node):
 
     def print_impact(self, target_node: Node):
         df = self.compute_impact(target_node)
+        meta = df.get_meta()
+        if meta.dim_ids:
+            df = df.paths.to_wide()
         self.print(df)
 
     def on_scenario_created(self, scenario):

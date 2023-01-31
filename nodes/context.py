@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from .node import Node, Dimension
     from .instance import Instance
     from .scenario import CustomScenario, Scenario
+    from .units import CachingUnitRegistry
     from nodes.actions.action import ActionEfficiencyPair, ActionNode
 
 
