@@ -64,7 +64,9 @@ beautifulsoup4==4.11.1
 billiard==3.6.4.0
     # via celery
 boto3==1.24.59
-    # via aiobotocore
+    # via
+    #   -r requirements.in
+    #   aiobotocore
 botocore==1.27.59
     # via
     #   aiobotocore
@@ -133,6 +135,7 @@ django==3.2.16
     #   django-modeltrans
     #   django-oauth-toolkit
     #   django-permissionedforms
+    #   django-storages
     #   django-taggit
     #   django-treebeard
     #   djangorestframework
@@ -159,6 +162,8 @@ django-oauth-toolkit==2.2.0
     # via -r requirements.in
 django-permissionedforms==0.1
     # via wagtail
+django-storages==1.13.2
+    # via -r requirements.in
 django-taggit==3.1.0
     # via wagtail
 django-treebeard==4.6.0

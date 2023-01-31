@@ -30,8 +30,6 @@ env = environ.FileAwareEnv(
     SECRET_KEY=(str, ''),
     AZURE_AD_CLIENT_ID=(str, ''),
     AZURE_AD_CLIENT_SECRET=(str, ''),
-    AWS_ACCESS_KEY_ID=(str, ''),
-    AWS_SECRET_ACCESS_KEY=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
     CACHE_URL=(str, 'locmemcache://'),
@@ -47,7 +45,11 @@ env = environ.FileAwareEnv(
     INTERNAL_IPS=(list, []),
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
     CONFIGURE_LOGGING=(bool, True),
-    LOG_GRAPHQL_QUERIES=(bool, True)
+    LOG_GRAPHQL_QUERIES=(bool, True),
+    AWS_S3_ENDPOINT_URL=(str, ''),
+    AWS_STORAGE_BUCKET_NAME=(str, ''),
+    AWS_ACCESS_KEY_ID=(str, ''),
+    AWS_SECRET_ACCESS_KEY=(str, ''),
 )
 
 BASE_DIR = root()
@@ -324,6 +326,11 @@ STATICFILES_FINDERS = [
 # ]
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+AWS_S3_ENDPOINT_URL = env('AWS_S3_ENDPOINT_URL')
+if AWS_S3_ENDPOINT_URL:
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME')
 
 STATIC_URL = env('STATIC_URL')
 MEDIA_URL = env('MEDIA_URL')
