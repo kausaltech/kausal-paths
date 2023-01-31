@@ -7,10 +7,10 @@
 <script type="text/javascript">
     $(function() {
         const setError = (detail) => {
-            $('.messages').append(`<ul><li class="error">${detail}</li></ul>`);
+            $('.messages').empty().append(`<ul><li class="error">${detail}</li></ul>`);
         };
         const setUnknownError = () => {
-            const msg = detail || "{% trans 'Our apologies, the server is temporarily experiencing difficulties.' %}"
+            const msg = "{% trans 'Our apologies, the server is temporarily experiencing difficulties.' %}";
             setError(msg);
         };
         const socialUrlBase = "{% url 'social:begin' 'BACKEND' %}"
@@ -47,6 +47,7 @@
                 return;
             }
 
+            window.localStorage.removeItem(ITEM_NAME);
             ev.preventDefault();
             ev.stopPropagation();
 
@@ -69,6 +70,8 @@
                 } else {
                     setUnknownError();
                 }
+                setTimeout(() => { window.cancelSpinner() }, 50);
+                return;
             }
             const { method } = resp;
             if (!method) {
@@ -78,9 +81,7 @@
             window.localStorage.setItem(ITEM_NAME, email);
             if (method == 'password') {
                 hiddenEls.forEach((el) => el.show());
-                try {
-                    window.cancelSpinner();
-                } catch (error) {};
+                setTimeout(() => { window.cancelSpinner() }, 50);
             } else {
                 let url = socialUrlBase.replace(/BACKEND/, method);
                 const next = form.find('input[name="next"]').val();

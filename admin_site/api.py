@@ -11,7 +11,7 @@ from users.models import User
 
 
 class LoginMethodThrottle(UserRateThrottle):
-    rate = '1/s'
+    rate = '5/m'
 
 
 @api_view(['POST'])
@@ -22,18 +22,21 @@ class LoginMethodThrottle(UserRateThrottle):
 def check_login_method(request):
     d = request.data
     if not d or not isinstance(d, dict):
-        raise ValidationError()
+        msg = _("Invalid email address")
+        raise ValidationError(dict(detail=msg, code="invalid_email"))
+
     email = d.get('email', '').strip().lower()
     if not email:
-        raise ValidationError()
+        msg = _("Invalid email address")
+        raise ValidationError(dict(detail=msg, code="invalid_email"))
     user = User.objects.filter(email=email).first()
     if user is None:
         msg = _("No user found with this email address. Ask your administrator to create an account for you.")
-        raise NotFound(dict(detail=msg, code="no_user"))
+        raise ValidationError(dict(detail=msg, code="no_user"))
 
     if not user.can_access_admin():
         msg = _("This user does not have access to admin.")
-        raise NotFound(dict(detail=msg, code="no_admin_access"))
+        raise ValidationError(dict(detail=msg, code="no_admin_access"))
 
     if user.has_usable_password():
         method = 'password'
