@@ -118,7 +118,13 @@ def get_modeltrans_attrs_from_str(
     if isinstance(s, TranslatedString):
         i18n.update({f'{field_name}_{lang}': v for lang, v in s.i18n.items()})
         if default_lang not in s.i18n:
-            raise Exception("Field %s does not have a value in language %s" % (field_name, default_lang))
+            fallbacks = settings.MODELTRANS_FALLBACK.get(default_lang, ())
+            for lang in fallbacks:
+                if lang in s.i18n:
+                    i18n[f'{default_lang}_{lang}'] = s.i18n[lang]
+                    break
+            else:
+                raise Exception("Field '%s' does not have a value in language %s" % (field_name, default_lang))
         field_val = s.i18n[default_lang]
     else:
         field_val = s
