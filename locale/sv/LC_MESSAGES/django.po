@@ -20,23 +20,23 @@ msgstr ""
 
 #: datasets/models.py
 msgid "dataset"
-msgstr ""
+msgstr "datauppsättning"
 
 #: datasets/models.py
 msgid "datasets"
-msgstr ""
+msgstr "datauppsättningar"
 
 #: datasets/models.py
 msgid "label"
-msgstr ""
+msgstr "etikett"
 
 #: datasets/models.py
 msgid "resolved at"
-msgstr ""
+msgstr "löstes vid"
 
 #: datasets/wagtail_hooks.py
 msgid "Dimensions"
-msgstr ""
+msgstr "Mått"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
@@ -105,39 +105,39 @@ msgstr ""
 
 #: nodes/instance.py
 msgid "Custom"
-msgstr ""
+msgstr "Anpassad"
 
 #: nodes/models.py
 msgid "name"
-msgstr ""
+msgstr "namn"
 
 #: nodes/models.py pages/models.py
 msgid "Lead title"
-msgstr ""
+msgstr "Huvudtitel"
 
 #: nodes/models.py pages/models.py
 msgid "Lead paragraph"
-msgstr ""
+msgstr "Huvudparagraf"
 
 #: nodes/models.py
 msgid "Site URL"
-msgstr ""
+msgstr "Webbadress"
 
 #: nodes/models.py
 msgid "Instance"
-msgstr ""
+msgstr "Instans"
 
 #: nodes/models.py
 msgid "Instances"
-msgstr ""
+msgstr "Instanser"
 
 #: nodes/models.py
 msgid "Actions"
-msgstr ""
+msgstr "Åtgärder"
 
 #: nodes/models.py
 msgid "Instance hostname"
-msgstr ""
+msgstr "Instansvärdnamn"
 
 #: nodes/models.py
 msgid "Instance hostnames"
@@ -157,23 +157,23 @@ msgstr ""
 
 #: nodes/models.py
 msgid "Short description"
-msgstr ""
+msgstr "Kort beskrivning"
 
 #: nodes/models.py
 msgid "Description"
-msgstr ""
+msgstr "Beskrivning"
 
 #: nodes/models.py
 msgid "Node"
-msgstr ""
+msgstr "Nod"
 
 #: nodes/models.py
 msgid "Nodes"
-msgstr ""
+msgstr "Noder"
 
 #: nodes/processors.py
 msgid "Multiplier"
-msgstr ""
+msgstr "Multiplikator"
 
 #: nodes/units.py
 msgid "capita"
@@ -196,43 +196,43 @@ msgstr "år"
 
 #: pages/models.py
 msgid "show in footer"
-msgstr ""
+msgstr "visa i sidfot"
 
 #: pages/models.py
 msgid "Should the page be shown in the footer?"
-msgstr ""
+msgstr "Ska sidan visas i sidfoten?"
 
 #: pages/models.py
 msgid "Common page configuration"
-msgstr ""
+msgstr "Gemensam sidkonfiguration"
 
 #: pages/models.py
 msgid "Outcome page"
-msgstr ""
+msgstr "Resultatsida"
 
 #: pages/models.py
 msgid "Outcome pages"
-msgstr ""
+msgstr "Resultatsidor"
 
 #: pages/models.py
 msgid "Action list page"
-msgstr ""
+msgstr "Åtgärdslistsida"
 
 #: pages/models.py
 msgid "Action list pages"
-msgstr ""
+msgstr "Åtgärdslistsidor"
 
 #: pages/wagtail_hooks.py
 msgid "Choose instance"
-msgstr ""
+msgstr "Välj instans"
 
 #: params/global_params.py
 msgid "Cost node"
-msgstr ""
+msgstr "Kostnadsnod"
 
 #: params/global_params.py
 msgid "Municipality name"
-msgstr ""
+msgstr "Kommunens namn"
 
 #: params/global_params.py
 msgid "Discount node name"
@@ -312,31 +312,31 @@ msgstr ""
 
 #: paths/settings.py
 msgid "Finnish"
-msgstr ""
+msgstr "Finska"
 
 #: paths/settings.py
 msgid "English"
-msgstr ""
+msgstr "Engelska"
 
 #: paths/settings.py
 msgid "Swedish"
-msgstr ""
+msgstr "Svenska"
 
 #: paths/settings.py
 msgid "German"
-msgstr ""
+msgstr "Tyska"
 
 #: paths/settings.py
 msgid "German (Switzerland)"
-msgstr ""
+msgstr "Tyska (Schweiz)"
 
 #: paths/utils.py
 msgid "identifier"
-msgstr ""
+msgstr "identifierare"
 
 #: paths/utils.py
 msgid "unit"
-msgstr ""
+msgstr "enhet"
 
 #: paths/utils.py
 msgid "uuid"
@@ -344,16 +344,16 @@ msgstr ""
 
 #: paths/utils.py
 msgid "created at"
-msgstr ""
+msgstr "skapad på"
 
 #: paths/utils.py
 msgid "updated at"
-msgstr ""
+msgstr "uppdaterad på"
 
 #: paths/utils.py
 msgid "order"
-msgstr ""
+msgstr "ordning"
 
 #: users/models.py
 msgid "email address"
-msgstr ""
+msgstr "e-postadress"
