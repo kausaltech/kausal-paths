@@ -136,14 +136,21 @@ class PathsExt:
         df = df.fill_null(strategy='forward')
         return df
 
-    def sum_over_dims(self) -> ppl.PathsDataFrame:
+    def sum_over_dims(self, dims: list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df
         meta = df.get_meta()
         if FORECAST_COLUMN in df.columns:
             fc = [pl.first(FORECAST_COLUMN)]
         else:
             fc = []
-        zdf = df.groupby(YEAR_COLUMN).agg([
+
+        if dims is None:
+            dims = meta.dim_ids
+        remaining_keys = list(meta.primary_keys)
+        for dim in dims:
+            remaining_keys.remove(dim)
+
+        zdf = df.groupby(remaining_keys).agg([
             *[pl.sum(col).alias(col) for col in meta.metric_cols],
             *fc,
         ]).sort(YEAR_COLUMN)
