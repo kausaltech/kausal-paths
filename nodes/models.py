@@ -26,7 +26,7 @@ from paths.utils import (
 from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
-    from datasets.models import Dimension as DimensionModel
+    from datasets.models import Dimension as DimensionModel, Dataset as DatasetModel
 
 
 instance_cache = threading.local()
@@ -85,6 +85,7 @@ class InstanceConfig(models.Model):
     nodes: models.manager.RelatedManager[NodeConfig]
     hostnames: models.manager.RelatedManager[InstanceHostname]
     dimensions: models.manager.RelatedManager['DimensionModel']
+    datasets: models.manager.RelatedManager['DatasetModel']
 
     class Meta:
         verbose_name = _('Instance')
