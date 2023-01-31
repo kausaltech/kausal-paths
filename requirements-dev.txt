@@ -68,7 +68,7 @@ idna==3.4
     #   requests
 ipdb==0.13.11
     # via -r requirements-dev.in
-ipython==8.8.0
+ipython==8.9.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
