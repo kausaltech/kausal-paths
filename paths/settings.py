@@ -28,6 +28,8 @@ env = environ.FileAwareEnv(
     DEBUG=(bool, False),
     DEPLOYMENT_TYPE=(str, 'development'),
     SECRET_KEY=(str, ''),
+    AZURE_AD_CLIENT_ID=(str, ''),
+    AZURE_AD_CLIENT_SECRET=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
     CACHE_URL=(str, 'locmemcache://'),
@@ -43,7 +45,11 @@ env = environ.FileAwareEnv(
     INTERNAL_IPS=(list, []),
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
     CONFIGURE_LOGGING=(bool, True),
-    LOG_GRAPHQL_QUERIES=(bool, True)
+    LOG_GRAPHQL_QUERIES=(bool, True),
+    AWS_S3_ENDPOINT_URL=(str, ''),
+    AWS_STORAGE_BUCKET_NAME=(str, ''),
+    AWS_ACCESS_KEY_ID=(str, ''),
+    AWS_SECRET_ACCESS_KEY=(str, ''),
 )
 
 BASE_DIR = root()
@@ -83,6 +89,7 @@ INSTALLED_APPS = [
     'wagtail.embeds',
     'wagtail.sites',
     'users',  # must be before wagtail.users
+    'admin_site',  # must be before wagtail.admin
     'wagtail.users',
     'wagtail.snippets',
     'wagtail.documents',
@@ -100,6 +107,8 @@ INSTALLED_APPS = [
     'modelcluster',
     'grapple',
     'graphene_django',
+
+    'social_django',
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -132,6 +141,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
+    'admin_site.middleware.AuthExceptionMiddleware',
     'paths.middleware.AdminMiddleware',
 ]
 
@@ -174,6 +184,54 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+SOCIAL_AUTH_RAISE_EXCEPTIONS = False
+
+AUTHENTICATION_BACKENDS = (
+    'admin_site.auth_backends.AzureADAuth',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+SOCIAL_AUTH_AZURE_AD_KEY = env.str('AZURE_AD_CLIENT_ID')
+SOCIAL_AUTH_AZURE_AD_SECRET = env.str('AZURE_AD_CLIENT_SECRET')
+
+SOCIAL_AUTH_PIPELINE = (
+    'admin_site.auth_pipeline.log_login_attempt',
+
+    # Get the information we can about the user and return it in a simple
+    # format to create the user instance later. On some cases the details are
+    # already part of the auth response from the provider, but sometimes this
+    # could hit a provider API.
+    'social_core.pipeline.social_auth.social_details',
+
+    # Get the social uid from whichever service we're authing thru. The uid is
+    # the unique identifier of the given user in the provider.
+    'social_core.pipeline.social_auth.social_uid',
+
+    # Generate username from UUID
+    'admin_site.auth_pipeline.get_username',
+
+    # Checks if the current social-account is already associated in the site.
+    'social_core.pipeline.social_auth.social_user',
+
+    # Finds user by email address
+    'admin_site.auth_pipeline.find_user_by_email',
+
+    # Get or create the user and update user data
+    'admin_site.auth_pipeline.create_or_update_user',
+
+    # Create the record that associated the social account with this user.
+    'social_core.pipeline.social_auth.associate_user',
+
+    # Populate the extra_data field in the social record with the values
+    # specified by settings (and the default ones like access_token, etc).
+    'social_core.pipeline.social_auth.load_extra_data',
+
+    # Update avatar photo from MS Graph
+    'admin_site.auth_pipeline.update_avatar',
+)
+
 
 
 INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'
@@ -268,6 +326,13 @@ STATICFILES_FINDERS = [
 # ]
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+AWS_S3_ENDPOINT_URL = env('AWS_S3_ENDPOINT_URL')
+if AWS_S3_ENDPOINT_URL:
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME')
+    AWS_ACCESS_KEY_ID=env('AWS_ACCESS_KEY_ID'),
+    AWS_SECRET_ACCESS_KEY=env('AWS_SECRET_ACCESS_KEY'),
 
 STATIC_URL = env('STATIC_URL')
 MEDIA_URL = env('MEDIA_URL')

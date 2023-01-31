@@ -41,3 +41,5 @@ polars
 drf-nested-routers
 drf-spectacular
 social-auth-app-django
+django-storages
+boto3
