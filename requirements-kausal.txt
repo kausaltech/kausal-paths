@@ -1,1 +1,1 @@
-kausal_paths_extensions==0.5.0
+kausal_paths_extensions==0.6.1
