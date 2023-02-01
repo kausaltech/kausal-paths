@@ -153,7 +153,7 @@ params:
   label: CO2 kostnadsökningtakt (%/år)
 - id: price_of_electricity
   value: 0.670
-  min_value: 0.4
+  min_value: 0
   max_value: 0.8
   unit: SEK/kWh
   is_customizable: true
@@ -167,7 +167,7 @@ params:
   label: Kostnadsökningstakt av elpris (%/år)
 - id: price_of_heat
   value: 0.6944
-  min_value: 0.4
+  min_value: 0
   max_value: 0.8
   unit: SEK/kWh
   is_customizable: true
@@ -3228,6 +3228,56 @@ scenarios:
     value: 0
   - id: improved_ventilation_single_family.enabled
     value: false
+
+- id: investment_costs
+  name_fi: Vain investointikustannukset, kaikki toimet
+  name_en: Only investment costs, all actions
+  name: Bara investeringkostnader, alla åtgärder
+  all_actions_enabled: true
+  params:
+  - id: include_energy_taxes
+    value: false
+  - id: include_co2
+    value: false
+  - id: include_health
+    value: false
+  - id: include_el_avoided
+    value: false
+  - id: discount_rate
+    value: 3.5
+  - id: avoided_electricity_capacity_price
+    value: 0.4
+  - id: heat_co2_ef
+    value: 52
+  - id: electricity_co2_ef
+    value: 93.2
+  - id: renovation_rate_baseline
+    value: 0.5
+  - id: price_of_co2
+    value: 6450
+  - id: price_of_co2_annual_change
+    value: 3
+  - id: price_of_electricity
+    value: 0
+  - id: price_of_electricity_annual_change
+    value: 0
+  - id: price_of_heat
+    value: 0
+  - id: price_of_heat_annual_change
+    value: 0
+  - id: improved_ventilation_single_family.enabled
+    value: false
+  - id: price_of_electricity.added_value_tax
+    value: 0
+  - id: price_of_electricity.network_price
+    value: 0
+  - id: price_of_electricity.handling_fee
+    value: 0
+  - id: price_of_electricity.certificate
+    value: 0
+  - id: price_of_electricity.energy_tax
+    value: 0
+
 
 #    - id: optimal
 #      default: true
