@@ -141,7 +141,9 @@ class ActionEfficiency(typing.NamedTuple):
 class ActionEfficiencyPair:
     cost_node: Node
     impact_node: Node
-    unit: Unit
+    efficiency_unit: Unit
+    cost_unit: Unit
+    impact_unit: Unit
     plot_limit_efficiency: float | None
     invert_cost: bool
     invert_impact: bool
@@ -149,16 +151,20 @@ class ActionEfficiencyPair:
 
     @classmethod
     def from_config(
-        cls, context: 'Context', cost_node_id: str, impact_node_id: str, unit: str,
+        cls, context: 'Context', cost_node_id: str, impact_node_id: str,
+        efficiency_unit: str, cost_unit: str, impact_unit: str,
         plot_limit_efficiency: float | None = None,
         invert_cost: bool = False, invert_impact: bool = True,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
-        unit_obj = context.unit_registry.parse_units(unit)
+        efficiency_unit_obj = context.unit_registry.parse_units(efficiency_unit)
+        cost_unit_obj = context.unit_registry.parse_units(cost_unit)
+        impact_unit_obj = context.unit_registry.parse_units(impact_unit)
         aep = ActionEfficiencyPair(
-            cost_node=cost_node, impact_node=impact_node, unit=unit_obj,
+            cost_node=cost_node, impact_node=impact_node, efficiency_unit=efficiency_unit_obj,
+            cost_unit=cost_unit_obj, impact_unit=impact_unit_obj,
             invert_cost=invert_cost, invert_impact=invert_impact,
             plot_limit_efficiency=plot_limit_efficiency, label=label)
         aep.validate()
@@ -169,7 +175,7 @@ class ActionEfficiencyPair:
         if self.cost_node.unit is None or self.impact_node.unit is None:
             raise Exception("Cost or impact node does not have a unit")
         div_unit = self.cost_node.unit / self.impact_node.unit
-        if not self.unit.is_compatible_with(div_unit):
+        if not self.efficiency_unit.is_compatible_with(div_unit):
             raise Exception("Unit %s is not compatible with %s" % (self.unit, div_unit))
 
     def calculate_iter(

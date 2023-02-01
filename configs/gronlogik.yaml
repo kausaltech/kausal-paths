@@ -49,7 +49,9 @@ action_efficiency_pairs:
   impact_node: net_energy_consumption
   invert_cost: false
   invert_impact: true
-  unit: SEK/kWh
+  efficiency_unit: SEK/kWh
+  cost_unit: MSEK
+  impact_unit: TWh
   plot_limit_efficiency: 10
   label_fi: Energiansäästön marginaalikustannus
   label_en: Marginal cost in energy savings
@@ -58,7 +60,9 @@ action_efficiency_pairs:
   impact_node: net_emissions
   invert_cost: false
   invert_impact: true
-  unit: SEK/t
+  efficiency_unit: SEK/t
+  cost_unit: MSEK
+  impact_unit: Mt
   plot_limit_efficiency: 60000
   label_fi: Päästövähennysten marginaalikustannus
   label_en: Marginal cost in net emissions
@@ -67,7 +71,9 @@ action_efficiency_pairs:
   impact_node: net_electricity_consumption
   invert_cost: false
   invert_impact: true
-  unit: SEK/kWh
+  efficiency_unit: SEK/kWh
+  cost_unit: MSEK
+  impact_unit: TWh
   plot_limit_efficiency: 10
   label_fi: Sähkönsäästön marginaalikustannus
   label_en: Marginal cost in electricity savings
@@ -76,7 +82,9 @@ action_efficiency_pairs:
   impact_node: net_electricity_consumption_per_area
   invert_cost: false
   invert_impact: true
-  unit: SEK/kWh
+  efficiency_unit: SEK/kWh
+  cost_unit: SEK/m**2
+  impact_unit: kWh/m**2
   plot_limit_efficiency: 10
   label_fi: Sähkönsäästön marginaalikustannus per ala
   label_en: Marginal cost in electricity savings per area

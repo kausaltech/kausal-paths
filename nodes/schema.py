@@ -319,11 +319,6 @@ class ActionEfficiency(graphene.ObjectType):
     action = graphene.Field(NodeType)
     cost_values = graphene.List(YearlyValue)
     impact_values = graphene.List(YearlyValue)
-    cumulative_efficiency = graphene.Float()
-    cumulative_cost = graphene.Float()
-    cumulative_impact = graphene.Float()
-    cumulative_cost_unit = graphene.Field('paths.schema.UnitType')  # FIXME Does not work for some reason
-    cumulative_impact_unit = graphene.Field('paths.schema.UnitType')
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):
@@ -331,6 +326,8 @@ class ActionEfficiencyPairType(graphene.ObjectType):
     cost_node = graphene.Field(NodeType)
     impact_node = graphene.Field(NodeType)
     efficiency_unit = graphene.Field('paths.schema.UnitType')
+    cost_unit = graphene.Field('paths.schema.UnitType')
+    impact_unit = graphene.Field('paths.schema.UnitType')
     plot_limit_efficiency = graphene.Float()
     invert_cost = graphene.Boolean()
     invert_impact = graphene.Boolean()
@@ -346,22 +343,26 @@ class ActionEfficiencyPairType(graphene.ObjectType):
         all_aes = root.calculate(info.context.instance.context)
         out = []
         for ae in all_aes:
-            sum_fields = ['cumulative_efficiency', 'cumulative_cost', 'cumulative_impact']
             years = ae.df[YEAR_COLUMN]
             d = dict(
                 action=ae.action,
                 cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']))],
                 impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']))],
-                cumulative_cost_unit=ae.cumulative_cost_unit,
-                cumulative_impact_unit=ae.cumulative_impact_unit,
-                **{f: float(getattr(ae, f).m) for f in sum_fields},
             )
             out.append(d)
         return out
 
     @staticmethod
     def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
-        return root.unit
+        return root.efficiency_unit
+
+    @staticmethod
+    def resolve_cost_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
+        return root.cost_unit
+
+    @staticmethod
+    def resolve_impact_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
+        return root.impact_unit
 
 
 class InstanceBasicConfiguration(graphene.ObjectType):
