@@ -130,11 +130,7 @@ class ActionNode(Node):
 class ActionEfficiency(typing.NamedTuple):
     action: ActionNode
     df: ppl.PathsDataFrame
-    cumulative_efficiency: Quantity
-    cumulative_cost: Quantity
-    cumulative_impact: Quantity
-    cumulative_cost_unit: Unit
-    cumulative_impact_unit: Unit
+    efficiency_divisor: float
 
 
 @dataclass
@@ -144,6 +140,7 @@ class ActionEfficiencyPair:
     efficiency_unit: Unit
     cost_unit: Unit
     impact_unit: Unit
+#    efficiency_divisor: float
     plot_limit_efficiency: float | None
     invert_cost: bool
     invert_impact: bool
@@ -153,6 +150,7 @@ class ActionEfficiencyPair:
     def from_config(
         cls, context: 'Context', cost_node_id: str, impact_node_id: str,
         efficiency_unit: str, cost_unit: str, impact_unit: str,
+#        efficiency_divisor: float,
         plot_limit_efficiency: float | None = None,
         invert_cost: bool = False, invert_impact: bool = True,
         label: TranslatedString | str | None = None
@@ -165,6 +163,7 @@ class ActionEfficiencyPair:
         aep = ActionEfficiencyPair(
             cost_node=cost_node, impact_node=impact_node, efficiency_unit=efficiency_unit_obj,
             cost_unit=cost_unit_obj, impact_unit=impact_unit_obj,
+#            efficiency_divisor=efficiency_divisor,
             invert_cost=invert_cost, invert_impact=invert_impact,
             plot_limit_efficiency=plot_limit_efficiency, label=label)
         aep.validate()
@@ -198,23 +197,18 @@ class ActionEfficiencyPair:
                 # No impact for this action, skip it
                 continue
 
-            cost: Quantity = df['Cost'].sum() * df.get_unit('Cost') * Quantity('1 a')  # type: ignore
-            if self.invert_cost:
-                cost *= -1
-            impact: Quantity = df['Impact'].sum() * df.get_unit('Impact') * Quantity('1 a')  # type: ignore
-            if self.invert_impact:
-                impact *= -1
-            efficiency: Quantity = (cost / impact).to(self.efficiency_unit)  # type: ignore
-            if impact < 0:
-                efficiency *= -1
+            df = df.set_unit('Cost', df.get_unit('Cost') * Quantity('1 a'), warn=False)
+            df = df.set_unit('Impact', df.get_unit('Impact') * Quantity('1 a'), warn=False)
+            df = df.ensure_unit('Cost', self.cost_unit)
+            df = df.ensure_unit('Impact', self.impact_unit)
+
+            efficiency_divisor = 1 * self.efficiency_unit * self.impact_unit / self.cost_unit
+            efficiency_divisor = efficiency_divisor.to('dimensionless')
 
             ae = ActionEfficiency(
-                action=action, df=df,
-                cumulative_cost=cost,
-                cumulative_impact=impact,
-                cumulative_efficiency=efficiency,
-                cumulative_cost_unit=cost.units,
-                cumulative_impact_unit=impact.units
+                action=action,
+                df=df,
+                efficiency_divisor=efficiency_divisor
             )
             yield ae
 

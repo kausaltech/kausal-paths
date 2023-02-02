@@ -166,10 +166,11 @@ class PathsDataFrame(pl.DataFrame):
     def has_unit(self, col: str) -> bool:
         return col in self._units
 
-    def set_unit(self, col: str, unit: Unit) -> PathsDataFrame:
+    def set_unit(self, col: str, unit: Unit, warn: bool = True) -> PathsDataFrame:
         assert col in self.columns
         if col in self._units:
-            raise Exception("Column %s already has a unit set" % col)
+            if warn:
+                raise Exception("Column %s already has a unit set" % col)
         self._units[col] = unit
         return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
 

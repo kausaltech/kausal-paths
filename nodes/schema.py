@@ -319,6 +319,7 @@ class ActionEfficiency(graphene.ObjectType):
     action = graphene.Field(NodeType)
     cost_values = graphene.List(YearlyValue)
     impact_values = graphene.List(YearlyValue)
+    efficiency_divisor = graphene.Float()
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):
@@ -348,6 +349,7 @@ class ActionEfficiencyPairType(graphene.ObjectType):
                 action=ae.action,
                 cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']))],
                 impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']))],
+                efficiency_divisor=ae.efficiency_divisor,
             )
             out.append(d)
         return out
