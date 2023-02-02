@@ -6,7 +6,7 @@ from graphql.type.directives import (
 )
 from graphql.error import GraphQLError
 from graphql.type.scalars import GraphQLID, GraphQLString
-from django.utils.translation import get_language, gettext_lazy as _
+from django.utils.translation import get_language, gettext as _
 
 from grapple.registry import registry as grapple_registry
 
@@ -51,12 +51,12 @@ class UnitType(graphene.ObjectType):
     def resolve_html_short(self: Unit, info):  # type: ignore
         lang = get_language()
         val = self.format_babel('~H', locale=lang, sort=False)  # type: ignore
-        return val.replace('/', '∕')
+        return val
 
     def resolve_html_long(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~H', locale=lang)  # type: ignore
-        return val.replace('/', '∕')
+        val = self.format_babel('~H', locale=lang, sort=False)  # type: ignore
+        return val
         # FIXME
         if val == 't/(a cap)':
             if lang == 'de':
