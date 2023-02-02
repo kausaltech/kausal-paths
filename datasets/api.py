@@ -4,10 +4,13 @@ from typing import Any, List, Sequence, Union
 import pandas as pd
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.urls import reverse
 from django.db.transaction import atomic
 from rest_framework import serializers, viewsets, exceptions, permissions, generics, mixins
 from rest_framework.response import Response
 from rest_framework_nested import routers, relations
+from drf_spectacular.utils import extend_schema_field, extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 from paths.types import APIRequest
 from nodes.api import instance_router
@@ -73,11 +76,16 @@ class DatasetCommentSerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter("instance_id", OpenApiTypes.INT, location='path'),
+    ]
+)
 class DatasetCommentViewSet(viewsets.ModelViewSet):
     serializer_class = DatasetCommentSerializer
 
     def get_queryset(self):
-        dataset_id = self.kwargs.get('dataset_pk')
+        dataset_id = self.kwargs.get('dataset_pk', 0)
         return DatasetComment.objects.filter(dataset_id=dataset_id)
 
 
@@ -121,17 +129,18 @@ class InstanceRelatedField(serializers.PrimaryKeyRelatedField):
 
 
 class DatasetSerializer(serializers.ModelSerializer):
-    table = DatasetTableSerializer(required=False, allow_null=True)
+    table = DatasetTableSerializer(required=True, allow_null=True)
     metrics = DatasetMetricSerializer(many=True)
     dimensions = InstanceRelatedField(many=True, queryset=Dimension.objects.all())
+    comments_url = serializers.SerializerMethodField()
 
     instance: Dataset | None
 
     class Meta:
         model = Dataset
         fields = [
-            'id', 'identifier', 'uuid', 'name', 'years', 'dimensions', 'metrics', 'table', 'comments',
-            'created_at', 'created_by', 'updated_at', 'updated_by'
+            'id', 'identifier', 'uuid', 'name', 'years', 'dimensions', 'metrics', 'table', 'comments_url',
+            'created_at', 'created_by', 'updated_at', 'updated_by',
         ]
         extra_kwargs = dict(
             created_at=dict(read_only=True),
@@ -139,6 +148,10 @@ class DatasetSerializer(serializers.ModelSerializer):
             created_by=dict(read_only=True),
             updated_by=dict(read_only=True),
         )
+
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_comments_url(self, obj):
+        return reverse('dataset-comments-list', kwargs=dict(instance_pk=obj.instance.pk, dataset_pk=obj.pk))
 
     def validate_table(self, table: dict):
         #print(table)
@@ -270,7 +283,10 @@ class DatasetSerializer(serializers.ModelSerializer):
             s.save(dataset=ds)
 
         if ds.table is None:
-            ds.table = ds.generate_empty_table()  # type: ignore
+            ds.table = ds.generate_empty_table()
+
+        if not ds.years:
+            ds.years = ds.generate_years_from_data()
 
         return ds
 
@@ -318,7 +334,7 @@ class DatasetViewSet(viewsets.ModelViewSet):
         return ret
 
     def get_queryset(self):
-        instance_pk = self.kwargs['instance_pk']
+        instance_pk = self.kwargs.get('instance_pk', 0)
         return Dataset.objects.filter(instance=instance_pk)
 
 

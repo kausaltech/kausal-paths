@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import date
 
 import pandas as pd
+import polars as pl
 import pint_pandas
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -23,7 +24,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
     )
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
-    years = ArrayField(models.IntegerField(), null=True, blank=True)
+    years = ArrayField(models.IntegerField())
     name = models.CharField(max_length=200)
 
     dimensions = ParentalManyToManyField(
@@ -31,7 +32,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
     )
     metrics: models.manager.RelatedManager[DatasetMetric]
 
-    table = models.JSONField(null=True)
+    table = models.JSONField()
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -48,6 +49,12 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
     def __str__(self):
         return '%s [%s]' % (self.name, self.identifier)
+
+    def generate_years_from_data(self) -> list[int]:
+        assert self.table is not None
+        data = self.table['data']
+        df = pl.DataFrame(data)
+        return list(df[YEAR_COLUMN].unique().sort())
 
     def generate_empty_table(self) -> dict:
         dtypes = {}
