@@ -193,7 +193,7 @@ class ActionEfficiencyPair:
                 # Action is not connected to either cost or impact nodes, skip it
                 continue
 
-            df = action.compute_efficiency(self.cost_node, self.impact_node, self.unit)
+            df = action.compute_efficiency(self.cost_node, self.impact_node, self.efficiency_unit)
             if not len(df):
                 # No impact for this action, skip it
                 continue
@@ -204,7 +204,7 @@ class ActionEfficiencyPair:
             impact: Quantity = df['Impact'].sum() * df.get_unit('Impact') * Quantity('1 a')  # type: ignore
             if self.invert_impact:
                 impact *= -1
-            efficiency: Quantity = (cost / impact).to(self.unit)  # type: ignore
+            efficiency: Quantity = (cost / impact).to(self.efficiency_unit)  # type: ignore
             if impact < 0:
                 efficiency *= -1
 
