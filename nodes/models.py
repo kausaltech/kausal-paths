@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import threading
+import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 from urllib.parse import urlparse
@@ -28,6 +29,8 @@ from .instance import Instance, InstanceLoader
 if TYPE_CHECKING:
     from datasets.models import Dimension as DimensionModel, Dataset as DatasetModel
 
+
+logger = logging.getLogger(__name__)
 
 instance_cache = threading.local()
 
@@ -116,6 +119,14 @@ class InstanceConfig(models.Model):
                 if self.i18n is None:
                     self.i18n = {}
                 self.i18n.update(i18n)
+
+        if self.primary_language != instance.default_language:
+            logger.info('Updating instance.primary_language to %s' % instance.default_language)
+            self.primary_language = instance.default_language
+        other_langs = set(instance.supported_languages) - set([self.primary_language])
+        if set(self.other_languages) != other_langs:
+            logger.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
+            self.other_languages = list(other_langs)
 
     def _get_instance(self) -> Instance:
         if hasattr(instance_cache, self.identifier):
