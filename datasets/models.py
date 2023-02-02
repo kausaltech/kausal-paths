@@ -100,7 +100,7 @@ class DatasetComment(UserModifiableModel):
 
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='comments')
     uuid = UUIDIdentifierField(null=True, blank=True)
-    cell_uuid = models.UUIDField(null=True, blank=True)
+    cell_path = models.CharField(null=True, blank=True, max_length=300)
     text = models.TextField()
 
     type = models.CharField(
