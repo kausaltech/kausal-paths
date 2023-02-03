@@ -99,6 +99,12 @@ class DatasetTableSerializer(serializers.Serializer):
         # FIXME: Move some of the schema validation logic here
         return super().validate(attrs)
 
+    def validate_empty_values(self, data: Any) -> tuple[bool, Any]:
+        if data is serializers.empty:
+            # We allow it to be null in incoming data
+            raise serializers.SkipField
+        return super().validate_empty_values(data)
+
     def get_fields(self):
         ret = super().get_fields()
         f = ret.pop('data_')
@@ -129,7 +135,7 @@ class InstanceRelatedField(serializers.PrimaryKeyRelatedField):
 
 
 class DatasetSerializer(serializers.ModelSerializer):
-    table = DatasetTableSerializer(required=True, allow_null=True)
+    table = DatasetTableSerializer(required=True, allow_null=False)
     metrics = DatasetMetricSerializer(many=True)
     dimensions = InstanceRelatedField(many=True, queryset=Dimension.objects.all())
     comments_url = serializers.SerializerMethodField()
