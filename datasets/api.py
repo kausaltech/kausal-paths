@@ -1,14 +1,13 @@
 # pylint: disable=abstract-method
-from typing import Any, List, Sequence, Union
+from typing import Any, List, Union
 
-import pandas as pd
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.urls import reverse
 from django.db.transaction import atomic
-from rest_framework import serializers, viewsets, exceptions, permissions, generics, mixins
+from rest_framework import serializers, viewsets, exceptions, permissions, generics
 from rest_framework.response import Response
-from rest_framework_nested import routers, relations
+from rest_framework_nested import routers
 from drf_spectacular.utils import extend_schema_field, extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
@@ -160,7 +159,6 @@ class DatasetSerializer(serializers.ModelSerializer):
         return reverse('dataset-comments-list', kwargs=dict(instance_pk=obj.instance.pk, dataset_pk=obj.pk))
 
     def validate_table(self, table: dict):
-        #print(table)
         return table
 
     def validate_table_cols(self, table: dict, metric_cols: list[str], dim_cols: dict[str, Dimension]):
@@ -206,7 +204,8 @@ class DatasetSerializer(serializers.ModelSerializer):
 
         return cols_present
 
-    def validate_table_schema(self, table: dict, metric_cols: list[str], dim_cols: dict[str, Dimension], cols_present: set[str]):
+    def validate_table_schema(self, table: dict, metric_cols: list[str],
+                              dim_cols: dict[str, Dimension], cols_present: set[str]):
         fields = table['schema']['fields']
         names = set([f['name'] for f in fields])
         fields_errors = []
