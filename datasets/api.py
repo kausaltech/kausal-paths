@@ -308,12 +308,15 @@ class DatasetSerializer(serializers.ModelSerializer):
 
         if Dataset.objects.filter(identifier=validated_data['identifier']).exists():
             raise exceptions.ValidationError(dict(identifier='identifier already exists'))
+        table_is_empty = 'table' not in validated_data
+        if table_is_empty:
+            validated_data['table'] = {'schema': None, 'data': None}
         ds: Dataset = super().create(validated_data)
 
         for s in metric_s:
             s.save(dataset=ds)
 
-        if ds.table is None:
+        if table_is_empty:
             ds.table = ds.generate_empty_table()  # type: ignore
             ds.save()
 
