@@ -82,6 +82,87 @@ dimensions:
   - id: buses_fuel_cell
     label: Linienbusse / Brennstoffzelle
     label_en: Regular buses / Fuel cell
+  - id: trolley
+    label: Trolleybusse
+    label_en: Trolley buses
+  - id: coach_diesel
+    label: Reisebusse / Diesel
+    label_en: Coaches / Diesel
+  - id: coach_natural_gas_biogas
+    label: Reisebusse / Erdgas/Biogas
+    label_en: Coaches / Natural gas/Biogas
+  - id: coach_battery_electric
+    label: Reisebusse / Elektrisch
+    label_en: Coaches / Battery-Electric
+  - id: coach_fuel_cell
+    label: Reisebusse / Brennstoffzelle
+    label_en: Coaches / Fuel cell
+  - id: lorry_diesel
+    label: Lastwagen / Diesel
+    label_en: Lorries / Diesel
+  - id: lorry_natural_gas_biogas
+    label: Lastwagen / Erdgas/Biogas
+    label_en: Lorries / Natural gas/Biogas
+  - id: lorry_diesel_plugin_hybrid
+    label: Lastwagen / Diesel Plug-in Hybrid
+    label_en: Lorries / Diesel plug-in hybrid
+  - id: lorry_battery_electric
+    label: Lastwagen / Elektrisch
+    label_en: Lorries / Battery-Electric
+  - id: lorry_fuel_cell
+    label: Lastwagen / Brennstoffzelle
+    label_en: Lorries / Fuel cell
+  - id: van_petrol
+    label: Lieferwagen / Benzin
+    label_en: Vans / Petrol
+  - id: van_diesel
+    label: Lieferwagen / Diesel
+    label_en: Van / Diesel
+  - id: van_natural_gas_biogas
+    label: Lieferwagen / Erdgas/Biogas
+    label_en: Van / Natural gas/Biogas
+  - id: van_diesel_plugin_hybrid
+    label: Lieferwagen / Plug-in Hybrid
+    label_en: Van / Plug-in hybrid
+  - id: van_battery_electric
+    label: Lieferwagen / Elektrisch
+    label_en: Van / Battery-Electric
+  - id: van_fuel_cell
+    label: Lieferwagen / Brennstoffzelle
+    label_en: Van / Fuel cell
+  - id: tram
+    label: Tram
+    label_en: Tram
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+  - id: rail_passenger
+    label: Bahn (Personverkehr)
+    label_en: Rail (passenger transport)
+  - id: rail_goods
+    label: Bahn (Gueterverkehr)
+    label_en: Rail (goods transport)
+  - id: liner_ship_diesel
+    label: Linienschiffe / Diesel
+    label_en: Liner ship / Diesel
+  - id: liner_ship_battery_electric
+    label: Linienschiffe / Elektrisch
+    label_en: Liner ship / Battery-Electric
+  - id: private_ship_petrol
+    label: Private Bootsverkehr / Benzin
+    label_en: Private ships / Petrol
+  - id: private_ship_diesel
+    label: Private Bootsverkehr / Diesel
+    label_en: Private ships / Diesel
+  - id: private_ship_battery_electric
+    label: Private Bootsverkehr / Elektrisch
+    label_en: Private ships / Battery-Electric
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt (exkl. Flugverkehr)
+    label_en: Mobility ourside the city (excl. aviation)
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
 
 - id: greenhouse_gases
   label: Treibhausgase

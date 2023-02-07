@@ -192,7 +192,7 @@ actions:
 
 - id: reduce_oil_heating_residence
   name: Öljylämmityksen vähentäminen (Asuminen)
-  type: simple.ShiftAction
+  type: shift.ShiftAction
   quantity: floor_area
   unit: m**2
   output_dimensions: [building_heat_source, building_use]
