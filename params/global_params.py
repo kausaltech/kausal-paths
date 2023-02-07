@@ -103,3 +103,8 @@ class PriceOfHeat(NumberParameter):
 class PriceOfHeatAnnualChange(NumberParameter):
     name = _('Price of heat annual change')
     id = 'price_of_heat_annual_change'
+
+
+class AllInInvestment(BoolParameter):
+    name = _('Invest all on the first year (in contrast to continuous investing)?')
+    id = 'all_in_investment'

@@ -11,7 +11,7 @@ name: Grön logik, potential för energieffektivisering i byggnader
 owner: Kausal & Anthesis
 owner_en: Kausal & Anthesis
 theme_identifier: gronlogik
-target_year: 2045
+target_year: 2062
 reference_year: 1990
 minimum_historical_year: 2019
 maximum_historical_year: 2021
@@ -94,6 +94,10 @@ params:
 - id: municipality_name
   label: Municipality
   value: Tampere
+- id: all_in_investment
+  label: Alla investeringar sker första året (inte kontinuerligt)
+  is_customizable: true
+  value: true
 - id: discount_rate
   label: Diskonteringsränta (%/år)
   description: Speed of value decrease for monetary variables
@@ -571,7 +575,7 @@ nodes:
 - id: avoided_capacity_cost_per_area_single_family
   name_fi: Vältetty sähköntuotantokapasiteetti per ala omakotitalossa
   name_en: Avoided capacity cost per area single family
-  name: Undvikt elutbuggnad per ytarea is småhus
+  name: Undvikt elutbyggnadskostnad per ytarea is småhus
   quantity: currency
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
@@ -793,7 +797,7 @@ nodes:
 - id: avoided_capacity_cost_per_area_apartment
   name_fi: Vältetty sähköntuotantokapasiteetti per ala kerrostalossa
   name_en: Avoided capacity cost per area apartment
-  name: Undvikt elutbuggnad per ytarea i flerbostadshus
+  name: Undvikt elutbyggnadskostnad per ytarea i flerbostadshus
   quantity: currency
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
@@ -1015,7 +1019,7 @@ nodes:
 - id: avoided_capacity_cost_per_area_office
   name_fi: Vältetty sähköntuotantokapasiteetti per ala toimistossa
   name_en: Avoided capacity cost per area office
-  name: Undvikt elutbuggnadkostnad per ytarea i kontor
+  name: Undvikt elutbyggnadskostnad per ytarea i kontor
   quantity: currency
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode
@@ -1237,7 +1241,7 @@ nodes:
 - id: avoided_capacity_cost_per_area_school
   name_fi: Vältetty sähköntuotantokapasiteetti per ala koulussa
   name_en: Avoided capacity cost per area schools
-  name: Undvikt utbuggnadskostnad per ytarea i skolor
+  name: Undvikt elutbyggnadskostnad per ytarea i skolor
   quantity: currency
   unit: SEK/a/m**2
   type: simple.FixedMultiplierNode

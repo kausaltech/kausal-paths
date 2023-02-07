@@ -199,6 +199,7 @@ class BuildingEnergyParams(typing.NamedTuple):
     maint_cost: float
     he_saving: float
     el_saving: float
+    all_in_investment: bool
 
 
 class BuildingEnergyRet(typing.NamedTuple):
@@ -239,7 +240,8 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
             forecast[i] = 0
         investment_round = i // params.lifetime
         if investment_round:
-            renovated_per_year[i] += renovated_per_year[i - params.lifetime]
+            if not params.all_in_investment:
+                renovated_per_year[i] += renovated_per_year[i - params.lifetime]
 
         cost[i] = renovated_per_year[i] * params.investment_cost
         cost[i] += total_renovated[i] * params.maint_cost
@@ -307,7 +309,7 @@ class BuildingEnergySavingAction(ActionNode):
         ),
     ]
     global_parameters: list[str] = ActionNode.global_parameters + [
-        'renovation_rate_baseline',
+        'renovation_rate_baseline', 'all_in_investment',
     ]
 
     def compute_effect(self) -> pd.DataFrame:
@@ -315,6 +317,7 @@ class BuildingEnergySavingAction(ActionNode):
         renovation_rate_param = self.get_global_parameter_value('renovation_rate_baseline', units=True)
         renovation_rate_baseline = renovation_rate_param.to('1/a').m
         target_year = self.context.target_year
+        all_in_investment = self.get_global_parameter_value('all_in_investment')
         current_year = self.context.instance.maximum_historical_year
         assert current_year is not None
 
@@ -333,7 +336,10 @@ class BuildingEnergySavingAction(ActionNode):
 
         # Calculations
         if self.is_enabled():
-            renovation_rate = 1 / lifetime
+            if all_in_investment:  # Renovate everything in one year
+                renovation_rate = 1.0
+            else:
+                renovation_rate = 1 / lifetime
         else:
             renovation_rate = renovation_rate_baseline
 
@@ -346,7 +352,8 @@ class BuildingEnergySavingAction(ActionNode):
             investment_cost=investment_cost.m,
             maint_cost=maint_cost.m,
             he_saving=he_saving.m,
-            el_saving=el_saving.m
+            el_saving=el_saving.m,
+            all_in_investment=all_in_investment,
         )
 
         ret = simulate_building_energy_saving(params)
