@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import base64
-import uuid
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from django.contrib.auth.models import AbstractUser as DjangoAbstractUser
+from django.contrib.auth.models import AbstractUser as DjangoAbstractUser, UserManager as DjangoUserManager
 from django.db import models
 
 from social_django.models import UserSocialAuth
@@ -43,8 +42,19 @@ def username_to_uuid(username: str):
     return UUID(bytes=decoded)
 
 
+class UserManager(DjangoUserManager):
+    def create_superuser(self, username=None, email=None, password=None, **extra_fields):
+        uuid = uuid4()
+        if not username:
+            username = uuid_to_username(uuid)
+        extra_fields['uuid'] = uuid
+        return super().create_superuser(username, email, password, **extra_fields)
+
+
 class AbstractUser(DjangoAbstractUser):
     uuid = models.UUIDField(unique=True)
+
+    objects = UserManager()
 
     social_auth: models.manager.RelatedManager[UserSocialAuth]
 
