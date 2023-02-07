@@ -167,9 +167,25 @@ class DimensionCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'identifier', 'uuid', 'label', 'order']
 
 
+class DatasetDimensionSelectedCategorySerializer(serializers.ModelSerializer):
+    def to_representation(self, value):
+        return DimensionCategorySerializer(data=value.category).to_representation(value.category)
+
+    def to_internal_value(self, data):
+        category = DimensionCategory.objects.get(id=data['id'])
+        return {'dataset_dimension': None, 'category': category}
+
+    class Meta:
+        model = DatasetDimensionSelectedCategory
+        fields = '__all__'
+
+
 class DatasetDimensionSerializer(serializers.ModelSerializer):
     dimension = serializers.PrimaryKeyRelatedField(queryset=Dimension.objects.all())
-    selected_categories = DimensionCategorySerializer(many=True)
+    selected_categories = DatasetDimensionSelectedCategorySerializer(
+        many=True,
+        source='datasetdimensionselectedcategory_set'
+    )
 
     class Meta:
         model = DatasetDimension
@@ -366,11 +382,8 @@ class DatasetSerializer(serializers.ModelSerializer):
                 dataset=ds,
                 dimension=selection['dimension']
             )
-            for cat in selection['selected_categories']:
-                category = DimensionCategory.objects.get(
-                    identifier=cat['identifier'],
-                    dimension=selection['dimension']
-                )
+            for csel in selection['datasetdimensionselectedcategory_set']:
+                category = csel['category']
                 DatasetDimensionSelectedCategory.objects.create(
                     dataset_dimension=dsd,
                     category=category

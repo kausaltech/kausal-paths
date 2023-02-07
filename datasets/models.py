@@ -226,4 +226,5 @@ class DatasetDimensionSelectedCategory(OrderedModel):
         return qs.filter(dataset_dimension=self.dataset_dimension)
 
     class Meta:
+        ordering = ('order', )
         unique_together = (('dataset_dimension', 'category'), )
