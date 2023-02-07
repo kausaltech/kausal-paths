@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.postgres.fields import ArrayField
 
 from modeltrans.fields import TranslationField
-from modelcluster.models import ClusterableModel, ParentalManyToManyField, ParentalKey
+from modelcluster.models import ClusterableModel
 from wagtail.admin.panels import FieldPanel, InlinePanel
 
 from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, UnitField, UserModifiableModel
@@ -27,9 +27,6 @@ class Dataset(ClusterableModel, UserModifiableModel):
     years = ArrayField(models.IntegerField())
     name = models.CharField(max_length=200)
 
-    dimensions = ParentalManyToManyField(
-        'Dimension', related_name='datasets', blank=True, through='DatasetDimension'
-    )
     metrics: models.manager.RelatedManager[DatasetMetric]
 
     table = models.JSONField()
@@ -64,8 +61,9 @@ class Dataset(ClusterableModel, UserModifiableModel):
             metric_cols.append(m.identifier)
 
         ctx = self.instance.get_instance().context
-        dims = [ctx.dimensions[dim.identifier] for dim in self.dimensions.all()]
-        dim_cats = [dim.get_cat_ids_ordered() for dim in dims]
+        dims = [ctx.dimensions[dim_sel.dimension.identifier] for dim_sel in self.dimension_selections.all()]
+        dim_cats = [[cat.identifier for cat in dim_sel.selected_categories.all()]
+                    for dim_sel in self.dimension_selections.all()]
         today = date.today()
         years = self.years if self.years is not None else range(2000, today.year + 1)
         index = pd.MultiIndex.from_product([years, *dim_cats], names=[YEAR_COLUMN, *[dim.id for dim in dims]])
@@ -178,8 +176,12 @@ class Dimension(ClusterableModel, UserModifiableModel):
 
 
 class DatasetDimension(OrderedModel):
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='dimension_selections')
     dimension = models.ForeignKey(Dimension, on_delete=models.CASCADE)
+    selected_categories = models.ManyToManyField(
+        to='DimensionCategory',
+        through='DatasetDimensionSelectedCategory'
+    )
 
     class Meta:
         unique_together = (('dataset', 'dimension'),)
@@ -193,7 +195,7 @@ class DatasetDimension(OrderedModel):
 
 
 class DimensionCategory(UserModifiableModel, OrderedModel):
-    dimension = ParentalKey(Dimension, on_delete=models.CASCADE, related_name='categories')
+    dimension = models.ForeignKey(Dimension, on_delete=models.CASCADE, related_name='categories')
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
     label = models.CharField(max_length=50)
@@ -209,3 +211,19 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
 
     def filter_siblings(self, qs: models.QuerySet['DimensionCategory']):
         return qs.filter(dimension=self.dimension)
+
+
+class DatasetDimensionSelectedCategory(OrderedModel):
+    dataset_dimension = models.ForeignKey(DatasetDimension, on_delete=models.CASCADE)
+    category = models.ForeignKey(DimensionCategory, on_delete=models.PROTECT)
+
+    def save(self, *args, **kwargs):
+        if self.category not in self.dataset_dimension.dimension.categories.all():
+            raise ValueError(f'{self.category} is not part of {self.dataset_dimension.dimension}')
+        super().save(*args, **kwargs)
+
+    def filter_siblings(self, qs: models.QuerySet['DatasetDimensionSelectedCategory']):
+        return qs.filter(dataset_dimension=self.dataset_dimension)
+
+    class Meta:
+        unique_together = (('dataset_dimension', 'category'), )

@@ -16,7 +16,15 @@ from nodes.api import instance_router
 from nodes.models import InstanceConfig
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 from paths.utils import validate_unit
-from .models import Dataset, DatasetComment, DatasetMetric, Dimension, DimensionCategory
+from .models import (
+    Dataset,
+    DatasetComment,
+    DatasetMetric,
+    Dimension,
+    DimensionCategory,
+    DatasetDimension,
+    DatasetDimensionSelectedCategory
+)
 
 
 all_routers = []
@@ -88,7 +96,15 @@ class DatasetCommentViewSet(viewsets.ModelViewSet):
         return DatasetComment.objects.filter(dataset_id=dataset_id)
 
 
-class DatasetTableSerializer(serializers.Serializer):
+class OptionalInputField:
+    def validate_empty_values(self, data: Any) -> tuple[bool, Any]:
+        if data is serializers.empty:
+            # We allow it to be null in incoming data
+            raise serializers.SkipField
+        return super().validate_empty_values(data)
+
+
+class DatasetTableSerializer(OptionalInputField, serializers.Serializer):
     schema = DatasetSchemaSerializer()
     data_ = serializers.ListSerializer(  # type: ignore
         child=serializers.DictField(),
@@ -97,12 +113,6 @@ class DatasetTableSerializer(serializers.Serializer):
     def validate(self, attrs: dict) -> dict:
         # FIXME: Move some of the schema validation logic here
         return super().validate(attrs)
-
-    def validate_empty_values(self, data: Any) -> tuple[bool, Any]:
-        if data is serializers.empty:
-            # We allow it to be null in incoming data
-            raise serializers.SkipField
-        return super().validate_empty_values(data)
 
     def get_fields(self):
         ret = super().get_fields()
@@ -133,10 +143,45 @@ class InstanceRelatedField(serializers.PrimaryKeyRelatedField):
         return qs.filter(instance=ic)
 
 
+class OptionalInputCharField(OptionalInputField, serializers.CharField):
+    pass
+
+
+class OptionalInputIntegerField(OptionalInputField, serializers.IntegerField):
+    pass
+
+
+class OptionalInputUUIDField(OptionalInputField, serializers.UUIDField):
+    pass
+
+
+class DimensionCategorySerializer(serializers.ModelSerializer):
+    identifier = serializers.CharField()
+    id = OptionalInputIntegerField()
+    order = OptionalInputIntegerField()
+    uuid = OptionalInputUUIDField()
+    label = OptionalInputCharField()
+
+    class Meta:
+        model = DimensionCategory
+        fields = ['id', 'identifier', 'uuid', 'label', 'order']
+
+
+class DatasetDimensionSerializer(serializers.ModelSerializer):
+    dimension = serializers.PrimaryKeyRelatedField(queryset=Dimension.objects.all())
+    selected_categories = DimensionCategorySerializer(many=True)
+
+    class Meta:
+        model = DatasetDimension
+        fields = [
+            'dimension', 'selected_categories'
+        ]
+
+
 class DatasetSerializer(serializers.ModelSerializer):
     table = DatasetTableSerializer(required=True, allow_null=False)
     metrics = DatasetMetricSerializer(many=True)
-    dimensions = InstanceRelatedField(many=True, queryset=Dimension.objects.all())
+    dimension_selections = DatasetDimensionSerializer(many=True)
     comments_url = serializers.SerializerMethodField()
 
     instance: Dataset | None
@@ -144,8 +189,8 @@ class DatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dataset
         fields = [
-            'id', 'identifier', 'uuid', 'name', 'years', 'dimensions', 'metrics', 'table', 'comments_url',
-            'created_at', 'created_by', 'updated_at', 'updated_by',
+            'id', 'identifier', 'uuid', 'name', 'years', 'dimension_selections', 'metrics', 'table',
+            'comments_url', 'created_at', 'created_by', 'updated_at', 'updated_by',
         ]
         extra_kwargs = dict(
             created_at=dict(read_only=True),
@@ -245,14 +290,15 @@ class DatasetSerializer(serializers.ModelSerializer):
                 assert self.instance is not None
                 metric_cols = [m.identifier for m in self.instance.metrics.all()]
 
-            dims = attrs.get('dimensions')
-            if dims is None:
+            dimension_selections = attrs.get('dimension_selections')
+            if dimension_selections is None:
                 assert self.instance is not None
-                dims = list(self.instance.dimensions.all())
+                dimension_selections = list(self.instance.dimension_selections.all())
 
-            for dim in dims:
-                dim._cat_map = {cat.identifier: cat for cat in dim.categories.all()}  # type: ignore
-            dim_cols = {dim.identifier: dim for dim in dims}
+            for sel in dimension_selections:
+                sel.dimension._cat_map = {c.identifier: c for c in sel.selected_categories.all()}
+
+            dim_cols = {sel.dimension.identifier: sel.dimension for sel in dimension_selections}
             cols_present = self.validate_table_cols(table, metric_cols, dim_cols)
             self.validate_table_schema(table, metric_cols, dim_cols, cols_present)
 
@@ -311,7 +357,24 @@ class DatasetSerializer(serializers.ModelSerializer):
         table_is_empty = 'table' not in validated_data
         if table_is_empty:
             validated_data['table'] = {'schema': None, 'data': None}
+
+        dimension_selections_data = validated_data.pop('dimension_selections')
         ds: Dataset = super().create(validated_data)
+
+        for selection in dimension_selections_data:
+            dsd = DatasetDimension.objects.create(
+                dataset=ds,
+                dimension=selection['dimension']
+            )
+            for cat in selection['selected_categories']:
+                category = DimensionCategory.objects.get(
+                    identifier=cat['identifier'],
+                    dimension=selection['dimension']
+                )
+                DatasetDimensionSelectedCategory.objects.create(
+                    dataset_dimension=dsd,
+                    category=category
+                )
 
         for s in metric_s:
             s.save(dataset=ds)
@@ -344,12 +407,6 @@ class DatasetViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         instance_pk = self.kwargs.get('instance_pk', 0)
         return Dataset.objects.filter(instance=instance_pk)
-
-
-class DimensionCategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DimensionCategory
-        fields = ['id', 'identifier', 'uuid', 'label', 'order']
 
 
 class DimensionSerializer(serializers.ModelSerializer):
