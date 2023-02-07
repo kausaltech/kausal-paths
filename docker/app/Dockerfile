@@ -7,6 +7,13 @@ ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Helsinki"
 RUN mkdir /code
 
 RUN apt-get update
+RUN apt-get install -y wget
+
+# Add the postgres repo
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc > /etc/apt/trusted.gpg.d/pgdg.asc
+
+RUN apt-get update
 RUN apt-get install -y python3.10 libpython3.10-dev python3-pip \
 	postgresql-client-common postgresql-client libpq-dev \
 	gettext git
