@@ -226,22 +226,29 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
     he_saving = np.zeros(params.nr_years, dtype=float)
     el_saving = np.zeros(params.nr_years, dtype=float)
     forecast = np.zeros(params.nr_years, dtype='int')
+    new_renovations = params.renovation_rate
 
     for i in range(params.nr_years):
-        share = i * params.renovation_rate
-        if share > params.renovation_potential:
-            share = params.renovation_potential
-        total_renovated[i] = share
-
         if i:
-            renovated_per_year[i] = share - total_renovated[i - 1]
+            val = total_renovated[i - 1]
+            reinvestment_round = i // params.lifetime
+            if reinvestment_round:
+                val -= renovated_per_year[i - params.lifetime]
+                if params.all_in_investment:
+                    new_renovations *= 0
+            val += new_renovations
+            if val > params.renovation_potential:
+                val = params.renovation_potential
+
+            total_renovated[i] = val
+            renovated_per_year[i] = val - total_renovated[i - 1]
+            if val < total_renovated[i - 1]:
+                renovated_per_year[i] *= 0
             forecast[i] = 1
         else:
+            total_renovated[i] = i * params.renovation_rate
+            renovated_per_year[i] = total_renovated[i]
             forecast[i] = 0
-        investment_round = i // params.lifetime
-        if investment_round:
-            if not params.all_in_investment:
-                renovated_per_year[i] += renovated_per_year[i - params.lifetime]
 
         cost[i] = renovated_per_year[i] * params.investment_cost
         cost[i] += total_renovated[i] * params.maint_cost
