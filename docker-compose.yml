@@ -10,7 +10,7 @@ services:
     environment:
       - POSTGRES_USER=paths
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-defaultpass}
-      - POSTGRES_INITDB_ARGS=--locale-provider=icu --icu-locale=und
+      # - POSTGRES_INITDB_ARGS=--locale-provider=icu --icu-locale=und
     volumes:
       - db_data:/var/lib/postgresql/data/
 
@@ -35,7 +35,7 @@ services:
       - paths_media:/srv/media
       - paths_build_cache:/root/.cache
     environment:
-      - DATABASE_URL=postgres://paths:${POSTGRES_PASSWORD:-defaultpass}@db/paths
+      - DATABASE_URL=${DATABASE_URL:-postgres://paths:${POSTGRES_PASSWORD:-defaultpass}@db/paths}
       - ENV_FILE
       - REDIS_URL=redis://redis
       - STATIC_ROOT=/srv/static
