@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.postgres.fields import ArrayField
 
 from modeltrans.fields import TranslationField
-from modelcluster.models import ClusterableModel
+from modelcluster.models import ClusterableModel, ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel
 
 from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, UnitField, UserModifiableModel
@@ -195,7 +195,7 @@ class DatasetDimension(OrderedModel):
 
 
 class DimensionCategory(UserModifiableModel, OrderedModel):
-    dimension = models.ForeignKey(Dimension, on_delete=models.CASCADE, related_name='categories')
+    dimension = ParentalKey(Dimension, on_delete=models.CASCADE, related_name='categories')
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
     label = models.CharField(max_length=50)
