@@ -6,7 +6,7 @@ import common.polars as ppl
 from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
 from nodes.node import NodeMetric, NodeError, Node
 from nodes.simple import AdditiveNode
-from nodes.constants import DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
 
 
 class BuildingEnergy(AdditiveNode):
@@ -220,3 +220,80 @@ class ToPerCapita(Node):
             df = df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
         return df
+
+
+class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
+    output_metrics = {
+        MILEAGE_QUANTITY: NodeMetric(unit='km/a', quantity=MILEAGE_QUANTITY)
+    }
+    output_dimension_ids = [
+        'vehicle_type',
+    ]
+    input_dimension_ids = [
+        'vehicle_type',
+    ]
+
+    def compute(self, dimension_ids: str, quantity: str, col: str | None = None) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+
+        for dimension_id in dimension_ids:
+            ec_dim = self.output_dimensions[dimension_id]
+            df = df.with_columns([ec_dim.series_to_ids_pl(df[dimension_id])])
+        meta = df.get_meta()
+        metric_ids = meta.metric_cols
+
+        if col is None:
+            if len(metric_ids) == 1:
+                col = metric_ids[0]
+            else:
+                col = quantity
+        assert col in df.columns
+
+        m = self.output_metrics[quantity]
+        output_unit = m.unit
+
+        df = df.ensure_unit(col, output_unit)
+        df = df.with_columns([
+            pl.col(col).alias(VALUE_COLUMN),
+            pl.lit(False).alias(FORECAST_COLUMN)
+        ])
+        df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
+        # df = df.set_unit(VALUE_COLUMN, output_unit)
+
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        for node in self.input_nodes:
+            ndf = node.get_output_pl(self)
+            df = df.paths.add_with_dims(ndf)
+
+        return df
+
+
+class VehicleMileage(VehicleDatasetNode):  # Based on BuildingEnergy. Should be generalised at some point.
+    output_metrics = {
+        MILEAGE_QUANTITY: NodeMetric(unit='km/a', quantity=MILEAGE_QUANTITY)
+    }
+    output_dimension_ids = [
+        'vehicle_type',
+    ]
+    input_dimension_ids = [
+        'vehicle_type',
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return super().compute(dimension_ids=['vehicle_type'], quantity=MILEAGE_QUANTITY)
+
+
+class EmissionFactorNode(VehicleDatasetNode):  # Based on BuildingEnergy. Should be generalised at some point.
+    output_metrics = {
+        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/km', quantity=EMISSION_FACTOR_QUANTITY)
+    }
+    output_dimension_ids = [
+        'energy_carrier', 'vehicle_type',
+    ]
+    input_dimension_ids = [
+        'energy_carrier', 'vehicle_type',
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return super().compute(dimension_ids=['energy_carrier', 'vehicle_type'], quantity=EMISSION_FACTOR_QUANTITY, col='fuel')

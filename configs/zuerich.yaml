@@ -4,7 +4,8 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7f5db4ad772954fd5e0b770fa6dc736f0b218b6f
+#  commit: 7f5db4ad772954fd5e0b770fa6dc736f0b218b6f
+  commit: 3c3ca206cb725af6515d098bf18fdbf540d1006c
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -456,7 +457,7 @@ nodes:
 
 - id: building_final_energy_consumption
   name_de: Endenergieverbrauch Haushalte/Wirtschaft
-  name_en: Husing and commerce final energy consumption
+  name_en: Housing and commerce final energy consumption
   type: ch.zuerich.BuildingEnergy
   quantity: energy
   unit: GWh/a
@@ -477,7 +478,7 @@ nodes:
       flatten: true
   - id: building_other_energy_consumption
     from_dimensions:
-    - categories: ['district_heat', 'electricity', 'environmental_heat']
+    - categories: [district_heat, electricity, environmental_heat]
       exclude: true
 
 - id: district_heat_consumption
@@ -571,10 +572,10 @@ nodes:
   quantity: emission_factor
   unit: g/kWh
   input_nodes:
-    - id: building_energy_consumption_emission_factor
-      from_dimensions:
-        - categories: [environmental_heat]
-          flatten: true
+  - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - categories: [environmental_heat]
+      flatten: true
 
 - id: environmental_heat_emissions
   name_de: Treibhausgasemissionen Umweltwärme
@@ -655,6 +656,72 @@ nodes:
 # TRANSPORT
 #
 
+- id: transport_mileage
+  name_de: Fahrleistung alles
+  name_en: Transport distance
+  type: ch.zuerich.VehicleMileage
+  quantity: mileage
+  unit: km/a
+#  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/vehicle_mileage
+  output_nodes:
+  - id: road_vehicle_mileage
+    from_dimensions:
+    - categories: [tram, small_railways, rail_passenger, rail_goods, liner_ship_diesel,
+        liner_ship_battery_electric, private_ship_petrol, private_ship_diesel, private_ship_battery_electric]
+      flatten: false
+      exclude: true
+
+- id: road_vehicle_mileage
+  name_de: Fahrleistung
+  name_en: Vehicle distance
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mkm/a
+  input_dimensions:
+  - vehicle_type
+  output_dimensions:
+  - vehicle_type
+
+- id: transport_fuel_factors
+  name_de: Verkehr faktor alles
+  name_en: Transport fuel factors
+  type: ch.zuerich.EmissionFactorNode
+  quantity: mileage
+  unit: kg/km
+#  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
+  output_nodes:
+  - id: road_vehicle_fuel_factors
+    from_dimensions:
+    - id: vehicle_type
+      categories: [tram, small_railways, rail_passenger, rail_goods, liner_ship_diesel,
+        liner_ship_battery_electric, private_ship_petrol, private_ship_diesel, private_ship_battery_electric]
+      flatten: false
+      exclude: true
+
+- id: road_vehicle_fuel_factors
+  name_de:
+  name_en: Road vehicle fuel factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/km
+  input_dimensions: ['energy_carrier', 'vehicle_type']
+  output_dimensions: ['energy_carrier', 'vehicle_type']
+
+- id: road_vehicle_emissions_scope1
+  name_de: Fahrzeugemissionen scope 1
+  name_en: Vehicle emissions scope 1
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: ['energy_carrier', 'vehicle_type']
+  input_nodes:
+  - road_vehicle_mileage
+  - road_vehicle_fuel_factors
+
 - id: vehicle_emissions_scope1
   name_de: Fahrzeugemissionen scope 1
   name_en: Vehicle emissions scope 1
@@ -734,7 +801,8 @@ actions:
   description_de: Werden alle 21 000 Öl- und Gasheizungen mit Erdsonden oder einem
     Anschluss ans Fernwärmenetz ersetzt, reduzieren sich die direkten Emissionen von
     Gebäuden um 1.6 tCO<sub>2</sub>eq/(Einw.*a).
-  output_nodes: [building_other_energy_consumption, environmental_heat_consumption, district_heat_consumption]
+  output_nodes: [building_other_energy_consumption, environmental_heat_consumption,
+    district_heat_consumption]
   unit: GWh/a
   params:
   - id: shift

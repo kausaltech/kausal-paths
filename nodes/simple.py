@@ -180,6 +180,10 @@ class MultiplicativeNode(AdditiveNode):
         df = df1.paths.join_over_index(df2, how='left')
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
+        meta = df.get_meta()
+        meta.primary_keys = list(set(df.columns) - set([VALUE_COLUMN, FORECAST_COLUMN]))
+        df = df.replace_meta(meta)
+
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
