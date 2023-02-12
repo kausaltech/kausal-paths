@@ -160,7 +160,8 @@ class PathsExt:
         sdf = self._df
         sm = sdf.get_meta()
         om = other.get_meta()
-        df = sdf.join(other, on=sm.primary_keys, how=how)
+        on = list(set(sm.primary_keys) & set(om.primary_keys))
+        df = sdf.join(other, on=on, how=how)
         fc_right = '%s_right' % FORECAST_COLUMN
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
             df = df.with_columns([
