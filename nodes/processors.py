@@ -55,11 +55,11 @@ class Processor(ABC):
         pass
 
 
-class LinearInterpolation(Processor):
+class LinearInterpolation(Processor):  # FIXME Probably the df needs first to be converted from long to wide format.
     def process_input_dataset(self, pldf: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = pldf.to_pandas()
         index_name = df.index.name
-        df = df.reindex(pd.RangeIndex(df.index.min(), df.index.max() + 1))
+        df = df.reindex(pd.RangeIndex(df.index.min(), df.index.max() + 1))  # FIXME Not meaningful for multiindex.
         for col_name in df.columns:
             col = df[col_name]
             if isinstance(col.iloc[0], (bool,)):
