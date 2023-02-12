@@ -269,7 +269,7 @@ class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
         return df
 
 
-class VehicleMileage(VehicleDatasetNode):  # Based on BuildingEnergy. Should be generalised at some point.
+class VehicleMileage(VehicleDatasetNode):
     output_metrics = {
         MILEAGE_QUANTITY: NodeMetric(unit='km/a', quantity=MILEAGE_QUANTITY)
     }
@@ -284,9 +284,9 @@ class VehicleMileage(VehicleDatasetNode):  # Based on BuildingEnergy. Should be 
         return super().compute(dimension_ids=['vehicle_type'], quantity=MILEAGE_QUANTITY)
 
 
-class EmissionFactorNode(VehicleDatasetNode):  # Based on BuildingEnergy. Should be generalised at some point.
+class FuelFactorNode(VehicleDatasetNode):
     output_metrics = {
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/km', quantity=EMISSION_FACTOR_QUANTITY)
+        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/km', quantity=EMISSION_FACTOR_QUANTITY)  # FIXME Not really emission but fuel
     }
     output_dimension_ids = [
         'energy_carrier', 'vehicle_type',
@@ -297,3 +297,19 @@ class EmissionFactorNode(VehicleDatasetNode):  # Based on BuildingEnergy. Should
 
     def compute(self) -> ppl.PathsDataFrame:
         return super().compute(dimension_ids=['energy_carrier', 'vehicle_type'], quantity=EMISSION_FACTOR_QUANTITY, col='fuel')
+
+
+class EmissionFactorNode(VehicleDatasetNode):
+    output_metrics = {
+        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/km', quantity=EMISSION_FACTOR_QUANTITY)
+    }
+    output_dimension_ids = [
+        'emission_scope', 'greenhouse_gases', 'vehicle_type',
+    ]
+    input_dimension_ids = [
+        'emission_scope', 'greenhouse_gases', 'vehicle_type',
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return super().compute(dimension_ids=['emission_scope', 'greenhouse_gases', 'vehicle_type'],
+            quantity=EMISSION_FACTOR_QUANTITY)
