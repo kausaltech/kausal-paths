@@ -159,7 +159,8 @@ class ShiftAction(ActionNode):
         def make_target_df(target: ShiftTarget, valuecol: str):
             target_dims = set(target.categories.keys())
             null_dims = all_dims - target_dims
-            cat_exprs = [pl.lit(cat).alias(dim) for dim, cat in target.categories.items()]
+            target_cats = sorted(target.categories.items(), key=lambda x: x[0])
+            cat_exprs = [pl.lit(cat).alias(dim) for dim, cat in target_cats]
             if not self.is_enabled():
                 value_expr = pl.lit(0.0)
             else:

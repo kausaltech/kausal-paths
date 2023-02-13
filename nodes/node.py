@@ -131,10 +131,19 @@ class EdgeDimension:
                 raise KeyError("dimension %s not found" % dim_id)
             dim = node_dims[dim_id]
 
-        cat_ids = dc['categories']
-        cats = [dim.get(cat_id) for cat_id in cat_ids]
-        exclude = bool(dc.get('exclude', False))
-        flatten = bool(dc.get('flatten', False))
+        flatten = dc.get('flatten', None)
+        exclude = dc.get('exclude', None)
+        cat_ids = dc.get('categories', None)
+        if cat_ids is None:
+            cats = []
+            if flatten not in (None, True) or exclude not in (None, True):
+                raise Exception("When categories are not supplied, you must not supply 'flatten' or 'exclude'")
+            flatten = True
+            exclude = True
+        else:
+            cats = [dim.get(cat_id) for cat_id in cat_ids]
+            flatten = bool(flatten)
+            exclude = bool(exclude)
         return (dim_id, cls(categories=cats, exclude=exclude, flatten=flatten))
 
 
@@ -778,17 +787,20 @@ class Node:
 
     def validate_output(self, df: ppl.PathsDataFrame):
         meta = df.get_meta()
+
+        if YEAR_COLUMN not in meta.primary_keys:
+            raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
+
         ldf = df.lazy()
 
-        dupes = (
+        dupe_rows = (
             ldf.groupby(meta.primary_keys)
             .agg(pl.count())
             .filter(pl.col('count') > 1)
-            .limit(1)
-            .collect()
         )
-        if len(dupes):
-            self.print(df)
+        has_dupes = bool(len(dupe_rows.limit(1).collect()))
+        if has_dupes:
+            self.print(dupe_rows.collect())
             raise NodeError(self, "Node output has duplicate index rows")
 
         if FORECAST_COLUMN in df.columns:
@@ -805,10 +817,7 @@ class Node:
                 raise NodeError(self, "Output column '%s' does not have units" % metric.column_id)
             unit = df.get_unit(metric.column_id)
             if unit != metric.unit:
-                raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, dt.units))
-
-        if YEAR_COLUMN not in meta.primary_keys:
-            raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
+                raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, unit))
 
         if NODE_COLUMN in meta.primary_keys:
             # FIXME
@@ -965,13 +974,19 @@ class Node:
             self.print_pint_df(obj)
             return
         elif isinstance(obj, ppl.PathsDataFrame):
-            meta = obj.get_meta()
+            df: ppl.PathsDataFrame = obj
+            meta = df.get_meta()
             for col in meta.units.keys():
                 if '@' in col:
-                    obj = obj.rename({col: col.replace('@', '\n')})
-            meta = obj.get_meta()
-            obj = obj.rename({col: '[%s] %s' % (str(unit), col) for col, unit in meta.units.items()})
-            obj = obj.rename({col: '[idx] %s' % col for col in meta.primary_keys})
+                    df = df.rename({col: col.replace('@', '\n')})
+            meta = df.get_meta()
+            df = df.rename({col: '[%s] %s' % (str(unit), col) for col, unit in meta.units.items()})
+            for col in meta.primary_keys:
+                if col not in df:
+                    print("WARNING: primary key %s not in columns" % col)
+                    continue
+                df = df.rename({col: '[idx] %s' % col})
+            obj = df
         pprint(obj)
 
     def print_outline(self, df):

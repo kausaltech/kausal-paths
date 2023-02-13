@@ -102,14 +102,23 @@ nodes:
       from_dimensions:
         - id: building_heat_source
           categories: [district_heat]
+          flatten: true
+        - id: building_use
+          flatten: true
     - id: oil_heating_energy
       from_dimensions:
         - id: building_heat_source
           categories: [oil]
+          flatten: true
+        - id: building_use
+          flatten: true
     - id: geothermal_heating_energy
       from_dimensions:
         - id: building_heat_source
           categories: [geothermal]
+          flatten: true
+        - id: building_use
+          flatten: true
 
 - id: district_heating_energy
   name: Kaukolämmön lämmönkulutus
@@ -198,31 +207,32 @@ actions:
   output_dimensions: [building_heat_source, building_use]
   output_nodes:
     - building_floor_area_existing
-    - building_floor_area_renovated
-
-# - id: reduce_oil_heating_industry
-#   name: Öljylämmityksen vähentäminen (Teollisuus)
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: energy
-#   unit: GWh/a
-#   output_nodes:
-#   - oil_heating_industry_energy
-#   forecast_values: [[2021, 0], [2030, -24.4]]
-
-# - id: reduce_oil_heating_services
-#   name: Öljylämmityksen vähentäminen (Palvelut)
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: energy
-#   unit: GWh/a
-#   output_nodes:
-#   - oil_heating_services_energy
-#   forecast_values: [[2021, 0], [2030, -4.9975]]
-#   params:
-#   - id: target_year_level
-#     description: Öljylämmityksen muutos palveluissa 2021-2030
-#     unit: GWh/a
-#     min_value: -37
-#     max_value: 0
+  params:
+  - id: shift
+    unit: m**2
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          building_heat_source: oil
+          building_use: residence
+      dests:
+      - categories:
+          building_use: residence
+          building_heat_source: geothermal
+      - categories:
+          building_use: residence
+          building_heat_source: district_heat
+      amounts:
+      - year: 2023
+        source_amount: -50000
+        dest_amounts: [50, 50]
+      - year: 2025
+        source_amount: -100000
+        dest_amounts: [50, 50]
+      - year: 2035
+        source_amount: -50000
+        dest_amounts: [50, 50]
 
 - id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa

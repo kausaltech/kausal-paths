@@ -150,7 +150,7 @@ class FutureBuildingStock(AdditiveNode):
         # Now look into the future
         pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna()
         df = area_per_new_cap_df
-        future_index = pd.RangeIndex(last_hist_year + 1, self.context.model_end_year + 1)
+        future_index = pd.RangeIndex(last_hist_year + 1, self.context.model_end_year + 1, name=YEAR_COLUMN)
         df = df.reindex(df.index.append(future_index))
         df = df.fillna(method='pad')
         df = df.mul(pop_diff, axis=0).dropna().cumsum()
