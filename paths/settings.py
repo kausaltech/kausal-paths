@@ -478,6 +478,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'git': level('INFO'),
             'pint': level('INFO'),
             'matplotlib': level('INFO'),
+            'numba': level('INFO'),
             '': level('DEBUG'),
         }
     }
