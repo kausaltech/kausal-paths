@@ -323,17 +323,24 @@ class Node:
         for m in self.output_metrics.values():
             m.node = self
 
-    def _init_dimensions(self, arg_dims: list[str] | None, class_dims: list[str]) -> dict[str, Dimension]:
-        if arg_dims and class_dims:
-            if set(arg_dims) != set(class_dims):
+    def _init_dimensions(self, class_dims: dict[str, Dimension], arg_dims: list[str] | None, class_dim_ids: list[str]) -> dict[str, Dimension]:
+        dims = class_dims.copy()
+
+        for dim_id, dim in dims.items():
+            if not dim.is_internal:
+                raise NodeError(self, "Dimensions defined in class can only be internal ones")
+            if dim_id in self.context.dimensions:
+                raise NodeError(self, "Internal dimension is also a global one")
+
+        if arg_dims and class_dim_ids:
+            if set(arg_dims) != set(class_dim_ids):
                 raise NodeError(self, "Invalid dimensions supplied: %s" % ', '.join(arg_dims))
-        elif class_dims:
-            arg_dims = class_dims
+        elif class_dim_ids:
+            arg_dims = class_dim_ids
 
         if not arg_dims:
-            return {}
+            return dims
 
-        dims = {}
         for dim_id in arg_dims:
             dim = self.context.dimensions.get(dim_id)
             if not dim:
@@ -377,8 +384,13 @@ class Node:
             # Copy the parameters so that the list can be mutated later
             self.global_parameters = list(self.global_parameters)
 
-        self.output_dimensions = self._init_dimensions(output_dimension_ids, self.output_dimension_ids)
-        self.input_dimensions = self._init_dimensions(input_dimension_ids, self.input_dimension_ids)
+        if not hasattr(self, 'output_dimensions'):
+            self.output_dimensions = {}
+        self.output_dimensions = self._init_dimensions(self.output_dimensions, output_dimension_ids, self.output_dimension_ids)
+
+        if not hasattr(self, 'input_dimensions'):
+            self.input_dimensions = {}
+        self.input_dimensions = self._init_dimensions(self.input_dimensions, input_dimension_ids, self.input_dimension_ids)
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -808,6 +820,11 @@ class Node:
             dt = df[dim_id].dtype
             if dt not in (pl.Utf8, pl.Categorical):
                 raise NodeError(self, "Dimension column '%s' is of wrong type (%s)" % (dim_id, dt))
+
+            if dim.is_internal:
+                # Skip validation for internal dimensions
+                continue
+
             cats = set(df[dim_id].unique())
             dim_cats = dim.get_cat_ids()
             diff = cats - dim_cats

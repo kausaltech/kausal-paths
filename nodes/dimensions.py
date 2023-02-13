@@ -30,8 +30,9 @@ class DimensionCategory(BaseModel):
 
 class Dimension(BaseModel):
     id: Identifier
-    label: I18nString | None = None
+    label: I18nString | None = Field(default=None)
     categories: List[DimensionCategory] = Field(default_factory=list)
+    is_internal: bool = False
     _hash: bytes | None = PrivateAttr(default=None)
     _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
 

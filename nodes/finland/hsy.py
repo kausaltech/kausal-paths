@@ -4,6 +4,7 @@ from typing import ClassVar, Tuple, Union
 import numpy as np
 import pandas as pd
 from nodes.calc import extend_last_historical_value
+from nodes.dimensions import Dimension
 from params import StringParameter, Parameter
 from nodes import Node, NodeMetric
 from nodes.constants import (
@@ -66,6 +67,9 @@ class HsyNode(Node):
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
     }
+    output_dimensions = {
+        'sector': Dimension(id='hsy_sector', label=dict(en='HSY emission sector'), is_internal=True)
+    }
 
     def compute(self) -> pd.DataFrame:
         muni_name = self.get_global_parameter_value('municipality_name')
@@ -97,7 +101,8 @@ class HsyNode(Node):
             df['Sector'] += df['Sektori%d' % i].astype(str)
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, 'Sector']]
-        df = df.set_index(['Year', 'Sector'])
+        df = df.rename(columns=dict(Sector='sector'))
+        df = df.set_index([YEAR_COLUMN, 'sector'])
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
         for metric_id, metric in self.output_metrics.items():
@@ -136,13 +141,13 @@ class HsyNodeMixin:
         else:
             sector_name = sector
 
-        matching_sectors = df.index.get_level_values('Sector').str.startswith(sector_name)
+        matching_sectors = df.index.get_level_values('sector').str.startswith(sector_name)
         if not matching_sectors.any():
             raise NodeError(self, "Sector level '%s' not found in input" % sector_name)
 
         df = df.loc[matching_sectors]
         if multi_index:
-            df_xs = df.groupby(['Year', 'Sector']).sum()
+            df_xs = df.groupby(['Year', 'sector']).sum()
         else:
             df_xs = df.groupby('Year').sum()
         assert isinstance(df_xs, pd.DataFrame)
@@ -215,8 +220,8 @@ class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
     def compute(self) -> pd.DataFrame:
         df, _ = self.get_sector(ENERGY_QUANTITY, sector='Lämmitys', multi_index=True)
         df = df.reset_index().set_index(YEAR_COLUMN)
-        df['building_use'] = df['Sector'].apply(lambda x: x.split('|')[-1])
-        df['building_heat_source'] = df['Sector'].apply(lambda x: x.split('|')[-2])
+        df['building_use'] = df['sector'].apply(lambda x: x.split('|')[-1])
+        df['building_heat_source'] = df['sector'].apply(lambda x: x.split('|')[-2])
 
         use_dim = self.output_dimensions['building_use']
         df['building_use'] = use_dim.series_to_ids(df['building_use'])
