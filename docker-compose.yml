@@ -35,7 +35,7 @@ services:
       - paths_media:/srv/media
       - paths_build_cache:/root/.cache
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgres://paths:${POSTGRES_PASSWORD:-defaultpass}@db/paths}
+      - DATABASE_URL=${DATABASE_URL:-postgres://paths:defaultpass@db/paths}
       - ENV_FILE
       - REDIS_URL=redis://redis
       - STATIC_ROOT=/srv/static
