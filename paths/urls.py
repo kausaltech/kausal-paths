@@ -21,6 +21,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
+from django.views.static import serve as serve_static
 
 from wagtail.core import urls as wagtail_urls
 from wagtail.documents import urls as wagtaildocs_urls
@@ -81,3 +82,7 @@ if kpe_urls is not None:
     urlpatterns.append(path('', include(kpe_urls)))
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG and settings.STATIC_URL == '/static/':
+    urlpatterns += [
+        path('static/<path:path>', serve_static)
+    ]
