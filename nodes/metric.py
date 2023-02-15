@@ -97,15 +97,15 @@ class Metric:
         forecast = []
         baseline = []
         for row in df.iter_rows(named=True):
-            is_fc = getattr(row, FORECAST_COLUMN)
-            val = getattr(row, VALUE_COLUMN)
-            year = getattr(row, YEAR_COLUMN)
+            is_fc = row[FORECAST_COLUMN]
+            val = row[VALUE_COLUMN]
+            year = row[YEAR_COLUMN]
             if np.isnan(val):
                 raise Exception("Metric %s contains NaN values" % self.id)
             if not is_fc:
                 hist.append(YearlyValue(year=year, value=val))
             else:
-                bl_val = getattr(row, BASELINE_VALUE_COLUMN, None)
+                bl_val = row.get(BASELINE_VALUE_COLUMN)
                 if bl_val is not None:
                     if np.isnan(bl_val):
                         raise Exception("Metric %s baseline contains NaN values" % self.id)
