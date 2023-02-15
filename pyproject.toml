@@ -53,7 +53,7 @@ ignored-modules = "orjson"
 ignore = "D100,D104,D105,D200,D203,D400"
 
 [tool.pytest.ini_options]
-django_settings_module = "paths.tests.settings"
+DJANGO_SETTINGS_MODULE = "paths.tests.settings"
 norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = ["ignore::DeprecationWarning:graphene"]
 

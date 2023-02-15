@@ -110,7 +110,7 @@ class Metric:
             if not is_fc:
                 hist.append(YearlyValue(year=year, value=val))
             else:
-                bl_val = getattr(row, BASELINE_VALUE_COLUMN, None)
+                bl_val = row.get(BASELINE_VALUE_COLUMN)
                 if bl_val is not None:
                     if np.isnan(bl_val):
                         raise Exception("Metric %s baseline contains NaN values" % self.id)
