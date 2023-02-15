@@ -166,6 +166,8 @@ class NodeType(graphene.ObjectType):
     # TODO: Many nodes will output multiple time series. Remove metric
     # and handle a single-metric node as a special case in the UI??
     metric = graphene.Field(ForecastMetricType)
+    outcome = graphene.Field(DimensionalMetricType)
+
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
@@ -224,6 +226,10 @@ class NodeType(graphene.ObjectType):
     @staticmethod
     def resolve_metric(root: Node, info):
         return Metric.from_node(root)
+
+    @staticmethod
+    def resolve_metric_dim(root: Node, info):
+        return DimensionalMetric.from_node(root)
 
     @staticmethod
     def resolve_impact_metric(root: Node, info: GraphQLResolveInfo, target_node_id: str = None):

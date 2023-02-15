@@ -10,8 +10,11 @@ import polars as pl
 
 from common import polars as ppl
 from nodes import Node
+from nodes.actions import ActionNode
+from nodes.actions.shift import ShiftAction
 from nodes.constants import ACTIVITY_QUANTITIES, BASELINE_VALUE_COLUMN, DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
+from nodes.units import Unit
 
 
 @dataclass
@@ -153,3 +156,104 @@ class Metric:
             return None
         year_unit = self.unit._REGISTRY('year').units
         return self.unit * year_unit
+
+
+@dataclass
+class MetricCategory:
+    id: str
+    label: str
+
+
+@dataclass
+class MetricDimension:
+    id: str
+    label: str
+    categories: list[MetricCategory]
+
+    def get_cat_ids(self):
+        return [cat.id for cat in self.categories]
+
+
+@dataclass
+class DimensionalMetric:
+    id: str
+    name: str
+    dimensions: list[MetricDimension]
+    values: list[float]
+    years: list[int]
+    unit: Unit
+    forecast_from: int | None
+    normalized_by: Node | None
+
+    @classmethod
+    def from_node(cls, node: Node) -> DimensionalMetric | None:
+        df = node.get_output_pl()
+
+        if DEFAULT_METRIC not in node.output_metrics:
+            return None
+        m = node.output_metrics[DEFAULT_METRIC]
+        if node.context.active_normalization:
+            normalizer, df = node.context.active_normalization.normalize_output(m, df)
+        else:
+            normalizer = None
+
+        dims = []
+        for dim_id, dim in node.output_dimensions.items():
+            cats = set(df[dim_id].unique())
+            ordered_cats = []
+            for cat in dim.categories:
+                if cat.id in cats:
+                    ordered_cats.append(MetricCategory(id=cat.id, label=str(cat.label)))
+            assert len(cats) == len(ordered_cats)
+            mdim = MetricDimension(id=dim.id, label=str(dim.label), categories=ordered_cats)
+            dims.append(mdim)
+
+        forecast_from = df.filter(pl.col(FORECAST_COLUMN) == True)[YEAR_COLUMN].min()
+        assert isinstance(forecast_from, int)
+
+        just_cats = [dim.get_cat_ids() for dim in dims]
+        years = list(df[YEAR_COLUMN].unique().sort())
+        idx_names = [dim.id for dim in dims] + [YEAR_COLUMN]
+        idx_vals = pd.MultiIndex.from_product(just_cats + [years]).to_list()
+        idx_df = pl.DataFrame(idx_vals, orient='row', schema=idx_names)
+
+        jdf = idx_df.join(df, how='left', on=idx_names)
+        vals: list[float] = jdf[VALUE_COLUMN].to_list()
+        dm = DimensionalMetric(
+            id=node.id, name=str(node.name), dimensions=dims,
+            values=vals, years=years, unit=df.get_unit(m.column_id),
+            forecast_from=forecast_from, normalized_by=normalizer,
+        )
+        return dm
+
+
+@dataclass
+class FlowNode:
+    id: str
+
+
+@dataclass
+class FlowYear:
+    year: int
+    is_forecast: bool
+    sources: list[str]
+    targets: list[str]
+    values: list[float | None]
+
+
+@dataclass
+class DimensionalFlow:
+    id: str
+    nodes: list[FlowNode]
+    years: list[int]
+    unit: Unit
+    flows: list[FlowYear]
+
+    @classmethod
+    def from_action_node(cls, node: ActionNode):
+        if not isinstance(node, ShiftAction):
+            return None
+        for o in node.output_nodes:
+            idf = node.compute_impact(o)
+            node.print(idf)
+
