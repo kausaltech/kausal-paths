@@ -5,6 +5,13 @@ YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
 NODE_COLUMN = 'Node'
 
+# Dimension flow constants
+FLOW_ID_COLUMN = 'Flow'
+FLOW_ROLE_COLUMN = 'FlowRole'
+FLOW_ROLE_SOURCE = 'source'
+FLOW_ROLE_TARGET = 'target'
+
+# Impact constants
 VALUE_WITH_ACTION_GROUP = 'Action'
 VALUE_WITHOUT_ACTION_GROUP = 'WithoutAction'
 IMPACT_GROUP = 'Impact'

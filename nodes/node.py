@@ -803,11 +803,11 @@ class Node:
             raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
 
         ldf = df.lazy()
-
         dupe_rows = (
             ldf.groupby(meta.primary_keys)
             .agg(pl.count())
             .filter(pl.col('count') > 1)
+            .sort(YEAR_COLUMN)
         )
         has_dupes = bool(len(dupe_rows.limit(1).collect()))
         if has_dupes:

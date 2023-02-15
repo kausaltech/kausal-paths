@@ -5,7 +5,10 @@ from pydantic import BaseModel, root_validator, Field, validator
 import pandas as pd
 import polars as pl
 
-from nodes.constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import (
+    FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
+    VALUE_COLUMN, YEAR_COLUMN
+)
 from nodes.node import NodeError, Node
 from nodes.units import Unit
 from params.param import ValidationError
@@ -119,7 +122,7 @@ class ShiftAction(ActionNode):
         ShiftParameter(local_id='shift')
     ]
 
-    def _compute_one(self, param: ShiftEntry, unit: Unit):
+    def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit):
         amounts = sorted(param.amounts, key=lambda x: x.year)
 
         data = [[a.year, a.source_amount, *a.dest_amounts] for a in param.amounts]
@@ -168,6 +171,7 @@ class ShiftAction(ActionNode):
             tdf = df.select([
                 pl.col(YEAR_COLUMN),
                 pl.lit(get_node_id(target.node)).alias(NODE_COLUMN),
+                pl.lit(FLOW_ROLE_SOURCE if valuecol == 'Source' else FLOW_ROLE_TARGET).alias(FLOW_ROLE_COLUMN),
                 *cat_exprs,
                 *[pl.lit(None).cast(pl.Utf8).alias(null_dim) for null_dim in null_dims],
                 value_expr.alias(VALUE_COLUMN),
@@ -176,23 +180,37 @@ class ShiftAction(ActionNode):
 
         dfs = [make_target_df(target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
-        df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
-        df = df.with_columns([pl.lit(True).alias(FORECAST_COLUMN)])
-        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN, NODE_COLUMN, *all_dims])
+        #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
+        df = df.with_columns([
+            pl.lit(True).alias(FORECAST_COLUMN),
+            pl.lit(flow_id).alias(FLOW_ID_COLUMN),
+        ])
+        meta = ppl.DataFrameMeta(
+            units={VALUE_COLUMN: unit},
+            primary_keys=[FLOW_ID_COLUMN, YEAR_COLUMN, NODE_COLUMN, *all_dims]
+        )
         ret = ppl.to_ppdf(df, meta=meta)
         return ret
 
-    def compute_effect(self) -> ppl.PathsDataFrame:
+    def compute_effect_flow(self) -> ppl.PathsDataFrame:
         po = self.get_parameter('shift')
         value = po.get()
         assert isinstance(value, ShiftParameterValue)
 
-        df = None
-        for entry in value.__root__:
-            edf = self._compute_one(entry, po.get_unit())
-            if df is None:
-                df = edf
-            else:
-                df = df.paths.add_with_dims(edf, how='outer')
-        assert df is not None
+        dfs = []
+        for idx, entry in enumerate(value.__root__):
+            df = self._compute_one(str(idx), entry, po.get_unit())
+            dfs.append(df)
+
+        meta = dfs[0].get_meta()
+        sdf = pl.concat(dfs)
+        df = ppl.to_ppdf(sdf, meta=meta)
+        return df
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        df = self.compute_effect_flow().drop(columns=[FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
+        meta = df.get_meta()
+        sdf = df.groupby(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
+        sdf = sdf.sort(meta.primary_keys)
+        df = ppl.to_ppdf(sdf, meta=meta)
         return df

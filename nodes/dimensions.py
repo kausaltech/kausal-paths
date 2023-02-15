@@ -73,6 +73,10 @@ class Dimension(BaseModel):
                 if cat._group is not None:
                     cat._group = g
 
+    @property
+    def cat_map(self):
+        return self._cat_map.copy()
+
     def get(self, cat_id: str) -> DimensionCategory:
         if cat_id not in self._cat_map:
             raise KeyError("Dimension %s: category %s not found" % (self.id, cat_id))

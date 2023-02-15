@@ -10,7 +10,7 @@ import polars as pl
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from common import polars as ppl
 from .models import InstanceConfig, NodeConfig
-from .metric import Metric
+from .metric import DimensionalFlow, Metric
 
 from . import Node
 from .instance import Instance
@@ -140,6 +140,26 @@ class DimensionalMetricType(graphene.ObjectType):
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
 
 
+class FlowNodeType(graphene.ObjectType):
+    id = graphene.String(required=True)
+    label = graphene.String(required=True)
+
+
+class FlowLinksType(graphene.ObjectType):
+    year = graphene.Int(required=True)
+    is_forecast = graphene.Boolean(required=True)
+    sources = graphene.List(graphene.NonNull(graphene.String), required=True)
+    targets = graphene.List(graphene.NonNull(graphene.String), required=True)
+    values = graphene.List(graphene.Float, required=True)
+
+
+class DimensionalFlowType(graphene.ObjectType):
+    id = graphene.String(required=True)
+    nodes = graphene.List(graphene.NonNull(FlowNodeType), required=True)
+    unit = graphene.Field('paths.schema.UnitType', required=True)
+    links = graphene.List(graphene.NonNull(FlowLinksType), required=True)
+
+
 class NodeType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
@@ -173,6 +193,7 @@ class NodeType(graphene.ObjectType):
     impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
 
     metrics = graphene.List(graphene.NonNull(ForecastMetricType))
+    dimensional_flow = graphene.Field(DimensionalFlowType, required=False)
 
     # TODO: input_datasets, baseline_values, context
     parameters = graphene.List('params.schema.ParameterInterface')
@@ -228,8 +249,10 @@ class NodeType(graphene.ObjectType):
         return Metric.from_node(root)
 
     @staticmethod
-    def resolve_metric_dim(root: Node, info):
-        return DimensionalMetric.from_node(root)
+    def resolve_dimensional_flow(root: Node, info: GraphQLResolveInfo):
+        if not isinstance(root, ActionNode):
+            return None
+        return DimensionalFlow.from_action_node(root)
 
     @staticmethod
     def resolve_impact_metric(root: Node, info: GraphQLResolveInfo, target_node_id: str = None):
