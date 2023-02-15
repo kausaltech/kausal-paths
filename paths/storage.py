@@ -14,4 +14,5 @@ class MediaFilesS3Storage(S3Boto3Storage):
         defaults['secret_key'] = setting('MEDIA_FILES_S3_SECRET_ACCESS_KEY')
         defaults['bucket_name'] = setting('MEDIA_FILES_S3_BUCKET')
         defaults['endpoint_url'] = setting('MEDIA_FILES_S3_ENDPOINT')
+        defaults['custom_domain'] = setting('MEDIA_FILES_S3_CUSTOM_DOMAIN')
         return defaults
