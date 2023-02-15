@@ -17,7 +17,7 @@ from nodes.units import Unit
 
 
 if typing.TYPE_CHECKING:
-    from .polars_ext import PathsExt, UnitsExt
+    from .polars_ext import PathsExt
 
 
 @dataclass
@@ -25,17 +25,23 @@ class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
 
+    @classmethod
+    def get_dim_ids(cls, pks: list[str]):
+        if YEAR_COLUMN in pks:
+            pks.remove(YEAR_COLUMN)
+        return pks
+
     @property
     def dim_ids(self) -> list[str]:
         keys = self.primary_keys.copy()
-        if YEAR_COLUMN in keys:
-            keys.remove(YEAR_COLUMN)
-        return keys
+        return self.get_dim_ids(keys)
 
     @property
     def metric_cols(self) -> list[str]:
         return list(self.units.keys())
 
+    def copy(self) -> DataFrameMeta:
+        return DataFrameMeta(units=self.units.copy(), primary_keys=self.primary_keys.copy())
 
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
@@ -59,6 +65,18 @@ class PathsDataFrame(pl.DataFrame):
                 df._primary_keys.append(col)
 
         return df
+
+    @property
+    def primary_keys(self) -> list[str]:
+        return list(self._primary_keys)
+
+    @property
+    def dim_ids(self) -> list[str]:
+        return DataFrameMeta.get_dim_ids(list(self._primary_keys))
+
+    @property
+    def metric_cols(self) -> list[str]:
+        return list(self._units.keys())
 
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta)
@@ -195,7 +213,7 @@ class PathsDataFrame(pl.DataFrame):
         if not col_unit.is_compatible_with(unit):
             raise Exception("Unit '%s' for column %s is not compatible with '%s'" % (col_unit, col, unit))
 
-        vls = self[col].to_numpy(zero_copy_only=True)
+        vls = self[col].to_numpy()
         vls = (vls * col_unit).to(unit).m
         df = self.with_columns([pl.Series(name=col, values=vls)], units={col: unit})
         return df
@@ -215,10 +233,6 @@ class PathsDataFrame(pl.DataFrame):
 
     def copy(self) -> PathsDataFrame:
         return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
-
-
-class Series(pl.Series):  # type: ignore
-    units: 'UnitsExt'
 
 
 def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
@@ -244,6 +258,9 @@ def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
         primary_keys = [df.index.name]
 
     pldf = PathsDataFrame(df.reset_index())
+    #for col in primary_keys:
+    #    if not isinstance(col, str):
+    #        raise Exception("Column name is not a string (it is %s)" % type(col))
     pldf._units = units
     pldf._primary_keys = primary_keys
     return pldf

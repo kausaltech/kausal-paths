@@ -46,7 +46,7 @@ class SimpleNode(Node):
         if df_latest_year > data_latest_year:
             for col in data_meta.metric_cols:
                 data_df = data_df.ensure_unit(col, df_meta.units[col])
-            data_df.paths.join_over_index(df, how='outer')
+            data_df = data_df.paths.join_over_index(df, how='outer')
             fills = [pl.col(col).fill_null(pl.col(col + '_right')) for col in data_meta.metric_cols]
             data_df = data_df.select([YEAR_COLUMN, *data_meta.dim_ids, FORECAST_COLUMN, *fills], units=df_meta.units)
 
@@ -180,10 +180,6 @@ class MultiplicativeNode(AdditiveNode):
         df = df1.paths.join_over_index(df2, how='left')
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
-        meta = df.get_meta()
-        meta.primary_keys = list(set(df.columns) - set([VALUE_COLUMN, FORECAST_COLUMN]))
-        df = df.replace_meta(meta)
-
         return df
 
     def compute(self) -> ppl.PathsDataFrame:

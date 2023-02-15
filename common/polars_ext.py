@@ -156,13 +156,26 @@ class PathsExt:
         ]).sort(YEAR_COLUMN)
         return ppl.to_ppdf(zdf, meta=meta)
 
-    def join_over_index(self, other: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left'):
+    def join_over_index(
+        self,
+        other: ppl.PathsDataFrame,
+        how: Literal['left', 'outer'] = 'left',
+        index_from: Literal['left', 'right'] = 'left'
+    ):
         sdf = self._df
         sm = sdf.get_meta()
         om = other.get_meta()
-        on = list(set(sm.primary_keys) & set(om.primary_keys))
-        df = sdf.join(other, on=on, how=how)
+        # Join on subset of keys
+        join_on = list(set(sm.primary_keys) & set(om.primary_keys))
+        if not len(join_on):
+            raise ValueError("No shared primary keys between joined DFs")
+        for col in join_on:
+            sdt = sdf[col].dtype
+            if sdt != other[col].dtype:
+                other = other.with_columns([pl.col(col).cast(sdt)])
+        df = sdf.join(other, on=join_on, how=how)
         fc_right = '%s_right' % FORECAST_COLUMN
+        meta = sm.copy()
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
             df = df.with_columns([
                 pl.col(FORECAST_COLUMN).fill_null(False) | pl.col(fc_right).fill_null(False)
@@ -171,11 +184,18 @@ class PathsExt:
         for col in om.metric_cols:
             col_right = '%s_right' % col
             if col_right in df.columns:
-                sm.units[col_right] = om.units[col]
+                meta.units[col_right] = om.units[col]
             elif col in df.columns:
-                sm.units[col] = om.units[col]
+                meta.units[col] = om.units[col]
 
-        out = ppl.to_ppdf(df, meta=sm)
+        if index_from == 'left':
+            pass
+        elif index_from == 'right':
+            meta.primary_keys = om.primary_keys
+
+        out = ppl.to_ppdf(df, meta=meta)
+        if out.paths.index_has_duplicates():
+            raise ValueError("Resulting DF has duplicated rows")
         return out
 
     def index_has_duplicates(self) -> bool:
