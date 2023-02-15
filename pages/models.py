@@ -5,11 +5,11 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from modelcluster.fields import ParentalKey
-from wagtail.admin.edit_handlers import (
+from wagtail.admin.panels import (
     FieldPanel, MultiFieldPanel, StreamFieldPanel
 )
-from wagtail.core.fields import RichTextField
-from wagtail.core.models import Page, Site
+from wagtail.fields import RichTextField
+from wagtail.models import Page, Site
 
 from grapple.models import (
     GraphQLBoolean, GraphQLField, GraphQLForeignKey, GraphQLImage, GraphQLStreamfield,

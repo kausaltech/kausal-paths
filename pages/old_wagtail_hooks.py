@@ -1,5 +1,5 @@
 from django.forms.widgets import Select
-from wagtail.admin.edit_handlers import FieldPanel, ObjectList
+from wagtail.admin.panels import FieldPanel, ObjectList
 from wagtail.contrib.modeladmin.options import ModelAdmin, modeladmin_register
 from wagtail.contrib.modeladmin.views import CreateView
 from nodes.instance import Instance

@@ -2,7 +2,7 @@
 
 import django
 from django.db import migrations, models
-import wagtail.core.fields
+import wagtail.fields
 
 
 class Migration(migrations.Migration):
@@ -15,17 +15,17 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='nodeconfig',
             name='body',
-            field=wagtail.core.fields.RichTextField(blank=True, null=True, verbose_name='Body'),
+            field=wagtail.fields.RichTextField(blank=True, null=True, verbose_name='Body'),
         ),
         migrations.AddField(
             model_name='nodeconfig',
             name='short_description',
-            field=wagtail.core.fields.RichTextField(blank=True, null=True, verbose_name='Short description'),
+            field=wagtail.fields.RichTextField(blank=True, null=True, verbose_name='Short description'),
         ),
         migrations.AddField(
             model_name='instanceconfig',
             name='lead_paragraph',
-            field=wagtail.core.fields.RichTextField(blank=True, null=True, verbose_name='Lead paragraph'),
+            field=wagtail.fields.RichTextField(blank=True, null=True, verbose_name='Lead paragraph'),
         ),
         migrations.AddField(
             model_name='instanceconfig',

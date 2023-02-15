@@ -3,7 +3,7 @@ import re
 from grapple.types.pages import Page as GrapplePageType, PageInterface
 from grapple.utils import resolve_queryset
 
-from wagtail.core.models import Page as WagtailPage
+from wagtail.models import Page as WagtailPage
 
 from nodes.models import InstanceConfig
 from nodes.schema import NodeType

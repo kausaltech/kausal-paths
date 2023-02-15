@@ -1,7 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
-from wagtail.core import hooks
+from wagtail import hooks
 
 from nodes.models import InstanceConfig
 

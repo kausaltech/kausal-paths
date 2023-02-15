@@ -13,9 +13,9 @@ from django.utils import timezone
 from django.utils.translation import get_language, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
-from wagtail.core.fields import RichTextField
-from wagtail.core.models import Locale, Page
-from wagtail.core.models.sites import Site
+from wagtail.fields import RichTextField
+from wagtail.models import Locale, Page
+from wagtail.models.sites import Site
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node

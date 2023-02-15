@@ -8,14 +8,10 @@ asgiref==3.6.0
     # via
     #   -c requirements.txt
     #   django
-astroid==2.13.2
-    # via pylint
 asttokens==2.2.1
     # via
     #   -c requirements.txt
     #   stack-data
-autopep8==2.0.1
-    # via -r requirements-dev.in
 backcall==0.2.0
     # via
     #   -c requirements.txt
@@ -26,7 +22,7 @@ certifi==2022.12.7
     # via
     #   -c requirements.txt
     #   requests
-charset-normalizer==2.1.1
+charset-normalizer==3.0.1
     # via
     #   -c requirements.txt
     #   requests
@@ -39,14 +35,12 @@ decorator==5.1.1
     #   -c requirements.txt
     #   ipdb
     #   ipython
-dill==0.3.6
-    # via pylint
-django==3.2.16
+django==3.2.18
     # via
     #   -c requirements.txt
     #   django-stubs
     #   django-stubs-ext
-django-stubs==1.13.1
+django-stubs==1.14.0
     # via
     #   -r requirements-dev.in
     #   djangorestframework-stubs
@@ -58,8 +52,6 @@ executing==1.2.0
     # via
     #   -c requirements.txt
     #   stack-data
-flake8==6.0.0
-    # via -r requirements-dev.in
 graphene-stubs==0.15
     # via -r requirements-dev.in
 idna==3.4
@@ -68,40 +60,32 @@ idna==3.4
     #   requests
 ipdb==0.13.11
     # via -r requirements-dev.in
-ipython==8.9.0
+ipython==8.10.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
     #   ipdb
-isort==5.11.4
-    # via pylint
 jedi==0.18.2
     # via
     #   -c requirements.txt
     #   ipython
-lazy-object-proxy==1.9.0
-    # via astroid
 matplotlib-inline==0.1.6
     # via
     #   -c requirements.txt
     #   ipython
-mccabe==0.7.0
-    # via
-    #   flake8
-    #   pylint
-mypy==0.991
+mypy==1.0.0
     # via
     #   -r requirements-dev.in
     #   django-stubs
     #   djangorestframework-stubs
     #   graphene-stubs
-mypy-extensions==0.4.3
+mypy-extensions==1.0.0
     # via mypy
 packaging==23.0
     # via
     #   -c requirements.txt
     #   build
-pandas-stubs==1.5.2.230105
+pandas-stubs==1.5.3.230214
     # via -r requirements-dev.in
 parso==0.8.3
     # via
@@ -115,10 +99,8 @@ pickleshare==0.7.5
     # via
     #   -c requirements.txt
     #   ipython
-pip-tools==6.12.1
+pip-tools==6.12.2
     # via -r requirements-dev.in
-platformdirs==2.6.2
-    # via pylint
 plotext==5.2.8
     # via -r requirements-dev.in
 prompt-toolkit==3.0.36
@@ -133,25 +115,10 @@ pure-eval==0.2.2
     # via
     #   -c requirements.txt
     #   stack-data
-pycodestyle==2.10.0
-    # via
-    #   autopep8
-    #   flake8
-pyflakes==3.0.1
-    # via flake8
 pygments==2.14.0
     # via
     #   -c requirements.txt
     #   ipython
-pylint==2.15.10
-    # via
-    #   -r requirements-dev.in
-    #   pylint-django
-    #   pylint-plugin-utils
-pylint-django==2.5.3
-    # via -r requirements-dev.in
-pylint-plugin-utils==0.7
-    # via pylint-django
 pyproject-hooks==1.0.0
     # via build
 pytz==2022.7.1
@@ -162,6 +129,8 @@ requests==2.28.2
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
+ruff==0.0.246
+    # via -r requirements-dev.in
 six==1.16.0
     # via
     #   -c requirements.txt
@@ -177,18 +146,12 @@ stack-data==0.6.2
 tomli==2.0.1
     # via
     #   -c requirements.txt
-    #   autopep8
     #   build
     #   django-stubs
     #   ipdb
     #   mypy
-    #   pylint
     #   pyproject-hooks
-tomlkit==0.11.6
-    # via
-    #   -c requirements.txt
-    #   pylint
-traitlets==5.8.1
+traitlets==5.9.0
     # via
     #   -c requirements.txt
     #   ipython
@@ -199,18 +162,17 @@ types-pytz==2022.7.1.0
     # via
     #   django-stubs
     #   pandas-stubs
-types-pyyaml==6.0.12.3
+types-pyyaml==6.0.12.6
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.28.11.8
+types-requests==2.28.11.12
     # via djangorestframework-stubs
-types-urllib3==1.26.25.4
+types-urllib3==1.26.25.5
     # via types-requests
-typing-extensions==4.4.0
+typing-extensions==4.5.0
     # via
     #   -c requirements.txt
-    #   astroid
     #   django-stubs
     #   django-stubs-ext
     #   djangorestframework-stubs
@@ -226,10 +188,6 @@ wcwidth==0.2.6
     #   prompt-toolkit
 wheel==0.38.4
     # via pip-tools
-wrapt==1.14.1
-    # via
-    #   -c requirements.txt
-    #   astroid
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip

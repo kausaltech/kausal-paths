@@ -3,7 +3,7 @@ from typing import Optional
 import graphene
 from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
-from wagtail.core.rich_text import expand_db_html
+from wagtail.rich_text import expand_db_html
 
 import polars as pl
 

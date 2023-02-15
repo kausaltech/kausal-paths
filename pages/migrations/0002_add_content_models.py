@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
-import wagtail.core.fields
+import wagtail.fields
 
 
 class Migration(migrations.Migration):
@@ -29,8 +29,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('node_id', models.CharField(max_length=100, unique=True, verbose_name='Node identifier')),
-                ('short_description', wagtail.core.fields.RichTextField(blank=True, null=True, verbose_name='Short description')),
-                ('body', wagtail.core.fields.RichTextField(blank=True, null=True, verbose_name='Body')),
+                ('short_description', wagtail.fields.RichTextField(blank=True, null=True, verbose_name='Short description')),
+                ('body', wagtail.fields.RichTextField(blank=True, null=True, verbose_name='Body')),
                 ('instance', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, to='pages.instancecontent')),
             ],
             options={
