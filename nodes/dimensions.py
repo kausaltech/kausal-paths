@@ -1,9 +1,10 @@
+import re
 import hashlib
 import typing
 from typing import Any, List, OrderedDict
 import polars as pl
 
-from pydantic import BaseModel, Field, PrivateAttr, root_validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator
 
 from common.i18n import I18nString, TranslatedString, get_default_language
 from common.types import Identifier
@@ -12,10 +13,27 @@ if typing.TYPE_CHECKING:
     import pandas as pd
 
 
+class DimensionCategoryGroup(BaseModel):
+    id: Identifier
+    label: I18nString
+    id_match: str | None = None
+
+    @validator('id_match')
+    def validate_id_match(cls, v):
+        if v is None:
+            return v
+        if not len(v):
+            raise ValueError('zero length regex supplied')
+        # Try to parse the regex
+        re.match(v, '')
+        return v
+
 class DimensionCategory(BaseModel):
     id: Identifier
-    label: I18nString | None
+    label: I18nString
+    group: str | None = None
     aliases: List[str] = Field(default_factory=list)
+    _group: DimensionCategoryGroup | None = PrivateAttr(default=None)
 
     def all_labels(self) -> set[str]:
         labels = set([str(self.id)])
@@ -31,15 +49,29 @@ class DimensionCategory(BaseModel):
 class Dimension(BaseModel):
     id: Identifier
     label: I18nString | None = Field(default=None)
+    groups: List[DimensionCategoryGroup] = Field(default_factory=list)
     categories: List[DimensionCategory] = Field(default_factory=list)
     is_internal: bool = False
     _hash: bytes | None = PrivateAttr(default=None)
     _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
+    _group_map: OrderedDict[str, DimensionCategoryGroup] = PrivateAttr(default_factory=dict)
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
         cat_map = OrderedDict([(str(cat.id), cat) for cat in self.categories])
         self._cat_map = cat_map
+        group_map = OrderedDict([(str(g.id), g) for g in self.groups])
+        self._group_map = group_map
+        for cat in self.categories:
+            if cat.group is not None:
+                cat._group = group_map[cat.group]
+        for g in self.groups:
+            if g.id_match is None:
+                continue
+            cats = [cat for cat in self.categories if re.match(g.id_match, cat.id)]
+            for cat in cats:
+                if cat._group is not None:
+                    cat._group = g
 
     def get(self, cat_id: str) -> DimensionCategory:
         if cat_id not in self._cat_map:
@@ -95,7 +127,11 @@ class Dimension(BaseModel):
         if self._hash is not None:
             return self._hash
         h = hashlib.md5()
-        h.update(self.json(exclude={'label': True, 'categories': {'__all__': {'label'}}}).encode('utf8'))
+        h.update(self.json(exclude={
+            'label': True, 
+            'categories': {'__all__': {'label'}},
+            'groups': {'__all__': {'label'}},
+        }).encode('utf8'))
         self._hash = h.digest()
         return self._hash
 
@@ -127,6 +163,16 @@ class Dimension(BaseModel):
             langs[lang] = val
 
         return TranslatedString(default_language=default_language, **langs)
+
+    @validator('categories', each_item=True)
+    def validate_category_groups(cls, v, values):
+        if v.group is not None:
+            for g in values['groups']:
+                if g.id == v.group:
+                    break
+            else:
+                raise KeyError('group %s not found' % v.group)
+        return v
 
     @root_validator
     def validate_translated_fields(cls, val: dict):
