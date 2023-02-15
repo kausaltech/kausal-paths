@@ -1,37 +1,33 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 
-import os
 import inspect
-from re import S
+import os
 from types import FrameType
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type, overload, Literal
-from datetime import datetime
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, overload
 
-import networkx as nx
 import dvc_pandas
-import pint
-import pint_pandas
+import networkx as nx
 import rich
-from common import polars as pl
-from common import polars_ext  # noqa
 from rich.tree import Tree
 
+from common import polars_ext  # noqa
+from common import polars as pl  # noqa
 from common.cache import Cache
 from params import Parameter
 from params.discover import discover_parameter_types
 from params.storage import SettingStorage
 
 from .datasets import Dataset, DVCDataset, FixedDataset
-from .units import unit_registry, Unit
 from .perf import PerfContext
+from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
-    from .node import Node, Dimension
+    from .actions.action import ActionEfficiencyPair, ActionNode
+    from .normalization import Normalization
     from .instance import Instance
+    from .node import Dimension, Node
     from .scenario import CustomScenario, Scenario
     from .units import CachingUnitRegistry
-    from nodes.actions.action import ActionEfficiencyPair, ActionNode
 
 
 class Context:
@@ -43,6 +39,8 @@ class Context:
     global_parameters: dict[str, Parameter]
     scenarios: dict[str, Scenario]
     custom_scenario: CustomScenario
+    options: dict[str, Any]
+    normalizations: dict[str, Normalization]
 
     dimensions: dict[str, Dimension]
     """Global dimensions available for nodes."""
@@ -52,6 +50,7 @@ class Context:
     unit_registry: CachingUnitRegistry
     dataset_repo: dvc_pandas.Repository
     active_scenario: Scenario
+    active_normalization: Normalization | None
     supported_parameter_types: dict[str, type]
     cache: Cache
     skip_cache: bool = False
@@ -88,8 +87,11 @@ class Context:
         self.instance = None  # type: ignore
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
+        self.active_normalization = None
         self.action_efficiency_pairs = []
         self.dimensions = {}
+        self.options = {}
+        self.normalizations = {}
 
     def finalize_nodes(self):
         """Finalize the node graph.
@@ -222,8 +224,18 @@ class Context:
         self.add_scenario(scenario)
         self.custom_scenario = scenario
 
-    def get_scenario(self, id) -> Scenario:
+    def get_scenario(self, id: str) -> Scenario:
         return self.scenarios[id]
+
+    def set_option(self, id: Literal['normalizer'], val: Any):
+        if id == 'normalizer':
+            if not isinstance(val, bool):
+                raise TypeError('Expecting bool')
+        else:
+            raise KeyError("Unknown option: %s" % id)
+
+    def get_option(self, id: Literal['normalizer']) -> Any:
+        pass
 
     def get_root_nodes(self) -> list[Node]:
         all_nodes = self.nodes.values()
@@ -333,3 +345,6 @@ class Context:
     def get_actions(self) -> list['ActionNode']:
         from nodes.actions.action import ActionNode
         return [n for n in self.nodes.values() if isinstance(n, ActionNode)]
+
+    def warning(self, msg: Any, *args):
+        self.instance.warning(msg, *args)

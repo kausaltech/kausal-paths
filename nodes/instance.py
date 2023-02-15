@@ -4,7 +4,7 @@ import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, Iterable, Literal, Optional, Sequence, Type, overload
+from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Type, overload
 
 import dvc_pandas
 import pint
@@ -16,6 +16,7 @@ from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.node import Edge, Node
+from nodes.normalization import Normalization
 from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
 from nodes.units import Unit
@@ -52,12 +53,14 @@ class Instance:
     action_groups: list[ActionGroup] = field(default_factory=list)
 
     modified_at: Optional[datetime] = field(init=False)
+    logger: logging.Logger = field(init=False)
 
     @property
     def target_year(self) -> int:
         return self.context.target_year
 
     def __post_init__(self):
+        self.logger = logging.getLogger('instance.%s' % self.id)
         self.modified_at = None
         if isinstance(self.features, dict):
             self.features = InstanceFeatures(**self.features)
@@ -80,6 +83,9 @@ class Instance:
         instance_data['dataset_repo']['commit'] = commit_id
         with open(self.yaml_file_path, 'w', encoding='utf8') as f:
             yaml_obj.dump(data, f)
+
+    def warning(self, msg: Any, *args):
+        self.logger.warning(msg, *args)
 
 
 class InstanceLoader:
@@ -487,6 +493,14 @@ class InstanceLoader:
             )
             self.context.action_efficiency_pairs.append(aep)
 
+    def setup_normalizations(self):
+        ncs = self.config.get('normalizations', [])
+        for nc in ncs:
+            n = Normalization.from_config(self.context, nc)
+            n_id = n.normalizer_node.id
+            assert n_id not in self.context.normalizations
+            self.context.normalizations[n_id] = n
+
     @classmethod
     def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict]):
         by_id = {d['id']: d for d in confs}
@@ -578,6 +592,7 @@ class InstanceLoader:
         self.setup_edges()
         self.setup_action_efficiency_pairs()
         self.setup_scenarios()
+        self.setup_normalizations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

@@ -57,6 +57,7 @@ parser.add_argument('--debug-nodes', type=str, nargs='+', help='enable debug mes
 parser.add_argument('--check', action='store_true', help='perform sanity checking')
 parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
+parser.add_argument('--normalize', type=str, metavar='NODE', help='normalize by other node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
 parser.add_argument('--update-instance', action='store_true', help='update an existing InstanceConfig instance')
@@ -101,25 +102,6 @@ if args.profile:
     profile = cProfile.Profile()
 else:
     profile = None
-
-
-def print_metric(metric):
-    print(metric)
-
-    print('Historical:')
-    vals = metric.get_historical_values(context)
-    for val in vals:
-        print(val)
-
-    print('\nBaseline forecast:')
-    vals = metric.get_baseline_forecast_values(context)
-    for val in vals:
-        print(val)
-
-    print('\nRoadmap scenario:')
-    vals = metric.get_forecast_values(context)
-    for val in vals:
-        print(val)
 
 
 if args.print_graph:
@@ -190,6 +172,10 @@ if args.check or args.update_instance or args.update_nodes:
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')
     context.set_parameter_value(param_id, val)
+
+if args.normalize:
+    norm = context.normalizations[args.normalize]
+    context.active_normalization = norm
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)

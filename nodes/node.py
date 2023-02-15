@@ -10,7 +10,7 @@ import inspect
 import json
 import typing
 from time import perf_counter_ns
-from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Sequence, Tuple, Union, Set, overload
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Tuple, Union, Set, overload
 
 import numpy as np
 import pandas as pd
@@ -25,8 +25,7 @@ from common.types import Identifier, MixedCaseIdentifier
 from common.utils import hash_unit
 from common import polars as ppl
 from nodes.constants import (
-    BASELINE_VALUE_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN,
-    MILEAGE_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN,
+    BASELINE_VALUE_COLUMN, FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN,
     ensure_known_quantity, DEFAULT_METRIC, get_quantity_icon
 )
 from params import Parameter
@@ -69,6 +68,9 @@ class NodeMetric:
             self.column_id = MixedCaseIdentifier.validate(column_id)
         else:
             self.column_id = None  # type: ignore
+
+    def copy(self) -> NodeMetric:
+        return NodeMetric(unit=self.unit, quantity=self.quantity, id=self.id, label=self.label, column_id=self.column_id)
 
     def populate_unit(self, context: Context):
         unit = self.default_unit
@@ -332,7 +334,12 @@ class Node:
         for m in self.output_metrics.values():
             m.node = self
 
-    def _init_dimensions(self, class_dims: dict[str, Dimension], arg_dims: list[str] | None, class_dim_ids: list[str]) -> dict[str, Dimension]:
+    def _init_dimensions(
+        self,
+        class_dims: dict[str, Dimension],
+        arg_dims: list[str] | None,
+        class_dim_ids: list[str]
+    ) -> dict[str, Dimension]:
         dims = class_dims.copy()
 
         for dim_id, dim in dims.items():
@@ -395,11 +402,15 @@ class Node:
 
         if not hasattr(self, 'output_dimensions'):
             self.output_dimensions = {}
-        self.output_dimensions = self._init_dimensions(self.output_dimensions, output_dimension_ids, self.output_dimension_ids)
+        self.output_dimensions = self._init_dimensions(
+            self.output_dimensions, output_dimension_ids, self.output_dimension_ids
+        )
 
         if not hasattr(self, 'input_dimensions'):
             self.input_dimensions = {}
-        self.input_dimensions = self._init_dimensions(self.input_dimensions, input_dimension_ids, self.input_dimension_ids)
+        self.input_dimensions = self._init_dimensions(
+            self.input_dimensions, input_dimension_ids, self.input_dimension_ids
+        )
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
@@ -911,13 +922,28 @@ class Node:
     def _get_output_with_baseline(self):
         df = self.get_output_pl()
         meta = df.get_meta()
+
+        if self.context.active_normalization:
+            norm = self.context.active_normalization
+            for m in self.output_metrics.values():
+                _, df = norm.normalize_output(m, df)
+        else:
+            norm = None
+
         if meta.dim_ids:
             return df.paths.to_wide()
-        if self.baseline_values is not None and VALUE_COLUMN in df.columns:
+
+        if self.baseline_values is not None:
+            m = self.output_metrics[DEFAULT_METRIC]
             df = df.with_columns(
-                self.baseline_values[VALUE_COLUMN].alias(BASELINE_VALUE_COLUMN),
-                units={BASELINE_VALUE_COLUMN: self.baseline_values.get_unit(VALUE_COLUMN)}
+                self.baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN),
+                units={BASELINE_VALUE_COLUMN: self.baseline_values.get_unit(m.column_id)}
             )
+            if norm:
+                bm = m.copy()
+                bm.column_id = BASELINE_VALUE_COLUMN
+                _, df = norm.normalize_output(m, df)
+
         return df
 
     def print_output(self):
@@ -1183,3 +1209,6 @@ class Node:
             attributes['color'] = self.color
 
         return attributes
+
+    def warning(self, msg: str):
+        self.context.warning('%s %s' % (str(self), msg))
