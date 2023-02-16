@@ -6,6 +6,7 @@ class MediaFilesS3Storage(S3Boto3Storage):
     access_key_names = ['MEDIA_FILES_S3_ACCESS_KEY_ID']
     secret_key_names = ['MEDIA_FILES_S3_SECRET_ACCESS_KEY']
     security_token_names = ['MEDIA_FILES_S3_SESSION_TOKEN']
+    default_acl = 'public-read'
 
     def get_default_settings(self):
         defaults = super().get_default_settings()
