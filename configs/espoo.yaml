@@ -45,6 +45,48 @@ dimensions:
         label: Palvelut
       - id: industry
         label: Teollisuus
+  - id: vehicle
+    label: Ajoneuvo
+    categories:
+    - id: passenger_cars
+      label: Henkilöautot
+    - id: motorcycles
+      label: Moottoripyörät
+    - id: vans
+      label: Pakettiautot
+    - id: trucks
+      label: Kuorma-autot
+    - id: buses
+      label: Linja-autot
+    - id: buses_hsl
+      label: Linja-autot, HSL
+    - id: buses_other
+      label: Linja-autot, muut
+    - id: local_trains
+      label: Lähijunat
+    - id: metro
+      label: Metrot
+    - id: trams
+      label: Raitiovaunut
+    - id: leasure_boats
+      label: Huviveneet
+    - id: professional_boats
+      label: Ammattiveneet
+    - id: passenger_ships
+      label: Matkustajalaivat
+    - id: cargo_ships
+      label: Rahtilaivat
+  - id: transportation_class
+    label: Liikennemuoto
+    categories:
+    - id: road_transportation
+      label: Tieliikenne
+    - id: rail_tranportation
+      label: Raideliikenne
+    - id: waterborne_navigation
+      label: Laivaliikenne
+    - id: aviation
+      label: Lentoliikenne
 
 emission_sectors:
 - id: net_emissions
@@ -131,6 +173,46 @@ nodes:
   type: simple.AdditiveNode
   unit: GWh/a
   quantity: energy
+
+- id: road_traffic_energy
+  name: Tieliikenteen energiankulutus
+  type: finland.hsy.HsyDataCollection
+  quantity: energy
+  unit: GWh/a
+  input_nodes: [all_hsy_emissions]
+  output_dimensions: [vehicle, transportation_class]
+  params:
+  - id: sector
+    value: Liikenne
+  - id: dimension1_column
+    value: 3
+  - id: dimension2_column
+    value: 2
+
+- id: road_traffic_emissions
+  name: Tieliikenteen päästöt
+  type: finland.hsy.HsyDataCollection
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [all_hsy_emissions]
+  output_dimensions: [vehicle, transportation_class]
+  params:
+  - id: sector
+    value: Liikenne
+  - id: dimension1_column
+    value: 3
+  - id: dimension2_column
+    value: 2
+
+- id: road_traffic_emission_factor
+  name: Tieliikenteen päästökerroin
+  type: simple.DivisiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  output_dimensions: [vehicle, transportation_class]
+  input_nodes:
+  - road_traffic_emissions
+  - road_traffic_energy
 
 pages:
 - id: home
@@ -300,7 +382,7 @@ actions:
   - agriculture_emissions
 
 - id: reduce_industrial_fuel_emissions
-  name: Teollisuuden pollttoaineiden päästöt pienenevät
+  name: Teollisuuden polttoaineiden päästöt pienenevät
   name_en: Industrial fuel emissions are reduced
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
