@@ -83,6 +83,8 @@ class AdditiveNode(SimpleNode):
     ] + SimpleNode.allowed_parameters
 
     def add_nodes_pl(self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None) -> ppl.PathsDataFrame:
+        if len(nodes) == 0:
+            return df
         if self.debug:
             print('%s: input dataset:' % self.id)
             if df is not None:
@@ -240,12 +242,12 @@ class DivisiveNode(MultiplicativeNode):
 
         df2_meta = df2.get_meta()
         inv_unit = (1 / df2_meta.units[VALUE_COLUMN]).units  # type: ignore
-        df2 = df2.with_columns([(pl.lit(1) / pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)], units={VALUE_COLUMN: 1 / inv_unit })
+        df2 = df2.with_columns([(pl.lit(1) / pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)], units={VALUE_COLUMN: inv_unit})
         df = df1.paths.join_over_index(df2, how='left')
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
 
-        return df1
+        return df
 
 
 class EmissionFactorActivity(MultiplicativeNode):

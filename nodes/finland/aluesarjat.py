@@ -218,9 +218,9 @@ class BuildingHeatPredict(Node):
             exit()
         """
 
-        s = pa_df.stack(self.output_dimension_ids) # type: ignore
+        s = pa_df.stack(self.output_dimension_ids)  # type: ignore
         s = s.astype(dt)
-        s.index = s.index.reorder_levels(heat_df.index.names) # type: ignore
+        s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
         df['PerArea'] = s
         df['PerArea'] = df['PerArea'].fillna(method='pad')
 
