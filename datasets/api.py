@@ -331,23 +331,78 @@ class DatasetSerializer(serializers.ModelSerializer):
         if is_create:
             validated_data['created_by'] = validated_data['updated_by']
             validated_data['created_at'] = validated_data['updated_at']
+        validated_data['instance'] = self.context['instance_config']
 
-    @atomic
-    def update(self, instance: Dataset, validated_data: dict) -> Dataset:
-        self.inject_common_data(validated_data=validated_data, is_create=False)
-
+    def _get_metrics(self, validated_data):
         try:
             metrics = validated_data.pop('metrics')
             metric_s = [DatasetMetricSerializer(data=m) for m in metrics]
             for s in metric_s:
                 s.is_valid(raise_exception=True)
+            return metric_s
         except KeyError:
-            metric_s = []
+            return []
 
+    @atomic
+    def update(self, instance: Dataset, validated_data: dict) -> Dataset:
+        self.inject_common_data(validated_data=validated_data, is_create=False)
+        metric_s = self._get_metrics(validated_data)
+
+        dimension_selections_data = validated_data.pop('dimension_selections')
         ds: Dataset = super().update(instance, validated_data)
 
-        for s in metric_s:
-            s.save(dataset=ds)
+        existing_dimensions = DatasetDimension.objects.filter(dataset=ds)
+        existing_categories = set(
+            ((c.dataset_dimension.dimension_id, c.category.id)
+             for c in DatasetDimensionSelectedCategory.objects.filter(
+                     dataset_dimension__in=existing_dimensions)
+             )
+        )
+        new_categories = set(
+            ((selection.get('dimension').id, cat_selection.get('category').id)
+             for selection in dimension_selections_data
+             for cat_selection in selection.get('datasetdimensionselectedcategory_set'))
+        )
+
+        to_delete = existing_categories - new_categories
+        for dim, cat in to_delete:
+            DatasetDimensionSelectedCategory.objects.get(
+                dataset_dimension__dataset=ds,
+                dataset_dimension__dimension_id=dim,
+                category_id=cat
+            ).delete()
+            if not (DatasetDimensionSelectedCategory.objects
+                    .filter(dataset_dimension__dimension_id=dim)
+                    .exists()):
+                DatasetDimension.objects.get(dimension_id=dim).delete()
+
+        to_create = new_categories - existing_categories
+        for dim, cat in to_create:
+            dsd, _ = DatasetDimension.objects.get_or_create(
+                dimension_id=dim,
+                dataset=ds
+            )
+            DatasetDimensionSelectedCategory.objects.create(
+                dataset_dimension=dsd,
+                category_id=cat
+            )
+
+        existing_metrics = set((m.identifier for m in DatasetMetric.objects.filter(dataset=ds)))
+        new_metrics = set((m.validated_data['identifier'] for m in metric_s))
+
+        to_delete = existing_metrics - new_metrics
+        to_create = new_metrics - existing_metrics
+
+        for mid in to_delete:
+            DatasetMetric.objects.filter(dataset=ds, identifier=mid).delete()
+        for m in metric_s:
+            if m.validated_data['identifier'] in to_delete:
+                continue
+            if m.validated_data['identifier'] in to_create:
+                m.save(dataset=ds)
+            else:
+                m.instance = DatasetMetric.objects.get(dataset=ds, identifier=m.validated_data['identifier'])
+                m.save()
 
         if ds.table is None:
             ds.table = ds.generate_empty_table()
@@ -359,17 +414,12 @@ class DatasetSerializer(serializers.ModelSerializer):
 
     @atomic
     def create(self, validated_data: dict):
-        validated_data['instance'] = self.context['instance_config']
-
-        self.inject_common_data(validated_data=validated_data, is_create=True)
-
-        metrics = validated_data.pop('metrics')
-        metric_s = [DatasetMetricSerializer(data=m) for m in metrics]
-        for s in metric_s:
-            s.is_valid(raise_exception=True)
-
         if Dataset.objects.filter(identifier=validated_data['identifier']).exists():
             raise exceptions.ValidationError(dict(identifier='identifier already exists'))
+
+        self.inject_common_data(validated_data=validated_data, is_create=True)
+        metric_s = self._get_metrics(validated_data)
+
         table_is_empty = 'table' not in validated_data
         if table_is_empty:
             validated_data['table'] = {'schema': None, 'data': None}
