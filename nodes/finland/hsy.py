@@ -4,6 +4,7 @@ from typing import ClassVar, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from common import polars as ppl
 from nodes.calc import extend_last_historical_value
 from nodes.dimensions import Dimension
 from params import StringParameter, Parameter, NumberParameter
@@ -271,6 +272,9 @@ class HsyDataCollection(Node, HsyNodeMixin):
         df[VALUE_COLUMN] = self.ensure_output_unit(df[column])
         df = df.reset_index()
         df = df.set_index([YEAR_COLUMN, dim1, dim2])[[VALUE_COLUMN, FORECAST_COLUMN]]
+        df = ppl.from_pandas(df)
+        if self.debug:
+            self.print(df.get_last_historical_values())
         return df
 
 

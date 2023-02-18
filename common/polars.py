@@ -11,7 +11,7 @@ import polars as pl
 from polars import polars
 import polars.internals as pli
 import numpy as np
-from nodes.constants import YEAR_COLUMN
+from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 
 from nodes.units import Unit
 
@@ -234,6 +234,14 @@ class PathsDataFrame(pl.DataFrame):
     def copy(self) -> PathsDataFrame:
         return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
 
+    def get_last_historical_values(self):
+        meta = self.get_meta()
+        df = self.paths.to_wide()
+
+        last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
+        df = df.filter(pl.col(YEAR_COLUMN).eq(last_hist_year))
+        df = df.paths.to_narrow()
+        return to_ppdf(df, meta=meta)
 
 def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
     if isinstance(df, PathsDataFrame) and meta is None:

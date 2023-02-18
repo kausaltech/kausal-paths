@@ -240,11 +240,8 @@ class DivisiveNode(MultiplicativeNode):
                 self,
                 "Division inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
-        df2_meta = df2.get_meta()
-        inv_unit = (1 / df2_meta.units[VALUE_COLUMN]).units  # type: ignore
-        df2 = df2.with_columns([(pl.lit(1) / pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)], units={VALUE_COLUMN: inv_unit})
         df = df1.paths.join_over_index(df2, how='left')
-        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
 
         return df
