@@ -54,13 +54,15 @@ class Command(BaseCommand):
             if obj is not None:
                 print("Removing existing dataset")
                 obj.delete()
-            obj = Dataset(identifier=identifier, instance=ic, name=ds_id)
+            obj = Dataset(identifier=identifier, instance=ic, name=ds_id, table={}, years=[])
             obj.save()
             for m in metrics:
                 m.dataset = obj
                 m.save()
             for d in dims:
-                obj.dimensions.add(d)
+                dd =  DatasetDimension.objects.create(dataset=obj, dimension=d)
+                dd.selected_categories.set(d.categories.all())
+                dd.save()
             obj.save()
         else:
             print("Dataset %s already exists" % identifier)
@@ -68,6 +70,7 @@ class Command(BaseCommand):
 
         pdf = df.to_pandas()
         obj.table = JSONDataset.serialize_df(pdf, add_uuids=True)
+        obj.years = obj.generate_years_from_data()
         obj.save()
 
     def handle(self, *args, **options):
