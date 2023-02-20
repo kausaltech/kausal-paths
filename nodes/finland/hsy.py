@@ -1,11 +1,13 @@
 import logging
+import typing
 from typing import ClassVar, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from common import polars as ppl
 from nodes.calc import extend_last_historical_value
 from nodes.dimensions import Dimension
-from params import StringParameter, Parameter
+from params import StringParameter, Parameter, NumberParameter
 from nodes import Node, NodeMetric
 from nodes.constants import (
     FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, 
@@ -93,7 +95,7 @@ class HsyNode(Node):
                 BELOW_ZERO_WARNED = True
             df.loc[below_zero, [EMISSION_QUANTITY, ENERGY_QUANTITY]] = 0
 
-        # df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
+        # Emission factors are calculated later because they cannot be summed
         df['Sector'] = ''
         for i in range(1, 5):
             if i > 1:
@@ -201,6 +203,7 @@ class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
         df, other_nodes = self.get_sector([ENERGY_QUANTITY, EMISSION_QUANTITY])
         df[VALUE_COLUMN] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
         df = df.drop(columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
+        df[VALUE_COLUMN] = self.convert_to_unit(df[VALUE_COLUMN], self.unit)
 
         # If there are other input nodes connected, add them with this one.
         if len(other_nodes):
@@ -231,6 +234,47 @@ class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
         df[VALUE_COLUMN] = self.ensure_output_unit(df[ENERGY_QUANTITY])
         df = df.reset_index()
         df = df.set_index([YEAR_COLUMN, 'building_use', 'building_heat_source'])[[VALUE_COLUMN, FORECAST_COLUMN]]
+        return df
+
+
+class HsyDataCollection(Node, HsyNodeMixin):
+    default_unit = 'GWh/a'
+    quantity = ENERGY_QUANTITY
+
+    allowed_parameters: typing.ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters + [
+        NumberParameter(
+            local_id='dimension1_column',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='dimension2_column',
+            is_customizable=False,
+        ),
+    ]
+
+    def compute(self) -> pd.DataFrame:
+        assert len(self.output_dimensions) == 2
+        dim1, dim2 = self.output_dimensions.keys()
+        column = self.quantity
+        dim1_level = int(self.get_parameter_value('dimension1_column')) - 1
+        dim2_level = int(self.get_parameter_value('dimension2_column')) - 1
+
+        df, _ = self.get_sector(column, multi_index=True)
+        df = df.reset_index().set_index(YEAR_COLUMN)
+        df[dim1] = df['sector'].apply(lambda x: x.split('|')[dim1_level])
+        df[dim2] = df['sector'].apply(lambda x: x.split('|')[dim2_level])
+
+        use_dim = self.output_dimensions[dim1]
+        df[dim1] = use_dim.series_to_ids(df[dim1])
+        heat_dim = self.output_dimensions[dim2]
+        df[dim2] = heat_dim.series_to_ids(df[dim2])
+
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[column])
+        df = df.reset_index()
+        df = df.set_index([YEAR_COLUMN, dim1, dim2])[[VALUE_COLUMN, FORECAST_COLUMN]]
+        df = ppl.from_pandas(df)
+        if self.debug:
+            self.print(df.get_last_historical_values())
         return df
 
 

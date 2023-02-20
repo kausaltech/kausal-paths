@@ -45,6 +45,48 @@ dimensions:
         label: Palvelut
       - id: industry
         label: Teollisuus
+  - id: vehicle
+    label: Ajoneuvo
+    categories:
+    - id: passenger_cars
+      label: Henkilöautot
+    - id: motorcycles
+      label: Moottoripyörät
+    - id: vans
+      label: Pakettiautot
+    - id: trucks
+      label: Kuorma-autot
+    - id: buses
+      label: Linja-autot
+    - id: buses_hsl
+      label: Linja-autot, HSL
+    - id: buses_other
+      label: Linja-autot, muut
+    - id: local_trains
+      label: Lähijunat
+    - id: metro
+      label: Metrot
+    - id: trams
+      label: Raitiovaunut
+    - id: leasure_boats
+      label: Huviveneet
+    - id: professional_boats
+      label: Ammattiveneet
+    - id: passenger_ships
+      label: Matkustajalaivat
+    - id: cargo_ships
+      label: Rahtilaivat
+  - id: transportation_class
+    label: Liikennemuoto
+    categories:
+    - id: road_transportation
+      label: Tieliikenne
+    - id: rail_tranportation
+      label: Raideliikenne
+    - id: waterborne_navigation
+      label: Laivaliikenne
+    - id: aviation
+      label: Lentoliikenne
 
 emission_sectors:
 - id: net_emissions
@@ -131,6 +173,135 @@ nodes:
   type: simple.AdditiveNode
   unit: GWh/a
   quantity: energy
+
+- id: transportation_energy
+  name: Tieliikenteen energiankulutus
+  type: finland.hsy.HsyDataCollection
+  quantity: energy
+  unit: GWh/a
+  input_nodes: [all_hsy_emissions]
+  output_dimensions: [vehicle, transportation_class]
+  params:
+  - id: sector
+    value: Liikenne
+  - id: dimension1_column
+    value: 3
+  - id: dimension2_column
+    value: 2
+  output_nodes:
+  - id: car_traffic_energy
+    from_dimensions:
+    - id: transportation_class
+      categories: [road_transportation]
+      flatten: true
+    - id: vehicle
+      categories: [passenger_cars]
+      flatten: true
+  - id: bus_traffic_energy
+    from_dimensions:
+    - id: transportation_class
+      categories: [road_transportation]
+      flatten: true
+    - id: vehicle
+      categories: [buses]
+      flatten: true
+  - id: van_traffic_energy
+    from_dimensions:
+    - id: transportation_class
+      categories: [road_transportation]
+      flatten: true
+    - id: vehicle
+      categories: [vans]
+      flatten: true
+  - id: truck_traffic_energy
+    from_dimensions:
+    - id: transportation_class
+      categories: [road_transportation]
+      flatten: true
+    - id: vehicle
+      categories: [trucks]
+      flatten: true
+  - id: motorcycle_traffic_energy
+    from_dimensions:
+    - id: transportation_class
+      categories: [road_transportation]
+      flatten: true
+    - id: vehicle
+      categories: [motorcycles]
+      flatten: true
+  - id: other_transportation_energy
+    from_dimensions:
+    - id: transportation_class
+      categories: [road_transportation]
+      exclude: true
+
+- id: transportation_emissions
+  name: Tieliikenteen päästöt
+  type: finland.hsy.HsyDataCollection
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [all_hsy_emissions]
+  output_dimensions: [vehicle, transportation_class]
+  params:
+  - id: sector
+    value: Liikenne
+  - id: dimension1_column
+    value: 3
+  - id: dimension2_column
+    value: 2
+
+- id: transportation_emission_factor
+  name: Tieliikenteen päästökerroin
+  type: simple.DivisiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  output_dimensions: [vehicle, transportation_class]
+  input_nodes:
+  - transportation_emissions
+  - transportation_energy
+
+- id: car_traffic_energy
+  name: Autoliikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2030, 55.1085987], [2035, 159.4475456]]
+
+- id: bus_traffic_energy
+  name: Bussiliikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2030, 0.70604907], [2035, 0.70604907]]
+
+- id: van_traffic_energy
+  name: Pakettiautoliikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2030, 22.35577851], [2035, 36.11318067]]
+
+- id: truck_traffic_energy
+  name: Kuorma-autoliikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2030, 139.8090131], [2035, 150.6124368]]
+
+- id: motorcycle_traffic_energy
+  name: Moottoripyöräliikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2030, 0], [2035, 0]]
+
+- id: other_transportation_energy
+  name: Muun liikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle, transportation_class]
+  output_dimensions: [vehicle, transportation_class]
 
 pages:
 - id: home
@@ -300,7 +471,7 @@ actions:
   - agriculture_emissions
 
 - id: reduce_industrial_fuel_emissions
-  name: Teollisuuden pollttoaineiden päästöt pienenevät
+  name: Teollisuuden polttoaineiden päästöt pienenevät
   name_en: Industrial fuel emissions are reduced
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
@@ -324,6 +495,54 @@ actions:
     min_value: -3.0
     max_value: 0.0
     unit: kt/a
+
+- id: change_in_car_traffic_energy
+  name: Muutos autoliikenteen energiankulutuksessa
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - car_traffic_energy
+  params:
+  - id: target_year_level
+    value: -27.78455812  # FIXME Target year should be 2030 but this value is reached only 2035.
+
+- id: change_in_bus_traffic_energy
+  name: Muutos bussiliikenteen energiankulutuksessa
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - bus_traffic_energy
+  params:
+  - id: target_year_level
+    value: 0
+
+- id: change_in_van_traffic_energy
+  name: Muutos pakettiautoliikenteen energiankulutuksessa
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - van_traffic_energy
+  params:
+  - id: target_year_level
+    value: -6.886607633
+
+- id: change_in_truck_traffic_energy
+  name: Muutos kuorma-autoliikenteen energiankulutuksessa
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - truck_traffic_energy
+  params:
+  - id: target_year_level
+    value: 4.403433483
 
 scenarios:
 - id: baseline
@@ -376,6 +595,8 @@ scenarios:
     value: -2.0
   - id: change_consumer_electricity.target_year_level
     value: 1600
+#  - id: change_in_car_traffic_energy.target_year_level
+#    value: 27.32404058
   # - id: reduce_oil_heating_services.target_year_level
   #   value: -37
 

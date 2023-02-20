@@ -114,6 +114,8 @@ class PathsExt:
             last_hist_year = y.max()
         else:
             last_hist_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+            if last_hist_year is None:
+                last_hist_year = 2021  # FIXME. This may occur with forecast_values.
         assert isinstance(last_hist_year, int)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         df = df.join(years, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
