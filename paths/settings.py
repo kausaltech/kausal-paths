@@ -420,12 +420,17 @@ if DEBUG:
 LOG_GRAPHQL_QUERIES = env('LOG_GRAPHQL_QUERIES')
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
+    import warnings
+    from wagtail.utils.deprecation import RemovedInWagtail50Warning
+
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
             handlers=['rich' if DEBUG else 'console'],
             propagate=False,
             level=level,
         )
+
+    warnings.filterwarnings(action='ignore', category=RemovedInWagtail50Warning)
 
     LOGGING = {
         'version': 1,
@@ -449,7 +454,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
-                'formatter': 'simple'
+                'formatter': 'simple',
             },
             'rich': {
                 'level': 'DEBUG',
