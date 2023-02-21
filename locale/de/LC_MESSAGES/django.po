@@ -28,15 +28,15 @@ msgstr "Datensätze"
 
 #: datasets/models.py
 msgid "label"
-msgstr ""
+msgstr "Beschriftung"
 
 #: datasets/models.py
 msgid "resolved at"
-msgstr ""
+msgstr "gelöst am"
 
 #: datasets/wagtail_hooks.py
 msgid "Dimensions"
-msgstr ""
+msgstr "Dimensionen"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
@@ -84,7 +84,7 @@ msgstr "Lebensdauer der Investition (a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr ""
+msgstr "Betriebskosten (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
@@ -161,7 +161,7 @@ msgstr "Knoten"
 
 #: nodes/processors.py
 msgid "Multiplier"
-msgstr ""
+msgstr "Multiplikator"
 
 #: nodes/units.py
 msgid "capita"
@@ -175,7 +175,7 @@ msgstr "Einw."
 #: nodes/units.py
 msgctxt "kilotonne short"
 msgid "kt"
-msgstr ""
+msgstr "kt"
 
 #: nodes/units.py
 msgctxt "year short"
@@ -216,7 +216,7 @@ msgstr "Wähle Instanz"
 
 #: params/global_params.py
 msgid "Cost node"
-msgstr ""
+msgstr "Kostenknoten"
 
 #: params/global_params.py
 msgid "Municipality name"
@@ -260,35 +260,35 @@ msgstr "Variable für vermiedene Stromkapazität in Berechnungen einbeziehen?"
 
 #: params/global_params.py
 msgid "Price of CO2"
-msgstr ""
+msgstr "CO2-Preis"
 
 #: params/global_params.py
 msgid "Price of CO2 annual change"
-msgstr ""
+msgstr "CO2-Preis jährliche Veränderung"
 
 #: params/global_params.py
 msgid "Price of electricity"
-msgstr ""
+msgstr "Strompreis"
 
 #: params/global_params.py
 msgid "Price of electricity annual change"
-msgstr ""
+msgstr "Strompreis jährliche Veränderung"
 
 #: params/global_params.py
 msgid "Price of Heat"
-msgstr ""
+msgstr "Wärmepreis"
 
 #: params/global_params.py
 msgid "Price of heat annual change"
-msgstr ""
+msgstr "Wärmepreis jährliche Veränderung"
 
 #: paths/authentication.py
 msgid "Invalid token."
-msgstr ""
+msgstr "Ungültiger Token"
 
 #: paths/schema.py paths/utils.py
 msgid "Invalid unit"
-msgstr ""
+msgstr "Ungültige Einheit"
 
 #: paths/settings.py
 msgid "Finnish"
@@ -320,15 +320,15 @@ msgstr "Einheit"
 
 #: paths/utils.py
 msgid "uuid"
-msgstr ""
+msgstr "UUID"
 
 #: paths/utils.py
 msgid "created at"
-msgstr ""
+msgstr "erstellt am"
 
 #: paths/utils.py
 msgid "updated at"
-msgstr ""
+msgstr "aktualisiert am"
 
 #: paths/utils.py
 msgid "order"
@@ -336,7 +336,7 @@ msgstr "Sortierung"
 
 #: users/models.py
 msgid "email address"
-msgstr ""
+msgstr "E-Mail Adresse"
 
 #~ msgid "Change in carbon emission price"
 #~ msgstr "Änderung des Kohlenstoffemissionspreises"
