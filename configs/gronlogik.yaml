@@ -166,7 +166,7 @@ params:
 - id: price_of_electricity
   value: 0.670
   min_value: 0
-  max_value: 0.8
+  max_value: 5.0
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande elpris (SEK/kWh)
@@ -192,7 +192,7 @@ params:
   is_customizable: true
   label: Kostnadsökningstakt av värmepris (%/år)
 - id: include_energy_taxes
-  label: Inkludera energiskatter?
+  label: Inkludera skatter och avgifter?
   is_customizable: true
   value: false
 - id: include_co2
