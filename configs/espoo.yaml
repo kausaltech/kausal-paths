@@ -548,7 +548,7 @@ actions:
     value: 4.403433483
 
 - id: replace_fossil_fuels_in_cars
-  name: Fossiilisten polttoaineiden korvaaminen -0.90%
+  name: Fossiilisten polttoaineiden korvaaminen
   description: Fossiilisten polttoaineiden korvaamisen arvioidaan vähentävän tieliikenteen päästöjä
     0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautoihin, saadaan päästökertoimen vähenemäksi
     234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
@@ -565,14 +565,144 @@ actions:
   - id: target_year_level
     value: -3.616
 
-#Autokannan nopeampi uudistuminen -0.90%
-#Henkilö- ja pakettiautojen sitovat päästörajat -0.70%
-#Jakeluvelvoitteen nosto -3.40%
-#Liikennejärjestelmän tehostaminen -2.80%
-#Etätyön lisääminen -0.90%
-#Liikenteen palveluiden edistäminen -0.90%
-#Yhdistetyt kuljetukset -0.20%
-#Tieliikenteen päästökauppa -4.50%
+- id: upgrade_car_fleet
+  name: Autokannan nopeampi uudistuminen
+  description: Autokannan nopeamman uudistamisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen, saadaan päästökertoimen vähenemäksi
+    234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_emission_factors
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -3.616
+
+- id: emission_limits_for_cars_and_vans
+  name: Henkilö- ja pakettiautojen sitovat päästörajat
+  description: Henkilö- ja pakettiautojen sitovien päästörajojen arvioidaan vähentävän tieliikenteen päästöjä
+    0.7 %. Kun tämä vaikutus kohdennetaan pelkästään pakettiautojen päästökertoimeen, saadaan päästökertoimen vähenemäksi
+    229.8 g/kWh * 0.7 % * (1261 GWh/a / 114.6 GWh/a) = 17.70 g/kWh.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_emission_factors
+    to_dimensions:
+    - id: vehicle
+      categories: [vans]
+  params:
+  - id: target_year_level
+    value: -17.70
+
+- id: increase_fuel_distribution_requirement
+  name: Jakeluvelvoitteen nosto
+  description: Jakeluvelvoitteen noston arvioidaan vähentävän tieliikenteen päästöjä
+    0.7 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen, saadaan päästökertoimen vähenemäksi
+    234 g/kWh * 3.4 % * (1261 GWh/a / 735 GWh/a) = 13.658 g/kWh.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_emission_factors
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -13.658
+
+- id: improve_personal_traffic_efficiency
+  name: Liikennejärjestelmän tehostaminen
+  description: Liikennejärjestelmän tehostamisen arvioidaan vähentävän tieliikenteen päästöjä
+    2.8 %. Tämä vastaa energiankulutusta 2.80 % * 1261 GWh/a = 35.31 GWh/a. Tämä kohdennetaan henkilöautoihin.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_energy
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -35.31
+
+- id: increase_remote_work
+  name: Etätyön lisääminen
+  description: Etätyön lisäämisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a. Tämä kohdennetaan henkilöautoihin.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_energy
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -11.35
+
+- id: improve_transport_services
+  name: Liikenteen palveluiden edistäminen
+  description: Liikenteen palveluiden edistämisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a. Tämä kohdennetaan henkilöautoihin.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_energy
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -11.35
+
+- id: trip_aggregation
+  name: Yhdistetyt kuljetukset
+  description: Kuljetusten yhdistämisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.2 %. Tämä vastaa energiankulutusta 0.2 % * 1261 GWh/a = 2.522 GWh/a. Tämä kohdennetaan henkilöautoihin.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_energy
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -2.522
+
+- id: road_transportation_emission_trade
+  name: Tieliikenteen päästökauppa
+  description: Tieliikenteen päästökaupan arvioidaan vähentävän tieliikenteen päästöjä
+    4.5 %. Tämä vastaa energiankulutusta 4.5 % * 1261 GWh/a = 56.75 GWh/a. Tämä kohdennetaan henkilöautoihin.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 0], [2035, 0]]
+  output_nodes:
+  - id: road_transportation_energy
+    to_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+  params:
+  - id: target_year_level
+    value: -56.75
 
 scenarios:
 - id: baseline
@@ -597,6 +727,24 @@ scenarios:
   - id: change_consumer_electricity.enabled
     value: true
 
+  - id: replace_fossil_fuels_in_cars.enabled
+    value: true
+  - id: upgrade_car_fleet.enabled
+    value: true
+  - id: emission_limits_for_cars_and_vans.enabled
+    value: false
+  - id: increase_fuel_distribution_requirement.enabled
+    value: false
+  - id: improve_personal_traffic_efficiency.enabled
+    value: true
+  - id: increase_remote_work.enabled
+    value: false
+  - id: improve_transport_services.enabled
+    value: false
+  - id: trip_aggregation.enabled
+    value: false
+  - id: road_transportation_emission_trade.enabled
+    value: true
   # - id: reduce_oil_heating_services.target_year_level
   #   value: -34
   # - id: reduce_oil_heating_services.enabled
@@ -618,6 +766,24 @@ scenarios:
     value: -2.0
   - id: change_consumer_electricity.target_year_level
     value: 1600
+  - id: replace_fossil_fuels_in_cars.enabled
+    value: true
+  - id: upgrade_car_fleet.enabled
+    value: true
+  - id: emission_limits_for_cars_and_vans.enabled
+    value: true
+  - id: increase_fuel_distribution_requirement.enabled
+    value: true
+  - id: improve_personal_traffic_efficiency.enabled
+    value: true
+  - id: increase_remote_work.enabled
+    value: true
+  - id: improve_transport_services.enabled
+    value: true
+  - id: trip_aggregation.enabled
+    value: true
+  - id: road_transportation_emission_trade.enabled
+    value: true
 #  - id: change_in_car_traffic_energy.target_year_level
 #    value: 27.32404058
   # - id: reduce_oil_heating_services.target_year_level
