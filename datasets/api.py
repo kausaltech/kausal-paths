@@ -334,23 +334,15 @@ class DatasetSerializer(serializers.ModelSerializer):
         validated_data['instance'] = self.context['instance_config']
 
     def _get_metrics(self, validated_data):
-        try:
-            metrics = validated_data.pop('metrics')
-            metric_s = [DatasetMetricSerializer(data=m) for m in metrics]
-            for s in metric_s:
-                s.is_valid(raise_exception=True)
-            return metric_s
-        except KeyError:
-            return []
+        if 'metrics' not in validated_data:
+            return None
+        metrics = validated_data.pop('metrics')
+        metric_s = [DatasetMetricSerializer(data=m) for m in metrics]
+        for s in metric_s:
+            s.is_valid(raise_exception=True)
+        return metric_s
 
-    @atomic
-    def update(self, instance: Dataset, validated_data: dict) -> Dataset:
-        self.inject_common_data(validated_data=validated_data, is_create=False)
-        metric_s = self._get_metrics(validated_data)
-
-        dimension_selections_data = validated_data.pop('dimension_selections')
-        ds: Dataset = super().update(instance, validated_data)
-
+    def update_dimensions(self, ds: Dataset, data: list):
         existing_dimensions = DatasetDimension.objects.filter(dataset=ds)
         existing_categories = set(
             ((c.dataset_dimension.dimension_id, c.category.id)
@@ -360,7 +352,7 @@ class DatasetSerializer(serializers.ModelSerializer):
         )
         new_categories = set(
             ((selection.get('dimension').id, cat_selection.get('category').id)
-             for selection in dimension_selections_data
+             for selection in data
              for cat_selection in selection.get('datasetdimensionselectedcategory_set'))
         )
 
@@ -387,6 +379,7 @@ class DatasetSerializer(serializers.ModelSerializer):
                 category_id=cat
             )
 
+    def update_metrics(self, ds: Dataset, metric_s: list[DatasetMetricSerializer]):
         existing_metrics = set((m.identifier for m in DatasetMetric.objects.filter(dataset=ds)))
         new_metrics = set((m.validated_data['identifier'] for m in metric_s))
 
@@ -403,6 +396,20 @@ class DatasetSerializer(serializers.ModelSerializer):
             else:
                 m.instance = DatasetMetric.objects.get(dataset=ds, identifier=m.validated_data['identifier'])
                 m.save()
+
+    @atomic
+    def update(self, instance: Dataset, validated_data: dict) -> Dataset:
+        self.inject_common_data(validated_data=validated_data, is_create=False)
+        metric_s = self._get_metrics(validated_data)
+
+        dimension_selections_data = validated_data.pop('dimension_selections', None)
+        ds: Dataset = super().update(instance, validated_data)
+
+        if dimension_selections_data is not None:
+            self.update_dimensions(ds, dimension_selections_data)
+
+        if metric_s is not None:
+            self.update_metrics(ds, metric_s)
 
         if ds.table is None:
             ds.table = ds.generate_empty_table()
