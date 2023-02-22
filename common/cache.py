@@ -168,3 +168,9 @@ class Cache:
 
         if self.run_cache is not None:
             self.run_cache[full_key] = obj
+
+    def clear(self):
+        if self.client:
+            self.client.flushall()
+        else:
+            self.local_cache = {}
