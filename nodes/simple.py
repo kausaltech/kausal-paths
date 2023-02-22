@@ -143,7 +143,10 @@ class AdditiveNode(SimpleNode):
         assert self.unit is not None
         if df is not None:
             if VALUE_COLUMN not in df.columns:
-                raise NodeError(self, "Input dataset doesn't have Value column")
+                if self.quantity in df.metric_cols:  # FIXME Not sure this is needed
+                    df.rename({self.quantity: VALUE_COLUMN})
+                else:
+                    raise NodeError(self, "Input dataset doesn't have Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
             df = extend_last_historical_value_pl(df, self.get_end_year())
 
@@ -251,6 +254,17 @@ class EmissionFactorActivity(MultiplicativeNode):
     """Multiply an activity by an emission factor."""
     quantity = 'emissions'
     default_unit = '%s/a' % EMISSION_UNIT
+    allowed_parameters = MultiplicativeNode.allowed_parameters + [
+        BoolParameter(local_id='convert_missing_values_to_zero')
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        convert = self.get_parameter_value('convert_missing_values_to_zero', required=False)
+        df = super().compute()
+        if convert:
+            df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(pl.lit(0)))
+            df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(pl.lit(0)))
+        return df
 
 
 class PerCapitaActivity(MultiplicativeNode):
