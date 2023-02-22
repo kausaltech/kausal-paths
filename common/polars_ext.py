@@ -61,9 +61,12 @@ class PathsExt:
         ])
         mdf = None
         units = {}
+        index_cols = [YEAR_COLUMN]
+        if FORECAST_COLUMN in df.columns:
+            index_cols.append(FORECAST_COLUMN)
         for metric_col in metric_cols:
-            tdf = df.pivot(index=[YEAR_COLUMN, FORECAST_COLUMN], columns='_dims', values=metric_col)
-            cols = [col for col in tdf.columns if col not in (YEAR_COLUMN, FORECAST_COLUMN)]
+            tdf = df.pivot(index=index_cols, columns='_dims', values=metric_col)
+            cols = [col for col in tdf.columns if col not in index_cols]
             metric_unit = meta.units.get(metric_col)
             if metric_unit is not None:
                 for col in cols:
@@ -72,7 +75,8 @@ class PathsExt:
             if mdf is None:
                 mdf = tdf
             else:
-                tdf = tdf.drop(columns=FORECAST_COLUMN)
+                if FORECAST_COLUMN in index_cols:
+                    tdf = tdf.drop(columns=FORECAST_COLUMN)
                 mdf = mdf.join(tdf, on=YEAR_COLUMN)
         assert mdf is not None
         return ppl.PathsDataFrame._from_pydf(
@@ -82,10 +86,34 @@ class PathsExt:
 
     def to_narrow(self) -> ppl.PathsDataFrame:
         df: ppl.PathsDataFrame | pl.DataFrame = self._df
+        assert isinstance(df, ppl.PathsDataFrame)
         widened_cols = [col for col in df.columns if '@' in col]
+        id_cols = [YEAR_COLUMN]
+        if FORECAST_COLUMN in df.columns:
+            id_cols.append(FORECAST_COLUMN)
         if not len(widened_cols):
             return df  # type: ignore
-        tdf = df.melt(id_vars=[YEAR_COLUMN, FORECAST_COLUMN]).with_columns([
+
+        meta = df.get_meta()
+        units: dict[str, Unit] = {}
+        primary_keys = [YEAR_COLUMN]
+        for col in widened_cols:
+            metric, dims = col.split('@')
+            unit = meta.units[col]
+            if metric in units:
+                if units[metric] != unit:
+                    raise Exception('Unit mismatch in metric %s' % metric)
+            else:
+                units[metric] = unit
+            for dim_parts in dims.split('/'):
+                dim_id, cat_id = dim_parts.split(':')
+                if dim_id not in primary_keys:
+                    primary_keys.append(dim_id)
+
+        meta.units = units
+        meta.primary_keys = primary_keys
+
+        tdf = df.melt(id_vars=id_cols).with_columns([
             pl.col('variable').str.split('@').alias('_tmp')
         ]).with_columns([
             pl.col('_tmp').arr.first().alias('Metric'),
@@ -96,9 +124,9 @@ class PathsExt:
         dim_ids = [x.split(':')[0] for x in first]
         dim_cols = [pl.col('_dims').arr.get(idx).str.split(':').arr.get(1).alias(col) for idx, col in enumerate(dim_ids)]
         df = df.with_columns(dim_cols)
-        df = df.pivot(values='value', index=[YEAR_COLUMN, FORECAST_COLUMN, *dim_ids], columns='Metric')
+        df = df.pivot(values='value', index=[*id_cols, *dim_ids], columns='Metric')
         df = df.with_columns([pl.col(dim).cast(pl.Categorical) for dim in dim_ids])
-        return ppl.to_ppdf(df)
+        return ppl.to_ppdf(df, meta=meta)
 
     def make_forecast_rows(self, end_year: int) -> ppl.PathsDataFrame:
         df: DF = self._df
@@ -135,8 +163,9 @@ class PathsExt:
         if y.n_unique() != len(y):
             raise Exception("DataFrame has duplicated years")
 
+        meta = df.get_meta()
         df = df.fill_null(strategy='forward')
-        return df
+        return ppl.to_ppdf(df, meta=meta)
 
     def sum_over_dims(self, dims: list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df
