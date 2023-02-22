@@ -116,8 +116,8 @@ class PathsDataFrame(pl.DataFrame):
     def _pyexprs_to_meta(self, exprs: list[polars.PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
         meta = self.get_meta()
         for expr in exprs:
-            root_cols = expr.meta_roots()
             output_col = expr.meta_output_name()
+            root_cols = expr.meta_roots()
             if output_col in units:
                 meta.units[output_col] = units[output_col]
                 continue
@@ -184,13 +184,20 @@ class PathsDataFrame(pl.DataFrame):
     def has_unit(self, col: str) -> bool:
         return col in self._units
 
-    def set_unit(self, col: str, unit: Unit, warn: bool = True) -> PathsDataFrame:
+    def set_unit(self, col: str, unit: Unit) -> PathsDataFrame:
         assert col in self.columns
         if col in self._units:
-            if warn:
-                raise Exception("Column %s already has a unit set" % col)
-        self._units[col] = unit
-        return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
+            raise Exception("Column %s already has a unit set" % col)
+        meta = self.get_meta()
+        meta.units[col] = unit
+        return PathsDataFrame._from_pydf(self._df, meta=meta)
+
+    def clear_unit(self, col: str) -> PathsDataFrame:
+        if col not in self._units:
+            raise Exception("Column %s does not have a unit" % col)
+        meta = self.get_meta()
+        del meta.units[col]
+        return PathsDataFrame._from_pydf(self._df, meta=meta)
 
     def multiply_cols(self, cols: list[str], out_col: str) -> PathsDataFrame:
         res_unit = reduce(lambda x, y: x * y, [self._units[col] for col in cols])
