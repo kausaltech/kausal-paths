@@ -4,6 +4,7 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from dataclasses import asdict
+from nodes.constants import YEAR_COLUMN
 
 from params.param import NumberParameter, Parameter
 from common import polars as ppl
@@ -55,22 +56,22 @@ class Processor(ABC):
         pass
 
 
-class LinearInterpolation(Processor):  # FIXME Probably the df needs first to be converted from long to wide format.
-    def process_input_dataset(self, pldf: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = pldf.to_pandas()
-        index_name = df.index.name
-        df = df.reindex(pd.RangeIndex(df.index.min(), df.index.max() + 1))  # FIXME Not meaningful for multiindex.
-        for col_name in df.columns:
-            col = df[col_name]
-            if isinstance(col.iloc[0], (bool,)):
-                df[col_name] = col.fillna(method='bfill')
-            elif hasattr(col, 'pint'):
-                pt = col.dtype
-                df[col_name] = col.pint.m.interpolate().astype(pt)
-            else:
-                df[col_name] = col.interpolate()
-        df.index.name = index_name
-        return ppl.from_pandas(df)
+class LinearInterpolation(Processor):
+    def process_input_dataset(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        years = df[YEAR_COLUMN].unique().sort()
+        min_year = years.min()
+        assert isinstance(min_year, int)
+        max_year = years.max()
+        assert isinstance(max_year, int)
+        df = df.paths.to_wide()
+        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
+        meta = df.get_meta()
+        zdf = df.join(years_df, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        cols = [pl.col(col).interpolate() for col in df.metric_cols]
+        df = df.with_columns(cols)
+        df = df.paths.to_narrow()
+        return df
 
 
 class FixedMultiplier(Processor):
