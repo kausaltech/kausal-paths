@@ -143,10 +143,10 @@ class AdditiveNode(SimpleNode):
         assert self.unit is not None
         if df is not None:
             if VALUE_COLUMN not in df.columns:
-                if self.quantity in df.metric_cols:  # FIXME Not sure this is needed
-                    df.rename({self.quantity: VALUE_COLUMN})
+                if len(df.metric_cols) == 1:
+                    df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
                 else:
-                    raise NodeError(self, "Input dataset doesn't have Value column")
+                    raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
             df = extend_last_historical_value_pl(df, self.get_end_year())
 
