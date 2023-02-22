@@ -97,12 +97,18 @@ emission_sectors:
   target_year_goal: 245
 
 - id: building_heating_emissions
+  name: Rakennusten lämmityksen päästöt
+  part_of: net_emissions
   color: '#ff4f57'
 
 - id: consumer_electricity_emissions
+  name: Kulutussähkön päästöt
+  part_of: net_emissions
   color: '#0047b6'
 
 - id: transport_emissions
+  name: Liikenteen päästöt
+  part_of: net_emissions
   color: '#014B30'
 
 nodes:
@@ -175,141 +181,104 @@ nodes:
   unit: GWh/a
   quantity: energy
 
-- id: transportation_energy
-  name: Liikenteen energiankulutus
-  type: finland.hsy.HsyDataCollection
-  quantity: energy
-  unit: GWh/a
+- id: car_energy
+  name: Henkilöautojen energiankulutus
+  params:
+    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
   input_nodes: [all_hsy_emissions]
-  output_dimensions: [vehicle, transportation_class]
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+- id: van_energy
+  name: Pakettiautojen energiankulutus
   params:
-  - id: sector
-    value: Liikenne
-  - id: dimension1_column
-    value: 3
-  - id: dimension2_column
-    value: 2
-  output_nodes:
-  - id: road_transportation_energy
-    from_dimensions:
-    - id: transportation_class
-      categories: [road_transportation]
-      flatten: true
-  - id: other_transportation_energy
-    from_dimensions:
-    - id: transportation_class
-      categories: [road_transportation]
-      exclude: true
-
-- id: transportation_emissions
-  name: Tieliikenteen päästöt
-  type: finland.hsy.HsyDataCollection
-  quantity: emissions
-  unit: kt/a
+    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
   input_nodes: [all_hsy_emissions]
-  output_dimensions: [vehicle, transportation_class]
-  params:
-  - id: sector
-    value: Liikenne
-  - id: dimension1_column
-    value: 3
-  - id: dimension2_column
-    value: 2
-
-- id: transportation_emission_factors
-  name: Liikenteen päästökerroimet
-  type: simple.DivisiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  output_dimensions: [vehicle, transportation_class]
-  input_nodes:
-  - transportation_emissions
-  - transportation_energy
-  output_nodes:
-  - id: road_transportation_emission_factors
-    from_dimensions:
-    - id: transportation_class
-      categories: [road_transportation]
-      flatten: true
-  - id: other_transportation_emission_factors
-    from_dimensions:
-    - id: transportation_class
-      categories: [road_transportation]
-      exclude: true
-
-- id: road_transportation_emission_factors
-  name: Tieliikenteen päästökertoimet
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle]
-  output_dimensions: [vehicle]
-
-- id: road_transportation_energy
-  name: Tieliikenteen energiankulutus
-  type: simple.AdditiveNode
-  quantity: energy
+  type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-  input_dimensions: [vehicle]
-  output_dimensions: [vehicle]
-  # This is needed for future predictions
-  # input_datasets:  # FIXME problems with adding a dataset. Does replace_output_using_input_dataset() work?
-  # - espoo/road_traffic_energy_consumption
-  # params:
-  # - id: replace_output_using_input_dataset
-  #   value: true
-
-- id: road_transportation_emissions
-  name: Tieliikenteen päästöt
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_dimensions: [vehicle]
-  input_nodes:
-  - road_transportation_energy
-  - road_transportation_emission_factors
-  output_nodes:
-  - id: transport_emissions
-    from_dimensions:
-    - id: vehicle
-      flatten: true
-
-- id: other_transportation_energy
-  name: Muun liikenteen energiankulutus
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [vehicle, transportation_class]
-  output_dimensions: [vehicle, transportation_class]
-
-- id: other_transportation_emission_factors
-  name: Muun liikenteen päästökertoimet
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle, transportation_class]
-  output_dimensions: [vehicle, transportation_class]
-
-- id: other_transportation_emissions
-  name: Muun liikenteen päästöt
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle, transportation_class]
-  output_dimensions: [vehicle, transportation_class]
-  input_nodes:
-  - other_transportation_energy
-  - other_transportation_emission_factors
+- id: truck_energy
+  name: Kuorma-autojen energiankulutus
   params:
-  - id: convert_missing_values_to_zero
-    value: true
+    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+- id: bus_energy
+  name: Linja-autojen energiankulutus
+  params:
+    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+
+- id: car_traffic_emission_factor
+  name: Tieliikenteen päästökerroin
+  name_en: traffic emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
+- id: van_traffic_emission_factor
+  name: Pakettiautoliikenteen päästökerroin
+  name_en: Van traffic emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
+- id: truck_traffic_emission_factor
+  name: Kuorma-autoliikenteen päästökerroin
+  name_en: Truck traffic emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
+- id: bus_traffic_emission_factor
+  name: Bussiliikenteen päästökerroin
+  name_en: Bus traffic emission factor
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
+
+- id: car_emissions
+  name: Henkilöautojen päästöt
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_nodes:
+  - car_energy
+  - car_traffic_emission_factor
   output_nodes:
-  - id: transport_emissions
-    from_dimensions:
-    - id: transportation_class
-      flatten: true
-    - id: vehicle
-      flatten: true
+  - road_transport_emissions
+- id: van_emissions
+  name: Pakettiautojen päästöt
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_nodes:
+  - van_energy
+  - van_traffic_emission_factor
+  output_nodes:
+  - road_transport_emissions
+- id: truck_emissions
+  name: Kuorma-autojen päästöt
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_nodes:
+  - truck_energy
+  - truck_traffic_emission_factor
+  output_nodes:
+  - road_transport_emissions
+- id: bus_emissions
+  name: Linja-autojen päästöt
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_nodes:
+  - bus_energy
+  - bus_traffic_emission_factor
+  output_nodes:
+  - road_transport_emissions
 
 pages:
 - id: home
@@ -488,63 +457,67 @@ actions:
     unit: kt/a
 
 - id: change_car_traffic_energy
-  name: Muutos autoliikenteen energiankulutuksessa
+  name: Muutos henkilöautoliikenteen energiankulutuksessa
+  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
+    henkilöautoliikenteen energiankulutus lisääntyy 8 % ja 22 % vuosiin 2030 ja 2035 mennessä vuoteen
+    2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi vain 4 % ja 11 % vastaavasti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -27.78455812  # FIXME Target year should be 2030 but this value is reached only 2035.
 
 - id: change_bus_traffic_energy
   name: Muutos bussiliikenteen energiankulutuksessa
+  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
+    henkilöautoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja 2035 mennessä vuoteen
+    2021 verrattuna. Myös HNE2030-skenaariossa oletetaan kasvuksi 1 % ja 1 % vastaavasti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [buses]
+  - bus_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: 0
 
 - id: change_van_traffic_energy
   name: Muutos pakettiautoliikenteen energiankulutuksessa
+  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
+    pakettiautoliikenteen energiankulutus lisääntyy 20 % ja 32 % vuosiin 2030 ja 2035 mennessä vuoteen
+    2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi vain 13 % ja 22 % vastaavasti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [vans]
+  - van_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -6.886607633
 
 - id: change_truck_traffic_energy
   name: Muutos kuorma-autoliikenteen energiankulutuksessa
+  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
+    kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin 2030 ja 2035 mennessä vuoteen
+    2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi jopa 45 % ja 49 % vastaavasti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [trucks]
+  - truck_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: 4.403433483
 
 - id: replace_fossil_fuels_in_cars
@@ -557,12 +530,10 @@ actions:
   unit: g/kWh
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_emission_factors
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_traffic_emission_factor
   params:
   - id: target_year_level
+    is_customizable: false
     value: -3.616
 
 - id: upgrade_car_fleet
@@ -575,12 +546,10 @@ actions:
   unit: g/kWh
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_emission_factors
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_traffic_emission_factor
   params:
   - id: target_year_level
+    is_customizable: false
     value: -3.616
 
 - id: emission_limits_for_cars_and_vans
@@ -593,12 +562,10 @@ actions:
   unit: g/kWh
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_emission_factors
-    to_dimensions:
-    - id: vehicle
-      categories: [vans]
+  - van_traffic_emission_factor
   params:
   - id: target_year_level
+    is_customizable: false
     value: -17.70
 
 - id: increase_fuel_distribution_requirement
@@ -611,12 +578,10 @@ actions:
   unit: g/kWh
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_emission_factors
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_traffic_emission_factor
   params:
   - id: target_year_level
+    is_customizable: false
     value: -13.658
 
 - id: improve_personal_traffic_efficiency
@@ -628,12 +593,10 @@ actions:
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -35.31
 
 - id: increase_remote_work
@@ -645,12 +608,10 @@ actions:
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -11.35
 
 - id: improve_transport_services
@@ -662,12 +623,10 @@ actions:
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -11.35
 
 - id: trip_aggregation
@@ -679,12 +638,10 @@ actions:
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -2.522
 
 - id: road_transportation_emission_trade
@@ -696,12 +653,10 @@ actions:
   unit: GWh/a
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
-  - id: road_transportation_energy
-    to_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
+  - car_energy
   params:
   - id: target_year_level
+    is_customizable: false
     value: -56.75
 
 scenarios:
