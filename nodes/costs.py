@@ -56,15 +56,15 @@ class SelectiveNode(AdditiveNode):
 
 
 def compute_exponential(
-    start_year: int, current_year: int, target_year: int, current_value: Quantity | float, annual_change: Quantity,
+    start_year: int, current_year: int, model_end_year: int, current_value: Quantity | float, annual_change: Quantity,
     decreasing_rate: bool
 ):
     base_value = 1 + annual_change.to('dimensionless').m
     if decreasing_rate:
         base_value = 1 / base_value
 
-    values = range(start_year - current_year, target_year - current_year + 1)
-    years = range(start_year, target_year + 1)
+    values = range(start_year - current_year, model_end_year - current_year + 1)
+    years = range(start_year, model_end_year + 1)
     df = pl.DataFrame({YEAR_COLUMN: years, 'nr': values})
     df = df.with_columns([
         (pl.lit(base_value) ** pl.col('nr')).alias('mult')
@@ -120,10 +120,10 @@ class ExponentialNode(SimpleNode):
         ac = annual_change.value * annual_change.get_unit()
         decreasing_rate = self.get_parameter_value('decreasing_rate', required=False) or False
         start_year = self.context.instance.minimum_historical_year
-        target_year = self.get_target_year()
+        model_end_year = self.get_end_year()
         current_year = self.context.instance.maximum_historical_year
 
-        ldf = compute_exponential(start_year, current_year, target_year, cv, ac, decreasing_rate)
+        ldf = compute_exponential(start_year, current_year, model_end_year, cv, ac, decreasing_rate)
         ndf = ldf.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN]).to_pandas().set_index(YEAR_COLUMN)
         pt = pint_pandas.PintType(cv.units)
         ndf[VALUE_COLUMN] = ndf[VALUE_COLUMN].astype(pt)
@@ -147,10 +147,10 @@ class DiscountedNode(AdditiveNode):
         fc = df.filter(pl.col(FORECAST_COLUMN))
         current_year = fc[YEAR_COLUMN].min()
         assert isinstance(current_year, int)
-        target_year = fc[YEAR_COLUMN].max()
-        assert isinstance(target_year, int)
+        model_end_year = fc[YEAR_COLUMN].max()
+        assert isinstance(model_end_year, int)
         discount_rate = self.get_global_parameter_value('discount_rate', units=True)
-        exp = compute_exponential(current_year, current_year, target_year, 1.0, discount_rate, decreasing_rate=True)
+        exp = compute_exponential(current_year, current_year, model_end_year, 1.0, discount_rate, decreasing_rate=True)
         df = df.join(exp.rename({VALUE_COLUMN: 'exp'}), on=YEAR_COLUMN, how='left')
         df = df.select([YEAR_COLUMN, pl.col(VALUE_COLUMN) * pl.col('exp'), FORECAST_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)

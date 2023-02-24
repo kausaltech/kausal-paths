@@ -33,9 +33,9 @@ class SectorEmissions(BaseSectorEmissions):
         )
         df[FORECAST_COLUMN] = False
         last_year = df.index.max()
-        target_year = context.target_year
-        df = df.reindex(range(df.index.min(), target_year + 1))
-        df.loc[target_year, VALUE_COLUMN] = df.loc[last_year, VALUE_COLUMN]
+        model_end_year = context.model_end_year
+        df = df.reindex(range(df.index.min(), model_end_year + 1))
+        df.loc[model_end_year, VALUE_COLUMN] = df.loc[last_year, VALUE_COLUMN]
         df[VALUE_COLUMN] = df[VALUE_COLUMN].interpolate()
         df.loc[df.index > last_year, FORECAST_COLUMN] = True
 

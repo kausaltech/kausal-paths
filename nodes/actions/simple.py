@@ -80,17 +80,17 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         delay = self.get_parameter_value('action_delay', required=False)
         if delay is not None:
             start_year = start_year + int(delay)
-        end_year = self.get_end_year()
-        df = df.reindex(range(start_year, end_year + 1))
+        target_year = self.get_target_year()
+        df = df.reindex(range(start_year, target_year + 1))
         df[FORECAST_COLUMN] = True
 
         target_year_level = self.get_parameter_value('target_year_level', required=False)
         if target_year_level is not None:
             if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
-            df.loc[end_year, VALUE_COLUMN] = target_year_level
+            df.loc[target_year, VALUE_COLUMN] = target_year_level
             if delay is not None:
-                df.loc[range(start_year + 1, end_year), VALUE_COLUMN] = nan
+                df.loc[range(start_year + 1, target_year), VALUE_COLUMN] = nan
 
         for col in df.columns:
             if col == FORECAST_COLUMN:
@@ -140,12 +140,12 @@ class ExponentialAction(ActionNode):
             base_value = base_value.scenario_settings['default']
         base_value = 1 + (base_value * base_unit).to('dimensionless').m
         start_year = self.context.instance.minimum_historical_year
-        target_year = self.get_target_year()
+        model_end_year = self.get_end_year()
         current_year = self.context.instance.maximum_historical_year
 
         df = pd.DataFrame(
-            {VALUE_COLUMN: range(start_year - current_year, target_year - current_year + 1)},
-            index=range(start_year, target_year + 1))
+            {VALUE_COLUMN: range(start_year - current_year, model_end_year - current_year + 1)},
+            index=range(start_year, model_end_year + 1))
         val = current_value * base_value ** df[VALUE_COLUMN]
         df[VALUE_COLUMN] = val.astype(pt)
         df[FORECAST_COLUMN] = df.index > current_year

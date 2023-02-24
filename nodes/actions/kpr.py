@@ -50,7 +50,7 @@ class ActionNode(BaseActionNode):
             df.loc[df.index >= 2020, VALUE_COLUMN] = None
             df.loc[df.index.max(), VALUE_COLUMN] = -1.0
 
-        df.loc[context.target_year, VALUE_COLUMN] = -1.0
+        df.loc[context.model_end_year, VALUE_COLUMN] = -1.0
         df[VALUE_COLUMN] = df[VALUE_COLUMN].interpolate()
         if not self.is_enabled():
             df.loc[df.index >= 2020, VALUE_COLUMN] = 0

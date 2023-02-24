@@ -15,6 +15,7 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
             id
             name
             targetYear
+            modelEndYear
             referenceYear
             minimumHistoricalYear
             maximumHistoricalYear
@@ -30,6 +31,7 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
             'id': instance.id,
             'name': instance.name,
             'targetYear': instance.context.target_year,
+            'modelEndYear': instance.context.model_end_year,
             'referenceYear': instance.reference_year,
             'minimumHistoricalYear': instance.minimum_historical_year,
             'maximumHistoricalYear': instance.maximum_historical_year,

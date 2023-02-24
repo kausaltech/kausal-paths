@@ -69,7 +69,7 @@ class Ovariable(SimpleNode):
         if isinstance(df, pd.DataFrame):
             df = OvariableFrame(df)
         if YEAR_COLUMN not in df.columns:
-            yrs = range(2010, self.context.target_year + 1)  # FIXME Lower boundary
+            yrs = range(2010, self.context.model_end_year + 1)  # FIXME Lower boundary
             years = OvariableFrame(pd.DataFrame({
                 YEAR_COLUMN: pd.Series(yrs),
                 VALUE_COLUMN: pd.Series([1] * len(yrs)),

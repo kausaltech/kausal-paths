@@ -59,6 +59,10 @@ class Instance:
     def target_year(self) -> int:
         return self.context.target_year
 
+    @property
+    def model_end_year(self) -> int:
+        return self.context.model_end_year
+
     def __post_init__(self):
         self.logger = logging.getLogger('instance.%s' % self.id)
         self.modified_at = None

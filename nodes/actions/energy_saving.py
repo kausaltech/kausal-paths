@@ -120,10 +120,10 @@ class LEDRetrofitAction(ActionNode):
         trad_df = self.get_input_node(tag='traditional').get_output()
         led_df = self.get_input_node(tag='led').get_output()
         el_price = self.get_input_node(tag='price_of_electricity').get_output()
-        target_year = self.get_target_year()
+        model_end_year = self.get_model_end_year()
 
-        df = nafill_all_forecast_years(trad_df, target_year)
-        df['NrLED'] = nafill_all_forecast_years(led_df, target_year)[VALUE_COLUMN]
+        df = nafill_all_forecast_years(trad_df, model_end_year)
+        df['NrLED'] = nafill_all_forecast_years(led_df, model_end_year)[VALUE_COLUMN]
         df = df.rename(columns={VALUE_COLUMN: 'NrTraditional'})
 
         last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.max()
@@ -149,7 +149,7 @@ class LEDRetrofitAction(ActionNode):
             nr_led=nr_led,
             nr_changed_per_year=yearly_baseline_change + yearly_change,
             nr_yearly_increase=self.get_parameter_value('yearly_demand_increase'),
-            nr_years=target_year - last_hist_year,
+            nr_years=model_end_year - last_hist_year,
         )
         df.loc[df.index > last_hist_year, 'NrTraditional'] = trad
         df.loc[df.index > last_hist_year, 'NrLED'] = led
@@ -323,7 +323,7 @@ class BuildingEnergySavingAction(ActionNode):
         # Global parameters
         renovation_rate_param = self.get_global_parameter_value('renovation_rate_baseline', units=True)
         renovation_rate_baseline = renovation_rate_param.to('1/a').m
-        target_year = self.context.target_year
+        model_end_year = self.context.model_end_year
         all_in_investment = self.get_global_parameter_value('all_in_investment')
         current_year = self.context.instance.maximum_historical_year
         assert current_year is not None
@@ -352,7 +352,7 @@ class BuildingEnergySavingAction(ActionNode):
 
         params = BuildingEnergyParams(
             start_year=current_year,
-            nr_years=target_year - current_year + 1,
+            nr_years=model_end_year - current_year + 1,
             lifetime=int(lifetime),
             renovation_rate=renovation_rate,
             renovation_potential=renovation_potential,
@@ -380,7 +380,7 @@ class BuildingEnergySavingAction(ActionNode):
         # Global parameters
         renovation_rate_baseline = self.context.get_parameter_value('renovation_rate_baseline', units=True)
         renovation_rate_baseline = renovation_rate_baseline.to('1/a').m
-        target_year = self.context.target_year
+        model_end_year = self.context.model_end_year
         current_year = self.context.instance.maximum_historical_year
 
         # Local parameters
@@ -401,8 +401,8 @@ class BuildingEnergySavingAction(ActionNode):
             reno = renovation_rate_baseline
 
         df = pd.DataFrame({
-            VALUE_COLUMN: range(target_year - current_year + 1),
-        }, index=range(current_year, target_year + 1))
+            VALUE_COLUMN: range(model_end_year - current_year + 1),
+        }, index=range(current_year, model_end_year + 1))
         df.index.name = YEAR_COLUMN
         df[FORECAST_COLUMN] = df.index > current_year
         df[VALUE_COLUMN] = (df[VALUE_COLUMN] * reno).clip(None, renovation_potential)

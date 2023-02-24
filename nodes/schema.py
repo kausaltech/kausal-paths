@@ -48,6 +48,7 @@ class InstanceType(graphene.ObjectType):
     supported_languages = graphene.List(graphene.NonNull(graphene.String), required=True)
     base_path = graphene.String(required=True)
     target_year = graphene.Int()
+    model_end_year = graphene.Int()
     reference_year = graphene.Int()
     minimum_historical_year = graphene.Int()
     maximum_historical_year = graphene.Int()
