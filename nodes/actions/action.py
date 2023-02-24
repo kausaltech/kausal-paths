@@ -197,8 +197,10 @@ class ActionEfficiencyPair:
                 # No impact for this action, skip it
                 continue
 
-            df = df.set_unit('Cost', df.get_unit('Cost') * Quantity('1 a'), warn=False)
-            df = df.set_unit('Impact', df.get_unit('Impact') * Quantity('1 a'), warn=False)
+            cost_unit = df.get_unit('Cost') * Quantity('1 a')
+            impact_unit = df.get_unit('Impact') * Quantity('1 a')
+            df = df.clear_unit('Cost').set_unit('Cost', cost_unit)
+            df = df.clear_unit('Impact').set_unit('Impact', impact_unit)
             df = df.ensure_unit('Cost', self.cost_unit)
             df = df.ensure_unit('Impact', self.impact_unit)
 
