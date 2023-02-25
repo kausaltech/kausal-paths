@@ -71,9 +71,15 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             local_id='action_delay',
             label='Years of delay (a)',
         ),
+        NumberParameter('multiplier'),
     ]
 
-    """Cumulative additive action where a yearly target is set and the effect is linear."""
+    """Cumulative additive action where a yearly target is set and the effect is linear.
+    This can be modified with these parameters:
+    target_year_level is the value to be reached at the target year.
+    action_delay is the year when the implementation of the action starts.
+    multiplier scales the size of the impact (useful between scenarios).
+    """
     def compute_effect(self):
         df = self.get_input_dataset()
         start_year = df.index.min()
@@ -99,6 +105,9 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             df[col] = df[col].pint.m.interpolate(method='linear').diff().fillna(0).astype(dt)
 
         df = self.add_cumulatively(df)
+        multiplier = self.get_parameter_value('multiplier', required=False)
+        if multiplier is not None:
+            df[VALUE_COLUMN] *= multiplier
         return df
 
 
