@@ -14,7 +14,7 @@ owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
 model_end_year: 2035
-target_year: 2030
+target_year: 2035  # FIXME 2030
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
@@ -181,34 +181,79 @@ nodes:
   unit: GWh/a
   quantity: energy
 
-- id: car_energy
-  name: Henkilöautojen energiankulutus
+- id: car_energy_hsy
+  name: Henkilöautojen energiankulutus, HSY-data
   params:
     sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: van_energy
-  name: Pakettiautojen energiankulutus
+- id: van_energy_hsy
+  name: Pakettiautojen energiankulutus, HSY-data
   params:
     sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: truck_energy
-  name: Kuorma-autojen energiankulutus
+- id: truck_energy_hsy
+  name: Kuorma-autojen energiankulutus, HSY-data
   params:
     sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: bus_energy
-  name: Linja-autojen energiankulutus
+- id: bus_energy_hsy
+  name: Linja-autojen energiankulutus, HSY-data
   params:
     sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
+
+- id: car_energy
+  name: Henkilöautojen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - car_energy_hsy
+  forecast_values: [[2022, 115.123177633333], [2023, 121.246355266667], [2024, 127.3695329],
+    [2025, 133.492710533333], [2026, 139.615888166667], [2027, 145.7390658], [2028, 151.862243433333],
+    [2029, 157.985421066667], [2030, 164.1085987], [2031, 184.9763880744], [2032, 205.8441774488],
+    [2033, 226.7119668232], [2034, 247.5797561976], [2035, 268.447545572]]
+- id: van_energy
+  name: Pakettiautojen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - van_energy_hsy
+  forecast_values: [[2022, 2.48397539], [2023, 4.96795078], [2024, 7.45192617],
+    [2025, 9.93590156], [2026, 12.41987695], [2027, 14.90385234], [2028, 17.38782773],
+    [2029, 19.87180312], [2030, 22.35577851], [2031, 25.107258942], [2032, 27.858739374],
+    [2033, 30.610219806], [2034, 33.361700238], [2035, 36.11318067]]
+- id: truck_energy
+  name: Kuorma-autojen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - truck_energy_hsy
+  forecast_values: [[2022, 15.5343347866667], [2023, 31.0686695733333], [2024, 46.60300436],
+    [2025, 62.1373391466667], [2026, 77.6716739333333], [2027, 93.20600872], [2028, 108.740343506667],
+    [2029, 124.274678293333], [2030, 139.80901308], [2031, 141.9696978276], [2032, 144.1303825752],
+    [2033, 146.2910673228], [2034, 148.4517520704], [2035, 150.612436818]]
+- id: bus_energy
+  name: Linja-autojen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - bus_energy_hsy
+  forecast_values: [[2022, 0.0784498966666667], [2023, 0.156899793333333], [2024, 0.23534969],
+    [2025, 0.313799586666667], [2026, 0.392249483333333], [2027, 0.47069938], [2028, 0.549149276666667],
+    [2029, 0.627599173333333], [2030, 0.70604907], [2031, 0.70604907], [2032, 0.70604907],
+    [2033, 0.70604907], [2034, 0.70604907], [2035, 0.70604907]]
 
 - id: car_traffic_emission_factor
   name: Tieliikenteen päästökerroin
@@ -391,6 +436,10 @@ actions:
   - district_heating_emission_factor
   forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -116.0]]  # FIXME These do not apply for Suomi2035
   unit: g/kWh
+  params:
+  - id: multiplier
+    is_customizable: false
+    value: 1.0
 
 - id: city_building_heat_optimization
   name: Kaupungin kiinteistöjen lämmityksen optimointi
@@ -409,15 +458,14 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2021, 0], [2030, 0]]
+  forecast_values: [[2022, 0], [2030, 0]]
   output_nodes:
   - waste_treatment_emissions
   params:
   - id: target_year_level
     description: Jätteiden käsittelyn päästöjen muutos 2021-2030
-    min_value: -30
-    max_value: 20
-    step: 0.1
+    min_value: -30.0
+    max_value: 20.0
     unit: kt/a
 
 - id: reduce_agriculture_emissions
@@ -460,17 +508,14 @@ actions:
   name: Muutos henkilöautoliikenteen energiankulutuksessa
   description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
     henkilöautoliikenteen energiankulutus lisääntyy 8 % ja 22 % vuosiin 2030 ja 2035 mennessä vuoteen
-    2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi vain 4 % ja 11 % vastaavasti.
+    2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi vain 4 % ja 11 % vastaavasti
+    eli perusuraan verrattuna -4 % ja -11 %.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2022, 0.0], [2030, -27.78455812], [2035, -80.38998816]]
   output_nodes:
   - car_energy
-  params:
-  - id: target_year_level
-    is_customizable: false
-    value: -27.78455812  # FIXME Target year should be 2030 but this value is reached only 2035.
 
 - id: change_bus_traffic_energy
   name: Muutos bussiliikenteen energiankulutuksessa
@@ -483,10 +528,6 @@ actions:
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - bus_energy
-  params:
-  - id: target_year_level
-    is_customizable: false
-    value: 0
 
 - id: change_van_traffic_energy
   name: Muutos pakettiautoliikenteen energiankulutuksessa
@@ -496,13 +537,9 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2022, 0], [2030, -6.886607633], [2035, -11.12452002]]
   output_nodes:
   - van_energy
-  params:
-  - id: target_year_level
-    is_customizable: false
-    value: -6.886607633
 
 - id: change_truck_traffic_energy
   name: Muutos kuorma-autoliikenteen energiankulutuksessa
@@ -512,13 +549,9 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2022, 0], [2030, 4.403433483], [2035, 4.743698797]]
   output_nodes:
   - truck_energy
-  params:
-  - id: target_year_level
-    is_customizable: false
-    value: 4.403433483
 
 - id: replace_fossil_fuels_in_cars
   name: Fossiilisten polttoaineiden korvaaminen
@@ -668,7 +701,7 @@ scenarios:
     value: true
 
   - id: reduce_waste_treatment_emissions.target_year_level
-    value: -1.5
+    value: -1.07
   - id: reduce_waste_treatment_emissions.enabled
     value: true
 
@@ -678,7 +711,7 @@ scenarios:
     value: true
 
   - id: change_consumer_electricity.target_year_level
-    value: 115
+    value: 115.0
   - id: change_consumer_electricity.enabled
     value: true
 
@@ -700,6 +733,10 @@ scenarios:
     value: false
   - id: road_transportation_emission_trade.enabled
     value: true
+  - id: replace_fossil_fuels_in_district_heating.enabled
+    value: true
+  - id: replace_fossil_fuels_in_district_heating.multiplier
+    value: 0.5
   # - id: reduce_oil_heating_services.target_year_level
   #   value: -34
   # - id: reduce_oil_heating_services.enabled
@@ -716,11 +753,11 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: reduce_waste_treatment_emissions.target_year_level
-    value: -26.3
+    value: -18.2
   - id: reduce_machinery_emissions.target_year_level
     value: -2.0
   - id: change_consumer_electricity.target_year_level
-    value: 1600
+    value: 1600.0
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -739,8 +776,8 @@ scenarios:
     value: true
   - id: road_transportation_emission_trade.enabled
     value: true
-#  - id: change_in_car_traffic_energy.target_year_level
-#    value: 27.32404058
+  - id: replace_fossil_fuels_in_district_heating.multiplier
+    value: 1.0
   # - id: reduce_oil_heating_services.target_year_level
   #   value: -37
 
