@@ -105,6 +105,10 @@ class BuildingStock(AdditiveNode):
 
 
 class FutureBuildingStock(AdditiveNode):
+    """Calculate the new floor area of future buildings based on the 10-year average
+    per respective new population; calculate this separately for different building types
+    (unless floor area decreases) and assume the same ratio will hold in the future.
+    """
     output_metrics = {
         FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
     }

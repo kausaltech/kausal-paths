@@ -18,6 +18,11 @@ target_year: 2035  # FIXME 2030
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
+action_groups:
+- id: additional
+  name: Ylimääräinen toimi
+  color: '#cccccc'
+
 params:
 - id: municipality_name
   value: Espoo
@@ -136,16 +141,16 @@ nodes:
   type: finland.aluesarjat.BuildingStock
   name: Energiasaneeratun rakennuskannan kerrosala
 
-- id: building_heat_existing_historical
+- id: building_heat_existing_from_statistics
   type: finland.hsy.HsyBuildingHeatConsumption
   name: Nykyisen rakennuskannan lämmönkulutus
   tags: [historical_heat]
   input_nodes: [all_hsy_emissions]
 
-- id: building_heat_existing
+- id: building_heat_from_floor_area
   type: finland.aluesarjat.BuildingHeatPredict
   name: Nykyisen rakennuskannan lämmönkulutus
-  input_nodes: [building_heat_existing_historical, building_floor_area_existing]
+  input_nodes: [building_heat_existing_from_statistics, building_floor_area_existing]
   output_nodes:
   - id: district_heating_energy
     from_dimensions:
@@ -348,6 +353,10 @@ actions:
 - id: cleaner_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
   name_en: Shift to low-carbon in national electricity production
+  description: Sähkön päästökertoimen osalta laskennassa on tehty seuraavat oletukset.
+    Pessimistisessä skenaariossa kulutussähkön päästökertoimen oletetaan pysyvän vuoden 2021 tasolla. 
+    Suomi 2035 - ja HNE 2035 -skenaarioissa sähkön päästökertoimen oletetaan kehittyvän 
+    Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion arvion mukaisesti.
   decision_level: nation
   quantity: emission_factor
   output_nodes:
@@ -382,8 +391,27 @@ actions:
     unit: GWh/a
     description: Kulutussähkön käytön muutos 2022-2035
 
+- id: change_building_stock
+  name: Rakennuskannan muutos
+  description: Olemassa olevan rakennuskannan kehityksen osalta laskennassa on tehty seuraavat oletukset.
+    Pessimistissä skenaariossa rakennuskannan kerrosalassa tapahtuvat muutokset eivät vaikuta oletettuun
+    päästökehitykseen vaan laskenta perustuu asukaskohtaisten päästöjen kehitykseen ja toteutuneeseen
+    trendiin aikavälillä 2017-2021 sekä väkiluvun kehitykseen. 
+    Suomi 2035 - ja HNE 2035 -skenaarioissa asumisväljyyden oletetaan pysyvän muuttumattomana.
+    Muiden kuin asuinrakennusten osalta kerrosalan arvioidaan kehittyvän Uudenmaan kasvun 
+    vaihtoehdot -selvityksen oletusten mukaisesti.
+  type: simple.AdditiveAction
+  quantity: floor_area
+  unit: m**2
+  forecast_values: [[2022, 0], [2035, 0]]
+
 - id: heating_oil_bioshare
   name: Lämmitysöljyn sekoitusvelvoite
+  description: Fossiilisen lämmitysöljyn päästökertoimen osalta on laskennassa tehty seuraavat oletukset.
+    Pessimistisessä skenaariossa lämmitysöljyn päästökertoimen oletetaan pysyvän vuoden 2021 tasolla.
+    Suomi 2035-skenaariossa ja HNE 2035 -skenaariossa biopolttoölyn jakeluvelvoitteen toteutumisen
+    oletetaan vaikuttavan lämmitysöljyn päästökertoimeen ja kertoimen oletetaan laskeva 9,7 %
+    vuoden 2021 taosta vuoteen 2028 mennessä. 
   decision_level: nation
   quantity: emission_factor
   output_nodes:
@@ -394,6 +422,11 @@ actions:
 
 - id: reduce_oil_heating_residence
   name: Öljylämmityksen vähentäminen (Asuminen)
+  description: Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan asuin- ja
+    palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan kokonaan
+    vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta oletetaan, että
+    öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien tavoitteiden
+    mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion mukainen kehitys.
   type: shift.ShiftAction
   quantity: floor_area
   unit: m**2
@@ -430,11 +463,16 @@ actions:
 - id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
   name_en: Fortum replaces fossil fuels in district heat production
+  description: Kaukolämmön päästökertoimen osalta laskennassa on tehty seuraavat oletukset.
+    Pessimistisssä skenaariossa kaukolämmön päästökertoimen oletetaan pysyvän vuoden 2021 tasolla. 
+    Suomi 2035-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän keskimäätin 
+    Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion arvion mukaisesti.
+    HNE 2030-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän Fortumin arvion mukaisesti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   output_nodes:
   - district_heating_emission_factor
-  forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -116.0]]  # FIXME These do not apply for Suomi2035
+  forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -116.0]]
   unit: g/kWh
   params:
   - id: multiplier
