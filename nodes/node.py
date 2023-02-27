@@ -614,6 +614,13 @@ class Node:
         self._last_historical_year = year
         return year
 
+    def get_default_output_metric(self) -> NodeMetric:
+        if DEFAULT_METRIC in self.output_metrics:
+            return self.output_metrics[DEFAULT_METRIC]
+        if len(self.output_metrics) > 1:
+            raise NodeError(self, "Node outputs multiple output metrics, but none of them is set as default")
+        return list(self.output_metrics.values())[0]
+
     def _get_cached_hash(self) -> bytes | None:
         if self.modified_at is None or self.last_hash is None or self.last_hash_time is None:
             return None
