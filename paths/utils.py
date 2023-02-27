@@ -52,7 +52,7 @@ def validate_unit(s: str):
     from nodes.context import unit_registry
 
     try:
-        unit_registry.parse_units(s)
+        unit = unit_registry.parse_units(s)
     except UndefinedUnitError as e:
         if isinstance(e.unit_names, str):
             unit_str = e.unit_names
@@ -61,6 +61,7 @@ def validate_unit(s: str):
         raise ValidationError('%s: %s' % (gettext("Invalid unit"), unit_str))
     except (ValueError, TypeError) as e:
         raise ValidationError(gettext("Invalid unit"))
+    return unit
 
 
 class UnitField(models.CharField):
