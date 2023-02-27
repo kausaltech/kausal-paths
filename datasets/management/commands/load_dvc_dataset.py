@@ -2,6 +2,8 @@ import pint_pandas
 import polars as pl
 import pandas as pd
 
+from rich import print
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from datasets.models import Dataset, DatasetDimension, Dimension, DatasetMetric
@@ -18,7 +20,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str, nargs=1)
         parser.add_argument('datasets', metavar='DATASET_ID', type=str, nargs='*')
-        parser.add_argument('--force', type=bool)
+        parser.add_argument('--force', action='store_true')
 
     def sync_dataset(self, ic: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
         ds = ctx.load_dvc_dataset(ds_id)
@@ -68,7 +70,11 @@ class Command(BaseCommand):
             print("Dataset %s already exists" % identifier)
             return
 
+        for col, dt in df.schema.items():
+            if dt == pl.Categorical:
+                df = df.with_columns(pl.col(col).cast(pl.Utf8))
         pdf = df.to_pandas()
+
         obj.table = JSONDataset.serialize_df(pdf, add_uuids=True)
         obj.years = obj.generate_years_from_data()
         obj.save()
