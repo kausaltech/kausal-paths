@@ -187,6 +187,7 @@ class DimensionalMetric:
     values: list[float]
     years: list[int]
     unit: Unit
+    stackable: bool
     forecast_from: int | None
     normalized_by: Node | None
 
@@ -194,9 +195,11 @@ class DimensionalMetric:
     def from_node(cls, node: Node) -> DimensionalMetric | None:
         df = node.get_output_pl()
 
-        if DEFAULT_METRIC not in node.output_metrics:
+        try:
+            m = node.get_default_output_metric()
+        except Exception:
             return None
-        m = node.output_metrics[DEFAULT_METRIC]
+
         if node.context.active_normalization:
             normalizer, df = node.context.active_normalization.normalize_output(m, df)
         else:
@@ -220,14 +223,15 @@ class DimensionalMetric:
         years = list(df[YEAR_COLUMN].unique().sort())
         idx_names = [dim.id for dim in dims] + [YEAR_COLUMN]
         idx_vals = pd.MultiIndex.from_product(just_cats + [years]).to_list()
-        idx_df = pl.DataFrame(idx_vals, orient='row', schema=idx_names)
+        idx_df = pl.DataFrame(idx_vals, orient='row', schema={col: df.schema[col] for col in idx_names})
 
         jdf = idx_df.join(df, how='left', on=idx_names)
-        vals: list[float] = jdf[VALUE_COLUMN].to_list()
+        vals: list[float] = jdf[m.column_id].to_list()
         dm = DimensionalMetric(
             id=node.id, name=str(node.name), dimensions=dims,
             values=vals, years=years, unit=df.get_unit(m.column_id),
             forecast_from=forecast_from, normalized_by=normalizer,
+            stackable=m.quantity in ACTIVITY_QUANTITIES
         )
         return dm
 
