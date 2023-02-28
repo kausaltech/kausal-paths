@@ -232,3 +232,64 @@ class BuildingHeatPredict(Node):
         df.loc[rows, 'HeatConsumption'] = df.loc[rows, 'Area'] * df.loc[rows, 'PerArea']
         df = df[['HeatConsumption', FORECAST_COLUMN]].rename(columns=dict(HeatConsumption=VALUE_COLUMN))
         return df
+
+
+class BuildingHeatPerArea(Node):
+    output_metrics = {
+        HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=ENERGY_QUANTITY)
+    }
+    output_dimension_ids = [
+        'building_heat_source',
+        'building_use',
+    ]
+
+    def compute(self) -> pd.DataFrame:
+        # First compute GWh / m2
+        area_node = self.get_input_node(quantity=FLOOR_AREA)
+        area_df = area_node.get_output()
+        area_df = area_df.sort_index()
+
+        heat_node = self.get_input_node(quantity=ENERGY_QUANTITY)
+        heat_df = heat_node.get_output()
+        assert isinstance(heat_df.index, pd.MultiIndex)
+        heat_df.index = heat_df.index.reorder_levels(area_df.index.names)
+        df = heat_df.sort_index()
+        df = df.rename(columns={VALUE_COLUMN: 'HeatConsumption'})
+        heat_dt = df.dtypes['HeatConsumption']
+
+        df['Area'] = area_df[VALUE_COLUMN]
+        area_dt = area_df.dtypes[VALUE_COLUMN]
+        df[FORECAST_COLUMN] |= area_df[FORECAST_COLUMN]
+        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.get_level_values(YEAR_COLUMN).max()
+
+        # Calculate heat consumption per area
+        rows = ~df[FORECAST_COLUMN]
+
+        s = (df.loc[rows, 'HeatConsumption'] / df.loc[rows, 'Area']).dropna()
+        dt = s.dtype
+        pa_df = s.unstack(self.output_dimension_ids)  # type: ignore
+        pa_df = pa_df.rolling(window=5).mean().astype(dt)
+
+        """
+            df = df.loc[rows].dropna()
+            df = df.drop(columns=FORECAST_COLUMN)
+            df = df.unstack(self.output_dimension_ids)
+            df = df.loc[(df.index >= last_hist_year - 12) & (df.index <= last_hist_year)]
+            df = df.diff().cumsum().dropna()
+            df = df.stack(self.output_dimension_ids)
+            df['PerArea'] = df['HeatConsumption'].astype(heat_dt) / df['Area'].astype(area_dt)
+            self.print(df['PerArea'].unstack(self.output_dimension_ids).astype('pint[kWh/a/m**2]'))
+            exit()
+        """
+
+        s = pa_df.stack(self.output_dimension_ids)  # type: ignore
+        s = s.astype(dt)
+        s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
+        df['PerArea'] = s
+        df['PerArea'] = df['PerArea'].fillna(method='pad')
+        df['PerArea'] = self.ensure_output_unit(df['PerArea'])
+
+#        rows = df[FORECAST_COLUMN]
+#        df.loc[rows, 'PerArea'] = df.loc[rows, 'PerArea']
+        df = df[['PerArea', FORECAST_COLUMN]].rename(columns=dict(PerArea=VALUE_COLUMN))
+        return df
