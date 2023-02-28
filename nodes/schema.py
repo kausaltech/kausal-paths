@@ -10,7 +10,7 @@ import polars as pl
 from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from common import polars as ppl
 from .models import InstanceConfig, NodeConfig
-from .metric import DimensionalFlow, Metric
+from .metric import DimensionalFlow, DimensionalMetric, Metric
 
 from . import Node
 from .instance import Instance
@@ -121,6 +121,7 @@ class ForecastMetricType(graphene.ObjectType):
 class DimensionCategoryType(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=True)
+    color = graphene.String(required=False)
 
 
 class DimensionType(graphene.ObjectType):
@@ -129,13 +130,23 @@ class DimensionType(graphene.ObjectType):
     categories = graphene.List(graphene.NonNull(DimensionCategoryType), required=True)
 
 
+class MetricGoal(graphene.ObjectType):
+    id = graphene.ID(required=True)
+    year = graphene.Int(required=True)
+    value = graphene.Float(required=True)
+
+
 class DimensionalMetricType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
     dimensions = graphene.List(graphene.NonNull(DimensionType), required=True)
-    values = graphene.List(graphene.Float)
+    values = graphene.List(graphene.Float, required=True)
     years = graphene.List(graphene.NonNull(graphene.Int), required=True)
+    unit = graphene.Field('paths.schema.UnitType', required=True)
+    stackable = graphene.Boolean(required=True)
     forecast_from = graphene.Int(required=False)
+    goals = graphene.List(MetricGoal, required=True)
+    normalized_by = graphene.Field('nodes.schema.NodeType', required=False)
 
 
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
@@ -195,6 +206,7 @@ class NodeType(graphene.ObjectType):
 
     metrics = graphene.List(graphene.NonNull(ForecastMetricType))
     dimensional_flow = graphene.Field(DimensionalFlowType, required=False)
+    metric_dim = graphene.Field(DimensionalMetricType, required=False)
 
     # TODO: input_datasets, baseline_values, context
     parameters = graphene.List('params.schema.ParameterInterface')
@@ -254,6 +266,10 @@ class NodeType(graphene.ObjectType):
         if not isinstance(root, ActionNode):
             return None
         return DimensionalFlow.from_action_node(root)
+
+    @staticmethod
+    def resolve_metric_dim(root: Node, info: GraphQLResolveInfo):
+        return DimensionalMetric.from_node(root)
 
     @staticmethod
     def resolve_impact_metric(root: Node, info: GraphQLResolveInfo, target_node_id: str = None):

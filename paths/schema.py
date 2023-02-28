@@ -23,10 +23,10 @@ CO2E = 'CO<sub>2</sub>e'
 
 
 class UnitType(graphene.ObjectType):
-    short = graphene.String()
-    long = graphene.String()
-    html_short = graphene.String()
-    html_long = graphene.String()
+    short = graphene.String(required=True)
+    long = graphene.String(required=True)
+    html_short = graphene.String(required=True)
+    html_long = graphene.String(required=True)
 
     def resolve_short(self: Unit, info):  # type: ignore
         lang = get_language()

@@ -184,9 +184,9 @@ class PathsDataFrame(pl.DataFrame):
     def has_unit(self, col: str) -> bool:
         return col in self._units
 
-    def set_unit(self, col: str, unit: Unit) -> PathsDataFrame:
+    def set_unit(self, col: str, unit: Unit, force: bool = False) -> PathsDataFrame:
         assert col in self.columns
-        if col in self._units:
+        if col in self._units and not force:
             raise Exception("Column %s already has a unit set" % col)
         meta = self.get_meta()
         meta.units[col] = unit

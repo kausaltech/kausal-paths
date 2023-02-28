@@ -45,6 +45,7 @@ class Command(BaseCommand):
         df = JSONDataset.deserialize_df(ds.table)
         if 'uuid' in df.columns:
             df = df.drop(columns=['uuid'])
+        df = df.dropna(how='all')
         r = ctx.dataset_repo
         repo = Repository(repo_url=repo_url or r.repo_url, dvc_remote=r.dvc_remote)
         repo.set_target_commit(None)

@@ -3,18 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 import typing
 from typing import Iterable, Iterator, Optional
-import numpy as np
 
 import pandas as pd
-import pint_pandas
 import polars as pl
 from common.i18n import TranslatedString
 from common.perf import PerfCounter
 from common import polars as ppl
 
 from nodes.constants import (
-    FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, VALUE_WITH_ACTION_GROUP,
-    VALUE_WITHOUT_ACTION_GROUP, YEAR_COLUMN, DecisionLevel
+    FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, VALUE_WITHOUT_ACTION_GROUP, DecisionLevel
 )
 from nodes import Node, NodeError
 from nodes.units import Unit, Quantity
@@ -197,10 +194,8 @@ class ActionEfficiencyPair:
                 # No impact for this action, skip it
                 continue
 
-            cost_unit = df.get_unit('Cost') * Quantity('1 a')
-            impact_unit = df.get_unit('Impact') * Quantity('1 a')
-            df = df.clear_unit('Cost').set_unit('Cost', cost_unit)
-            df = df.clear_unit('Impact').set_unit('Impact', impact_unit)
+            df = df.set_unit('Cost', df.get_unit('Cost') * Quantity('1 a'), force=True)
+            df = df.set_unit('Impact', df.get_unit('Impact') * Quantity('1 a'), force=True)
             df = df.ensure_unit('Cost', self.cost_unit)
             df = df.ensure_unit('Impact', self.impact_unit)
 
