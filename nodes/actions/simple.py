@@ -105,9 +105,10 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             df[col] = df[col].pint.m.interpolate(method='linear').diff().fillna(0).astype(dt)
 
         df = self.add_cumulatively(df)
-        multiplier = self.get_parameter_value('multiplier', required=False)
+        multiplier = self.get_parameter_value('multiplier', required=False, units=True)
         if multiplier is not None:
             df[VALUE_COLUMN] *= multiplier
+        df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
         return df
 
 

@@ -14,7 +14,7 @@ owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
 model_end_year: 2035
-target_year: 2035  # FIXME 2030
+target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
@@ -146,6 +146,13 @@ nodes:
   name: Nykyisen rakennuskannan lämmönkulutus
   tags: [historical_heat]
   input_nodes: [all_hsy_emissions]
+
+- id: building_heat_per_floor_area
+  name: Rakennusten lämmitys per ala
+  type: finland.aluesarjat.BuildingHeatPerArea
+  quantity: energy
+  unit: kWh/a/m**2
+  input_nodes: [building_heat_existing_from_statistics, building_floor_area_existing]
 
 - id: building_heat_from_floor_area
   type: finland.aluesarjat.BuildingHeatPredict
@@ -363,17 +370,16 @@ actions:
   - electricity_production_emission_factor
   - electric_heating_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2022, 0], [2035, -79.4]]
+  forecast_values: [[2022, 0], [2030, -44.4590], [2035, -69.1585]]
   unit: g/kWh
   params:
-  - id: target_year_level
+  - id: multiplier
     values:
-      default: -80
-    min_value: -85
-    max_value: 0
-    step: 1
-    unit: g/kWh
-    description: Sähköntuotannon päästökertoimen muutos 2022-2035
+      default: 100.0
+    min_value: 0.0
+    max_value: 100.0
+    unit: '%'
+    description: Sähköntuotannon päästökertoimen muutos, prosenttia oletetusta 2022-2035
     description_en: Change in electricity production emission factor
 
 - id: change_consumer_electricity
@@ -477,7 +483,8 @@ actions:
   params:
   - id: multiplier
     is_customizable: false
-    value: 1.0
+    value: 100.0
+    unit: '%'
 
 - id: city_building_heat_optimization
   name: Kaupungin kiinteistöjen lämmityksen optimointi
@@ -493,10 +500,15 @@ actions:
 - id: reduce_waste_treatment_emissions
   name: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
+  description: Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2021 tasolla.
+    Suomi 2035-skenaariossa päästöjen arvioidaan laskevan 4 prosenttia vuoden 2020 tasosta vuoteen
+    2030 mennessä. Samankaltaisen päästökehityksen arvioidaan toteutuvan myös aikavälillä 2030-2035. 
+    HNE2030-skenaariossa päästöjen oletetaan laskevan 68 prosenttia aikavälillä 2021-2030, minkä
+    jälkeen päästöjen oletetaan pysyvän vuoden 2030 tasolla.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2022, 0], [2030, 0]]
+  forecast_values: [[2022, 0], [2023, 0]]
   output_nodes:
   - waste_treatment_emissions
   params:
@@ -509,6 +521,9 @@ actions:
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
   name_en: Agriculture emissions are reduced
+  description: Pessimistinessä skenaariossa päästöjen oletetaan pysyvän muuttumattomana aikavälillä 2021-2035.
+    Suomi 2035 - ja HNE2030-skenaarioissa päästöjen oletetaan laskevan 11 prosenttia vuoden 2020 tasosta
+    vuoteen 2035 mennessä. 
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
@@ -519,16 +534,30 @@ actions:
 - id: reduce_industrial_fuel_emissions
   name: Teollisuuden polttoaineiden päästöt pienenevät
   name_en: Industrial fuel emissions are reduced
+  description: Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2020 tasolla.
+    Laskennassa on hyödynnetty vuotta 2020 vuoden 2021 sijaan, sillä HSY:n vuoden 2021 tiedoissa
+    havaittiin mahdollista epäjohdonmukaisuutta.
+    Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 53 prosenttia vuoteen 2035 mennessä.
+    HNE2030-skenaariossa päästöjen oletetaan laskevan 53 prosenttia vuoteen 2035 mennessä.
+    Muutokset on laskettu viimeisen viiden vuoden päästöjen keskiarvosta, sillä vuosittaiset
+    vaihtelut sektorin sisällä ovat olleet suuria.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2022, 0], [2035, -3.0]]
+  forecast_values: [[2022, 0], [2035, -2.98]]
   output_nodes:
   - industry_fuel_emissions
 
 - id: reduce_machinery_emissions
   name: Työkoneiden päästöt pienenvät
   name_en: Machinery emissions are reduced
+  description: Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2020 tasolla.
+    Laskennassa on hyödynnetty vuotta 2020 vuoden 2021 sijaan, sillä HSY:n vuoden 2021 tiedoissa
+    havaittiin mahdollista epäjohdonmukaisuutta.
+    Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 20 prosenttia vuoteen 2035 mennessä. 
+    HNE2030-skenaariossa työkoneiden päästöjen oletetaan laskevan 50 prosenttia vuoteen 2035 mennessä.
+    Muutokset on laskettu viimeisen viiden vuoden päästöjen keskiarvosta, sillä vuosittaiset
+    vaihtelut sektorin sisällä ovat olleet suuria.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
@@ -744,8 +773,10 @@ scenarios:
     value: true
 
   - id: reduce_machinery_emissions.target_year_level
-    value: -0.8
+    value: -0.818
   - id: reduce_machinery_emissions.enabled
+    value: true
+  - id: reduce_industrial_fuel_emissions.enabled
     value: true
 
   - id: change_consumer_electricity.target_year_level
@@ -774,7 +805,7 @@ scenarios:
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.multiplier
-    value: 0.5
+    value: 50.0
   # - id: reduce_oil_heating_services.target_year_level
   #   value: -34
   # - id: reduce_oil_heating_services.enabled
@@ -793,9 +824,10 @@ scenarios:
   - id: reduce_waste_treatment_emissions.target_year_level
     value: -18.2
   - id: reduce_machinery_emissions.target_year_level
-    value: -2.0
+    value: -2.05
   - id: change_consumer_electricity.target_year_level
     value: 1600.0
+
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -815,7 +847,7 @@ scenarios:
   - id: road_transportation_emission_trade.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.multiplier
-    value: 1.0
+    value: 100.0
   # - id: reduce_oil_heating_services.target_year_level
   #   value: -37
 
