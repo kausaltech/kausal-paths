@@ -14,14 +14,22 @@ owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
 model_end_year: 2035
-target_year: 2030
+target_year: 2035
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
 action_groups:
-- id: additional
-  name: Ylimääräinen toimi
-  color: '#cccccc'
+- id: transportation
+  name: Liikenne
+#  color: '#cccccc'
+- id: buildings
+  name: Rakennukset
+- id: electricity
+  name: Sähkönkulutus
+- id: industry
+  name: Teollisuus ja työkoneet
+- id: waste_agriculture
+  name: Jätteet, maatalous ja muut
 
 params:
 - id: municipality_name
@@ -173,13 +181,13 @@ nodes:
       flatten: true
     - id: building_use
       flatten: true
-  - id: geothermal_heating_energy
-    from_dimensions:
-    - id: building_heat_source
-      categories: [geothermal]
-      flatten: true
-    - id: building_use
-      flatten: true
+#  - id: geothermal_heating_energy
+#    from_dimensions:
+#    - id: building_heat_source
+#      categories: [geothermal]
+#      flatten: true
+#    - id: building_use
+#      flatten: true
 
 - id: district_heating_energy
   name: Kaukolämmön lämmönkulutus
@@ -268,7 +276,7 @@ nodes:
     [2033, 0.70604907], [2034, 0.70604907], [2035, 0.70604907]]
 
 - id: car_traffic_emission_factor
-  name: Tieliikenteen päästökerroin
+  name: Henkilöautoliikenteen päästökerroin
   name_en: traffic emission factor
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
@@ -337,6 +345,31 @@ nodes:
   output_nodes:
   - road_transport_emissions
 
+- id: industry_fuel_emissions_adjusted
+  name: Teollisuuden polttoaineiden päästöjen korjaus
+  description: Jostain syystä teollisuuden polttoaineiden päästöt HSY-datassa on 0 kt/a vuodelle 2021.
+    Tämä ei ole uskottavaa, ja siksi käytetään vuoden 2020 arvoa tulevaisuuden trendiarviona.
+  output_nodes: [industry_fuel_emissions]
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2022, 7.67], [2035, 7.67]]  # 7.67 is the reliable 2020 value, 
+
+- id: consumer_electricity_residence_energy_adjustment
+  name: Korjaus kulutusähkön kulutuksen perusskenaarion ennusteeseen
+  description: Tämän verran kulutussähkön kulutuksen oletetaan kasvavan myös pessimistisessä
+    skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta 2021.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2022, 6.40698155857763], [2023, 34.8156449901301], [2024, 55.3398489194226],
+    [2025, 75.7353948766418], [2026, 95.9182666625295], [2027, 115.850619274135],
+    [2028, 135.46164499662], [2029, 154.731750817255], [2030, 173.619465695491],
+    [2031, 192.11713717284], [2032, 210.250300046423], [2033, 228.038646400391],
+    [2034, 245.501598139984], [2035, 262.68009047217]]
+  output_nodes: 
+  - consumer_electricity_residence_energy
+
 pages:
 - id: home
   name: Hiilineutraali Espoo -päästöskenaario
@@ -360,12 +393,12 @@ actions:
 - id: cleaner_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
   name_en: Shift to low-carbon in national electricity production
-  description: Sähkön päästökertoimen osalta laskennassa on tehty seuraavat oletukset.
-    Pessimistisessä skenaariossa kulutussähkön päästökertoimen oletetaan pysyvän vuoden 2021 tasolla. 
+  description: Pessimistisessä skenaariossa kulutussähkön päästökertoimen oletetaan pysyvän vuoden 2021 tasolla. 
     Suomi 2035 - ja HNE 2035 -skenaarioissa sähkön päästökertoimen oletetaan kehittyvän 
     Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion arvion mukaisesti.
   decision_level: nation
   quantity: emission_factor
+  group: electricity
   output_nodes:
   - electricity_production_emission_factor
   - electric_heating_emission_factor
@@ -384,9 +417,17 @@ actions:
 
 - id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
+  description: Pessimistisessä skenaariossa asukaskohtaisen sähkönkulutuksen on oletettu
+    kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti.
+    Suomi 2035 -skenaariossa asukaskohtaisen sähkönkulutuksen oletetaan pysyvän vuoden 2021 tasolla. 
+    HNE2030-skenaariossa kokonaissähkönkulutuksen (sisältäen kulutussähkön ja sähkölämmityksen)
+    oletetaan kasvavan 3,4 % vuodessa vuosina 2021-2035 Carunan arvion perusteella.
+    Kaikki kulutussähkön muutos kohdennetaan asumisen sähkönkulutukseen, koska tietoa jaottelusta
+    asumisen, teollisuuden ja palveluiden välillä ei ole käytettävissä.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: electricity
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - consumer_electricity_residence_energy
@@ -399,25 +440,87 @@ actions:
 
 - id: change_building_stock
   name: Rakennuskannan muutos
-  description: Olemassa olevan rakennuskannan kehityksen osalta laskennassa on tehty seuraavat oletukset.
-    Pessimistissä skenaariossa rakennuskannan kerrosalassa tapahtuvat muutokset eivät vaikuta oletettuun
-    päästökehitykseen vaan laskenta perustuu asukaskohtaisten päästöjen kehitykseen ja toteutuneeseen
-    trendiin aikavälillä 2017-2021 sekä väkiluvun kehitykseen. 
+  description: Pessimistissä skenaariossa rakennuskannan kerrosalassa tapahtuvat muutokset eivät
+    vaikuta oletettuun päästökehitykseen vaan laskenta perustuu asukaskohtaisten päästöjen kehitykseen
+    ja toteutuneeseen trendiin aikavälillä 2017-2021 sekä väkiluvun kehitykseen. 
     Suomi 2035 - ja HNE 2035 -skenaarioissa asumisväljyyden oletetaan pysyvän muuttumattomana.
     Muiden kuin asuinrakennusten osalta kerrosalan arvioidaan kehittyvän Uudenmaan kasvun 
     vaihtoehdot -selvityksen oletusten mukaisesti.
   type: simple.AdditiveAction
   quantity: floor_area
   unit: m**2
+  group: buildings
   forecast_values: [[2022, 0], [2035, 0]]
+
+# Kerrosala, vanhat ja uudisrakennukset; sähkö, öljy ja kaukolämpö
+#  Pessimistisessä skenaariossa rakennuskannan kerrosalassa tapahtuvat muutokset
+#    eivät vaikuta oletettuun päästökehitykseen vaan laskenta perustuu asukaskohtaisten päästöjen
+#    kehitykseen ja toteutuneeseen trendiin aikavälillä 2017-2021 sekä väkiluvun kehitykseen. 
+
+# Kerrosala, vanhat ja uudisrakennukset, sähkö; lisäksi öljylämmitteiset uudisrakennukset [joita ei ole]
+#    Suomi 2035 - ja HNE2030-skenaarioissa oletetaan, että vanha rakennuskanta säilyy aikavälillä
+#    2021-2035 ja uudisrakennukset vastaavat rakennuskannan lisäystä.
+
+#Kerrosala, vanhat rakennukset, öljy ja kaukolämpö
+#Suomi2035- ja HNE2030-skenaario: Asumisväljyyden oletetaan pysyvän muuttumattomana. Muiden kuin asuinrakennusten
+# osalta kerrosalan arvioidaan kehittyvän Uudenmaan kasvun vaihtoehdot-selvityksen oletusten mukaisesti.
+
+#Kerrosala, uudisrakennukset - kaukolämpö
+#Suomi2035- ja HNE2030-skenaario: Laskennassa oletetaan, että vanha rakennuskanta säilyy
+# aikavälillä 2021-2035 ja uudisrakennukset vastaavat rakennuskannan lisäystä.  
+
+# Lämmitysenergia per ala, olemassa oleva rakennuskanta, sähkö
+#    Pessimistisessä skenaariossa rakennusten lämmityksen energiankulutuksen
+#    oletetaan kaikkien lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
+#  Suomi 2035 - ja HNE2030-skenaarioissa rakennusten ominaislämmönkulutuksen oletetaan kehittyvän
+#  asuinrakennuksissa niin, että lämmönkulutus laskee 7,5 prosenttia vuoden 2021 tasosta vuoteen
+#  2030 mennessä ja muissa rakennuksissa 11 prosenttia. Kehitys jatkuu samankaltaisena aikavälillä 2030-2035.  
+
+#Lämmitysenergia, olemassa oleva rakennuskanta - öljylämmitys
+#Pessimistinen skenaario: Rakennusten lämmityksen energiankulutuksen oletetaan kaikkien
+# lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
+#Suomi2035-skenaario: Öljylämmityksestä oletetaan luovuttavan asuin- ja palvelurakennuksissa
+# 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan kokonaan vuoteen 2035 mennessä. 
+#HNE2030-skenaario: Palvelurakennusten osalta oletetaan, että öljylämmityksestä luovutaan
+# 100 prosenttisesti kaupungin ilmastotoimien tavoitteiden mukaisesti. Muiden rakennusten
+# osalta oletetaan Suomi 2035-skenaarion mukainen kehitys.
+
+#Lämmitysenergia, olemassa oleva rakennuskanta - kaukolämpö
+#Pessimistinen skenaario: Rakennusten lämmityksen energiankulutuksen oletetaan#
+# kaikkien lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
+#Suomi2035-skenaario: Rakennusten ominaislämmönkulutuksen oletetaan kehittyvän asuinrakennuksissa
+# niin, että lämmönkulutus laskee 7,5 prosenttia vuoden 2021 tasosta vuoteen 2030 mennessä
+# ja muissa rakennuksissa 11 prosenttia. Kehitys jatkuu samankaltaisena aikavälillä 2030-2035. 
+#HNE2030-skenaario: Kaukolämmön tuotannon ja kulutuksen oletetaan Fortumin arvion mukaisesti
+# pysyvän nykytasolla, eli noin 2100 GWh vuodessa. 
+
+#Lämmitysenergia, uudisrakennukset - sähkölämmitys
+#Uudisrakennusten ominaislämmönkulutus arvioidaan seuraavien tietojen mukaisesti Suomi2035 HNE2030
+#Pientalot 115 kWh/m2 66 kWh/m2
+#Rivitalot 109 kWh/m2 57 kWh/m2
+#Asuinkerrostalot 66 kWh/m2 57 kWh/m2
+#Muut rakennukset 82 kWh/m2 52 kWh/m2
+
+#Lämmitysenergia, uudisrakennukset - öljylämmitys
+#Uusia öljylämmitteiiä rakennuksia ei oleteta rakennettavan missään skenaariossa.
+# Lämmitystapamuutoksissa öljylämmitteisistä rakennuksista oletetaan siirryttävän muihin
+# lämmitysmuotoihin seuraavasti:
+#Pien- ja rvitalot 100 % lämpöpumppuihin.
+#Kerrostaloissa, palvelurakennuksissa ja teollisuusrakennuksissa 50 % lämpöpumppuhin ja 50 % kaukolämpöön.
+
+#Lämmitysenergia, uudisrakennukset - kaukolämpö
+#Uudisrakennusten ominaislämmönkulutukseksi arvioidaan energiatehokkuustavoitteiden mukaisesti:
+#Pientalot 115 kWh/m2
+#Rivitalot 109 kWh/m2
+#Asuinkerrostalot 66 kWh/m2
+#Muut rakennukset 82 kWh/m2
 
 - id: heating_oil_bioshare
   name: Lämmitysöljyn sekoitusvelvoite
-  description: Fossiilisen lämmitysöljyn päästökertoimen osalta on laskennassa tehty seuraavat oletukset.
-    Pessimistisessä skenaariossa lämmitysöljyn päästökertoimen oletetaan pysyvän vuoden 2021 tasolla.
+  description: Pessimistisessä skenaariossa lämmitysöljyn päästökertoimen oletetaan pysyvän vuoden 2021 tasolla.
     Suomi 2035-skenaariossa ja HNE 2035 -skenaariossa biopolttoölyn jakeluvelvoitteen toteutumisen
     oletetaan vaikuttavan lämmitysöljyn päästökertoimeen ja kertoimen oletetaan laskeva 9,7 %
-    vuoden 2021 taosta vuoteen 2028 mennessä. 
+    vuoden 2021 tasosta vuoteen 2028 mennessä. 
   decision_level: nation
   quantity: emission_factor
   output_nodes:
@@ -425,6 +528,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   forecast_values: [[2022, 0], [2028, -31.9]]
   unit: g/kWh
+  group: buildings
 
 - id: reduce_oil_heating_residence
   name: Öljylämmityksen vähentäminen (Asuminen)
@@ -436,6 +540,7 @@ actions:
   type: shift.ShiftAction
   quantity: floor_area
   unit: m**2
+  group: buildings
   output_dimensions: [building_heat_source, building_use]
   output_nodes:
   - building_floor_area_existing
@@ -476,6 +581,7 @@ actions:
     HNE 2030-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän Fortumin arvion mukaisesti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
+  group: buildings
   output_nodes:
   - district_heating_emission_factor
   forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -116.0]]
@@ -491,6 +597,7 @@ actions:
   name_en: Optimization of heating systems in city-owned buildings
   type: simple.CumulativeAdditiveAction
   quantity: energy
+  group: buildings
   output_nodes:
   - district_heating_energy
   forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
@@ -508,6 +615,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
+  group: waste_agriculture
   forecast_values: [[2022, 0], [2023, 0]]
   output_nodes:
   - waste_treatment_emissions
@@ -527,6 +635,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
+  group: waste_agriculture
   forecast_values: [[2022, 0], [2035, -0.1079092776]]
   output_nodes:
   - agriculture_emissions
@@ -544,6 +653,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
+  group: industry
   forecast_values: [[2022, 0], [2035, -2.98]]
   output_nodes:
   - industry_fuel_emissions
@@ -552,8 +662,6 @@ actions:
   name: Työkoneiden päästöt pienenvät
   name_en: Machinery emissions are reduced
   description: Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2020 tasolla.
-    Laskennassa on hyödynnetty vuotta 2020 vuoden 2021 sijaan, sillä HSY:n vuoden 2021 tiedoissa
-    havaittiin mahdollista epäjohdonmukaisuutta.
     Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 20 prosenttia vuoteen 2035 mennessä. 
     HNE2030-skenaariossa työkoneiden päästöjen oletetaan laskevan 50 prosenttia vuoteen 2035 mennessä.
     Muutokset on laskettu viimeisen viiden vuoden päästöjen keskiarvosta, sillä vuosittaiset
@@ -561,6 +669,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
+  group: industry
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - machinery_emissions
@@ -571,6 +680,10 @@ actions:
     max_value: 0.0
     unit: kt/a
 
+#
+# Road traffic
+#
+
 - id: change_car_traffic_energy
   name: Muutos henkilöautoliikenteen energiankulutuksessa
   description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
@@ -580,6 +693,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0.0], [2030, -27.78455812], [2035, -80.38998816]]
   output_nodes:
   - car_energy
@@ -592,6 +706,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - bus_energy
@@ -604,6 +719,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2030, -6.886607633], [2035, -11.12452002]]
   output_nodes:
   - van_energy
@@ -616,6 +732,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2030, 4.403433483], [2035, 4.743698797]]
   output_nodes:
   - truck_energy
@@ -628,6 +745,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
@@ -644,6 +762,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
@@ -660,6 +779,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - van_traffic_emission_factor
@@ -676,6 +796,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
@@ -691,6 +812,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -706,6 +828,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -721,6 +844,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -736,6 +860,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -751,6 +876,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
+  group: transportation
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -802,6 +928,7 @@ scenarios:
     value: false
   - id: road_transportation_emission_trade.enabled
     value: true
+
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.multiplier
