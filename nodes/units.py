@@ -1,4 +1,5 @@
 from typing import Optional, Type
+import os
 import pint
 import pint_pandas
 from pint.facets.plain.unit import PlainUnit
@@ -53,7 +54,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     unit_registry.define('pcs = [number] = pieces')
     unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
 
-    unit_registry.load_definitions('nodes/health_impact_units.txt')
+    unit_registry.load_definitions(os.path.join(os.path.dirname(__file__), 'health_impact_units.txt'))
 
 
 define_custom_units(unit_registry)
