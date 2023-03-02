@@ -6,6 +6,7 @@ from rich import print
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from common.i18n import TranslatedString, get_modeltrans_attrs_from_str
 from datasets.models import Dataset, DatasetDimension, Dimension, DatasetMetric
 from common import polars as ppl
 from nodes.datasets import JSONDataset
@@ -24,6 +25,8 @@ class Command(BaseCommand):
 
     def sync_dataset(self, ic: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
         ds = ctx.load_dvc_dataset(ds_id)
+        metadata = ds.metadata or {}
+        metrics_meta = {m.get('id', None): m for m in metadata.get('metrics', [])}
         df = ppl.from_pandas(ds.df)
         dims = []
         metrics = []
@@ -31,8 +34,14 @@ class Command(BaseCommand):
         all_cols = list(df.columns)
         for col in meta.metric_cols:
             unit = meta.units[col]
-            metrics.append(DatasetMetric(identifier=col, label=col, unit=str(unit)))
+            mm = metrics_meta.get(col)
+            mobj = DatasetMetric(identifier=col, unit=str(unit))
+            if mm and 'label' in mm:
+                label = TranslatedString(default_language=ctx.instance.default_language, **mm.get('label'))
+                label.set_modeltrans_field(mobj, 'label', ctx.instance.default_language)
+            metrics.append(mobj)
             all_cols.remove(col)
+
         for col in meta.dim_ids:
             dim = ctx.dimensions[col]
             ic.sync_dimension(dim)

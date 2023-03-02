@@ -4,6 +4,7 @@ from rich.console import Console
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from common.i18n import get_translated_string_from_modeltrans
 from datasets.models import Dataset, DatasetDimension, Dimension, DatasetMetric
 from common import polars as ppl
 from nodes.datasets import JSONDataset
@@ -49,7 +50,15 @@ class Command(BaseCommand):
         r = ctx.dataset_repo
         repo = Repository(repo_url=repo_url or r.repo_url, dvc_remote=r.dvc_remote)
         repo.set_target_commit(None)
-        dvc_ds = DVCDataset(df, dvc_path, ds.updated_at)
+        name = get_translated_string_from_modeltrans(ds, 'name', ctx.instance.default_language).i18n
+        metrics = [dict(
+            id=m.identifier,
+            label=get_translated_string_from_modeltrans(m, 'label', ctx.instance.default_language).i18n,
+        ) for m in ds.metrics.all()]
+        metadata = dict(name=name, identifier=ds.identifier, metrics=metrics)
+        dvc_ds = DVCDataset(
+            df, identifier=dvc_path, modified_at=ds.updated_at, metadata=metadata
+        )
         repo.push_dataset(dvc_ds)
 
     def handle(self, *args, **options):
