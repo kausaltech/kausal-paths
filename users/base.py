@@ -69,7 +69,7 @@ class AbstractUser(DjangoAbstractUser):
 
     def _make_sure_uuid_is_set(self):
         if self.uuid is None:
-            self.uuid = uuid.uuid4()
+            self.uuid = uuid4()
 
     def set_username_from_uuid(self):
         self._make_sure_uuid_is_set()
