@@ -31,9 +31,11 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
     table = models.JSONField()
 
+    i18n = TranslationField(fields=('name',))
+
     class Meta:
         unique_together = (('instance', 'identifier'),)
-        ordering = ('instance', 'name')
+        ordering = ('instance', 'created_at')
         verbose_name = _('dataset')
         verbose_name_plural = _('datasets')
 
@@ -66,7 +68,10 @@ class Dataset(ClusterableModel, UserModifiableModel):
                     for dim_sel in self.dimension_selections.all()]
         today = date.today()
         years = self.years if self.years is not None else range(2000, today.year + 1)
-        index = pd.MultiIndex.from_product([years, *dim_cats], names=[YEAR_COLUMN, *[dim.id for dim in dims]])
+        if len(dim_cats):
+            index = pd.MultiIndex.from_product([years, *dim_cats], names=[YEAR_COLUMN, *[dim.id for dim in dims]])
+        else:
+            index = pd.Index(years, name=YEAR_COLUMN)
         df = pd.DataFrame(index=index)
         for m in metric_cols:
             df[m] = pd.Series(dtype=dtypes[m])
@@ -172,7 +177,12 @@ class Dimension(ClusterableModel, UserModifiableModel):
                 print("Creating category %s" % cat.id)
                 cat_obj.save()
             else:
-                found_cats.add(cat.id)
+                found_cats.add(cat_obj.id)
+
+        for cat_obj in cats.values():
+            if cat_obj.id in found_cats:
+                continue
+            print("Deleting stale category %s" % cat_obj)
 
 
 class DatasetDimension(OrderedModel):
