@@ -32,7 +32,6 @@ class ReadOnly(permissions.BasePermission):
         return request.method in permissions.SAFE_METHODS
 
 
-
 class InstanceViewSet(viewsets.ViewSet, generics.GenericAPIView):
     permission_classes = [ReadOnly, *settings.api_settings.DEFAULT_PERMISSION_CLASSES]  # type: ignore
     serializer_class = InstanceSerializer
