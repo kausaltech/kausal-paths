@@ -34,7 +34,8 @@ from params.param import ParameterWithUnit
 from .context import Context
 from .datasets import Dataset, JSONDataset
 from .exceptions import NodeError
-from .dimensions import Dimension, DimensionCategory
+from .dimensions import Dimension
+from .edges import Edge
 from .units import Unit, Quantity
 
 if typing.TYPE_CHECKING:
@@ -113,93 +114,6 @@ class NodeMetric:
         return s
 
 
-@dataclass
-class EdgeDimension:
-    categories: list[DimensionCategory]
-    exclude: bool
-    flatten: bool
-
-    @classmethod
-    def from_config(cls, dc: dict, context: Context, node_dims: dict[str, Dimension]) -> Tuple[str, EdgeDimension]:
-        if 'id' not in dc:
-            # If 'id' is not supplied, assume it's the first and only dimension
-            if len(node_dims) == 1:
-                dim_id, dim = list(node_dims.items())[0]
-            else:
-                raise KeyError("dimension id not supplied")
-        else:
-            dim_id = dc['id']
-            if dim_id not in node_dims:
-                raise KeyError("dimension %s not found" % dim_id)
-            dim = node_dims[dim_id]
-
-        flatten = dc.get('flatten', None)
-        exclude = dc.get('exclude', None)
-        cat_ids = dc.get('categories', None)
-        if cat_ids is None:
-            cats = []
-            if flatten not in (None, True) or exclude not in (None, True):
-                raise Exception("When categories are not supplied, you must not supply 'flatten' or 'exclude'")
-            flatten = True
-            exclude = True
-        else:
-            cats = [dim.get(cat_id) for cat_id in cat_ids]
-            flatten = bool(flatten)
-            exclude = bool(exclude)
-        return (dim_id, cls(categories=cats, exclude=exclude, flatten=flatten))
-
-
-@dataclass
-class Edge:
-    input_node: Node
-    output_node: Node
-    tags: list[str] = field(default_factory=list)
-    from_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
-    to_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
-
-    def __post_init__(self):
-        self.tags = self.tags.copy()
-        self.from_dimensions = self.from_dimensions.copy()
-        self.to_dimensions = self.to_dimensions.copy()
-
-    @classmethod
-    def from_config(cls, config: dict | str, node: Node, is_output: bool, context: Context) -> Edge:
-        if isinstance(config, str):
-            other_id = config
-        else:
-            s = config.get('id')
-            if s is None:
-                raise KeyError("node id not given in edge definition")
-            assert isinstance(s, str)
-            other_id = s
-        other = context.nodes.get(other_id)
-        if other is None:
-            raise KeyError("node %s not found" % other_id)
-
-
-        args: dict[str, Any] = {}
-        args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)
-        if isinstance(config, dict):
-            tags = config.get('tags', [])
-            if isinstance(tags, str):
-                tags = [tags]
-            args['tags'] = tags
-
-            dcs = config.get('from_dimensions', [])
-            ndims: dict[str, EdgeDimension] = {}
-            for dc in dcs:
-                dim_id, ed = EdgeDimension.from_config(dc, context, args['input_node'].output_dimensions)
-                ndims[dim_id] = ed
-            args['from_dimensions'] = ndims
-
-            dcs = config.get('to_dimensions', [])
-            ndims = {}
-            for dc in dcs:
-                dim_id, ed = EdgeDimension.from_config(dc, context, args['output_node'].input_dimensions)
-                ndims[dim_id] = ed
-            args['to_dimensions'] = ndims
-
-        return Edge(**args)
 
 
 class Node:
@@ -567,7 +481,7 @@ class Node:
             return None
         return df.to_pandas()
 
-    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None) -> Node:
+    def get_input_nodes(self, tag: Optional[str] = None, quantity: str | None = None) -> list[Node]:
         matching_nodes = []
         for edge in self.edges:
             if edge.output_node != self:
@@ -581,6 +495,10 @@ class Node:
                     # FIXME: Multi-metric support
                     continue
             matching_nodes.append(node)
+        return matching_nodes
+
+    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None) -> Node:
+        matching_nodes = self.get_input_nodes(tag=tag, quantity=quantity)
         if len(matching_nodes) != 1:
             tag_str = (' with tag %s' % tag) if tag is not None else ''
             raise NodeError(self, 'Found %d input nodes%s' % (len(matching_nodes), tag_str))
@@ -770,19 +688,28 @@ class Node:
         if edge.to_dimensions:
             new_cols = []
             meta = df.get_meta()
-            if meta.dim_ids:
-                raise NodeError(self, "Output for %s can't be dimensional" % target_node)
+            output_dimensions = set(edge.to_dimensions.keys())
             for dim_id, edge_dim in edge.to_dimensions.items():
-                if len(edge_dim.categories) > 1:
+                nr_cats = len(edge_dim.categories)
+                if not nr_cats:
+                    continue
+                if nr_cats > 1:
                     raise NodeError(self, "to_dimensions can have only one category for now")
+
                 cat = edge_dim.categories[0]
                 new_cols.append((dim_id, cat.id))
 
-            exprs = [pl.lit(cat).alias(dim_id) for dim_id, cat in new_cols]
-            df = df.with_columns(exprs)
-            for dim_id, _ in new_cols:
-                meta.primary_keys.append(dim_id)
-            df = ppl.to_ppdf(df=df, meta=meta)
+            if new_cols:
+                exprs = [pl.lit(cat).alias(dim_id) for dim_id, cat in new_cols]
+                df = df.with_columns(exprs)
+                for dim_id, _ in new_cols:
+                    meta.primary_keys.append(dim_id)
+                df = ppl.to_ppdf(df=df, meta=meta)
+
+            if set(df.dim_ids) != output_dimensions:
+                raise NodeError(self, "Dimensions do not match in output for %s (%s vs. %s)" % (target_node, set(meta.dim_ids), output_dimensions))
+        else:
+            output_dimensions = set(target_node.input_dimensions.keys())
 
         # Validate output
         meta = df.get_meta()
@@ -791,10 +718,10 @@ class Node:
             if df[dim_col].null_count() == df[dim_col].len():
                 df = df.drop(dim_col)
         meta = df.get_meta()
-        if set(meta.dim_ids) != set(target_node.input_dimensions.keys()):
+        if set(meta.dim_ids) != output_dimensions:
             self.print(df)
             out_dims = ', '.join(meta.dim_ids)
-            target_in_dims = ', '.join(target_node.input_dimensions.keys())
+            target_in_dims = ', '.join(output_dimensions)
             raise NodeError(
                 self, "Dimensions of output [%s] do not match the input dimensions of %s [%s]" % (
                     out_dims, target_node.id, target_in_dims
