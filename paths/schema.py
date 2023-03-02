@@ -10,7 +10,7 @@ from django.utils.translation import get_language, gettext as _
 
 from grapple.registry import registry as grapple_registry
 
-from nodes.schema import Query as NodesQuery
+from nodes.schema import Query as NodesQuery, Mutations as NodesMutations
 from nodes.units import Unit
 from pages.schema import Query as PagesQuery
 from params.schema import (
@@ -85,7 +85,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery):
         return unit
 
 
-class Mutations(ParamsMutations):
+class Mutations(ParamsMutations, NodesMutations):
     pass
 
 

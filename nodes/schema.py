@@ -7,15 +7,22 @@ from wagtail.rich_text import expand_db_html
 
 import polars as pl
 
-from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
 from common import polars as ppl
-from .models import InstanceConfig, NodeConfig
-from .metric import DimensionalFlow, DimensionalMetric, Metric
+from nodes.context import Context
+from nodes.normalization import Normalization
+from paths.graphql_helpers import (
+    GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
+)
 
 from . import Node
+from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
+from .constants import (
+    FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN,
+    YEAR_COLUMN, DecisionLevel
+)
 from .instance import Instance
-from .actions import ActionNode, ActionEfficiencyPair, ActionGroup
-from .constants import BASELINE_VALUE_COLUMN, FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN, DecisionLevel
+from .metric import DimensionalFlow, DimensionalMetric, Metric
+from .models import InstanceConfig, NodeConfig
 from .scenario import Scenario
 
 
@@ -436,6 +443,29 @@ class InstanceBasicConfiguration(graphene.ObjectType):
             return dict(hostname=root._hostname, base_path='')
 
 
+class NormalizationType(graphene.ObjectType):
+    id = graphene.ID()
+    label = graphene.String(required=True)
+    normalizer = graphene.Field(NodeType, required=True)
+    is_active = graphene.Boolean()
+
+    @staticmethod
+    def resolve_is_active(root: Normalization, info: GQLInstanceInfo):
+        return info.context.instance.context.active_normalization == root
+
+    @staticmethod
+    def resolve_label(root: Normalization, info: GQLInstanceInfo):
+        return root.normalizer_node.name
+
+    @staticmethod
+    def resolve_normalizer(root: Normalization, info: GQLInstanceInfo):
+        return root.normalizer_node
+
+    @staticmethod
+    def resolve_id(root: Normalization, info: GQLInstanceInfo):
+        return root.normalizer_node.id
+
+
 class Query(graphene.ObjectType):
     available_instances = graphene.List(
         graphene.NonNull(InstanceBasicConfiguration), hostname=graphene.String(), required=True
@@ -450,6 +480,8 @@ class Query(graphene.ObjectType):
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
     active_scenario = graphene.Field(ScenarioType)
+    available_normalizations = graphene.List(graphene.NonNull(NormalizationType), required=True)
+    active_normalization = graphene.Field(NormalizationType, required=False)
 
     @ensure_instance
     def resolve_instance(root, info: GQLInstanceInfo):
@@ -487,16 +519,22 @@ class Query(graphene.ObjectType):
         instance = info.context.instance
         return instance.context.nodes.values()
 
-    @ensure_instance
-    def resolve_actions(root, info: GQLInstanceInfo):
+    @pass_context
+    def resolve_actions(root, info: GQLInstanceInfo, context: Context):
         instance = info.context.instance
         return instance.context.get_actions()
 
-    @ensure_instance
-    def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo):
-        instance = info.context.instance
-        ctx = instance.context
-        return ctx.action_efficiency_pairs
+    @pass_context
+    def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo, context: Context):
+        return context.action_efficiency_pairs
+
+    @pass_context
+    def resolve_available_normalizations(root, info: GQLInstanceInfo, context: Context):
+        return context.normalizations.values()
+
+    @pass_context
+    def resolve_active_normalization(root, info: GQLInstanceInfo, context: Context):
+        return context.active_normalization
 
     @staticmethod
     def resolve_available_instances(root, info: GQLInfo, hostname: str):
@@ -508,3 +546,27 @@ class Query(graphene.ObjectType):
             instance._hostname = hostname
             instances.append(instance)
         return instances
+
+class SetNormalizerMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=False)
+
+    ok = graphene.Boolean(required=True)
+    active_normalization = graphene.Field(NormalizationType, required=False)
+
+    @pass_context
+    def mutate(root, info: GQLInstanceInfo, context: Context, id: str | None = None):
+        if id:
+            normalizer = context.normalizations.get(id)
+            if normalizer is None:
+                raise GraphQLError("Normalization '%s' not found" % id)
+
+        assert context.setting_storage is not None
+        context.setting_storage.set_option('normalizer', id)
+        context.set_option('normalizer', id)
+
+        return dict(ok=True, active_normalizer=context.active_normalization)
+
+
+class Mutations(graphene.ObjectType):
+    set_normalizer = SetNormalizerMutation.Field()

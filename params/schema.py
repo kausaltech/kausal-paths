@@ -12,7 +12,7 @@ from . import (
 
 class ResolveDefaultValueMixin:
     @staticmethod
-    def resolve_default_value(root: Parameter, info: GQLInfo) -> Any:
+    def resolve_default_value(root: Parameter, info: GQLInstanceInfo) -> Any:
         context = info.context.instance.context
         scenario = context.get_default_scenario()
         return root.get_scenario_setting(scenario)
@@ -28,15 +28,17 @@ class ParameterInterface(graphene.Interface):
     is_customizable = graphene.Boolean()
 
     # TODO: Use the proper field names instead of defining this alias?
-    def resolve_id(root, info):
+    @staticmethod
+    def resolve_id(root: Parameter, info):
         return root.global_id
 
     # TODO: Use the proper field names instead of defining this alias?
-    def resolve_node_relative_id(root, info):
+    @staticmethod
+    def resolve_node_relative_id(root: Parameter, info):
         return root.local_id
 
     @classmethod
-    def resolve_type(cls, parameter, info):
+    def resolve_type(cls, parameter: Parameter, info):
         type_map = {
             BoolParameter: BoolParameterType,
             NumberParameter: NumberParameterType,

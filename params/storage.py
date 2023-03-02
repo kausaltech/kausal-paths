@@ -78,6 +78,12 @@ class SessionStorage(SettingStorage):
         self._instance_options[id] = val
         self.session.modified = True
 
+    def has_option(self, id: str) -> bool:
+        return id in self._instance_options
+
+    def get_option(self, id: str) -> Any:
+        return self._instance_options.get(id)
+
     def reset_option(self, id: str):
         if id in self._instance_options:
             del self._instance_options[id]

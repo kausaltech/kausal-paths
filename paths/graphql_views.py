@@ -145,6 +145,10 @@ class InstanceMiddleware:
         if scenario is None:
             scenario = context.get_default_scenario()
 
+        if context.setting_storage.has_option('normalizer'):
+            val = context.setting_storage.get_option('normalizer')
+            context.set_option('normalizer', val)
+
         context.activate_scenario(scenario)
         context.perf_context.start()
         context.cache.start_run()
@@ -161,9 +165,9 @@ class InstanceMiddleware:
 
 
 class PathsGraphQLView(GraphQLView):
-    graphiql_version = "2.0.7"
-    graphiql_sri = "sha256-qQ6pw7LwTLC+GfzN+cJsYXfVWRKH9O5o7+5H96gTJhQ="
-    graphiql_css_sri = "sha256-gQryfbGYeYFxnJYnfPStPYFt0+uv8RP8Dm++eh00G9c="
+    graphiql_version = "2.2.0"
+    graphiql_sri = "sha256-fLMqXdOkS8Q7/tzR9a511DnNqR1Z9sk2hPOBXMVrCnY="
+    graphiql_css_sri = "sha256-JZnrtAzCwc6VWlHZwhlFS77c7Jv8tcD2jGd3vdjMfWU="
 
     def __init__(self, *args, **kwargs):
         if 'middleware' not in kwargs:

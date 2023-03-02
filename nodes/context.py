@@ -140,6 +140,8 @@ class Context:
             param.subscription_nodes.append(node)
 
     def get_node(self, id: str) -> Node:
+        if id not in self.nodes:
+            raise KeyError("Node '%s' not found" % id)
         return self.nodes[id]
 
     def get_action(self, id: str) -> 'ActionNode':
@@ -229,8 +231,12 @@ class Context:
 
     def set_option(self, id: Literal['normalizer'], val: Any):
         if id == 'normalizer':
-            if not isinstance(val, bool):
-                raise TypeError('Expecting bool')
+            if val is None:
+                self.active_normalization = None
+            else:
+                if not isinstance(val, str):
+                    raise TypeError('Expecting str')
+                self.active_normalization = self.normalizations[val]
         else:
             raise KeyError("Unknown option: %s" % id)
 

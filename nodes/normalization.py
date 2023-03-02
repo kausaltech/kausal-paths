@@ -64,8 +64,7 @@ class Normalization:
         )
         df = df.paths.join_over_index(ndf, how='left')
         df = (
-            df.with_columns(ndf['_N'])
-            .divide_cols([metric.column_id, '_N'], metric.column_id)
+            df.divide_cols([metric.column_id, '_N'], metric.column_id)
             .drop('_N')
             .ensure_unit(metric.column_id, q.unit)
         )
