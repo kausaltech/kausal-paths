@@ -6,10 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "kausal-paths"
 dynamic = ["version"]
 
-[tool.flake8]
-exclude = "migrations,tests,local_settings.py"
-max-line-length = 130
-
 [tool.isort]
 atomic = true
 combine_as_imports = true
