@@ -124,12 +124,11 @@ class ShiftAction(ActionNode):
 
     def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit):
         amounts = sorted(param.amounts, key=lambda x: x.year)
-
         data = [[a.year, a.source_amount, *a.dest_amounts] for a in param.amounts]
         dest_cols = ['Dest%d' % idx for idx in range(len(param.dests))]
         cols = [YEAR_COLUMN, 'Source', *dest_cols]
 
-        df = pl.DataFrame(data, schema=cols)
+        df = pl.DataFrame(data, schema=cols, orient='row')
         dest_sum = df.select(pl.col(dest_cols)).sum(axis=1)
         df = df.with_columns(pl.col(dest_cols) / dest_sum * (pl.col('Source') * -1))
 
