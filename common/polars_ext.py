@@ -191,7 +191,7 @@ class PathsExt:
         self,
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer'] = 'left',
-        index_from: Literal['left', 'right'] = 'left'
+        index_from: Literal['left', 'right', 'union'] = 'left'
     ):
         sdf = self._df
         sm = sdf.get_meta()
@@ -223,6 +223,10 @@ class PathsExt:
             pass
         elif index_from == 'right':
             meta.primary_keys = om.primary_keys
+        elif index_from == 'union':
+            meta.primary_keys = list(set(sm.primary_keys) | set(om.primary_keys))
+        else:
+            raise ValueError("Invalid value for 'index_from'")
 
         out = ppl.to_ppdf(df, meta=meta)
         if out.paths.index_has_duplicates():
