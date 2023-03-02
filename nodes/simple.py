@@ -84,6 +84,7 @@ class AdditiveNode(SimpleNode):
 
     def add_nodes_pl(self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None) -> ppl.PathsDataFrame:
         if len(nodes) == 0:
+            assert df is not None
             return df
         if self.debug:
             print('%s: input dataset:' % self.id)
@@ -182,8 +183,9 @@ class MultiplicativeNode(AdditiveNode):
                 self,
                 "Multiplying inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
-        df = df1.paths.join_over_index(df2, how='left')
+        df = df1.paths.join_over_index(df2, how='left', index_from='union')
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.drop_nulls(VALUE_COLUMN)
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
         return df
 
@@ -203,8 +205,8 @@ class MultiplicativeNode(AdditiveNode):
             raise NodeError(self, "Must receive exactly two inputs to operate %s on" % self.operation_label)
 
         n1, n2 = operation_nodes
-        df1 = n1.get_output_pl()
-        df2 = n2.get_output_pl()
+        df1 = n1.get_output_pl(target_node=self)
+        df2 = n2.get_output_pl(target_node=self)
 
         if self.debug:
             print('%s: %s input from node 1 (%s):' % (self.operation_label, self.id, n1.id))

@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 417c11c3ee6323eec2a1281a4cf72a14c11b014a
+  commit: 1204af578adb5e1eac9abb9eaba7dd60a396a437
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -21,12 +21,12 @@ emission_forecast_from: 2021
 normalizations:
 - normalizer_node: population
   quantities:
-    - id: emissions
-      unit: t/cap/a
-    - id: energy
-      unit: kWh/cap/a
-    - id: mileage
-      unit: km/cap/a
+  - id: emissions
+    unit: t/cap/a
+  - id: energy
+    unit: kWh/cap/a
+  - id: mileage
+    unit: km/cap/a
 features:
   baseline_visible_in_graphs: false
 
@@ -49,14 +49,51 @@ dimensions:
   label: Fahrzeugtyp
   label_en: Vehicle type
   groups:
-    - id: cars
-      label: Personenwagen
-      label_en: Cars
-      id_match: "^car_.+"
-    - id: motorbikes
-      label: Motorräder
-      label_en: Motorbikes
-      id_match: "^motorbike_.+"
+  - id: cars
+    label: Personenwagen
+    label_en: Cars
+    id_match: ^car_.+
+  - id: motorbikes
+    label: Motorräder
+    label_en: Motorbikes
+    id_match: ^motorbike_.+
+  - id: buses
+    label: Linienbusse
+    label_en: Local buses
+    id_match: ^buses_.+
+  - id: trolleybuses
+    label: Trolleybusse
+    label_en: Trolley buses
+    id_match: ^trolley.*
+  - id: coaches
+    label: Reisebusse
+    label_en: Coaches
+    id_match: ^coach_.+
+  - id: lorries
+    label: Lastwagen
+    label_en: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+    id_match: ^van_.+
+  - id: rail
+    label: Schienenverkehr
+    label_en: Rail transport
+    id_match: ^(tram|small_railways|rail).*
+  - id: maritime
+    label: Schiffsverkehr
+    label_en: Maritime transport
+    id_match: ^.*_ship_.*
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt
+    label_en: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+    id_match: ^aviation
+
     # TODO: Add the rest of the groups
   categories:
   - id: car_petrol
@@ -190,10 +227,10 @@ dimensions:
   - id: co2_eq
     label: CO2-Äquivalent
     label_en: CO2 equivalent
-  - id: co2_fossil
+  - id: co2
     label: CO2, fossil
     label_en: CO2, fossil
-    aliases: [CO2]
+    aliases: [co2_fossil]
   - id: ch4
     label: CH4
     label_en: CH4
@@ -515,6 +552,15 @@ nodes:
   - district_heat_emission_factor
   output_nodes: [building_emissions]
 
+- id: district_heat_production_mix
+  type: ch.zuerich.DistrictHeatProductionMix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - zuerich/district_heat_production_mix
+
 - id: district_heat_emission_factor
   name_de: Treibhausgasfaktoren Fernwärme
   name_en: District heat emission factor
@@ -522,12 +568,14 @@ nodes:
   quantity: emission_factor
   type: ch.zuerich.EnergyProductionEmissionFactor
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: electricity_emission_factor
+    tags: [emission_factor]
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
+  - id: district_heat_production_mix
+    tags: [mix]
   input_datasets:
-  - zuerich/district_heat_production_mix
   - zuerich/district_heat_emission_factors
   input_dimensions: [energy_carrier]
 
@@ -538,14 +586,43 @@ nodes:
   quantity: energy
   unit: GWh/a
 
-- id: electricity_production_emission_factor
+- id: electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  name_de: Electricity consumer mix
+  name_en: Electricity consumer mix
+  quantity: mix
+  unit: '%'
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/general_electricity_production_mix
+  - zuerich/subsidized_electricity_production_mix
+  - zuerich/externally_supplied_electricity
+  input_nodes:
+  - id: electricity_consumption
+    tags: [consumption]
+
+# - id: transport_electricity_production_mix
+#   type: ch.zuerich.ElectricityProductionMix
+#   quantity: mix
+#   unit: '%'
+#   output_dimensions: [electricity_source]
+#   input_datasets:
+#   - zuerich/transport_electricity_production_mix
+#   - zuerich/subsidized_transport_electricity_production_mix
+#   input_nodes:
+#   - id: transport_electricity_consumption
+#     tags: [consumption]
+
+- id: electricity_emission_factor
   name_de: Treibhausgasfaktoren Strom
   name_en: Emission factor of electricity production
   type: ch.zuerich.EnergyProductionEmissionFactor
   quantity: emission_factor
   unit: g/kWh
+  input_nodes:
+  - id: electricity_production_mix
+    tags: mix
   input_datasets:
-  - zuerich/electricity_production_mix
   - zuerich/electricity_emission_factor
   input_dimensions: [electricity_source]
 
@@ -557,7 +634,7 @@ nodes:
   unit: kt/a
   input_nodes:
   - electricity_consumption
-  - electricity_production_emission_factor
+  - electricity_emission_factor
   output_nodes: [building_emissions]
 
 - id: building_energy_consumption_emission_factor
@@ -569,7 +646,7 @@ nodes:
   input_datasets:
   - zuerich/buildings_energy_emission_factor
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: electricity_emission_factor
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
@@ -673,346 +750,56 @@ nodes:
 # TRANSPORT (MULTIDIMENSIONAL)
 #
 
-# - id: transport_mileage
-#   name_de: Fahrleistung alles
-#   name_en: Transport distance
-#   type: ch.zuerich.VehicleMileage
-#   quantity: mileage
-#   unit: km/a
-# #  input_dataset_processors: [LinearInterpolation]  # FIXME Processor needs to be fixed first
-#   input_datasets:
-#   - zuerich/vehicle_mileage
+- id: transport_mileage
+  name_de: Fahrleistung alles
+  name_en: Transport distance
+  type: ch.zuerich.VehicleMileage
+  quantity: mileage
+  unit: km/a
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/vehicle_mileage
 
-# - id: transport_fuel_factors
-#   name_de: Verkehr Kraftstofffaktor alles
-#   name_en: Transport fuel factors
-#   type: ch.zuerich.FuelFactorNode
-#   quantity: mileage
-#   unit: kg/km
-# #  input_dataset_processors: [LinearInterpolation]
-#   input_datasets:
-#   - zuerich/fuel_consumption_factor
+- id: transport_fuel_factors
+  name_de: Verkehr Kraftstofffaktor alles
+  name_en: Transport fuel factors
+  type: ch.zuerich.TransportFuelFactor
+  quantity: mileage
+  unit: kg/km
+  # input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
 
-# - id: transport_emission_factors
-#   name_de: Verkehr Emissionsfaktor
-#   name_en: Transport emission factors
-#   type: ch.zuerich.EmissionFactorNode
-#   quantity: emission_factor
-#   unit: kg/km
-# #  input_dataset_processors: [LinearInterpolation]
-#   input_datasets:
-#   - zuerich/transport_emission_factors
-#   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+- id: transport_emission_factors
+  name_de: Verkehr Emissionsfaktor
+  name_en: Transport emission factors
+  type: ch.zuerich.TransportEmissionFactor
+  quantity: emission_factor
+  unit: kg/km
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/transport_emission_factors
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
 
-# # Road passenger traffic
-# - id: road_passenger_vehicle_mileage
-#   name_de: Fahrleistung
-#   name_en: On-road passenger vehicle distance
-#   type: simple.AdditiveNode
-#   quantity: mileage
-#   unit: Mkm/a
-#   input_dimensions: [vehicle_type]
-#   output_dimensions: [vehicle_type]
-#   input_nodes:
-#   - id: transport_mileage
-#     from_dimensions:
-#     - groups: [cars, motorbikes, buses, trolley, coach]
-
-# - id: road_passenger_vehicle_fuel_factors
-#   name_de: Verkehr Kraftstofffaktor
-#   name_en: On-road passenger vehicle fuel factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: transport_fuel_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [car_petrol, car_diesel, car_natural_gas_biogas, car_plugin_hybrid, 
-#         car_batteryelectric, car_fuel_cell, motorbike_petrol_4stroke, motorbike_petrol_2stroke,
-#         motorbike_batteryelectric, buses_diesel, buses_diesel_hybrid,
-#         buses_diesel_plugin_hybrid, buses_batteryelectric, buses_fuel_cell, trolley,
-#         coach_diesel, coach_natural_gas_biogas, coach_battery_electric, coach_fuel_cell]
-#       flatten: false
-
-# - id: road_passenger_vehicle_fuel_consumption
-#   name_de: Kraftstoffverbrauch von Straßenfahrzeugen
-#   name_en: On-road passenger vehicle fuel consumption
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - road_passenger_vehicle_mileage
-#   - road_passenger_vehicle_fuel_factors
-
-# - id: road_passenger_vehicle_emission_factors
-#   name_de: Strasseverkehr Emissionsfaktor
-#   name_en: On-road passenger traffic emission factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   input_nodes:
-#   - id: transport_emission_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [car_petrol, car_diesel, car_natural_gas_biogas, car_plugin_hybrid, 
-#         car_batteryelectric, car_fuel_cell, motorbike_petrol_4stroke, motorbike_petrol_2stroke,
-#         motorbike_batteryelectric, buses_diesel, buses_diesel_hybrid,
-#         buses_diesel_plugin_hybrid, buses_batteryelectric, buses_fuel_cell, trolley,
-#         coach_diesel, coach_natural_gas_biogas, coach_battery_electric, coach_fuel_cell]
-#       flatten: false
-
-# - id: road_passenger_vehicle_emissions
-#   name_de: Strasseverkehr Emissions
-#   name_en: On-road passenger vehicle emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   input_nodes:
-#   - road_passenger_vehicle_mileage
-#   - road_passenger_vehicle_emission_factors
-#   output_nodes:
-#   - road_traffic_emissions
-
-# # Road goods traffic
-
-# - id: road_goods_vehicle_mileage
-#   name_de: Fahrleistung
-#   name_en: On-road goods vehicle distance
-#   type: simple.AdditiveNode
-#   quantity: mileage
-#   unit: Mkm/a
-#   input_dimensions: [vehicle_type]
-#   output_dimensions: [vehicle_type]
-#   input_nodes:
-#   - id: transport_mileage
-#     from_dimensions:
-#     - categories: [lorry_diesel, lorry_natural_gas_biogas, lorry_diesel_plugin_hybrid,
-#         lorry_battery_electric, lorry_fuel_cell, van_petrol, van_diesel,
-#         van_natural_gas_biogas, van_diesel_plugin_hybrid, van_battery_electric, van_fuel_cell]
-#       flatten: false
-
-# - id: road_goods_vehicle_fuel_factors
-#   name_de: Verkehr Kraftstofffaktor
-#   name_en: On-road goods vehicle fuel factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: transport_fuel_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [lorry_diesel, lorry_natural_gas_biogas, lorry_diesel_plugin_hybrid,
-#         lorry_battery_electric, lorry_fuel_cell, van_petrol, van_diesel,
-#         van_natural_gas_biogas, van_diesel_plugin_hybrid, van_battery_electric, van_fuel_cell]
-#       flatten: false
-
-# - id: road_goods_vehicle_fuel_consumption
-#   name_de: Kraftstoffverbrauch von Straßenfahrzeugen
-#   name_en: On-road goods vehicle fuel consumption
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - road_passenger_vehicle_mileage
-#   - road_passenger_vehicle_fuel_factors
-
-# - id: road_goods_vehicle_emission_factors
-#   name_de: Strasseverkehr Emissionsfaktor
-#   name_en: On-road goods traffic emission factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   input_nodes:
-#   - id: transport_emission_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [lorry_diesel, lorry_natural_gas_biogas, lorry_diesel_plugin_hybrid,
-#         lorry_battery_electric, lorry_fuel_cell, van_petrol, van_diesel,
-#         van_natural_gas_biogas, van_diesel_plugin_hybrid, van_battery_electric, van_fuel_cell]
-#       flatten: false
-
-# - id: road_goods_vehicle_emissions
-#   name_de: Strasseverkehr Emissions
-#   name_en: On-road goods vehicle emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   input_nodes:
-#   - id: road_goods_vehicle_mileage
-#     input_dimensions: [vehicle_type]
-#   - id: road_goods_vehicle_emission_factors
-#     input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_nodes:
-#   - road_traffic_emissions
-
-# # Road traffic
-
-# - id: road_traffic_emissions
-#   name_de: Fill
-#   name_en: Road traffic emissions
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: kt/a
-#   output_nodes:
-#   - transportation_emissions
-
-# # Railways
-
-# - id: railway_transportation_mileage
-#   name_de: Fahrleistung
-#   name_en: Railway transportation mileage
-#   description_de: Is this parson-km? Then what is goods transport, per kg-km?
-#   description_en: Is this parson-km? Then what is goods transport, per kg-km?
-#   type: simple.AdditiveNode
-#   quantity: mileage
-#   unit: Mkm/a
-#   input_dimensions: [vehicle_type]
-#   output_dimensions: [vehicle_type]
-#   input_nodes:
-#   - id: transport_mileage
-#     from_dimensions:
-#     - categories: [tram, small_railways, rail_passenger, rail_goods]
-#       flatten: false
-
-# - id: railway_transportation_fuel_factors
-#   name_de: Verkehr Kraftstofffaktor
-#   name_en: Railway transportation fuel factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: transport_fuel_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [tram, small_railways, rail_passenger, rail_goods]
-#       flatten: false
-
-# - id: railway_transportation_fuel_consumption
-#   name_de: Kraftstoffverbrauch von Straßenfahrzeugen
-#   name_en: Railway transportation fuel consumption
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - railway_transportation_mileage
-#   - railway_transportation_fuel_factors
-
-# - id: railway_transportation_emission_factors
-#   name_de: Strasseverkehr Emissionsfaktor
-#   name_en: Railway transportation emission factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   input_nodes:
-#   - id: transport_emission_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [tram, small_railways, rail_passenger, rail_goods]
-#       flatten: false
-
-# - id: railway_transportation_emissions
-#   name_de: Strasseverkehr Emissions
-#   name_en: Railway transportation emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   input_nodes:
-#   - id: railway_transportation_mileage
-#     input_dimensions: [vehicle_type]
-#   - id: railway_transportation_emission_factors
-#     input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_nodes:
-#   - transportation_emissions
-
-# # Waterborne navigation
-
-# - id: waterborne_navigation_mileage
-#   name_de: Fahrleistung
-#   name_en: Waterborne navigation mileage  # FIXME Is this vehicle km or passenger-km?
-#   type: simple.AdditiveNode
-#   quantity: mileage
-#   unit: Mkm/a
-#   input_dimensions: [vehicle_type]
-#   output_dimensions: [vehicle_type]
-#   input_nodes:
-#   - id: transport_mileage
-#     from_dimensions:
-#     - categories: [liner_ship_diesel, liner_ship_battery_electric, private_ship_petrol,
-#         private_ship_diesel, private_ship_battery_electric]
-#       flatten: false
-
-# - id: waterborne_navigation_fuel_factors
-#   name_de: Verkehr Kraftstofffaktor
-#   name_en: Waterborne navigation fuel factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: transport_fuel_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [liner_ship_diesel, liner_ship_battery_electric, private_ship_petrol,
-#         private_ship_diesel, private_ship_battery_electric]
-#       flatten: false
-
-# - id: waterborne_navigation_fuel_consumption
-#   name_de: Kraftstoffverbrauch von Straßenfahrzeugen
-#   name_en: Waterborne navigation fuel consumption
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - waterborne_navigation_mileage
-#   - waterborne_navigation_fuel_factors
-
-# - id: waterborne_navigation_emission_factors
-#   name_de: Strasseverkehr Emissionsfaktor
-#   name_en: Waterborne navigation emission factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/km
-#   input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   input_nodes:
-#   - id: transport_emission_factors
-#     from_dimensions:
-#     - id: vehicle_type
-#       categories: [liner_ship_diesel, liner_ship_battery_electric, private_ship_petrol,
-#         private_ship_diesel, private_ship_battery_electric]
-#       flatten: false
-
-# - id: waterborne_navigation_emissions
-#   name_de: Strasseverkehr Emissions
-#   name_en: Waterborne navigation emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   input_nodes:
-#   - id: waterborne_navigation_mileage
-#     input_dimensions: [vehicle_type]
-#   - id: waterborne_navigation_emission_factors
-#     input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
-#   output_nodes:
-#   - transportation_emissions
+- id: road_transport_emissions
+  name_de: Strasseverkehr Emissions
+  name_en: Road transportation emissions
+  type: ch.zuerich.TransportEmissions
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [emission_scope, vehicle_type]
+  input_nodes:
+  - id: transport_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes, buses, trolleybuses, coaches, lorries, vans]
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: emission_scope
+    - id: greenhouse_gases
 
 #
 # ------- ACTIONS --------
@@ -1028,8 +815,8 @@ actions:
   description_de: Werden alle 21 000 Öl- und Gasheizungen mit Erdsonden oder einem
     Anschluss ans Fernwärmenetz ersetzt, reduzieren sich die direkten Emissionen von
     Gebäuden um 1.6 tCO<sub>2</sub>eq/(Einw.*a).
-  output_nodes: [fossil_fuel_heat_consumption, environmental_heat_consumption,
-    district_heat_consumption, building_other_energy_consumption]
+  output_nodes: [fossil_fuel_heat_consumption, environmental_heat_consumption, district_heat_consumption,
+    building_other_energy_consumption]
   unit: GWh/a
   params:
   - id: shift
@@ -1077,6 +864,92 @@ actions:
       - year: 2035
         source_amount: -100
         dest_amounts: [500, 250, 250]
+
+- id: cleaner_electricity_production
+  name_en: Cleaner electricity production
+  name_de: Cleaner electricity production
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Electricity production shift to cleaner methods.
+  description_de: Electricity production shift to cleaner methods.
+  output_nodes:
+  - id: electricity_production_mix
+    to_dimensions:
+    - id: electricity_source
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          electricity_source: import
+      dests:
+      - categories:
+          electricity_source: solar
+      - categories:
+          electricity_source: wind
+      amounts:
+      - year: 2023
+        source_amount: -2
+        dest_amounts: [50, 50]
+      - year: 2030
+        source_amount: -2
+        dest_amounts: [50, 50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50, 50]
+
+- id: electrify_cars
+  name_en: Electrify cars
+  name_de: Electrify cars
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Electricity production shift to cleaner methods.
+  description_de: Electricity production shift to cleaner methods.
+  output_nodes:
+  - id: transport_mileage
+    #to_dimensions:
+    #- id: electricity_source
+  unit: 'Mkm/a'
+  params:
+  - id: shift
+    unit: 'Mkm/a'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          vehicle_type: car_diesel
+      dests:
+      - categories:
+          vehicle_type: car_batteryelectric
+      amounts:
+      - year: 2023
+        source_amount: -30
+        dest_amounts: [50]
+      - year: 2030
+        source_amount: -50
+        dest_amounts: [50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50]
+    - source:
+        categories:
+          vehicle_type: car_petrol
+      dests:
+      - categories:
+          vehicle_type: car_batteryelectric
+      amounts:
+      - year: 2023
+        source_amount: -30
+        dest_amounts: [50]
+      - year: 2030
+        source_amount: -50
+        dest_amounts: [50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50]
 
 - id: building_energy_retrofit
   name_en: Energetic retrofitting of buildings
