@@ -481,7 +481,6 @@ class InstanceLoader:
                 for node_id in sub_node_ids:
                     sub_nodes += [context.get_node(node_id)]
                 param.subscription_nodes = sub_nodes
-                print(param)
             param.set(param_val)
             context.add_global_parameter(param)
 

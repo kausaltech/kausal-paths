@@ -16,7 +16,7 @@ from nodes.actions.shift import ShiftAction
 from nodes.constants import (
     ACTIVITY_QUANTITIES, BASELINE_VALUE_COLUMN, DEFAULT_METRIC,
     FLOW_ROLE_COLUMN, FLOW_ROLE_TARGET, FLOW_ROLE_SOURCE, FLOW_ID_COLUMN,
-    FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+    FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES, VALUE_COLUMN, YEAR_COLUMN
 )
 from nodes.exceptions import NodeError
 from nodes.units import Unit
@@ -207,17 +207,33 @@ class DimensionalMetric:
 
         dims = []
         for dim_id, dim in node.output_dimensions.items():
-            cats = set(df[dim_id].unique())
-            ordered_cats = []
-            for cat in dim.categories:
-                if cat.id in cats:
-                    ordered_cats.append(MetricCategory(id=cat.id, label=str(cat.label)))
-            assert len(cats) == len(ordered_cats)
+            if dim.groups:
+                df = df.with_columns(dim.ids_to_groups(pl.col(dim_id)))
+                meta = df.get_meta()
+                gdf = df.groupby(df.primary_keys, maintain_order=True).agg([pl.sum(m.column_id), pl.first(FORECAST_COLUMN)])
+                df = ppl.to_ppdf(gdf, meta=meta)
+                groups = set(df[dim_id].unique())
+                ordered_groups = []
+                for grp in dim.groups:
+                    if grp.id in groups:
+                        ordered_groups.append(MetricCategory(id=grp.id, label=str(grp.label)))
+                assert len(groups) == len(ordered_groups)
+                ordered_cats = ordered_groups
+            else:
+                cats = set(df[dim_id].unique())
+                ordered_cats = []
+                for cat in dim.categories:
+                    if cat.id in cats:
+                        ordered_cats.append(MetricCategory(id=cat.id, label=str(cat.label)))
+                assert len(cats) == len(ordered_cats)
             mdim = MetricDimension(id=dim.id, label=str(dim.label), categories=ordered_cats)
             dims.append(mdim)
 
         forecast_from = df.filter(pl.col(FORECAST_COLUMN) == True)[YEAR_COLUMN].min()
         assert isinstance(forecast_from, int)
+
+        if df.paths.index_has_duplicates():
+            raise NodeError(node, "DataFrame index has duplicates")
 
         just_cats = [dim.get_cat_ids() for dim in dims]
         years = list(df[YEAR_COLUMN].unique().sort())
@@ -231,7 +247,7 @@ class DimensionalMetric:
             id=node.id, name=str(node.name), dimensions=dims,
             values=vals, years=years, unit=df.get_unit(m.column_id),
             forecast_from=forecast_from, normalized_by=normalizer,
-            stackable=m.quantity in ACTIVITY_QUANTITIES
+            stackable=m.quantity in STACKABLE_QUANTITIES
         )
         return dm
 

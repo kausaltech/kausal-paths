@@ -69,9 +69,12 @@ class Dimension(BaseModel):
             if g.id_match is None:
                 continue
             cats = [cat for cat in self.categories if re.match(g.id_match, cat.id)]
+            if not cats:
+                raise Exception("No categories match the regex '%s'" % g.id_match)
             for cat in cats:
-                if cat._group is not None:
+                if cat._group is None:
                     cat._group = g
+                    cat.group = g.id
 
     @property
     def cat_map(self):
@@ -81,6 +84,12 @@ class Dimension(BaseModel):
         if cat_id not in self._cat_map:
             raise KeyError("Dimension %s: category %s not found" % (self.id, cat_id))
         return self._cat_map[cat_id]
+
+    def get_cats_for_group(self, group_id: str) -> list[DimensionCategory]:
+        if group_id not in self._group_map:
+            raise KeyError("Dimension %s: group %s not found" % (self.id, group_id))
+        grp = self._group_map[group_id]
+        return [cat for cat in self.categories if cat._group == grp]
 
     def get_cat_ids(self) -> set[str]:
         return set(self._cat_map.keys())
@@ -107,6 +116,14 @@ class Dimension(BaseModel):
             missing_cats = s[~s.isin(cat_map)].unique()
             raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
         return cs
+
+    def ids_to_groups(self, expr: pl.Expr) -> pl.Expr:
+        id_map = {}
+        for cat in self.categories:
+            if not cat._group:
+                raise Exception("Category %s does not have a group" % cat.id)
+            id_map[cat.id] = cat._group.id
+        return expr.cast(pl.Utf8).map_dict(id_map)
 
     def series_to_ids_pl(self, s: pl.Series) -> pl.Series:
         name = s.name
