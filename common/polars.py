@@ -13,7 +13,7 @@ import polars.internals as pli
 import numpy as np
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 
-from nodes.units import Unit
+from nodes.units import Unit, unit_registry
 
 
 if typing.TYPE_CHECKING:
@@ -184,11 +184,13 @@ class PathsDataFrame(pl.DataFrame):
     def has_unit(self, col: str) -> bool:
         return col in self._units
 
-    def set_unit(self, col: str, unit: Unit, force: bool = False) -> PathsDataFrame:
+    def set_unit(self, col: str, unit: Unit | str, force: bool = False) -> PathsDataFrame:
         assert col in self.columns
         if col in self._units and not force:
             raise Exception("Column %s already has a unit set" % col)
         meta = self.get_meta()
+        if isinstance(unit, str):
+            unit = unit_registry.parse_units(unit)
         meta.units[col] = unit
         return PathsDataFrame._from_pydf(self._df, meta=meta)
 
@@ -199,18 +201,22 @@ class PathsDataFrame(pl.DataFrame):
         del meta.units[col]
         return PathsDataFrame._from_pydf(self._df, meta=meta)
 
-    def multiply_cols(self, cols: list[str], out_col: str) -> PathsDataFrame:
+    def multiply_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
         res_unit = reduce(lambda x, y: x * y, [self._units[col] for col in cols])
         s = reduce(lambda x, y: x * y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(out_col, out_unit)
         return df
 
-    def divide_cols(self, cols: list[str], out_col: str) -> PathsDataFrame:
+    def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
         res_unit = reduce(lambda x, y: x / y, [self._units[col] for col in cols])
         s = reduce(lambda x, y: x / y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(out_col, out_unit)
         return df
 
     def ensure_unit(self, col: str, unit: Unit) -> PathsDataFrame:
