@@ -335,10 +335,11 @@ class DataSource(UserModifiableModel):
         null=True, blank=True
     )
     description = models.TextField(null=True, blank=True, verbose_name=_('description'))
+    url = models.URLField(verbose_name=_('URL to source'), null=True, blank=True)
 
     def get_label(self):
-        parts = [p for p in (self.name, self.edition, self.authority) if p is not None]
-        return ", ".join(parts)
+        name, *rest = [p for p in (self.name, self.authority, self.edition) if p is not None]
+        return f'{name}, {" ".join(rest)}'
 
     def __str__(self):
         return self.get_label()

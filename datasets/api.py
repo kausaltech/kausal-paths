@@ -570,7 +570,7 @@ class DataSourceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataSource
-        fields = ['id', 'uuid', 'name', 'edition', 'authority', 'label']
+        fields = ['id', 'uuid', 'name', 'edition', 'authority', 'label', 'url']
 
 
 instance_router.register(r'datasets', DatasetViewSet, basename='instance-datasets')
