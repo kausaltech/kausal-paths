@@ -23,7 +23,8 @@ from .models import (
     Dimension,
     DimensionCategory,
     DatasetDimension,
-    DatasetDimensionSelectedCategory
+    DatasetDimensionSelectedCategory,
+    DatasetSourceReference
 )
 
 
@@ -83,17 +84,50 @@ class DatasetCommentSerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
 
+class DatasetSourceReferenceSerializer(serializers.ModelSerializer):
+    def create(self, validated_data: dict):
+        request = self.context.get('request')
+        if request is None:
+            raise exceptions.NotAuthenticated()
+        user = request.user
+        validated_data['created_by'] = user
+        return super().create(validated_data)
+
+    class Meta:
+        model = DatasetSourceReference
+        fields = ('data_source', 'cell_path', 'dataset')
+        read_only_fields = ('id',)
+
+
+class DatasetCellMetadataViewSet(viewsets.ModelViewSet):
+    def _get_dataset_id(self):
+        return self.kwargs.get('dataset_pk', 0)
+
+
 @extend_schema(
     parameters=[
         OpenApiParameter("instance_id", OpenApiTypes.INT, location='path'),
     ]
 )
-class DatasetCommentViewSet(viewsets.ModelViewSet):
-    serializer_class = DatasetCommentSerializer
+class DatasetCommentViewSet(DatasetCellMetadataViewSet):
+    def get_serializer_class(self):
+        return DatasetCommentSerializer
 
     def get_queryset(self):
-        dataset_id = self.kwargs.get('dataset_pk', 0)
-        return DatasetComment.objects.filter(dataset_id=dataset_id)
+        return DatasetComment.objects.filter(dataset_id=self._get_dataset_id())
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("instance_id", OpenApiTypes.INT, location='path'),
+    ]
+)
+class DatasetSourceReferenceViewSet(DatasetCellMetadataViewSet):
+    def get_serializer_class(self):
+        return DatasetSourceReferenceSerializer
+
+    def get_queryset(self):
+        return DatasetSourceReference.objects.filter(dataset_id=self._get_dataset_id())
 
 
 class OptionalInputField:
@@ -199,6 +233,7 @@ class DatasetSerializer(serializers.ModelSerializer):
     metrics = DatasetMetricSerializer(many=True)
     dimension_selections = DatasetDimensionSerializer(many=True)
     comments_url = serializers.SerializerMethodField()
+    source_references_url = serializers.SerializerMethodField()
 
     instance: Dataset | None
 
@@ -206,7 +241,7 @@ class DatasetSerializer(serializers.ModelSerializer):
         model = Dataset
         fields = [
             'id', 'identifier', 'uuid', 'name', 'years', 'dimension_selections', 'metrics', 'table',
-            'comments_url', 'created_at', 'created_by', 'updated_at', 'updated_by',
+            'comments_url', 'source_references_url', 'created_at', 'created_by', 'updated_at', 'updated_by',
         ]
         extra_kwargs = dict(
             created_at=dict(read_only=True),
@@ -215,9 +250,16 @@ class DatasetSerializer(serializers.ModelSerializer):
             updated_by=dict(read_only=True),
         )
 
+    def _get_nested_url(self, view_key, obj):
+        return reverse(view_key, kwargs=dict(instance_pk=obj.instance.pk, dataset_pk=obj.pk))
+
     @extend_schema_field(OpenApiTypes.URI)
     def get_comments_url(self, obj):
-        return reverse('dataset-comments-list', kwargs=dict(instance_pk=obj.instance.pk, dataset_pk=obj.pk))
+        return self._get_nested_url('dataset-comments-list', obj)
+
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_source_references_url(self, obj):
+        return self._get_nested_url('dataset-source-references-list', obj)
 
     def validate_table(self, table: dict):
         return table
@@ -513,5 +555,6 @@ instance_router.register(r'dimensions', DimensionViewSet, basename='instance-dim
 
 dataset_router = routers.NestedSimpleRouter(instance_router, r'datasets', lookup='dataset')
 dataset_router.register(r'comments', DatasetCommentViewSet, basename='dataset-comments')
+dataset_router.register(r'source_references', DatasetSourceReferenceViewSet, basename='dataset-source-references')
 
 all_routers.append(dataset_router)
