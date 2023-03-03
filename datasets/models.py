@@ -108,7 +108,7 @@ class CellMetadata(UserModifiableModel):
 
 
 class DatasetSourceReference(CellMetadata):
-    data_source = models.ForeignKey('nodes.DataSource', on_delete=models.PROTECT)
+    data_source = models.ForeignKey('nodes.DataSource', on_delete=models.PROTECT, related_name='references')
 
     def __str__(self):
         return f"{self.dataset.identifier} [{self.cell_path or 'all'}]: " + str(self.data_source)

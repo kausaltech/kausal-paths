@@ -13,7 +13,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from paths.types import APIRequest
 from nodes.api import instance_router
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, DataSource
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 from paths.utils import validate_unit
 from .models import (
@@ -529,14 +529,10 @@ class DimensionSerializer(serializers.ModelSerializer):
         fields = ['id', 'identifier', 'uuid', 'label', 'categories']
 
 
-class DimensionViewSet(viewsets.ViewSet, generics.GenericAPIView):
-    serializer_class = DimensionSerializer
+class InstanceRelatedViewSet(viewsets.ViewSet, generics.GenericAPIView):
     permission_classes = (
         permissions.DjangoModelPermissions,
     )
-
-    def get_queryset(self):
-        return Dimension.objects.all()
 
     def list(self, request: APIRequest, instance_pk: str | None = None):
         qs = self.get_queryset().filter(instance=instance_pk)
@@ -550,8 +546,36 @@ class DimensionViewSet(viewsets.ViewSet, generics.GenericAPIView):
         return Response(serializer.data)
 
 
+class DimensionViewSet(InstanceRelatedViewSet):
+    def get_serializer_class(self):
+        return DimensionSerializer
+
+    def get_queryset(self):
+        return Dimension.objects.all()
+
+
+class DataSourceViewSet(InstanceRelatedViewSet):
+    def get_serializer_class(self):
+        return DataSourceSerializer
+
+    def get_queryset(self):
+        return DataSource.objects.all()
+
+
+class DataSourceSerializer(serializers.ModelSerializer):
+    label = serializers.SerializerMethodField()
+
+    def get_label(self, instance):
+        return instance.get_label()
+
+    class Meta:
+        model = DataSource
+        fields = ['id', 'uuid', 'name', 'edition', 'authority', 'label']
+
+
 instance_router.register(r'datasets', DatasetViewSet, basename='instance-datasets')
 instance_router.register(r'dimensions', DimensionViewSet, basename='instance-dimensions')
+instance_router.register(r'data_sources', DataSourceViewSet, basename='instance-data-sources')
 
 dataset_router = routers.NestedSimpleRouter(instance_router, r'datasets', lookup='dataset')
 dataset_router.register(r'comments', DatasetCommentViewSet, basename='dataset-comments')

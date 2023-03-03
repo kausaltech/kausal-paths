@@ -323,18 +323,25 @@ class DataSource(UserModifiableModel):
     A DataSource represents a reusable reference to some published data source
     and is used to track where specific data values in datasets have come from.
     """
+    instance = models.ForeignKey(
+        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=False
+    )
     uuid = UUIDIdentifierField(null=False, blank=False)
     name = models.CharField(max_length=200, null=False, blank=False)
     edition = models.CharField(max_length=100, null=True, blank=True)
+
     authority = models.CharField(
         max_length=200, verbose_name=_('authority'), help_text=_('The organization responsible for the data source'),
         null=True, blank=True
     )
     description = models.TextField(null=True, blank=True, verbose_name=_('description'))
 
-    def __str__(self):
+    def get_label(self):
         parts = [p for p in (self.name, self.edition, self.authority) if p is not None]
         return ", ".join(parts)
+
+    def __str__(self):
+        return self.get_label()
 
 
 class NodeConfig(ClusterableModel):

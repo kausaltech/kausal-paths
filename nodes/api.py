@@ -21,10 +21,15 @@ class InstanceSerializer(serializers.ModelSerializer):
         read_only=True,
         lookup_url_kwarg='instance_pk'
     )
+    data_sources = relations.NestedHyperlinkedIdentityField(
+        view_name='instance-data-sources-list',
+        read_only=True,
+        lookup_url_kwarg='instance_pk'
+    )
 
     class Meta:
         model = InstanceConfig
-        fields = ['id', 'identifier', 'name', 'datasets', 'dimensions']
+        fields = ['id', 'identifier', 'name', 'datasets', 'dimensions', 'data_sources']
 
 
 class ReadOnly(permissions.BasePermission):
