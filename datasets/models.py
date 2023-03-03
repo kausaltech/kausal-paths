@@ -99,7 +99,27 @@ class DatasetMetric(OrderedModel):
         return self.label
 
 
-class DatasetComment(UserModifiableModel):
+class CellMetadata(UserModifiableModel):
+    cell_path = models.CharField(null=True, blank=True, max_length=300)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="%(app_label)s_%(class)s")
+
+    class Meta:
+        abstract = True
+        ordering = ('dataset', '-created_at')
+
+
+class DatasetSourceReference(CellMetadata):
+    data_source = models.ForeignKey('nodes.DataSource', on_delete=models.PROTECT)
+
+    def __str__(self):
+        return f"{self.dataset.identifier} [{self.cell_path or 'all'}]: " + str(self.data_source)
+
+    class Meta:
+        verbose_name = _('data source reference')
+        verbose_name_plural = _('data source references')
+
+
+class DatasetComment(CellMetadata):
     class CommentType(models.TextChoices):
         REVIEW = 'review', _('Review comment'),
         STICKY = 'sticky', _('Sticky comment'),
@@ -108,11 +128,8 @@ class DatasetComment(UserModifiableModel):
         RESOLVED = 'resolved', _('Resolved'),
         UNERSOLVED = 'unresolved', _('Unresolved'),
 
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='comments')
     uuid = UUIDIdentifierField(null=True, blank=True)
-    cell_path = models.CharField(null=True, blank=True, max_length=300)
     text = models.TextField()
-
     type = models.CharField(
         null=True,
         blank=True,
@@ -132,11 +149,12 @@ class DatasetComment(UserModifiableModel):
         'users.User', null=True, on_delete=models.SET_NULL, related_name='resolved_comments'
     )
 
-    class Meta:
-        ordering = ('dataset', '-created_at')
-
     def __str__(self):
         return 'Comment on %s (created by %s at %s)' % (self.dataset, self.created_by, self.created_at)
+
+    class Meta:
+        verbose_name = _('comment')
+        verbose_name_plural = _('comments')
 
 
 class Dimension(ClusterableModel, UserModifiableModel):
