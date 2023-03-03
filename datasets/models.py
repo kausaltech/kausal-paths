@@ -105,7 +105,6 @@ class CellMetadata(UserModifiableModel):
 
     class Meta:
         abstract = True
-        ordering = ('dataset', '-created_at')
 
 
 class DatasetSourceReference(CellMetadata):
@@ -115,6 +114,8 @@ class DatasetSourceReference(CellMetadata):
         return f"{self.dataset.identifier} [{self.cell_path or 'all'}]: " + str(self.data_source)
 
     class Meta:
+        ordering = ('dataset', 'cell_path')
+        unique_together = (('dataset', 'cell_path'),)
         verbose_name = _('data source reference')
         verbose_name_plural = _('data source references')
 
@@ -153,6 +154,7 @@ class DatasetComment(CellMetadata):
         return 'Comment on %s (created by %s at %s)' % (self.dataset, self.created_by, self.created_at)
 
     class Meta:
+        ordering = ('dataset', 'cell_path', '-created_at')
         verbose_name = _('comment')
         verbose_name_plural = _('comments')
 
