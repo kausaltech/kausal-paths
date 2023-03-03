@@ -4,6 +4,7 @@ from wagtail.contrib.modeladmin.options import (
     ModelAdmin, modeladmin_register
 )
 from .models import Dimension
+from nodes.models import DataSource
 
 
 class DimensionAdmin(ModelAdmin):
@@ -15,4 +16,13 @@ class DimensionAdmin(ModelAdmin):
     list_display = ('label',)
 
 
+class DataSourceAdmin(ModelAdmin):
+    model = DataSource
+    menu_label = _('Data sources')
+    menu_icon = 'doc-full'
+    menu_order = 11
+    add_to_settings_menu = True
+
+
+modeladmin_register(DataSourceAdmin)
 modeladmin_register(DimensionAdmin)
