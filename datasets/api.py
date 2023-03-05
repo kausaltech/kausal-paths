@@ -95,7 +95,7 @@ class DatasetSourceReferenceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DatasetSourceReference
-        fields = ('data_source', 'cell_path', 'dataset')
+        fields = ('id', 'data_source', 'cell_path', 'dataset')
         read_only_fields = ('id',)
 
 
