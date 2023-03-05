@@ -137,7 +137,11 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               __typename
             }
             quantity
-            targetYearGoal
+            goals {
+              __typename
+              year
+              value
+            }
             isAction
             decisionLevel
             inputNodes {
@@ -189,7 +193,11 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'UnitType'
             },
             'quantity': additive_action.quantity,
-            'targetYearGoal': additive_action.target_year_goal,
+            'goals': [{
+                '__typename': 'NodeGoal',
+                'year': g.year,
+                'value': g.value,
+            } for g in additive_action.goals.values],
             'isAction': True,
             'decisionLevel': additive_action.decision_level.name,
             'inputNodes': [{
