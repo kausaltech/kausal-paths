@@ -55,7 +55,7 @@ class InstanceType(graphene.ObjectType):
     supported_languages = graphene.List(graphene.NonNull(graphene.String), required=True)
     base_path = graphene.String(required=True)
     target_year = graphene.Int()
-    model_end_year = graphene.Int()
+    model_end_year = graphene.Int(required=True)
     reference_year = graphene.Int()
     minimum_historical_year = graphene.Int()
     maximum_historical_year = graphene.Int()
@@ -88,8 +88,8 @@ class InstanceType(graphene.ObjectType):
 
 
 class YearlyValue(graphene.ObjectType):
-    year = graphene.Int()
-    value = graphene.Float()
+    year = graphene.Int(required=True)
+    value = graphene.Float(required=True)
 
 
 class ForecastMetricType(graphene.ObjectType):
@@ -98,7 +98,7 @@ class ForecastMetricType(graphene.ObjectType):
     output_node = graphene.Field(lambda: NodeType, description="Will be set if the node outputs multiple time-series")
     unit = graphene.Field('paths.schema.UnitType')
     yearly_cumulative_unit = graphene.Field('paths.schema.UnitType')
-    historical_values = graphene.List(graphene.NonNull(YearlyValue), latest=graphene.Int(required=False))
+    historical_values = graphene.List(graphene.NonNull(YearlyValue), required=True, latest=graphene.Int(required=False))
     forecast_values = graphene.List(graphene.NonNull(YearlyValue), required=True)
     cumulative_forecast_value = graphene.Float()
     baseline_forecast_values = graphene.List(graphene.NonNull(YearlyValue))
@@ -129,6 +129,7 @@ class DimensionCategoryType(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=True)
     color = graphene.String(required=False)
+    order = graphene.Int(required=False)
 
 
 class DimensionType(graphene.ObjectType):
@@ -179,6 +180,11 @@ class DimensionalFlowType(graphene.ObjectType):
     links = graphene.List(graphene.NonNull(FlowLinksType), required=True)
 
 
+class NodeGoal(graphene.ObjectType):
+    year = graphene.Int(required=True)
+    value = graphene.Float(required=True)
+
+
 class NodeType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
@@ -186,7 +192,8 @@ class NodeType(graphene.ObjectType):
     order = graphene.Int(required=False)
     unit = graphene.Field('paths.schema.UnitType')
     quantity = graphene.String()
-    target_year_goal = graphene.Float()
+    target_year_goal = graphene.Float(deprecation_reason='Replaced by "goals".')
+    goals = graphene.List(graphene.NonNull(NodeGoal), required=True)
     is_action = graphene.Boolean(required=True)
     decision_level = graphene.Field(ActionDecisionLevel)
     input_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
@@ -351,6 +358,26 @@ class NodeType(graphene.ObjectType):
             return None
         return expand_db_html(obj.description_i18n)
 
+    @staticmethod
+    def resolve_goals(root: Node, info: GQLInstanceInfo):
+        if root.goals is None:
+            return []
+        vals = root.goals.get_values(root)
+        return vals
+
+    @staticmethod
+    def resolve_target_year_goal(root: Node, info: GQLInstanceInfo):
+        if root.goals is None:
+            return None
+        target_year = root.context.target_year
+        vals = root.goals.get_values(root)
+        for val in vals:
+            if val.year == target_year:
+                break
+        else:
+            return None
+        return val.value
+
 
 class ScenarioType(graphene.ObjectType):
     id = graphene.ID()
@@ -444,10 +471,10 @@ class InstanceBasicConfiguration(graphene.ObjectType):
 
 
 class NormalizationType(graphene.ObjectType):
-    id = graphene.ID()
+    id = graphene.ID(required=True)
     label = graphene.String(required=True)
     normalizer = graphene.Field(NodeType, required=True)
-    is_active = graphene.Boolean()
+    is_active = graphene.Boolean(required=True)
 
     @staticmethod
     def resolve_is_active(root: Normalization, info: GQLInstanceInfo):

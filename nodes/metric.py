@@ -10,6 +10,7 @@ import pint
 import polars as pl
 
 from common import polars as ppl
+from common.i18n import gettext as _
 from nodes import Node
 from nodes.actions import ActionNode
 from nodes.actions.shift import ShiftAction
@@ -19,6 +20,7 @@ from nodes.constants import (
     FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES, VALUE_COLUMN, YEAR_COLUMN
 )
 from nodes.exceptions import NodeError
+from nodes.simple import AdditiveNode
 from nodes.units import Unit
 
 
@@ -50,29 +52,30 @@ class Metric:
 
     @staticmethod
     def from_node(node: Node):
-        df = node.get_output_pl()
-        if VALUE_COLUMN not in df.columns:
-            return None
-        if len(node.output_metrics) > 1 and DEFAULT_METRIC not in node.output_metrics:
+        try:
+            m = node.get_default_output_metric()
+        except Exception:
             return None
 
-        if len(node.output_metrics) == 1:
-            m = list(node.output_metrics.values())[0]
-        else:
-            m = node.output_metrics[DEFAULT_METRIC]
+        df = node.get_output_pl()
+        if node.context.active_normalization:
+            _, df = node.context.active_normalization.normalize_output(m, df)
 
         if m.column_id != VALUE_COLUMN:
             df = df.rename({m.column_id: VALUE_COLUMN})
 
         meta = df.get_meta()
         if meta.dim_ids:
-            if m.quantity not in ACTIVITY_QUANTITIES:
+            if m.quantity not in STACKABLE_QUANTITIES:
                 return None
             df = df.paths.sum_over_dims()
 
         meta = df.get_meta()
         if node.baseline_values is not None:
             bdf = node.baseline_values
+            if node.context.active_normalization:
+                _, bdf = node.context.active_normalization.normalize_output(m, bdf)
+
             bdf_meta = bdf.get_meta()
             if bdf_meta.dim_ids:
                 bdf = bdf.paths.sum_over_dims()
@@ -87,7 +90,7 @@ class Metric:
         if len(df.filter(df[YEAR_COLUMN].is_duplicated())):
             raise NodeError(node, "Metric has duplicated years")
 
-        return Metric(id=node.id, name=str(node.name), unit=node.unit, node=node, df=df)
+        return Metric(id=node.id, name=str(node.name), unit=df.get_unit(VALUE_COLUMN), node=node, df=df)
 
     def split_df(self) -> SplitValues | None:
         if self.split_values is not None:
@@ -167,6 +170,8 @@ class Metric:
 class MetricCategory:
     id: str
     label: str
+    color: str | None
+    order: int | None
 
 
 @dataclass
@@ -193,22 +198,31 @@ class DimensionalMetric:
 
     @classmethod
     def from_node(cls, node: Node) -> DimensionalMetric | None:
-        df = node.get_output_pl()
-
         try:
             m = node.get_default_output_metric()
         except Exception:
             return None
+
+        dims = []
+
+        input_nodes = [node for node in node.input_nodes if not isinstance(node, ActionNode)]
+        if isinstance(node, AdditiveNode) and len(input_nodes) > 1 and not node.input_dataset_instances:
+            df = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
+            cats = [MetricCategory(id=n.id, label=str(n.name), color=n.color, order=n.order) for n in node.input_nodes]
+            mdim = MetricDimension(id=NODE_COLUMN, label=_('Sectors'), categories=cats)
+            dims.append(mdim)
+        else:
+            df = node.get_output_pl()
 
         if node.context.active_normalization:
             normalizer, df = node.context.active_normalization.normalize_output(m, df)
         else:
             normalizer = None
 
-        dims = []
         for dim_id, dim in node.output_dimensions.items():
             if dim.groups:
-                df = df.with_columns(dim.ids_to_groups(pl.col(dim_id)))
+                df = df.with_columns(dim.ids_to_groups(pl.col(dim_id).alias('_Groups')))
+            if dim.groups and df['_Groups'].unique().len() > 1:
                 meta = df.get_meta()
                 gdf = df.groupby(df.primary_keys, maintain_order=True).agg([pl.sum(m.column_id), pl.first(FORECAST_COLUMN)])
                 df = ppl.to_ppdf(gdf, meta=meta)
@@ -216,20 +230,24 @@ class DimensionalMetric:
                 ordered_groups = []
                 for grp in dim.groups:
                     if grp.id in groups:
-                        ordered_groups.append(MetricCategory(id=grp.id, label=str(grp.label)))
+                        ordered_groups.append(MetricCategory(
+                            id=grp.id, label=str(grp.label), color=grp.color, order=grp.order,
+                        ))
                 assert len(groups) == len(ordered_groups)
                 ordered_cats = ordered_groups
             else:
-                cats = set(df[dim_id].unique())
+                cats = set(df[dim_id].unique())  # type: ignore
                 ordered_cats = []
                 for cat in dim.categories:
                     if cat.id in cats:
-                        ordered_cats.append(MetricCategory(id=cat.id, label=str(cat.label)))
+                        ordered_cats.append(MetricCategory(
+                            id=cat.id, label=str(cat.label), color=cat.color, order=cat.order
+                        ))
                 assert len(cats) == len(ordered_cats)
             mdim = MetricDimension(id=dim.id, label=str(dim.label), categories=ordered_cats)
             dims.append(mdim)
 
-        forecast_from = df.filter(pl.col(FORECAST_COLUMN) == True)[YEAR_COLUMN].min()
+        forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min()
         assert isinstance(forecast_from, int)
 
         if df.paths.index_has_duplicates():
@@ -242,7 +260,7 @@ class DimensionalMetric:
         idx_df = pl.DataFrame(idx_vals, orient='row', schema={col: df.schema[col] for col in idx_names})
 
         jdf = idx_df.join(df, how='left', on=idx_names)
-        vals: list[float] = jdf[m.column_id].to_list()
+        vals: list[float] = jdf[m.column_id].fill_null(0).to_list()
         dm = DimensionalMetric(
             id=node.id, name=str(node.name), dimensions=dims,
             values=vals, years=years, unit=df.get_unit(m.column_id),
@@ -304,7 +322,6 @@ class DimensionalFlow:
             else:
                 node = None
 
-            cats = []
             for dim in dims:
                 cat_id = row[dim.id]
                 if not cat_id:

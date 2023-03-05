@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Tuple, TYPE_CHECKING, Any
 from dataclasses import dataclass, field
 
+from nodes.exceptions import NodeError
+
 from .dimensions import Dimension, DimensionCategory
 from .context import Context
 
@@ -17,17 +19,17 @@ class EdgeDimension:
     flatten: bool
 
     @classmethod
-    def from_config(cls, dc: dict, context: Context, node_dims: dict[str, Dimension]) -> Tuple[str, EdgeDimension]:
+    def from_config(cls, dc: dict, context: Context, node: Node, node_dims: dict[str, Dimension]) -> Tuple[str, EdgeDimension]:
         if 'id' not in dc:
             # If 'id' is not supplied, assume it's the first and only dimension
             if len(node_dims) == 1:
                 dim_id, dim = list(node_dims.items())[0]
             else:
-                raise KeyError("dimension id not supplied")
+                raise NodeError(node, "dimension id not supplied")
         else:
             dim_id = dc['id']
             if dim_id not in context.dimensions:
-                raise KeyError("dimension %s not found" % dim_id)
+                raise NodeError(node, "dimension %s not found" % dim_id)
             dim = context.dimensions[dim_id]
 
         flatten = dc.get('flatten', None)
@@ -74,13 +76,12 @@ class Edge:
         else:
             s = config.get('id')
             if s is None:
-                raise KeyError("node id not given in edge definition")
+                raise NodeError(node, "node id not given in edge definition")
             assert isinstance(s, str)
             other_id = s
         other = context.nodes.get(other_id)
         if other is None:
-            raise KeyError("node %s not found" % other_id)
-
+            raise NodeError(node, "node %s not found" % other_id)
 
         args: dict[str, Any] = {}
         args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)
@@ -93,14 +94,14 @@ class Edge:
             dcs = config.get('from_dimensions', [])
             ndims: dict[str, EdgeDimension] = {}
             for dc in dcs:
-                dim_id, ed = EdgeDimension.from_config(dc, context, args['input_node'].output_dimensions)
+                dim_id, ed = EdgeDimension.from_config(dc, context, node, args['input_node'].output_dimensions)
                 ndims[dim_id] = ed
             args['from_dimensions'] = ndims
 
             dcs = config.get('to_dimensions', [])
             ndims = {}
             for dc in dcs:
-                dim_id, ed = EdgeDimension.from_config(dc, context, args['output_node'].input_dimensions)
+                dim_id, ed = EdgeDimension.from_config(dc, context, node, args['output_node'].input_dimensions)
                 ndims[dim_id] = ed
             args['to_dimensions'] = ndims
 

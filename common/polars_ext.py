@@ -241,9 +241,21 @@ class PathsExt:
         dupes = ldf.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).limit(1).collect()
         return len(dupes) > 0
 
+    def cast_index_to_str(self) -> ppl.PathsDataFrame:
+        df = self._df
+        cast_exprs = []
+        for col in df.dim_ids:
+            if df.schema[col] != pl.Utf8:
+                cast_exprs.append(pl.col(col).cast(pl.Utf8))
+        if cast_exprs:
+            df = df.with_columns(cast_exprs)
+        return df
+
     def add_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
-        val_col = VALUE_COLUMN
+        if len(df.metric_cols) != 1:
+            raise Exception("Currently adding only one metric column is supported")
+        val_col = df.metric_cols[0]
 
         output_unit = df.get_unit(val_col)
         meta = df.get_meta()
@@ -275,4 +287,32 @@ class PathsExt:
             left_fc | right_fc
         ])
         df = df.select(cols)
+        return df
+
+    def concat_vertical(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = self._df
+        df_cols = set(df.columns)
+        other_cols = set(other.columns)
+        if df_cols != other_cols:
+            raise Exception("Mismatching columns: %s vs. %s" % (df_cols, other_cols))
+        cast_exprs = []
+        for col in df_cols:
+            if df.schema[col] != other.schema[col]:
+                cast_exprs.append(pl.col(col).cast(df.schema[col], strict=True))
+            unit = df._units.get(col)
+            if unit:
+                other_unit = other._units.get(col)
+                if other_unit != unit:
+                    raise Exception("Unit mismatch in column '%s': %s vs. %s" % (col, unit, other_unit))
+
+        if cast_exprs:
+            other = other.with_columns(cast_exprs)
+
+        meta = df.get_meta()
+        zdf = pl.concat([df, other], how='vertical')
+        df = ppl.to_ppdf(zdf, meta=meta)
+
+        if df.paths.index_has_duplicates():
+            raise Exception("Concatenation resulted in duplicated index rows")
+
         return df

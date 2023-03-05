@@ -8,7 +8,7 @@ import pint
 
 from common.i18n import TranslatedString
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .node import Node
 from .exceptions import NodeError
 
@@ -82,55 +82,6 @@ class AdditiveNode(SimpleNode):
         StringParameter(local_id='metric', is_customizable=False),
     ] + SimpleNode.allowed_parameters
 
-    def add_nodes_pl(self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None) -> ppl.PathsDataFrame:
-        if len(nodes) == 0:
-            assert df is not None
-            return df
-        if self.debug:
-            print('%s: input dataset:' % self.id)
-            if df is not None:
-                print(self.print(df))
-            else:
-                print('\tNo input dataset')
-
-        node_outputs: List[Tuple[Node, ppl.PathsDataFrame]] = []
-        for node in nodes:
-            node_df = node.get_output_pl(self, metric=metric)
-            node_outputs.append((node, node_df))
-
-        if df is None:
-            node, df = node_outputs.pop(0)
-            if self.debug:
-                print('%s: adding output from node %s' % (self.id, node.id))
-                self.print(df)
-
-        cols = df.columns
-        if VALUE_COLUMN not in cols:
-            raise NodeError(self, "Value column missing in data")
-        if FORECAST_COLUMN not in cols:
-            raise NodeError(self, "Forecast column missing in data")
-
-        unit = self.unit
-        assert unit is not None
-
-        df = df.ensure_unit(VALUE_COLUMN, unit)
-        meta = df.get_meta()
-        for node, node_df in node_outputs:
-            if self.debug:
-                print('%s: adding output from node %s' % (self.id, node.id))
-                self.print(node_df)
-
-            if VALUE_COLUMN not in node_df.columns:
-                raise NodeError(self, "Value column missing in output of %s" % node.id)
-
-            ndf_meta = node_df.get_meta()
-            if set(ndf_meta.dim_ids) != set(meta.dim_ids):
-                raise NodeError(self, "Dimensions do not match with %s" % node.id)
-            df = df.paths.add_with_dims(node_df, how='outer')
-
-        df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
-        return df
-
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
             df = ppl.from_pandas(ndf)
@@ -164,10 +115,38 @@ class AdditiveNode(SimpleNode):
 class SectorEmissions(AdditiveNode):
     quantity = 'emissions'
     """Simple addition of subsector emissions"""
-    pass
+
+    allowed_parameters = AdditiveNode.allowed_parameters + [
+        StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False)
+    ]
+
+    def compute(self):
+        val = self.get_parameter_value('category', required=False)
+        if val is not None:
+            df = self.get_input_dataset_pl()
+            df_dims = df.dim_ids
+            for dim_id in self.input_dimensions.keys():
+                if dim_id not in df_dims:
+                    raise NodeError(self, "Dataset doesn't have dimension %s" % dim_id)
+                df_dims.remove(dim_id)
+            if len(df_dims) != 1:
+                raise NodeError(self, "Emission sector dimension missing")
+            sector_dim = df_dims[0]
+            df = df.filter(pl.col(sector_dim).eq(val))
+            if not len(df):
+                raise NodeError(self, "Emission sector %s not found in input data" % val)
+            df = df.drop(sector_dim)
+            m = self.get_default_output_metric()
+            if len(df.metric_cols) != 1:
+                raise NodeError(self, "Input dataset has more than 1 metric")
+            df = df.rename({df.metric_cols[0]: m.column_id})
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+            return super().add_nodes_pl(df, self.input_nodes)
+
+        return super().compute()
 
 
-class MultiplicativeNode(AdditiveNode):
+class MultiplicativeNode(SimpleNode):
     """Multiply nodes together with potentially adding other input nodes.
 
     Multiplication and addition is determined based on the input node units.
@@ -183,10 +162,14 @@ class MultiplicativeNode(AdditiveNode):
                 self,
                 "Multiplying inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
+        m1 = n1.get_default_output_metric()
+        m2 = n2.get_default_output_metric()
+        df1 = df1.rename({m1.column_id: '_Left'})
+        df2 = df2.rename({m2.column_id: '_Right'})
         df = df1.paths.join_over_index(df2, how='left', index_from='union')
-        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.multiply_cols(['_Left', '_Right'], VALUE_COLUMN)
         df = df.drop_nulls(VALUE_COLUMN)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
+        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop(['_Left', '_Right'])
         return df
 
     def compute(self) -> ppl.PathsDataFrame:

@@ -209,7 +209,10 @@ class InstanceConfig(models.Model):
 
         dim_obj = self.dimensions.filter(identifier=dim.id).first()
         if dim_obj is None:
-            dim_obj = DimensionModel(instance=self, identifier=dim.id, label=dim.label)
+            dim_obj = DimensionModel(instance=self, identifier=dim.id)
+            label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.get_instance().default_language)
+            dim_obj.label = label
+            dim_obj.i18n = i18n  # type: ignore
             print("Creating dimension %s" % dim.id)
             dim_obj.save()
         dim_obj.sync_categories(update_existing=update_existing, delete_stale=delete_stale)

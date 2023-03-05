@@ -163,36 +163,38 @@ class EnergyProductionEmissionFactor(AdditiveNode):
         if len(self.input_dimensions) != 1:
             raise NodeError(self, "Must have exactly 1 input dimensions (%d given)" % len(self.input_dimensions))
 
-        dim_id, es_dim = list(self.input_dimensions.items())[0]
-        ef_df = ef_df.with_columns([es_dim.series_to_ids_pl(ef_df[dim_id])])
+        es_dim_id, es_dim = list(self.input_dimensions.items())[0]
+        ef_df = ef_df.with_columns([es_dim.series_to_ids_pl(ef_df[es_dim_id])])
         ef_df = ef_df.rename({ef_df.metric_cols[0]: 'EF'})
 
         for node in self.get_input_nodes(tag='emission_factor'):
             node_df = node.get_output_pl(target_node=self)
             node_df = node_df.select([YEAR_COLUMN, *node_df.dim_ids, pl.col(node_df.metric_cols[0]).alias('NodeEF')])
+            assert set(ef_df.dim_ids) == set(node_df.dim_ids)
             ef_df = ef_df.paths.join_over_index(node_df)
             ef_df = ef_df.with_columns([pl.col('EF').fill_null(pl.col('NodeEF'))]).drop('NodeEF')
 
         ef_df = extend_last_historical_value_pl(ef_df, self.get_end_year())
-        df = mix_df.paths.join_over_index(ef_df)
-
+        df = mix_df.paths.join_over_index(ef_df, index_from='union')
         m = self.output_metrics[EMISSION_FACTOR_QUANTITY]
         df = df.multiply_cols(['Share', 'EF'], 'EF', out_unit=m.unit)
         df = df.with_columns([pl.col('EF').fill_null(0).fill_nan(0)])
+        df = df.drop_nulls()
         meta = df.get_meta()
-        zdf = df.groupby(YEAR_COLUMN).agg([pl.sum('EF'), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
+        other_dims = df.dim_ids
+        other_dims.remove(es_dim_id)
+        zdf = df.groupby([YEAR_COLUMN, *other_dims]).agg([pl.sum('EF'), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
         df = ppl.to_ppdf(zdf, meta=meta)
         df = df.rename(dict(EF=VALUE_COLUMN))
-
         return df
 
 
 class EmissionFactor(Node):
-    input_dimension_ids = ['energy_carrier']
-    output_dimension_ids = ['energy_carrier']
+    input_dimension_ids = ['energy_carrier', 'emission_scope']
+    output_dimension_ids = ['energy_carrier', 'emission_scope']
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = ppl.from_pandas(self.get_input_dataset())
+        df = self.get_input_dataset_pl()
         meta = df.get_meta()
 
         metric_cols = list(meta.units.keys())
@@ -208,23 +210,24 @@ class EmissionFactor(Node):
             pl.lit(False).alias(FORECAST_COLUMN),
         ])
 
-        df = df.rename({metric_col: VALUE_COLUMN})
+        df = df.rename({metric_col: VALUE_COLUMN}).drop_nulls()
         meta = df.get_meta()
         if dim.id not in meta.primary_keys:
             meta.primary_keys.append(dim.id)
         if YEAR_COLUMN not in meta.primary_keys:
             meta.primary_keys.append(YEAR_COLUMN)
+        df = df.paths.cast_index_to_str()
         for node in self.input_nodes:
             ndf = node.get_output_pl(self)
             ndf = ndf.ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
-            ndf = ndf.select(df.columns)
+            ndf = ndf.select(df.columns).drop_nulls()
+            ndf = ndf.paths.cast_index_to_str()
             df = ppl.to_ppdf(pl.concat([df, ndf], how='vertical'), meta=meta)
 
-        counts = df.groupby([YEAR_COLUMN, dim.id]).count()
-        duplicates = counts.filter(pl.col('count') > 1)
-        if len(duplicates):
+        if df.paths.index_has_duplicates():
+            dupes = df.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1)
+            self.print(dupes)
             raise NodeError(self, "Duplicate rows detected")
-
         df = extend_last_historical_value_pl(df, self.get_end_year())
         return df
 
@@ -238,29 +241,24 @@ class EmissionFactorActivity(Node):
     def compute(self) -> ppl.PathsDataFrame:
         en = self.get_input_node(quantity=ENERGY_QUANTITY)
         fn = self.get_input_node(quantity=EMISSION_FACTOR_QUANTITY)
-        with pl.StringCache():
-            edf = ppl.from_pandas(en.get_output(self))
-            edf = edf.rename({VALUE_COLUMN: 'Energy'})
-            fdf = ppl.from_pandas(fn.get_output(self))
-            fdf = fdf.rename({VALUE_COLUMN: 'EF'})
-            dim_cols = list(self.input_dimensions.keys())
-            emdf = edf.join(fdf, on=[YEAR_COLUMN, *dim_cols], how='left')
-        if emdf['EF'].has_validity():
+        edf = en.get_output_pl(self)
+        edf = edf.rename({VALUE_COLUMN: 'Energy'})
+        fdf = fn.get_output_pl(self)
+        fdf = fdf.rename({VALUE_COLUMN: 'EF'})
+        df = edf.paths.join_over_index(fdf, index_from='union')
+        if df['EF'].has_validity():
             raise NodeError(self, "Emission factor not found for some categories")
-        df = ppl.to_ppdf(emdf, edf.get_meta())
-        df = df.set_unit('EF', fdf.get_unit('EF'))
-        em = pl.col('Energy') * pl.col('EF')
-        em_unit = df.get_unit('EF') * df.get_unit('Energy')
-        df = df.with_columns([em.alias('Emissions')], units=dict(Emissions=em_unit))
-        output_unit = self.output_metrics[DEFAULT_METRIC].unit
-        df = df.ensure_unit('Emissions', output_unit)
+
+        m = self.get_default_output_metric()
+        df = df.multiply_cols(['Energy', 'EF'], m.column_id)
+        df = df.ensure_unit(m.column_id, m.unit)
         meta = df.get_meta()
-        if YEAR_COLUMN not in meta.primary_keys:
-            meta.primary_keys.append(YEAR_COLUMN)
-        zdf = df.groupby([YEAR_COLUMN]).agg([pl.sum('Emissions').alias(VALUE_COLUMN), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
+        zdf = (
+            df.groupby([YEAR_COLUMN, *self.output_dimensions.keys()])
+            .agg([pl.sum(m.column_id), pl.first(FORECAST_COLUMN)])
+            .sort(YEAR_COLUMN)
+        )
         df = ppl.to_ppdf(zdf, meta=meta)
-        df = df.set_unit(VALUE_COLUMN, output_unit)
-        df = extend_last_historical_value_pl(df, self.context.model_end_year)
         return df
 
 
@@ -364,7 +362,6 @@ class VehicleMileage(VehicleDatasetNode):
         for node in self.input_nodes:
             ndf = node.get_output_pl(self)
             df = df.paths.add_with_dims(ndf)
-        self.print(df.filter(pl.col('vehicle_type').eq('car_diesel')))
         return df
 
 
@@ -387,35 +384,78 @@ class TransportFuelFactor(VehicleDatasetNode):
         )
 
 
-class TransportEmissionFactor(VehicleDatasetNode):
-    output_metrics = {
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/km', quantity=EMISSION_FACTOR_QUANTITY)
-    }
+class TransportEmissionFactor(Node):
     output_dimension_ids = [
-        'emission_scope', 'greenhouse_gases', 'vehicle_type',
-    ]
-    input_dimension_ids = [
-        'emission_scope', 'greenhouse_gases', 'vehicle_type',
+        'emission_scope', 'vehicle_type',
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.process_input(
+        """
+        fdf = self.process_input(
             dimension_ids=['emission_scope', 'greenhouse_gases', 'vehicle_type'],
             quantity=EMISSION_FACTOR_QUANTITY
         )
+        """
+        ef_node = self.get_input_node(tag='general_electricity')
+        efdf = ef_node.get_output_pl(self)
+        efdf = efdf.rename({efdf.metric_cols[0]: 'EEF'})
+
+        ec_node = self.get_input_node(tag='electricity_consumption_factor')
+        ecdf = ec_node.get_output_pl(self)
+        ecdf = ecdf.rename({ecdf.metric_cols[0]: 'EC'})
+
+        m = self.get_default_output_metric()
+        edf = ecdf.paths.join_over_index(efdf, index_from='union')
+        edf = edf.multiply_cols(['EC', 'EEF'], 'EF', m.unit)
+        # We only have CO2e for electricity, so pretend that it's just CO2 for now
+        edf = edf.with_columns([pl.lit('co2').alias('greenhouse_gases')]).add_to_index('greenhouse_gases')
+        edf = edf.select([YEAR_COLUMN, 'vehicle_type', 'emission_scope', 'greenhouse_gases', 'EF', FORECAST_COLUMN])
+
+        fdf = self.get_input_dataset_pl()
+        fdf = fdf.rename({'emission_factor': 'EF'})
+        ef_expr = pl.col('EF').map_dict({0.0: None}, default=pl.col('EF'))
+        fdf = fdf.with_columns([ef_expr]).filter(~pl.col('EF').is_null())
+        fdf = fdf.ensure_unit('EF', m.unit)
+        fdf = extend_last_historical_value_pl(fdf, self.get_end_year())
+        fdf = fdf.select([YEAR_COLUMN, 'vehicle_type', 'emission_scope', 'greenhouse_gases', 'EF', FORECAST_COLUMN])
+
+        df = edf.paths.add_with_dims(fdf, how='outer')
+        meta = df.get_meta()
+        df = df.sort([YEAR_COLUMN, *df.dim_ids]).replace_meta(meta)
+        df = df.rename({'EF': m.column_id})
+
+        df = convert_to_co2e(df, 'greenhouse_gases')
+
+        return df
+
+
+class TransportElectricity(AdditiveNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+        m = self.get_default_output_metric()
+        # Replace 0 values with nulls
+        el_expr = pl.col('electricity').map_dict({0.0: None}, default=pl.col('electricity'))
+        df = df.select([YEAR_COLUMN, *df.dim_ids, el_expr])
+        df = df.rename(dict(electricity=m.column_id)).ensure_unit(m.column_id, m.unit)
+        # choose only electricity energy carrier and drop nulls
+        filter_expr = pl.col('energy_carrier').eq('electricity') & ~pl.col(m.column_id).is_null()
+        df = df.filter(filter_expr).drop('energy_carrier')
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        df = self.add_nodes_pl(df, self.input_nodes)
         return df
 
 
 class TransportEmissions(MultiplicativeNode):
-    #input_dimension_ids = [
-    #    'emission_scope', 'vehicle_type', 'greenhouse_gases',
-    #]
-    #output_dimension_ids = [
-    #    'emission_scope', 'vehicle_type'
-    #]
+    input_dimension_ids = [
+        'emission_scope', 'vehicle_type',
+    ]
+    output_dimension_ids = [
+        'emission_scope', 'vehicle_type'
+    ]
+    default_unit = 'kt/a'
+    quantity = 'emissions'
 
     def compute(self) -> ppl.PathsDataFrame:
         df = super().compute()
         df = df.filter(~pl.col(self.get_default_output_metric().column_id).is_null())
-        df = convert_to_co2e(df, 'greenhouse_gases')
         return df

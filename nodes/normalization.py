@@ -39,6 +39,27 @@ class Normalization:
             qs.append(NormalizationQuantity(id=q_id, unit=unit))
         return cls(normalizer_node=node, quantities=qs)
 
+    def denormalize_output(self, to_metric: NodeMetric, df: PathsDataFrame) -> PathsDataFrame:
+        for q in self.quantities:
+            if to_metric.quantity == q.id:
+                break
+        else:
+            raise Exception("Unable to denormalize")
+        assert YEAR_COLUMN in df.primary_keys
+        assert df.get_unit(to_metric.column_id) == q.unit
+
+        ndf = self.normalizer_node.get_output_pl()
+        ndf = (
+            ndf.filter(pl.col(YEAR_COLUMN).is_in(df[YEAR_COLUMN]))
+            .select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_N')])
+        )
+        df = df.paths.join_over_index(ndf, how='left')
+        df = (
+            df.multiply_cols([to_metric.column_id, '_N'], to_metric.column_id, to_metric.unit)
+            .drop('_N')
+        )
+        return df
+
     def normalize_output(self, metric: NodeMetric, df: PathsDataFrame) -> typing.Tuple[Node | None, PathsDataFrame]:
         def nop():
             return (None, df)

@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1204af578adb5e1eac9abb9eaba7dd60a396a437
+  commit: f7684f7b358f9da327517118ea727cfb5f45cf22
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -16,8 +16,11 @@ model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2020
-emission_unit: t/inh/a
+emission_unit: kt/a
 emission_forecast_from: 2021
+emission_dimensions: [emission_scope]
+emission_dataset: zuerich/emissions
+emission_sector_dimension: emission_sectors
 normalizations:
 - normalizer_node: population
   quantities:
@@ -36,14 +39,57 @@ dimensions:
   label_en: Emission scopes
   categories:
   - id: scope1
-    label: Scope 1
+    label_de: Scope 1
     label_en: Scope 1
+    color: '#0f05a0'
+    order: 0
   - id: scope2
-    label: Scope 2
+    label_de: Scope 2
     label_en: Scope 2
+    color: '#30505e'
+    order: 1
   - id: scope3
-    label: Scope 3
+    label_de: Scope 3
     label_en: Scope 3
+    color: '#6496ff'
+    order: 2
+  - id: negative_emissions
+    label_de: Negative Emissionen
+    label_en: Negative emissions
+    color: '#F7A5AF'
+    order: -1
+
+- id: emission_sectors
+  label_de: Emissionssektoren
+  label_en: Emission sectors
+  categories:
+  - id: buildings
+    label_de: Gebäude
+    label_en: Buildings
+  - id: transport
+    label_de: Mobilität
+    label_en: Transport
+  - id: waste_treatment
+    label_de: Entsorgung
+    label_en: Waste treastment
+  - id: ippu
+    label_de: Industrie- und Gewerbeprozesse
+    label_en: Industrial and commercial process emissions
+  - id: afolu
+    label_de: Land- und Forstwirtschaft
+    label_en: Agriculture and forestry emissions
+  - id: aviation
+    label_de: Flugverkehr
+    label_en: Aviation
+  - id: food_consumption
+    label_de: Ernährung
+    label_en: Food
+  - id: textile_consumption
+    label_de: Textilien
+    label_en: Textiles
+  - id: other_consumption
+    label_de: Übriger Konsum
+    label_en: Other consumption
 
 - id: vehicle_type
   label: Fahrzeugtyp
@@ -344,140 +390,96 @@ emission_sectors:
 - id: net_emissions
   name_en: Greenhouse gas emissions
   name_de: Treibhausgasemissionen
+  input_node_dimension:
+    label_en: Emission sectors
+    label_de: Emissionssektoren
   target_year_goal: 6.5
+  goals:
+    normalized_by: population
+    values:
+      - year: 2040
+        value: 6.5
   is_outcome: true
 
-- id: direct_emissions
-  name_en: Direct emissions
-  name_de: Direkte Emissionen
-  target_year_goal: 0
-  part_of: net_emissions
-  color: '#0F05A0'
-  order: 10
+# - id: direct_emissions
+#   name_en: Direct emissions
+#   name_de: Direkte Emissionen
+#   target_year_goal: 0
+#   part_of: net_emissions
+#   color: '#0F05A0'
+#   order: 10
 
-  #
-  # Transportation
-  #
+#
+# Transportation
+#
 - id: transportation_emissions
   name_en: Transportation emissions
   name_de: Mobilität
-  part_of: direct_emissions
+  part_of: net_emissions
   color: '#E22D53'
-  historical_values: [[1990, 1.12260], [1991, 1.11716], [1992, 1.13922], [1993, 1.13652],
-    [1994, 1.13722], [1995, 1.13924], [1996, 1.14139], [1997, 1.14739], [1998, 1.14820],
-    [1999, 1.14407], [2000, 1.17067], [2001, 1.13852], [2002, 1.13435], [2003, 1.13131],
-    [2004, 1.13026], [2005, 1.12637], [2006, 1.06421], [2007, 1.02305], [2008, 0.95417],
-    [2009, 0.89414], [2010, 0.86372], [2011, 0.85478], [2012, 0.87185], [2013, 0.88639],
-    [2014, 0.87493], [2015, 0.63975], [2016, 0.65534], [2017, 0.66790], [2018, 0.68125],
-    [2019, 0.67345], [2020, 0.66457]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: waste_treatment_emissions
   name_en: Waste disposal
   name_de: Entsorgung
-  part_of: direct_emissions
+  part_of: net_emissions
   color: '#F18830'
-  historical_values: [[1990, 0.45001], [2020, 0.49011]]
-  forecast_values: [[2030, 0.33688], [2040, 0.07659], [2050, 0.07381]]
+  category: waste_treatment
   input_dataset_processors: [LinearInterpolation]
-
-- id: other_direct_emissions
-  name_en: Other direct emissions
-  name_de: Übrige direkte Emissionen
-  part_of: direct_emissions
-  color: '#7C7C7C'
 
 - id: ippu_emissions
   name_en: Industrial and commercial process emissions
   name_de: Industrie- und Gewerbeprozesse
-  part_of: other_direct_emissions
-  historical_values: [[1990, 0.21308], [2020, 0.21308]]
-  forecast_values: [[2030, 0.14415], [2040, 0.07964], [2050, 0.00000]]
+  part_of: net_emissions
+  category: ippu
+  color: '#8DAFBC'
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name_en: Agriculture and forestry emissions
   name_de: Land- und Forstwirtschaft
-  part_of: other_direct_emissions
-  historical_values: [[1990, 0.01253], [2020, 0.00843]]
-  forecast_values: [[2030, 0.00751], [2040, 0.00712], [2050, 0.00685]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: negative_emissions
-  name_en: Negative emissions
-  name_de: Negative Emissionen
+  category: afolu
   part_of: net_emissions
-  color: '#F7A5AF'
-  historical_values: [[1990, 0], [2020, 0]]
-
-- id: indirect_emissions
-  name_en: Indirect emissions
-  name_de: Indirekte Emissionen
-  part_of: net_emissions
-  color: '#6496FF'
-  order: 11
-
-- id: building_indirect_emissions
-  name_en: Building indirect emissions
-  name_de: Gebäude
-  part_of: indirect_emissions
-  color: '#BBEEFE'
   input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 2.02326], [2020, 2.09565]]
-  forecast_values: [[2030, 1.40267], [2040, 1.04673], [2050, 0.82570]]
 
-- id: transportation_indirect_emissions
-  name_en: Mobility (without aviation)
-  name_de: Mobilität (exkl. Flugverkehr)
-  part_of: indirect_emissions
-  color: '#F99EC8'
-  input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1.44522], [2020, 1.49693]]
-  forecast_values: [[2030, 1.22610], [2040, 0.86622], [2050, 0.37174]]
+# - id: indirect_emissions
+#   name_en: Indirect emissions
+#   name_de: Indirekte Emissionen
+#   part_of: net_emissions
+#   color: '#6496FF'
+#   order: 11
 
 - id: aviation_emissions
   name_en: Aviation
   name_de: Flugverkehr
-  part_of: indirect_emissions
+  part_of: net_emissions
+  category: aviation
   color: '#A174DE'
   input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1.01871], [2020, 1.39705]]
-  forecast_values: [[2030, 1.24933], [2040, 1.14421], [2050, 0.70306]]
 
 - id: food_consumption_emissions
   name_en: Food consumption emissions
   name_de: Ernährung
-  part_of: indirect_emissions
+  category: food_consumption
+  part_of: net_emissions
   color: '#BCE59E'
   input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1.96194], [2020, 2.03214]]
-  forecast_values: [[2030, 1.78179], [2040, 1.39428], [2050, 1.07363]]
 
 - id: textile_consumption_emissions
   name_en: Textile consumption emissions
   name_de: Textilien
-  part_of: indirect_emissions
+  category: textile_consumption
+  part_of: net_emissions
   color: '#FBCB97'
   input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1.16144], [2020, 1.20300]]
-  forecast_values: [[2030, 0.90850], [2040, 0.57000], [2050, 0.30708]]
 
 - id: other_consumption_emissions
   name_en: Other consumption emissions
   name_de: Übriger Konsum
-  part_of: indirect_emissions
+  category: other_consumption
+  part_of: net_emissions
   color: '#2AC7C7'
   input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1.46920], [2020, 1.52177]]
-  forecast_values: [[2030, 1.49528], [2040, 1.35937], [2050, 1.28961]]
-
-- id: ippu_indirect_emissions
-  name_en: Industrial and commercial processes indirect emissions
-  name_de: Industrie- und Gewerbeprozesse
-  part_of: indirect_emissions
-  color: '#8DAFBC'
-  input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 0.10258], [2020, 0.10626]]
-  forecast_values: [[2030, 0.07655], [2040, 0.04684], [2050, 0.02035]]
 
 nodes:
 - id: population
@@ -499,9 +501,10 @@ nodes:
 - id: global_warming_potential_100a
   name_de: Treibhauspotenzial 100a
   name_en: Global warming potential 100 a
-  type: simple.AdditiveNode
+  type: emissions.GlobalWarmingPotential
   quantity: emission_factor
   unit: dimensionless
+  output_dimensions: [greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]
   historical_values: [[1990, 1], [2021, 1]]
 
@@ -549,8 +552,11 @@ nodes:
   unit: kt/a
   input_nodes:
   - district_heat_consumption
-  - district_heat_emission_factor
+  - id: district_heat_emission_factor
+    to_dimensions:
+    - id: emission_scope
   output_nodes: [building_emissions]
+  output_dimensions: [emission_scope]
 
 - id: district_heat_production_mix
   type: ch.zuerich.DistrictHeatProductionMix
@@ -573,11 +579,13 @@ nodes:
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    - id: emission_scope
   - id: district_heat_production_mix
     tags: [mix]
   input_datasets:
-  - zuerich/district_heat_emission_factors
+  - zuerich/district_heat_emission_factor
   input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
 
 - id: electricity_consumption
   name_de: Endenergieverbrauch Strom
@@ -623,8 +631,9 @@ nodes:
   - id: electricity_production_mix
     tags: mix
   input_datasets:
-  - zuerich/electricity_emission_factor
+  - zuerich/electricity_consumption_emission_factor
   input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
 
 - id: electricity_consumption_emissions
   name_de: Treibhausgasemissionen Strom
@@ -632,9 +641,12 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
+  output_dimensions: [emission_scope]
   input_nodes:
   - electricity_consumption
-  - electricity_emission_factor
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: emission_scope
   output_nodes: [building_emissions]
 
 - id: building_energy_consumption_emission_factor
@@ -644,12 +656,14 @@ nodes:
   quantity: emission_factor
   unit: g/kWh
   input_datasets:
-  - zuerich/buildings_energy_emission_factor
+  - zuerich/buildings_energy_consumption_emission_factor_revised
+  output_dimensions: [energy_carrier, emission_scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    - id: emission_scope
 
 - id: environmental_heat_consumption
   name_de: Endenergieverbrauch Umweltwärme
@@ -664,11 +678,15 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
+  output_dimensions: [emission_scope]
   input_nodes:
   - id: building_energy_consumption_emission_factor
     from_dimensions:
-    - categories: [environmental_heat]
+    - id: energy_carrier
+      categories: [environmental_heat]
       flatten: true
+    to_dimensions:
+    - id: emission_scope
 
 - id: environmental_heat_emissions
   name_de: Treibhausgasemissionen Umweltwärme
@@ -676,9 +694,12 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
+  output_dimensions: [emission_scope]
   input_nodes:
   - environmental_heat_consumption
-  - environmental_heat_emission_factor
+  - id: environmental_heat_emission_factor
+    to_dimensions:
+    - id: emission_scope
   output_nodes: [building_emissions]
 
 - id: fossil_fuel_heat_consumption
@@ -691,7 +712,6 @@ nodes:
   - energy_carrier
   quantity: energy
   unit: GWh/a
-  output_nodes: [fossil_fuel_heat_emissions]
 
 - id: fossil_fuel_heat_emissions
   name_de: Treibhausgasemissionen Fossiler Brennstoff
@@ -699,8 +719,14 @@ nodes:
   type: ch.zuerich.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
-  input_nodes: [building_energy_consumption_emission_factor]
+  input_nodes:
+  - id: fossil_fuel_heat_consumption
+  - id: building_energy_consumption_emission_factor
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
   input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
   output_nodes: [building_emissions]
 
 - id: building_other_energy_consumption
@@ -720,48 +746,74 @@ nodes:
   name_en: Other building heat consumption emissions
   type: ch.zuerich.EmissionFactorActivity
   quantity: emissions
-  unit: kt/a
-  input_nodes: [building_energy_consumption_emission_factor]
   input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: building_energy_consumption_emission_factor
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
   output_nodes: [building_emissions]
 
-- id: building_emissions_per_capita
+- id: building_emissions
   name_en: Building emissions
   name_de: Gebäude
-  part_of: direct_emissions
   color: '#002F96'
-  unit: t/cap/a
-  quantity: emissions
-  type: ch.zuerich.ToPerCapita
-  input_nodes:
-  - population
-  - id: building_emissions
-    tags: activity
-  output_nodes: [direct_emissions]
-
-- id: building_emissions
-  name_en: Households' and businesses' energy consumption emissions
-  name_de: Treibhausgasemissionen Haushalte/Wirtschaft
   unit: kt/a
   quantity: emissions
   type: simple.SectorEmissions
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
 
 #
 # TRANSPORT (MULTIDIMENSIONAL)
 #
 
 - id: transport_mileage
-  name_de: Fahrleistung alles
-  name_en: Transport distance
+  name_de: Verkehr Fahrleistung
+  name_en: Vehicle kilometers
   type: ch.zuerich.VehicleMileage
   quantity: mileage
   unit: km/a
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/vehicle_mileage
+  output_nodes:
+  - id: car_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars]
+    to_dimensions:
+    - id: vehicle_type
+  - id: other_road_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [motorbikes, buses, trolleybuses, coaches, lorries, vans]
+    to_dimensions:
+    - id: vehicle_type
+  - id: other_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes, buses, trolleybuses, coaches, lorries, vans]
+      exclude: true
+    to_dimensions:
+    - id: vehicle_type
 
-- id: transport_fuel_factors
-  name_de: Verkehr Kraftstofffaktor alles
+- id: transport_electricity_consumption_factor
+  name_de: Verkehr Stromverbrauch
+  name_en: Transport electricity consumption
+  type: ch.zuerich.TransportElectricity
+  quantity: consumption_factor
+  unit: kWh/km
+  output_dimensions: [vehicle_type]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
+
+- id: transport_fuel_factor
+  name_de: Verkehr Kraftstofffaktor
   name_en: Transport fuel factors
   type: ch.zuerich.TransportFuelFactor
   quantity: mileage
@@ -770,37 +822,58 @@ nodes:
   input_datasets:
   - zuerich/fuel_consumption_factor
 
-- id: transport_emission_factors
+- id: transport_emission_factor
   name_de: Verkehr Emissionsfaktor
   name_en: Transport emission factors
   type: ch.zuerich.TransportEmissionFactor
   quantity: emission_factor
-  unit: kg/km
+  unit: g/km
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/transport_emission_factors
-  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [general_electricity]
+    to_dimensions:
+    - id: emission_scope
+  - id: transport_electricity_consumption_factor
+    tags: [electricity_consumption_factor]
+    to_dimensions:
+    - id: vehicle_type
+  output_dimensions: [emission_scope, vehicle_type]
 
-- id: road_transport_emissions
-  name_de: Strasseverkehr Emissions
+- id: other_road_transport_emissions
+  name_de: Treibhausgasemissionen andere Strasseverkehr
   name_en: Road transportation emissions
   type: ch.zuerich.TransportEmissions
-  quantity: emissions
-  unit: kt/a
-  output_dimensions: [emission_scope, vehicle_type]
-  input_nodes:
-  - id: transport_mileage
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
     from_dimensions:
     - id: vehicle_type
-      groups: [cars, motorbikes, buses, trolleybuses, coaches, lorries, vans]
-    to_dimensions:
-    - id: vehicle_type
-  - id: transport_emission_factors
-    to_dimensions:
-    - id: vehicle_type
-    - id: emission_scope
-    - id: greenhouse_gases
+      flatten: true
 
+- id: car_emissions
+  name_de: Treibhausgasemissionen Personenwagen
+  name_en: Car emissions
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: other_transport_emissions
+  name_de: Treibhausgasemissionen andere Verkehr
+  name_en: Other transportation emissions
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 #
 # ------- ACTIONS --------
 #
@@ -815,8 +888,12 @@ actions:
   description_de: Werden alle 21 000 Öl- und Gasheizungen mit Erdsonden oder einem
     Anschluss ans Fernwärmenetz ersetzt, reduzieren sich die direkten Emissionen von
     Gebäuden um 1.6 tCO<sub>2</sub>eq/(Einw.*a).
-  output_nodes: [fossil_fuel_heat_consumption, environmental_heat_consumption, district_heat_consumption,
-    building_other_energy_consumption]
+  output_nodes:
+  - fossil_fuel_heat_consumption
+  - environmental_heat_consumption
+  - district_heat_consumption
+  - building_other_energy_consumption
+  - electricity_consumption
   unit: GWh/a
   params:
   - id: shift
@@ -830,19 +907,20 @@ actions:
       dests:
       - node: district_heat_consumption
       - node: environmental_heat_consumption
+      - node: electricity_consumption
       - node: building_other_energy_consumption
         categories:
           energy_carrier: wood
       amounts:
       - year: 2023
         source_amount: -50
-        dest_amounts: [500, 250, 250]
+        dest_amounts: [50, 80, 16, 25]
       - year: 2025
         source_amount: -70
-        dest_amounts: [500, 250, 250]
+        dest_amounts: [50, 80, 16, 25]
       - year: 2035
         source_amount: -50
-        dest_amounts: [500, 250, 250]
+        dest_amounts: [50, 80, 16, 25]
 
     - source:
         node: fossil_fuel_heat_consumption
@@ -851,19 +929,20 @@ actions:
       dests:
       - node: district_heat_consumption
       - node: environmental_heat_consumption
+      - node: electricity_consumption
       - node: building_other_energy_consumption
         categories:
           energy_carrier: wood
       amounts:
       - year: 2023
         source_amount: -100
-        dest_amounts: [500, 250, 250]
+        dest_amounts: [50, 80, 16, 25]
       - year: 2025
         source_amount: -150
-        dest_amounts: [500, 250, 250]
+        dest_amounts: [50, 80, 16, 25]
       - year: 2035
         source_amount: -100
-        dest_amounts: [500, 250, 250]
+        dest_amounts: [50, 80, 16, 25]
 
 - id: cleaner_electricity_production
   name_en: Cleaner electricity production
@@ -912,10 +991,10 @@ actions:
   - id: transport_mileage
     #to_dimensions:
     #- id: electricity_source
-  unit: 'Mkm/a'
+  unit: Mkm/a
   params:
   - id: shift
-    unit: 'Mkm/a'
+    unit: Mkm/a
     is_customizable: false
     value:
     - source:
@@ -951,103 +1030,103 @@ actions:
         source_amount: 0
         dest_amounts: [50]
 
-- id: building_energy_retrofit
-  name_en: Energetic retrofitting of buildings
-  name_de: Energetische Gebäudesanierungen
-  description_de: Wenn jährlich 2% der Gebäude energetisch saniert werden und sich
-    die Wohnfläche pro Person um 7 m2 auf 46 m2 verringert, reduzieren sich die direkten
-    Emissionen von Gebäuden um 0.34 tCO2eq/(Einw.*a).
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  output_nodes:
-  - building_emissions_per_capita
-  forecast_values: [[2021, 0], [2040, -0.34]]
-  input_dataset_processors:
-  - type: FixedMultiplier
-    params:
-      multiplier: 0.775
-  unit: t/inh/a
+# - id: building_energy_retrofit
+#   name_en: Energetic retrofitting of buildings
+#   name_de: Energetische Gebäudesanierungen
+#   description_de: Wenn jährlich 2% der Gebäude energetisch saniert werden und sich
+#     die Wohnfläche pro Person um 7 m2 auf 46 m2 verringert, reduzieren sich die direkten
+#     Emissionen von Gebäuden um 0.34 tCO2eq/(Einw.*a).
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emissions
+#   output_nodes:
+#   - building_emissions_per_capita
+#   forecast_values: [[2021, 0], [2040, -0.34]]
+#   input_dataset_processors:
+#   - type: FixedMultiplier
+#     params:
+#       multiplier: 0.775
+#   unit: t/inh/a
 
-- id: reduce_room_temperature
-  name_en: Reduced room temperature
-  name_de: Reduzierte Heiztemperatur
-  description_de: Wenn alle Gebäude künftig um 1°C weniger geheizt werden, reduzieren
-    sich die direkten Emissionen von Gebäuden um 0.1 tCO2eq/(Einw.*a).
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  output_nodes:
-  - building_emissions_per_capita
-  forecast_values: [[2021, 0], [2030, -0.1]]
-  input_dataset_processors:
-  - type: FixedMultiplier
-    params:
-      multiplier: 0.775
-  unit: t/inh/a
+# - id: reduce_room_temperature
+#   name_en: Reduced room temperature
+#   name_de: Reduzierte Heiztemperatur
+#   description_de: Wenn alle Gebäude künftig um 1°C weniger geheizt werden, reduzieren
+#     sich die direkten Emissionen von Gebäuden um 0.1 tCO2eq/(Einw.*a).
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emissions
+#   output_nodes:
+#   - building_emissions_per_capita
+#   forecast_values: [[2021, 0], [2030, -0.1]]
+#   input_dataset_processors:
+#   - type: FixedMultiplier
+#     params:
+#       multiplier: 0.775
+#   unit: t/inh/a
 
-- id: modal_shift_to_public_transport
-  name_en: Modal shift to public transport
-  name_de: Förderung öV/Velo/Fussgänger
-  description_en: If the traffic volume of public transport increases and car traffic
-    sinks by 15%, direct mobility emissions are reduced by 0.05 tCO2eq/(inh.*a).
-  description_de: Wenn die Verkehrsleistung des öV steigt und der Autoverkehr um 15%
-    sinkt, reduzieren sich die direkten Emissionen der Mobilität um 0.05 tCO2eq/(Einw.*a).
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  output_nodes:
-  - transportation_emissions
-  forecast_values: [[2021, 0], [2040, -0.05]]
-  input_dataset_processors:
-  - type: FixedMultiplier
-    params:
-      multiplier: 0.833
-  unit: t/inh/a
+# - id: modal_shift_to_public_transport
+#   name_en: Modal shift to public transport
+#   name_de: Förderung öV/Velo/Fussgänger
+#   description_en: If the traffic volume of public transport increases and car traffic
+#     sinks by 15%, direct mobility emissions are reduced by 0.05 tCO2eq/(inh.*a).
+#   description_de: Wenn die Verkehrsleistung des öV steigt und der Autoverkehr um 15%
+#     sinkt, reduzieren sich die direkten Emissionen der Mobilität um 0.05 tCO2eq/(Einw.*a).
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emissions
+#   output_nodes:
+#   - transportation_emissions
+#   forecast_values: [[2021, 0], [2040, -0.05]]
+#   input_dataset_processors:
+#   - type: FixedMultiplier
+#     params:
+#       multiplier: 0.833
+#   unit: t/inh/a
 
-- id: electric_mobility
-  name_en: Electric mobility
-  name_de: Elektromobilität
-  description_en: If 80% of the petrol and diesel vehicles are replaced by electric
-    vehicles, direct mobility emissions are reduced by 0.53 tCO2eq/(inh.*a).
-  description_de: Wenn 80% der Diesel- und Benzinfahrzeuge durch Elektroautos ersetzt
-    werden, reduzieren sich die direkten Emissionen der Mobiliät um 0.53 tCO2eq/(Einw.*a).
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  output_nodes:
-  - transportation_emissions
-  forecast_values: [[2021, 0], [2040, -0.53]]
-  input_dataset_processors:
-  - type: FixedMultiplier
-    params:
-      multiplier: 0.833
-  unit: t/inh/a
+# - id: electric_mobility
+#   name_en: Electric mobility
+#   name_de: Elektromobilität
+#   description_en: If 80% of the petrol and diesel vehicles are replaced by electric
+#     vehicles, direct mobility emissions are reduced by 0.53 tCO2eq/(inh.*a).
+#   description_de: Wenn 80% der Diesel- und Benzinfahrzeuge durch Elektroautos ersetzt
+#     werden, reduzieren sich die direkten Emissionen der Mobiliät um 0.53 tCO2eq/(Einw.*a).
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emissions
+#   output_nodes:
+#   - transportation_emissions
+#   forecast_values: [[2021, 0], [2040, -0.53]]
+#   input_dataset_processors:
+#   - type: FixedMultiplier
+#     params:
+#       multiplier: 0.833
+#   unit: t/inh/a
 
-- id: electric_busses
-  name_en: Electric busses
-  name_de: Elektrobusse
-  description_en: If the diesel busses of the municipal public transport company (VBZ)
-    are replaced by battery busses, direct mobility emissions are reduced by 0.03
-    tCO2eq/(inh.*a).
-  description_de: Wenn die Dieselbusse der VBZ durch Batteriebusse ersetzt werden,
-    reduzieren sich die direkten Emissionen der Mobilität um 0.03 tCO2eq/(Einw.*a).
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  output_nodes:
-  - transportation_emissions
-  forecast_values: [[2021, 0], [2035, -0.03]]
-  input_dataset_processors:
-  - type: FixedMultiplier
-    params:
-      multiplier: 0.833
-  unit: t/inh/a
+# - id: electric_busses
+#   name_en: Electric busses
+#   name_de: Elektrobusse
+#   description_en: If the diesel busses of the municipal public transport company (VBZ)
+#     are replaced by battery busses, direct mobility emissions are reduced by 0.03
+#     tCO2eq/(inh.*a).
+#   description_de: Wenn die Dieselbusse der VBZ durch Batteriebusse ersetzt werden,
+#     reduzieren sich die direkten Emissionen der Mobilität um 0.03 tCO2eq/(Einw.*a).
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emissions
+#   output_nodes:
+#   - transportation_emissions
+#   forecast_values: [[2021, 0], [2035, -0.03]]
+#   input_dataset_processors:
+#   - type: FixedMultiplier
+#     params:
+#       multiplier: 0.833
+#   unit: t/inh/a
 
-- id: increase_carbon_sinks
-  name_en: Increase carbon sinks
-  name_de: Kohlenstoffsenken vergrössern
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  output_nodes:
-  - negative_emissions
-  forecast_values: [[2021, 0], [2030, -0.1], [2040, -0.4]]
-  unit: t/inh/a
+# - id: increase_carbon_sinks
+#   name_en: Increase carbon sinks
+#   name_de: Kohlenstoffsenken vergrössern
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emissions
+#   output_nodes:
+#   - negative_emissions
+#   forecast_values: [[2021, 0], [2030, -0.1], [2040, -0.4]]
+#   unit: t/inh/a
 
 pages:
 - id: home

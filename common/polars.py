@@ -219,6 +219,13 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(out_col, out_unit)
         return df
 
+    def add_to_index(self, col: str) -> PathsDataFrame:
+        assert col in self.columns
+        assert col not in self._primary_keys
+        df = self.copy()
+        df._primary_keys.append(col)
+        return df
+
     def ensure_unit(self, col: str, unit: Unit) -> PathsDataFrame:
         col_unit = self._units[col]
         if col_unit == unit:

@@ -10,6 +10,7 @@ import dvc_pandas
 import pint
 from ruamel.yaml import YAML as RuamelYAML
 import yaml
+from rich import print
 
 from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
@@ -164,7 +165,7 @@ class InstanceLoader:
             processors.append(p_class(self.context, node, params=params))
         return processors
 
-    def make_node(self, node_class, config) -> Node:
+    def make_node(self, node_class: Type[Node], config) -> Node:
         ds_config = config.get('input_datasets', None)
         datasets: list[Dataset] = []
 
@@ -222,6 +223,7 @@ class InstanceLoader:
             order=config.get('order'),
             is_outcome=config.get('is_outcome', False),
             target_year_goal=config.get('target_year_goal'),
+            goals=config.get('goals'),
             input_datasets=datasets,
             output_dimension_ids=config.get('output_dimensions'),
             input_dimension_ids=config.get('input_dimensions'),
@@ -334,7 +336,11 @@ class InstanceLoader:
         from .dimensions import Dimension
 
         for dc in self.config.get('dimensions', []):
-            dim = Dimension.parse_obj(dc)
+            try:
+                dim = Dimension.parse_obj(dc)
+            except Exception:
+                print(dc)
+                raise
             assert dim.id not in self.context.dimensions
             self.context.dimensions[dim.id] = dim
 
@@ -363,18 +369,22 @@ class InstanceLoader:
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
             data_col = ec.pop('column', None)
+            data_category = ec.pop('category', None)
             if 'name_en' in ec:
                 if 'emissions' not in ec['name_en']:
                     ec['name_en'] += ' emissions'
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
+                input_dimensions=self.config.get('emission_dimensions', []),
+                output_dimensions=self.config.get('emission_dimensions', []),
                 input_datasets=[dict(
                     id=dataset_id,
                     column=data_col,
                     forecast_from=self.config.get('emission_forecast_from'),
                     unit=emission_unit,
-                )] if data_col else [],
+                )] if data_col or data_category else [],
                 unit=emission_unit,
+                params=dict(category=data_category) if data_category else [],
                 **ec
             )
             node = self.make_node(node_class, nc)

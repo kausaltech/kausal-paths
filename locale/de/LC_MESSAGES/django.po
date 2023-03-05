@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-01-29 22:43+0000\n"
+"POT-Creation-Date: 2023-03-05 11:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,28 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: admin_site/api.py
+msgid ""
+"No user found with this email address. Ask your administrator to create an "
+"account for you."
+msgstr ""
+
+#: admin_site/api.py
+msgid "This user does not have access to admin."
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/home.html
+msgid "Welcome to Paths admin"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "Sign in to Kausal Paths admin"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "Our apologies, the server is temporarily experiencing difficulties."
+msgstr ""
 
 #: datasets/models.py
 msgid "dataset"
@@ -31,8 +53,32 @@ msgid "label"
 msgstr "Beschriftung"
 
 #: datasets/models.py
+msgid "data source reference"
+msgstr ""
+
+#: datasets/models.py
+msgid "data source references"
+msgstr ""
+
+#: datasets/models.py
+msgid "Review comment"
+msgstr ""
+
+#: datasets/models.py
+msgid "Sticky comment"
+msgstr ""
+
+#: datasets/models.py
 msgid "resolved at"
 msgstr "gelöst am"
+
+#: datasets/models.py
+msgid "comment"
+msgstr ""
+
+#: datasets/models.py
+msgid "comments"
+msgstr ""
 
 #: datasets/wagtail_hooks.py
 msgid "Dimensions"
@@ -103,6 +149,10 @@ msgstr "Renovierungspotential (% der Grundfläche)"
 msgid "Custom"
 msgstr "Angepasst"
 
+#: nodes/metric.py
+msgid "Sectors"
+msgstr "Sektoren"
+
 #: nodes/models.py
 msgid "name"
 msgstr "Name"
@@ -138,6 +188,18 @@ msgstr "Instanz-Hostname"
 #: nodes/models.py
 msgid "Instance hostnames"
 msgstr "Instanz-Hostnamen"
+
+#: nodes/models.py
+msgid "authority"
+msgstr ""
+
+#: nodes/models.py
+msgid "The organization responsible for the data source"
+msgstr ""
+
+#: nodes/models.py
+msgid "description"
+msgstr "Beschreibung"
 
 #: nodes/models.py
 msgid "Order"
@@ -281,6 +343,10 @@ msgstr "Wärmepreis"
 #: params/global_params.py
 msgid "Price of heat annual change"
 msgstr "Wärmepreis jährliche Veränderung"
+
+#: params/global_params.py
+msgid "Invest all on the first year (in contrast to continuous investing)?"
+msgstr ""
 
 #: paths/authentication.py
 msgid "Invalid token."

@@ -45,6 +45,7 @@ def extend_last_historical_value(df: pd.DataFrame, end_year: int) -> pd.DataFram
 
 
 AR5GWP100 = {
+    'co2_eq': 1.0,
     'co2': 1.0,
     'ch4': 28.0,
     'n2o': 265.0,
@@ -59,6 +60,8 @@ AR5GWP100 = {
 def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
     if len(df.metric_cols) > 1:
         raise Exception("Only one metric column supported")
+    if dim_id not in df.primary_keys:
+        raise Exception("Greenhouse gas column '%s' not in primary keys (%s)" % (dim_id, df.primary_keys))
     metric_col = df.metric_cols[0]
 
     gwp_items = list(AR5GWP100.items())
@@ -73,5 +76,3 @@ def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
     df = df.drop(columns='gwp_factor')
     df = df.paths.sum_over_dims([dim_id])
     return df
-
-

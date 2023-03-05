@@ -20,12 +20,12 @@ class ResolveDefaultValueMixin:
 
 class ParameterInterface(graphene.Interface):
     id = graphene.ID()  # global id
-    label = graphene.String()
-    description = graphene.String()
-    node_relative_id = graphene.ID()  # can be null if node is null
-    node = graphene.Field('nodes.schema.NodeType')  # can be null for global parameters
-    is_customized = graphene.Boolean()
-    is_customizable = graphene.Boolean()
+    label = graphene.String(required=False)
+    description = graphene.String(required=False)
+    node_relative_id = graphene.ID(required=False)  # can be null if node is null
+    node = graphene.Field('nodes.schema.NodeType', required=False)  # can be null for global parameters
+    is_customized = graphene.Boolean(required=True)
+    is_customizable = graphene.Boolean(required=True)
 
     # TODO: Use the proper field names instead of defining this alias?
     @staticmethod
@@ -202,7 +202,7 @@ class Mutations(graphene.ObjectType):
 
 
 class Query(graphene.ObjectType):
-    parameters = graphene.List(ParameterInterface)
+    parameters = graphene.List(graphene.NonNull(ParameterInterface), required=True)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
 
     @ensure_instance

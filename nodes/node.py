@@ -28,6 +28,7 @@ from nodes.constants import (
     BASELINE_VALUE_COLUMN, FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN,
     ensure_known_quantity, DEFAULT_METRIC, get_quantity_icon
 )
+from nodes.goals import NodeGoals
 from params import Parameter
 from params.param import ParameterWithUnit
 
@@ -114,8 +115,6 @@ class NodeMetric:
         return s
 
 
-
-
 class Node:
     id: Identifier
     "Identifier of the Node instance."
@@ -165,7 +164,7 @@ class Node:
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
     # set if this node has a specific goal for the simulation target year
-    target_year_goal: Optional[float]
+    goals: NodeGoals | None
 
     input_datasets: List[str]
 
@@ -282,7 +281,8 @@ class Node:
         self, id: str, context: Context, name: I18nString, unit: Unit | None = None,
         quantity: str | None = None, description: I18nString | None = None,
         color: str | None = None, order: int | None = None, is_outcome: bool = False,
-        target_year_goal: float | None = None, input_datasets: List[Dataset] | None = None,
+        target_year_goal: float | None = None, goals: dict | None = None,
+        input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
     ):
         self.id = Identifier.validate(id)
@@ -297,7 +297,16 @@ class Node:
         self.color = color
         self.order = order
         self.is_outcome = is_outcome
-        self.target_year_goal = target_year_goal
+        if goals is not None:
+            self.goals = NodeGoals.validate(goals)
+        else:
+            if target_year_goal is not None:
+                self.goals = NodeGoals.validate(
+                    dict(values=[dict(year=context.target_year, value=target_year_goal)])
+                )
+            else:
+                self.goals = None
+
         self.input_dataset_instances = input_datasets
         self.edges = []
         self.baseline_values = None
@@ -1146,3 +1155,57 @@ class Node:
 
     def warning(self, msg: str):
         self.context.warning('%s %s' % (str(self), msg))
+
+    def add_nodes_pl(self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None, keep_nodes: bool = False) -> ppl.PathsDataFrame:
+        if len(nodes) == 0:
+            assert df is not None
+            return df
+        if self.debug:
+            print('%s: input dataset:' % self.id)
+            if df is not None:
+                print(self.print(df))
+            else:
+                print('\tNo input dataset')
+
+        node_outputs: List[Tuple[Node, ppl.PathsDataFrame]] = []
+        for node in nodes:
+            node_df = node.get_output_pl(self, metric=metric)
+            if keep_nodes:
+                node_df = node_df.with_columns(pl.lit(node.id).alias(NODE_COLUMN)).add_to_index(NODE_COLUMN)
+            node_outputs.append((node, node_df))
+
+        if df is None:
+            node, df = node_outputs.pop(0)
+            if self.debug:
+                print('%s: adding output from node %s' % (self.id, node.id))
+                self.print(df)
+        else:
+            if keep_nodes:
+                df = df.with_columns(pl.lit('').alias(NODE_COLUMN)).add_to_index(NODE_COLUMN)
+
+        cols = df.columns
+        if VALUE_COLUMN not in cols:
+            raise NodeError(self, "Value column missing in data")
+        if FORECAST_COLUMN not in cols:
+            raise NodeError(self, "Forecast column missing in data")
+
+        unit = self.unit
+        assert unit is not None
+
+        df = df.ensure_unit(VALUE_COLUMN, unit)
+        meta = df.get_meta()
+        for node, node_df in node_outputs:
+            if self.debug:
+                print('%s: adding output from node %s' % (self.id, node.id))
+                self.print(node_df)
+
+            if VALUE_COLUMN not in node_df.columns:
+                raise NodeError(self, "Value column missing in output of %s" % node.id)
+
+            ndf_meta = node_df.get_meta()
+            if set(ndf_meta.dim_ids) != set(meta.dim_ids):
+                raise NodeError(self, "Dimensions do not match with %s" % node.id)
+            df = df.paths.add_with_dims(node_df, how='outer')
+
+        df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
+        return df
