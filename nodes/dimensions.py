@@ -199,6 +199,8 @@ def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict)
     elif isinstance(field_val, str):
         assert default_language is not None
         langs[default_language] = field_val
+    elif isinstance(field_val, dict):
+        return TranslatedString(**field_val)
     else:
         assert default_language is not None
         if field_val != None:
