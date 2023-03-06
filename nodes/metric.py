@@ -224,6 +224,7 @@ class DimensionalMetric:
                 df = df.with_columns(dim.ids_to_groups(pl.col(dim_id).alias('_Groups')))
             if dim.groups and df['_Groups'].unique().len() > 1:
                 meta = df.get_meta()
+                df = df.with_columns(pl.col('_Groups').alias(dim.id))
                 gdf = df.groupby(df.primary_keys, maintain_order=True).agg([pl.sum(m.column_id), pl.first(FORECAST_COLUMN)])
                 df = ppl.to_ppdf(gdf, meta=meta)
                 groups = set(df[dim_id].unique())
