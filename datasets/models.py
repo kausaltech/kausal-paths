@@ -78,6 +78,18 @@ class Dataset(ClusterableModel, UserModifiableModel):
         data = JSONDataset.serialize_df(df, add_uuids=True)
         return data
 
+    @classmethod
+    def annotate_nr_unresolved_comments(cls, qs: models.QuerySet[Dataset]):
+        unresolved = models.Count(
+            'datasets_datasetcomment',
+            filter=(
+                models.Q(datasets_datasetcomment__type=DatasetComment.CommentType.REVIEW) &
+                ~models.Q(datasets_datasetcomment__state=DatasetComment.State.RESOLVED)
+            )
+        )
+        qs = qs.annotate(nr_unresolved_comments=unresolved)
+        return qs
+
 
 class DatasetMetric(OrderedModel):
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='metrics')
@@ -127,7 +139,7 @@ class DatasetComment(CellMetadata):
 
     class State(models.TextChoices):
         RESOLVED = 'resolved', _('Resolved'),
-        UNERSOLVED = 'unresolved', _('Unresolved'),
+        UNRESOLVED = 'unresolved', _('Unresolved'),
 
     uuid = UUIDIdentifierField(null=True, blank=True)
     text = models.TextField()
