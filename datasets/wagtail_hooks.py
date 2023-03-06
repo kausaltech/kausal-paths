@@ -15,6 +15,11 @@ class DimensionAdmin(ModelAdmin):
     add_to_settings_menu = True
     list_display = ('label',)
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        qs = qs.filter(instance=request.admin_instance)
+        return qs
+
 
 class DataSourceAdmin(ModelAdmin):
     model = DataSource
@@ -22,6 +27,11 @@ class DataSourceAdmin(ModelAdmin):
     menu_icon = 'doc-full'
     menu_order = 11
     add_to_settings_menu = True
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        qs = qs.filter(instance=request.admin_instance)
+        return qs
 
 
 modeladmin_register(DataSourceAdmin)
