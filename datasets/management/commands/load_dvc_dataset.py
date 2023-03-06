@@ -28,7 +28,7 @@ class Command(BaseCommand):
         metadata = ds.metadata or {}
         metrics_meta = {m.get('id', None): m for m in metadata.get('metrics', [])}
         df = ppl.from_pandas(ds.df)
-        dims = []
+        dims: list[Dimension] = []
         metrics = []
         meta = df.get_meta()
         all_cols = list(df.columns)
@@ -65,14 +65,37 @@ class Command(BaseCommand):
             if obj is not None:
                 print("Removing existing dataset")
                 obj.delete()
-            obj = Dataset(identifier=identifier, instance=ic, name=ds_id, table={}, years=[])
+
+            obj = Dataset(identifier=identifier, instance=ic, table={}, years=[])
+            name = metadata.get('name', None)
+            if name is not None:
+                if isinstance(name, dict):
+                    name = TranslatedString(**name)
+                    name.set_modeltrans_field(obj, 'name', default_language=ctx.instance.default_language)
+                else:
+                    obj.name = name
+            else:
+                obj.name = ds_id
             obj.save()
+            print('Created dataset %s' % obj)
+            print('Metrics:')
             for m in metrics:
                 m.dataset = obj
                 m.save()
+                print('\t%s' % m)
+            print('Dimensions:')
             for d in dims:
-                dd =  DatasetDimension.objects.create(dataset=obj, dimension=d)
-                dd.selected_categories.set(d.categories.all())
+                print('\t%s' % d)
+                dd = DatasetDimension.objects.create(dataset=obj, dimension=d)
+                cats = []
+                df_cats = set(df[d.identifier].unique())
+                print('\tCategories:')
+                for cat in d.categories.all():
+                    if cat.identifier in df_cats:
+                        cats.append(cat)
+                        print('\t\t%s' % cat)
+                assert len(cats) == len(df_cats)
+                dd.selected_categories.set(cats)
                 dd.save()
             obj.save()
         else:
