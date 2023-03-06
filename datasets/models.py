@@ -160,7 +160,7 @@ class DatasetComment(CellMetadata):
 
 
 class Dimension(ClusterableModel, UserModifiableModel):
-    instance = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name='dimensions', editable=False)
+    instance = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name='dimensions', editable=True)
     identifier = IdentifierField()
     uuid = UUIDIdentifierField()
     label = models.CharField(verbose_name=_('label'), max_length=50)
@@ -174,6 +174,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
         ordering = ('instance', 'label')
 
     panels = [
+        FieldPanel('instance'),
         FieldPanel('identifier'),
         FieldPanel('label'),
         InlinePanel('categories', [

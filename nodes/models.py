@@ -327,7 +327,7 @@ class DataSource(UserModifiableModel):
     and is used to track where specific data values in datasets have come from.
     """
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=False
+        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True
     )
     uuid = UUIDIdentifierField(null=False, blank=False)
     name = models.CharField(max_length=200, null=False, blank=False)
