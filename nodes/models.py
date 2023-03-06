@@ -327,18 +327,19 @@ class DataSource(UserModifiableModel):
     and is used to track where specific data values in datasets have come from.
     """
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True
+        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True,
+        verbose_name=_('instance')
     )
     uuid = UUIDIdentifierField(null=False, blank=False)
-    name = models.CharField(max_length=200, null=False, blank=False)
-    edition = models.CharField(max_length=100, null=True, blank=True)
+    name = models.CharField(max_length=200, null=False, blank=False, verbose_name=_('name'))
+    edition = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('edition'))
 
     authority = models.CharField(
         max_length=200, verbose_name=_('authority'), help_text=_('The organization responsible for the data source'),
         null=True, blank=True
     )
     description = models.TextField(null=True, blank=True, verbose_name=_('description'))
-    url = models.URLField(verbose_name=_('URL to source'), null=True, blank=True)
+    url = models.URLField(verbose_name=_('URL'), null=True, blank=True)
 
     def get_label(self):
         name, *rest = [p for p in (self.name, self.authority, self.edition) if p is not None]
@@ -346,6 +347,10 @@ class DataSource(UserModifiableModel):
 
     def __str__(self):
         return self.get_label()
+
+    class Meta:
+        verbose_name = _('Data source')
+        verbose_name_plural = _('Data sources')
 
 
 class NodeConfig(ClusterableModel):

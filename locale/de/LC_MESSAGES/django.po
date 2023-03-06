@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-05 11:22+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"POT-Creation-Date: 2023-03-06 13:10+0200\n"
+"PO-Revision-Date: 2023-03-06 13:25+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -19,9 +19,13 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: admin_site/api.py
-msgid ""
-"No user found with this email address. Ask your administrator to create an "
-"account for you."
+#, fuzzy
+#| msgid "email address"
+msgid "Invalid email address"
+msgstr "E-Mail Adresse"
+
+#: admin_site/api.py
+msgid "No user found with this email address. Ask your administrator to create an account for you."
 msgstr ""
 
 #: admin_site/api.py
@@ -69,6 +73,18 @@ msgid "Sticky comment"
 msgstr ""
 
 #: datasets/models.py
+#, fuzzy
+#| msgid "resolved at"
+msgid "Resolved"
+msgstr "gelöst am"
+
+#: datasets/models.py
+#, fuzzy
+#| msgid "resolved at"
+msgid "Unresolved"
+msgstr "gelöst am"
+
+#: datasets/models.py
 msgid "resolved at"
 msgstr "gelöst am"
 
@@ -83,6 +99,10 @@ msgstr ""
 #: datasets/wagtail_hooks.py
 msgid "Dimensions"
 msgstr "Dimensionen"
+
+#: datasets/wagtail_hooks.py nodes/models.py
+msgid "Data sources"
+msgstr "Datenquellen"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
@@ -127,6 +147,12 @@ msgstr "Investitionskosten für eine LED-Nachrüstung"
 #: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
 msgstr "Lebensdauer der Investition (a)"
+
+#: nodes/actions/energy_saving.py
+#, fuzzy
+#| msgid "Maintenance cost (SEK/m2/a)"
+msgid "Investment cost (SEK/m2)"
+msgstr "Betriebskosten (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
@@ -190,16 +216,44 @@ msgid "Instance hostnames"
 msgstr "Instanz-Hostnamen"
 
 #: nodes/models.py
+#, fuzzy
+#| msgid "Instance"
+msgid "Instance token"
+msgstr "Instanz"
+
+#: nodes/models.py
+#, fuzzy
+#| msgid "Instances"
+msgid "Instance tokens"
+msgstr "Instanzen"
+
+#: nodes/models.py
+msgid "instance"
+msgstr "Instanz"
+
+#: nodes/models.py
+msgid "edition"
+msgstr "Fassung"
+
+#: nodes/models.py
 msgid "authority"
-msgstr ""
+msgstr "Herausgeber"
 
 #: nodes/models.py
 msgid "The organization responsible for the data source"
-msgstr ""
+msgstr "Die Organisation, die für die Datenquelle verantwortlich ist"
 
 #: nodes/models.py
 msgid "description"
 msgstr "Beschreibung"
+
+#: nodes/models.py
+msgid "URL"
+msgstr "URL"
+
+#: nodes/models.py
+msgid "Data source"
+msgstr "Datenquelle"
 
 #: nodes/models.py
 msgid "Order"
@@ -285,6 +339,12 @@ msgid "Municipality name"
 msgstr "Gemeindename"
 
 #: params/global_params.py
+#, fuzzy
+#| msgid "Discount rate"
+msgid "Discount node name"
+msgstr "Diskontrate"
+
+#: params/global_params.py
 msgid "Discount rate"
 msgstr "Diskontrate"
 
@@ -307,6 +367,12 @@ msgstr "Strom CO2-Emissionsfaktor"
 #: params/global_params.py
 msgid "Renovation rate baseline"
 msgstr "Renovierungsrate Basis"
+
+#: params/global_params.py
+#, fuzzy
+#| msgid "Include CO2 cost variable in calculations?"
+msgid "Include energy taxes in calculations?"
+msgstr "CO2-Kostenvariable in Berechnungen einbeziehen?"
 
 #: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
