@@ -1,6 +1,6 @@
 id: espoo
 default_language: fi
-supported_languages: [en]
+supported_languages: [sv, en]
 framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
@@ -14,7 +14,7 @@ owner_en: City of Espoo
 theme_identifier: espoo-ilmasto
 emission_unit: kt/a
 model_end_year: 2035
-target_year: 2035
+target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2021
@@ -59,6 +59,15 @@ dimensions:
     label: Palvelut
   - id: industry
     label: Teollisuus
+  - id: single_family_houses
+    label: Pientalot
+  - id: attached_houses
+    label: Rivitalot
+  - id: apartment_buildings
+    label: Asuinkerrostalot
+  - id: other_buildings
+    label: Muut rakennukset
+
 - id: vehicle
   label: Ajoneuvo
   categories:
@@ -387,7 +396,29 @@ pages:
     vaikuttavat kansallisten toimien lisäksi myös kaupungin ja sen yhteistyökumppaneiden,
     kuten Fortumin ja HSY:n, toteuttamat ilmastotoimet; sekä <b>pessimistinen skenaario</b>
     skenaario, jossa oletetaan, että uusia päästövähennystoimia ei kaupungissa suunnitella
-    tai toteuteta.'
+    tai toteuteta.</p>
+    <p>Espoon tavoitteena on olla hiilineutraali vuonna 2030. Ilmastotyönsä tueksi kaupunki
+    kokoaa Hiilineutraali Espoo 2030 -tiekarttaa, joka kuvaa kaupungin oman sekä kumppaneiden
+    ja asukkaiden kanssa tehtävän yhteistyön hiilineutraalisuustavoitteen saavuttamiseksi.</p>
+    <p>Osana Hiilineutraali Espoo 2030 -tiekarttatyötä kaupungin päästökehitystä arvioitiiin
+    kolmessa skenaariossa:</p>
+    <p><b>Pessimistinen skenaario</b>, jossa oletetaan, että uusia päästövähennystoimia ei
+    kaupungissa suunnitella tai toetuteta. Sekenaariossa kaupungin päästökehitykseen vaikuttaa
+    esimerkiksi kaupungin kasvava asukasmäärä.</p>
+    <p><b>Suomi 2035 -skenaario</b>, jossa oletetaan, että kansallisella tasolla toteutettavat
+    ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen. Kaupungin kasvu
+    ja EU:n lainsäädännön vaikutukset otetaan niin ikään skenaariossa huomioon.</p>
+    <p><b>Hiilineutraali Espoo 2030 -skenaario (HNE2030)</b>, jossa oletetaan, että kaupungin
+    päästökehitykseen vaikuttavat kansallisten toimien lisäksi myös kaupungin ja sen
+    yhteistyökumppaneiden, kuten Fortumin, HSL:n ja HSY:n, toteuttamat ilmastotoimet.</p>
+    <p>Laskentojen pohjana on hyödynnetty HSY:n tuottamia päästölaskentatietoja ja niiden
+    taustalla käytettyjä energiankulutuksen tietoja. Kaupungin päästökehitys on kunkin
+    skenaarion osalta arvioitu vuosille 2025, 2030 ja 2035. Lisäksi välivuosien päästöt on
+    arvioitu pääasiassa interpoloimalla.</p>
+    <p>Työn aikana laadittu skenaariotyökalun sisältämät luvut, arviot ja laskukaavat,
+    laskentaperusteet, aikasarjat, lähtöarvot ja viitetiedot ovat vapaasti käytettävissä
+    avoimella lisenssillä CC-BY 4.0.</p>
+    '
 
 actions:
 - id: cleaner_electricity_production
@@ -456,43 +487,36 @@ actions:
 #  Pessimistisessä skenaariossa rakennuskannan kerrosalassa tapahtuvat muutokset
 #    eivät vaikuta oletettuun päästökehitykseen vaan laskenta perustuu asukaskohtaisten päästöjen
 #    kehitykseen ja toteutuneeseen trendiin aikavälillä 2017-2021 sekä väkiluvun kehitykseen. 
+# FIXME muutos pitää palauttaa ominaislämmönkulutukseen, jotta rakennusala voi olla sama kaikissa skenaarioissa.
 
-# Kerrosala, vanhat ja uudisrakennukset, sähkö; lisäksi öljylämmitteiset uudisrakennukset [joita ei ole]
+# Kerrosala, vanhat sähkölämmitteiset ja kaikki uudisrakennukset
 #    Suomi 2035 - ja HNE2030-skenaarioissa oletetaan, että vanha rakennuskanta säilyy aikavälillä
 #    2021-2035 ja uudisrakennukset vastaavat rakennuskannan lisäystä.
 
 #Kerrosala, vanhat rakennukset, öljy ja kaukolämpö
 #Suomi2035- ja HNE2030-skenaario: Asumisväljyyden oletetaan pysyvän muuttumattomana. Muiden kuin asuinrakennusten
 # osalta kerrosalan arvioidaan kehittyvän Uudenmaan kasvun vaihtoehdot-selvityksen oletusten mukaisesti.
+# FIXME Mikä ero on Uudenmaan kasvun vaihtoehdot -selvityksellä verrattuna tilanteeseen, että uudisrakennukset
+# vastaavat rakennuskannan kehitystä? Luulen, että tämä kohta pätee kaikkiin Suomi2035 ja HNE2030.
 
-#Kerrosala, uudisrakennukset - kaukolämpö
-#Suomi2035- ja HNE2030-skenaario: Laskennassa oletetaan, että vanha rakennuskanta säilyy
-# aikavälillä 2021-2035 ja uudisrakennukset vastaavat rakennuskannan lisäystä.  
-
-# Lämmitysenergia per ala, olemassa oleva rakennuskanta, sähkö
-#    Pessimistisessä skenaariossa rakennusten lämmityksen energiankulutuksen
-#    oletetaan kaikkien lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
-#  Suomi 2035 - ja HNE2030-skenaarioissa rakennusten ominaislämmönkulutuksen oletetaan kehittyvän
-#  asuinrakennuksissa niin, että lämmönkulutus laskee 7,5 prosenttia vuoden 2021 tasosta vuoteen
-#  2030 mennessä ja muissa rakennuksissa 11 prosenttia. Kehitys jatkuu samankaltaisena aikavälillä 2030-2035.  
-
-#Lämmitysenergia, olemassa oleva rakennuskanta - öljylämmitys
-#Pessimistinen skenaario: Rakennusten lämmityksen energiankulutuksen oletetaan kaikkien
-# lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
+#Rakennusalan muutos, olemassa oleva rakennuskanta - öljylämmitys
 #Suomi2035-skenaario: Öljylämmityksestä oletetaan luovuttavan asuin- ja palvelurakennuksissa
 # 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan kokonaan vuoteen 2035 mennessä. 
 #HNE2030-skenaario: Palvelurakennusten osalta oletetaan, että öljylämmityksestä luovutaan
 # 100 prosenttisesti kaupungin ilmastotoimien tavoitteiden mukaisesti. Muiden rakennusten
 # osalta oletetaan Suomi 2035-skenaarion mukainen kehitys.
 
+# Ominaislämmönkulutus, olemassa oleva rakennuskanta, kaikki lämmitysmuodot
+#    Pessimistisessä skenaariossa rakennusten lämmityksen energiankulutuksen
+#    oletetaan kaikkien lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
+#  Suomi 2035 -skenaarioissa rakennusten ominaislämmönkulutuksen oletetaan kehittyvän
+#  asuinrakennuksissa niin, että lämmönkulutus laskee 7,5 prosenttia vuoden 2021 tasosta vuoteen
+#  2030 mennessä ja muissa rakennuksissa 11 prosenttia. Kehitys jatkuu samankaltaisena aikavälillä 2030-2035.  
+
 #Lämmitysenergia, olemassa oleva rakennuskanta - kaukolämpö
-#Pessimistinen skenaario: Rakennusten lämmityksen energiankulutuksen oletetaan#
-# kaikkien lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. 
-#Suomi2035-skenaario: Rakennusten ominaislämmönkulutuksen oletetaan kehittyvän asuinrakennuksissa
-# niin, että lämmönkulutus laskee 7,5 prosenttia vuoden 2021 tasosta vuoteen 2030 mennessä
-# ja muissa rakennuksissa 11 prosenttia. Kehitys jatkuu samankaltaisena aikavälillä 2030-2035. 
 #HNE2030-skenaario: Kaukolämmön tuotannon ja kulutuksen oletetaan Fortumin arvion mukaisesti
 # pysyvän nykytasolla, eli noin 2100 GWh vuodessa. 
+# FIXME epärealistinen oletus uudessa kausaalirakenteessa. Laske muutos ja siirrä se ominaislämmönkulutukseen
 
 #Lämmitysenergia, uudisrakennukset - sähkölämmitys
 #Uudisrakennusten ominaislämmönkulutus arvioidaan seuraavien tietojen mukaisesti Suomi2035 HNE2030
