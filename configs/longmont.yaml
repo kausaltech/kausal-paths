@@ -1,0 +1,873 @@
+id: longmont
+default_language: en
+supported_languages: [es]
+site_url: https://longmont.paths-test.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: f7684f7b358f9da327517118ea727cfb5f45cf22
+  dvc_remote: kausal-s3
+name: Longmont Greenhouse gas inventory
+owner_en: City of Longmont
+theme_identifier: longmont
+target_year: 2040
+model_end_year: 2050
+reference_year: 1990
+minimum_historical_year: 2010
+maximum_historical_year: 2021
+emission_unit: kt/a
+emission_forecast_from: 2022
+emission_dimensions: [emission_scope]
+emission_dataset: longmont/emissions
+emission_sector_dimension: emission_sectors
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t/cap/a
+  - id: energy
+    unit: kWh/cap/a
+  - id: mileage
+    unit: km/cap/a
+features:
+  baseline_visible_in_graphs: false
+
+dimensions:
+- id: emission_scope
+  label: Emission scopes
+  categories:
+  - id: scope1
+    label: Scope 1
+    color: '#0f05a0'
+    order: 0
+  - id: scope2
+    label: Scope 2
+    color: '#30505e'
+    order: 1
+  - id: scope3
+    label: Scope 3
+    color: '#6496ff'
+    order: 2
+  - id: negative_emissions
+    label: Negative emissions
+    color: '#F7A5AF'
+    order: -1
+
+- id: emission_sectors
+  label: Emission sectors
+  categories:
+  - id: buildings
+    label: Buildings
+  - id: transport
+    label: Transport
+  - id: waste_treatment
+    label: Waste treastment
+  - id: ippu
+    label: Industrial and commercial process emissions
+  - id: afolu
+    label: Agriculture and forestry emissions
+  - id: aviation
+    label: Aviation
+  - id: food_consumption
+    label: Food
+  - id: textile_consumption
+    label: Textiles
+  - id: other_consumption
+    label: Other consumption
+
+- id: vehicle_type
+  label: Vehicle type
+  groups:
+  - id: cars
+    label: Cars
+    id_match: ^car_.+
+  - id: motorbikes
+    label: Motorbikes
+    id_match: ^motorbike_.+
+  - id: buses
+    label: Local buses
+    id_match: ^buses_.+
+  - id: trolleybuses
+    label: Trolley buses
+    id_match: ^trolley.*
+  - id: coaches
+    label: Coaches
+    id_match: ^coach_.+
+  - id: lorries
+    label: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label: Vans
+    id_match: ^van_.+
+  - id: rail
+    label: Rail transport
+    id_match: ^(tram|small_railways|rail).*
+  - id: maritime
+    label: Maritime transport
+    id_match: ^.*_ship_.*
+  - id: mobility_outside_city
+    label: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label: Aviation
+    id_match: ^aviation
+
+    # TODO: Add the rest of the groups
+  categories:
+  - id: car_petrol
+    label: Passenger cars / Petrol
+  - id: car_diesel
+    label: Passenger cars / Diesel
+  - id: car_natural_gas_biogas
+    label: Passenger cars / Natural gas / biogas
+  - id: car_plugin_hybrid
+    label: Passenger cars / Plug-in hybrid
+  - id: car_batteryelectric
+    label: Passenger cars / Battery-Electric
+  - id: car_fuel_cell
+    label: Passenger cars / Fuel cell
+  - id: motorbike_petrol_4stroke
+    label: Motorbikes / Petrol 4-stroke engine
+  - id: motorbike_petrol_2stroke
+    label: Motorbikes / Petrol 2-stroke engine
+  - id: motorbike_batteryelectric
+    label: Motorbikes / Battery-Electric
+  - id: buses_diesel
+    label: Regular buses / Diesel
+  - id: buses_diesel_hybrid
+    label: Regular buses / Diesel hybrid
+  - id: buses_diesel_plugin_hybrid
+    label: Regular buses / Diesel plug-in hybrid
+  - id: buses_batteryelectric
+    label: Regular buses / Battery-Electric
+  - id: buses_fuel_cell
+    label: Regular buses / Fuel cell
+  - id: trolley
+    label: Trolley buses
+  - id: coach_diesel
+    label: Coaches / Diesel
+  - id: coach_natural_gas_biogas
+    label: Coaches / Natural gas/Biogas
+  - id: coach_battery_electric
+    label: Coaches / Battery-Electric
+  - id: coach_fuel_cell
+    label: Coaches / Fuel cell
+  - id: lorry_diesel
+    label: Lorries / Diesel
+  - id: lorry_natural_gas_biogas
+    label: Lorries / Natural gas/Biogas
+  - id: lorry_diesel_plugin_hybrid
+    label: Lorries / Diesel plug-in hybrid
+  - id: lorry_battery_electric
+    label: Lorries / Battery-Electric
+  - id: lorry_fuel_cell
+    label: Lorries / Fuel cell
+  - id: van_petrol
+    label: Vans / Petrol
+  - id: van_diesel
+    label: Van / Diesel
+  - id: van_natural_gas_biogas
+    label: Van / Natural gas/Biogas
+  - id: van_diesel_plugin_hybrid
+    label: Van / Plug-in hybrid
+  - id: van_battery_electric
+    label: Van / Battery-Electric
+  - id: van_fuel_cell
+    label: Van / Fuel cell
+  - id: tram
+    label: Tram
+  - id: small_railways
+    label: Small railways
+  - id: rail_passenger
+    label: Rail (passenger transport)
+  - id: rail_goods
+    label: Rail (goods transport)
+  - id: liner_ship_diesel
+    label: Liner ship / Diesel
+  - id: liner_ship_battery_electric
+    label: Liner ship / Battery-Electric
+  - id: private_ship_petrol
+    label: Private ships / Petrol
+  - id: private_ship_diesel
+    label: Private ships / Diesel
+  - id: private_ship_battery_electric
+    label: Private ships / Battery-Electric
+  - id: mobility_outside_city
+    label: Mobility ourside the city (excl. aviation)
+  - id: aviation
+    label: Aviation
+
+- id: greenhouse_gases
+  label: Greenhouse gases
+  categories:
+  - id: co2_eq
+    label: CO2 equivalent
+  - id: co2
+    label: CO2, fossil
+    aliases: [co2_fossil]
+  - id: ch4
+    label: CH4
+  - id: n2o
+    label: N2O
+  - id: hfc
+    label: HFC
+  - id: pfc
+    label: PFC
+  - id: sf6
+    label: SF6
+  - id: nf3
+    label: NF3
+  - id: co2_biogen
+    label: CO2, biogen
+
+- id: energy_carrier
+  label: Energy carrier
+  categories:
+  - id: electricity
+    label: Electricity
+  - id: fuel_oil
+    label: Heating oil
+  - id: petrol
+    label: Petrol
+  - id: diesel
+    label: Diesel
+  - id: kerosene
+    label: Kerosene
+  - id: natural_gas
+    label: Natural gas
+  - id: biogas
+    label: biogas
+  - id: district_heat
+    label: District heating
+  - id: wood
+    label: Wood
+  - id: environmental_heat
+    label: Environmental heat
+  - id: solar_collectors
+    label: Solar thermal collectors
+  - id: waste
+    label: Waste
+
+- id: electricity_source
+  categories:
+  - id: hydro
+    label: Hydropower
+  - id: nuclear
+    label: Nuclear power
+  - id: natural_gas
+    label: Natural gas
+  - id: solar
+    label: Solar
+  - id: biogas
+    label: Biogas
+  - id: waste
+    label: Waste incineration
+  - id: wind
+    label: Wind
+  - id: wood
+    label: Wood
+  - id: fuel_oil
+    label: Heating oil
+  - id: import
+    label: European import
+    aliases:
+    - UCTE-Mix / ENTSO-E Mix
+    - Nicht deklariert (UCTE)
+    - Nicht deklariert (UCTE-Mix)
+  - id: subsidized
+    label: Subsidized electricity
+
+params:
+- id: municipality_name
+  value: zurich
+
+emission_sectors:
+- id: net_emissions
+  name: Greenhouse gas emissions
+  input_node_dimension:
+    label: Emission sectors
+  target_year_goal: 6.5
+  goals:
+    normalized_by: population
+    values:
+      - year: 2040
+        value: 6.5
+  is_outcome: true
+
+- id: transportation_emissions
+  name: Transportation emissions
+  part_of: net_emissions
+  color: '#E22D53'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_treatment_emissions
+  name: Waste disposal
+  part_of: net_emissions
+  color: '#F18830'
+  category: waste_treatment
+  input_dataset_processors: [LinearInterpolation]
+
+- id: ippu_emissions
+  name: Industrial and commercial process emissions
+  part_of: net_emissions
+  category: ippu
+  color: '#8DAFBC'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: afolu_emissions
+  name: Agriculture and forestry emissions
+  category: afolu
+  part_of: net_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name: Aviation
+  part_of: net_emissions
+  category: aviation
+  color: '#A174DE'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: food_consumption_emissions
+  name: Food consumption emissions
+  category: food_consumption
+  part_of: net_emissions
+  color: '#BCE59E'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: textile_consumption_emissions
+  name: Textile consumption emissions
+  category: textile_consumption
+  part_of: net_emissions
+  color: '#FBCB97'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: other_consumption_emissions
+  name: Other consumption emissions
+  category: other_consumption
+  part_of: net_emissions
+  color: '#2AC7C7'
+  input_dataset_processors: [LinearInterpolation]
+
+nodes:
+- id: population
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  name: Inhabitants
+  historical_values: [[1990, 359050], [1991, 360730], [1992, 362450], [1993, 363278],
+    [1994, 363062], [1995, 362445], [1996, 361789], [1997, 359970], [1998, 359728],
+    [1999, 360974], [2000, 361301], [2001, 362664], [2002, 363944], [2003, 364884],
+    [2004, 365209], [2005, 366418], [2006, 368917], [2007, 373762], [2008, 379500],
+    [2009, 382453], [2010, 384246], [2011, 388057], [2012, 391729], [2013, 396342],
+    [2014, 401267], [2015, 407629], [2016, 412820], [2017, 419549], [2018, 425593],
+    [2019, 431322], [2020, 433963]]
+  forecast_values: [[2030, 492900], [2040, 520000], [2050, 540000]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: global_warming_potential_100a
+  name: Global warming potential 100 a
+  type: emissions.GlobalWarmingPotential
+  quantity: emission_factor
+  unit: dimensionless
+  output_dimensions: [greenhouse_gases]
+  input_dataset_processors: [LinearInterpolation]
+  historical_values: [[1990, 1], [2021, 1]]
+
+- id: building_final_energy_consumption
+  name: Housing and commerce final energy consumption
+  type: ch.zuerich.BuildingEnergy
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - zuerich/building_energy
+  output_nodes:
+  - id: district_heat_consumption
+    from_dimensions:
+    - categories: [district_heat]
+      flatten: true
+  - id: electricity_consumption
+    from_dimensions:
+    - categories: [electricity]
+      flatten: true
+  - id: environmental_heat_consumption
+    from_dimensions:
+    - categories: [environmental_heat]
+      flatten: true
+  - id: fossil_fuel_heat_consumption
+    from_dimensions:
+    - categories: [natural_gas, fuel_oil]
+  - id: building_other_energy_consumption
+    from_dimensions:
+    - categories: [district_heat, electricity, environmental_heat]
+      exclude: true
+
+- id: district_heat_consumption
+  name: District heat consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: district_heat_emissions
+  name: District heat emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - district_heat_consumption
+  - id: district_heat_emission_factor
+    to_dimensions:
+    - id: emission_scope
+  output_nodes: [building_emissions]
+  output_dimensions: [emission_scope]
+
+- id: district_heat_production_mix
+  type: ch.zuerich.DistrictHeatProductionMix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - zuerich/district_heat_production_mix
+
+- id: district_heat_emission_factor
+  name: District heat emission factor
+  unit: g/kWh
+  quantity: emission_factor
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: emission_scope
+  - id: district_heat_production_mix
+    tags: [mix]
+  input_datasets:
+  - zuerich/district_heat_emission_factor
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
+
+- id: electricity_consumption
+  name: Electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  name: Electricity consumer mix
+  quantity: mix
+  unit: '%'
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/general_electricity_production_mix
+  - zuerich/subsidized_electricity_production_mix
+  - zuerich/externally_supplied_electricity
+  input_nodes:
+  - id: electricity_consumption
+    tags: [consumption]
+
+- id: electricity_emission_factor
+  name: Emission factor of electricity production
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+- id: electricity_consumption_emissions
+  name: Electricity consumption emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - electricity_consumption
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: emission_scope
+  output_nodes: [building_emissions]
+
+- id: building_energy_consumption_emission_factor
+  name: Emission factor of housing and commerce energy consumption
+  type: ch.zuerich.EmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - zuerich/buildings_energy_consumption_emission_factor_revised
+  output_dimensions: [energy_carrier, emission_scope]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: emission_scope
+
+- id: environmental_heat_consumption
+  name: Environmental heat consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: environmental_heat_emission_factor
+  name: Emission factor of environmental heat
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat]
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+
+- id: environmental_heat_emissions
+  name: Environmental heat emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - environmental_heat_consumption
+  - id: environmental_heat_emission_factor
+    to_dimensions:
+    - id: emission_scope
+  output_nodes: [building_emissions]
+
+- id: fossil_fuel_heat_consumption
+  name: Fossil fuel heat consumption
+  type: simple.AdditiveNode
+  input_dimensions:
+  - energy_carrier
+  output_dimensions:
+  - energy_carrier
+  quantity: energy
+  unit: GWh/a
+
+- id: fossil_fuel_heat_emissions
+  name: Fossil fuel heat consumption emissions
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: fossil_fuel_heat_consumption
+  - id: building_energy_consumption_emission_factor
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
+  output_nodes: [building_emissions]
+
+- id: building_other_energy_consumption
+  name: Other building heat consumption
+  type: simple.AdditiveNode
+  input_dimensions:
+  - energy_carrier
+  output_dimensions:
+  - energy_carrier
+  quantity: energy
+  unit: GWh/a
+  output_nodes: [building_other_energy_emissions]
+
+- id: building_other_energy_emissions
+  name: Other building heat consumption emissions
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: building_energy_consumption_emission_factor
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
+  output_nodes: [building_emissions]
+
+- id: building_emissions
+  name: Building emissions
+  color: '#002F96'
+  unit: kt/a
+  quantity: emissions
+  type: simple.SectorEmissions
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+
+#
+# TRANSPORT (MULTIDIMENSIONAL)
+#
+
+- id: transport_mileage
+  name: Vehicle kilometers
+  type: ch.zuerich.VehicleMileage
+  quantity: mileage
+  unit: km/a
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/vehicle_mileage
+  output_nodes:
+  - id: car_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars]
+    to_dimensions:
+    - id: vehicle_type
+  - id: other_road_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [motorbikes, buses, trolleybuses, coaches, lorries, vans]
+    to_dimensions:
+    - id: vehicle_type
+  - id: other_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes, buses, trolleybuses, coaches, lorries, vans]
+      exclude: true
+    to_dimensions:
+    - id: vehicle_type
+
+- id: transport_electricity_consumption_factor
+  name: Transport electricity consumption
+  type: ch.zuerich.TransportElectricity
+  quantity: consumption_factor
+  unit: kWh/km
+  output_dimensions: [vehicle_type]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
+
+- id: transport_fuel_factor
+  name: Transport fuel factors
+  type: ch.zuerich.TransportFuelFactor
+  quantity: mileage
+  unit: kg/km
+  # input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
+
+- id: transport_emission_factor
+  name: Transport emission factors
+  type: ch.zuerich.TransportEmissionFactor
+  quantity: emission_factor
+  unit: g/km
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/transport_emission_factors
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [general_electricity]
+    to_dimensions:
+    - id: emission_scope
+  - id: transport_electricity_consumption_factor
+    tags: [electricity_consumption_factor]
+    to_dimensions:
+    - id: vehicle_type
+  output_dimensions: [emission_scope, vehicle_type]
+
+- id: other_road_transport_emissions
+  name: Road transportation emissions
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: car_emissions
+  name: Car emissions
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: other_transport_emissions
+  name: Other transportation emissions
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+#
+# ------- ACTIONS --------
+#
+actions:
+- id: fossil_fuels_from_heating
+  name: Replacement of fossil fuels in heating
+  type: shift.ShiftAction
+  quantity: energy
+  description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
+    district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
+  output_nodes:
+  - fossil_fuel_heat_consumption
+  - environmental_heat_consumption
+  - district_heat_consumption
+  - building_other_energy_consumption
+  - electricity_consumption
+  unit: GWh/a
+  params:
+  - id: shift
+    unit: GWh/a
+    is_customizable: false
+    value:
+    - source:
+        node: fossil_fuel_heat_consumption
+        categories:
+          energy_carrier: fuel_oil
+      dests:
+      - node: district_heat_consumption
+      - node: environmental_heat_consumption
+      - node: electricity_consumption
+      - node: building_other_energy_consumption
+        categories:
+          energy_carrier: wood
+      amounts:
+      - year: 2023
+        source_amount: -50
+        dest_amounts: [50, 80, 16, 25]
+      - year: 2025
+        source_amount: -70
+        dest_amounts: [50, 80, 16, 25]
+      - year: 2035
+        source_amount: -50
+        dest_amounts: [50, 80, 16, 25]
+
+    - source:
+        node: fossil_fuel_heat_consumption
+        categories:
+          energy_carrier: natural_gas
+      dests:
+      - node: district_heat_consumption
+      - node: environmental_heat_consumption
+      - node: electricity_consumption
+      - node: building_other_energy_consumption
+        categories:
+          energy_carrier: wood
+      amounts:
+      - year: 2023
+        source_amount: -100
+        dest_amounts: [50, 80, 16, 25]
+      - year: 2025
+        source_amount: -150
+        dest_amounts: [50, 80, 16, 25]
+      - year: 2035
+        source_amount: -100
+        dest_amounts: [50, 80, 16, 25]
+
+- id: cleaner_electricity_production
+  name: Cleaner electricity production
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Electricity production shift to cleaner methods.
+  output_nodes:
+  - id: electricity_production_mix
+    to_dimensions:
+    - id: electricity_source
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          electricity_source: import
+      dests:
+      - categories:
+          electricity_source: solar
+      - categories:
+          electricity_source: wind
+      amounts:
+      - year: 2023
+        source_amount: -2
+        dest_amounts: [50, 50]
+      - year: 2030
+        source_amount: -2
+        dest_amounts: [50, 50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50, 50]
+
+- id: electrify_cars
+  name: Electrify cars
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Electricity production shift to cleaner methods.
+  output_nodes:
+  - id: transport_mileage
+  unit: Mkm/a
+  params:
+  - id: shift
+    unit: Mkm/a
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          vehicle_type: car_diesel
+      dests:
+      - categories:
+          vehicle_type: car_batteryelectric
+      amounts:
+      - year: 2023
+        source_amount: -30
+        dest_amounts: [50]
+      - year: 2030
+        source_amount: -50
+        dest_amounts: [50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50]
+    - source:
+        categories:
+          vehicle_type: car_petrol
+      dests:
+      - categories:
+          vehicle_type: car_batteryelectric
+      amounts:
+      - year: 2023
+        source_amount: -30
+        dest_amounts: [50]
+      - year: 2030
+        source_amount: -50
+        dest_amounts: [50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50]
+
+pages:
+- id: home
+  name: Longmont Greenhouse Gas Inventory
+  path: /
+  type: emission
+  node: direct_emissions
+  lead_title_en: Development version
+  lead_paragraph_en: This is a test version of the City of Zürich's interactive scenario
+    modeling platform for the Net Zero goal. All information on this website is to
+    be considered incomplete and experimental.
+
+scenarios:
+- id: baseline
+  name: Baseline
+
+- id: default
+  default: true
+  name: Net Zero 2040
+  all_actions_enabled: true
+
+##################
+# DESCRIPTION OF DATA AND CALCULATIONS
+# 
