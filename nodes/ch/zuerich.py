@@ -346,10 +346,7 @@ class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
         return df
 
 
-class VehicleMileage(VehicleDatasetNode):
-    output_metrics = {
-        MILEAGE_QUANTITY: NodeMetric(unit='km/a', quantity=MILEAGE_QUANTITY)
-    }
+class VehicleMileage(AdditiveNode):
     output_dimension_ids = [
         'vehicle_type',
     ]
@@ -358,10 +355,11 @@ class VehicleMileage(VehicleDatasetNode):
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.process_input(dimension_ids=['vehicle_type'], quantity=MILEAGE_QUANTITY)
-        for node in self.input_nodes:
-            ndf = node.get_output_pl(self)
-            df = df.paths.add_with_dims(ndf)
+        df = self.get_input_dataset_pl()
+        m = self.get_default_output_metric()
+        df = df.rename({'mileage': m.column_id}).ensure_unit(m.column_id, m.unit)
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        df = self.add_nodes_pl(df, self.input_nodes)
         return df
 
 
