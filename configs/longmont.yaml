@@ -4,20 +4,20 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f7684f7b358f9da327517118ea727cfb5f45cf22
+  commit: 8b0253068e09842da67fd064c94ef6f05d95b9ab
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
-theme_identifier: longmont
+theme_identifier: default
 target_year: 2040
 model_end_year: 2050
-reference_year: 1990
+reference_year: 2016
 minimum_historical_year: 2010
 maximum_historical_year: 2021
 emission_unit: kt/a
 emission_forecast_from: 2022
-emission_dimensions: [emission_scope]
-emission_dataset: longmont/emissions
+emission_dimensions: [greenhouse_gases]
+emission_dataset: longmont/greenhouse_gas_emissions
 emission_sector_dimension: emission_sectors
 normalizations:
 - normalizer_node: population
@@ -58,7 +58,7 @@ dimensions:
   - id: buildings
     label: Buildings
   - id: transport
-    label: Transport
+    label: Transportation
   - id: waste_treatment
     label: Waste treastment
   - id: ippu
@@ -111,8 +111,19 @@ dimensions:
     label: Aviation
     id_match: ^aviation
 
-    # TODO: Add the rest of the groups
   categories:
+  - id: motorbike
+    label: Motorcycle
+  - id: car
+    label: Passenger Car
+  - id: light_duty
+    label: Light Duty
+  - id: bus
+    label: Bus
+  - id: single_unit_truck
+    label: Single Unit Truck
+  - id: combination_unit_truck
+    label: Combination Unit Truck
   - id: car_petrol
     label: Passenger cars / Petrol
   - id: car_diesel
@@ -227,15 +238,20 @@ dimensions:
   - id: fuel_oil
     label: Heating oil
   - id: petrol
-    label: Petrol
+    label: Gasoline
+    aliases: [Petrol]
   - id: diesel
     label: Diesel
+  - id: plug_in_hybrid
+    label: Plug-in hybrid EV
   - id: kerosene
     label: Kerosene
   - id: natural_gas
     label: Natural gas
   - id: biogas
     label: biogas
+  - id: propane
+    label: Propane
   - id: district_heat
     label: District heating
   - id: wood
@@ -248,6 +264,7 @@ dimensions:
     label: Waste
 
 - id: electricity_source
+  label: Electricity source
   categories:
   - id: hydro
     label: Hydropower
@@ -276,9 +293,31 @@ dimensions:
   - id: subsidized
     label: Subsidized electricity
 
+- id: site
+  label: Production or consumption site
+  categories:
+  - id: longmont_power
+    label: Longmont Power
+  - id: xcel_energy
+    label: Xcel Energy
+  - id: various
+    label: Various
+  - id: home
+    label: Home
+
+- id: use_type
+  label: Use type
+  categories:
+  - id: commercial
+    label: Commercial and industrial
+  - id: residential
+    label: Residential
+  - id: streetlights
+    label: Streetlights
+
 params:
 - id: municipality_name
-  value: zurich
+  value: longmont
 
 emission_sectors:
 - id: net_emissions
@@ -289,63 +328,65 @@ emission_sectors:
   goals:
     normalized_by: population
     values:
-      - year: 2040
-        value: 6.5
+    - year: 2040
+      value: 6.5
   is_outcome: true
+  description: '''
 
 - id: transportation_emissions
   name: Transportation emissions
-  part_of: net_emissions
-  color: '#E22D53'
+#  part_of: net_emissions
+  color: #E22D53
   input_dataset_processors: [LinearInterpolation]
 
 - id: waste_treatment_emissions
   name: Waste disposal
-  part_of: net_emissions
-  color: '#F18830'
+#  part_of: net_emissions
+  color: #F18830
   category: waste_treatment
   input_dataset_processors: [LinearInterpolation]
 
 - id: ippu_emissions
   name: Industrial and commercial process emissions
-  part_of: net_emissions
+#  part_of: net_emissions
   category: ippu
-  color: '#8DAFBC'
+  color: #8DAFBC
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name: Agriculture and forestry emissions
   category: afolu
-  part_of: net_emissions
+#  part_of: net_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: aviation_emissions
   name: Aviation
-  part_of: net_emissions
+#  part_of: net_emissions
   category: aviation
-  color: '#A174DE'
+  color: #A174DE
   input_dataset_processors: [LinearInterpolation]
 
 - id: food_consumption_emissions
   name: Food consumption emissions
   category: food_consumption
-  part_of: net_emissions
-  color: '#BCE59E'
+#  part_of: net_emissions
+  color: #BCE59E
   input_dataset_processors: [LinearInterpolation]
 
 - id: textile_consumption_emissions
   name: Textile consumption emissions
   category: textile_consumption
-  part_of: net_emissions
-  color: '#FBCB97'
+#  part_of: net_emissions
+  color: #FBCB97
   input_dataset_processors: [LinearInterpolation]
 
 - id: other_consumption_emissions
   name: Other consumption emissions
   category: other_consumption
-  part_of: net_emissions
-  color: '#2AC7C7'
+#  part_of: net_emissions
+  color: #2AC7C7
   input_dataset_processors: [LinearInterpolation]
+'''
 
 nodes:
 - id: population
@@ -353,14 +394,8 @@ nodes:
   quantity: population
   unit: cap
   name: Inhabitants
-  historical_values: [[1990, 359050], [1991, 360730], [1992, 362450], [1993, 363278],
-    [1994, 363062], [1995, 362445], [1996, 361789], [1997, 359970], [1998, 359728],
-    [1999, 360974], [2000, 361301], [2001, 362664], [2002, 363944], [2003, 364884],
-    [2004, 365209], [2005, 366418], [2006, 368917], [2007, 373762], [2008, 379500],
-    [2009, 382453], [2010, 384246], [2011, 388057], [2012, 391729], [2013, 396342],
-    [2014, 401267], [2015, 407629], [2016, 412820], [2017, 419549], [2018, 425593],
-    [2019, 431322], [2020, 433963]]
-  forecast_values: [[2030, 492900], [2040, 520000], [2050, 540000]]
+  historical_values: [[2010, 86270], [2020, 98885]]
+  forecast_values: [[2030, 98885], [2040, 98885], [2050, 98885]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: global_warming_potential_100a
@@ -372,126 +407,61 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   historical_values: [[1990, 1], [2021, 1]]
 
-- id: building_final_energy_consumption
-  name: Housing and commerce final energy consumption
-  type: ch.zuerich.BuildingEnergy
-  quantity: energy
-  unit: GWh/a
-  input_datasets:
-  - zuerich/building_energy
-  output_nodes:
-  - id: district_heat_consumption
-    from_dimensions:
-    - categories: [district_heat]
-      flatten: true
-  - id: electricity_consumption
-    from_dimensions:
-    - categories: [electricity]
-      flatten: true
-  - id: environmental_heat_consumption
-    from_dimensions:
-    - categories: [environmental_heat]
-      flatten: true
-  - id: fossil_fuel_heat_consumption
-    from_dimensions:
-    - categories: [natural_gas, fuel_oil]
-  - id: building_other_energy_consumption
-    from_dimensions:
-    - categories: [district_heat, electricity, environmental_heat]
-      exclude: true
-
-- id: district_heat_consumption
-  name: District heat consumption
+- id: building_electricity_consumption
+  name: Housing and commerce electricity consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-
-- id: district_heat_emissions
-  name: District heat emissions
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  input_nodes:
-  - district_heat_consumption
-  - id: district_heat_emission_factor
-    to_dimensions:
-    - id: emission_scope
-  output_nodes: [building_emissions]
-  output_dimensions: [emission_scope]
-
-- id: district_heat_production_mix
-  type: ch.zuerich.DistrictHeatProductionMix
-  quantity: mix
-  unit: '%'
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
   input_datasets:
-  - zuerich/district_heat_production_mix
-
-- id: district_heat_emission_factor
-  name: District heat emission factor
-  unit: g/kWh
-  quantity: emission_factor
-  type: ch.zuerich.EnergyProductionEmissionFactor
-  input_nodes:
-  - id: electricity_emission_factor
-    tags: [emission_factor]
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-    - id: emission_scope
-  - id: district_heat_production_mix
-    tags: [mix]
-  input_datasets:
-  - zuerich/district_heat_emission_factor
-  input_dimensions: [energy_carrier]
-  output_dimensions: [emission_scope]
+  - longmont/stationary_electricity_use
+  params:
+  - id: metric
+    value: electricity
+  output_nodes:
+  - electricity_consumption
+  output_dimensions: [use_type, site]
 
 - id: electricity_consumption
   name: Electricity consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-
-- id: electricity_production_mix
-  type: ch.zuerich.ElectricityProductionMix
-  name: Electricity consumer mix
-  quantity: mix
-  unit: '%'
-  output_dimensions: [electricity_source]
-  input_datasets:
-  - zuerich/general_electricity_production_mix
-  - zuerich/subsidized_electricity_production_mix
-  - zuerich/externally_supplied_electricity
-  input_nodes:
-  - id: electricity_consumption
-    tags: [consumption]
+  input_dimensions: [use_type, site]
+  output_dimensions: [use_type, site]
 
 - id: electricity_emission_factor
   name: Emission factor of electricity production
-  type: ch.zuerich.EnergyProductionEmissionFactor
+  type: simple.AdditiveNode
   quantity: emission_factor
-  unit: g/kWh
-  input_nodes:
-  - id: electricity_production_mix
-    tags: mix
+  unit: t/MWh
   input_datasets:
-  - zuerich/electricity_consumption_emission_factor
-  input_dimensions: [electricity_source]
-  output_dimensions: [emission_scope]
+  - longmont/electricity_emission_factor
+  output_dimensions: [site, greenhouse_gases]
 
 - id: electricity_consumption_emissions
   name: Electricity consumption emissions
   type: simple.EmissionFactorActivity
   quantity: emissions
-  unit: kt/a
-  output_dimensions: [emission_scope]
+  unit: t/a
+  output_dimensions: [greenhouse_gases, use_type, site]
   input_nodes:
-  - electricity_consumption
+  - id: electricity_consumption
+    to_dimensions:
+    - id: use_type
+    - id: site
   - id: electricity_emission_factor
     to_dimensions:
-    - id: emission_scope
-  output_nodes: [building_emissions]
+    - id: greenhouse_gases
+    - id: site
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: site
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: use_type
+  description: '''
 
 - id: building_energy_consumption_emission_factor
   name: Emission factor of housing and commerce energy consumption
@@ -540,7 +510,7 @@ nodes:
   - id: environmental_heat_emission_factor
     to_dimensions:
     - id: emission_scope
-  output_nodes: [building_emissions]
+#  output_nodes: [building_emissions]
 
 - id: fossil_fuel_heat_consumption
   name: Fossil fuel heat consumption
@@ -565,7 +535,7 @@ nodes:
     - id: energy_carrier
   input_dimensions: [energy_carrier]
   output_dimensions: [emission_scope]
-  output_nodes: [building_emissions]
+#  output_nodes: [building_emissions]
 
 - id: building_other_energy_consumption
   name: Other building heat consumption
@@ -590,7 +560,8 @@ nodes:
     to_dimensions:
     - id: emission_scope
     - id: energy_carrier
-  output_nodes: [building_emissions]
+#  output_nodes: [building_emissions]
+'''
 
 - id: building_emissions
   name: Building emissions
@@ -598,13 +569,26 @@ nodes:
   unit: kt/a
   quantity: emissions
   type: simple.SectorEmissions
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  output_nodes: [net_emissions]
+  input_dimensions: [greenhouse_gases, use_type]
+  output_dimensions: [greenhouse_gases, use_type]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: use_type
+      flatten: true
+  description: '''
+#
+# TRANSPORTATION
+#
 
-#
-# TRANSPORT (MULTIDIMENSIONAL)
-#
+- id: transport_shares
+  name: Fuel spread by vehicle type
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: %
+  input_datasets:
+  - longmont/fuel_spread_by_vehicle_type
+  output_dimensions: [energy_carrier, vehicle_type]
 
 - id: transport_mileage
   name: Vehicle kilometers
@@ -710,14 +694,12 @@ actions:
   name: Replacement of fossil fuels in heating
   type: shift.ShiftAction
   quantity: energy
-  description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
-    district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
+  description_en: If all 21 000 oil and gas heatings are replaced by heat pumps, direct
+    building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
   output_nodes:
   - fossil_fuel_heat_consumption
   - environmental_heat_consumption
-  - district_heat_consumption
   - building_other_energy_consumption
-  - electricity_consumption
   unit: GWh/a
   params:
   - id: shift
@@ -729,78 +711,74 @@ actions:
         categories:
           energy_carrier: fuel_oil
       dests:
-      - node: district_heat_consumption
       - node: environmental_heat_consumption
-      - node: electricity_consumption
       - node: building_other_energy_consumption
         categories:
           energy_carrier: wood
       amounts:
       - year: 2023
         source_amount: -50
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [80, 25]
       - year: 2025
         source_amount: -70
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [80, 25]
       - year: 2035
         source_amount: -50
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [80, 25]
 
     - source:
         node: fossil_fuel_heat_consumption
         categories:
           energy_carrier: natural_gas
       dests:
-      - node: district_heat_consumption
       - node: environmental_heat_consumption
-      - node: electricity_consumption
       - node: building_other_energy_consumption
         categories:
           energy_carrier: wood
       amounts:
       - year: 2023
         source_amount: -100
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [80, 16, 25]
       - year: 2025
         source_amount: -150
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [80, 16, 25]
       - year: 2035
         source_amount: -100
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [80, 16, 25]
 
-- id: cleaner_electricity_production
-  name: Cleaner electricity production
-  type: shift.ShiftAction
-  quantity: mix
-  description_en: Electricity production shift to cleaner methods.
-  output_nodes:
-  - id: electricity_production_mix
-    to_dimensions:
-    - id: electricity_source
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          electricity_source: import
-      dests:
-      - categories:
-          electricity_source: solar
-      - categories:
-          electricity_source: wind
-      amounts:
-      - year: 2023
-        source_amount: -2
-        dest_amounts: [50, 50]
-      - year: 2030
-        source_amount: -2
-        dest_amounts: [50, 50]
-      - year: 2035
-        source_amount: 0
-        dest_amounts: [50, 50]
+#- id: cleaner_electricity_production
+#  name: Cleaner electricity production
+#  type: shift.ShiftAction
+#  quantity: mix
+#  description_en: Electricity production shift to cleaner methods.
+#  output_nodes:
+#  - id: electricity_consumption
+#    to_dimensions:
+#    - id: electricity_source
+#  unit: %
+#  params:
+#  - id: shift
+#    unit: %
+#    is_customizable: false
+#    value:
+#    - source:
+#        categories:
+#          electricity_source: import
+#      dests:
+#      - categories:
+#          electricity_source: solar
+#      - categories:
+#          electricity_source: wind
+#      amounts:
+#      - year: 2023
+#        source_amount: -2
+#        dest_amounts: [50, 50]
+#      - year: 2030
+#        source_amount: -2
+#        dest_amounts: [50, 50]
+#      - year: 2035
+#        source_amount: 0
+#        dest_amounts: [50, 50]
 
 - id: electrify_cars
   name: Electrify cars
@@ -847,7 +825,7 @@ actions:
       - year: 2035
         source_amount: 0
         dest_amounts: [50]
-
+'''
 pages:
 - id: home
   name: Longmont Greenhouse Gas Inventory

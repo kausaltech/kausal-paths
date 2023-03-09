@@ -92,11 +92,17 @@ class AdditiveNode(SimpleNode):
 
     def compute(self):
         df = self.get_input_dataset_pl(required=False)
+        metric = self.get_parameter_value('metric', required=False)
         assert self.unit is not None
         if df is not None:
             if VALUE_COLUMN not in df.columns:
                 if len(df.metric_cols) == 1:
                     df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+                elif metric is not None:
+                    if metric in df.columns:
+                        df = df.rename({metric: VALUE_COLUMN})
+                    else:
+                        raise NodeError(self, "Metric is not found in metric columns")
                 else:
                     raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
@@ -220,13 +226,14 @@ class DivisiveNode(MultiplicativeNode):
 
     operation_label = 'division'
 
+    # FIXME The roles of nominator and denumerator are determined based on the node appearance, not explicitly.
     def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         assert n1.unit is not None and n2.unit is not None and self.unit is not None
         output_unit = n1.unit / n2.unit
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
                 self,
-                "Division inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
+                "Division inputs must in a unit compatible with '%s' (%s [%s] / %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
 
         df = df1.paths.join_over_index(df2, how='left')
         df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
@@ -322,3 +329,26 @@ class YearlyPercentageChangeNode(SimpleNode):
         df = df.drop(columns=['Multiplier'])
 
         return df
+
+
+class CurrentTrendNode(MultiplicativeNode):  # FIXME Exploratory, not necessarily needed
+    """Continue the situation in node1 based on the trend in node2.
+    """
+
+    operation_label = 'current_trend'
+
+    def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        assert n1.unit is not None and self.unit is not None
+        output_unit = n1.unit
+        if not self.is_compatible_unit(output_unit, self.unit):
+            raise NodeError(
+                self,
+                "The input must in a unit compatible with '%s' (%s [%s])" % (self.unit, n1.id, n1.unit))
+
+        df = df1.paths.join_over_index(df2, how='left')
+        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
+
+        return df
+
+
