@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 import argparse
 import cProfile
+from decimal import Decimal
+from math import frexp, log10
 import sys
 import time
 
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
+from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.instance import InstanceLoader
 from common.perf import PerfCounter
 import rich.traceback
 from rich.table import Table
 from rich.console import Console
+import polars as pl
 import pandas as pd
+
+from nodes.units import Quantity
 
 
 if True:
@@ -187,6 +193,9 @@ for node_id in (args.node or []):
             print("Impact of %s on %s" % (node, n))
             node.print_impact(n)
 
+        for n in context.get_outcome_nodes():
+            node.print_impact(n)
+
         """
         for n in context.nodes.values():
             if n.output_nodes:
@@ -197,6 +206,16 @@ for node_id in (args.node or []):
                 continue
         """
 
+
+def round_quantity(e: Quantity):
+    if abs(e.m) > 10000:
+        e = round(e, 1)
+    else:
+        l = int(-log10(abs(e.m))) + 4
+        e = round(e, ndigits=l)
+    return e
+
+
 if args.print_action_efficiencies:
     def print_action_efficiencies():
         context.cache.start_run()
@@ -205,7 +224,8 @@ if args.print_action_efficiencies:
             title = '%s / %s' % (aep.cost_node.id, aep.impact_node.id)
             pc.display('%s starting' % title)
             table = Table(title=title)
-            table.add_column("Action", "Cumulative efficiency")
+            table.add_column("Action")
+            table.add_column("Cumulative efficiency")
             if args.node:
                 actions = [context.get_action(node_id) for node_id in args.node]
             else:
@@ -214,20 +234,66 @@ if args.print_action_efficiencies:
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
                 pc.display('%s computed' % action.id)
-                rows.append((action.id, out.cumulative_efficiency))
-                # action.print_pint_df(out.df)
+                e = out.cumulative_efficiency 
+                if e:
+                    e = round_quantity(e)
+
+                rows.append((action.id, e))
 
             console = Console()
-            rows = sorted(rows, key=lambda x: x[1])
+            rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)
             for row in rows:
                 table.add_row(row[0], str(row[1]))
             console.print(table)
 
         context.cache.end_run()
 
+    def print_impacts():
+        context.cache.start_run()
+        pc = PerfCounter("Action impacts")
+        for outcome_node in context.get_outcome_nodes():
+            title = outcome_node.id
+            pc.display('%s starting' % title)
+            table = Table(title=title)
+            years = []
+            table.add_column("Action")
+            table.add_column("Impact %s" % context.target_year)
+            years.append(context.target_year)
+            if context.model_end_year != context.target_year:
+                table.add_column("Impact %s" % context.model_end_year)
+                years.append(context.model_end_year)
+            m = outcome_node.get_default_output_metric()
+            rows = []
+            for action in context.get_actions():
+                df = action.compute_impact(outcome_node)
+                if context.active_normalization:
+                    _, df = context.active_normalization.normalize_output(outcome_node.get_default_output_metric(), df)
+                dims = df.dim_ids
+                dims.remove(IMPACT_COLUMN)
+                if dims:
+                    df = df.paths.sum_over_dims(dims)
+                df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP))
+                vals = []
+                for year in years:
+                    val = df.filter(pl.col(YEAR_COLUMN).eq(year))[m.column_id][0]
+                    e = val * df.get_unit(m.column_id)
+                    e = round_quantity(e)
+                    vals.append(e)
+                rows.append([action.id, *vals])
+
+            console = Console()
+            rows = sorted(rows, key=lambda x: x[1])
+            for row in rows:
+                table.add_row(row[0], *[str(x) for x in row[1:]])
+            console.print(table)
+
     if profile is not None:
         profile.enable()
-    print_action_efficiencies()
+
+    if context.action_efficiency_pairs:
+        print_action_efficiencies()
+    else:
+        print_impacts()
     if profile is not None:
         profile.disable()
         profile.dump_stats('action_efficiencies_profile.out')

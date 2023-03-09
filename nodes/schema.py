@@ -17,7 +17,7 @@ from paths.graphql_helpers import (
 from . import Node
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .constants import (
-    FORECAST_COLUMN, IMPACT_GROUP, VALUE_COLUMN,
+    FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN,
     YEAR_COLUMN, DecisionLevel
 )
 from .instance import Instance
@@ -57,7 +57,7 @@ class InstanceType(graphene.ObjectType):
     target_year = graphene.Int()
     model_end_year = graphene.Int(required=True)
     reference_year = graphene.Int()
-    minimum_historical_year = graphene.Int()
+    minimum_historical_year = graphene.Int(required=True)
     maximum_historical_year = graphene.Int()
 
     hostname = graphene.Field(InstanceHostname, hostname=graphene.String())
@@ -163,6 +163,7 @@ ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
 class FlowNodeType(graphene.ObjectType):
     id = graphene.String(required=True)
     label = graphene.String(required=True)
+    color = graphene.String(required=False)
 
 
 class FlowLinksType(graphene.ObjectType):
@@ -171,12 +172,14 @@ class FlowLinksType(graphene.ObjectType):
     sources = graphene.List(graphene.NonNull(graphene.String), required=True)
     targets = graphene.List(graphene.NonNull(graphene.String), required=True)
     values = graphene.List(graphene.Float, required=True)
+    absolute_source_values = graphene.List(graphene.NonNull(graphene.Float), required=True)
 
 
 class DimensionalFlowType(graphene.ObjectType):
     id = graphene.String(required=True)
     nodes = graphene.List(graphene.NonNull(FlowNodeType), required=True)
     unit = graphene.Field('paths.schema.UnitType', required=True)
+    sources = graphene.List(graphene.NonNull(graphene.String), required=True)
     links = graphene.List(graphene.NonNull(FlowLinksType), required=True)
 
 
@@ -188,6 +191,7 @@ class NodeGoal(graphene.ObjectType):
 class NodeType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
+    short_name = graphene.String(required=False)
     color = graphene.String()
     order = graphene.Int(required=False)
     unit = graphene.Field('paths.schema.UnitType')
@@ -312,13 +316,17 @@ class NodeType(graphene.ObjectType):
             return None
 
         df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
-        meta = df.get_meta()
-        if meta.dim_ids:
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+        if df.dim_ids:
             # FIXME: Check if can be summed?
             df = df.paths.sum_over_dims()
-            meta = df.get_meta()
 
-        df = df.select([*meta.primary_keys, FORECAST_COLUMN, pl.col(IMPACT_GROUP).alias(VALUE_COLUMN)])
+        try:
+            m = target_node.get_default_output_metric()
+        except Exception:
+            return None
+
+        df = df.select([*df.primary_keys, FORECAST_COLUMN, m.column_id])
 
         metric = Metric(
             id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=df,

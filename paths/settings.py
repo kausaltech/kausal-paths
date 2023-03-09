@@ -294,8 +294,8 @@ SPECTACULAR_SETTINGS = {
 # Since we send the language code of a plan to the client, let's make sure we use the upper-case format everywhere in
 # the backend already so we don't end up with different formats.
 LANGUAGES = (
-    ('fi', _('Finnish')),
     ('en', _('English')),
+    ('fi', _('Finnish')),
     ('sv', _('Swedish')),
     ('de', _('German')),
     ('de-CH', _('German (Switzerland)')),

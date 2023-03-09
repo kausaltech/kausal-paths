@@ -1,16 +1,9 @@
-from typing import Tuple, TypeAlias
 import polars as pl
 import pandas as pd
-import pint_pandas
 
-from nodes.dimensions import Dimension
-from nodes.node import NodeMetric
 from common import polars as ppl
 
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-
-
-pl.Config.set_tbl_rows(100)
+from .constants import FORECAST_COLUMN, YEAR_COLUMN
 
 
 def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:

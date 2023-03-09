@@ -248,6 +248,9 @@ class Context:
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
         return root_nodes
 
+    def get_outcome_nodes(self) -> list[Node]:
+        return [node for node in self.nodes.values() if node.is_outcome]
+
     def activate_scenario(self, scenario: Scenario):
         # Set the new parameters
         scenario.activate(self)

@@ -10,7 +10,7 @@ name_en: Green logic, potential of energy efficiency actions on buildings
 name: Grön logik, potential för energieffektivisering i byggnader
 owner: Kausal & Anthesis
 owner_en: Kausal & Anthesis
-theme_identifier: gronlogik
+theme_identifier: default
 target_year: 2062
 reference_year: 1990
 minimum_historical_year: 2019
