@@ -116,7 +116,7 @@ emission_sectors:
   name: Kokonaispäästöt (scope 2)
   name_en: Net emissions (scope 2)
   is_outcome: true
-  target_year_goal: 245
+  target_year_goal: 212
 
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
