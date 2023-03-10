@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8a42d86e3cf73865e46e38f4ccbe7d2046e37919
+  commit: eb6ea54eba5ecdcd921b64358e8146cde702508b
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -459,12 +459,11 @@ nodes:
     - id: greenhouse_gases
     - id: use_type
 
-#####################
 - id: natural_gas_consumption
   name: Natural gas consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: GWh/a
+  unit: thm/a
   input_datasets:
   - longmont/stationary_natural_gas_use
   input_dimensions: [use_type, energy_carrier]
@@ -474,7 +473,7 @@ nodes:
   name: Emission factor of natural gas
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/MWh
+  unit: t/thm
   input_datasets:
   - longmont/emission_factor_natural_gas
   output_dimensions: [energy_carrier, greenhouse_gases]
@@ -494,14 +493,101 @@ nodes:
     to_dimensions:
     - id: greenhouse_gases
     - id: energy_carrier
-#  output_nodes:
-#  - id: building_emissions
-#    from_dimensions:
-#    - id: site
-#      flatten: true
-#    to_dimensions:
-#    - id: greenhouse_gases
-#    - id: use_type
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: use_type
+
+- id: stationary_fuel_consumption
+  name: Stationary fuel consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: gal/a
+  input_datasets:
+  - longmont/stationary_fuel_use
+  input_dimensions: [use_type, energy_carrier]
+  output_dimensions: [use_type, energy_carrier]
+
+- id: emission_factor_fuel
+  name: Emission factor of stationary fuels
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/gal
+  input_datasets:
+  - longmont/emission_factor_fuels
+  output_dimensions: [energy_carrier, greenhouse_gases]
+
+- id: stationary_fuel_consumption_emissions
+  name: Stationary fuel consumption emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  output_dimensions: [greenhouse_gases, use_type, energy_carrier]
+  input_nodes:
+  - id: stationary_fuel_consumption
+    to_dimensions:
+    - id: use_type
+    - id: energy_carrier
+  - id: emission_factor_fuel
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: energy_carrier
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: use_type
+
+- id: stationary_wood_consumption
+  name: Stationary wood consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MMBtu/a
+  input_datasets:
+  - longmont/stationary_wood_consumption
+  input_dimensions: [use_type, energy_carrier]
+  output_dimensions: [use_type, energy_carrier]
+
+- id: emission_factor_wood
+  name: Emission factor of wood
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/MMBtu
+  input_datasets:
+  - longmont/emission_factor_wood
+  output_dimensions: [energy_carrier, greenhouse_gases]
+
+- id: wood_consumption_emissions
+  name: Wood consumption emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  output_dimensions: [greenhouse_gases, use_type, energy_carrier]
+  input_nodes:
+  - id: stationary_wood_consumption
+    to_dimensions:
+    - id: use_type
+    - id: energy_carrier
+  - id: emission_factor_wood
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: energy_carrier
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: use_type
+
   description: '''
 
 - id: building_energy_consumption_emission_factor
@@ -605,7 +691,7 @@ nodes:
 '''
 
 - id: building_emissions
-  name: Building emissions
+  name: Stationary emissions
   color: '#002F96'
   unit: kt/a
   quantity: emissions
@@ -910,6 +996,20 @@ actions:
       categories: [residential]
     - id: site
       categories: [longmont_power]
+
+- id: longmont_equity_share_platte_river_power_authority
+  name: Longmont equity share emissions from Platte River Power Authority
+  type: simple.CumulativeAdditiveAction
+  quantity: emissions  # FIXME Is this negative emission or what happens here?
+  unit: t/a
+  forecast_values: [[2022, 0], [2023, 307035]]
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: use_type
+      categories: [residential]
+    - id: greenhouse_gases
+      categories: [co2_eq]
 
 pages:
 - id: home
