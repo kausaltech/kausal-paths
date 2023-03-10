@@ -108,7 +108,6 @@ class AdditiveNode(SimpleNode):
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
             df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        metric = self.get_parameter_value('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
             df = self.add_nodes_pl(None, self.input_nodes, metric)
             df = self.fill_gaps_using_input_dataset_pl(df)

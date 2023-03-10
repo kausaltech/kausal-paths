@@ -843,9 +843,9 @@ class Node:
         # If a node has multiple outputs, we can specify only one series
         # to include.
         if metric is not None:
-            assert metric in out.columns
+            assert metric in out.columns  # If target_node has metric, self MUST have that also.
             cols = meta.primary_keys.copy()
-            cols.append(metric)  # FIXME This assumes that the column name and metric are identical
+            cols.append(metric)
             if FORECAST_COLUMN in out.columns:
                 cols.append(FORECAST_COLUMN)
             out = out.select(cols)

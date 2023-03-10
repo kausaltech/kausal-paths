@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8b0253068e09842da67fd064c94ef6f05d95b9ab
+  commit: 8a42d86e3cf73865e46e38f4ccbe7d2046e37919
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -414,9 +414,6 @@ nodes:
   unit: GWh/a
   input_datasets:
   - longmont/stationary_electricity_use
-  params:
-  - id: metric
-    value: electricity
   output_nodes:
   - electricity_consumption
   output_dimensions: [use_type, site]
@@ -461,6 +458,50 @@ nodes:
     to_dimensions:
     - id: greenhouse_gases
     - id: use_type
+
+#####################
+- id: natural_gas_consumption
+  name: Natural gas consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - longmont/stationary_natural_gas_use
+  input_dimensions: [use_type, energy_carrier]
+  output_dimensions: [use_type, energy_carrier]
+
+- id: emission_factor_natural_gas
+  name: Emission factor of natural gas
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_datasets:
+  - longmont/emission_factor_natural_gas
+  output_dimensions: [energy_carrier, greenhouse_gases]
+
+- id: natural_gas_consumption_emissions
+  name: Natural gas consumption emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  output_dimensions: [greenhouse_gases, use_type, energy_carrier]
+  input_nodes:
+  - id: natural_gas_consumption
+    to_dimensions:
+    - id: use_type
+    - id: energy_carrier
+  - id: emission_factor_natural_gas
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: energy_carrier
+#  output_nodes:
+#  - id: building_emissions
+#    from_dimensions:
+#    - id: site
+#      flatten: true
+#    to_dimensions:
+#    - id: greenhouse_gases
+#    - id: use_type
   description: '''
 
 - id: building_energy_consumption_emission_factor
@@ -826,6 +867,50 @@ actions:
         source_amount: 0
         dest_amounts: [50]
 '''
+
+actions:
+- id: commercial_power_purchase_program
+  name: Commercial power purchase program
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2022, 0], [2023, -3544251]]
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: use_type
+      categories: [commercial]
+    - id: site
+      categories: [longmont_power]
+
+- id: residential_power_purchase_program
+  name: Residential power purchase program
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2022, 0], [2023, -3550001]]
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: use_type
+      categories: [residential]
+    - id: site
+      categories: [longmont_power]
+
+- id: residential_rooftop_solar
+  name: Residential rooftop solar
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2022, 0], [2023, -5080497]]
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: use_type
+      categories: [residential]
+    - id: site
+      categories: [longmont_power]
+
 pages:
 - id: home
   name: Longmont Greenhouse Gas Inventory
