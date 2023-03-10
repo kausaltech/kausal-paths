@@ -5,22 +5,23 @@ YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
 NODE_COLUMN = 'Node'
 
+
+# Impact constants
+IMPACT_COLUMN = 'Impact'
+
+# Action as it is in the active scenario
+SCENARIO_ACTION_GROUP = 'Scenario'
+# With action disabled
+WITHOUT_ACTION_GROUP = 'WithoutAction'
+# Impact of action
+IMPACT_GROUP = 'Impact'
+
+
 # Dimension flow constants
 FLOW_ID_COLUMN = 'Flow'
 FLOW_ROLE_COLUMN = 'FlowRole'
 FLOW_ROLE_SOURCE = 'source'
 FLOW_ROLE_TARGET = 'target'
-
-# Impact constants
-VALUE_WITH_ACTION_GROUP = 'Action'
-VALUE_WITHOUT_ACTION_GROUP = 'WithoutAction'
-IMPACT_GROUP = 'Impact'
-
-
-FORECAST_x = 'Forecast_x'
-FORECAST_y = 'Forecast_y'
-VALUE_x = 'Value_x'
-VALUE_y = 'Value_y'
 
 EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'

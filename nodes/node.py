@@ -1,32 +1,37 @@
 from __future__ import annotations
-import base64
 
-from dataclasses import dataclass, field
-import logging
+import base64
 import hashlib
-import os
-import io
 import inspect
+import io
 import json
+import logging
+import os
 import typing
 from time import perf_counter_ns
-from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Tuple, Union, Set, overload
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Set, Tuple, Union, overload
 
+import networkx as nx
 import numpy as np
 import pandas as pd
-import polars as pl
 import pint_pandas
+import polars as pl
 from rich import print as pprint
-import networkx as nx
 
+from common import polars as ppl
 from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
 from common.perf import PerfCounter
 from common.types import Identifier, MixedCaseIdentifier
 from common.utils import hash_unit
-from common import polars as ppl
 from nodes.constants import (
-    BASELINE_VALUE_COLUMN, FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN,
-    ensure_known_quantity, DEFAULT_METRIC, get_quantity_icon
+    BASELINE_VALUE_COLUMN,
+    DEFAULT_METRIC,
+    FORECAST_COLUMN,
+    NODE_COLUMN,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+    ensure_known_quantity,
+    get_quantity_icon,
 )
 from nodes.goals import NodeGoals
 from params import Parameter
@@ -34,10 +39,10 @@ from params.param import ParameterWithUnit
 
 from .context import Context
 from .datasets import Dataset, JSONDataset
-from .exceptions import NodeError
 from .dimensions import Dimension
 from .edges import Edge
-from .units import Unit, Quantity
+from .exceptions import NodeError
+from .units import Quantity, Unit
 
 if typing.TYPE_CHECKING:
     from .processors import Processor
@@ -125,11 +130,15 @@ class Node:
     name: I18nString
     "Human-readable label for the Node instance."
 
+    short_name: I18nString
+    "Shortened label for the node"
+
     # Description for the Node instance
     #
     # This gets mapped to NodeType.short_description in the GraphQL schema and
     # wrapped in a <p> tag.
     description: I18nString | None
+    "Long description for the node"
 
     # if the node has an established visualisation color
     color: Optional[str]
@@ -278,10 +287,10 @@ class Node:
         return dims
 
     def __init__(
-        self, id: str, context: Context, name: I18nString, unit: Unit | None = None,
-        quantity: str | None = None, description: I18nString | None = None,
-        color: str | None = None, order: int | None = None, is_outcome: bool = False,
-        target_year_goal: float | None = None, goals: dict | None = None,
+        self, id: str, context: Context, name: I18nString, short_name: I18nString | None = None,
+        unit: Unit | None = None, quantity: str | None = None,
+        description: I18nString | None = None, color: str | None = None, order: int | None = None,
+        is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
         input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
     ):
@@ -293,6 +302,7 @@ class Node:
 
         self.database_id = None
         self.name = name
+        self.short_name = short_name
         self.description = description
         self.color = color
         self.order = order

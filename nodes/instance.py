@@ -1,3 +1,4 @@
+import dataclasses
 import importlib
 import logging
 import re
@@ -41,10 +42,11 @@ class Instance:
     owner: TranslatedString
     default_language: str
     context: Context
+    _: dataclasses.KW_ONLY
     yaml_file_path: Optional[str] = None
     site_url: Optional[str] = None
     reference_year: Optional[int] = None
-    minimum_historical_year: Optional[int] = None
+    minimum_historical_year: int
     maximum_historical_year: Optional[int] = None
     supported_languages: list[str] = field(default_factory=list)
     lead_title: Optional[TranslatedString] = None
@@ -216,6 +218,7 @@ class InstanceLoader:
             id=config['id'],
             context=self.context,
             name=self.make_trans_string(config, 'name'),
+            short_name=self.make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
             description=self.make_trans_string(config, 'description'),

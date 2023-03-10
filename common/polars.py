@@ -179,6 +179,8 @@ class PathsDataFrame(pl.DataFrame):
         return DataFrameMeta(units=self._units.copy(), primary_keys=self._primary_keys.copy())
 
     def get_unit(self, col: str) -> Unit:
+        if col not in self._units:
+            raise KeyError("Column %s not found" % col)
         return self._units[col]
 
     def has_unit(self, col: str) -> bool:
@@ -297,5 +299,7 @@ def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
 if not pl.using_string_cache():
     pl.toggle_string_cache(True)
 
-pl.Config.with_columns_kwargs = True
+
 pl.Config.set_fmt_str_lengths(60)
+pl.Config.set_tbl_rows(100)
+pl.Config.set_tbl_cols(10)

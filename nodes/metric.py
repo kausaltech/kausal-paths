@@ -1,4 +1,5 @@
 from __future__ import annotations
+import functools
 
 import numpy as np
 from itertools import groupby
@@ -275,6 +276,8 @@ class DimensionalMetric:
 class FlowNode:
     id: str
     label: str
+    color: str | None = None
+
 
 
 @dataclass
@@ -284,12 +287,14 @@ class FlowLinks:
     sources: list[str] = field(default_factory=list)
     targets: list[str] = field(default_factory=list)
     values: list[float | None] = field(default_factory=list)
+    absolute_source_values: list[float] = field(default_factory=list)
 
 
 @dataclass
 class DimensionalFlow:
     id: str
     nodes: list[FlowNode]
+    sources: list[str]
     unit: Unit
     links: list[FlowLinks]
 
@@ -300,8 +305,19 @@ class DimensionalFlow:
 
         context = node.context
 
-        #flow_nodes = []
         df = node.compute_effect_flow()
+        source_rows = (
+            df.filter(pl.col(FLOW_ROLE_COLUMN) == FLOW_ROLE_SOURCE)
+            .drop([YEAR_COLUMN, VALUE_COLUMN]).unique()
+        )
+
+        source_nodes: dict[str, Node] = {id: node.context.get_node(id) for id in source_rows[NODE_COLUMN].unique()}
+
+        # By node id
+        source_dfs: dict[str, ppl.PathsDataFrame] = {}
+        # By flow node id
+        source_values: dict[str, dict[int, float]] = {}
+
         dims = []
         dim_cats = {}
         for dim_id in df.primary_keys:
@@ -311,18 +327,25 @@ class DimensionalFlow:
             dims.append(dim)
             dim_cats[dim_id] = dim.cat_map
 
-        nodes: dict[str, FlowNode] = {}
+        flow_nodes: dict[str, FlowNode] = {}
 
-        def get_node(row):
+        def get_flow_node(row, is_source: bool):
             path_parts = []
             label_parts = []
-            if NODE_COLUMN in row:
-                node = context.nodes[row[NODE_COLUMN]]
-                path_parts.append(node.id)
-                label_parts.append(str(node.name))
-            else:
-                node = None
 
+            node = context.nodes[row[NODE_COLUMN]]
+            path_parts.append(node.id)
+            # If the node shares dimensions, use the dimension labels
+            # instead of the node name.
+            # FIXME: This might not work in some cases
+            for dim in dims:
+                if dim.id in node.output_dimensions:
+                    break
+            else:
+                if len(source_nodes) > 1:
+                    label_parts.append(str(node.short_name) if node.short_name else str(node.name))
+
+            sdf_exprs = []
             for dim in dims:
                 cat_id = row[dim.id]
                 if not cat_id:
@@ -330,25 +353,47 @@ class DimensionalFlow:
                 cat = dim_cats[dim.id][cat_id]
                 path_parts.append(cat.id)
                 label_parts.append(str(cat.label))
+                sdf_exprs.append(pl.col(dim.id).eq(cat.id))
 
-            node_id = ':'.join(path_parts)
-            if node_id in nodes:
-                return nodes[node_id]
-            nodes[node_id] = FlowNode(id=node_id, label=' / '.join(label_parts))
-            return nodes[node_id]
+            flow_node_id = ':'.join(path_parts)
+            if flow_node_id in flow_nodes:
+                return flow_nodes[flow_node_id]
 
-        source_rows = (
-            df.filter(pl.col(FLOW_ROLE_COLUMN) == FLOW_ROLE_SOURCE)
-            .drop([YEAR_COLUMN, VALUE_COLUMN]).unique()
-        )
+            flow_nodes[flow_node_id] = FlowNode(id=flow_node_id, label=' / '.join(label_parts))
+            if is_source:
+                sdf = source_dfs.get(node.id)
+                if sdf is None:
+                    sdf = source_dfs[node.id] = node.get_output_pl()
+                val_col = node.get_default_output_metric().column_id
+                if sdf_exprs:
+                    sdf = sdf.filter(functools.reduce(lambda a, b: a & b, sdf_exprs))
+                sdf = sdf.select([YEAR_COLUMN, val_col])
+                assert not sdf.paths.index_has_duplicates()
+                assert flow_node_id not in source_values
+                source_values[flow_node_id] = {x[YEAR_COLUMN]: x[val_col] for x in sdf.to_dicts()}
+
+            return flow_nodes[flow_node_id]
+
         sources = {}
+        source_list = []
         for row in source_rows.to_dicts():
-            flow_node = get_node(row)
+            flow_node = get_flow_node(row, is_source=True)
+            if flow_node not in source_list:
+                source_list.append(flow_node.id)
             flow_id = row[FLOW_ID_COLUMN]
             assert flow_id not in sources
             sources[flow_id] = flow_node
 
         links: dict[int, FlowLinks] = {}
+
+        first_forecast_year: int = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min() # type: ignore
+        year = first_forecast_year - 1
+        links[first_forecast_year - 1] = FlowLinks(
+            year=year,
+            is_forecast=False,
+            absolute_source_values=[source_values[src_id][year] for src_id in source_list]
+        )
+
         target_rows = df.filter(pl.col(FLOW_ROLE_COLUMN) == FLOW_ROLE_TARGET)
         for row in target_rows.to_dicts():
             flow_id = row[FLOW_ID_COLUMN]
@@ -358,7 +403,8 @@ class DimensionalFlow:
             if link is None:
                 link = FlowLinks(year=year, is_forecast=True)
                 links[year] = link
-            target = get_node(row)
+                link.absolute_source_values = [source_values[src_id][year] for src_id in source_list]
+            target = get_flow_node(row, is_source=False)
             link.sources.append(source.id)
             link.targets.append(target.id)
             link.values.append(row[VALUE_COLUMN])
@@ -366,7 +412,8 @@ class DimensionalFlow:
         assert node.unit is not None
         return DimensionalFlow(
             id=node.id,
-            nodes=list(nodes.values()),
+            nodes=list(flow_nodes.values()),
             unit=node.unit,
-            links=list(links.values())
+            links=sorted(list(links.values()), key=lambda x: x.year),
+            sources=source_list
         )

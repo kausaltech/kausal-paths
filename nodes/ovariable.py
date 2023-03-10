@@ -16,7 +16,7 @@ from pandas.core.frame import DataFrame
 # import copy
 
 # from common.i18n import TranslatedString
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 # from params import Parameter
 
 # from .context import Context

@@ -3,7 +3,7 @@ import numpy as np
 
 from params.param import NumberParameter, PercentageParameter, StringParameter
 from .context import unit_registry
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, FORECAST_x, FORECAST_y, VALUE_x, VALUE_y
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
 from .ovariable import Ovariable, OvariableFrame
 from .exceptions import NodeError
