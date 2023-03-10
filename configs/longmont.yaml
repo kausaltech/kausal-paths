@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e8f43070ef048968c6b952f482a51baed59ffe2d
+  commit: e9d0d1ef3ede5d5ee51d4c27192f2fbc202bb55c
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -625,14 +625,17 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-#    input_datasets:
-#    - longmont/transmission_and_distribution_loss
-  historical_values: [[2016, 2.5], [2022, 2.5]]
+  input_datasets:
+  - longmont/transmission_and_distribution_loss
+  output_dimensions: [energy_carrier, site]
   output_nodes:
   - id: electricity_losses
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
     to_dimensions:
     - id: site
-    - id: use_type
 
 - id: electricity_losses
   name: Electricity losses

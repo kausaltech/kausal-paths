@@ -181,10 +181,17 @@ class MultiplicativeNode(SimpleNode):
         additive_nodes: list[Node] = []
         operation_nodes: list[Node] = []
         assert self.unit is not None
+        non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        if len(non_additive_nodes) == 1:
+            non_additive_node = non_additive_nodes[0].id
+        else:
+            non_additive_node = ''
         for node in self.input_nodes:
             if node.unit is None:
                 raise NodeError(self, "Input node %s does not have a unit" % str(node))
-            if self.is_compatible_unit(node.unit, self.unit):
+            if node.id == non_additive_node:
+                operation_nodes.append(node)
+            elif self.is_compatible_unit(node.unit, self.unit):
                 additive_nodes.append(node)
             else:
                 operation_nodes.append(node)

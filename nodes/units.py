@@ -53,6 +53,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     unit_registry.define('SEK = 0.1 EUR')
     unit_registry.define('pcs = [number] = pieces')
     unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
+    unit_registry.define('MMBtu = 1e6 Btu')
 
     unit_registry.load_definitions(os.path.join(os.path.dirname(__file__), 'health_impact_units.txt'))
 
