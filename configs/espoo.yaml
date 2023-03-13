@@ -120,6 +120,10 @@ emission_sectors:
 
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
+  # FIXME district p 320 b 175 d 31 should be p 290 b 70 d 13 ## +18
+  # oil heating p 75 b 75 d 21. should be p 53 b 0 d 0  ## +21
+  # direct_electric p 50 b 35 d 35. together should be p 83 b 6 d 6 ## +32
+  # geothermal_electric p 5 b 3 d 3. together should be p 83 b 6 d 6
   part_of: net_emissions
   color: '#ff4f57'
 
@@ -130,13 +134,26 @@ emission_sectors:
 
 - id: transport_emissions
   name: Liikenteen päästöt
+  # FIXME total p 395 b 365 d 388. Sitowise p 190 b 164 d 136.  ## +252
   part_of: net_emissions
   color: '#014B30'
+
+  # FIXME industry_machinery_emissions p 13 b 12 d 11. Sitowise p 16 b 5 d 4. ## +7
+
+  # FIXME waste_landfill_emissions p 5 b 5 d 5. Sitowise p 28 b 22 d 7. ## -2
+
+  # FIXME Agriculture_emissions p 0.9 b 0.9 d 0.9. Sitowise p 1 b 0.9 d 0.9 ## +0
 
 nodes:
 - id: population
   type: finland.population.Population
   name: Väestö
+  # FIXME 345000. Sitowise 362690.  ## -17690
+  description: Väkiluvun on kaikkien skenaarioiden osalta olettu laskennassa kehittyvän
+    Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon mukaisesti ja olevan 362690 vuonna 2035.
+    Tilastokeskuksen väestöennuste on 345000 vuodelle 2035.
+    Toteutunut väestönkehitys (1990, 2000-2022) on saatu Tilastokeskuksen tilastoista. Lähde
+    https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -371,13 +388,14 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
+  historical_values: [[2010, 0], [2021, 0]]
   forecast_values: [[2022, 6.40698155857763], [2023, 34.8156449901301], [2024, 55.3398489194226],
     [2025, 75.7353948766418], [2026, 95.9182666625295], [2027, 115.850619274135],
     [2028, 135.46164499662], [2029, 154.731750817255], [2030, 173.619465695491],
     [2031, 192.11713717284], [2032, 210.250300046423], [2033, 228.038646400391],
     [2034, 245.501598139984], [2035, 262.68009047217]]
-  output_nodes: 
-  - consumer_electricity_residence_energy
+#  output_nodes:
+#  - consumer_electricity_residence_energy
 
 pages:
 - id: home
@@ -433,18 +451,22 @@ actions:
   output_nodes:
   - electricity_production_emission_factor
   - electric_heating_emission_factor
-  type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2022, 0], [2030, -44.4590], [2035, -69.1585]]
+  type: simple.CumulativeAdditiveAction
+  forecast_values: [[2022, -4.93989059255608], [2023, -4.93989059255608], [2024, -4.93989059255608],
+    [2025, -4.93989059255608], [2026, -4.93989059255608], [2027, -4.93989059255608],
+    [2028, -4.93989059255608], [2029, -4.93989059255608], [2030, -4.93989059255608],
+    [2031, -4.93989059255608], [2032, -4.93989059255608], [2033, -4.93989059255608],
+    [2034, -4.93989059255608], [2035, -4.93989059255608]]
   unit: g/kWh
-  params:
-  - id: multiplier
-    values:
-      default: 100.0
-    min_value: 0.0
-    max_value: 100.0
-    unit: '%'
-    description: Sähköntuotannon päästökertoimen muutos, prosenttia oletetusta 2022-2035
-    description_en: Change in electricity production emission factor
+#  params:
+#  - id: multiplier
+#    values:
+#      default: 100.0
+#    min_value: 0.0
+#    max_value: 100.0
+#    unit: '%'
+#    description: Sähköntuotannon päästökertoimen muutos, prosenttia oletetusta 2022-2035
+#    description_en: Change in electricity production emission factor
 
 - id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
@@ -708,6 +730,65 @@ actions:
 # Road traffic
 #
 
+- id: change_car_traffic_emission_factor
+  name: Muutos henkilöautoliikenteen päästökertoimessa
+  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  type: simple.CumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  group: transportation
+  forecast_values: [[2022, -9.10308062222222], [2023, -9.10308062222222], [2024, -9.10308062222222],
+    [2025, -9.10308062222222], [2026, -9.10308062222222], [2027, -9.10308062222222],
+    [2028, -9.10308062222222], [2029, -9.10308062222222], [2030, -9.10308062222222],
+    [2031, -6.086059616], [2032, -6.086059616], [2033, -6.086059616], [2034, -6.086059616],
+    [2035, -6.086059616]]
+  output_nodes:
+  - car_traffic_emission_factor
+
+- id: change_van_traffic_emission_factor
+  name: Muutos pakettiautoliikenteen päästökertoimessa
+  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  type: simple.CumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  group: transportation
+  forecast_values: [[2022, -12.2539168533333], [2023, -12.2539168533333], [2024, -12.2539168533333],
+    [2025, -12.2539168533333], [2026, -12.2539168533333], [2027, -12.2539168533333],
+    [2028, -12.2539168533333], [2029, -12.2539168533333], [2030, -12.2539168533333],
+    [2031, -3.676175056], [2032, -3.676175056], [2033, -3.676175056], [2034, -3.676175056],
+    [2035, -3.676175056]]
+  output_nodes:
+  - van_traffic_emission_factor
+
+- id: change_truck_traffic_emission_factor
+  name: Muutos kuorma-autoliikenteen päästökertoimessa
+  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  type: simple.CumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  group: transportation
+  forecast_values: [[2022, -9.72260146], [2023, -9.72260146], [2024, -9.72260146],
+    [2025, -9.72260146], [2026, -9.72260146], [2027, -9.72260146], [2028, -9.72260146],
+    [2029, -9.72260146], [2030, -9.72260146], [2031, -2.692412712], [2032, -2.692412712],
+    [2033, -2.692412712], [2034, -2.692412712], [2035, -2.692412712]]
+  output_nodes:
+  - truck_traffic_emission_factor
+
+- id: change_bus_traffic_emission_factor
+  name: Muutos linja-autoliikenteen päästökertoimessa
+  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  type: simple.CumulativeAdditiveAction
+  quantity: emission_factor
+  unit: g/kWh
+  group: transportation
+  forecast_values: [[2022, -5.66301907075556], [2023, -5.66301907075556], [2024, -5.66301907075556],
+    [2025, -5.66301907075556], [2026, -5.66301907075556], [2027, -5.66301907075556],
+    [2028, -5.66301907075556], [2029, -5.66301907075556], [2030, -5.66301907075556],
+    [2031, -0.70770494112], [2032, -0.70770494112], [2033, -0.70770494112], [2034, -0.70770494112],
+    [2035, -0.70770494112]]
+  output_nodes:
+  - bus_traffic_emission_factor
+
 - id: change_car_traffic_energy
   name: Muutos henkilöautoliikenteen energiankulutuksessa
   description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
@@ -953,6 +1034,15 @@ scenarios:
   - id: road_transportation_emission_trade.enabled
     value: true
 
+  - id: change_car_traffic_emission_factor.enabled
+    value: true
+  - id: change_van_traffic_emission_factor.enabled
+    value: true
+  - id: change_truck_traffic_emission_factor.enabled
+    value: true
+  - id: change_bus_traffic_emission_factor.enabled
+    value: true
+
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.multiplier
@@ -1006,6 +1096,15 @@ scenarios:
   name: Pessimistinen
   name_en: Pessimistic
   all_actions_enabled: false
+  params:
+  - id: change_car_traffic_emission_factor.enabled
+    value: true
+  - id: change_van_traffic_emission_factor.enabled
+    value: true
+  - id: change_truck_traffic_emission_factor.enabled
+    value: true
+  - id: change_bus_traffic_emission_factor.enabled
+    value: true
 
 #######################
 # DATA SOURCES
