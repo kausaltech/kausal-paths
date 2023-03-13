@@ -17,8 +17,7 @@ from paths.graphql_helpers import (
 from . import Node
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .constants import (
-    FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN,
-    YEAR_COLUMN, DecisionLevel
+    FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 )
 from .instance import Instance
 from .metric import DimensionalFlow, DimensionalMetric, Metric
@@ -32,10 +31,10 @@ class InstanceHostname(graphene.ObjectType):
 
 
 class ActionGroupType(graphene.ObjectType):
-    id = graphene.ID()
-    name = graphene.String()
+    id = graphene.ID(required=True)
+    name = graphene.String(required=True)
     color = graphene.String(required=False)
-    actions = graphene.List('nodes.schema.NodeType')
+    actions = graphene.List(graphene.NonNull('nodes.schema.NodeType'), required=True)
 
     @staticmethod
     def resolve_actions(root: ActionGroup, info: GQLInstanceInfo):
@@ -64,7 +63,7 @@ class InstanceType(graphene.ObjectType):
     lead_title = graphene.String()
     lead_paragraph = graphene.String()
     theme_identifier = graphene.String()
-    action_groups = graphene.List(graphene.NonNull(ActionGroupType))
+    action_groups = graphene.List(graphene.NonNull(ActionGroupType), required=True)
     features = graphene.Field(InstanceFeaturesType, required=True)
 
     @staticmethod
@@ -227,7 +226,7 @@ class NodeType(graphene.ObjectType):
     metric_dim = graphene.Field(DimensionalMetricType, required=False)
 
     # TODO: input_datasets, baseline_values, context
-    parameters = graphene.List('params.schema.ParameterInterface')
+    parameters = graphene.List(graphene.NonNull('params.schema.ParameterInterface'), required=True)
 
     # These are potentially plucked from nodes.models.NodeConfig
     short_description = graphene.String()
@@ -327,10 +326,12 @@ class NodeType(graphene.ObjectType):
             return None
 
         df = df.select([*df.primary_keys, FORECAST_COLUMN, m.column_id])
+        if target_node.context.active_normalization:
+            _, df = target_node.context.active_normalization.normalize_output(m, df)
 
         metric = Metric(
             id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=df,
-            unit=target_node.unit
+            unit=df.get_unit(m.column_id)
         )
         return metric
 
@@ -404,24 +405,24 @@ class ScenarioType(graphene.ObjectType):
 
 
 class ActionEfficiency(graphene.ObjectType):
-    action = graphene.Field(NodeType)
-    cost_values = graphene.List(YearlyValue)
-    impact_values = graphene.List(YearlyValue)
+    action = graphene.Field(NodeType, required=True)
+    cost_values = graphene.List(YearlyValue, required=True)
+    impact_values = graphene.List(YearlyValue, required=True)
     efficiency_divisor = graphene.Float()
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):
-    id = graphene.ID()
-    cost_node = graphene.Field(NodeType)
-    impact_node = graphene.Field(NodeType)
-    efficiency_unit = graphene.Field('paths.schema.UnitType')
-    cost_unit = graphene.Field('paths.schema.UnitType')
-    impact_unit = graphene.Field('paths.schema.UnitType')
+    id = graphene.ID(required=True)
+    cost_node = graphene.Field(NodeType, required=True)
+    impact_node = graphene.Field(NodeType, required=True)
+    efficiency_unit = graphene.Field('paths.schema.UnitType', required=True)
+    cost_unit = graphene.Field('paths.schema.UnitType', required=True)
+    impact_unit = graphene.Field('paths.schema.UnitType', required=True)
     plot_limit_efficiency = graphene.Float()
-    invert_cost = graphene.Boolean()
-    invert_impact = graphene.Boolean()
-    label = graphene.String()
-    actions = graphene.List(ActionEfficiency)
+    invert_cost = graphene.Boolean(required=True)
+    invert_impact = graphene.Boolean(required=True)
+    label = graphene.String(required=True)
+    actions = graphene.List(graphene.NonNull(ActionEfficiency), required=True)
 
     @staticmethod
     def resolve_id(root: ActionEfficiencyPair, info: GQLInstanceInfo):
