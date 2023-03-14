@@ -8,7 +8,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
-theme_identifier: default
+theme_identifier: us-longmont
 target_year: 2040
 model_end_year: 2050
 reference_year: 2016
@@ -322,6 +322,7 @@ params:
 emission_sectors:
 - id: net_emissions
   name: Greenhouse gas emissions
+  color: #E22D53
   input_node_dimension:
     label: Emission sectors
   target_year_goal: 6.5
@@ -331,62 +332,7 @@ emission_sectors:
     - year: 2040
       value: 6.5
   is_outcome: true
-  description: '''
-
-- id: transportation_emissions
-  name: Transportation emissions
-#  part_of: net_emissions
-  color: #E22D53
-  input_dataset_processors: [LinearInterpolation]
-
-- id: waste_treatment_emissions
-  name: Waste disposal
-#  part_of: net_emissions
-  color: #F18830
-  category: waste_treatment
-  input_dataset_processors: [LinearInterpolation]
-
-- id: ippu_emissions
-  name: Industrial and commercial process emissions
-#  part_of: net_emissions
-  category: ippu
-  color: #8DAFBC
-  input_dataset_processors: [LinearInterpolation]
-
-- id: afolu_emissions
-  name: Agriculture and forestry emissions
-  category: afolu
-#  part_of: net_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: aviation_emissions
-  name: Aviation
-#  part_of: net_emissions
-  category: aviation
-  color: #A174DE
-  input_dataset_processors: [LinearInterpolation]
-
-- id: food_consumption_emissions
-  name: Food consumption emissions
-  category: food_consumption
-#  part_of: net_emissions
-  color: #BCE59E
-  input_dataset_processors: [LinearInterpolation]
-
-- id: textile_consumption_emissions
-  name: Textile consumption emissions
-  category: textile_consumption
-#  part_of: net_emissions
-  color: #FBCB97
-  input_dataset_processors: [LinearInterpolation]
-
-- id: other_consumption_emissions
-  name: Other consumption emissions
-  category: other_consumption
-#  part_of: net_emissions
-  color: #2AC7C7
-  input_dataset_processors: [LinearInterpolation]
-'''
+  description: Greenhouse gas emissions
 
 nodes:
 - id: population
@@ -584,7 +530,7 @@ nodes:
   input_datasets:
   - longmont/stationary_wood_consumption
   input_dimensions: [use_type]
-  output_dimensions: [use_type]
+  output_dimensions: [energy_carrier, use_type]
 
 - id: emission_factor_wood
   name: Emission factor of wood
@@ -788,6 +734,61 @@ nodes:
     - id: use_type
       flatten: true
   description: '''
+
+EMISSION NODES
+- id: transportation_emissions
+  name: Transportation emissions
+#  part_of: net_emissions
+  color: #E22D53
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_treatment_emissions
+  name: Waste disposal
+#  part_of: net_emissions
+  color: #F18830
+  category: waste_treatment
+  input_dataset_processors: [LinearInterpolation]
+
+- id: ippu_emissions
+  name: Industrial and commercial process emissions
+#  part_of: net_emissions
+  category: ippu
+  color: #8DAFBC
+  input_dataset_processors: [LinearInterpolation]
+
+- id: afolu_emissions
+  name: Agriculture and forestry emissions
+  category: afolu
+#  part_of: net_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name: Aviation
+#  part_of: net_emissions
+  category: aviation
+  color: #A174DE
+  input_dataset_processors: [LinearInterpolation]
+
+- id: food_consumption_emissions
+  name: Food consumption emissions
+  category: food_consumption
+#  part_of: net_emissions
+  color: #BCE59E
+  input_dataset_processors: [LinearInterpolation]
+
+- id: textile_consumption_emissions
+  name: Textile consumption emissions
+  category: textile_consumption
+#  part_of: net_emissions
+  color: #FBCB97
+  input_dataset_processors: [LinearInterpolation]
+
+- id: other_consumption_emissions
+  name: Other consumption emissions
+  category: other_consumption
+#  part_of: net_emissions
+  color: #2AC7C7
+  input_dataset_processors: [LinearInterpolation]
 #
 # TRANSPORTATION
 #
@@ -1102,7 +1103,7 @@ pages:
   type: emission
   node: direct_emissions
   lead_title_en: Development version
-  lead_paragraph_en: This is a test version of the City of Zürich's interactive scenario
+  lead_paragraph_en: This is a test version of the City of Longmont's interactive scenario
     modeling platform for the Net Zero goal. All information on this website is to
     be considered incomplete and experimental.
 

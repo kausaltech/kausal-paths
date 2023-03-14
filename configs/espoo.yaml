@@ -122,7 +122,7 @@ emission_sectors:
   name: Rakennusten lämmityksen päästöt
   # FIXME district p 320 b 175 d 31 should be p 290 b 70 d 13 ## +18
   # oil heating p 75 b 75 d 21. should be p 53 b 0 d 0  ## +21
-  # direct_electric p 50 b 35 d 35. together should be p 83 b 6 d 6 ## +32
+  # direct_electric p 50 b 26 d 26. together should be p 83 b 6 d 6 ## +23
   # geothermal_electric p 5 b 3 d 3. together should be p 83 b 6 d 6
   part_of: net_emissions
   color: '#ff4f57'
@@ -134,7 +134,7 @@ emission_sectors:
 
 - id: transport_emissions
   name: Liikenteen päästöt
-  # FIXME total p 395 b 365 d 388. Sitowise p 190 b 164 d 136.  ## +252
+  # FIXME total p 202 b 184 d 164. Sitowise p 190 b 164 d 136.  ## +28
   part_of: net_emissions
   color: '#014B30'
 
