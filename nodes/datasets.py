@@ -111,7 +111,7 @@ class DVCDataset(Dataset):
                 if col == FORECAST_COLUMN:
                     continue
                 if hasattr(df[col], 'pint'):
-                    assert df[col].pint.units == self.unit
+                    assert df[col].pint.units == self.unit  # FIXME This should check compatibility, not equality.
                 else:
                     df[col] = df[col].astype(float).astype(PintType(self.unit))
 

@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a462033abbb268dbd42149dcd222ce6a0ec62737
+  commit: 80562a5a7422c83dbfc60728529cfc5eafef4667
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -17,7 +17,7 @@ maximum_historical_year: 2021
 emission_unit: t/a
 emission_forecast_from: 2022
 emission_dimensions: [emission_scope]
-emission_dataset: longmont/greenhouse_gas_emissions_by_sector
+emission_dataset: longmont/greenhouse_gas_emissions_by_subsector
 emission_sector_dimension: emission_sectors
 normalizations:
 - normalizer_node: population
@@ -57,16 +57,50 @@ dimensions:
   categories:
   - id: stationary_energy
     label: Stationary energy
+  - id: buildings
+    label: Building energy
+  - id: residential_energy
+    label: Residential energy
+  - id: commercial_industrial_energy
+    label: Commercial and industrial energy
+  - id: stationary_electricity
+    label: Total electricity
+  - id: stationary_natural_gas
+    label: Total natural gas
+  - id: stationary_diesel
+    label: Total diesel
+  - id: fugitive_emissions
+    label: Fugitive emissions
+  - id: leakage_from_natural_gas
+    label: Leakage from natural gas
+  - id: leakage_from_oil_and_gas_wells
+    label: Total oil and gas wells
+  - id: transmission_losses
+    label: Transmission and distribution losses
   - id: transport
     label: Transportation
-  - id: waste
-    label: Waste
-  - id: ippu
-    label: Industrial processes and product use
-  - id: afolu
-    label: Agriculture, forestry, and other land use
+  - id: on_road_transportation
+    label: Total on-road
   - id: aviation
     label: Aviation
+  - id: railways
+    label: Total railways
+  - id: off_road
+    label: Total off-road
+  - id: waste
+    label: Waste
+  - id: waste_disposal
+    label: Waste disposal
+  - id: waste_water_treatment
+    label: Waste water treatment
+  - id: avoided_waste
+    label: Total avoided emissions from recycling
+  - id: ippu
+    label: Industrial processes and product use
+  - id: refridgerant
+    label: Refridgerant emissions
+  - id: afolu
+    label: Agriculture, forestry, and other land use
   - id: food_consumption
     label: Food
   - id: textile_consumption
@@ -112,7 +146,7 @@ dimensions:
     id_match: ^aviation
 
   categories:
-  - id: motorbike
+  - id: motorcycle
     label: Motorcycle
   - id: car
     label: Passenger Car
@@ -242,6 +276,8 @@ dimensions:
     aliases: [Petrol]
   - id: diesel
     label: Diesel
+  - id: ethanol
+    label: Ethanol
   - id: plug_in_hybrid
     label: Plug-in hybrid EV
   - id: kerosene
@@ -336,10 +372,11 @@ emission_sectors:
   is_outcome: true
   description: Greenhouse gas emissions
 
+# Sector emissions
+
 - id: stationary_energy_emissions
-  name: Stationary energy emissions
+  name: Stationary energy emissions  # FIXME There is apparently double counting due to building_emissions
   part_of: net_emissions
-  category: stationary_energy
   color: #E22D53
   input_dataset_processors: [LinearInterpolation]
 
@@ -360,7 +397,6 @@ emission_sectors:
 - id: ippu_emissions
   name: Industrial processes and product use emissions
   part_of: net_emissions
-  category: ippu
   color: #8DAFBC
   input_dataset_processors: [LinearInterpolation]
 
@@ -368,6 +404,82 @@ emission_sectors:
   name: Agriculture,forestry, and other land use emissions
   category: afolu
   part_of: net_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+# Subsector emissions
+
+- id: fugitive_emissions
+  name: Fugitive emissions
+  category: fugitive_emissions
+  color: #8DAFBC
+  part_of: stationary_energy_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_emissions
+  name: Building emissions
+  category: buildings
+  color: #002F96
+  part_of: stationary_energy_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_disposal_emissions
+  name: Waste disposal emissions
+  category: waste_disposal
+  part_of: waste_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_water_treatment_emissions
+  name: Waste water treatment emissions
+  category: waste_water_treatment
+  part_of: waste_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: avoided_emissions_from_recycling
+  name: Avoided emissions from recycling
+  category: avoided_waste
+  part_of: waste_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: refridgerant_emissions
+  name: Refridgerant emissions
+  category: refridgerant
+  part_of: ippu_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: on_road_transportation_emissions
+  name: On-road transportation
+  category: on_road_transportation
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name: Aviation_emissions
+  category: aviation
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: railways_emissions
+  name: Railways emissions
+  category: railways
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: off_road_transportation
+  name: Off-road transportation
+  category: off_road
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: leakage_from_natural_gas_emissions
+  name: Emissions from natural gas leakage
+  category: leakage_from_natural_gas
+  part_of: fugitive_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: leakage_from_oil_and_gas_wells_emissions
+  name: Emissions from leakages from oil and gas wells
+  category: leakage_from_oil_and_gas_wells
+  part_of: fugitive_emissions
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -388,6 +500,32 @@ nodes:
   output_dimensions: [greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]
   historical_values: [[1990, 1], [2021, 1]]
+
+- id: historical_emissions
+  name: Historical emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+  output_dimensions: [emission_scope, emission_sectors]
+  output_nodes:
+  - id: residential_emissions
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy, commercial_industrial_energy]
+
+- id: residential_emissions
+  name: Residential emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, emission_sectors]
+  output_dimensions: [emission_scope, emission_sectors]
+
+#
+# STATIONARY
+#
 
 - id: building_electricity_consumption
   name: Housing and commerce electricity consumption
@@ -437,9 +575,13 @@ nodes:
     from_dimensions:
     - id: site
       flatten: true
-    to_dimensions:
     - id: greenhouse_gases
+      flatten: true
     - id: use_type
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope2]
 
 - id: natural_gas_consumption
   name: Natural gas consumption
@@ -480,9 +622,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    to_dimensions:
     - id: greenhouse_gases
+      flatten: true
     - id: use_type
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
 
 - id: stationary_fuel_consumption
   name: Stationary fuel consumption
@@ -554,9 +700,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    to_dimensions:
     - id: greenhouse_gases
+      flatten: true
     - id: use_type
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
 
 - id: stationary_wood_consumption
   name: Stationary wood consumption
@@ -598,9 +748,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    to_dimensions:
     - id: greenhouse_gases
+      flatten: true
     - id: use_type
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope2]
 
 - id: electricity_loss_fraction
   name: Electricity loss fraction
@@ -652,24 +806,30 @@ nodes:
     - id: use_type
     - id: greenhouse_gases
 
-- id: building_emissions
-  name: Building emissions
-  color: '#002F96'
-  unit: kt/a
-  quantity: emissions
-  type: simple.SectorEmissions
-  input_dimensions: [greenhouse_gases, use_type]
-  output_dimensions: [greenhouse_gases, use_type]
-  output_nodes:
-  - id: stationary_energy_emissions
-    from_dimensions:
-    - id: use_type
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
+#
+# TRANSPORTATION
+#
+
+- id: emission_factor_fuels
+  name: Fuel emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/gal
+  input_datasets:
+  - longmont/emission_factor_fuels
+  input_dimensions: [energy_carrier, greenhouse_gases]
+  output_dimensions: [energy_carrier, greenhouse_gases]
+
+#- id: mileage_by_vehicle_type
+#  name: Mileage by vehicle type
+#  type: simple.AdditiveNode
+#  quantity: emission_factor
+#  unit: miles/gallon
+#  input_datasets:
+#  - longmont/mileage_factor_by_vehicle_type
+#  input_dimensions: [energy_carrier, vehicle_type]
+#  output_dimensions: [energy_carrier, vehicle_type]
+
 
 actions:
 - id: commercial_power_purchase_program
@@ -723,10 +883,8 @@ actions:
   output_nodes:
   - id: building_emissions
     to_dimensions:
-    - id: use_type
-      categories: [residential]
-    - id: greenhouse_gases
-      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope1]
 
 pages:
 - id: home
