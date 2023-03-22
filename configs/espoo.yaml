@@ -641,6 +641,14 @@ actions:
 - id: city_building_heat_optimization
   name: Kaupungin kiinteistöjen lämmityksen optimointi
   name_en: Optimization of heating systems in city-owned buildings
+  description: Toimenpiteet koskevat pääasiassa kaupungin omia ja Espoon Asuntojen
+    rakennuksia. Toimenpiteet kattavat siis vain pienen osan rakennus-
+    kannasta, eikä niiden kustannusvaikutus ole merkittävä.
+    Peruskorjausten yhteydessä tehtävä energiatehokkuuden parantaminen ei
+    välttämättä kasvata kustannuksia. Energiatehokkuustoimenpiteillä on
+    huomattava päästövähennysvaikutus. Lisäksi kokonaisuuden toimia on
+    kohdennettu kaavoituksen keinoin pääosin uudisrakentamiseen, jossa potentiaalia on
+    olemassa olevaan rakennuskantaan nähden vähemmän.
   type: simple.CumulativeAdditiveAction
   quantity: energy
   group: buildings
@@ -705,7 +713,7 @@ actions:
   - industry_fuel_emissions
 
 - id: reduce_machinery_emissions
-  name: Työkoneiden päästöt pienenvät
+  name: Työkoneiden päästöt pienenevät
   name_en: Machinery emissions are reduced
   description: Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän vuoden 2020 tasolla.
     Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 20 prosenttia vuoteen 2035 mennessä. 
@@ -806,7 +814,7 @@ actions:
 - id: change_bus_traffic_energy
   name: Muutos bussiliikenteen energiankulutuksessa
   description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan, että
-    henkilöautoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja 2035 mennessä vuoteen
+    linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja 2035 mennessä vuoteen
     2021 verrattuna. Myös HNE2030-skenaariossa oletetaan kasvuksi 1 % ja 1 % vastaavasti.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
