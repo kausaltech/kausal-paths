@@ -209,7 +209,7 @@ class DimensionalMetric:
         input_nodes = [node for node in node.input_nodes if not isinstance(node, ActionNode)]
         if isinstance(node, AdditiveNode) and len(input_nodes) > 1 and not node.input_dataset_instances:
             df = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
-            cats = [MetricCategory(id=n.id, label=str(n.name), color=n.color, order=n.order) for n in node.input_nodes]
+            cats = [MetricCategory(id=n.id, label=str(n.short_name or n.name), color=n.color, order=n.order) for n in node.input_nodes]
             mdim = MetricDimension(id=NODE_COLUMN, label=_('Sectors'), categories=cats)
             dims.append(mdim)
         else:
