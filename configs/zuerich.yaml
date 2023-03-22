@@ -923,24 +923,24 @@ nodes:
     - id: vehicle_type
       flatten: true
 
-- id: waste_incineration_amount
-  name_de: Amount of incinerated waste
-  name_en: Amount of incinerated waste
-  type: simple.AdditiveNode
-  input_datasets:
-    - id: zuerich/waste_incineration
-      column: amount_of_waste
-      forecast_from: 2023
-  unit: t/a
-  quantity: mass
-  output_dimensions: [waste_incineration_plants]
+# - id: waste_incineration_amount
+#   name_de: Amount of incinerated waste
+#   name_en: Amount of incinerated waste
+#   type: simple.AdditiveNode
+#   input_datasets:
+#     - id: zuerich/waste_incineration
+#       column: amount_of_waste
+#       forecast_from: 2023
+#   unit: t/a
+#   quantity: mass
+#   output_dimensions: [waste_incineration_plants]
 
-- id: waste_incineration_ccs
-  name_de: Share of CO2 captured with CCS
-  name_en: Share of CO2 captured with CCS
-  type: simple.AdditiveNode
-  unit: '%'
-  quantity: ratio
+# - id: waste_incineration_ccs
+#   name_de: Share of CO2 captured with CCS
+#   name_en: Share of CO2 captured with CCS
+#   type: simple.AdditiveNode
+#   unit: '%'
+#   quantity: ratio
 
 # - id: solid_waste_treatment_emissions
 #   label_en: Solid waste treatment emissions
