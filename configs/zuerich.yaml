@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f7684f7b358f9da327517118ea727cfb5f45cf22
+  commit: e456a4322af58f3f507a66121a5f625e6cb04c7f
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -37,6 +37,22 @@ dimensions:
 - id: emission_scope
   label: Emission-scope
   label_en: Emission scopes
+  groups:
+  - id: direct
+    label: Direkte Emissionen
+    label_en: Direct emissions
+    color: '#0f05a0'
+    id_match: ^scope1$
+  - id: indirect
+    label: Indirekte Emissionen
+    label_en: Indirect emissions
+    color: '#6496ff'
+    id_match: ^scope[23]$
+  - id: negative
+    label: Negative Emissionen
+    label_en: Negative emissions
+    color: '#F7A5AF'
+    id_match: ^negative_emissions$
   categories:
   - id: scope1
     label_de: Scope 1
@@ -382,6 +398,17 @@ dimensions:
     label: Geförderter Strom
     label_en: Subsidized electricity
 
+- id: waste_incineration_plants
+  label_en: Waste incineration plants
+  label_de: Kehrichtheizkraftwerke
+  categories:
+  - id: hagenholz
+    label: Hagenholz
+    label_en: Hagenholz
+  - id: josefstrasse
+    label: Josefstrasse
+    label_en: Josefstrasse
+
 params:
 - id: municipality_name
   value: zurich
@@ -397,8 +424,8 @@ emission_sectors:
   goals:
     normalized_by: population
     values:
-      - year: 2040
-        value: 6.5
+    - year: 2040
+      value: 6.5
   is_outcome: true
 
 # - id: direct_emissions
@@ -616,8 +643,11 @@ nodes:
   - zuerich/subsidized_electricity_production_mix
   - zuerich/externally_supplied_electricity
   input_nodes:
-  - id: electricity_consumption
+  - id: building_end_energy_consumption
     tags: [consumption]
+    from_dimensions:
+    - categories: [electricity]
+      flatten: true
 
 # - id: transport_electricity_production_mix
 #   type: ch.zuerich.ElectricityProductionMix
@@ -856,7 +886,9 @@ nodes:
 
 - id: other_road_transport_emissions
   name_de: Treibhausgasemissionen andere Strasseverkehr
-  name_en: Road transportation emissions
+  name_en: Other road transportation emissions
+  short_name_de: Andere Strasseverkehr
+  short_name_en: Other road transportation
   type: ch.zuerich.TransportEmissions
   input_nodes: [transport_emission_factor]
   output_nodes:
@@ -868,6 +900,8 @@ nodes:
 - id: car_emissions
   name_de: Treibhausgasemissionen Personenwagen
   name_en: Car emissions
+  short_name_de: Personenwagen
+  short_name_en: Cars
   type: ch.zuerich.TransportEmissions
   input_nodes: [transport_emission_factor]
   output_nodes:
@@ -879,6 +913,8 @@ nodes:
 - id: other_transport_emissions
   name_de: Treibhausgasemissionen andere Verkehr
   name_en: Other transportation emissions
+  short_name_de: Andere Verkehr
+  short_name_en: Other transportation
   type: ch.zuerich.TransportEmissions
   input_nodes: [transport_emission_factor]
   output_nodes:
@@ -886,6 +922,34 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+
+- id: waste_incineration_amount
+  name_de: Amount of incinerated waste
+  name_en: Amount of incinerated waste
+  type: simple.AdditiveNode
+  input_datasets:
+    - id: zuerich/waste_incineration
+      column: amount_of_waste
+      forecast_from: 2023
+  unit: t/a
+  quantity: mass
+  output_dimensions: [waste_incineration_plants]
+
+- id: waste_incineration_ccs
+  name_de: Share of CO2 captured with CCS
+  name_en: Share of CO2 captured with CCS
+  type: simple.AdditiveNode
+  unit: '%'
+  quantity: ratio
+
+# - id: solid_waste_treatment_emissions
+#   label_en: Solid waste treatment emissions
+#   label_de: Solid waste treatment emissions
+#   type: ch.zuerich.WasteIncinerationEmissions
+#   input_nodes: [incinerated_waste_amount]
+#   input_datasets: [zuerich/waste_incineration, zuerich/waste_incineration_emission_factors]
+
+
 #
 # ------- ACTIONS --------
 #
@@ -897,9 +961,11 @@ actions:
   quantity: energy
   description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
     district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
-  description_de: Werden alle 21 000 Öl- und Gasheizungen mit Erdsonden oder einem
-    Anschluss ans Fernwärmenetz ersetzt, reduzieren sich die direkten Emissionen von
-    Gebäuden um 1.6 tCO<sub>2</sub>eq/(Einw.*a).
+  description_de: 'Das Schwerpunktfeld Heizungsersatz umfasst alle Massnahmen, welche
+    dazu führen, die aktuell 21000 fossil betriebenen Heizungen mit Heizsystemen zu
+    ersetzen, welche mit erneuerbarer Energie betrieben werden. Dafür stehen aktuell
+    folgende Energieträger und Heizsysteme zur Verfügung: Fernwärme, Luft-Wasser-Wärmepumpe,
+    Erdsonde, Holz und Biogas.'
   output_nodes:
   - fossil_fuel_heat_consumption
   - environmental_heat_consumption
@@ -925,16 +991,19 @@ actions:
       - node: building_biofuel_heat_consumption
         categories:
           energy_carrier: wood
+      - node: building_biofuel_heat_consumption
+        categories:
+          energy_carrier: biogas
       amounts:
       - year: 2023
         source_amount: -50
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [50, 80, 16, 10, 15]
       - year: 2025
         source_amount: -70
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [50, 80, 16, 10, 15]
       - year: 2035
         source_amount: -50
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [50, 80, 16, 10, 15]
 
     - source:
         node: fossil_fuel_heat_consumption
@@ -949,16 +1018,129 @@ actions:
       - node: building_biofuel_heat_consumption
         categories:
           energy_carrier: wood
+      - node: building_biofuel_heat_consumption
+        categories:
+          energy_carrier: biogas
       amounts:
       - year: 2023
         source_amount: -50
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [50, 80, 16, 10, 15]
       - year: 2025
         source_amount: -100
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [50, 80, 16, 10, 15]
       - year: 2035
         source_amount: -50
-        dest_amounts: [50, 80, 16, 25]
+        dest_amounts: [50, 80, 16, 10, 15]
+
+- id: building_energy_retrofit
+  name_en: Energetic renovation of buildings
+  name_de: Energetische Sanierung der Gebäudehülle
+  description_de: Wenn jährlich 2% der Gebäude energetisch saniert werden und sich
+    die Wohnfläche pro Person um 7 m2 auf 46 m2 verringert, reduzieren sich die direkten
+    Emissionen von Gebäuden um 0.34 tCO2eq/(Einw.*a).
+  type: linear.ReduceAction
+  quantity: energy
+  output_nodes:
+  - id: district_heat_consumption
+  - id: building_biofuel_heat_consumption
+  - id: fossil_fuel_heat_consumption
+  unit: GWh/a
+  params:
+  - id: reduce
+    unit: GWh/a
+    is_customizable: false
+    value:
+    - target:
+        node: district_heat_consumption
+      amounts:
+      - year: 2023
+        amount: -3
+      - year: 2030
+        amount: -15
+      - year: 2040
+        amount: 0
+    - target:
+        node: building_biofuel_heat_consumption
+        categories:
+          energy_carrier: wood
+      amounts:
+      - year: 2023
+        amount: -2
+      - year: 2035
+        amount: 0
+    - target:
+        node: fossil_fuel_heat_consumption
+        categories:
+          energy_carrier: natural_gas
+      amounts:
+      - year: 2023
+        amount: -20
+      - year: 2035
+        amount: 0
+    - target:
+        node: fossil_fuel_heat_consumption
+        categories:
+          energy_carrier: fuel_oil
+      amounts:
+      - year: 2023
+        amount: -1
+      - year: 2035
+        amount: 0
+
+- id: building_optimisation
+  name_en: Operational optimisation of buildings
+  name_de: Betriebsoptimierung und suffiziente Nutzung
+  description_de: Dieses Schwerpunktfeld umfasst alle Massnahmen, welche zum Ziel
+    haben, dass Gebäude weniger Energie verbrauchen. Dies sind einerseits Effizienzsteigerungen
+    durch Betriebsoptimierungen sowie suffiziente Nutzungsformen von Gebäuden.
+  type: linear.ReduceAction
+  quantity: energy
+  output_nodes:
+  - id: district_heat_consumption
+  - id: building_biofuel_heat_consumption
+  - id: fossil_fuel_heat_consumption
+  unit: GWh/a
+  params:
+  - id: reduce
+    unit: GWh/a
+    is_customizable: false
+    value:
+    - target:
+        node: district_heat_consumption
+      amounts:
+      - year: 2023
+        amount: -3
+      - year: 2030
+        amount: -15
+      - year: 2040
+        amount: 0
+    - target:
+        node: building_biofuel_heat_consumption
+        categories:
+          energy_carrier: wood
+      amounts:
+      - year: 2023
+        amount: -2
+      - year: 2035
+        amount: 0
+    - target:
+        node: fossil_fuel_heat_consumption
+        categories:
+          energy_carrier: natural_gas
+      amounts:
+      - year: 2023
+        amount: -20
+      - year: 2035
+        amount: 0
+    - target:
+        node: fossil_fuel_heat_consumption
+        categories:
+          energy_carrier: fuel_oil
+      amounts:
+      - year: 2023
+        amount: -1
+      - year: 2035
+        amount: 0
 
 - id: cleaner_electricity_production
   name_en: Cleaner electricity production
@@ -1063,63 +1245,9 @@ actions:
         source_amount: -0.05
         dest_amounts: [50]
       - year: 2035
-        source_amount: -0
+        source_amount: 0
         dest_amounts: [50]
 
-- id: building_energy_retrofit
-  name_en: Energetic retrofitting of buildings
-  name_de: Energetische Gebäudesanierungen
-  description_de: Wenn jährlich 2% der Gebäude energetisch saniert werden und sich
-    die Wohnfläche pro Person um 7 m2 auf 46 m2 verringert, reduzieren sich die direkten
-    Emissionen von Gebäuden um 0.34 tCO2eq/(Einw.*a).
-  type: linear.ReduceAction
-  quantity: energy
-  output_nodes:
-  - id: district_heat_consumption
-  - id: building_biofuel_heat_consumption
-  - id: fossil_fuel_heat_consumption
-  unit: GWh/a
-  params:
-  - id: reduce
-    unit: GWh/a
-    is_customizable: false
-    value:
-    - target:
-        node: district_heat_consumption
-      amounts:
-      - year: 2023
-        amount: -3
-      - year: 2030
-        amount: -15
-      - year: 2040
-        amount: 0
-    - target:
-        node: building_biofuel_heat_consumption
-        categories:
-          energy_carrier: wood
-      amounts:
-      - year: 2023
-        amount: -2
-      - year: 2035
-        amount: 0
-    - target:
-        node: fossil_fuel_heat_consumption
-        categories:
-          energy_carrier: natural_gas
-      amounts:
-      - year: 2023
-        amount: -20
-      - year: 2035
-        amount: 0
-    - target:
-        node: fossil_fuel_heat_consumption
-        categories:
-          energy_carrier: fuel_oil
-      amounts:
-      - year: 2023
-        amount: -1
-      - year: 2035
-        amount: 0
 
 # - id: reduce_room_temperature
 #   name_en: Reduced room temperature
