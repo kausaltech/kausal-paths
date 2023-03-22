@@ -22,7 +22,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='datasets'
     )
-    identifier = IdentifierField()
+    identifier = IdentifierField(max_length=150)
     uuid = UUIDIdentifierField()
     years = ArrayField(models.IntegerField())
     name = models.CharField(max_length=200)

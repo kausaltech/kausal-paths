@@ -34,7 +34,7 @@ all_routers = []
 class DatasetSchemaFieldSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     type = serializers.CharField(max_length=50)
-    unit = serializers.CharField(required=False)
+    unit = serializers.CharField(required=False, allow_blank=True)
     format = serializers.CharField(required=False)
 
 
