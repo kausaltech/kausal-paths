@@ -104,7 +104,18 @@ class AdditiveNode(SimpleNode):
                     else:
                         raise NodeError(self, "Metric is not found in metric columns")
                 else:
-                    raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
+                    compatible_cols = [
+                        col for col, unit in df.get_meta().units.items()
+                        if self.is_compatible_unit(unit, self.unit)
+                    ]
+                    if len(compatible_cols) == 1:
+                        df = df.rename({compatible_cols[0]: VALUE_COLUMN})
+                        cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
+                        if FORECAST_COLUMN in df.columns:
+                            cols.append(FORECAST_COLUMN)
+                        df = df.select(cols)
+                    else:
+                        raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
             df = extend_last_historical_value_pl(df, self.get_end_year())
 
