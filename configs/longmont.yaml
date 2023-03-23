@@ -834,7 +834,8 @@ nodes:
 # FIXME How to treat this to avoid double counting?
 - id: equity_share_emissions
   name: Equity share emissions
-  description: PRPA provided data on Longmont's equity share of emissions, which are
+  description: Platte River Power Authority (PRPA) provided data on Longmont's
+    equity share of emissions, which are
     based on the resource mix of all power purchased, generated, and supplied by PRPA
     to it's customers. Longmont's equity share of emissions represents the City's
     26.13% ownership in PRPA, and therefore the same share of responsibility for PRPA's
@@ -865,14 +866,27 @@ nodes:
   input_dimensions: [energy_carrier, greenhouse_gases]
   output_dimensions: [energy_carrier, greenhouse_gases]
 
-- id: vehicle_fuel_efficiency
-  name: Vehicle fuel efficiency
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: miles/gallon
-  input_datasets:
-  - longmont/fuel_consumption_by_vehicle_type
-  input_dimensions: [vehicle_type]
+- id: registered_vehicles
+  name: Registered vehicles
+  type: simple.FixedMultiplierNode
+  quantity: number
+  unit: pcs
+  input_nodes:
+  - population
+  params:
+  - id: multiplier
+    value: 0.8140
+    unit: pcs/person
+    is_customizable: false
+
+#- id: vehicle_fuel_efficiency
+#  name: Vehicle fuel efficiency
+#  type: simple.AdditiveNode
+#  quantity: emission_factor
+#  unit: miles/gallon
+#  input_datasets:
+#  - longmont/fuel_consumption_by_vehicle_type
+#  input_dimensions: [vehicle_type]
 #  output_dimensions: [vehicle_type]
 
 
@@ -1066,7 +1080,7 @@ scenarios:
 
 - id: default
   default: true
-  name: Net Zero 2040
+  name: Climate Action Recommendations
   all_actions_enabled: true
 
 ##################
