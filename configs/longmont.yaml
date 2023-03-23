@@ -27,7 +27,7 @@ normalizations:
   - id: energy
     unit: kWh/cap/a
   - id: mileage
-    unit: km/cap/a
+    unit: miles/cap/a
 features:
   baseline_visible_in_graphs: false
 
@@ -484,12 +484,23 @@ emission_sectors:
 
 nodes:
 - id: population
+  name: Inhabitants
+  description: Population estimates from several sources. (a) 2016 - 2020 population
+    estimates came from the Colorado Demography Office. Spreadsheet on file.
+    (b) According to Longmont's Envision Plan (2016), Longmont's population is expected
+    to grow by 24,165 residents from 2016 numbers by 2035. Population figures between
+    2021 and 2035 assume a linear increase. (c) Population estimates between 2036 and
+    2050 are based off the estimated annual population increase rate for Boulder County
+    between 2035 and 2050. This rate is 0.501%. Raw data was taken from
+    <a href="https://demography.dola.colorado.gov/assets/html/county.html">Colorado
+    Department of Local Affairs</a>.
   type: simple.AdditiveNode
   quantity: population
   unit: cap
-  name: Inhabitants
-  historical_values: [[2010, 86270], [2020, 98885]]
-  forecast_values: [[2030, 98885], [2040, 98885], [2050, 98885]]
+  historical_values: [[2010, 86270], [2016, 92880], [2017, 94461], [2018, 96398],
+    [2019, 97619], [2020, 99129], [2021, 100323]]
+  forecast_values: [[2022, 101517], [2023, 102711], [2024, 103906], [2025, 105100],
+    [2030, 111072], [2035, 117045], [2040, 120006], [2045, 123042], [2050, 126156]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: global_warming_potential_100a
@@ -553,6 +564,7 @@ nodes:
   unit: t/MWh
   input_datasets:
   - longmont/electricity_emission_factor
+  input_dimensions: [site, greenhouse_gases]
   output_dimensions: [site, greenhouse_gases]
 
 - id: electricity_consumption_emissions
@@ -674,14 +686,6 @@ nodes:
     11) PRPA emission factor and transmission and distribution loss rate for 2021 was provided by
     Francie Jaffe. Email on file. Emissions factor value represents Longmont's load share emissions
     rate without unbundled RECs. 
-    12) PRPA provided data on Longmont's equity share of emissions, which are based on the resource
-    mix of all power purchased, generated, and supplied by PRPA to it's customers. Longmont's equity
-    share of emissions represents the City's 26.13% ownership in PRPA, and therefore the same share
-    of responsibility for PRPA's emissions generated in 2021. This equity share value is provided
-    here for information only, and is not included in GPC totals. The use of electricity supplied
-    by PRPA in Longmont (i.e., Longmont's load share emissions) is included in the calculation of
-    total PRPA  emissions. To avoid double counting the emissions associated with the electricity
-    consumed in Longmont, Longmont's additional equity share emissions are calculated in cell E90. 
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: t/a
@@ -806,6 +810,44 @@ nodes:
     - id: use_type
     - id: greenhouse_gases
 
+- id: equity_share_emission_factor
+  name: Equity share emission factor (PRPA)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/MWh
+  historical_values: [[2016, 0.653425619265069], [2017, 0.634943792208221], [2018, 0.634170819259509],
+    [2019, 0.634622024854203], [2020, 0.630074879896273], [2021, 0.597542340000648]]
+  forecast_values: [[2022, 0.612973049990462], [2023, 0.59667980157133], [2024, 0.533300661663419],
+    [2025, 0.535192439962255], [2030, 0.0378296375207333], [2035, 0.0329530007531907],
+    [2040, 0.0487305634399853], [2045, 0.0487305634399853], [2050, 0.0487305634399853]]
+
+- id: equity_share_electricity_use
+  name: Equity share electricity use
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  historical_values: [[2016, 1210910586.71672], [2017, 1201888286.76237], [2018, 1215917061.77312],
+  [2019, 1212866104.25016], [2020, 1219903307.18383], [2021, 1226940510.11749]]
+  foreast_values: [[2022, 1233977713.05115], [2030, 1290275336.52046], [2050, 1431019395.19372]]
+
+# FIXME How to treat this to avoid double counting?
+- id: equity_share_emissions
+  name: Equity share emissions
+  description: PRPA provided data on Longmont's equity share of emissions, which are based on the resource
+    mix of all power purchased, generated, and supplied by PRPA to it's customers. Longmont's equity
+    share of emissions represents the City's 26.13% ownership in PRPA, and therefore the same share
+    of responsibility for PRPA's emissions generated in 2021. This equity share value is provided
+    here for information only, and is not included in GPC totals. The use of electricity supplied
+    by PRPA in Longmont (i.e., Longmont's load share emissions) is included in the calculation of
+    total PRPA  emissions. To avoid double counting the emissions associated with the electricity
+    consumed in Longmont, Longmont's additional equity share emissions are calculated in cell E90. 
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  input_nodes:
+  - equity_share_emission_factor
+  - equity_share_electricity_use
+
 #
 # TRANSPORTATION
 #
@@ -820,13 +862,13 @@ nodes:
   input_dimensions: [energy_carrier, greenhouse_gases]
   output_dimensions: [energy_carrier, greenhouse_gases]
 
-#- id: mileage_by_vehicle_type
-#  name: Mileage by vehicle type
+#- id: vehicle_efficiency
+#  name: Vehicle efficiency
 #  type: simple.AdditiveNode
 #  quantity: emission_factor
 #  unit: miles/gallon
 #  input_datasets:
-#  - longmont/mileage_factor_by_vehicle_type
+#  - longmont/fuel_concumption_by_vehicle_type
 #  input_dimensions: [energy_carrier, vehicle_type]
 #  output_dimensions: [energy_carrier, vehicle_type]
 
@@ -886,6 +928,103 @@ actions:
     - id: emission_scope
       categories: [scope1]
 
+# FIXME Should we use emission factors from the inventory file or scenario model file? They do not match.
+- id: reduce_electricity_emission_factor
+  name: Reduce electricity emission factors
+  description: <p>Xcel emission factors for 2016 - 2020 were provided in Xcel's
+    Community Energy Reports. Xcel Energy has committed to reducing carbon emissions
+    80% by 2030 based on a 2005 baseline and to being a zero-carbon electric utility
+    by 2050. While this goal applies to Xcel's entire territory and carbon emissions,
+    Xcel noted that Colorado's specific goal is very close and that emission factors
+    follow the same trajectory; hence, Xcel's corporate goal could be reasonably
+    applied to Colorado's emission factors. Based on Xcel's goals, the Xcel 2030
+    emissions factor will be 370 lbs. CO2/MWh or 0.168 mt CO2e/MWh (this represents
+    an 80% reduction in the utility's 2005 emissions factor of 1,849 lbs. CO2/MWh or
+    0.843 mt CO2e/MWh). Per recommendation of Xcel, to account for N2O and CH4 we
+    multiplied the CO2 emission factor included in the Community Energy Reports by 1.002.</p>
+    <p>LPC's emission factors for both the BAU and 100% renewable energy emission
+    factor were taken from Group 14's Longmont Policy Tool.</p>
+    <p>BAU Electricity Emission Factors represent the BAU scenario without LPC
+    commitment for 100% renewable electricity based on the 2020 IRP. Emission Factors
+    were selected based on the assumption of not including what is sold to other communities.</p>
+    <p>The average electricity emission factor was determined based on the proportion
+    of electricity consumed in Longmont from each utility in 2016 and in 2018.
+    Electricity consumption data taken from Longmont's 2016 GHG inventory was
+    used to calculate the average EF for 2016 and 2-17. In 2016, 768,023,177
+    total kWh consumed; 453,577 kWh from Xcel Energy; and 767,569,600 kWh from LPC.
+    This resulted in the following breakdown of energy provided versus total
+    energy consumed, 0.06% by Xcel Energy and 99.94% by LPC. For 2018 through 2050
+    the proportion of electricity provided by each utility in 2018 was used to
+    calculate the average EF. Xcel provided 0.0003% of Longmont's electricity
+    in 2018 and LPC provided 99.997%.</p>
+  type: linear.ReduceAction
+  quantity: emission_factor
+  unit: t/MWh
+  output_nodes:
+  - electricity_emission_factor
+  params:
+  - id: reduce
+    unit: t/MWh
+    is_customizable: false
+    value:
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: xcel_energy
+      amounts:
+      - year: 2023
+        amount: -0.037675
+      - year: 2030
+        amount: -0.037675
+      - year: 2031
+        amount: -0.0084168
+      - year: 2050
+        amount: -0.0084168
+
+- id: longmont_power_renewables
+  name: Longmont Power with 100 % renewables
+  description: <p>To model the impact of a 100% renewable goal by 2030, electricity emission
+    factors from LPC were changed to reflect a 0 MT CO2e/MWh by 2030. Values between
+    2020 and 2030 were taken from Group 14's Longmont Policy Tool. For PRPA's
+    assumptions, see Email re 2019 EF Calculations for PRPA. Xcel provides
+    0.01% - 0.06% of total energy to Longmont and has committed to a 80% reduction
+    by 2030; these numbers were not updated.</p>
+  type: linear.ReduceAction
+  quantity: emission_factor
+  unit: t/MWh
+  output_nodes:
+  - electricity_emission_factor
+  params:
+  - id: reduce
+    unit: t/MWh
+    is_customizable: false
+    value:
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: longmont_power
+      amounts:
+      - year: 2023
+        amount: -0.068625
+      - year: 2030
+        amount: -0.068650
+      - year: 2031
+        amount: 0
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: various
+      amounts:
+      - year: 2023
+        amount: -0.0626
+      - year: 2030
+        amount: -0.0625
+      - year: 2031
+        amount: 0
+
 pages:
 - id: home
   name: Longmont Greenhouse Gas Inventory
@@ -893,13 +1032,37 @@ pages:
   type: emission
   node: direct_emissions
   lead_title_en: Development version
-  lead_paragraph_en: This is a test version of the City of Longmont's interactive
+  lead_paragraph_en: <p>This is a test version of the City of Longmont's interactive
     scenario modeling platform for the Net Zero goal. All information on this website
-    is to be considered incomplete and experimental.
+    is to be considered incomplete and experimental.</p>
+    <p>The goal of this tool is to provide a transparent and defensible calculation
+    methodology for estimating the potential of GHG emission reduction strategies
+    and interactive data visualizations to represent the emission reduction potential
+    of those strategies.</p>
+    <p><b>Background</b></p>
+    <p>This spreadsheet compiles strategy information and associated assumptions
+    and data to estimate GHG emission reductions from key building energy, electric
+    grid, renewable energy, mobile, solid waste, and oil and gas strategies.
+    Previous versions of this model based emission reductions  on Longmont's "core"
+    emissions, which include emissions from electricity, natural gas, gasoline,
+    solid waste, and oil wells. These emission sources are the main focus of the
+    GHG reduction strategies and make up approximately 83% of Longmont's total
+    emissions in 2016 as reported in the Final_City of Longmont 2016 GHG Inventory
+    Workbook. This updated version of the model bases emissions reductions on
+    Longmont's total emissions. This update also added emission values from
+    Longmont's 2019 emissions inventory as reported in the
+    FINAL_Longmont_2019_Inventory_060220 workbook.</p>
+
+- id: updating
+  name: Updating Guide
+  path: /updating
 
 scenarios:
 - id: baseline
   name: Baseline
+  params:
+  - id: reduce_electricity_emission_factor.enabled
+    value: true
 
 - id: default
   default: true
