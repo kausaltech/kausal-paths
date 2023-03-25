@@ -557,6 +557,28 @@ nodes:
   input_dimensions: [use_type, site]
   output_dimensions: [use_type, site]
 
+- id: change_xcel_electricity_emission_factor
+  name: Expected change in Xcel Energy electricity emission factors
+  description: Although most of Longmont’s electricity is provided by Longmont
+    Power & Communications and Platte River Power Authority, there is a small
+    portion that is from Xcel Energy. Xcel Energy has committed to reducing carbon
+    emissions 80% by 2030 from a 2005 baseline and to being a zero-carbon electric
+    utility by 2050. This target and goal is integrated into Longmont’s future
+    emission projections.
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/MWh
+  historical_values: [[2016, 0], [2021, 0]]
+  forecast_values: [[2030, -0.2759508], [2050, -0.4442868]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+      categories: [co2]
+    - id: site
+      categories: [xcel_energy]
+
 - id: electricity_emission_factor
   name: Emission factor of electricity production
   type: simple.AdditiveNode
@@ -564,8 +586,52 @@ nodes:
   unit: t/MWh
   input_datasets:
   - longmont/electricity_emission_factor
+  input_dataset_processors: [LinearInterpolation]
   input_dimensions: [site, greenhouse_gases]
   output_dimensions: [site, greenhouse_gases]
+  output_nodes:
+  - id: equity_share_emissions
+    from_dimensions:
+    - id: site
+      categories: [longmont_power]
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+
+# Building model, updated building code
+# Floor area increses by B32 every year. categories residential, commercial
+# Energy use intensity EUI improves every three years to the most recent IECC(?)
+# Most recent IECC improves by C34 annually
+# Existing building go through energy improvement 1 %
+# New buildings: 90 % are compliant and have X % lower energy consumption
+# Electricity and gas separately, for residential and commercial
+# Energy saving = affected area * saved energy factor * compliant fraction; cumulatively
+# Savings separately for new and existing buildings
+# Emissions = energy * emission factors for electricity or natural gas (per ghg gas)
+
+# Develop beyond bulding code
+# New buildings only
+# Estimated savings beyond IECC: goes from 0 to 100 % between 2017 and 2030
+# energy efficiency = EUI with most recent IECC * (1-savings)
+# Natural gas savings: subtract the impacts of electrification of heating
+# Emissions = as above
+
+# Report benchmark energy use
+# Commercial area over 20000 sqft (increases by B33 every year)
+# Percent participation: goes non-linearly fom 88 to 99 % between 2023 and  2029
+# Percent saving: goe non-linearly from 2.4 to 0 % between 2023 and 2019; cumulatively
+# Emissions = as above
+
+# Expand the Efficiency Works Program
+# Percent savings: after gradual increase 2016-2025, is constant C55.
+# Energy = savings * total electricity consumption BAU!M44 (residence, commercial + losses)
+# Emissions = as above
+
+# Electrify buildings
+# If time > electrification start year, then use model input values for saving estimates
+# Emission reduction is estimated to come from reduced natural gas, and the respective
+# amount of additional electricity consumption is then added (with a factor conversion,
+# but we want to rather use floor area changes)
 
 - id: electricity_consumption_emissions
   name: Electricity consumption emissions
@@ -810,18 +876,6 @@ nodes:
     - id: use_type
     - id: greenhouse_gases
 
-- id: equity_share_emission_factor
-  name: Equity share emission factor (PRPA)
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/MWh
-  historical_values: [[2016, 0.653425619265069], [2017, 0.634943792208221], [2018,
-      0.634170819259509], [2019, 0.634622024854203], [2020, 0.630074879896273], [
-      2021, 0.597542340000648]]
-  forecast_values: [[2022, 0.612973049990462], [2023, 0.59667980157133], [2024, 0.533300661663419],
-    [2025, 0.535192439962255], [2030, 0.0378296375207333], [2035, 0.0329530007531907],
-    [2040, 0.0487305634399853], [2045, 0.0487305634399853], [2050, 0.0487305634399853]]
-
 - id: equity_share_electricity_use
   name: Equity share electricity use
   type: simple.AdditiveNode
@@ -831,10 +885,12 @@ nodes:
     [2019, 1212866104.25016], [2020, 1219903307.18383], [2021, 1226940510.11749]]
   foreast_values: [[2022, 1233977713.05115], [2030, 1290275336.52046], [2050, 1431019395.19372]]
 
-# FIXME How to treat this to avoid double counting?
 - id: equity_share_emissions
   name: Equity share emissions
-  description: Platte River Power Authority (PRPA) provided data on Longmont's
+  description: <p>Informational only item. These are the emissions that are attributable
+    to Longmont’s ownership of what Platte River Power Authority sells outside of the four
+    owner communities.</p>
+    <p>Platte River Power Authority (PRPA) provided data on Longmont's
     equity share of emissions, which are
     based on the resource mix of all power purchased, generated, and supplied by PRPA
     to it's customers. Longmont's equity share of emissions represents the City's
@@ -842,14 +898,13 @@ nodes:
     emissions generated in 2021. This equity share value is provided here for information
     only, and is not included in GPC totals. The use of electricity supplied by PRPA
     in Longmont (i.e., Longmont's load share emissions) is included in the calculation
-    of total PRPA  emissions. To avoid double counting the emissions associated with
-    the electricity consumed in Longmont, Longmont's additional equity share emissions
-    are calculated in cell E90.
+    of total PRPA emissions.</p>
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: t/a
+  is_outcome: true
+  output_dimensions: [greenhouse_gases]
   input_nodes:
-  - equity_share_emission_factor
   - equity_share_electricity_use
 
 #
@@ -891,6 +946,15 @@ nodes:
 
 
 actions:
+
+#- id: updated_building_code
+#  node: Use updated building code and enforce
+#  decription: Adopt and enforce the latest IECC every year a new IECC is released.
+#  type: simple.AdditiveAction
+#  quantity: energy
+#  unit: kWh/a
+#  forecast_values: [[2023, 0], [2050, 0]]
+
 - id: commercial_power_purchase_program
   name: Commercial power purchase program
   type: simple.CumulativeAdditiveAction
@@ -945,67 +1009,24 @@ actions:
     - id: emission_scope
       categories: [scope1]
 
-# FIXME Should we use emission factors from the inventory file or scenario model file? They do not match.
-- id: reduce_electricity_emission_factor
-  name: Reduce electricity emission factors
-  description: <p>Xcel emission factors for 2016 - 2020 were provided in Xcel's Community
-    Energy Reports. Xcel Energy has committed to reducing carbon emissions 80% by
-    2030 based on a 2005 baseline and to being a zero-carbon electric utility by 2050.
-    While this goal applies to Xcel's entire territory and carbon emissions, Xcel
-    noted that Colorado's specific goal is very close and that emission factors follow
-    the same trajectory; hence, Xcel's corporate goal could be reasonably applied
-    to Colorado's emission factors. Based on Xcel's goals, the Xcel 2030 emissions
-    factor will be 370 lbs. CO2/MWh or 0.168 mt CO2e/MWh (this represents an 80% reduction
-    in the utility's 2005 emissions factor of 1,849 lbs. CO2/MWh or 0.843 mt CO2e/MWh).
-    Per recommendation of Xcel, to account for N2O and CH4 we multiplied the CO2 emission
-    factor included in the Community Energy Reports by 1.002.</p> <p>LPC's emission
-    factors for both the BAU and 100% renewable energy emission factor were taken
-    from Group 14's Longmont Policy Tool.</p> <p>BAU Electricity Emission Factors
-    represent the BAU scenario without LPC commitment for 100% renewable electricity
-    based on the 2020 IRP. Emission Factors were selected based on the assumption
-    of not including what is sold to other communities.</p> <p>The average electricity
-    emission factor was determined based on the proportion of electricity consumed
-    in Longmont from each utility in 2016 and in 2018. Electricity consumption data
-    taken from Longmont's 2016 GHG inventory was used to calculate the average EF
-    for 2016 and 2-17. In 2016, 768,023,177 total kWh consumed; 453,577 kWh from Xcel
-    Energy; and 767,569,600 kWh from LPC. This resulted in the following breakdown
-    of energy provided versus total energy consumed, 0.06% by Xcel Energy and 99.94%
-    by LPC. For 2018 through 2050 the proportion of electricity provided by each utility
-    in 2018 was used to calculate the average EF. Xcel provided 0.0003% of Longmont's
-    electricity in 2018 and LPC provided 99.997%.</p>
-  type: linear.ReduceAction
-  quantity: emission_factor
-  unit: t/MWh
-  output_nodes:
-  - electricity_emission_factor
-  params:
-  - id: reduce
-    unit: t/MWh
-    is_customizable: false
-    value:
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-          site: xcel_energy
-      amounts:
-      - year: 2023
-        amount: -0.037675
-      - year: 2030
-        amount: -0.037675
-      - year: 2031
-        amount: -0.0084168
-      - year: 2050
-        amount: -0.0084168
-
+# FIXME Francie: would it be possible to have both an option where someone could see the model
+# go to 0 and then also go to 90% renewable? I believe the projection is the exact same,
+# but instead of dropping to 0 in 2030, the emission factor drops to .034. Also as I
+# mentioned in the meeting, this emission factor includes our participation in the
+# renewable power purchase program so that does not need to be listed separately.
 - id: longmont_power_renewables
   name: Longmont Power with 100 % renewables
-  description: To model the impact of a 100% renewable goal by 2030, electricity
-    emission factors from LPC were changed to reflect a 0 MT CO2e/MWh by 2030. Values
+  description: <p>On January 9th, 2018, City Council passed a resolution to commit Longmont
+    to 100% renewable electric energy supply by 2030. To model this impact, the City uses
+    a projection from Platte River Power Authority on the future emission factors until 2030
+    and then drops the emission factor to 0 in 2030 to reflect achieving the 100% renewable goal.</p>
+    <p>According to Platte River Power Authority’s  most recent integrated resource plan,
+    existing technology will only help Platte River reach 90% noncarbon by 2030. Emerging
+    technologies will need to be developed to achieve the 100% noncarbon target.</p>
+    <p>To model the impact of a 100% renewable goal by 2030, electricity
+    emission factors from LPC were changed to reflect almost a 0 metric ton CO2e/MWh by 2030. Values
     between 2020 and 2030 were taken from Group 14's Longmont Policy Tool. For PRPA's
-    assumptions, see Email re 2019 EF Calculations for PRPA. Xcel provides 0.01% -
-    0.06% of total energy to Longmont and has committed to a 80% reduction by 2030;
-    these numbers were not updated.
+    assumptions, see Email re 2019 EF Calculations for PRPA.</p>
   type: linear.ReduceAction
   quantity: emission_factor
   unit: t/MWh
@@ -1023,9 +1044,9 @@ actions:
           site: longmont_power
       amounts:
       - year: 2023
-        amount: -0.068625
+        amount: -0.064875
       - year: 2030
-        amount: -0.068650
+        amount: -0.064875
       - year: 2031
         amount: 0
     - target:
@@ -1035,9 +1056,9 @@ actions:
           site: various
       amounts:
       - year: 2023
-        amount: -0.0626
+        amount: -0.05875
       - year: 2030
-        amount: -0.0625
+        amount: -0.05875
       - year: 2031
         amount: 0
 
@@ -1074,9 +1095,6 @@ pages:
 scenarios:
 - id: baseline
   name: Baseline
-  params:
-  - id: reduce_electricity_emission_factor.enabled
-    value: true
 
 - id: default
   default: true
