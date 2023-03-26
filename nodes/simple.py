@@ -101,6 +101,10 @@ class AdditiveNode(SimpleNode):
                 elif metric is not None:
                     if metric in df.columns:
                         df = df.rename({metric: VALUE_COLUMN})
+                        cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
+                        if FORECAST_COLUMN in df.columns:
+                            cols.append(FORECAST_COLUMN)
+                        df = df.select(cols)
                     else:
                         raise NodeError(self, "Metric is not found in metric columns")
                 else:

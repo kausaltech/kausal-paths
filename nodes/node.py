@@ -1214,7 +1214,8 @@ class Node:
 
             ndf_meta = node_df.get_meta()
             if set(ndf_meta.dim_ids) != set(meta.dim_ids):
-                raise NodeError(self, "Dimensions do not match with %s" % node.id)
+                raise NodeError(self, "Dimensions do not match with %s (%s vs. %s)" % (node.id,
+                    ndf_meta.dim_ids, meta.dim_ids))
             df = df.paths.add_with_dims(node_df, how='outer')
 
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])

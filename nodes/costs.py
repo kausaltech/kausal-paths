@@ -77,7 +77,7 @@ def compute_exponential(
     return df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
 
 
-class ExponentialNode(SimpleNode):
+class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for each category
     allowed_parameters = [
         NumberParameter(
             local_id='current_value',
