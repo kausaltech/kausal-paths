@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f233504c9665605054a80ae4334dc804e30e9549
+  commit: ac7b507ab0e1a3b0a3c298cb4b93e8e24f49c816
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -486,13 +486,12 @@ nodes:
 - id: population
   name: Inhabitants
   description: Population estimates from several sources. (a) 2016 - 2020 population
-    estimates came from the Colorado Demography Office. Spreadsheet on file.
-    (b) According to Longmont's Envision Plan (2016), Longmont's population is expected
-    to grow by 24,165 residents from 2016 numbers by 2035. Population figures between
-    2021 and 2035 assume a linear increase. (c) Population estimates between 2036 and
-    2050 are based off the estimated annual population increase rate for Boulder County
-    between 2035 and 2050. This rate is 0.501%. Raw data was taken from
-    <a href="https://demography.dola.colorado.gov/assets/html/county.html">Colorado
+    estimates came from the Colorado Demography Office. Spreadsheet on file. (b) According
+    to Longmont's Envision Plan (2016), Longmont's population is expected to grow
+    by 24,165 residents from 2016 numbers by 2035. Population figures between 2021
+    and 2035 assume a linear increase. (c) Population estimates between 2036 and 2050
+    are based off the estimated annual population increase rate for Boulder County
+    between 2035 and 2050. This rate is 0.501%. Raw data was taken from <a href="https://demography.dola.colorado.gov/assets/html/county.html">Colorado
     Department of Local Affairs</a>.
   type: simple.AdditiveNode
   quantity: population
@@ -538,15 +537,56 @@ nodes:
 # STATIONARY
 #
 
+- id: building_floor_area
+  name: Building floor area
+  type: simple.AdditiveNode # costs.ExponentialNode # FIXME add functionality for increase for each category
+  quantity: floor_area
+  unit: ft**2
+  input_datasets: 
+  - longmont/building_foor_area
+  input_dimensions: [use_type]
+  output_dimensions: [use_type]
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: use_type
+    - id: site
+      categories: [longmont_power]
+  - id: building_natural_gas_consumption
+    to_dimensions:
+    - id: use_type
+
+# Electricity
+
+- id: building_heating_electricity_factor
+  name: Building electricity factor EUI
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - longmont/building_energy_factor
+  params:
+  - id: metric
+    value: electricity
+  input_dimensions: [use_type]
+  output_dimensions: [use_type]
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: use_type
+    - id: site
+      categories: [longmont_power]
+
 - id: building_electricity_consumption
   name: Housing and commerce electricity consumption
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
   input_datasets:
   - longmont/stationary_electricity_use
   output_nodes:
   - electricity_consumption
+  input_dimensions: [use_type, site]
   output_dimensions: [use_type, site]
 
 - id: electricity_consumption
@@ -559,12 +599,11 @@ nodes:
 
 - id: change_xcel_electricity_emission_factor
   name: Expected change in Xcel Energy electricity emission factors
-  description: Although most of Longmont’s electricity is provided by Longmont
-    Power & Communications and Platte River Power Authority, there is a small
-    portion that is from Xcel Energy. Xcel Energy has committed to reducing carbon
-    emissions 80% by 2030 from a 2005 baseline and to being a zero-carbon electric
-    utility by 2050. This target and goal is integrated into Longmont’s future
-    emission projections.
+  description: Although most of Longmont’s electricity is provided by Longmont Power
+    & Communications and Platte River Power Authority, there is a small portion that
+    is from Xcel Energy. Xcel Energy has committed to reducing carbon emissions 80%
+    by 2030 from a 2005 baseline and to being a zero-carbon electric utility by 2050.
+    This target and goal is integrated into Longmont’s future emission projections.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/MWh
@@ -619,7 +658,7 @@ nodes:
 # Report benchmark energy use
 # Commercial area over 20000 sqft (increases by B33 every year)
 # Percent participation: goes non-linearly fom 88 to 99 % between 2023 and  2029
-# Percent saving: goe non-linearly from 2.4 to 0 % between 2023 and 2019; cumulatively
+# Percent saving: goes non-linearly from 2.4 to 0 % between 2023 and 2029; cumulatively
 # Emissions = as above
 
 # Expand the Efficiency Works Program
@@ -628,7 +667,7 @@ nodes:
 # Emissions = as above
 
 # Electrify buildings
-# If time > electrification start year, then use model input values for saving estimates
+# If time > electrification start year 2023, then use model input values for saving estimates
 # Emission reduction is estimated to come from reduced natural gas, and the respective
 # amount of additional electricity consumption is then added (with a factor conversion,
 # but we want to rather use floor area changes)
@@ -661,15 +700,34 @@ nodes:
     - id: emission_scope
       categories: [scope2]
 
-- id: natural_gas_consumption
-  name: Natural gas consumption
+# Natural gas
+
+- id: building_heating_natural_gas_factor
+  name: Building natural gas factor EUI
   type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: thm/ft**2/a
+  input_datasets:
+  - longmont/building_energy_factor
+  params:
+  - id: metric
+    value: natural_gas
+  input_dimensions: [use_type]
+  output_dimensions: [use_type]
+  output_nodes:
+  - id: building_natural_gas_consumption
+    to_dimensions:
+    - id: use_type
+
+- id: building_natural_gas_consumption
+  name: Housing and commerce natural gas consumption
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: Mthm/a
   input_datasets:
   - longmont/stationary_natural_gas_use
-  input_dimensions: [use_type, energy_carrier]
-  output_dimensions: [use_type, energy_carrier]
+  input_dimensions: [use_type]
+  output_dimensions: [use_type]
 
 - id: emission_factor_natural_gas
   name: Emission factor of natural gas
@@ -685,12 +743,13 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: t/a
-  output_dimensions: [greenhouse_gases, use_type, energy_carrier]
+  output_dimensions: [use_type, greenhouse_gases, energy_carrier]
   input_nodes:
-  - id: natural_gas_consumption
+  - id: building_natural_gas_consumption
     to_dimensions:
     - id: use_type
     - id: energy_carrier
+      categories: [natural_gas]
   - id: emission_factor_natural_gas
     to_dimensions:
     - id: greenhouse_gases
@@ -708,8 +767,10 @@ nodes:
     - id: emission_scope
       categories: [scope1]
 
+# Other fuels
+
 - id: stationary_fuel_consumption
-  name: Stationary fuel consumption
+  name: Other stationary fuel consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: gal/a
@@ -729,29 +790,30 @@ nodes:
 
 - id: stationary_fuel_consumption_emissions
   name: Stationary fuel consumption emissions
-  description: 1) Stationary Diesel Use data was provided by Adam Wozniak at CDPHE. Spreadsheet on file.
-    2) Xcel Energy emission factor, electricity and natural gas usage data, and renewable energy data
-    is from Xcel's 2021 Community Energy Report for Longmont, on file. 
-    3) Longmont Power & Communications data provided by Chuck Finleon. PDF on file. Per Francie Jaffe.
-    The commercial buildings in Longmont's Weld County portion consumed 31,000,000 kWh in 2021.
-    4) T&D losses are calculated for Xcel and Longmont based on the EIA 861
-    (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically the Utility
-    Operational Data_2021. Spreadsheet on file.
-    5) Propane data provided by Matt Hanson with FerrellGas. Spreadsheet on file.
-    6) Houses heated with wood were pulled from the US Census Bureau, data on file. It was assumed
-    that all of the houses heated by wood in Longmont fell within the Boulder County portion of Longmont.
-    7) Longmont Power and Communications data was provided in an email by Chuck Finleon with
-    Longmont Power & Communications. PDF on file.
-    8) Longmont Power & Communications and Lyons Municipal rooftop solar data was provided in kW of
-    capacity rather than kWh generated. NREL's PVWatts wasused to estimate kWh generated by rooftop
-    solar systems. PDF of results on file. See https://pvwatts.nrel.gov/
-    10) Due to Xcel's 15/15 rule, with less than 15 customers in the commercial and residential
-    data sets they cannot provide usage for those customers to avoid violating privacy concerns.
-    Therefore Lotus applied the average residential and commercial kWh use from LPC to the 7
-    residential and commercial customers (respectively) in Xcel territory to estimate use.
-    11) PRPA emission factor and transmission and distribution loss rate for 2021 was provided by
-    Francie Jaffe. Email on file. Emissions factor value represents Longmont's load share emissions
-    rate without unbundled RECs. 
+  description: <p>1) Stationary Diesel Use data was provided by Adam Wozniak at CDPHE.
+    Spreadsheet on file.</p> <p>2) Xcel Energy emission factor, electricity and natural
+    gas usage data, and renewable energy data is from Xcel's 2021 Community Energy
+    Report for Longmont, on file.</p> <p>3) Longmont Power & Communications data provided
+    by Chuck Finleon. PDF on file. Per Francie Jaffe. The commercial buildings in
+    Longmont's Weld County portion consumed 31,000,000 kWh in 2021.</p> <p>4) T&D
+    losses are calculated for Xcel and Longmont based on the EIA 861 (https://www.eia.gov/electricity/data/eia861/)
+    reported data. Specifically the Utility Operational Data_2021. Spreadsheet on
+    file.</p> <p>5) Propane data provided by Matt Hanson with FerrellGas. Spreadsheet
+    on file.</p> <p>6) Houses heated with wood were pulled from the US Census Bureau,
+    data on file. It was assumed that all of the houses heated by wood in Longmont
+    fell within the Boulder County portion of Longmont.</p> <p>7) Longmont Power and
+    Communications data was provided in an email by Chuck Finleon with Longmont Power
+    & Communications. PDF on file.</p> <p>8) Longmont Power & Communications and Lyons
+    Municipal rooftop solar data was provided in kW of capacity rather than kWh generated.
+    NREL's PVWatts wasused to estimate kWh generated by rooftop solar systems. PDF
+    of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due to Xcel's 15/15
+    rule, with less than 15 customers in the commercial and residential data sets
+    they cannot provide usage for those customers to avoid violating privacy concerns.
+    Therefore Lotus applied the average residential and commercial kWh use from LPC
+    to the 7 residential and commercial customers (respectively) in Xcel territory
+    to estimate use.</p> <p>11) PRPA emission factor and transmission and distribution
+    loss rate for 2021 was provided by Francie Jaffe. Email on file. Emissions factor
+    value represents Longmont's load share emissions rate without unbundled RECs.</p>
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: t/a
@@ -777,6 +839,8 @@ nodes:
     to_dimensions:
     - id: emission_scope
       categories: [scope1]
+
+# Wood
 
 - id: stationary_wood_consumption
   name: Stationary wood consumption
@@ -825,6 +889,8 @@ nodes:
     to_dimensions:
     - id: emission_scope
       categories: [scope2]
+
+# Losses
 
 - id: electricity_loss_fraction
   name: Electricity loss fraction
@@ -876,37 +942,6 @@ nodes:
     - id: use_type
     - id: greenhouse_gases
 
-- id: equity_share_electricity_use
-  name: Equity share electricity use
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/a
-  historical_values: [[2016, 1210910586.71672], [2017, 1201888286.76237], [2018, 1215917061.77312],
-    [2019, 1212866104.25016], [2020, 1219903307.18383], [2021, 1226940510.11749]]
-  foreast_values: [[2022, 1233977713.05115], [2030, 1290275336.52046], [2050, 1431019395.19372]]
-
-- id: equity_share_emissions
-  name: Equity share emissions
-  description: <p>Informational only item. These are the emissions that are attributable
-    to Longmont’s ownership of what Platte River Power Authority sells outside of the four
-    owner communities.</p>
-    <p>Platte River Power Authority (PRPA) provided data on Longmont's
-    equity share of emissions, which are
-    based on the resource mix of all power purchased, generated, and supplied by PRPA
-    to it's customers. Longmont's equity share of emissions represents the City's
-    26.13% ownership in PRPA, and therefore the same share of responsibility for PRPA's
-    emissions generated in 2021. This equity share value is provided here for information
-    only, and is not included in GPC totals. The use of electricity supplied by PRPA
-    in Longmont (i.e., Longmont's load share emissions) is included in the calculation
-    of total PRPA emissions.</p>
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  is_outcome: true
-  output_dimensions: [greenhouse_gases]
-  input_nodes:
-  - equity_share_electricity_use
-
 #
 # TRANSPORTATION
 #
@@ -944,16 +979,162 @@ nodes:
 #  input_dimensions: [vehicle_type]
 #  output_dimensions: [vehicle_type]
 
+# Equity shares (not part of the main emission inventory)
+
+- id: equity_share_electricity_use
+  name: Equity share electricity use
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  historical_values: [[2016, 1210910586.71672], [2017, 1201888286.76237], [2018, 1215917061.77312],
+    [2019, 1212866104.25016], [2020, 1219903307.18383], [2021, 1226940510.11749]]
+  foreast_values: [[2022, 1233977713.05115], [2030, 1290275336.52046], [2050, 1431019395.19372]]
+
+- id: equity_share_emissions
+  name: Equity share emissions
+  description: <p>Informational only item. These are the emissions that are attributable
+    to Longmont’s ownership of what Platte River Power Authority sells outside of
+    the four owner communities.</p> <p>Platte River Power Authority (PRPA) provided
+    data on Longmont's equity share of emissions, which are based on the resource
+    mix of all power purchased, generated, and supplied by PRPA to it's customers.
+    Longmont's equity share of emissions represents the City's 26.13% ownership in
+    PRPA, and therefore the same share of responsibility for PRPA's emissions generated
+    in 2021. This equity share value is provided here for information only, and is
+    not included in GPC totals. The use of electricity supplied by PRPA in Longmont
+    (i.e., Longmont's load share emissions) is included in the calculation of total
+    PRPA emissions.</p>
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  is_outcome: true
+  output_dimensions: [greenhouse_gases]
+  input_nodes:
+  - equity_share_electricity_use
 
 actions:
 
-#- id: updated_building_code
-#  node: Use updated building code and enforce
-#  decription: Adopt and enforce the latest IECC every year a new IECC is released.
-#  type: simple.AdditiveAction
-#  quantity: energy
-#  unit: kWh/a
-#  forecast_values: [[2023, 0], [2050, 0]]
+- id: updated_building_code
+  name: Use updated building code and enforce
+  description: Adopt and enforce the latest IECC every year a new IECC is released.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2023, 0], [2050, 20]]
+
+- id: beyond_building_code
+  name: Develop beyond building code
+  description: Develop building codes that go beyond the IECC and towards net-zero energy use.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: benchmark_energy_use
+  name: Report and benchmark energy use
+  description: Requires commercial and industrial buildings owners whose buildings
+    exceed 20,000 square feet to rate their building's energy use, report energy metrics,
+    and encourages buildings owners to implement energy efficiency measures.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: efficiency_works_program
+  name: Expand the Efficiency Works Program
+  description: Expand the Efficiency Works Program to achieve 2% energy savings by
+    2025 through commercial retro-commissioning, low-income programs, and residential
+    and commercial savings.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: replace_natural_gas
+  name: Replace natural gas use in buildings with electricity
+  description: Over time, replace natural gas appliances with electricity appliances
+    assuming a low carbon emission factor. Savings are modeled with renewable energy emission factors.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: therm/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: renewable_energy_plan
+  name: Develop a comprehensive 100% renewable energy plan
+  description: Develop a comprehensive 100% renewable energy plan for Longmont's just
+    transition to a clean energy economy. Acquire all electricity from renewable energy sources by 2030.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: smart_grid_projects
+  name: Accelerate and implement smart grid projects
+  description: Implement a variety of smart grid projects that encourage reductions in
+    electricity consumption through real-time feedback, dynamic pricing, etc. LPC is currently
+    conducting a small test pilot of AMR/AM in 2018 and 2019.  This would potentially lay the
+    framework to employ future demand-response programs and dynamic utility rate structures.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: reduce_transmission_distribution_losses
+  name: Encourage practices that reduce transmission and distribution losses
+  description: Reduce electric grid transmission and distribution losses through
+    grid management such as distributed voltage optimization. It should be noted that LPC's
+    electric grid is efficient. From LPC, Longmont Power & Communications currently enjoys
+    a system wide power factor of 0.999 during cooler months and greater than 0.95 during
+    the warm summer months.  LPC also employs capacitor banks throughout the distribution
+    network to improve voltage support.
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: vehicle_incentives
+  name: Increase electric vehicles through vehicle incentives and improved infrastructure
+  description: Increase the rate of electric vehicle adoption until a majority of vehicles are powered
+    by clean electricity.
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: miles/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: increase_access_of_public_transit
+  name: Address barriers to increase access and use of public transit
+  description: Address barriers to increase access and use of public transit, especially
+    for underserved communities Increase public transit through the City's Ride Free Program.
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: miles/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: multimodal_transportation_system
+  name: Develop multimodal transportation system
+  description: Pursue all elements of Longmont's multimodal transportation plan.
+    Actively reduce greenhouse gas emissions through bicycle and pedestrian improvements
+    and first/last mile connections.
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: miles/a
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: leak_detection
+  name: Adopt and enforce leak detection and repair
+  description: Improve monitoring of oil and gas sites by increasing methane leak
+    detection and repair and minimizing leaks in the transmission and distribution system of natural gas.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  forecast_values: [[2023, 0], [2050, 0]]
+
+- id: increase_waste_diversion
+  name: Increase waste diversion
+  description: Scenario 2. Achieve 85% waste diversion from the landfill by 2035 and 95% by 2050.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  forecast_values: [[2023, 0], [2050, 0]]
 
 - id: commercial_power_purchase_program
   name: Commercial power purchase program
@@ -962,7 +1143,7 @@ actions:
   unit: kWh/a
   forecast_values: [[2022, 0], [2023, -3544251]]
   output_nodes:
-  - id: building_electricity_consumption
+  - id: electricity_consumption
     to_dimensions:
     - id: use_type
       categories: [commercial]
@@ -976,7 +1157,7 @@ actions:
   unit: kWh/a
   forecast_values: [[2022, 0], [2023, -3550001]]
   output_nodes:
-  - id: building_electricity_consumption
+  - id: electricity_consumption
     to_dimensions:
     - id: use_type
       categories: [residential]
@@ -990,7 +1171,7 @@ actions:
   unit: kWh/a
   forecast_values: [[2022, 0], [2023, -5080497]]
   output_nodes:
-  - id: building_electricity_consumption
+  - id: electricity_consumption
     to_dimensions:
     - id: use_type
       categories: [residential]
@@ -1016,17 +1197,18 @@ actions:
 # renewable power purchase program so that does not need to be listed separately.
 - id: longmont_power_renewables
   name: Longmont Power with 100 % renewables
-  description: <p>On January 9th, 2018, City Council passed a resolution to commit Longmont
-    to 100% renewable electric energy supply by 2030. To model this impact, the City uses
-    a projection from Platte River Power Authority on the future emission factors until 2030
-    and then drops the emission factor to 0 in 2030 to reflect achieving the 100% renewable goal.</p>
-    <p>According to Platte River Power Authority’s  most recent integrated resource plan,
-    existing technology will only help Platte River reach 90% noncarbon by 2030. Emerging
-    technologies will need to be developed to achieve the 100% noncarbon target.</p>
-    <p>To model the impact of a 100% renewable goal by 2030, electricity
-    emission factors from LPC were changed to reflect almost a 0 metric ton CO2e/MWh by 2030. Values
-    between 2020 and 2030 were taken from Group 14's Longmont Policy Tool. For PRPA's
-    assumptions, see Email re 2019 EF Calculations for PRPA.</p>
+  description: <p>On January 9th, 2018, City Council passed a resolution to commit
+    Longmont to 100% renewable electric energy supply by 2030. To model this impact,
+    the City uses a projection from Platte River Power Authority on the future emission
+    factors until 2030 and then drops the emission factor to 0 in 2030 to reflect
+    achieving the 100% renewable goal.</p> <p>According to Platte River Power Authority’s  most
+    recent integrated resource plan, existing technology will only help Platte River
+    reach 90% noncarbon by 2030. Emerging technologies will need to be developed to
+    achieve the 100% noncarbon target.</p> <p>To model the impact of a 100% renewable
+    goal by 2030, electricity emission factors from LPC were changed to reflect almost
+    a 0 metric ton CO2e/MWh by 2030. Values between 2020 and 2030 were taken from
+    Group 14's Longmont Policy Tool. For PRPA's assumptions, see Email re 2019 EF
+    Calculations for PRPA.</p>
   type: linear.ReduceAction
   quantity: emission_factor
   unit: t/MWh
@@ -1074,8 +1256,7 @@ pages:
     is to be considered incomplete and experimental.</p> <p>The goal of this tool
     is to provide a transparent and defensible calculation methodology for estimating
     the potential of GHG emission reduction strategies and interactive data visualizations
-    to represent the emission reduction potential of those strategies.</p>
-    <p><b>Background</b></p>
+    to represent the emission reduction potential of those strategies.</p> <p><b>Background</b></p>
     <p>This spreadsheet compiles strategy information and associated assumptions and
     data to estimate GHG emission reductions from key building energy, electric grid,
     renewable energy, mobile, solid waste, and oil and gas strategies. Previous versions
@@ -1103,4 +1284,4 @@ scenarios:
 
 ##################
 # DESCRIPTION OF DATA AND CALCULATIONS
-# 
+# Data and equations come from file Longmont_Model_Feb 2023 Update_FINAL.xlsx
