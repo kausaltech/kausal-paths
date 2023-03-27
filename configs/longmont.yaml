@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ac7b507ab0e1a3b0a3c298cb4b93e8e24f49c816
+  commit: 9310155d0704d63889d11f5975710e5be35e42a5
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -356,6 +356,26 @@ dimensions:
 params:
 - id: municipality_name
   value: longmont
+- id: all_in_investment
+  label: All investments happen on the first year (not continuously)
+  is_customizable: false
+  value: false
+- id: discount_rate
+  label: Discount rate (%/year)
+  description: Speed of value decrease for monetary variables
+  is_customizable: false
+  value: 3.5
+  min_value: 0
+  max_value: 18
+  step: 0.5
+  unit: '%'
+- id: renovation_rate_baseline
+  label: Renovation rate baseline (%/year)
+  is_customizable: false
+  value: 0.5
+  min_value: 0
+  max_value: 2
+  unit: '%/a'
 
 emission_sectors:
 - id: net_emissions
@@ -542,7 +562,7 @@ nodes:
   type: simple.AdditiveNode # costs.ExponentialNode # FIXME add functionality for increase for each category
   quantity: floor_area
   unit: ft**2
-  input_datasets: 
+  input_datasets:
   - longmont/building_foor_area
   input_dimensions: [use_type]
   output_dimensions: [use_type]
@@ -1011,19 +1031,93 @@ nodes:
   input_nodes:
   - equity_share_electricity_use
 
+- id: electricity_per_area
+  name: Electricity consumption per floor area
+  type: simple.AdditiveNode
+  quantity: energy_per_area
+  unit: kWh/ft**2/a
+  input_datasets:
+  - longmont/building_electricity_consumption_factor
+  input_dimensions: [use_type]
+  output_dimensions: [use_type]
+
+- id: electricity_per_area_impact
+  name: Electricity consumption impact per floor area
+  type: simple.AdditiveNode
+  quantity: energy_per_area
+  unit: kWh/ft**2/a
+  params:
+  - id: metric
+    value: electricity
+#  input_datasets:
+#  - longmont/building_electricity_consumption_factor
+#  input_dimensions: [use_type]
+#  output_dimensions: [use_type]
+#  output_nodes:
+#  - id: electricity_per_area
+#  input_nodes:
+#  - id: updated_building_code_residential
+#    tags: [electricity]
+#    from_dimensions
+
 actions:
 
-- id: updated_building_code
-  name: Use updated building code and enforce
+- id: updated_building_code_residential  # FIXME the graph for this node type does not show
+  name: Use updated building code and enforce in residential buildings
   description: Adopt and enforce the latest IECC every year a new IECC is released.
-  type: simple.AdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2023, 0], [2050, 20]]
+  type: energy_saving.BuildingEnergySavingActionUs
+  quantity: fraction
+  unit: '%'
+  params:
+  - id: renovation_potential
+    value: 90.0
+  - id: investment_lifetime
+    value: 100
+  - id: investment_cost
+    value: 0.0
+  - id: maintenance_cost
+    value: 0.0
+  - id: natural_gas_saving
+    value: 0.01158
+  - id: electricity_saving
+    value: 0.14776
+  output_nodes:
+  - id: electricity_per_area_impact
+#    to_dimensions:
+#    - id: use_type
+#      categories: [residential]
+
+- id: updated_building_code_commercial
+  name: Use updated building code and enforce in commercial and industrial buildings
+  description: Adopt and enforce the latest IECC every year a new IECC is released.
+  type: energy_saving.BuildingEnergySavingActionUs
+  quantity: fraction
+  unit: '%'
+  params:
+  - id: renovation_potential
+    value: 90.0
+  - id: investment_lifetime
+    value: 100
+  - id: investment_cost
+    value: 0.0
+  - id: maintenance_cost
+    value: 0.0
+  - id: natural_gas_saving
+    value: 0.04108
+  - id: electricity_saving
+    value: 1.32840
+  output_nodes:
+  - id: electricity_per_area_impact
+#    to_dimensions:
+#    - id: use_type
+#      categories: [commercial]
+#  - heat_per_area_single_family
+#  - renovation_cost_per_area_single_family
 
 - id: beyond_building_code
   name: Develop beyond building code
-  description: Develop building codes that go beyond the IECC and towards net-zero energy use.
+  description: Develop building codes that go beyond the IECC and towards net-zero
+    energy use.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh/a
@@ -1052,7 +1146,8 @@ actions:
 - id: replace_natural_gas
   name: Replace natural gas use in buildings with electricity
   description: Over time, replace natural gas appliances with electricity appliances
-    assuming a low carbon emission factor. Savings are modeled with renewable energy emission factors.
+    assuming a low carbon emission factor. Savings are modeled with renewable energy
+    emission factors.
   type: simple.AdditiveAction
   quantity: energy
   unit: therm/a
@@ -1061,7 +1156,8 @@ actions:
 - id: renewable_energy_plan
   name: Develop a comprehensive 100% renewable energy plan
   description: Develop a comprehensive 100% renewable energy plan for Longmont's just
-    transition to a clean energy economy. Acquire all electricity from renewable energy sources by 2030.
+    transition to a clean energy economy. Acquire all electricity from renewable energy
+    sources by 2030.
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1069,10 +1165,11 @@ actions:
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
-  description: Implement a variety of smart grid projects that encourage reductions in
-    electricity consumption through real-time feedback, dynamic pricing, etc. LPC is currently
-    conducting a small test pilot of AMR/AM in 2018 and 2019.  This would potentially lay the
-    framework to employ future demand-response programs and dynamic utility rate structures.
+  description: Implement a variety of smart grid projects that encourage reductions
+    in electricity consumption through real-time feedback, dynamic pricing, etc. LPC
+    is currently conducting a small test pilot of AMR/AM in 2018 and 2019.  This would
+    potentially lay the framework to employ future demand-response programs and dynamic
+    utility rate structures.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh/a
@@ -1080,12 +1177,12 @@ actions:
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
-  description: Reduce electric grid transmission and distribution losses through
-    grid management such as distributed voltage optimization. It should be noted that LPC's
-    electric grid is efficient. From LPC, Longmont Power & Communications currently enjoys
-    a system wide power factor of 0.999 during cooler months and greater than 0.95 during
-    the warm summer months.  LPC also employs capacitor banks throughout the distribution
-    network to improve voltage support.
+  description: Reduce electric grid transmission and distribution losses through grid
+    management such as distributed voltage optimization. It should be noted that LPC's
+    electric grid is efficient. From LPC, Longmont Power & Communications currently
+    enjoys a system wide power factor of 0.999 during cooler months and greater than
+    0.95 during the warm summer months.  LPC also employs capacitor banks throughout
+    the distribution network to improve voltage support.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh
@@ -1093,8 +1190,8 @@ actions:
 
 - id: vehicle_incentives
   name: Increase electric vehicles through vehicle incentives and improved infrastructure
-  description: Increase the rate of electric vehicle adoption until a majority of vehicles are powered
-    by clean electricity.
+  description: Increase the rate of electric vehicle adoption until a majority of
+    vehicles are powered by clean electricity.
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
@@ -1103,7 +1200,8 @@ actions:
 - id: increase_access_of_public_transit
   name: Address barriers to increase access and use of public transit
   description: Address barriers to increase access and use of public transit, especially
-    for underserved communities Increase public transit through the City's Ride Free Program.
+    for underserved communities Increase public transit through the City's Ride Free
+    Program.
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
@@ -1111,9 +1209,9 @@ actions:
 
 - id: multimodal_transportation_system
   name: Develop multimodal transportation system
-  description: Pursue all elements of Longmont's multimodal transportation plan.
-    Actively reduce greenhouse gas emissions through bicycle and pedestrian improvements
-    and first/last mile connections.
+  description: Pursue all elements of Longmont's multimodal transportation plan. Actively
+    reduce greenhouse gas emissions through bicycle and pedestrian improvements and
+    first/last mile connections.
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
@@ -1122,7 +1220,8 @@ actions:
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
   description: Improve monitoring of oil and gas sites by increasing methane leak
-    detection and repair and minimizing leaks in the transmission and distribution system of natural gas.
+    detection and repair and minimizing leaks in the transmission and distribution
+    system of natural gas.
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1130,7 +1229,8 @@ actions:
 
 - id: increase_waste_diversion
   name: Increase waste diversion
-  description: Scenario 2. Achieve 85% waste diversion from the landfill by 2035 and 95% by 2050.
+  description: Scenario 2. Achieve 85% waste diversion from the landfill by 2035 and
+    95% by 2050.
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1273,88 +1373,82 @@ pages:
   name: Updating Guide
   path: /updating
   lead_paragraph_en: <p>This page provides instructions on how to update this tool
-    and which values can be updated. A general set of directions is provided,
-    followed by a table documenting which values on each tab can be updated and
-    when it is appropriate to do so.</p>
-    <p><b>Updating the Model</b></p>
-    <p>The purpose of this model is to demonstrate the GHG reduction potential of
-    Longmont´s strategies compared to Business-As-Usual emissions (if no strategies
-    were implemented) based on a 2016 or 2018 baseline. Updates to this model should
-    be decided based on the below criteria.</p>
-    <p>The model should NOT be updated for the following reasons.</p>
-    <li>
-    <ul>Future GHG emissions inventories. The BAU tab should not be updated with
+    and which values can be updated. A general set of directions is provided, followed
+    by a table documenting which values on each tab can be updated and when it is
+    appropriate to do so.</p> <p><b>Updating the Model</b></p> <p>The purpose of this
+    model is to demonstrate the GHG reduction potential of Longmont´s strategies compared
+    to Business-As-Usual emissions (if no strategies were implemented) based on a
+    2016 or 2018 baseline. Updates to this model should be decided based on the below
+    criteria.</p> <p>The model should NOT be updated for the following reasons.</p>
+    <li> <ul>Future GHG emissions inventories. The BAU tab should not be updated with
     actual GHG emissions values in future years. The purpose of the BAU is to show
     emissions if no strategies were to be implemented. Using actual GHG values in
     future years when several strategies have been implemented would misrepresent
-    BAU emissions and may double count savings. Actual emissions from future GHG
-    inventories can be entered into the Progress Tracker tab so Longmont can monitor
-    if actual GHG emissions align with expected reductions due to strategy implementation.</ul>
+    BAU emissions and may double count savings. Actual emissions from future GHG inventories
+    can be entered into the Progress Tracker tab so Longmont can monitor if actual
+    GHG emissions align with expected reductions due to strategy implementation.</ul>
     <ul>LPC electricity emission factor updates. Future emission factors from LPC
-    should not be added to this tool as the emission factors will reflect the
-    renewable energy strategy modeled in this tool. The BAU LPC emission factor 
-    represents the emission factor if LPC were to not pursue renewable energy. The
-    renewable energy EF is used directly in the modeled strategies and should not
-    be adjusted with actual values to preserve the desired progress toward RE modeled
-    in this tool. Actual progress towards the renewable energy goal will be tracked
-    in each of Longmont's future GHG inventories. Inventory results can be compared
-    to the modeled values in the Progress Tracker tab.</ul>
-    <ul>Minor changes in emission calculation methodology. Baseline year emissions
-    in the BAU should not be updated when minor methodology changes in calculation
-    occur. If methodology changes would not impact total emissions in the baseline
-    by greater than 5% then emissions should not be updated for the baseline year.</ul></li>
-    The model should be updated for the following reasons
-    <li>
-    <ul>Changes to strategy targets or assumptions. If the target for a strategy
+    should not be added to this tool as the emission factors will reflect the renewable
+    energy strategy modeled in this tool. The BAU LPC emission factor represents the
+    emission factor if LPC were to not pursue renewable energy. The renewable energy
+    EF is used directly in the modeled strategies and should not be adjusted with
+    actual values to preserve the desired progress toward RE modeled in this tool.
+    Actual progress towards the renewable energy goal will be tracked in each of Longmont's
+    future GHG inventories. Inventory results can be compared to the modeled values
+    in the Progress Tracker tab.</ul> <ul>Minor changes in emission calculation methodology.
+    Baseline year emissions in the BAU should not be updated when minor methodology
+    changes in calculation occur. If methodology changes would not impact total emissions
+    in the baseline by greater than 5% then emissions should not be updated for the
+    baseline year.</ul></li> The model should be updated for the following reasons
+    <li> <ul>Changes to strategy targets or assumptions. If the target for a strategy
     is updated, the target should be updated in the Model Inputs tab and any calculation
     adjustments be made in the corresponding model tab. If more accurate and defensible
     assumptions can be made for a strategy compared to current assumption, assumptions
-    should be updated in the Model Inputs tab.</ul>
-    <ul>Xcel electricity emission factor updates. Xcel provides a small portion of electricity
-    to Longmont and is not a part of LPC's goal for 100% renewable energy which is modeled in
-    this tool. As such, Xcel's emission factors should be updated either each year or whenever
-    new GHG inventory data is available for input in the Progress Tracker tab. This ensures
-    that factors outside of the modeled strategies control are as accurate as possible.</ul>
-    <ul>Updates to model parameter data (e.g., population and registered vehicles). Model
-    parameter data includes model inputs that are NOT impacted by strategies. This includes
-    population and registered vehicle data. As no strategies currently modeled have an impact
-    on these parameters, they should be updated when possible to ensure modeling is using the 
-    most up to date external information for calculating emissions and emissions reductions. 
-    For example, if population were to increase more than is currently forecasted in a future
-    year and this number were to not be updated, then emissions in the BAU would be 
-    nderestimated as the BAU uses population increase as a major parameter for forecasting.</ul>
-    <ul>Major changes to emission calculation methodology. Major changes to emission
-    calculation methodology may warrant updates to the baseline years. Changes that would 
-    drastically impact emission numbers and make accurate comparison to previous year's
-    inventory data inaccurate would require updating the baseline years to ensure alignment
-    across years. For example, the 2016 baseline year emissions were updated as new Global
-    Warming Potential values were released by the IPCC. If emissions in future years in the 
-    BAU or in modeled strategies were calculated with the updated GWPs while the baseline
-    year used old GWPs, emissions calculations would not have an accurate baseline comparison.
-    Major changes like GWP updates will likely be infrequent.</ul>
-    </li>
-    <h2>When to Update Data</h2>
-    <li>
-    <ul><b>Strategy targets.</b> Update if strategy targets are adjusted or if new strategies are added.</ul>
-    <ul><b>Actual emissions.</b> Update when new GHG emissions inventory data is available.</ul>
-    <ul><b>Strategy Selector.</b> Only update if new strategies are added.</ul>
-    <ul><b>Model Input Values.</b> Update to reflect any changes in assumptions or strategy targets.</ul>
-    <ul><b>Target reduction.</b> Update to reflect any changes in assumptions or strategy targets.</ul>
-    <ul><b>Target year.</b> Update to reflect any changes in strategy target years.</ul>
-    <ul><b>Business As Usual Baseline emissions.</b> Baseline emissions (2016 or 2018) should
-    only be updated if there are major changes to emission calculation methodology in future
-    years that would detrimentally impact the models ability to compare future emissions to
-    the baseline. Actual GHG emission data for future years should NOT be entered into this tab.</ul>
-    <ul><b>Non-electricity emission factors.</b> Non-electricity emission factors likely will
-    not change often. It is recommended to review emission factor values for updates every few years.</ul>
+    should be updated in the Model Inputs tab.</ul> <ul>Xcel electricity emission
+    factor updates. Xcel provides a small portion of electricity to Longmont and is
+    not a part of LPC's goal for 100% renewable energy which is modeled in this tool.
+    As such, Xcel's emission factors should be updated either each year or whenever
+    new GHG inventory data is available for input in the Progress Tracker tab. This
+    ensures that factors outside of the modeled strategies control are as accurate
+    as possible.</ul> <ul>Updates to model parameter data (e.g., population and registered
+    vehicles). Model parameter data includes model inputs that are NOT impacted by
+    strategies. This includes population and registered vehicle data. As no strategies
+    currently modeled have an impact on these parameters, they should be updated when
+    possible to ensure modeling is using the most up to date external information
+    for calculating emissions and emissions reductions. For example, if population
+    were to increase more than is currently forecasted in a future year and this number
+    were to not be updated, then emissions in the BAU would be nderestimated as the
+    BAU uses population increase as a major parameter for forecasting.</ul> <ul>Major
+    changes to emission calculation methodology. Major changes to emission calculation
+    methodology may warrant updates to the baseline years. Changes that would drastically
+    impact emission numbers and make accurate comparison to previous year's inventory
+    data inaccurate would require updating the baseline years to ensure alignment
+    across years. For example, the 2016 baseline year emissions were updated as new
+    Global Warming Potential values were released by the IPCC. If emissions in future
+    years in the BAU or in modeled strategies were calculated with the updated GWPs
+    while the baseline year used old GWPs, emissions calculations would not have an
+    accurate baseline comparison. Major changes like GWP updates will likely be infrequent.</ul>
+    </li> <h2>When to Update Data</h2> <li> <ul><b>Strategy targets.</b> Update if
+    strategy targets are adjusted or if new strategies are added.</ul> <ul><b>Actual
+    emissions.</b> Update when new GHG emissions inventory data is available.</ul>
+    <ul><b>Strategy Selector.</b> Only update if new strategies are added.</ul> <ul><b>Model
+    Input Values.</b> Update to reflect any changes in assumptions or strategy targets.</ul>
+    <ul><b>Target reduction.</b> Update to reflect any changes in assumptions or strategy
+    targets.</ul> <ul><b>Target year.</b> Update to reflect any changes in strategy
+    target years.</ul> <ul><b>Business As Usual Baseline emissions.</b> Baseline emissions
+    (2016 or 2018) should only be updated if there are major changes to emission calculation
+    methodology in future years that would detrimentally impact the models ability
+    to compare future emissions to the baseline. Actual GHG emission data for future
+    years should NOT be entered into this tab.</ul> <ul><b>Non-electricity emission
+    factors.</b> Non-electricity emission factors likely will not change often. It
+    is recommended to review emission factor values for updates every few years.</ul>
     <ul><b>Population.</b> Update population data as actual data becomes available.</ul>
-    <ul><b>Xcel Energy electricity emission factor.</b> Updated Xcel's emission factor as actual
-    data becomes available.</ul>
-    <ul><b>LPC RE and BAU emission factors.</b> Do not update.</ul>
-    <ul><b>Fuel efficiencies.</b> Only update the "Gasoline Passenger Vehicle Projected fuel
-    efficiency" row if new fuel efficiency standards are released.</ul>
-    <ul><b>Registered vehicles.</b> Update registered vehicle data as actual data becomes available.</ul>
-    </li>
+    <ul><b>Xcel Energy electricity emission factor.</b> Updated Xcel's emission factor
+    as actual data becomes available.</ul> <ul><b>LPC RE and BAU emission factors.</b>
+    Do not update.</ul> <ul><b>Fuel efficiencies.</b> Only update the "Gasoline Passenger
+    Vehicle Projected fuel efficiency" row if new fuel efficiency standards are released.</ul>
+    <ul><b>Registered vehicles.</b> Update registered vehicle data as actual data
+    becomes available.</ul> </li>
 
 scenarios:
 - id: baseline
