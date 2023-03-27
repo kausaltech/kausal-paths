@@ -63,11 +63,13 @@ class Edge:
     tags: list[str] = field(default_factory=list)
     from_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
     to_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
+    metrics: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         self.tags = self.tags.copy()
         self.from_dimensions = self.from_dimensions.copy()
         self.to_dimensions = self.to_dimensions.copy()
+        self.metrics = self.metrics.copy()
 
     @classmethod
     def from_config(cls, config: dict | str, node: Node, is_output: bool, context: Context) -> Edge:
@@ -104,5 +106,9 @@ class Edge:
                 dim_id, ed = EdgeDimension.from_config(dc, context, node, args['output_node'].input_dimensions)
                 ndims[dim_id] = ed
             args['to_dimensions'] = ndims
+
+            metrics = config.get('metrics', [])
+            if metrics:
+                args['metrics'] = metrics
 
         return Edge(**args)

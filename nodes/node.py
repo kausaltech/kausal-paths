@@ -657,6 +657,18 @@ class Node:
         if NODE_COLUMN in df.columns:
             return df.filter(pl.col(NODE_COLUMN) == target_node.id).drop(NODE_COLUMN)
 
+        if edge.metrics:
+            drop_cols = list(df.metric_cols)
+            for m in edge.metrics:
+                if m not in drop_cols:
+                    raise NodeError(self, "Metric column '%s' defined at the edge but not present in DF" % m)
+                drop_cols.remove(m)
+            if drop_cols:
+                df = df.drop(drop_cols)
+            if len(edge.metrics) == 1 and edge.metrics[0] != VALUE_COLUMN:
+                df = df.rename({edge.metrics[0]: VALUE_COLUMN})
+            return df
+
         col_name: Optional[str] = None
 
         # Other possibility is that the node id is one of the columns.

@@ -1046,9 +1046,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_per_area
   unit: kWh/ft**2/a
-  params:
-  - id: metric
-    value: electricity
 #  input_datasets:
 #  - longmont/building_electricity_consumption_factor
 #  input_dimensions: [use_type]
@@ -1083,6 +1080,7 @@ actions:
     value: 0.14776
   output_nodes:
   - id: electricity_per_area_impact
+    metrics: [electricity]
 #    to_dimensions:
 #    - id: use_type
 #      categories: [residential]
@@ -1108,6 +1106,7 @@ actions:
     value: 1.32840
   output_nodes:
   - id: electricity_per_area_impact
+    metrics: [electricity]
 #    to_dimensions:
 #    - id: use_type
 #      categories: [commercial]
