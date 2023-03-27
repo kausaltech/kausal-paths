@@ -666,6 +666,10 @@ class Node:
             # multi-metric node
             if target_node.quantity in self.output_metrics:
                 col_name = target_node.quantity
+            # FIXME Add functionality that the target node is a simple one-metric node (to be further adjusted by to_dimensions)
+#            elif len(df.get_meta().metric_cols) == 1:
+#                print('pitäisi toimia', self.id)
+#                return df
             else:
                 raise NodeError(self, "Quantity '%s' for node %s not found metrics" % (target_node.quantity, target_node))
 
@@ -862,7 +866,7 @@ class Node:
             out = out.rename({metric: VALUE_COLUMN})
             self.context.perf_context.node_end(self)
             pc.display('Done (with dimensions)')
-            return out
+            return out  # FIXME I'd like to comment this out because if metric, to_dimensions is ignored.
 
         if target_node is not None:
             out = self._get_output_for_target(out, target_node)

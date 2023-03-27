@@ -424,6 +424,117 @@ class BuildingEnergySavingAction(ActionNode):
         return df
 
 
+class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
+    """
+    BuildingEnergySavingAction with U.S. units and natural gas instead of heat.
+    """
+
+    output_metrics = {
+        VALUE_COLUMN: NodeMetric('%', 'fraction'),
+        'RenovCost': NodeMetric('USD/a/ft**2', 'currency'),
+        'natural_gas': NodeMetric('thm/a/ft**2', 'energy_per_area'),
+        'electricity': NodeMetric('kWh/a/ft**2', 'energy_per_area')
+    }
+    allowed_parameters: typing.ClassVar[list[Parameter]] = [
+        NumberParameter(
+            local_id='investment_lifetime',
+            label=_('Investment lifetime (a)'),
+            unit_str='a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='investment_cost',
+            label=_('Investment cost (USD/square foot)'),
+            unit_str='USD/ft**2',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='maintenance_cost',
+            label=_('Maintenance cost (USD/square foot/a)'),
+            unit_str='USD/ft**2/a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='natural_gas_saving',
+            label=_('Natural gas saving (thm/square foot/a)'),
+            unit_str='thm/ft**2/a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='electricity_saving',
+            label=_('Electricity saving (kWh/square foot/a)'),
+            unit_str='kWh/ft**2/a',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='renovation_potential',
+            label=_('Renovation potential (% of floor area)'),
+            unit_str='%',
+            is_customizable=False,
+        ),
+    ]
+    global_parameters: list[str] = ActionNode.global_parameters + [
+        'renovation_rate_baseline', 'all_in_investment',
+    ]
+
+    def compute_effect(self) -> pd.DataFrame:
+        # Global parameters
+        renovation_rate_param = self.get_global_parameter_value('renovation_rate_baseline', units=True)
+        renovation_rate_baseline = renovation_rate_param.to('1/a').m
+        model_end_year = self.context.model_end_year
+        all_in_investment = self.get_global_parameter_value('all_in_investment')
+        current_year = self.context.instance.maximum_historical_year
+        assert current_year is not None
+
+        # Local parameters
+        lifetime = self.get_parameter_value('investment_lifetime', units=True).to('a').m
+        renovation_potential_param = self.get_parameter_value('renovation_potential', units=True)
+        renovation_potential: float = renovation_potential_param.to('dimensionless').m  # type: ignore
+        investment_cost = self.get_parameter_value('investment_cost', units=True)
+        maint_cost = self.get_parameter_value('maintenance_cost', units=True)
+        he_saving = self.get_parameter_value('natural_gas_saving', units=True)
+        el_saving = self.get_parameter_value('electricity_saving', units=True)
+
+        cost_pt = pint_pandas.PintType(maint_cost.units)
+        he_pt = pint_pandas.PintType(he_saving.units)
+        el_pt = pint_pandas.PintType(el_saving.units)
+
+        # Calculations
+        if self.is_enabled():
+            if all_in_investment:  # Renovate everything in one year
+                renovation_rate = 1.0
+            else:
+                renovation_rate = 1 / lifetime
+        else:
+            renovation_rate = renovation_rate_baseline
+
+        params = BuildingEnergyParams(
+            start_year=current_year,
+            nr_years=model_end_year - current_year + 1,
+            lifetime=int(lifetime),
+            renovation_rate=renovation_rate,
+            renovation_potential=renovation_potential,
+            investment_cost=investment_cost.m,
+            maint_cost=maint_cost.m,
+            he_saving=he_saving.m,
+            el_saving=el_saving.m,
+            all_in_investment=all_in_investment,
+        )
+
+        ret = simulate_building_energy_saving(params)
+
+        cols = {
+            VALUE_COLUMN: pint_pandas.PintArray(ret.total_renovated * 100, '%'),
+            'RenovCost': pint_pandas.PintArray(ret.cost, cost_pt),
+            'natural_gas': pint_pandas.PintArray(ret.he_saving, he_pt),
+            'electricity': pint_pandas.PintArray(ret.el_saving, el_pt),
+            'Forecast': ret.forecast.astype(bool),
+        }
+        df = pd.DataFrame(cols, index=ret.year)
+        df.index.name = YEAR_COLUMN
+        return df
+
+
 class EnergyCostAction(ExponentialAction):
     output_metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
