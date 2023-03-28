@@ -239,12 +239,11 @@ nodes:
   name: Väestö
   name_en: Population
   name_sv: Befolkning
-  # FIXME 345000. Sitowise 362690.  ## -17690
-  description: Väkiluvun on kaikkien skenaarioiden osalta olettu laskennassa kehittyvän
+  description: Sitowisen laskelmassa väkiluvun on kaikkien skenaarioiden osalta olettu laskennassa kehittyvän
     Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon mukaisesti ja olevan 362690 vuonna 2035.
-    Tilastokeskuksen väestöennuste on 345000 vuodelle 2035.
-    Toteutunut väestönkehitys (1990, 2000-2022) on saatu Tilastokeskuksen tilastoista. Lähde
-    https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/
+    Tässä työkalussa käytetään Tilastokeskuksen väestöennustetta, joka on 345000 vuodelle 2035.
+    Toteutunut väestönkehitys (1990, 2000-2022) on saatu Tilastokeskuksen tilastoista.
+    <a href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -258,7 +257,7 @@ nodes:
   name_en: Floor area of existing building stock
   name_sv: Våningsytan i det nuvarande byggnadsbeståndet
 
-- id: building_floor_area_future
+- id: building_floor_area_new
   type: finland.aluesarjat.FutureBuildingStock
   name: Uuden rakennuskannan kerrosala
   name_en: Floor area of new building stock
@@ -269,15 +268,20 @@ nodes:
   - id: building_floor_area_existing
     tags: [existing_floor_area]
 
-- id: building_floor_area_renovated
-  type: finland.aluesarjat.BuildingStock
-  name: Energiasaneeratun rakennuskannan kerrosala
-  name_en: Floor area of energy-renovated building stock
-  name_sv: Våningsytan i det energisanerade byggnadsbeståndet
+- id: building_floor_area_total
+  name: Rakennusala kokonaisuudessaan
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use, building_heat_source]
+  output_dimensions: [building_use, building_heat_source]
+  input_nodes:
+  - building_floor_area_existing
+  - building_floor_area_new
 
 - id: building_heat_existing_from_statistics
   type: finland.hsy.HsyBuildingHeatConsumption
-  name: Nykyisen rakennuskannan lämmönkulutus
+  name: Nykyisen rakennuskannan lämmönkulutustilasto
   name_en: Heat consumption of existing building stock
   name_sv: Värmeförbrukningen i det nuvarande byggnadsbeståndet
   tags: [historical_heat]
@@ -288,16 +292,24 @@ nodes:
   name_en: Building heating per floor area
   name_sv: Värmeförbrukningen per våningsytan
   type: finland.aluesarjat.BuildingHeatPerArea
-  quantity: energy
+  quantity: consumption_factor
   unit: kWh/a/m**2
-  input_nodes: [building_heat_existing_from_statistics, building_floor_area_existing]
+  input_nodes: 
+  - building_heat_existing_from_statistics
+  - building_floor_area_existing
 
-- id: building_heat_from_floor_area
-  type: finland.aluesarjat.BuildingHeatPredict
-  name: Nykyisen rakennuskannan lämmönkulutus
-  name_en: Heat consumption of existing building stock
-  name_sv: Värmeförbrukning i det nuvarande byggnadsbeståndet
-  input_nodes: [building_heat_existing_from_statistics, building_floor_area_existing]
+- id: building_heat_consumption
+  name: Rakennuskannan lämmönkulutus
+  name_en: Building heat consumption
+  name_sv: Värmeförbrukning i det byggnadsbeståndet
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes: 
+  - building_heat_per_floor_area
+  - building_floor_area_total
   output_nodes:
   - id: district_heating_energy
     from_dimensions:
@@ -305,7 +317,6 @@ nodes:
       categories: [district_heat]
       flatten: true
     - id: building_use
-      flatten: true
   - id: oil_heating_energy
     from_dimensions:
     - id: building_heat_source
@@ -313,29 +324,42 @@ nodes:
       flatten: true
     - id: building_use
       flatten: true
-#  - id: geothermal_heating_energy
-#    from_dimensions:
-#    - id: building_heat_source
-#      categories: [geothermal]
-#      flatten: true
-#    - id: building_use
-#      flatten: true
+  - id: geothermal_heating_energy
+    from_dimensions:
+    - id: building_heat_source
+      categories: [geothermal]
+      flatten: true
+    - id: building_use
+      flatten: true
 
-- id: district_heating_energy
-  name: Kaukolämmön lämmönkulutus
-  name_en: Heat consumption of district heating
-  name_sv: Fjärrvärmeförbrukning
-  type: simple.AdditiveNode
-  unit: GWh/a
-  quantity: energy
+#- id: district_heating_energy
+#  name: Kaukolämmön lämmönkulutus
+#  name_en: Heat consumption of district heating
+#  name_sv: Fjärrvärmeförbrukning
+#  type: simple.AdditiveNode
+#  unit: GWh/a
+#  quantity: energy
+#  output_dimensions: [building_use]
 
-- id: oil_heating_energy
-  name: Öljylämmityksen lämmönkulutus
-  name_en: Heat consumption of oil heating
-  name_sv: Oljeuppvärmningens värmeförbrukning
-  type: simple.AdditiveNode
-  unit: GWh/a
-  quantity: energy
+#- id: oil_heating_energy
+#  name: Öljylämmityksen lämmönkulutus
+#  name_en: Heat consumption of oil heating
+#  name_sv: Oljeuppvärmningens värmeförbrukning
+#  type: simple.AdditiveNode
+#  unit: GWh/a
+#  quantity: energy
+#  output_dimensions: [building_use]
+
+#- id: geothermal_heating_energy
+#  name: Maalämmön energiankulutus
+#  type: simple.AdditiveNode
+#  quantity: energy
+#  unit: GWh/a
+#  output_dimensions: [building_use]
+
+#
+# TRANSPORT
+#
 
 - id: car_energy_hsy
   name: Henkilöautojen energiankulutus, HSY-data
