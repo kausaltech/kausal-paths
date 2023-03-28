@@ -4,7 +4,7 @@ import pint_pandas
 from nodes import Node, NodeMetric
 from nodes.calc import extend_last_historical_value
 from nodes.constants import ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.simple import AdditiveNode
+from nodes.simple import AdditiveNode, SimpleNode
 
 
 INDUSTRY_USES = '''
@@ -104,7 +104,7 @@ class BuildingStock(AdditiveNode):
         return df
 
 
-class FutureBuildingStock(AdditiveNode):
+class FutureBuildingStock(SimpleNode):
     """Calculate the new floor area of future buildings based on the 10-year average
     per respective new population; calculate this separately for different building types
     (unless floor area decreases) and assume the same ratio will hold in the future.
@@ -112,6 +112,10 @@ class FutureBuildingStock(AdditiveNode):
     output_metrics = {
         FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
     }
+    input_dimension_ids = [
+        'building_heat_source',
+        'building_use',
+    ]
     output_dimension_ids = [
         'building_heat_source',
         'building_use',

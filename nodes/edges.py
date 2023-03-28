@@ -62,13 +62,14 @@ class Edge:
     output_node: Node
     tags: list[str] = field(default_factory=list)
     from_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
-    to_dimensions: dict[str, EdgeDimension] = field(default_factory=dict)
+    to_dimensions: dict[str, EdgeDimension] | None = None
     metrics: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         self.tags = self.tags.copy()
         self.from_dimensions = self.from_dimensions.copy()
-        self.to_dimensions = self.to_dimensions.copy()
+        if self.to_dimensions is not None:
+            self.to_dimensions = self.to_dimensions.copy()
         self.metrics = self.metrics.copy()
 
     @classmethod
@@ -100,12 +101,13 @@ class Edge:
                 ndims[dim_id] = ed
             args['from_dimensions'] = ndims
 
-            dcs = config.get('to_dimensions', [])
-            ndims = {}
-            for dc in dcs:
-                dim_id, ed = EdgeDimension.from_config(dc, context, node, args['output_node'].input_dimensions)
-                ndims[dim_id] = ed
-            args['to_dimensions'] = ndims
+            dcs = config.get('to_dimensions', None)
+            if dcs is not None:
+                ndims = {}
+                for dc in dcs:
+                    dim_id, ed = EdgeDimension.from_config(dc, context, node, args['output_node'].input_dimensions)
+                    ndims[dim_id] = ed
+                args['to_dimensions'] = ndims
 
             metrics = config.get('metrics', [])
             if metrics:

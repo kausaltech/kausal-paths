@@ -720,7 +720,7 @@ class Node:
                     meta = df.get_meta()
                     df = df.paths.sum_over_dims([dim_id])
 
-        if edge.to_dimensions:
+        if edge.to_dimensions is not None:
             new_cols = []
             meta = df.get_meta()
             output_dimensions = set(edge.to_dimensions.keys())
