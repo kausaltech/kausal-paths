@@ -25,7 +25,11 @@ def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> pp
     df = df.paths.make_forecast_rows(end_year)
     last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
     df = df.paths.nafill_pad()
-    fc = pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(True).otherwise(False)
+    if last_hist_year is not None:
+        fc_cond = pl.col(YEAR_COLUMN) > last_hist_year
+    else:
+        fc_cond = True
+    fc = pl.when(fc_cond).then(True).otherwise(False)
     df = df.with_columns([fc.alias(FORECAST_COLUMN)])
     df = df.paths.to_narrow()
     return df
