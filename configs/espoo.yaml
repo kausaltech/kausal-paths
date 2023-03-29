@@ -305,27 +305,67 @@ nodes:
   input_nodes: 
   - building_heat_per_floor_area
   - building_floor_area_total
-  output_nodes:
-  - id: district_heating_energy
-    from_dimensions:
+#  output_nodes:  # FIXME causes double-counting and it commented out until this is solved
+#  - id: district_heating_energy
+#    from_dimensions:
+#    - id: building_heat_source
+#      categories: [district_heat]
+#      flatten: true
+#    - id: building_use
+#      flatten: true
+#  - id: oil_heating_energy
+#    from_dimensions:
+#    - id: building_heat_source
+#      categories: [oil]
+#      flatten: true
+#    - id: building_use
+#      flatten: true
+#  - id: geothermal_heating_energy
+#    from_dimensions:
+#    - id: building_heat_source
+#      categories: [geothermal]
+#      flatten: true
+#    - id: building_use
+#      flatten: true
+
+- id: building_heating_emission_factor
+  name: Rakennusten lämmityksen päästökertoimet
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  output_dimensions: [building_heat_source]
+  input_nodes:
+  - id: district_heating_emission_factor
+    to_dimensions:
     - id: building_heat_source
       categories: [district_heat]
-      flatten: true
-    - id: building_use
-  - id: oil_heating_energy
-    from_dimensions:
+  - id: oil_heating_emission_factor
+    to_dimensions:
     - id: building_heat_source
       categories: [oil]
-      flatten: true
-    - id: building_use
-      flatten: true
-  - id: geothermal_heating_energy
-    from_dimensions:
+  - id: electric_heating_emission_factor
+    to_dimensions:
     - id: building_heat_source
       categories: [geothermal]
-      flatten: true
+
+- id: building_heating_emissions2
+  name: Rakennusten lämmityksen päästöt
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [building_heat_source]  # FIXME Have to sum up building_use because code does not support intelligent arrays
+  output_dimensions: [building_heat_source]
+  input_nodes:
+  - id: building_heating_emission_factor
+    to_dimensions:
+    - id: building_heat_source
+  - id: building_heat_consumption
+    from_dimensions:
     - id: building_use
       flatten: true
+    to_dimensions:
+    - id: building_heat_source
 
 #
 # TRANSPORT
