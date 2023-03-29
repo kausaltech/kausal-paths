@@ -291,6 +291,7 @@ class BuildingHeatPerArea(Node):
         s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
         df['PerArea'] = s
         df['PerArea'] = df['PerArea'].fillna(method='pad')
+        # FIXME Oil heating (services) gets wrongly copied to all future years. PathsDataFrames should be used.
         df['PerArea'] = self.ensure_output_unit(df['PerArea'])
 
 #        rows = df[FORECAST_COLUMN]

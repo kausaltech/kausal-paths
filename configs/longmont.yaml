@@ -1041,22 +1041,6 @@ nodes:
   input_dimensions: [use_type]
   output_dimensions: [use_type]
 
-- id: electricity_per_area_impact
-  name: Electricity consumption impact per floor area
-  type: simple.AdditiveNode
-  quantity: energy_per_area
-  unit: kWh/ft**2/a
-#  input_datasets:
-#  - longmont/building_electricity_consumption_factor
-#  input_dimensions: [use_type]
-#  output_dimensions: [use_type]
-#  output_nodes:
-#  - id: electricity_per_area
-#  input_nodes:
-#  - id: updated_building_code_residential
-#    tags: [electricity]
-#    from_dimensions
-
 actions:
 
 - id: updated_building_code_residential  # FIXME the graph for this node type does not show
@@ -1065,7 +1049,7 @@ actions:
   type: energy_saving.BuildingEnergySavingActionUs
   quantity: fraction
   unit: '%'
-  params:
+  params:  # FIXME Make sure that change per year is correct.
   - id: renovation_potential
     value: 90.0
   - id: investment_lifetime
@@ -1079,11 +1063,11 @@ actions:
   - id: electricity_saving
     value: 0.14776
   output_nodes:
-  - id: electricity_per_area_impact
+  - id: electricity_per_area
     metrics: [electricity]
-#    to_dimensions:
-#    - id: use_type
-#      categories: [residential]
+    to_dimensions:
+    - id: use_type
+      categories: [residential]
 
 - id: updated_building_code_commercial
   name: Use updated building code and enforce in commercial and industrial buildings
@@ -1105,11 +1089,11 @@ actions:
   - id: electricity_saving
     value: 1.32840
   output_nodes:
-  - id: electricity_per_area_impact
+  - id: electricity_per_area
     metrics: [electricity]
-#    to_dimensions:
-#    - id: use_type
-#      categories: [commercial]
+    to_dimensions:
+    - id: use_type
+      categories: [commercial]
 #  - heat_per_area_single_family
 #  - renovation_cost_per_area_single_family
 
