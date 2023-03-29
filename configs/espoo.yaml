@@ -25,7 +25,6 @@ action_groups:
   name: Liikenne
   name_en: Traffic
   name_sv: Trafik
-#  color: '#cccccc'
 - id: buildings
   name: Rakennukset
   name_en: Buildings
@@ -42,8 +41,6 @@ action_groups:
   name: Jätteet, maatalous ja muut
   name_en: Waste, agriculture and other
   name_sv: Avfall, jordbruk och annat
-
-  # FIXME Translate also the texts in hsy.yaml
 
 params:
 - id: municipality_name
@@ -231,8 +228,6 @@ emission_sectors:
 
   # FIXME waste_landfill_emissions p 5 b 5 d 5. Sitowise p 28 b 22 d 7. ## -2
 
-  # FIXME Agriculture_emissions p 0.9 b 0.9 d 0.9. Sitowise p 1 b 0.9 d 0.9 ## +0
-
 nodes:
 - id: population
   type: finland.population.Population
@@ -279,7 +274,7 @@ nodes:
   - building_floor_area_existing
   - building_floor_area_new
 
-- id: building_heat_existing_from_statistics
+- id: building_heat_from_statistics
   type: finland.hsy.HsyBuildingHeatConsumption
   name: Nykyisen rakennuskannan lämmönkulutustilasto
   name_en: Heat consumption of existing building stock
@@ -295,7 +290,7 @@ nodes:
   quantity: consumption_factor
   unit: kWh/a/m**2
   input_nodes: 
-  - building_heat_existing_from_statistics
+  - building_heat_from_statistics
   - building_floor_area_existing
 
 - id: building_heat_consumption
@@ -331,31 +326,6 @@ nodes:
       flatten: true
     - id: building_use
       flatten: true
-
-#- id: district_heating_energy
-#  name: Kaukolämmön lämmönkulutus
-#  name_en: Heat consumption of district heating
-#  name_sv: Fjärrvärmeförbrukning
-#  type: simple.AdditiveNode
-#  unit: GWh/a
-#  quantity: energy
-#  output_dimensions: [building_use]
-
-#- id: oil_heating_energy
-#  name: Öljylämmityksen lämmönkulutus
-#  name_en: Heat consumption of oil heating
-#  name_sv: Oljeuppvärmningens värmeförbrukning
-#  type: simple.AdditiveNode
-#  unit: GWh/a
-#  quantity: energy
-#  output_dimensions: [building_use]
-
-#- id: geothermal_heating_energy
-#  name: Maalämmön energiankulutus
-#  type: simple.AdditiveNode
-#  quantity: energy
-#  unit: GWh/a
-#  output_dimensions: [building_use]
 
 #
 # TRANSPORT
@@ -569,8 +539,111 @@ nodes:
     [2028, 135.46164499662], [2029, 154.731750817255], [2030, 173.619465695491],
     [2031, 192.11713717284], [2032, 210.250300046423], [2033, 228.038646400391],
     [2034, 245.501598139984], [2035, 262.68009047217]]
-#  output_nodes:
-#  - consumer_electricity_residence_energy
+  output_nodes:
+  - consumer_electricity_residence_energy
+
+- id: temp
+  name: Temp node
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  forecast_values: [[2025, 0], [2030, 0]]
+  description: '
+    Floor area, old and new buildings; electricity, oil and district heating
+    In the pessimistic scenario, changes in the floor area of the building stock will not
+    affect the expected emissions development; instead, the calculation is based on the development of
+    per capita emissions and the trend realised in 2017–2021 as well as the development of the population. 
+
+    Floor area, old electrically heated and all new buildings
+    The Finland 2035 and Carbon-neutral Espoo 2030 scenarios assume that the old building stock will be preserved
+    in 2021–2035 and new buildings will correspond to the increase in the building stock.
+
+    Floor area, old buildings, oil and district heating
+    Finland 2035 and Carbon-neutral Espoo 2030 scenario. The housing density is expected to remain unchanged. For non-residential buildings,
+    the floor area is estimated to develop according to the assumptions of the “Uudenmaan kasvun vaihtoehdot” (“Uusimaa growth options”) survey.
+
+    Change in the construction sector, existing building stock – oil heating
+    Finland 2035 scenario. Oil heating is expected to be given up in residential and service buildings
+    95% by 2030 and completely by 2035. 
+    Carbon-neutral Espoo 2030 scenario. With regard to service buildings, it is assumed that oil heating will be given up
+    100% in accordance with the city’s climate action targets. Other buildings
+    are assumed to develop according to the Finland 2035 scenario.
+
+    Specific heat consumption, existing building stock, all forms of heating
+    In the pessimistic scenario, the energy consumption for heating buildings
+    is expected to develop according to the trend realised in 2017–2021 for all forms of heating. 
+    In the Finland 2035 scenario, the specific heat consumption of buildings is expected to develop
+    in residential buildings such that heat consumption will decrease by 7.5% from the 2021 level by
+    by 2030 and by 11% in other buildings. This trend will continue in 2030–2035.  
+
+    Heating energy, existing building stock – district heating
+    Carbon-neutral Espoo 2030 scenario. The production and consumption of district heating is expected, in accordance with Fortum’s estimate,
+    to remain at its current level of around 2,100 GWh per year. 
+
+    Heating energy, new buildings – electric heating
+    The specific heat consumption of new buildings is estimated in accordance with the following data.
+
+    Heating energy, new buildings – oil heating
+    New oil-heated buildings are not expected to be built in any scenario.
+    As regards changes in heating methods, it is expected that oil-heated buildings will switch to other
+    forms of heating of follows.
+    Single-family and terraced houses: 100% to heat pumps.
+    Blocks of flats, service buildings and industrial buildings: 50% to heat pumps and 50% to district heating.
+
+    Heating energy, new buildings – district heating
+    The specific heat consumption of new buildings is estimated in accordance with the energy efficiency goals.
+    Single-family houses 115 kWh/m2
+    Terraced houses 109 kWh/m2
+    Blocks of flats 66 kWh/m2
+    Other buildings 82 kWh/m2
+
+    Våningsyta, gamla och nybyggen; el, olja och fjärrvärme
+    I det pessimistiska scenariot påverkar förändringarna i byggnadsbeståndets våningsyta inte
+    den antagna utsläppsutvecklingen, utan beräkningen grundar sig på utvecklingen av utsläppen per invånare
+    och den realiserade trenden under perioden 2017–2021 samt befolkningsutvecklingen. 
+
+    Våningsyta, gamla eluppvärmda byggnader och alla nybyggnader
+    I scenarierna Finland 2035 och HNE2030 antas att det gamla byggnadsbeståndet bevaras under perioden
+    2021–2035 och nybyggnaderna motsvarar ökningen av byggnadsbeståndet.
+
+    Våningsyta, gamla byggnader, olja och fjärrvärme
+    Scenarierna Finland2035 och HNE2030. Boenderymligheten antas förbli oförändrad. För andra än bostadshusens
+    del beräknas våningsytan utvecklas enligt antagandena i utredningen Alternativ för tillväxten i Nyland.
+
+    Ändring av byggnadsbranschen, det befintliga byggnadsbeståndet - oljeuppvärmning
+    scenariot Finland 2035. Man antar att oljeuppvärmningen upphör i bostads- och servicebyggnader
+    till 95 procent fram till 2030 och avstår helt fram till 2035. 
+    Scenariot HNE2030. För servicebyggnadernas del antas att oljeuppvärmningen slopas
+    till 100 procent i enlighet med målen för stadens klimatåtgärder. För övriga byggnaders
+    del antas utvecklingen enligt scenariot Finland 2035.
+
+    Specifik värmeförbrukning, befintligt byggnadsbestånd, alla uppvärmningsformer
+    I det pessimistiska scenariot antas energiförbrukningen för uppvärmning av byggnader
+    för alla uppvärmningsformers del utvecklas enligt den realiserade trenden 2017–2021. 
+    I scenariot Finland 2035 antas byggnadernas specifika värmeförbrukning utvecklas
+    i bostadshus så att värmeförbrukningen sjunker med 7,5 procent från nivån 2021 fram till
+    2030 och i övriga byggnader med 11 procent. Utvecklingen fortsätter på samma sätt under perioden 2030–2035.  
+
+    Uppvärmningsenergi, befintligt byggnadsbestånd - fjärrvärme
+    Scenariot HNE2030. Produktionen och förbrukningen av fjärrvärme antas enligt Fortums bedömning
+    hållas på nuvarande nivå, dvs. cirka 2100 GWh per år. 
+
+    Uppvärmningsenergi, nybyggnader - eluppvärmning
+    Den specifika värmeförbrukningen i nybyggnader bedöms enligt följande uppgifter.
+
+    Uppvärmningsenergi, nybyggnader - oljeuppvärmning
+    Nya oljeuppvärmda byggnader antas inte byggas i något scenario.
+    Vid ändringar i uppvärmningssättet antas man övergå från oljeuppvärmda byggnader till andra
+    uppvärmningsformer enligt följande.
+    Småhus och radhus till 100 procent värmepumpar.
+    I höghus, servicebyggnader och industribyggnader 50 procent till värmepumpar och 50 procent till fjärrvärme.
+
+    Uppvärmningsenergi, nybyggnader - fjärrvärme
+    Den specifika värmeförbrukningen i nybyggen bedöms i enlighet med energieffektivitetsmålen.
+    Småhus 115 kWh/m2
+    Radhus 109 kWh/m2
+    Flervåningsbostadshus 66 kWh/m2
+    Övriga byggnader 82 kWh/m2'
 
 pages:
 - id: home
@@ -710,16 +783,6 @@ actions:
     [2031, -4.93989059255608], [2032, -4.93989059255608], [2033, -4.93989059255608],
     [2034, -4.93989059255608], [2035, -4.93989059255608]]
   unit: g/kWh
-#  params:
-#  - id: multiplier
-#    values:
-#      default: 100.0
-#    min_value: 0.0
-#    max_value: 100.0
-#    unit: '%'
-#    description: Sähköntuotannon päästökertoimen muutos, prosenttia oletetusta 2022-2035
-#    description_en: Change in electricity production emission factor, per cent of expected 2022–2035
-#    description_sv: Ändring av utsläppskoefficienten för elproduktion, procent av det antagna 2022–2035
 
 - id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
@@ -762,6 +825,7 @@ actions:
     description_en: Change in household electricity consumption 2022–2035
     description_sv: Ändring i användningen av konsumtionsel 2022–2035
 
+# FIXME Currently has zero impact and no nodes
 - id: change_building_stock
   name: Rakennuskannan muutos
   name_en: Change in building stock
@@ -812,6 +876,7 @@ actions:
 #HNE2030-skenaario: Palvelurakennusten osalta oletetaan, että öljylämmityksestä luovutaan
 # 100 prosenttisesti kaupungin ilmastotoimien tavoitteiden mukaisesti. Muiden rakennusten
 # osalta oletetaan Suomi 2035-skenaarion mukainen kehitys.
+# FIXME Tämänhetkiset luvut eivät vie öljylämmitteistä rakennuskantaa nollaan.
 
 # Ominaislämmönkulutus, olemassa oleva rakennuskanta, kaikki lämmitysmuodot
 #    Pessimistisessä skenaariossa rakennusten lämmityksen energiankulutuksen
@@ -845,109 +910,6 @@ actions:
 #Rivitalot 109 kWh/m2
 #Asuinkerrostalot 66 kWh/m2
 #Muut rakennukset 82 kWh/m2
-
-- id: temp
-  name: Temp node
-  type: simple.AdditiveAction
-  quantity: energy
-  unit: GWh/a
-  forecast_values: [[2025, 0], [2030, 0]]
-  description: '
-    Floor area, old and new buildings; electricity, oil and district heating
-    In the pessimistic scenario, changes in the floor area of the building stock will not
-    affect the expected emissions development; instead, the calculation is based on the development of
-    per capita emissions and the trend realised in 2017–2021 as well as the development of the population. 
-
-    Floor area, old electrically heated and all new buildings
-    The Finland 2035 and Carbon-neutral Espoo 2030 scenarios assume that the old building stock will be preserved
-    in 2021–2035 and new buildings will correspond to the increase in the building stock.
-
-    Floor area, old buildings, oil and district heating
-    Finland 2035 and Carbon-neutral Espoo 2030 scenario. The housing density is expected to remain unchanged. For non-residential buildings,
-    the floor area is estimated to develop according to the assumptions of the “Uudenmaan kasvun vaihtoehdot” (“Uusimaa growth options”) survey.
-
-    Change in the construction sector, existing building stock – oil heating
-    Finland 2035 scenario. Oil heating is expected to be given up in residential and service buildings
-    95% by 2030 and completely by 2035. 
-    Carbon-neutral Espoo 2030 scenario. With regard to service buildings, it is assumed that oil heating will be given up
-    100% in accordance with the city’s climate action targets. Other buildings
-    are assumed to develop according to the Finland 2035 scenario.
-
-    Specific heat consumption, existing building stock, all forms of heating
-    In the pessimistic scenario, the energy consumption for heating buildings
-    is expected to develop according to the trend realised in 2017–2021 for all forms of heating. 
-    In the Finland 2035 scenario, the specific heat consumption of buildings is expected to develop
-    in residential buildings such that heat consumption will decrease by 7.5% from the 2021 level by
-    by 2030 and by 11% in other buildings. This trend will continue in 2030–2035.  
-
-    Heating energy, existing building stock – district heating
-    Carbon-neutral Espoo 2030 scenario. The production and consumption of district heating is expected, in accordance with Fortum’s estimate,
-    to remain at its current level of around 2,100 GWh per year. 
-
-    Heating energy, new buildings – electric heating
-    The specific heat consumption of new buildings is estimated in accordance with the following data.
-
-    Heating energy, new buildings – oil heating
-    New oil-heated buildings are not expected to be built in any scenario.
-    As regards changes in heating methods, it is expected that oil-heated buildings will switch to other
-    forms of heating of follows.
-    Single-family and terraced houses: 100% to heat pumps.
-    Blocks of flats, service buildings and industrial buildings: 50% to heat pumps and 50% to district heating.
-
-    Heating energy, new buildings – district heating
-    The specific heat consumption of new buildings is estimated in accordance with the energy efficiency goals.
-    Single-family houses 115 kWh/m2
-    Terraced houses 109 kWh/m2
-    Blocks of flats 66 kWh/m2
-    Other buildings 82 kWh/m2
-
-    Våningsyta, gamla och nybyggen; el, olja och fjärrvärme
-    I det pessimistiska scenariot påverkar förändringarna i byggnadsbeståndets våningsyta inte
-    den antagna utsläppsutvecklingen, utan beräkningen grundar sig på utvecklingen av utsläppen per invånare
-    och den realiserade trenden under perioden 2017–2021 samt befolkningsutvecklingen. 
-
-    Våningsyta, gamla eluppvärmda byggnader och alla nybyggnader
-    I scenarierna Finland 2035 och HNE2030 antas att det gamla byggnadsbeståndet bevaras under perioden
-    2021–2035 och nybyggnaderna motsvarar ökningen av byggnadsbeståndet.
-
-    Våningsyta, gamla byggnader, olja och fjärrvärme
-    Scenarierna Finland2035 och HNE2030. Boenderymligheten antas förbli oförändrad. För andra än bostadshusens
-    del beräknas våningsytan utvecklas enligt antagandena i utredningen Alternativ för tillväxten i Nyland.
-
-    Ändring av byggnadsbranschen, det befintliga byggnadsbeståndet - oljeuppvärmning
-    scenariot Finland 2035. Man antar att oljeuppvärmningen upphör i bostads- och servicebyggnader
-    till 95 procent fram till 2030 och avstår helt fram till 2035. 
-    Scenariot HNE2030. För servicebyggnadernas del antas att oljeuppvärmningen slopas
-    till 100 procent i enlighet med målen för stadens klimatåtgärder. För övriga byggnaders
-    del antas utvecklingen enligt scenariot Finland 2035.
-
-    Specifik värmeförbrukning, befintligt byggnadsbestånd, alla uppvärmningsformer
-    I det pessimistiska scenariot antas energiförbrukningen för uppvärmning av byggnader
-    för alla uppvärmningsformers del utvecklas enligt den realiserade trenden 2017–2021. 
-    I scenariot Finland 2035 antas byggnadernas specifika värmeförbrukning utvecklas
-    i bostadshus så att värmeförbrukningen sjunker med 7,5 procent från nivån 2021 fram till
-    2030 och i övriga byggnader med 11 procent. Utvecklingen fortsätter på samma sätt under perioden 2030–2035.  
-
-    Uppvärmningsenergi, befintligt byggnadsbestånd - fjärrvärme
-    Scenariot HNE2030. Produktionen och förbrukningen av fjärrvärme antas enligt Fortums bedömning
-    hållas på nuvarande nivå, dvs. cirka 2100 GWh per år. 
-
-    Uppvärmningsenergi, nybyggnader - eluppvärmning
-    Den specifika värmeförbrukningen i nybyggnader bedöms enligt följande uppgifter.
-
-    Uppvärmningsenergi, nybyggnader - oljeuppvärmning
-    Nya oljeuppvärmda byggnader antas inte byggas i något scenario.
-    Vid ändringar i uppvärmningssättet antas man övergå från oljeuppvärmda byggnader till andra
-    uppvärmningsformer enligt följande.
-    Småhus och radhus till 100 procent värmepumpar.
-    I höghus, servicebyggnader och industribyggnader 50 procent till värmepumpar och 50 procent till fjärrvärme.
-
-    Uppvärmningsenergi, nybyggnader - fjärrvärme
-    Den specifika värmeförbrukningen i nybyggen bedöms i enlighet med energieffektivitetsmålen.
-    Småhus 115 kWh/m2
-    Radhus 109 kWh/m2
-    Flervåningsbostadshus 66 kWh/m2
-    Övriga byggnader 82 kWh/m2'
 
 - id: heating_oil_bioshare
   name: Lämmitysöljyn sekoitusvelvoite
@@ -1025,6 +987,114 @@ actions:
         dest_amounts: [50, 50]
       - year: 2035
         source_amount: -50000
+        dest_amounts: [50, 50]
+
+# FIXME does not bring floor area to zero
+- id: reduce_oil_heating_services
+  name: Öljylämmityksen vähentäminen (Palvelut)
+  name_en: Reducing oil heating (Services)
+  name_sv: Minskning av oljeuppvärmning (tjänster)
+  description: Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan asuin- ja
+    palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan kokonaan
+    vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta oletetaan, että
+    öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien tavoitteiden
+    mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion mukainen kehitys.
+  description_en: The Finland 2035 scenario assumes that oil heating will be given up in residential and
+    service buildings 95% by 2030 and completely
+    by 2035. With regard to service buildings, the Carbon-neutral Espoo 2030 scenario assumes that
+    oil heating will be given up 100% in accordance with the city’s climate action
+    targets. Other buildings are expected to develop according to the Finland 2035 scenario.
+  description_sv: I scenariot Finland2035 antas man avstå från oljeuppvärmning i boende-
+    Och servicebyggnaderna till 95 procent fram till 2030 och avstå helt
+    fram till 2035. I scenariot HNE2030 antas för servicebyggnaders del att
+    man avstår från oljeuppvärmning till 100 procent i enlighet med målen för stadens
+    klimatåtgärder. För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035.
+  type: shift.ShiftAction
+  quantity: floor_area
+  unit: m**2
+  group: buildings
+  output_dimensions: [building_heat_source, building_use]
+  output_nodes:
+  - building_floor_area_existing
+  params:
+  - id: shift
+    unit: m**2
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          building_heat_source: oil
+          building_use: services
+      dests:
+      - categories:
+          building_use: services
+          building_heat_source: geothermal
+      - categories:
+          building_use: services
+          building_heat_source: district_heat
+      amounts:
+      - year: 2023
+        source_amount: -10000
+        dest_amounts: [50, 50]
+      - year: 2025
+        source_amount: -20000
+        dest_amounts: [50, 50]
+      - year: 2035
+        source_amount: -10000
+        dest_amounts: [50, 50]
+
+# FIXME does not bring floor area to zero
+- id: reduce_oil_heating_industry
+  name: Öljylämmityksen vähentäminen (Teollisuus)
+  name_en: Reducing oil heating (Industry)
+  name_sv: Minskning av oljeuppvärmning (industri)
+  description: Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan asuin- ja
+    palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan kokonaan
+    vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta oletetaan, että
+    öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien tavoitteiden
+    mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion mukainen kehitys.
+  description_en: The Finland 2035 scenario assumes that oil heating will be given up in residential and
+    service buildings 95% by 2030 and completely
+    by 2035. With regard to service buildings, the Carbon-neutral Espoo 2030 scenario assumes that
+    oil heating will be given up 100% in accordance with the city’s climate action
+    targets. Other buildings are expected to develop according to the Finland 2035 scenario.
+  description_sv: I scenariot Finland2035 antas man avstå från oljeuppvärmning i boende-
+    Och servicebyggnaderna till 95 procent fram till 2030 och avstå helt
+    fram till 2035. I scenariot HNE2030 antas för servicebyggnaders del att
+    man avstår från oljeuppvärmning till 100 procent i enlighet med målen för stadens
+    klimatåtgärder. För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035.
+  type: shift.ShiftAction
+  quantity: floor_area
+  unit: m**2
+  group: buildings
+  output_dimensions: [building_heat_source, building_use]
+  output_nodes:
+  - building_floor_area_existing
+  params:
+  - id: shift
+    unit: m**2
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          building_heat_source: oil
+          building_use: industry
+      dests:
+      - categories:
+          building_use: industry
+          building_heat_source: geothermal
+      - categories:
+          building_use: industry
+          building_heat_source: district_heat
+      amounts:
+      - year: 2023
+        source_amount: -10000
+        dest_amounts: [50, 50]
+      - year: 2025
+        source_amount: -20000
+        dest_amounts: [50, 50]
+      - year: 2035
+        source_amount: -10000
         dest_amounts: [50, 50]
 
 - id: replace_fossil_fuels_in_district_heating
@@ -1628,14 +1698,12 @@ scenarios:
     value: true
   - id: replace_fossil_fuels_in_district_heating.multiplier
     value: 50.0
-  # - id: reduce_oil_heating_services.target_year_level
-  #   value: -34
-  # - id: reduce_oil_heating_services.enabled
-  #   value: true
-  # - id: reduce_oil_heating_residence.enabled
-  #   value: true
-  # - id: reduce_oil_heating_industry.enabled
-  #   value: true
+  - id: reduce_oil_heating_residence.enabled
+    value: true
+  - id: reduce_oil_heating_services.enabled
+    value: true
+  - id: reduce_oil_heating_industry.enabled
+    value: true
 
 - id: default
   default: true
@@ -1671,8 +1739,6 @@ scenarios:
     value: true
   - id: replace_fossil_fuels_in_district_heating.multiplier
     value: 100.0
-  # - id: reduce_oil_heating_services.target_year_level
-  #   value: -37
 
 - id: pessimistic
   name: Pessimistinen
