@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import pandas as pd
 from pint_pandas import PintType
 import polars as pl
+from polars.type_aliases import IntoExpr
+from polars.utils._parse_expr_input import expr_to_lit_or_expr, selection_to_pyexpr_list
 from polars import polars
 import polars.internals as pli
 import numpy as np
@@ -63,6 +65,8 @@ class PathsDataFrame(pl.DataFrame):
         for col in meta.primary_keys:
             if col in df.columns:
                 df._primary_keys.append(col)
+
+        _validate_ppdf(df)
 
         return df
 
@@ -128,44 +132,55 @@ class PathsDataFrame(pl.DataFrame):
 
     def select(
         self,
-        exprs: (str | pli.Expr | pli.Series | Iterable[str | pli.Expr | pli.Series | pli.WhenThen | pli.WhenThenThen]),
-        units: dict[str, Unit] | None = None
+        exprs: IntoExpr | Iterable[IntoExpr] | None = None,
+        *more_exprs: IntoExpr,
+        units: dict[str, Unit] | None = None,
+        **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
-        pyexprs = pli.selection_to_pyexpr_list(exprs)
-        df = super().select(exprs)
+        structify = False
+        pyexprs = selection_to_pyexpr_list(exprs, structify=structify)
+        if more_exprs:
+            pyexprs.extend(selection_to_pyexpr_list(more_exprs, structify=structify))
+        if named_exprs:
+            pyexprs.extend(
+                expr_to_lit_or_expr(
+                    expr, structify=structify, name=name, str_to_lit=False
+                )._pyexpr
+                for name, expr in named_exprs.items()
+            )
+        df = super().select(exprs, *more_exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
+    def select_metrics(self, metric_cols: list[str]) -> PathsDataFrame:
+        for col in metric_cols:
+            assert col in self._units
+        cols = [*self._primary_keys, *metric_cols]
+        if FORECAST_COLUMN in self.columns:
+            cols.append(FORECAST_COLUMN)
+        return self.select(cols)
+
     def with_columns(
         self,
-        exprs: pli.Expr | pli.Series | Sequence[pli.Expr | pli.Series] | None = None,
+        exprs: IntoExpr | Iterable[IntoExpr] = None,
+        *more_exprs: IntoExpr,
         units: dict[str, Unit] | None = None,
-        **named_exprs: Any
+        **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
-        df = super().with_columns(exprs, **named_exprs)
-        if exprs is None:
-            exprs = []
-        elif isinstance(exprs, pli.Expr):
-            exprs = [exprs]
-        elif isinstance(exprs, pli.Series):
-            exprs = [pli.lit(exprs)]
-        else:
-            exprs = list(exprs)
-        exprs.extend(
-            pli.expr_to_lit_or_expr(expr).alias(name)
-            for name, expr in named_exprs.items()
-        )
+        structify = False
+        pyexprs = selection_to_pyexpr_list(exprs, structify=structify)
+        if more_exprs:
+            pyexprs.extend(selection_to_pyexpr_list(more_exprs, structify=structify))
+        if named_exprs:
+            pyexprs.extend(
+                expr_to_lit_or_expr(
+                    expr, structify=structify, name=name, str_to_lit=False
+                )._pyexpr
+                for name, expr in named_exprs.items()
+            )
 
-        conv_exprs: list[polars.PyExpr] = []
-        for e in exprs:
-            if isinstance(e, pli.Expr):
-                conv_exprs.append(e._pyexpr)
-            elif isinstance(e, pli.Series):
-                conv_exprs.append(pli.lit(e)._pyexpr)
-            else:
-                raise ValueError(f"Expected an expression, got {e}")
-
-        meta = self._pyexprs_to_meta(conv_exprs, units or {})
+        df = super().with_columns(exprs, *more_exprs, **named_exprs)
+        meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
     def with_column(self, column: pli.Series | pli.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
@@ -265,10 +280,21 @@ class PathsDataFrame(pl.DataFrame):
         df = df.paths.to_narrow()
         return to_ppdf(df, meta=meta)
 
+
+def _validate_ppdf(df: PathsDataFrame):
+    units = list(df._units.keys())
+    pks = list(df._primary_keys)
+    for col in units + pks:
+        if col not in df.columns:
+            raise Exception('Column %s in metadata not found in DF columns' % col)
+
+
 def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
     if isinstance(df, PathsDataFrame) and meta is None:
+        _validate_ppdf(df)
         return df
     pdf = PathsDataFrame._from_pydf(df._df, meta=meta)
+    _validate_ppdf(pdf)
     return pdf
 
 

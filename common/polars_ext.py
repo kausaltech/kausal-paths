@@ -45,10 +45,11 @@ class PathsExt:
         dim_ids = meta.dim_ids
         metric_cols = list(meta.units.keys())
         if not metric_cols:
+            raise Exception("No metric columns in DF")
             metric_cols = [VALUE_COLUMN]
         for col in dim_ids + metric_cols:
             if col not in df.columns:
-                raise Exception("Column %s from metadata is not present in DF")
+                raise Exception("Column %s from metadata is not present in DF" % col)
 
         # Create a column '_dims' with all the categories included
         if not dim_ids:
