@@ -65,72 +65,36 @@ emission_sectors:
   name_sv: Utsläpp från jordbruket
   part_of: net_emissions
 nodes:
-- id: district_heating_energy
-  name: Kaukolämmön lämmönkulutus
-  name_en: Heat consumption of district heating
-  name_sv: Värmeförbrukning av fjärrvärme
-  params:
-    sector: Lämmitys|Kaukolämpö|Kaukolämpö
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
 - id: district_heating_emissions
   name: Kaukolämmön päästöt
   name_en: District heat emissions
   name_sv: Fjärrvärmeutsläpp
   output_nodes: [building_heating_emissions]
-  input_nodes: [district_heating_emission_factor, district_heating_energy]
+  input_nodes: [district_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
-- id: oil_heating_energy
-  name: Öljylämmityksen lämmönkulutus
-  name_en: Heat consumption of oil heating
-  name_sv: Värmeförbrukning vid oljeuppvärmning
-  params:
-    sector: Lämmitys|Öljylämmitys|Öljylämmitys
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
 - id: oil_heating_emissions
   name: Öljylämmityksen päästöt
   name_en: Oil heating emissions
   name_sv: Oljeuppvärmningsutsläpp
   output_nodes: [building_heating_emissions]
-  input_nodes: [oil_heating_emission_factor, oil_heating_energy]
+  input_nodes: [oil_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
-- id: direct_electric_heating_energy
-  name: Sähkölämmityksen sähkönkulutus
-  name_en: Electricity consumption of electric heating
-  name_sv: Elförbrukning för elvärme
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
 - id: direct_electric_heating_emissions
   name: Sähkölämmityksen päästöt
   name_en: Emissions from electric heating
   name_sv: Utsläpp från elvärme
   output_nodes: [building_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, direct_electric_heating_energy]
+  input_nodes: [electric_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
-- id: geothermal_heating_energy
-  name: Maalämmön sähkönkulutus
-  name_en: Geothermal electricity consumption
-  name_sv: Geotermisk elförbrukning
-  params:
-    sector: Lämmitys|Maalämpö|Maalämpö
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
 - id: geothermal_heating_emissions
   name: Maalämmön päästöt
   name_en: Geothermal emissions
   name_sv: Geotermiska utsläpp
   output_nodes: [building_heating_emissions]
-  input_nodes: [electric_heating_emission_factor, geothermal_heating_energy]
+  input_nodes: [electric_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
 - id: consumer_electricity_residence_energy
@@ -505,3 +469,102 @@ nodes:
   input_nodes: [all_hsy_emissions]
   params:
     sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
+
+- id: all_hsy_emissions
+  type: finland.hsy.HsyNode
+  name: HSY:n päästöinventaario
+  name_en: HSY emission inventory
+  name_sv: HRM:s utsläppsinventering
+
+- id: building_floor_area_existing
+  type: finland.aluesarjat.BuildingStock
+  name: Nykyisen rakennuskannan kerrosala
+  name_en: Floor area of existing building stock
+  name_sv: Våningsytan i det nuvarande byggnadsbeståndet
+
+- id: building_floor_area_new
+  type: finland.aluesarjat.FutureBuildingStock
+  name: Uuden rakennuskannan kerrosala
+  name_en: Floor area of new building stock
+  name_sv: Våningsytan i det nya byggnadsbeståndet
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: building_floor_area_existing
+    tags: [existing_floor_area]
+
+- id: building_floor_area_total
+  name: Rakennusala kokonaisuudessaan
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use, building_heat_source]
+  output_dimensions: [building_use, building_heat_source]
+  input_nodes:
+  - building_floor_area_existing
+  - building_floor_area_new
+
+- id: building_heat_existing
+  type: finland.hsy.HsyBuildingHeatConsumption
+  name: Nykyisen rakennuskannan lämmönkulutus
+  name_en: Heat consumption of existing building stock
+  name_sv: Värmeförbrukningen i det nuvarande byggnadsbeståndet
+  tags: [historical_heat]
+  input_nodes: [all_hsy_emissions]
+
+- id: building_heat_per_floor_area
+  name: Rakennusten lämmitys per ala
+  name_en: Building heating per floor area
+  name_sv: Värmeförbrukningen per våningsytan
+  type: finland.aluesarjat.BuildingHeatPerArea
+  quantity: consumption_factor
+  unit: kWh/a/m**2
+  input_dimensions: [building_use, building_heat_source]
+  output_dimensions: [building_use, building_heat_source]
+  input_nodes: 
+  - building_heat_existing
+  - building_floor_area_existing
+
+- id: building_heat_consumption
+  name: Rakennuskannan lämmönkulutus
+  name_en: Building heat consumption
+  name_sv: Värmeförbrukning i det byggnadsbeståndet
+  type: finland.hsy.MultiplicativeWithDataBackup
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes: 
+  - building_heat_per_floor_area
+  - building_floor_area_total
+  - id: building_heat_existing
+    tags: [data_node]
+  output_nodes:
+  - id: district_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [district_heat]
+      flatten: true
+    - id: building_use
+      flatten: true
+  - id: oil_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [oil]
+      flatten: true
+    - id: building_use
+      flatten: true
+  - id: geothermal_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [geothermal]
+      flatten: true
+    - id: building_use
+      flatten: true
+  - id: direct_electric_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [direct_electric]
+      flatten: true
+    - id: building_use
+      flatten: true
