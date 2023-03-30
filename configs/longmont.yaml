@@ -1272,8 +1272,8 @@ actions:
   output_nodes:
   - id: equity_share_emissions
     to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
+    - id: greenhouse_gases
+      categories: [co2]
 
 # FIXME Francie: would it be possible to have both an option where someone could see the model
 # go to 0 and then also go to 90% renewable? I believe the projection is the exact same,
