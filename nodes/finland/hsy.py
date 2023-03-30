@@ -4,6 +4,7 @@ from typing import ClassVar, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from common import polars as ppl
 from nodes.calc import extend_last_historical_value
 from nodes.dimensions import Dimension
@@ -13,7 +14,7 @@ from nodes.constants import (
     FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, 
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
-from nodes.simple import AdditiveNode
+from nodes.simple import AdditiveNode, MultiplicativeNode
 from nodes.exceptions import NodeError
 
 
@@ -289,3 +290,38 @@ class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin):
         df[VALUE_COLUMN] = df[VALUE_COLUMN].div(pop_df[VALUE_COLUMN], axis='index')
         print(df)
         exit()
+
+
+class MultiplicativeWithDataBackup(MultiplicativeNode):
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = super().compute()
+        meta = df.get_meta()
+
+        data_node = self.get_input_node(tag='data_node')
+        df_data = data_node.get_output_pl()
+        # FIXME dimensions in df are cat but in df_data str. Which one they should be and how to fix this in a clever way?
+        df_data = df_data.with_columns([pl.col('building_heat_source').cast(pl.Categorical)])
+        df_data = df_data.with_columns([pl.col('building_use').cast(pl.Categorical)])
+        on = list(set(df.get_meta().primary_keys + df_data.get_meta().primary_keys))
+        df = df.join(df_data, on=on, how='outer')
+
+        # FIXME If you add actions to years without calculated values, you get zero-counting rather than double-counting.
+        df = df.with_columns([
+            pl.when(pl.col(VALUE_COLUMN) != pl.col(VALUE_COLUMN + '_right'))
+            .then(True).otherwise(False).alias('DoubleCounting')
+        ])
+        df = df.with_columns([
+            pl.when(pl.col('DoubleCounting'))
+            .then(pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right'))
+            .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
+        ])
+        df = df.with_columns([
+            pl.when(pl.col('DoubleCounting'))
+            .then(pl.col(FORECAST_COLUMN))
+            .otherwise(pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN)
+        ])
+        df = df.drop([FORECAST_COLUMN + '_right', VALUE_COLUMN + '_right', 'DoubleCounting'])
+        df = ppl.to_ppdf(df, meta)
+
+        return df

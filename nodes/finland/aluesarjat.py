@@ -1,10 +1,11 @@
 import pandas as pd
 import pint_pandas
+import polars as pl
 
 from nodes import Node, NodeMetric
-from nodes.calc import extend_last_historical_value
+from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
 from nodes.constants import ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.simple import AdditiveNode, SimpleNode
+from nodes.simple import AdditiveNode, SimpleNode, DivisiveNode
 
 
 INDUSTRY_USES = '''
@@ -238,7 +239,7 @@ class BuildingHeatPredict(Node):
         return df
 
 
-class BuildingHeatPerArea(Node):
+class BuildingHeatPerAreaOld(Node):
     output_metrics = {
         HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=ENERGY_QUANTITY)
     }
@@ -297,4 +298,25 @@ class BuildingHeatPerArea(Node):
 #        rows = df[FORECAST_COLUMN]
 #        df.loc[rows, 'PerArea'] = df.loc[rows, 'PerArea']
         df = df[['PerArea', FORECAST_COLUMN]].rename(columns=dict(PerArea=VALUE_COLUMN))
+        return df
+
+
+class BuildingHeatPerArea(DivisiveNode):
+    output_metrics = {
+        HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=ENERGY_QUANTITY)
+    }
+    output_dimension_ids = [
+        'building_heat_source',
+        'building_use',
+    ]
+
+    def compute(self) -> pd.DataFrame:
+        df = super().compute()
+        df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(None)).drop_nulls()
+        df = df.filter(~pl.col(FORECAST_COLUMN))
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        df = df.paths.to_narrow()
+        print(df)
+        print(df.get_meta())
+        # FIXME A thing to consider: should the energy efficiency be a long-term average?
         return df
