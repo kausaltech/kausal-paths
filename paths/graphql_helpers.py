@@ -19,6 +19,7 @@ class GQLContext(WSGIRequest):
 
 class GQLInstanceContext(GQLContext):
     instance: Instance
+    _referer: str | None
 
 
 class GQLInfo(GraphQLResolveInfo):

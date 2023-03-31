@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import logging
 from typing import Optional, Tuple
 from graphql import DirectiveNode
@@ -109,8 +110,6 @@ class InstanceMiddleware:
     def determine_instance(self, info: GQLInfo):
         instance_config: Optional[InstanceConfig] = None
 
-        token: str | None = None
-
         for directive in info.operation.directives or []:
             if directive.name.value == 'instance':
                 instance_config = self.process_instance_directive(info, directive)
@@ -126,7 +125,7 @@ class InstanceMiddleware:
 
         return instance_config.get_instance(generate_baseline=True)
 
-    def activate_instance(self, instance: Instance, info: GQLInstanceInfo):
+    def activate_instance(self, instance: Instance, info: GQLInfo):
         context = instance.context
         context.setting_storage = storage = SessionStorage(instance=instance, session=info.context.session)
         active_scenario_id = storage.get_active_scenario()
@@ -150,19 +149,31 @@ class InstanceMiddleware:
             context.set_option('normalizer', val)
 
         context.activate_scenario(scenario)
-        context.perf_context.start()
-        context.cache.start_run()
-        info.context.instance = instance
+
+    @contextmanager
+    def instance_context(self, info: GQLInfo):
+        context = None
+        instance = self.determine_instance(info)
+        if instance is not None:
+            self.activate_instance(instance, info)
+            info.context.instance = instance  # type: ignore
+            context = instance.context
+            context.perf_context.start()
+            context.cache.start_run()
+
+        try:
+            yield
+        finally:
+            if context is not None:
+                context.cache.end_run()
+                context.perf_context.stop()
 
     def resolve(self, next, root, info: GQLInfo, **kwargs):
         if root is None:
-            instance = self.determine_instance(info)
-            if instance is not None:
-                self.activate_instance(instance, info)
-            else:
-                info.context.instance = None
-        return next(root, info, **kwargs)
-
+            with self.instance_context(info):
+                return next(root, info, **kwargs)
+        else:
+            return next(root, info, **kwargs)
 
 class PathsGraphQLView(GraphQLView):
     graphiql_version = "2.2.0"
@@ -190,7 +201,7 @@ class PathsGraphQLView(GraphQLView):
             if variables:
                 console.print('Variables:', variables)
 
-        with sentry_sdk.push_scope() as scope:
+        with sentry_sdk.push_scope() as scope:  # type: ignore
             scope.set_context('graphql_variables', variables)
             scope.set_tag('graphql_operation_name', operation_name)
             scope.set_tag('referer', request._referer)
@@ -202,7 +213,7 @@ class PathsGraphQLView(GraphQLView):
                 span.set_tag('referer', request._referer)
             else:
                 # No tracing activated, use an inert Span
-                span = sentry_sdk.tracing.Span()
+                span = sentry_sdk.start_span()
 
             with span:
                 pc = PerfCounter('graphql query')
@@ -211,15 +222,6 @@ class PathsGraphQLView(GraphQLView):
                 )
                 query_time = pc.measure()
                 logger.debug("GQL response took %.1f ms" % query_time)
-
-                # log perf data on slow queries
-                instance: Instance = getattr(request, 'instance', None)
-                if instance is not None:
-                    ctx = instance.context
-                    ctx.cache.end_run()
-                    if query_time > 3000:
-                        ctx.perf_context.print()
-                        ctx.perf_context.stop()
 
             # If 'invalid' is set, it's a bad request
             if result and result.errors:
