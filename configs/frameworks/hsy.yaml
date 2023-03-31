@@ -158,7 +158,7 @@ nodes:
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEmissions
 - id: motorbike_emissions
-  name: Moottoripyörät päästöt
+  name: Moottoripyörien päästöt
   name_en: Motorcycle emissions
   name_sv: Motorcykelutsläpp
   output_nodes: [road_transport_emissions]
@@ -504,13 +504,28 @@ nodes:
   - building_floor_area_existing
   - building_floor_area_new
 
-- id: building_heat_existing
+- id: building_heat_statistics
   type: finland.hsy.HsyBuildingHeatConsumption
-  name: Nykyisen rakennuskannan lämmönkulutus
-  name_en: Heat consumption of existing building stock
-  name_sv: Värmeförbrukningen i det nuvarande byggnadsbeståndet
+  name: Rakennuskannan lämmönkulutustilasto
+  name_en: Heat consumption statistics of building stock
+  name_sv: Värmeförbrukningenstatistik av byggnadsbeståndet
   tags: [historical_heat]
   input_nodes: [all_hsy_emissions]
+
+- id: building_heat_per_floor_area_new
+  name: Ominaislämmönkulutus uudessa rakennuskannassa
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kWh/m**2/a
+  input_datasets:
+  - espoo/new_building_heating_per_area
+  output_dimensions: [building_use]
+  output_nodes:
+  - id: building_heat_consumption_new
+    to_dimensions:
+    - id: building_use
+    - id: building_heat_source
+      categories: [district_heat]  # FIXME Should apply to all building_heat_sources but then gives error
 
 - id: building_heat_per_floor_area
   name: Rakennusten lämmitys per ala
@@ -522,13 +537,13 @@ nodes:
   input_dimensions: [building_use, building_heat_source]
   output_dimensions: [building_use, building_heat_source]
   input_nodes: 
-  - building_heat_existing
+  - building_heat_statistics
   - building_floor_area_existing
 
-- id: building_heat_consumption
-  name: Rakennuskannan lämmönkulutus
-  name_en: Building heat consumption
-  name_sv: Värmeförbrukning i det byggnadsbeståndet
+- id: building_heat_consumption_existing
+  name: Nykyisen rakennuskannan lämmönkulutus
+  name_en: Heat consumption of existing buildings
+  name_sv: Värmeförbrukning i det nuvarande byggnadsbeståndet
   type: finland.hsy.MultiplicativeWithDataBackup
   quantity: energy
   unit: GWh/a
@@ -536,9 +551,22 @@ nodes:
   output_dimensions: [building_heat_source, building_use]
   input_nodes: 
   - building_heat_per_floor_area
-  - building_floor_area_total
-  - id: building_heat_existing
+  - building_floor_area_existing
+  - id: building_heat_statistics
     tags: [data_node]
+
+- id: building_heat_consumption
+  name: Koko rakennuskannan lämmönkulutus
+  name_en: Total building heat consumption
+  name_sv: Total värmeförbrukning i det byggnadsbeståndet
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes: 
+  - building_heat_consumption_existing
+  - building_heat_consumption_new
   output_nodes:
   - id: district_heating_emissions
     from_dimensions:
