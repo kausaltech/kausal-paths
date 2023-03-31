@@ -240,133 +240,6 @@ nodes:
     Toteutunut väestönkehitys (1990, 2000-2022) on saatu Tilastokeskuksen tilastoista.
     <a href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
 
-- id: all_hsy_emissions
-  type: finland.hsy.HsyNode
-  name: HSY:n päästöinventaario
-  name_en: HSY emission inventory
-  name_sv: HRM:s utsläppsinventering
-
-- id: building_floor_area_existing
-  type: finland.aluesarjat.BuildingStock
-  name: Nykyisen rakennuskannan kerrosala
-  name_en: Floor area of existing building stock
-  name_sv: Våningsytan i det nuvarande byggnadsbeståndet
-
-- id: building_floor_area_new
-  type: finland.aluesarjat.FutureBuildingStock
-  name: Uuden rakennuskannan kerrosala
-  name_en: Floor area of new building stock
-  name_sv: Våningsytan i det nya byggnadsbeståndet
-  input_nodes:
-  - id: population
-    to_dimensions: []
-  - id: building_floor_area_existing
-    tags: [existing_floor_area]
-
-- id: building_floor_area_total
-  name: Rakennusala kokonaisuudessaan
-  type: simple.AdditiveNode
-  quantity: floor_area
-  unit: m**2
-  input_dimensions: [building_use, building_heat_source]
-  output_dimensions: [building_use, building_heat_source]
-  input_nodes:
-  - building_floor_area_existing
-  - building_floor_area_new
-
-- id: building_heat_from_statistics
-  type: finland.hsy.HsyBuildingHeatConsumption
-  name: Nykyisen rakennuskannan lämmönkulutustilasto
-  name_en: Heat consumption of existing building stock
-  name_sv: Värmeförbrukningen i det nuvarande byggnadsbeståndet
-  tags: [historical_heat]
-  input_nodes: [all_hsy_emissions]
-
-- id: building_heat_per_floor_area
-  name: Rakennusten lämmitys per ala
-  name_en: Building heating per floor area
-  name_sv: Värmeförbrukningen per våningsytan
-  type: finland.aluesarjat.BuildingHeatPerArea
-  quantity: consumption_factor
-  unit: kWh/a/m**2
-  input_nodes: 
-  - building_heat_from_statistics
-  - building_floor_area_existing
-
-- id: building_heat_consumption
-  name: Rakennuskannan lämmönkulutus
-  name_en: Building heat consumption
-  name_sv: Värmeförbrukning i det byggnadsbeståndet
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [building_heat_source, building_use]
-  output_dimensions: [building_heat_source, building_use]
-  input_nodes: 
-  - building_heat_per_floor_area
-  - building_floor_area_total
-#  output_nodes:  # FIXME causes double-counting and it commented out until this is solved
-#  - id: district_heating_energy
-#    from_dimensions:
-#    - id: building_heat_source
-#      categories: [district_heat]
-#      flatten: true
-#    - id: building_use
-#      flatten: true
-#  - id: oil_heating_energy
-#    from_dimensions:
-#    - id: building_heat_source
-#      categories: [oil]
-#      flatten: true
-#    - id: building_use
-#      flatten: true
-#  - id: geothermal_heating_energy
-#    from_dimensions:
-#    - id: building_heat_source
-#      categories: [geothermal]
-#      flatten: true
-#    - id: building_use
-#      flatten: true
-
-- id: building_heating_emission_factor
-  name: Rakennusten lämmityksen päästökertoimet
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  output_dimensions: [building_heat_source]
-  input_nodes:
-  - id: district_heating_emission_factor
-    to_dimensions:
-    - id: building_heat_source
-      categories: [district_heat]
-  - id: oil_heating_emission_factor
-    to_dimensions:
-    - id: building_heat_source
-      categories: [oil]
-  - id: electric_heating_emission_factor
-    to_dimensions:
-    - id: building_heat_source
-      categories: [geothermal]
-
-- id: building_heating_emissions2
-  name: Rakennusten lämmityksen päästöt
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  is_outcome: true
-  input_dimensions: [building_heat_source]  # FIXME Have to sum up building_use because code does not support intelligent arrays
-  output_dimensions: [building_heat_source]
-  input_nodes:
-  - id: building_heating_emission_factor
-    to_dimensions:
-    - id: building_heat_source
-  - id: building_heat_consumption
-    from_dimensions:
-    - id: building_use
-      flatten: true
-    to_dimensions:
-    - id: building_heat_source
-
 #
 # TRANSPORT
 #
@@ -1185,7 +1058,12 @@ actions:
   quantity: energy
   group: buildings
   output_nodes:
-  - district_heating_energy
+  - id: building_heat_consumption
+    to_dimensions:
+    - id: building_heat_source
+      categories: [district_heat]
+    - id: building_use
+      categories: [services]
   forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
       2029, -14], [2030, -6]]
   unit: GWh/a

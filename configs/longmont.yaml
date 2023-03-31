@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9310155d0704d63889d11f5975710e5be35e42a5
+  commit: 33a1e01b25704c413bdd07fde1294d2f9fa32e6b
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -380,7 +380,7 @@ params:
 emission_sectors:
 - id: net_emissions
   name: Greenhouse gas emissions
-  color: #E22D53
+  color: #273E60
   input_node_dimension:
     label: Emission sectors
   target_year_goal: 6.5
@@ -397,33 +397,34 @@ emission_sectors:
 - id: stationary_energy_emissions
   name: Stationary energy emissions  # FIXME There is apparently double counting due to building_emissions
   part_of: net_emissions
-  color: #E22D53
+  color: #73C1B7
   input_dataset_processors: [LinearInterpolation]
 
 - id: transportation_emissions
   name: Transportation emissions
   part_of: net_emissions
   category: transport
-  color: #E22D53
+  color: #F4BD7B
   input_dataset_processors: [LinearInterpolation]
 
 - id: waste_emissions
   name: Waste emissions
   part_of: net_emissions
-  color: #F18830
+  color: #D3805E
   category: waste
   input_dataset_processors: [LinearInterpolation]
 
 - id: ippu_emissions
   name: Industrial processes and product use emissions
   part_of: net_emissions
-  color: #8DAFBC
+  color: #6686B9
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name: Agriculture,forestry, and other land use emissions
   category: afolu
   part_of: net_emissions
+  color: #5D9C6F
   input_dataset_processors: [LinearInterpolation]
 
 # Subsector emissions
@@ -1100,7 +1101,9 @@ actions:
 - id: beyond_building_code
   name: Develop beyond building code
   description: Develop building codes that go beyond the IECC and towards net-zero
-    energy use.
+    energy use, including the Climate Action Recommendations Report strategies to
+    add solar ready and electric vehicle ready as part of the 2021 residential code
+    update.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh/a
@@ -1110,7 +1113,8 @@ actions:
   name: Report and benchmark energy use
   description: Requires commercial and industrial buildings owners whose buildings
     exceed 20,000 square feet to rate their building's energy use, report energy metrics,
-    and encourages buildings owners to implement energy efficiency measures.
+    and encourages buildings owners to implement energy efficiency measures. For updates,
+    see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh/a
@@ -1127,32 +1131,33 @@ actions:
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: replace_natural_gas
-  name: Replace natural gas use in buildings with electricity
-  description: Over time, replace natural gas appliances with electricity appliances
-    assuming a low carbon emission factor. Savings are modeled with renewable energy
-    emission factors.
+  name: Beneficial Building Electrification
+  description: Converting building systems that use fossil fuels (gas, oil, or propane)
+    to high efficiency electric equipment powered by increasingly clean and renewable
+    electricity. Savings are modeled with projected renewable energy emission factors.
   type: simple.AdditiveAction
   quantity: energy
   unit: therm/a
   forecast_values: [[2023, 0], [2050, 0]]
 
-- id: renewable_energy_plan
-  name: Develop a comprehensive 100% renewable energy plan
-  description: Develop a comprehensive 100% renewable energy plan for Longmont's just
-    transition to a clean energy economy. Acquire all electricity from renewable energy
-    sources by 2030.
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  forecast_values: [[2023, 0], [2050, 0]]
+#- id: renewable_energy_plan
+#  name: Develop a comprehensive 100% renewable energy plan
+#  description: Develop a comprehensive 100% renewable energy plan for Longmont's just
+#    transition to a clean energy economy. Acquire all electricity from renewable energy
+#    sources by 2030.
+#  type: simple.AdditiveAction
+#  quantity: fraction
+#  unit: '%'
+#  forecast_values: [[2023, 0], [2050, 0]]
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
   description: Implement a variety of smart grid projects that encourage reductions
     in electricity consumption through real-time feedback, dynamic pricing, etc. LPC
-    is currently conducting a small test pilot of AMR/AM in 2018 and 2019.  This would
-    potentially lay the framework to employ future demand-response programs and dynamic
-    utility rate structures.
+    is currently working with consultants to develop a Smart Grid Roadmap + CIP that
+    will evaluate the distribution grid relative to increased load, areas for investment/improvement,
+    areas of vulnerability, the best placement for battery energy storage, and smart
+    grid technologies through the development of a CIP plan for the next 5-20 years.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh/a
@@ -1161,11 +1166,7 @@ actions:
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
   description: Reduce electric grid transmission and distribution losses through grid
-    management such as distributed voltage optimization. It should be noted that LPC's
-    electric grid is efficient. From LPC, Longmont Power & Communications currently
-    enjoys a system wide power factor of 0.999 during cooler months and greater than
-    0.95 during the warm summer months.  LPC also employs capacitor banks throughout
-    the distribution network to improve voltage support.
+    management such as distributed voltage optimization.
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh
@@ -1183,8 +1184,7 @@ actions:
 - id: increase_access_of_public_transit
   name: Address barriers to increase access and use of public transit
   description: Address barriers to increase access and use of public transit, especially
-    for underserved communities Increase public transit through the City's Ride Free
-    Program.
+    for underserved communities.
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
@@ -1202,9 +1202,12 @@ actions:
 
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
-  description: Improve monitoring of oil and gas sites by increasing methane leak
-    detection and repair and minimizing leaks in the transmission and distribution
-    system of natural gas.
+  description: The original intent of this action was to improve monitoring of oil
+    and gas sites by increasing methane leak detection and repair and minimizing leaks
+    in the transmission and distribution system of natural gas. However, there are
+    no longer any active oil and gas facilities within City limits and the City has
+    no legal authority to enforce leaks or repairs associated with oil and gas operations.
+
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1212,54 +1215,53 @@ actions:
 
 - id: increase_waste_diversion
   name: Increase waste diversion
-  description: Scenario 2. Achieve 85% waste diversion from the landfill by 2035 and
-    95% by 2050.
+  description: Achieve 85% waste diversion from the landfill by 2035 and 95% by 2050.
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
   forecast_values: [[2023, 0], [2050, 0]]
 
-- id: commercial_power_purchase_program
-  name: Commercial power purchase program
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2022, 0], [2023, -3544251]]
-  output_nodes:
-  - id: electricity_consumption
-    to_dimensions:
-    - id: use_type
-      categories: [commercial]
-    - id: site
-      categories: [longmont_power]
+#- id: commercial_power_purchase_program
+#  name: Commercial power purchase program
+#  type: simple.CumulativeAdditiveAction
+#  quantity: energy
+#  unit: kWh/a
+#  forecast_values: [[2022, 0], [2023, -3544251]]
+#  output_nodes:
+#  - id: electricity_consumption
+#    to_dimensions:
+#    - id: use_type
+#      categories: [commercial]
+#    - id: site
+#      categories: [longmont_power]
 
-- id: residential_power_purchase_program
-  name: Residential power purchase program
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2022, 0], [2023, -3550001]]
-  output_nodes:
-  - id: electricity_consumption
-    to_dimensions:
-    - id: use_type
-      categories: [residential]
-    - id: site
-      categories: [longmont_power]
+#- id: residential_power_purchase_program
+#  name: Residential power purchase program
+#  type: simple.CumulativeAdditiveAction
+#  quantity: energy
+#  unit: kWh/a
+#  forecast_values: [[2022, 0], [2023, -3550001]]
+#  output_nodes:
+#  - id: electricity_consumption
+#    to_dimensions:
+#    - id: use_type
+#      categories: [residential]
+#    - id: site
+#      categories: [longmont_power]
 
-- id: residential_rooftop_solar
-  name: Residential rooftop solar
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2022, 0], [2023, -5080497]]
-  output_nodes:
-  - id: electricity_consumption
-    to_dimensions:
-    - id: use_type
-      categories: [residential]
-    - id: site
-      categories: [longmont_power]
+#- id: residential_rooftop_solar
+#  name: Residential rooftop solar
+#  type: simple.CumulativeAdditiveAction
+#  quantity: energy
+#  unit: kWh/a
+#  forecast_values: [[2022, 0], [2023, -5080497]]
+#  output_nodes:
+#  - id: electricity_consumption
+#    to_dimensions:
+#    - id: use_type
+#      categories: [residential]
+#    - id: site
+#      categories: [longmont_power]
 
 - id: longmont_equity_share_platte_river_power_authority
   name: Longmont equity share emissions from Platte River Power Authority
@@ -1268,10 +1270,10 @@ actions:
   unit: t/a
   forecast_values: [[2022, 0], [2023, 307035]]
   output_nodes:
-  - id: building_emissions
+  - id: equity_share_emissions
     to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
+    - id: greenhouse_gases
+      categories: [co2]
 
 # FIXME Francie: would it be possible to have both an option where someone could see the model
 # go to 0 and then also go to 90% renewable? I believe the projection is the exact same,
@@ -1279,19 +1281,15 @@ actions:
 # mentioned in the meeting, this emission factor includes our participation in the
 # renewable power purchase program so that does not need to be listed separately.
 - id: longmont_power_renewables
-  name: Longmont Power with 100 % renewables
-  description: <p>On January 9th, 2018, City Council passed a resolution to commit
-    Longmont to 100% renewable electric energy supply by 2030. To model this impact,
-    the City uses a projection from Platte River Power Authority on the future emission
-    factors until 2030 and then drops the emission factor to 0 in 2030 to reflect
-    achieving the 100% renewable goal.</p> <p>According to Platte River Power Authority’s  most
-    recent integrated resource plan, existing technology will only help Platte River
-    reach 90% noncarbon by 2030. Emerging technologies will need to be developed to
-    achieve the 100% noncarbon target.</p> <p>To model the impact of a 100% renewable
-    goal by 2030, electricity emission factors from LPC were changed to reflect almost
-    a 0 metric ton CO2e/MWh by 2030. Values between 2020 and 2030 were taken from
-    Group 14's Longmont Policy Tool. For PRPA's assumptions, see Email re 2019 EF
-    Calculations for PRPA.</p>
+  name: 100% renewable electric energy supply by 2030
+  description: <p>On January 9th, 2018, City Council passed a <a href="http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000">resolution</a>
+    to commit Longmont to 100% renewable electric energy supply by 2030. To model
+    this impact, the City uses a projection from Platte River Power Authority on the
+    future emission factors until 2030 and then drops the emission factor to 0 in
+    2030 to reflect achieving the 100% renewable goal.</p><p>According to Platte River
+    Power Authority’s  most recent integrated resource plan, existing technology will
+    only help Platte River reach 90% noncarbon by 2030. Emerging technologies will
+    need to be developed to achieve the 100% noncarbon target.</p>
   type: linear.ReduceAction
   quantity: emission_factor
   unit: t/MWh
