@@ -4,8 +4,10 @@ import polars as pl
 
 from nodes import Node, NodeMetric
 from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
-from nodes.constants import ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, CONSUMPTION_FACTOR_QUANTITY
 from nodes.simple import AdditiveNode, SimpleNode, DivisiveNode
+from common import polars as ppl
+from nodes.exceptions import NodeError
 
 
 INDUSTRY_USES = '''
@@ -303,20 +305,72 @@ class BuildingHeatPerAreaOld(Node):
 
 class BuildingHeatPerArea(DivisiveNode):
     output_metrics = {
-        HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=ENERGY_QUANTITY)
+        HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=CONSUMPTION_FACTOR_QUANTITY)
     }
     output_dimension_ids = [
         'building_heat_source',
         'building_use',
     ]
 
-    def compute(self) -> pd.DataFrame:
-        df = super().compute()
+    # FIXME compute() forked from MultiplicativeNode. Maybe generalize?
+    def compute(self) -> ppl.PathsDataFrame:
+        additive_nodes: list[Node] = []
+        operation_nodes: list[Node] = []
+        assert self.unit is not None
+        non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        if len(non_additive_nodes) == 1:
+            non_additive_node = non_additive_nodes[0].id
+        else:
+            non_additive_node = ''
+        for node in self.input_nodes:
+            if node.unit is None:
+                raise NodeError(self, "Input node %s does not have a unit" % str(node))
+            if node.id == non_additive_node:
+                operation_nodes.append(node)
+            elif self.is_compatible_unit(node.unit, self.unit):
+                additive_nodes.append(node)
+            else:
+                operation_nodes.append(node)
+
+        if len(operation_nodes) != 2:
+            raise NodeError(self, "Must receive exactly two inputs to operate %s on" % self.operation_label)
+
+        n1, n2 = operation_nodes
+        df1 = n1.get_output_pl(target_node=self)
+        df2 = n2.get_output_pl(target_node=self)
+
+        if self.debug:
+            print('%s: %s input from node 1 (%s):' % (self.operation_label, self.id, n1.id))
+            self.print(df1)
+            print('%s: %s input from node 2 (%s):' % (self.operation_label, self.id, n2.id))
+            self.print(df2)
+
+        df = self.perform_operation(n1, n2, df1, df2)
+
         df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(None)).drop_nulls()
         df = df.filter(~pl.col(FORECAST_COLUMN))
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         df = df.paths.to_narrow()
-        print(df)
-        print(df.get_meta())
+
+        df = self.add_nodes_pl(df, additive_nodes)
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
+        if fill_gaps:
+            df = self.fill_gaps_using_input_dataset_pl(df)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset_pl(df)
+        if self.debug:
+            print('%s: Output:' % self.id)
+            self.print(df)
+
+        return df
+
+    def compute_old(self) -> pd.DataFrame:
+        df = super().compute()
+        df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(None)).drop_nulls()
+        df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME forgets added nodes
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        df = df.paths.to_narrow()
+
         # FIXME A thing to consider: should the energy efficiency be a long-term average?
         return df
