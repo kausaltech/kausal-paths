@@ -1,4 +1,5 @@
 from typing import Optional
+import logging
 
 import graphene
 from graphql import GraphQLResolveInfo
@@ -23,6 +24,9 @@ from .instance import Instance
 from .metric import DimensionalFlow, DimensionalMetric, Metric
 from .models import InstanceConfig, NodeConfig
 from .scenario import Scenario
+
+
+logger = logging.getLogger(__name__)
 
 
 class InstanceHostname(graphene.ObjectType):
@@ -124,35 +128,39 @@ class ForecastMetricType(graphene.ObjectType):
         return root.get_cumulative_forecast_value()
 
 
-class DimensionCategoryType(graphene.ObjectType):
+class MetricDimensionCategoryType(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=True)
     color = graphene.String(required=False)
     order = graphene.Int(required=False)
 
 
-class DimensionType(graphene.ObjectType):
+class MetricDimensionType(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=True)
-    categories = graphene.List(graphene.NonNull(DimensionCategoryType), required=True)
+    categories = graphene.List(graphene.NonNull(MetricDimensionCategoryType), required=True)
 
 
-class MetricGoal(graphene.ObjectType):
-    id = graphene.ID(required=True)
+class MetricYearlyGoalType(graphene.ObjectType):
     year = graphene.Int(required=True)
     value = graphene.Float(required=True)
+
+
+class DimensionalMetricGoalEntry(graphene.ObjectType):
+    categories = graphene.List(graphene.NonNull(graphene.String), required=True)
+    values = graphene.List(graphene.NonNull(MetricYearlyGoalType), required=True)
 
 
 class DimensionalMetricType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
-    dimensions = graphene.List(graphene.NonNull(DimensionType), required=True)
+    dimensions = graphene.List(graphene.NonNull(MetricDimensionType), required=True)
     values = graphene.List(graphene.Float, required=True)
     years = graphene.List(graphene.NonNull(graphene.Int), required=True)
     unit = graphene.Field('paths.schema.UnitType', required=True)
     stackable = graphene.Boolean(required=True)
     forecast_from = graphene.Int(required=False)
-    goals = graphene.List(MetricGoal, required=True)
+    goals = graphene.List(graphene.NonNull(DimensionalMetricGoalEntry), required=True)
     normalized_by = graphene.Field('nodes.schema.NodeType', required=False)
 
 
@@ -286,7 +294,12 @@ class NodeType(graphene.ObjectType):
 
     @staticmethod
     def resolve_metric_dim(root: Node, info: GraphQLResolveInfo):
-        return DimensionalMetric.from_node(root)
+        try: 
+            ret = DimensionalMetric.from_node(root)
+        except Exception as e:
+            logging.exception("Exception while resolving metric_dim for node %s" % root.id)
+            return None
+        return ret
 
     @staticmethod
     def resolve_impact_metric(root: Node, info: GraphQLResolveInfo, target_node_id: str = None):
@@ -371,15 +384,21 @@ class NodeType(graphene.ObjectType):
     def resolve_goals(root: Node, info: GQLInstanceInfo):
         if root.goals is None:
             return []
-        vals = root.goals.get_values(root)
-        return vals
+        goal = root.goals.get_dimensionless()
+        if not goal:
+            return []
+        return goal.get_values(root)
 
     @staticmethod
     def resolve_target_year_goal(root: Node, info: GQLInstanceInfo):
         if root.goals is None:
             return None
+        goal = root.goals.get_dimensionless()
+        if not goal:
+            return None
+
         target_year = root.context.target_year
-        vals = root.goals.get_values(root)
+        vals = goal.get_values(root)
         for val in vals:
             if val.year == target_year:
                 break

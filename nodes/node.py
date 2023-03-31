@@ -312,7 +312,7 @@ class Node:
         else:
             if target_year_goal is not None:
                 self.goals = NodeGoals.validate(
-                    dict(values=[dict(year=context.target_year, value=target_year_goal)])
+                    [dict(values=[dict(year=context.target_year, value=target_year_goal)])]
                 )
             else:
                 self.goals = None

@@ -21,6 +21,7 @@ from nodes.constants import (
     FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES, VALUE_COLUMN, YEAR_COLUMN
 )
 from nodes.exceptions import NodeError
+from nodes.goals import NodeGoalsEntry
 from nodes.simple import AdditiveNode
 from nodes.units import Unit
 
@@ -170,6 +171,7 @@ class Metric:
 @dataclass
 class MetricCategory:
     id: str
+    original_id: str
     label: str
     color: str | None
     order: int | None
@@ -178,11 +180,24 @@ class MetricCategory:
 @dataclass
 class MetricDimension:
     id: str
+    original_id: str
     label: str
     categories: list[MetricCategory]
 
-    def get_cat_ids(self):
-        return [cat.id for cat in self.categories]
+    def get_original_cat_ids(self):
+        return [cat.original_id for cat in self.categories]
+
+
+@dataclass
+class MetricYearlyGoal:
+    year: int
+    value: float
+
+
+@dataclass
+class MetricDimensionGoal:
+    categories: list[str]
+    values: list[MetricYearlyGoal]
 
 
 @dataclass
@@ -195,22 +210,34 @@ class DimensionalMetric:
     unit: Unit
     stackable: bool
     forecast_from: int | None
+    goals: list[MetricDimensionGoal]
     normalized_by: Node | None
 
     @classmethod
     def from_node(cls, node: Node) -> DimensionalMetric | None:
+        def make_id(*args: str):
+            return ':'.join([node.id, *args])
+
         try:
             m = node.get_default_output_metric()
         except Exception:
             return None
 
-        dims = []
+        dims: list[MetricDimension] = []
 
         input_nodes = [node for node in node.input_nodes if not isinstance(node, ActionNode)]
         if isinstance(node, AdditiveNode) and len(input_nodes) > 1 and not node.input_dataset_instances:
             df = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
-            cats = [MetricCategory(id=n.id, label=str(n.short_name or n.name), color=n.color, order=n.order) for n in node.input_nodes]
-            mdim = MetricDimension(id=NODE_COLUMN, label=_('Sectors'), categories=cats)
+            cats = [MetricCategory(
+                id=make_id('node', n.id),
+                original_id=n.id,
+                label=str(n.short_name or n.name),
+                color=n.color,
+                order=n.order
+            ) for n in node.input_nodes]
+            mdim = MetricDimension(
+                id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats, original_id=NODE_COLUMN
+            )
             dims.append(mdim)
         else:
             df = node.get_output_pl()
@@ -219,6 +246,15 @@ class DimensionalMetric:
             normalizer, df = node.context.active_normalization.normalize_output(m, df)
         else:
             normalizer = None
+
+        def make_goal_values(goal: NodeGoalsEntry):
+            return [MetricYearlyGoal(year=y.year, value=y.value) for y in goal.get_values(node)]
+
+        goals: list[MetricDimensionGoal] = []
+        if node.goals:
+            goal = node.goals.get_dimensionless()
+            if goal:
+                goals.append(MetricDimensionGoal(categories=[], values=make_goal_values(goal)))
 
         for dim_id, dim in node.output_dimensions.items():
             if dim.groups:
@@ -231,22 +267,40 @@ class DimensionalMetric:
                 groups = set(df[dim_id].unique())
                 ordered_groups = []
                 for grp in dim.groups:
-                    if grp.id in groups:
-                        ordered_groups.append(MetricCategory(
-                            id=grp.id, label=str(grp.label), color=grp.color, order=grp.order,
-                        ))
+                    if grp.id not in groups:
+                        continue
+                    cat_id = make_id(dim.id, 'group', grp.id)
+                    ordered_groups.append(MetricCategory(
+                        id=cat_id, label=str(grp.label), color=grp.color, order=grp.order,
+                        original_id=grp.id,
+                    ))
+                    if node.goals:
+                        goal = node.goals.get_exact_match(dim.id, group_id=grp.id)
+                        if goal:
+                            goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
+
                 assert len(groups) == len(ordered_groups)
                 ordered_cats = ordered_groups
             else:
                 cats = set(df[dim_id].unique())  # type: ignore
                 ordered_cats = []
                 for cat in dim.categories:
-                    if cat.id in cats:
-                        ordered_cats.append(MetricCategory(
-                            id=cat.id, label=str(cat.label), color=cat.color, order=cat.order
-                        ))
+                    if cat.id not in cats:
+                        continue
+                    cat_id = make_id(dim.id, 'cat', cat.id)
+                    ordered_cats.append(MetricCategory(
+                        id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
+                        original_id=cat.id,
+                    ))
+                    if node.goals:
+                        goal = node.goals.get_exact_match(dim.id, category_id=cat.id)
+                        if goal:
+                            goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
+
                 assert len(cats) == len(ordered_cats)
-            mdim = MetricDimension(id=dim.id, label=str(dim.label), categories=ordered_cats)
+            mdim = MetricDimension(
+                id=make_id('dim', dim.id), label=str(dim.label), categories=ordered_cats, original_id=dim.id,
+            )
             dims.append(mdim)
 
         forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min()
@@ -255,9 +309,9 @@ class DimensionalMetric:
         if df.paths.index_has_duplicates():
             raise NodeError(node, "DataFrame index has duplicates")
 
-        just_cats = [dim.get_cat_ids() for dim in dims]
+        just_cats = [dim.get_original_cat_ids() for dim in dims]
         years = list(df[YEAR_COLUMN].unique().sort())
-        idx_names = [dim.id for dim in dims] + [YEAR_COLUMN]
+        idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
         idx_vals = pd.MultiIndex.from_product(just_cats + [years]).to_list()
         idx_df = pl.DataFrame(idx_vals, orient='row', schema={col: df.schema[col] for col in idx_names})
 
@@ -267,7 +321,8 @@ class DimensionalMetric:
             id=node.id, name=str(node.name), dimensions=dims,
             values=vals, years=years, unit=df.get_unit(m.column_id),
             forecast_from=forecast_from, normalized_by=normalizer,
-            stackable=m.quantity in STACKABLE_QUANTITIES
+            stackable=m.quantity in STACKABLE_QUANTITIES,
+            goals=goals,
         )
         return dm
 
@@ -329,7 +384,7 @@ class DimensionalFlow:
 
         flow_nodes: dict[str, FlowNode] = {}
 
-        def get_flow_node(row, is_source: bool):
+        def get_flow_node(row: dict, is_source: bool):
             path_parts = []
             label_parts = []
 
