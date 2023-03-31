@@ -25,6 +25,7 @@ class NormalizationQuantity:
 class Normalization:
     normalizer_node: Node
     quantities: list[NormalizationQuantity]
+    default: bool = False
 
     @classmethod
     def from_config(cls, context: Context, config: dict[str, typing.Any]):
@@ -37,7 +38,7 @@ class Normalization:
             assert q_id in KNOWN_QUANTITIES
             unit = context.unit_registry.parse_units(q['unit'])
             qs.append(NormalizationQuantity(id=q_id, unit=unit))
-        return cls(normalizer_node=node, quantities=qs)
+        return cls(normalizer_node=node, quantities=qs, default=config.get('default', False))
 
     def denormalize_output(self, to_metric: NodeMetric, df: PathsDataFrame) -> PathsDataFrame:
         for q in self.quantities:

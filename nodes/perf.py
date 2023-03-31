@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from rich.table import Table
 from rich.console import Console
+import sentry_sdk
 
 if typing.TYPE_CHECKING:
     from .node import Node
@@ -64,6 +65,10 @@ class PerfContext:
 
     def stop(self):
         self.enabled = False
+        old_stack = self.node_stack
+        self.node_stack = []
+        if old_stack:
+            raise Exception("Node stack was not empty")
 
     def node_start(self, node: 'Node'):
         if not self.enabled:

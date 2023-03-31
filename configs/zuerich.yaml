@@ -30,6 +30,7 @@ normalizations:
     unit: kWh/cap/a
   - id: mileage
     unit: km/cap/a
+  default: true
 features:
   baseline_visible_in_graphs: false
 

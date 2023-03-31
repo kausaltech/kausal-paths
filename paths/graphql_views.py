@@ -144,9 +144,17 @@ class InstanceMiddleware:
         if scenario is None:
             scenario = context.get_default_scenario()
 
+        # Activate normalization
         if context.setting_storage.has_option('normalizer'):
             val = context.setting_storage.get_option('normalizer')
             context.set_option('normalizer', val)
+        else:
+            for n in context.normalizations.values():
+                if n.default:
+                    context.active_normalization = n
+                    break
+            else:
+                context.active_normalization = None
 
         context.activate_scenario(scenario)
 
