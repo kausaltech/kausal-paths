@@ -64,13 +64,12 @@ class Dataset:
 class DVCDataset(Dataset):
     """Dataset that is loaded by dvc-pandas."""
 
-    # The output can be customized further by specifying a column, filters and groupby.
+    # The output can be customized further by specifying a column and filters.
     # If `input_dataset` is not specified, we default to `id` being
     # the dvc-pandas dataset identifier.
     input_dataset: Optional[str] = None
     column: Optional[str] = None
     filters: Optional[list] = None
-    groupby: Optional[dict] = None
     dropna: Optional[bool] = None
     min_year: Optional[int] = None
     max_year: Optional[int] = None
@@ -96,28 +95,26 @@ class DVCDataset(Dataset):
             dvc_dataset_id = self.id
         return context.load_dvc_dataset(dvc_dataset_id)
 
-    def _process_output(self, df: pd.DataFrame, ds_hash: str, context: Context) -> ppl.PathsDataFrame:
-        df = df.copy()
+    def _process_output(self, df: ppl.PathsDataFrame, ds_hash: str, context: Context) -> ppl.PathsDataFrame:
         if self.max_year:
-            df = df[df.index <= self.max_year]  # type: ignore
+            df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)
         if self.min_year:
-            df = df[df.index >= self.min_year]  # type: ignore
+            df = df.filter(pl.col(YEAR_COLUMN) >= self.min_year)
         if self.dropna:
-            df = df.dropna()
+            df = df.drop_nulls()
 
         # If units are given as a constructor argument, ensure the dataset units match.
-        if self.unit is not None and isinstance(df, pd.DataFrame):
+        if self.unit is not None:
             for col in df.columns:
-                if col == FORECAST_COLUMN:
+                if col in [FORECAST_COLUMN, YEAR_COLUMN, *df.dim_ids]:
                     continue
-                if hasattr(df[col], 'pint'):
-                    assert df[col].pint.units == self.unit  # FIXME This should check compatibility, not equality.
+                if col in df.metric_cols:
+                    df = df.ensure_unit(col, self.unit)
                 else:
-                    df[col] = df[col].astype(float).astype(PintType(self.unit))
+                    df = df.set_unit(col, self.unit)
 
-        ldf = ppl.from_pandas(df)
-        context.cache.set(ds_hash, ldf)
-        return ldf
+        context.cache.set(ds_hash, df)
+        return df
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
         if self.df is not None:
@@ -130,23 +127,22 @@ class DVCDataset(Dataset):
             return obj
 
         if self.input_dataset:
-            self.dvc_dataset = context.load_dvc_dataset(self.input_dataset)
-            df = self.dvc_dataset.df
-            if self.filters:
-                for d in self.filters:
-                    col = d['column']
-                    val = d['value']
-                    df = df[df[col] == val]
-
-            if self.groupby:
-                g = self.groupby
-                df = df.groupby([g['index_column'], g['columns_from']])[g['value_column']].sum()
-                df = df.unstack(g['columns_from'])
+            ds_id = self.input_dataset
         else:
-            self.dvc_dataset = context.load_dvc_dataset(self.id)
-            df = self.dvc_dataset.df
+            ds_id = self.id
+
+        self.dvc_dataset = context.load_dvc_dataset(ds_id)
+        df = ppl.from_pandas(self.dvc_dataset.df.copy())
+
+        if self.filters:
+            for d in self.filters:
+                col = d['column']
+                val = d['value']
+                df = df.filter(pl.col(col) == val)
+                df = df.drop(col)
 
         cols = df.columns
+
         if self.column:
             if self.column not in cols:
                 available = ', '.join(cols)  # type: ignore
@@ -155,22 +151,27 @@ class DVCDataset(Dataset):
                         self.column, self.id, available
                     )
                 )
-            if YEAR_COLUMN in cols:
-                df = df.set_index(YEAR_COLUMN)
-            if FORECAST_COLUMN in cols:
-                df = df.rename(columns={self.column: VALUE_COLUMN})
-                cols = [VALUE_COLUMN, FORECAST_COLUMN]
-            elif self.forecast_from is not None:
-                df = pd.DataFrame(df[self.column])
-                df = df.rename(columns={self.column: VALUE_COLUMN})
-                df[FORECAST_COLUMN] = False
-                df.loc[df.index >= self.forecast_from, FORECAST_COLUMN] = True
-                return self._process_output(df, ds_hash, context)
-            else:
-                raise Exception("Not supported")
+            df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
+            cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
 
-        df = df[cols]
-        return self._process_output(df, ds_hash, context)
+        if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
+            df = df.add_to_index(YEAR_COLUMN)
+
+        if FORECAST_COLUMN in df.columns:
+            cols.append(FORECAST_COLUMN)
+        elif self.forecast_from is not None:
+            df = df.with_columns([
+                pl.when(pl.col(YEAR_COLUMN) >= self.forecast_from)
+                    .then(pl.lit(True))
+                    .otherwise(pl.lit(False))
+                .alias(FORECAST_COLUMN)
+            ])
+            cols.append(FORECAST_COLUMN)
+
+        df = df.select(cols)
+        ppl._validate_ppdf(df)
+        ret = self._process_output(df, ds_hash, context)
+        return ret
 
     def get_unit(self, context: Context) -> Unit:
         if self.unit:
@@ -186,7 +187,7 @@ class DVCDataset(Dataset):
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         extra_fields = [
-            'input_dataset', 'column', 'filters', 'groupby', 'forecast_from',
+            'input_dataset', 'column', 'filters', 'forecast_from',
             'max_year', 'min_year', 'dropna'
         ]
         d = {}
