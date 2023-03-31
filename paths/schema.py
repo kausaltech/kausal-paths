@@ -49,13 +49,15 @@ class UnitType(graphene.ObjectType):
         return val
 
     def resolve_html_short(self: Unit, info):  # type: ignore
+        if dict(self._units) == dict(percent=1):
+            return '%'
         lang = get_language()
-        val = self.format_babel('~H', locale=lang, sort=False)  # type: ignore
+        val = self.format_babel('~Z', locale=lang, sort=False)  # type: ignore
         return val
 
     def resolve_html_long(self: Unit, info):  # type: ignore
         lang = get_language()
-        val = self.format_babel('~H', locale=lang, sort=False)  # type: ignore
+        val = self.format_babel('~Z', locale=lang, sort=False)  # type: ignore
         return val
         # FIXME
         if val == 't/(a cap)':
