@@ -383,12 +383,11 @@ emission_sectors:
   color: #273E60
   input_node_dimension:
     label: Emission sectors
-  target_year_goal: 6.5
   goals:
-    normalized_by: population
-    values:
-    - year: 2040
-      value: 6.5
+    - normalized_by: population
+      values:
+        - year: 2040
+          value: 6.5
   is_outcome: true
   description: Greenhouse gas emissions
 
