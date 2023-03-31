@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e456a4322af58f3f507a66121a5f625e6cb04c7f
+  commit: 33a1e01b25704c413bdd07fde1294d2f9fa32e6b
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -43,16 +43,19 @@ dimensions:
     label_en: Direct emissions
     color: '#0f05a0'
     id_match: ^scope1$
+    order: 1
   - id: indirect
     label: Indirekte Emissionen
     label_en: Indirect emissions
     color: '#6496ff'
     id_match: ^scope[23]$
+    order: 2
   - id: negative
     label: Negative Emissionen
     label_en: Negative emissions
     color: '#F7A5AF'
     id_match: ^negative_emissions$
+    order: -1
   categories:
   - id: scope1
     label_de: Scope 1
@@ -322,39 +325,51 @@ dimensions:
   - id: electricity
     label: Strom
     label_en: Electricity
+    color: '#0097C5'
   - id: fuel_oil
     label: Heizöl EL
     label_en: Heating oil
+    color: '#B23A01'
   - id: petrol
     label: Benzin
     label_en: Petrol
+    color: '#BF8500'
   - id: diesel
     label: Diesel
     label_en: Diesel
+    color: '#EB5E00'
   - id: kerosene
     label: Kerosin
     label_en: Kerosene
+    color: '#F6A960'
   - id: natural_gas
     label: Erdgas
     label_en: Natural gas
+    color: '#7EE6E2'
   - id: biogas
     label: Biogas
     label_en: biogas
+    color: '#65CC8B'
   - id: district_heat
     label: Fernwärme
     label_en: District heating
+    color: '#009655'
   - id: wood
     label: Holz
     label_en: Wood
+    color: '#CBB910'
   - id: environmental_heat
     label: Umweltwärme
     label_en: Environmental heat
+    color: '#91A110'
   - id: solar_collectors
     label: Sonnenkollektoren
     label_en: Solar thermal collectors
+    color: '#F0D800'
   - id: waste
     label: Abfall
     label_en: Waste
+    color: '#007C78'
 
 - id: electricity_source
   label: Verfahren zur Stromerzeugung
@@ -422,8 +437,30 @@ emission_sectors:
     label_de: Emissionssektoren
   target_year_goal: 6.5
   goals:
-    normalized_by: population
+  - normalized_by: population
+    dimensions:
+      emission_scope:
+        group: direct
     values:
+    - year: 2022
+      value: 2.8
+    - year: 2040
+      value: 0.5
+  - normalized_by: population
+    dimensions:
+      emission_scope:
+        group: indirect
+    values:
+    - year: 2022
+      value: 7.9
+    - year: 2040
+      value: 6.0
+  - normalized_by: population
+    label_de: Alle Emissionen
+    label_en: Total emissions
+    values:
+    - year: 2022
+      value: 10.7
     - year: 2040
       value: 6.5
   is_outcome: true
@@ -444,14 +481,6 @@ emission_sectors:
   name_de: Mobilität
   part_of: net_emissions
   color: '#E22D53'
-  input_dataset_processors: [LinearInterpolation]
-
-- id: waste_treatment_emissions
-  name_en: Waste disposal
-  name_de: Entsorgung
-  part_of: net_emissions
-  color: '#F18830'
-  category: waste_treatment
   input_dataset_processors: [LinearInterpolation]
 
 - id: ippu_emissions
@@ -923,31 +952,60 @@ nodes:
     - id: vehicle_type
       flatten: true
 
-# - id: waste_incineration_amount
-#   name_de: Amount of incinerated waste
-#   name_en: Amount of incinerated waste
-#   type: simple.AdditiveNode
-#   input_datasets:
-#     - id: zuerich/waste_incineration
-#       column: amount_of_waste
-#       forecast_from: 2023
-#   unit: t/a
-#   quantity: mass
-#   output_dimensions: [waste_incineration_plants]
+- id: waste_incineration_amount
+  name_de: Amount of incinerated waste
+  name_en: Amount of incinerated waste
+  type: simple.AdditiveNode
+  input_datasets:
+  - id: zuerich/waste_incineration
+    column: amount_of_waste
+    forecast_from: 2023
+  unit: t/a
+  quantity: mass
+  output_dimensions: [waste_incineration_plants]
 
-# - id: waste_incineration_ccs
-#   name_de: Share of CO2 captured with CCS
-#   name_en: Share of CO2 captured with CCS
-#   type: simple.AdditiveNode
-#   unit: '%'
-#   quantity: ratio
+- id: waste_incineration_ccs_share
+  name_de: Share of CO2 captured with CCS
+  name_en: Share of CO2 captured with CCS
+  type: simple.AdditiveNode
+  input_datasets:
+  - id: zuerich/waste_incineration
+    column: share_of_ccs
+    forecast_from: 2023
+    filters:
+    - column: waste_incineration_plants
+      value: hagenholz
+  unit: '%'
+  quantity: ratio
 
-# - id: solid_waste_treatment_emissions
-#   label_en: Solid waste treatment emissions
-#   label_de: Solid waste treatment emissions
-#   type: ch.zuerich.WasteIncinerationEmissions
-#   input_nodes: [incinerated_waste_amount]
-#   input_datasets: [zuerich/waste_incineration, zuerich/waste_incineration_emission_factors]
+- id: solid_waste_treatment_emissions
+  name_en: Solid waste treatment emissions
+  name_de: Solid waste treatment emissions
+  type: ch.zuerich.WasteIncinerationEmissions
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: waste_incineration_amount
+    to_dimensions:
+    - id: waste_incineration_plants
+    tags: [amount]
+  - id: waste_incineration_ccs_share
+    tags: [ccs_share]
+  input_datasets: [zuerich/waste_incineration, zuerich/waste_incineration_emission_factors]
+  output_nodes: [waste_treatment_emissions]
+
+- id: waste_treatment_emissions
+  name_en: Waste disposal emissions
+  name_de: Treibhausgasemissionen Entsorgung
+  short_name_de: Entsorgung
+  short_name_en: Waste disposal
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+  type: simple.SectorEmissions
+  color: '#F18830'
 
 
 #
@@ -1140,6 +1198,32 @@ actions:
       - year: 2023
         amount: -1
       - year: 2035
+        amount: 0
+
+- id: waste_incineration_ccs_installation
+  name_en: Install CCS in waste incineration
+  name_de: Install CCS in waste incineration
+  type: linear.ReduceAction
+  quantity: ratio
+  description_en: Install CCS in waste incineration
+  description_de: Install CCS in waste incineration
+  unit: '%'
+  output_nodes: [waste_incineration_ccs_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node:
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2025
+        amount: 0
+      - year: 2030
+        amount: 12
+      - year: 2040
         amount: 0
 
 - id: cleaner_electricity_production
