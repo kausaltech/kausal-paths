@@ -197,7 +197,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'NodeGoal',
                 'year': g.year,
                 'value': g.value,
-            } for g in additive_action.goals.values],
+            } for g in additive_action.goals.get_dimensionless().values],
             'isAction': True,
             'decisionLevel': additive_action.decision_level.name,
             'inputNodes': [{

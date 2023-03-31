@@ -72,7 +72,7 @@ class NodeFactory(Factory):
     color = 'pink'
     unit = unit_registry('kWh').units
     quantity = 'energy'
-    goals = dict(values=[dict(year=2035, value=500)])
+    goals = [dict(values=[dict(year=2035, value=500)])]
     input_datasets = [FixedDataset(
         id='test',
         unit='kWh',
