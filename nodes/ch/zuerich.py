@@ -5,7 +5,7 @@ from pint_pandas import PintType
 import common.polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_last_historical_value_pl
 from nodes.node import NodeMetric, NodeError, Node
-from nodes.simple import AdditiveNode, MultiplicativeNode
+from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode
 from nodes.constants import DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
 
 
@@ -457,3 +457,78 @@ class TransportEmissions(MultiplicativeNode):
         df = super().compute()
         df = df.filter(~pl.col(self.get_default_output_metric().column_id).is_null())
         return df
+
+
+class WasteIncinerationEmissions(SimpleNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        dfs = self.get_input_datasets_pl()
+        fdf = efdf = None
+        for df in dfs:
+            if 'share_of_fossil_co2' in df:
+                fdf = df
+                continue
+            if 'emission_factor' in df:
+                efdf = df
+                continue
+        if fdf is None:
+            raise NodeError(self, "Dataset with 'share_of_fossil_co2' not found")
+        if efdf is None:
+            raise NodeError(self, "Dataset with emission factors not found")
+
+        ccs_node = self.get_input_node(tag='ccs_share')
+        cdf = ccs_node.get_output_pl(target_node=self)
+
+        amount_node = self.get_input_node(tag='amount')
+        adf = amount_node.get_output_pl(target_node=self)
+
+        efdf = extend_last_historical_value_pl(efdf, self.get_end_year())
+        df = (
+            adf.paths.join_over_index(efdf, how='left', index_from='union')
+        )
+        df = (
+            df.multiply_cols([VALUE_COLUMN, 'emission_factor'], 'Emissions')
+            .select([*df.get_meta().primary_keys, FORECAST_COLUMN, 'Emissions'])
+        )
+        df = convert_to_co2e(df, 'greenhouse_gases')
+
+        fdf = extend_last_historical_value_pl(fdf, self.get_end_year())
+        df = df.paths.join_over_index(fdf.select_metrics(['share_of_fossil_co2']))
+        df = df.multiply_cols(['Emissions', 'share_of_fossil_co2'], 'FossilEmissions').ensure_unit('FossilEmissions', df.get_unit('Emissions'))
+        df = (
+            df.with_columns((pl.col('Emissions') - pl.col('FossilEmissions')).alias('BioEmissions'))
+            .set_unit('BioEmissions', df.get_unit('Emissions'))
+        )
+
+        scope_dim = self.context.dimensions['emission_scope']
+        cdf = cdf.rename({VALUE_COLUMN: 'CCSShare'})
+        cdf = cdf.ensure_unit('CCSShare', self.context.unit_registry.parse_units('dimensionless'))
+        df = df.paths.join_over_index(cdf)
+        df = df.with_columns([
+            (pl.col('FossilEmissions') * (1 - pl.col('CCSShare'))).alias('FossilLeft'),
+            (pl.lit(0) - pl.col('BioEmissions') * pl.col('CCSShare')).alias('BioCaptured'),
+        ])
+        df = (
+            df.set_unit('FossilLeft', df.get_unit('FossilEmissions'))
+            .set_unit('BioCaptured', df.get_unit('BioEmissions'))
+            .select_metrics(['FossilLeft', 'BioCaptured'])
+            .paths.sum_over_dims(['waste_incineration_plants'])
+        )
+
+        s1df = (df
+            .select_metrics(['FossilLeft'])
+            .rename({'FossilLeft': VALUE_COLUMN})
+            .with_columns(pl.lit('scope1').alias(scope_dim.id))
+            .add_to_index(scope_dim.id)
+        )
+
+        ndf = (df
+            .select_metrics(['BioCaptured'])
+            .rename({'BioCaptured': VALUE_COLUMN})
+            .with_columns(pl.lit('negative_emissions').alias(scope_dim.id))
+            .add_to_index(scope_dim.id)
+        )
+
+        df = ppl.to_ppdf(pl.concat([s1df, ndf]), ndf.get_meta())
+        df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
+        return df
+
