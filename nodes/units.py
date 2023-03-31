@@ -4,6 +4,7 @@ import pint
 import pint_pandas
 from pint.facets.plain.unit import PlainUnit
 from pint.facets.plain.quantity import PlainQuantity
+from pint.formatting import register_unit_format, formatter
 
 
 Unit = PlainUnit
@@ -98,3 +99,19 @@ def add_unit_translations():
     set_one('cap', pgettext_lazy('capita short', 'cap'))
     set_one('kt', pgettext_lazy('kilotonne short', 'kt'))
     set_one('a', pgettext_lazy('year short', 'yr.'))
+    set_one('percent', pgettext_lazy('percent', 'percent'))
+    set_one('%', '%')
+
+
+@register_unit_format("Z")
+def format_paths_html(unit, registry, **options):
+    return formatter(
+        unit.items(),
+        as_ratio=True,
+        single_denominator=True,
+        product_fmt=r"·",
+        division_fmt=r"{}∕{}",
+        power_fmt=r"{}<sup>{}</sup>",
+        parentheses_fmt=r"({})",
+        **options,
+    )
