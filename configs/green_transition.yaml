@@ -1,0 +1,386 @@
+id: green_transition
+default_language: fi
+supported_languages: [en]
+site_url: https://green_transition.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: c27d868fd446114f104d6d598a888eed96240d04
+  dvc_remote: kausal-s3
+name: Vihreän siirtymän etusijamenettelyt
+name_en: Green transition priorities
+owner: Kausal Oy
+owner_en: Kausal Ltd
+theme_identifier: default
+emission_unit: pcs
+model_end_year: 2035
+target_year: 2027
+reference_year: 2010
+minimum_historical_year: 2000
+maximum_historical_year: 2022
+action_groups:
+- id: green_transition
+  name: Vihreä murros
+- id: hs_voting_aid
+  name: HS-vaalikone
+
+params:
+- id: municipality_name
+  value: Espoo
+
+dimensions:
+- id: building_heat_source
+  label: Lämmitystapa
+  label_en: Heating method
+  categories:
+  - id: district_heat
+    label: Kaukolämpö
+    label_en: District heating
+  - id: oil
+    label: Öljylämmitys
+    label_en: Oil heating
+  - id: direct_electric
+    label: Sähkölämmitys
+    label_en: Electric heating
+  - id: geothermal
+    label: Maalämpö
+    label_en: Geothermal heat
+  - id: other
+    label: Muu tai tuntematon
+    label_en: Other or unknown
+    aliases: [Muu]
+- id: building_use
+  label: Rakennuksen käyttötarkoitus
+  label_en: Purpose of use of the building
+  categories:
+  - id: residence
+    label: Asuminen
+    label_en: Housing
+  - id: services
+    label: Palvelut
+    label_en: Services
+  - id: industry
+    label: Teollisuus
+    label_en: Industry
+  - id: single_family_houses
+    label: Pientalot
+    label_en: Single-family houses
+  - id: attached_houses
+    label: Rivitalot
+    label_en: Terraced houses
+  - id: apartment_buildings
+    label: Asuinkerrostalot
+    label_en: Blocks of flats
+  - id: other_buildings
+    label: Muut rakennukset
+    label_en: Other buildings
+
+- id: vehicle
+  label: Ajoneuvo
+  label_en: Vehicle
+  categories:
+  - id: passenger_cars
+    label: Henkilöautot
+    label_en: Cars
+  - id: motorcycles
+    label: Moottoripyörät
+    label_en: Motorcycles
+  - id: vans
+    label: Pakettiautot
+    label_en: Vans
+  - id: trucks
+    label: Kuorma-autot
+    label_en: Lorries
+  - id: buses
+    label: Linja-autot
+    label_en: Buses
+  - id: buses_hsl
+    label: Linja-autot, HSL
+    label_en: Buses, HSL
+  - id: buses_other
+    label: Linja-autot, muut
+    label_en: Bussar, övriga
+  - id: local_trains
+    label: Lähijunat
+    label_en: Local trains
+  - id: metro
+    label: Metrot
+    label_en: Metros
+  - id: trams
+    label: Raitiovaunut
+    label_en: Trams
+  - id: leasure_boats
+    label: Huviveneet
+    label_en: Pleasure boats
+  - id: professional_boats
+    label: Ammattiveneet
+    label_en: Professional boats
+  - id: passenger_ships
+    label: Matkustajalaivat
+    label_en: Passenger ships
+  - id: cargo_ships
+    label: Rahtilaivat
+    label_en: Cargo ships
+- id: transportation_class
+  label: Liikennemuoto
+  label_en: Mode of transport
+  categories:
+  - id: road_transportation
+    label: Tieliikenne
+    label_en: Road transport
+  - id: rail_tranportation
+    label: Raideliikenne
+    label_en: Rail transport
+  - id: waterborne_navigation
+    label: Laivaliikenne
+    label_en: Boat traffic
+  - id: aviation
+    label: Lentoliikenne
+    label_en: Air traffic
+
+- id: activity
+  label: Toiminto
+  label_en: Activity
+  categories:
+  - id: renewabe_energy_production
+    label: Uusiutuva energiantuotanto
+  - id: fossil_replacing_industry
+    label: Fossiilisia korvaava teollisuus
+  - id: hydrogen_production
+    label: Ei-fossiilisen vedyn valmistus
+  - id: ccs
+    label: Hilidioksidin talteenotto ja varastointi
+  - id: battery_industry
+    label: Akkuteollisuus
+  - id: nature_conservation
+    label: ympäristönsuojelu
+  - id: water_activities
+    label: Vesiasiat
+
+emission_sectors:
+- id: net_emissions
+  name: Kokonaispäästöt
+  name_en: Net emissions
+  is_outcome: true
+  target_year_goal: 212
+
+- id: building_heating_emissions
+  name: Rakennusten lämmityksen päästöt
+  name_en: Building heating emissions
+  part_of: net_emissions
+  color: #ff4f57
+  historical_values: [[2015, 100], [2022, 100]]
+
+- id: consumer_electricity_emissions
+  name: Kulutussähkön päästöt
+  name_en: Household electricity emissions
+  part_of: net_emissions
+  color: #0047b6
+  historical_values: [[2015, 50], [2022, 40]]
+
+- id: transport_emissions
+  name: Liikenteen päästöt
+  name_en: Emissions from traffic
+  part_of: net_emissions
+  color: #014B30
+  historical_values: [[2015, 200], [2022, 100]]
+
+nodes:
+- id: population
+  type: finland.population.Population
+  name: Väestö
+  name_en: Population
+  description: Population size of the imaginary city.
+
+- id: biodiversity_in_finland
+  name: Luonnon monimuotoisuus Suomessa
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  is_outcome: true
+
+- id: logging_intensity_in_state_forests
+  name: Hakkumäärä valtion metsissä
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  output_nodes:
+  - carbon_sinks_in_state_forests
+
+- id: carbon_sinks_in_state_forests
+  name: Hiilinielut valtion metsissä
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+
+- id: biodiversity_in_state_forests
+  name: Luonnon monimuotoisuus valtion metsissä
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  output_nodes:
+  - biodiversity_in_finland
+
+- id: value_profile_true_finns
+  name: Perussuomalaisten arvoprofiili
+  description: Jussi Wihonen, Perus­suomalaiset. Valtion metsiä tulee hoitaa vastuullisesti, kuten tähänkin asti. Toimet suomen metsissä ei vaikuta gloobaalissa mittakaavassa kuin promilletasolla, se syytä muistaa.
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - logging_intensity_in_state_forests
+
+- id: value_profile_logging_greens
+  name: Vihreiden arvoprofiili valtion hakkuista
+  description: Krista Mikkonen, Vihreät. Valtion omistamat vanhat ja luonnontilaiset metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista jatkuvaan kasvatukseen. Myös yksityisille metsänomistajille tulee luoda kannusteita pidentää hakkuukiertoa, siirtyä jatkuvaan kasvatukseen ja lisätä luonnonhoitotoimia metsissään. Lisäksi on varmistettava, että luonnonsuojelurahoja on riittävästi, jotta halukkaat metsänomistajat voivat siirtää metsiään luonnonsuojelun piiriin saaden siitä korvauksen.
+    Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä tuotteita.
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - biodiversity_in_finland
+  - carbon_sinks_in_state_forests
+
+- id: value_profile_carbon_neutrality_target_greens
+  name: Vihreiden arvoprofiili hiilineutraalisuustavoitteesta
+  description: Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä tuotteita.
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - carbon_sinks_in_state_forests
+
+- id: value_profile_greens
+  name: Vihreiden arvoprofiili
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - value_profile_logging_greens
+  - value_profile_carbon_neutrality_target_greens
+
+- id: value_profile_social_democrats
+  name: Sosiaalidemokraattien arvoprofiili
+  description: <p>Hakkuutavoite valtion metsissä. Teemu Backnäs, Sdp. Iso osa Suomalaisesta hyvinvoinnista tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden toimintaedellytykset varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen (LUKE) tutkimusten mukaan hiilinielut ovat pienetyneet, joten olisi fiksua olla proaktiivinen hakkuiden suhteen. Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin hakkuin. Todennäköisesti muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti ja metsäteollisuuden tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet" (=ligniini) päätyi järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>
+    <pzHiilineutraalisuustavoite. Teemu Backnäs, Sdp. Ei. Suomi elää viennistä. Tämä on elinkeinoelämän ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin kautta Suomella onkin iso ekologinen _kädenjälki_, tarkoittaen että vientituotteemme vähentävät kasvihuonepäästöjä maailmalla. Me olemmekin kokoamme isompi ympäristötekijä maailmalla. Tärkeää onkin kasvattaa tuotekehityspanoksia, jotta myös jatkossa saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa tuotekehityksen kautta.</p>
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - biodiversity_in_finland
+  - carbon_sinks_in_state_forests
+
+pages:
+- id: home
+  name: Vihreän siirtymän prioriteetit
+  name_en: Green transition priotities
+  path: /
+  type: emission
+  node: net_emissions
+  lead_title: Vihreän siirtymän prioriteetit
+  lead_title_en: Green transition priorities
+  lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä. Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a href="https://www.lausuntopalvelu.fi/FI/Proposal/ShowAllProposalAnswers?proposalId=2e8c6721-4711-43d8-987b-deca2144eb4a">hallituksen esitykseen</a> eduskunnalle eräiden vihreän siirtymän hankkeiden väliaikaisesta etusijamenettelystä aluehallintovirastojen lupakäsittelyssä vuosina 2023—2025 ja hallintotuomioistuimissa vuosina 2023-2027 ja asetus selvityksen sisällöstä.
+  lead_paragraph_en: On this website we examine green transition and how it should be promoted.
+
+actions:
+- id: priority_to_green_transition_in_avi
+  name: Etusija vihreän siirtymän hankkeille AVI-käsittelyssä
+  description: <p>Aluehallintoviraston on käsittelyssä annettava etusija kestävää sijoittamista helpottavasta kehyksestä ja asetuksen (EU) 2019/2088 muuttamisesta annetun Euroopan parlamentin ja neuvoston asetuksen (EU) 2020/852 17 artiklan 1 kohdassa tarkoitetun ei merkittävää haittaa -periaatteen huomioon ottavan toiminnan ympäristölupahakemukselle ja vesitaloushankkeen lupahakemukselle suhteessa muihin vireille tulleisiin ympäristönsuojelulain ja vesilain mukaisiin lupahakemuksiin. Hakijan on hakemuksen yhteydessä esitettävä riittävä selvitys oikeudesta etusijaan.</p>
+    <p>Edellä 1 momentissa tarkoitettuja lupahakemuksia, joille on annettava etusija, ovat hakemukset, jotka koskevat</p>
+    <ol><li>energiatuotantolaitosta, joka tuottaa energiaa uusiutuvalla energialla, sekä merituulivoimalaa ja siihen liittyviä vesitaloushankkeita;</li>
+    <li>uusiutuvaan energiaan tai sähköistämiseen perustuvia fossiilisten polttoaineiden tai raaka-aineiden käyttöä korvaavia teollisuuden hankkeita;</li>
+    <li>vedyn valmistusta ja hyödyntämistä, lukuun ottamatta vedyn valmistusta fossiilisista polttoaineista;</li>
+    <li>hiilidioksidin talteenottoa, hyödyntämistä ja varastointia;</li>
+    <li>akkutehdasta ja akkumateriaalien valmistusta, talteenottoa ja uudelleenkäyttöä.</li></ol>
+  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221144">Laki</a> ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun lain väliaikaisesta muuttamisesta.
+  group: green_transition
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+
+- id: priority_to_nature_water_in_avi
+  name: Etusija ympäristönsuojelu- ja vesiasioissa AVI-käsittelyssä
+  description: Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin. 
+    Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
+  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221145">Laki</a> vesilain väliaikaisesta muuttamisesta. <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221146">Laki</a> ympäristönsuojelulain väliaikaisesta muuttamisesta.
+  group: green_transition
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+
+- id: priority_to_planning_complaints_of_green_transition
+  name: Uusiutuvan energian kaavavalitukset käsiteltävä kiireellisenä
+  description: Uusiutuvan energiantuotannon kannalta merkittäväksi katsottavaa asemakaavaa koskeva valitus ja 77 a §:ssä tarkoitettua tuulivoimarakentamista ohjaavaa yleiskaavaa koskeva valitus on käsiteltävä hallintotuomioistuimessa kiireellisenä suhteessa muihin tämän lain mukaisia kaava-asioita ja lupa-asioita koskeviin valituksiin. 
+  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221147">Laki</a> maankäyttö- ja rakennuslain väliaikaisesta muuttamisesta 
+  group: green_transition
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+
+- id: reduce_logging_in_state_forests
+  name: Hakkuita pitää vähentää valtion metsissä luontokadon ja ilmastonmuutoksen torjumiseksi
+  description: Maankäyttö on Suomessa muuttunut ilmastonmuutosta hillitsevästä hiilinielusta päästöjen lähteeksi hakkuiden lisääntymisen ja puuston kasvun hidastumisen vuoksi. Metsälajeista yhdeksän prosenttia on uhanalaisia. Valtio omistaa Suomen metsistä noin neljänneksen. Hakkuiden vähentäminen vähentäisi valtion tuloja, teollisuuden puunsaantia ja työpaikkoja.
+  references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
+    <a href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaarion-ennakkotiedot-vahvistavat-maankayttosektori-paastolahde-vuonna-2021-metsat-pysyivat-edelleen-nettonieluna">Kasvihuonekaasuinventaarion ennakkotiedot vahvistavat, maankäyttösektori päästölähde vuonna 2021, metsät pysyivät edelleen nettonieluna</a>
+  group: hs_voting_aid
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+  output_nodes:
+  - biodiversity_in_state_forests
+  - logging_intensity_in_state_forests
+
+- id: postpone_climate_targets
+  name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
+  description: Hiilineutraalius tarkoittaa, että ilmastoa lämmittäviä päästöjä tuotetaan korkeintaan sen verran kuin niitä voidaan sitoa ilmakehästä esimerkiksi metsien avulla. Suomi tavoittelee hiilineutraaliutta viimeistään vuonna 2035. EU:n tavoite on vuodessa 2050. Hiilineutraaliustavoitteesta seuraa vaatimuksia useille yhteiskunnan aloille ruuantuotannosta ja rakentamisesta liikenteeseen ja teollisuuteen. 
+  references: <a href="https://julkaisut.valtioneuvosto.fi/handle/10024/164321">Hiilineutraali Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
+  group: hs_voting_aid
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+  output_nodes:
+  - building_heating_emissions
+
+- id: congestion_charge
+  name: Helsingissä ja muissa suurissa kaupungeissa on otettava käyttöön ruuhkamaksu
+  description: Ruuhkamaksu on teiden käytöstä perittävä maksu, jonka tarkoituksena on hillitä ruuhkautumista ja liikenteen päästöjä. Nyt laki ei mahdollista ruuhkamaksujen keräämistä. Pääkaupunkiseudun kehyskuntien tekemän selvityksen mukaan ruuhkamaksuista olisi haittaa töihin tuleville pienituloisille autoilijoille, joilla ei ole mahdollisuutta vaihtoehtoiseen kulkumuotoon.
+  references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
+  group: hs_voting_aid
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+  output_nodes:
+  - transport_emissions
+
+- id: ban_fur_animals
+  name: Turkistarhaus on kiellettävä Suomessa
+  description: Suomi on Euroopan kolmanneksi suurin turkistentuottajamaa. Suomessa on noin 900 turkistarhaa, joista valtaosa sijaitsee Pohjanmaalla. Turkistarhaus on kielletty osassa Euroopan maista. Turkistarhauksen kieltämistä EU:ssa vaativa kansalaisaloite ylitti joulukuussa 2022 miljoonan allekirjoituksen rajan, ja se etenee EU:n komission käsittelyyn.
+  references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
+  group: hs_voting_aid
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs
+  forecast_values: [[2023, 0], [2035, 0]]
+
+scenarios:
+- id: baseline
+  name: Tätä menoa
+  name_en: Business as usual
+
+- id: default
+  default: true
+  name: Aktiivinen
+  all_actions_enabled: true
