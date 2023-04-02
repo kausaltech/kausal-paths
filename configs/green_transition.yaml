@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://green_transition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c27d868fd446114f104d6d598a888eed96240d04
+  commit: 0b6112fb402d720f55705d2f8320baa81267ecf5
   dvc_remote: kausal-s3
 name: Vihreän siirtymän etusijamenettelyt
 name_en: Green transition priorities
@@ -22,6 +22,8 @@ action_groups:
   name: Vihreä murros
 - id: hs_voting_aid
   name: HS-vaalikone
+- id: priority
+  name: Valinta
 
 params:
 - id: municipality_name
@@ -206,6 +208,7 @@ nodes:
   historical_values: [[2015, 50], [2022, 40]]
   output_nodes:
   - carbon_sinks_in_state_forests
+  - net_profit_from_state_forests
 
 - id: carbon_sinks_in_state_forests
   name: Hiilinielut valtion metsissä
@@ -213,6 +216,33 @@ nodes:
   quantity: number
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
+
+- id: net_profit_from_state_forests
+  name: Puukaupan nettotulo valtion metsissä
+  is_outcome: true
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+
+- id: hypothesis_net_profit_from_state_forests
+  name: Backnäsin hypoteesi puukaupan nettotulosta valtion metsissä
+  description: Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset
+    tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon
+    (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin
+    hakkuin.
+  references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
+  type: values.HypothesisNode
+  group: hypothesis
+  quantity: number
+  unit: pcs
+  input_nodes:
+  - net_profit_from_state_forests
+  params:
+  - id: min_value
+    value: 200
+  - id: max_value
+    value: 290
 
 - id: biodiversity_in_state_forests
   name: Luonnon monimuotoisuus valtion metsissä
@@ -223,59 +253,26 @@ nodes:
   output_nodes:
   - biodiversity_in_finland
 
-- id: value_profile_true_finns
-  name: Perussuomalaisten arvoprofiili
-  description: Jussi Wihonen, Perus­suomalaiset. Valtion metsiä tulee hoitaa vastuullisesti, kuten tähänkin asti. Toimet suomen metsissä ei vaikuta gloobaalissa mittakaavassa kuin promilletasolla, se syytä muistaa.
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - logging_intensity_in_state_forests
-
-- id: value_profile_logging_greens
-  name: Vihreiden arvoprofiili valtion hakkuista
-  description: Krista Mikkonen, Vihreät. Valtion omistamat vanhat ja luonnontilaiset metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista jatkuvaan kasvatukseen. Myös yksityisille metsänomistajille tulee luoda kannusteita pidentää hakkuukiertoa, siirtyä jatkuvaan kasvatukseen ja lisätä luonnonhoitotoimia metsissään. Lisäksi on varmistettava, että luonnonsuojelurahoja on riittävästi, jotta halukkaat metsänomistajat voivat siirtää metsiään luonnonsuojelun piiriin saaden siitä korvauksen.
-    Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä tuotteita.
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - biodiversity_in_finland
-  - carbon_sinks_in_state_forests
-
-- id: value_profile_carbon_neutrality_target_greens
-  name: Vihreiden arvoprofiili hiilineutraalisuustavoitteesta
-  description: Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä tuotteita.
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - carbon_sinks_in_state_forests
-
 - id: value_profile_greens
   name: Vihreiden arvoprofiili
-  type: simple.AdditiveNode
+  type: values.MultiAttributeUtilityNode
   quantity: number
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
   input_nodes:
-  - value_profile_logging_greens
-  - value_profile_carbon_neutrality_target_greens
-
-- id: value_profile_social_democrats
-  name: Sosiaalidemokraattien arvoprofiili
-  description: <p>Hakkuutavoite valtion metsissä. Teemu Backnäs, Sdp. Iso osa Suomalaisesta hyvinvoinnista tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden toimintaedellytykset varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen (LUKE) tutkimusten mukaan hiilinielut ovat pienetyneet, joten olisi fiksua olla proaktiivinen hakkuiden suhteen. Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin hakkuin. Todennäköisesti muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti ja metsäteollisuuden tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet" (=ligniini) päätyi järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>
-    <pzHiilineutraalisuustavoite. Teemu Backnäs, Sdp. Ei. Suomi elää viennistä. Tämä on elinkeinoelämän ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin kautta Suomella onkin iso ekologinen _kädenjälki_, tarkoittaen että vientituotteemme vähentävät kasvihuonepäästöjä maailmalla. Me olemmekin kokoamme isompi ympäristötekijä maailmalla. Tärkeää onkin kasvattaa tuotekehityspanoksia, jotta myös jatkossa saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa tuotekehityksen kautta.</p>
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - biodiversity_in_finland
-  - carbon_sinks_in_state_forests
+  - id: biodiversity_in_finland
+    tags: [biodiversity]
+  - id: carbon_sinks_in_state_forests
+    tags: [climate_emissions]
+  - id: net_profit_from_state_forests
+    tags: [state_budget]
+  params:
+  - id: biodiversity_weight
+    value: 0.50
+  - id: climate_emissions_weight
+    value: 0.8
+  - id: state_budget_weight
+    value: 1.0
 
 pages:
 - id: home
@@ -286,20 +283,35 @@ pages:
   node: net_emissions
   lead_title: Vihreän siirtymän prioriteetit
   lead_title_en: Green transition priorities
-  lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä. Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a href="https://www.lausuntopalvelu.fi/FI/Proposal/ShowAllProposalAnswers?proposalId=2e8c6721-4711-43d8-987b-deca2144eb4a">hallituksen esitykseen</a> eduskunnalle eräiden vihreän siirtymän hankkeiden väliaikaisesta etusijamenettelystä aluehallintovirastojen lupakäsittelyssä vuosina 2023—2025 ja hallintotuomioistuimissa vuosina 2023-2027 ja asetus selvityksen sisällöstä.
-  lead_paragraph_en: On this website we examine green transition and how it should be promoted.
+  lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä.
+    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a href="https://www.lausuntopalvelu.fi/FI/Proposal/ShowAllProposalAnswers?proposalId=2e8c6721-4711-43d8-987b-deca2144eb4a">hallituksen
+    esitykseen</a> eduskunnalle eräiden vihreän siirtymän hankkeiden väliaikaisesta
+    etusijamenettelystä aluehallintovirastojen lupakäsittelyssä vuosina 2023—2025
+    ja hallintotuomioistuimissa vuosina 2023-2027 ja asetus selvityksen sisällöstä.
+  lead_paragraph_en: On this website we examine green transition and how it should
+    be promoted.
 
 actions:
 - id: priority_to_green_transition_in_avi
   name: Etusija vihreän siirtymän hankkeille AVI-käsittelyssä
-  description: <p>Aluehallintoviraston on käsittelyssä annettava etusija kestävää sijoittamista helpottavasta kehyksestä ja asetuksen (EU) 2019/2088 muuttamisesta annetun Euroopan parlamentin ja neuvoston asetuksen (EU) 2020/852 17 artiklan 1 kohdassa tarkoitetun ei merkittävää haittaa -periaatteen huomioon ottavan toiminnan ympäristölupahakemukselle ja vesitaloushankkeen lupahakemukselle suhteessa muihin vireille tulleisiin ympäristönsuojelulain ja vesilain mukaisiin lupahakemuksiin. Hakijan on hakemuksen yhteydessä esitettävä riittävä selvitys oikeudesta etusijaan.</p>
-    <p>Edellä 1 momentissa tarkoitettuja lupahakemuksia, joille on annettava etusija, ovat hakemukset, jotka koskevat</p>
-    <ol><li>energiatuotantolaitosta, joka tuottaa energiaa uusiutuvalla energialla, sekä merituulivoimalaa ja siihen liittyviä vesitaloushankkeita;</li>
-    <li>uusiutuvaan energiaan tai sähköistämiseen perustuvia fossiilisten polttoaineiden tai raaka-aineiden käyttöä korvaavia teollisuuden hankkeita;</li>
-    <li>vedyn valmistusta ja hyödyntämistä, lukuun ottamatta vedyn valmistusta fossiilisista polttoaineista;</li>
-    <li>hiilidioksidin talteenottoa, hyödyntämistä ja varastointia;</li>
-    <li>akkutehdasta ja akkumateriaalien valmistusta, talteenottoa ja uudelleenkäyttöä.</li></ol>
-  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221144">Laki</a> ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun lain väliaikaisesta muuttamisesta.
+  description: <p>Aluehallintoviraston on käsittelyssä annettava etusija kestävää
+    sijoittamista helpottavasta kehyksestä ja asetuksen (EU) 2019/2088 muuttamisesta
+    annetun Euroopan parlamentin ja neuvoston asetuksen (EU) 2020/852 17 artiklan
+    1 kohdassa tarkoitetun ei merkittävää haittaa -periaatteen huomioon ottavan toiminnan
+    ympäristölupahakemukselle ja vesitaloushankkeen lupahakemukselle suhteessa muihin
+    vireille tulleisiin ympäristönsuojelulain ja vesilain mukaisiin lupahakemuksiin.
+    Hakijan on hakemuksen yhteydessä esitettävä riittävä selvitys oikeudesta etusijaan.</p>
+    <p>Edellä 1 momentissa tarkoitettuja lupahakemuksia, joille on annettava etusija,
+    ovat hakemukset, jotka koskevat</p> <ol><li>energiatuotantolaitosta, joka tuottaa
+    energiaa uusiutuvalla energialla, sekä merituulivoimalaa ja siihen liittyviä vesitaloushankkeita;</li>
+    <li>uusiutuvaan energiaan tai sähköistämiseen perustuvia fossiilisten polttoaineiden
+    tai raaka-aineiden käyttöä korvaavia teollisuuden hankkeita;</li> <li>vedyn valmistusta
+    ja hyödyntämistä, lukuun ottamatta vedyn valmistusta fossiilisista polttoaineista;</li>
+    <li>hiilidioksidin talteenottoa, hyödyntämistä ja varastointia;</li> <li>akkutehdasta
+    ja akkumateriaalien valmistusta, talteenottoa ja uudelleenkäyttöä.</li></ol>
+  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221144">Laki</a>
+    ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun
+    lain väliaikaisesta muuttamisesta.
   group: green_transition
   type: simple.AdditiveAction
   quantity: number
@@ -308,9 +320,15 @@ actions:
 
 - id: priority_to_nature_water_in_avi
   name: Etusija ympäristönsuojelu- ja vesiasioissa AVI-käsittelyssä
-  description: Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin. 
-    Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
-  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221145">Laki</a> vesilain väliaikaisesta muuttamisesta. <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221146">Laki</a> ympäristönsuojelulain väliaikaisesta muuttamisesta.
+  description: Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa
+    annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa
+    käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
+    Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun
+    lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa
+    käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
+  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221145">Laki</a>
+    vesilain väliaikaisesta muuttamisesta. <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221146">Laki</a>
+    ympäristönsuojelulain väliaikaisesta muuttamisesta.
   group: green_transition
   type: simple.AdditiveAction
   quantity: number
@@ -319,8 +337,12 @@ actions:
 
 - id: priority_to_planning_complaints_of_green_transition
   name: Uusiutuvan energian kaavavalitukset käsiteltävä kiireellisenä
-  description: Uusiutuvan energiantuotannon kannalta merkittäväksi katsottavaa asemakaavaa koskeva valitus ja 77 a §:ssä tarkoitettua tuulivoimarakentamista ohjaavaa yleiskaavaa koskeva valitus on käsiteltävä hallintotuomioistuimessa kiireellisenä suhteessa muihin tämän lain mukaisia kaava-asioita ja lupa-asioita koskeviin valituksiin. 
-  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221147">Laki</a> maankäyttö- ja rakennuslain väliaikaisesta muuttamisesta 
+  description: Uusiutuvan energiantuotannon kannalta merkittäväksi katsottavaa asemakaavaa
+    koskeva valitus ja 77 a §:ssä tarkoitettua tuulivoimarakentamista ohjaavaa yleiskaavaa
+    koskeva valitus on käsiteltävä hallintotuomioistuimessa kiireellisenä suhteessa
+    muihin tämän lain mukaisia kaava-asioita ja lupa-asioita koskeviin valituksiin.
+  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221147">Laki</a>
+    maankäyttö- ja rakennuslain väliaikaisesta muuttamisesta
   group: green_transition
   type: simple.AdditiveAction
   quantity: number
@@ -328,10 +350,17 @@ actions:
   forecast_values: [[2023, 0], [2035, 0]]
 
 - id: reduce_logging_in_state_forests
-  name: Hakkuita pitää vähentää valtion metsissä luontokadon ja ilmastonmuutoksen torjumiseksi
-  description: Maankäyttö on Suomessa muuttunut ilmastonmuutosta hillitsevästä hiilinielusta päästöjen lähteeksi hakkuiden lisääntymisen ja puuston kasvun hidastumisen vuoksi. Metsälajeista yhdeksän prosenttia on uhanalaisia. Valtio omistaa Suomen metsistä noin neljänneksen. Hakkuiden vähentäminen vähentäisi valtion tuloja, teollisuuden puunsaantia ja työpaikkoja.
+  name: Hakkuita pitää vähentää valtion metsissä luontokadon ja ilmastonmuutoksen
+    torjumiseksi
+  description: Maankäyttö on Suomessa muuttunut ilmastonmuutosta hillitsevästä hiilinielusta
+    päästöjen lähteeksi hakkuiden lisääntymisen ja puuston kasvun hidastumisen vuoksi.
+    Metsälajeista yhdeksän prosenttia on uhanalaisia. Valtio omistaa Suomen metsistä
+    noin neljänneksen. Hakkuiden vähentäminen vähentäisi valtion tuloja, teollisuuden
+    puunsaantia ja työpaikkoja.
   references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
-    <a href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaarion-ennakkotiedot-vahvistavat-maankayttosektori-paastolahde-vuonna-2021-metsat-pysyivat-edelleen-nettonieluna">Kasvihuonekaasuinventaarion ennakkotiedot vahvistavat, maankäyttösektori päästölähde vuonna 2021, metsät pysyivät edelleen nettonieluna</a>
+    <a href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaarion-ennakkotiedot-vahvistavat-maankayttosektori-paastolahde-vuonna-2021-metsat-pysyivat-edelleen-nettonieluna">Kasvihuonekaasuinventaarion
+    ennakkotiedot vahvistavat, maankäyttösektori päästölähde vuonna 2021, metsät pysyivät
+    edelleen nettonieluna</a>
   group: hs_voting_aid
   type: simple.AdditiveAction
   quantity: number
@@ -343,8 +372,13 @@ actions:
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
-  description: Hiilineutraalius tarkoittaa, että ilmastoa lämmittäviä päästöjä tuotetaan korkeintaan sen verran kuin niitä voidaan sitoa ilmakehästä esimerkiksi metsien avulla. Suomi tavoittelee hiilineutraaliutta viimeistään vuonna 2035. EU:n tavoite on vuodessa 2050. Hiilineutraaliustavoitteesta seuraa vaatimuksia useille yhteiskunnan aloille ruuantuotannosta ja rakentamisesta liikenteeseen ja teollisuuteen. 
-  references: <a href="https://julkaisut.valtioneuvosto.fi/handle/10024/164321">Hiilineutraali Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
+  description: Hiilineutraalius tarkoittaa, että ilmastoa lämmittäviä päästöjä tuotetaan
+    korkeintaan sen verran kuin niitä voidaan sitoa ilmakehästä esimerkiksi metsien
+    avulla. Suomi tavoittelee hiilineutraaliutta viimeistään vuonna 2035. EU:n tavoite
+    on vuodessa 2050. Hiilineutraaliustavoitteesta seuraa vaatimuksia useille yhteiskunnan
+    aloille ruuantuotannosta ja rakentamisesta liikenteeseen ja teollisuuteen.
+  references: <a href="https://julkaisut.valtioneuvosto.fi/handle/10024/164321">Hiilineutraali
+    Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
   group: hs_voting_aid
   type: simple.AdditiveAction
   quantity: number
@@ -355,7 +389,11 @@ actions:
 
 - id: congestion_charge
   name: Helsingissä ja muissa suurissa kaupungeissa on otettava käyttöön ruuhkamaksu
-  description: Ruuhkamaksu on teiden käytöstä perittävä maksu, jonka tarkoituksena on hillitä ruuhkautumista ja liikenteen päästöjä. Nyt laki ei mahdollista ruuhkamaksujen keräämistä. Pääkaupunkiseudun kehyskuntien tekemän selvityksen mukaan ruuhkamaksuista olisi haittaa töihin tuleville pienituloisille autoilijoille, joilla ei ole mahdollisuutta vaihtoehtoiseen kulkumuotoon.
+  description: Ruuhkamaksu on teiden käytöstä perittävä maksu, jonka tarkoituksena
+    on hillitä ruuhkautumista ja liikenteen päästöjä. Nyt laki ei mahdollista ruuhkamaksujen
+    keräämistä. Pääkaupunkiseudun kehyskuntien tekemän selvityksen mukaan ruuhkamaksuista
+    olisi haittaa töihin tuleville pienituloisille autoilijoille, joilla ei ole mahdollisuutta
+    vaihtoehtoiseen kulkumuotoon.
   references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
   group: hs_voting_aid
   type: simple.AdditiveAction
@@ -367,13 +405,175 @@ actions:
 
 - id: ban_fur_animals
   name: Turkistarhaus on kiellettävä Suomessa
-  description: Suomi on Euroopan kolmanneksi suurin turkistentuottajamaa. Suomessa on noin 900 turkistarhaa, joista valtaosa sijaitsee Pohjanmaalla. Turkistarhaus on kielletty osassa Euroopan maista. Turkistarhauksen kieltämistä EU:ssa vaativa kansalaisaloite ylitti joulukuussa 2022 miljoonan allekirjoituksen rajan, ja se etenee EU:n komission käsittelyyn.
+  description: Suomi on Euroopan kolmanneksi suurin turkistentuottajamaa. Suomessa
+    on noin 900 turkistarhaa, joista valtaosa sijaitsee Pohjanmaalla. Turkistarhaus
+    on kielletty osassa Euroopan maista. Turkistarhauksen kieltämistä EU:ssa vaativa
+    kansalaisaloite ylitti joulukuussa 2022 miljoonan allekirjoituksen rajan, ja se
+    etenee EU:n komission käsittelyyn.
   references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
   group: hs_voting_aid
   type: simple.AdditiveAction
   quantity: number
   unit: pcs
   forecast_values: [[2023, 0], [2035, 0]]
+
+#
+# PRIORITIES
+#
+- id: priority_logging_true_finns
+  name: 'Perussuomalaiset: Vähennetäänkö metsähakkuita valtion mailla?'
+  description: <b>Jussi Wihonen, Perus­suomalaiset.</b> Valtion metsiä tulee hoitaa
+    vastuullisesti, kuten tähänkin asti. Toimet suomen metsissä ei vaikuta gloobaalissa
+    mittakaavassa kuin promilletasolla, se syytä muistaa.
+  type: values.PriorityNode
+  group: priority
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - net_profit_from_state_forests
+  params:
+  - id: endorsers
+    value: perussuomalaiset
+  - id: action_id
+    value: reduce_logging_in_state_forests
+  - id: priority
+    value: false
+
+- id: priority_logging_greens
+  name: 'Vihreät: Vähennetäänkö metsähakkuita valtion mailla?'
+  description: <p><b>Krista Mikkonen, Vihreät.</b> Valtion omistamat vanhat ja luonnontilaiset
+    metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi
+    kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista
+    jatkuvaan kasvatukseen. Myös yksityisille metsänomistajille tulee luoda kannusteita
+    pidentää hakkuukiertoa, siirtyä jatkuvaan kasvatukseen ja lisätä luonnonhoitotoimia
+    metsissään. Lisäksi on varmistettava, että luonnonsuojelurahoja on riittävästi,
+    jotta halukkaat metsänomistajat voivat siirtää metsiään luonnonsuojelun piiriin
+    saaden siitä korvauksen.</p> <p>Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy
+    nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä
+    maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla.
+    Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin
+    henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista
+    päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan
+    paljon meidän käyttämiä tuotteita.</p>
+  type: values.PriorityNode
+  group: priority
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - biodiversity_in_finland
+  - carbon_sinks_in_state_forests
+  params:
+  - id: endorsers
+    value: greens
+  - id: action_id
+    value: reduce_logging_in_state_forests
+  - id: priority
+    value: true
+
+- id: priority_logging_social_democrats
+  name: 'Demarit: Vähennetäänkö metsähakkuita valtion mailla?'
+  description: <p><b>Teemu Backnäs, Sdp.</b> Iso osa Suomalaisesta hyvinvoinnista
+    tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden toimintaedellytykset
+    varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen (LUKE) tutkimusten
+    mukaan hiilinielut ovat pienetyneet, joten olisi fiksua olla proaktiivinen hakkuiden
+    suhteen. Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset tuulivoimalavat)
+    on yli 100-kertainen verrattuna perinteiseen sellun tuottoon (~700€/tn), joten
+    todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin hakkuin. Todennäköisesti
+    muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti ja metsäteollisuuden
+    tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet" (=ligniini) päätyi
+    järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>
+  type: values.PriorityNode
+  group: priority
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - biodiversity_in_finland
+  - carbon_sinks_in_state_forests
+  - hypothesis_net_profit_from_state_forests
+  params:
+  - id: endorsers
+    value: social_democrats
+  - id: action_id
+    value: logging_intensity_in_state_forests
+  - id: priority
+    value: true
+
+- id: priority_carbon_neutrality_target_greens
+  name: 'Vihreät: Lykätäänkö ilmastotavoitteita?'
+  description: <b>Krista Mikkonen, Vihreät.</b> Ilmastoratkaisuja kysyy nyt koko maailma.
+    Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella
+    ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt
+    pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat
+    kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin
+    maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä
+    tuotteita.
+  type: values.PriorityNode
+  group: priority
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - carbon_sinks_in_state_forests
+  params:
+  - id: endorsers
+    value: greens
+  - id: action_id
+    value: postpone_climate_targets
+  - id: priority
+    value: false
+
+- id: priority_climate_target_social_democrats
+  name: 'Demarit: Lykätäänkö ilmastotavoitteita?'
+  description: <p><b>Teemu Backnäs, Sdp.</b> Ei. Suomi elää viennistä. Tämä on elinkeinoelämän
+    ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin
+    tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin
+    kautta Suomella onkin iso ekologinen _kädenjälki_, tarkoittaen että vientituotteemme
+    vähentävät kasvihuonepäästöjä maailmalla. Me olemmekin kokoamme isompi ympäristötekijä
+    maailmalla. Tärkeää onkin kasvattaa tuotekehityspanoksia, jotta myös jatkossa
+    saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää
+    parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa
+    tuotekehityksen kautta.</p>
+  type: values.PriorityNode
+  group: priority
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - biodiversity_in_finland
+  - carbon_sinks_in_state_forests
+  params:
+  - id: endorsers
+    value: social_democrats
+  - id: action_id
+    value: postpone_climate_targets
+  - id: priority
+    value: false
+
+- id: priority_climate_target_true_finns
+  name: 'Perussuomalaiset: Lykätäänkö ilmastotavoitteita?'
+  description: <p><b>Jussi Wihonen, Perus­suomalaiset.</b>Kannatamme EU:n yhteistä
+    tavoitetta, 2050. Teollisuuden kilpailukyky turvattava, emme voi asettaa tiukempia
+    normeja kuin kilpailijamaat, muuten teollisuus hakeutuu sinne. Suomi ei menetä
+    mitään, sitoutumalla EU:n hiilineutraalisuustavoitteeseen.</p>
+  type: values.PriorityNode
+  group: priority
+  quantity: number
+  unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
+  input_nodes:
+  - carbon_sinks_in_state_forests
+  - net_profit_from_state_forests
+
+  params:
+  - id: endorsers
+    value: social_democrats
+  - id: action_id
+    value: postpone_climate_targets
+  - id: priority
+    value: false
 
 scenarios:
 - id: baseline
