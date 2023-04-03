@@ -6,8 +6,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 0b6112fb402d720f55705d2f8320baa81267ecf5
   dvc_remote: kausal-s3
-name: Vihreän siirtymän etusijamenettelyt
-name_en: Green transition priorities
+name: Vihreän siirtymän arvot ja valinnat
+name_en: Green transition values and priorities
 owner: Kausal Oy
 owner_en: Kausal Ltd
 theme_identifier: default
@@ -24,6 +24,8 @@ action_groups:
   name: HS-vaalikone
 - id: priority
   name: Valinta
+- id: value_profile
+  name: Arvoprofiili
 
 params:
 - id: municipality_name
@@ -566,14 +568,40 @@ actions:
   input_nodes:
   - carbon_sinks_in_state_forests
   - net_profit_from_state_forests
-
   params:
   - id: endorsers
-    value: social_democrats
+    value: true_finns
   - id: action_id
     value: postpone_climate_targets
   - id: priority
-    value: false
+    value: true
+
+#
+# VALUE PROFILES
+#
+#- id: value_profile_greens2
+#  name: Vihreiden arvoprofiili
+#  type: values.MultiAttributeUtilityAction
+#  quantity: number
+#  unit: pcs
+#  historical_values: [[2015, 50], [2022, 40]]
+#  input_nodes:
+#  - id: biodiversity_in_finland
+#    tags: [biodiversity]
+#  - id: carbon_sinks_in_state_forests
+#    tags: [climate_emissions]
+#  - id: net_profit_from_state_forests
+#    tags: [state_budget]
+#  params:
+#  - id: biodiversity_weight
+#    value: 0.50
+#    is_customizable: true
+#    min_value: 0.0
+#    max_value: 1.0
+#  - id: climate_emissions_weight
+#    value: 0.8
+#  - id: state_budget_weight
+#    value: 1.0
 
 scenarios:
 - id: baseline
