@@ -197,6 +197,10 @@ nodes:
 
 - id: biodiversity_in_finland
   name: Luonnon monimuotoisuus Suomessa
+  description: Luonnon monimuotoisuus Suomessa kuvaa luonnon kokonaistilaa. Vaikka tällaista kattavaa
+    mittaria ei ole onnistuttu kehittämään, voidaan mallin seuraavassa versiossa kuvata tätä
+    esimerkiksi uhanalaisten lajien osuudella tai jollain muulla kelvollisella suoraviivaisella
+    mittarilla.
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
@@ -204,6 +208,8 @@ nodes:
 
 - id: logging_intensity_in_state_forests
   name: Hakkumäärä valtion metsissä
+  description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä vuodessa. Luvut
+    ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman asiaa.
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
@@ -214,6 +220,8 @@ nodes:
 
 - id: carbon_sinks_in_state_forests
   name: Hiilinielut valtion metsissä
+  description: Hiilnielut kuvastavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
+    yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä vapautuva metaani.
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
@@ -221,6 +229,8 @@ nodes:
 
 - id: net_profit_from_state_forests
   name: Puukaupan nettotulo valtion metsissä
+  description: Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla ja
+    hiilipäästöistä johtuvilla kustannuksilla.
   is_outcome: true
   type: simple.AdditiveNode
   quantity: number
@@ -229,10 +239,12 @@ nodes:
 
 - id: hypothesis_net_profit_from_state_forests
   name: Backnäsin hypoteesi puukaupan nettotulosta valtion metsissä
-  description: Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset
+  description: <p>Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset
     tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon
     (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin
-    hakkuin.
+    hakkuin.</p><p>Tähän päättelyyn nojaten hypoteesi antaa puukaupalle huomattavasti suuremman arvon,
+    joka tässä harjoitusmallissa on markitty välille 200-290 yksikköä (luvuilla ei ole toistaiseksi
+    mitään vastinetta reaalimaailmassa.)</p>
   references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
   type: values.HypothesisNode
   group: hypothesis
@@ -248,6 +260,8 @@ nodes:
 
 - id: biodiversity_in_state_forests
   name: Luonnon monimuotoisuus valtion metsissä
+  description: Tämä solmu tarkastelee nimenomaan valtion metsian monimuotoisuutta esimerkiksi
+    uhanalaisten lajien osuutena.
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
@@ -257,10 +271,16 @@ nodes:
 
 - id: value_profile_greens
   name: Vihreiden arvoprofiili
+  description: Tämä on moniarvohyötyteorian mukainen arvoprofiili. Siinä ajatellaan, että 
+    olennaiset lopputulokset voidaan summata yhteen, kun jokainen niistä ensin painotetaan
+    oikeanlaisella kertoimella. Tässä käytetyt painokertoimet ovat <ul>
+    <li>luonnon monimuotoisuus, 0.5</li>
+    <li>hiilinielut valtion metsissä, 0.8</li>
+    <li>valtion budjetti, 1.0.</li></ul>
+    Tämä on vasta harjoitusarviointi, joten luvut eivät tarkoita mitään, eikä niillä ole yksiköitä.
   type: values.MultiAttributeUtilityNode
   quantity: number
   unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
   input_nodes:
   - id: biodiversity_in_finland
     tags: [biodiversity]
