@@ -1,7 +1,7 @@
-id: green_transition
+id: green-transition
 default_language: fi
 supported_languages: [en]
-site_url: https://green_transition.paths.kausal.tech
+site_url: https://green-transition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 0b6112fb402d720f55705d2f8320baa81267ecf5
