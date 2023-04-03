@@ -96,10 +96,12 @@ params:
   value: Tampere
 - id: all_in_investment
   label: Alla investeringar sker första året (inte kontinuerligt)
+#  label: All investments happen during the first year (not continuously)
   is_customizable: true
   value: true
 - id: discount_rate
   label: Diskonteringsränta (%/år)
+#  label: Discount rate (%/yr.)
   description: Speed of value decrease for monetary variables
   is_customizable: true
   value: 3.5
@@ -122,16 +124,16 @@ params:
   max_value: 0.08
   unit: SEK/kWh
 - id: heat_co2_ef
-#    label: Emission factor of heat production (g CO2/kWh)
   label: Emissionsfaktor för värmeproduktion (g CO2/kWh)
+#  label: Emission factor of heat production (g CO2/kWh)
   is_customizable: true
   value: 52
   min_value: 40
   max_value: 70
   unit: g/kWh
 - id: electricity_co2_ef
-#    label: Emission factor of electricity production (g CO2/kWh)
   label: Emissionsfaktor för elproduktion (g CO2/kWh)
+#  label: Emission factor of electricity production (g CO2/kWh)
   is_customizable: true
   value: 93.2
   min_value: 80
@@ -139,6 +141,7 @@ params:
   unit: g/kWh
 - id: renovation_rate_baseline
   label: Baslinje renoveringstakt (%/år)
+#  label: Baseline renovation rate (%/yr.)
   is_customizable: true
   value: 0.5
   min_value: 0
@@ -151,6 +154,7 @@ params:
   unit: SEK/t
   is_customizable: true
   label: Koldioxidkostnad (SEK/t)
+#  label: Carbon dioxide cost (SEK/t)
 #    description: Koldioxidkostnad. Uppdaterade utifrån ASEK - EU ETS, eftersom kostnaderna
 #      för utsläppsrätter redan är internaliserade i privatekonomiska kostnader. 
 #      Förut 7000kr/ton co2. Nu 7000-550=6450. (550 var genomsnittspriset 2021)
@@ -163,6 +167,7 @@ params:
   unit: '%'
   is_customizable: true
   label: CO2 kostnadsökningtakt (%/år)
+#  label: CO2 cost increase rate (%/yr.)
 - id: price_of_electricity
   value: 0.670
   min_value: 0
@@ -170,6 +175,7 @@ params:
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande elpris (SEK/kWh)
+#  label: Current electricity price (SEK/kWh)
 - id: price_of_electricity_annual_change
   value: 0
   min_value: 0
@@ -177,6 +183,7 @@ params:
   unit: '%'
   is_customizable: true
   label: Kostnadsökningstakt av elpris (%/år)
+#  label: Electricity price increase rate (%/yr.)
 - id: price_of_heat
   value: 0.6944
   min_value: 0
@@ -184,6 +191,7 @@ params:
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande värmepris (SEK/kWh)
+#  label: Current heat price (SEK/kWh)
 - id: price_of_heat_annual_change
   value: 0
   min_value: 0
@@ -191,20 +199,25 @@ params:
   unit: '%'
   is_customizable: true
   label: Kostnadsökningstakt av värmepris (%/år)
+#  label: Heat price increase rate (%/yr.)
 - id: include_energy_taxes
   label: Inkludera skatter och avgifter?
+#  label: Include taxes?
   is_customizable: true
   value: false
 - id: include_co2
   label: Inkludera CO2-kostnader?
+#  label: Include CO2 costs?
   is_customizable: true
   value: true
 - id: include_health
   label: Inkludera hälsoeffekter?
+#  label: Include health impacts?
   is_customizable: true
   value: true
 - id: include_el_avoided
   label: Inkludera elkapacitetsbesparingar?
+#  label: Include electricity production capacity costs?
   is_customizable: true
   value: true
 
