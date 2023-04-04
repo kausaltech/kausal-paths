@@ -4,7 +4,7 @@ supported_languages: [en]  # FIXME instance_config.other_languages is [] for an 
 site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: af84a46c532a0d4d976767c6f4371601e9b41255
+  commit: 0b6112fb402d720f55705d2f8320baa81267ecf5
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
 # name_de: Klimaneutrales Tampere 2030
@@ -12,6 +12,7 @@ owner: Tampereen kaupunki
 owner_en: City of Tampere
 # owner_de: Stadt Tampere
 theme_identifier: tampere-ilmasto
+model_end_year: 2030
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2010
@@ -27,6 +28,7 @@ emission_sectors:
   name: Kokonaispäästöt (scope 2)
   name_en: Net emissions (scope 2)
   # name_de: Nettoemissionen (Scope 2)
+  is_outcome: true
   target_year_goal: 260
 
   #
@@ -116,8 +118,8 @@ emission_sectors:
   # name_de: Industrie- und Maschinenemissionen
   description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla
     lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
-  description_en: The emission forecast for industry and machinery has been made
-    by linearly extrapolating the emission development during 2010-2018.
+  description_en: The emission forecast for industry and machinery has been made by
+    linearly extrapolating the emission development during 2010-2018.
   # description_de: Die Emissionsprognose für Industrie und Maschinen wurde durch
   #   lineare Extrapolation der Emissionsentwicklung im Zeitraum 2010-2018.
   part_of: net_emissions
@@ -130,8 +132,8 @@ emission_sectors:
   # name_de: Industrielle und private Maschinenemissionen
   description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa
     Teollisuuden ja työkoneiden päästöt.
-  description_en: The emission forecast for industry and machinery is described
-    in more detail in the node Industry and machinery emissions.
+  description_en: The emission forecast for industry and machinery is described in
+    more detail in the node Industry and machinery emissions.
   # description_de: Die Emissionsprognose für Industrie und Maschinen wird im Knoten
   #   Industrie- und Maschinenemissionen näher beschrieben.
   part_of: industry_and_machinery_emissions
@@ -143,8 +145,8 @@ emission_sectors:
   name_en: Waste treatment
   # name_de: Abfallbehandlung
   description: Jätehuollon päästöt sisältävät kiinteät jätteet, biojätteet ja jäteveden.
-  description_en: Emissions from waste management include solid waste, biowaste
-    and wastewater.
+  description_en: Emissions from waste management include solid waste, biowaste and
+    wastewater.
   # description_de: Emissionen aus der Abfallwirtschaft umfassen feste Abfälle, Bioabfälle
   #   und Abwasser.
   part_of: net_emissions
@@ -170,8 +172,8 @@ emission_sectors:
   # name_de: Landwirtschaft
   description: Maatalouden päästöt perustuvat CO2-raportin päästötoteumaan eläinten
     ruoansulatuksen, lannan käsittelyn ja peltoviljelyn päästöistä.
-  description_en: Emissions from agriculture are based on the emission estimates
-    of the CO2 Report on animal digestion, manure treatment and arable farming.
+  description_en: Emissions from agriculture are based on the emission estimates of
+    the CO2 Report on animal digestion, manure treatment and arable farming.
   # description_de: Emissionen aus der Landwirtschaft basieren auf den Emissionsschätzungen
   #   des CO2-Berichts zu tierischer Verdauung, Güllebehandlung und Ackerbau.
   part_of: net_emissions
@@ -425,6 +427,7 @@ nodes:
   type: simple.FixedMultiplierNode
   unit: g/kWh
   quantity: emission_factor
+  description: Oletetaan 8 % suurempi päästökerroin lämmityssähkölle.
   description_en: We assume an 8 % higher emission factor for heating electricity.
   input_nodes:
   - electricity_production_emission_factor
@@ -439,8 +442,8 @@ nodes:
   type: simple.FixedMultiplierNode
   unit: g/kWh
   quantity: emission_factor
-  description_en: We assume an 5 % higher emission factor for other electricity
-    consumption.
+  description: Oletetaan 5 % suurempi päästökerroin muulle sähkön käytölle.
+  description_en: We assume an 5 % higher emission factor for other electricity consumption.
   input_nodes:
   - electricity_production_emission_factor
   params:
@@ -818,29 +821,28 @@ actions:
     the choice of fuel is a key factor in reducing emissions.
   long_description_en: <h2>Centralized renewable energy</h2><p>The action includes
     investments by Tampereen Sähkölaitos (the local energy company) that will reduce
-    the district heating emission factor. As the emission factor for electricity
-    generation is determined nationally, the measures do not directly affect electricity
-    emissions.</p><p>Currently, the clearest measure is the investment in the Naistenlahti
-    3 power plant. This, too, can only be roughly distinguished from other plans
-    to reduce the district heating emission factor. The final emission reduction
-    from the district heating emission factor is due to measures that have not yet
-    been further defined and have therefore been calculated as a lump sum. However,
-    the emission reduction will materialize if Tampereen Sähkölaitos achieves emission
-    reductions in line with its strategy. The magnitude is calculated in this total
-    emission forecast slightly differently than if only the energy production of
-    Tampereen Sähkölaitos is considered.</p><p>As a result, the emission reduction
-    in district heating caused by Naistenlahti 3 is approx. 82 kt CO2e. In addition,
-    approximately 99 kt of CO2e will be generated from other investments in reducing
-    the emissions of Tampereen Sähkölaitos by 2030. This is only a rough estimate
-    based on the company's own forecast of the district heating emission factor.
-    The real impact of Naistenlahti 3 in reducing fossil emissions depends on the
-    contribution of peat to combustion and the overall impact of adding wood fuel
-    elsewhere.</p><p>The action also includes the connection of the City of Tampere's
-    properties to district cooling as required. Connecting to district cooling reduces
-    the building's electricity consumption, as cooling is not required with heat
-    pumps. However, it is not known to what extent the properties will be connected
-    and what the change in their consumption would be. Therefore, no emission reduction
-    has yet been estimated for the action.</p>
+    the district heating emission factor. As the emission factor for electricity generation
+    is determined nationally, the measures do not directly affect electricity emissions.</p><p>Currently,
+    the clearest measure is the investment in the Naistenlahti 3 power plant. This,
+    too, can only be roughly distinguished from other plans to reduce the district
+    heating emission factor. The final emission reduction from the district heating
+    emission factor is due to measures that have not yet been further defined and
+    have therefore been calculated as a lump sum. However, the emission reduction
+    will materialize if Tampereen Sähkölaitos achieves emission reductions in line
+    with its strategy. The magnitude is calculated in this total emission forecast
+    slightly differently than if only the energy production of Tampereen Sähkölaitos
+    is considered.</p><p>As a result, the emission reduction in district heating caused
+    by Naistenlahti 3 is approx. 82 kt CO2e. In addition, approximately 99 kt of CO2e
+    will be generated from other investments in reducing the emissions of Tampereen
+    Sähkölaitos by 2030. This is only a rough estimate based on the company's own
+    forecast of the district heating emission factor. The real impact of Naistenlahti
+    3 in reducing fossil emissions depends on the contribution of peat to combustion
+    and the overall impact of adding wood fuel elsewhere.</p><p>The action also includes
+    the connection of the City of Tampere's properties to district cooling as required.
+    Connecting to district cooling reduces the building's electricity consumption,
+    as cooling is not required with heat pumps. However, it is not known to what extent
+    the properties will be connected and what the change in their consumption would
+    be. Therefore, no emission reduction has yet been estimated for the action.</p>
   # description_de: Das Kraftwerk Naistenlahti 3 kann auch Biobrennstoff verwenden und
   #  die Wahl des Kraftstoffs ist ein Schlüsselfaktor für die Reduzierung von Emissionen.
   # long_description_de: <h2>Zentrale erneuerbare Energie</h2><p>Die Maßnahme umfasst Investitionen
@@ -878,8 +880,8 @@ actions:
   quantity: energy
   output_nodes:
   - district_heating_emission_factor
-  forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
-    [2029, -14], [2030, -6]]
+  forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
+      2029, -14], [2030, -6]]
   unit: g/kWh
 
 - id: private_building_energy_renovation
@@ -916,12 +918,11 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
-    uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali
-    rakennusten katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
-  description_en: Photovoltaic production will be installed on the roofs of the
-    buildings. According to the 2016 municipal review of renewable energy, the unused
-    potential on the roofs of buildings is 800-900 GWh (does not take into account
-    all restrictions).
+    uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten
+    katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
+  description_en: Photovoltaic production will be installed on the roofs of the buildings.
+    According to the 2016 municipal review of renewable energy, the unused potential
+    on the roofs of buildings is 800-900 GWh (does not take into account all restrictions).
   # description_de: Auf den Dächern der Gebäude werden Photovoltaikanlagen installiert. Das
   #  ungenutzte Potenzial auf den Dächern der Gebäude liegt laut der 2016 durchgeführten
   #  kommunalen Studie zu erneuerbaren Energien bei 800-900 GWh (ohne Berücksichtigung
@@ -948,15 +949,15 @@ actions:
   type: simple.CumulativeAdditiveAction
   unit: GWh/a
   quantity: energy
-  description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 %
-    tarvittavasta lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho
-    Rinta-Rahkon arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista.
-    Öljylämmitystä jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
-  description_en: Private properties change from oil heating to geothermal energy. 95%
-    of the required heat is produced at COP 3 level, the rest is direct electricity.
-    This is based on Juho Rinta-Rahko's assessment of the potential of renovation and energy
-    consulting in Tampere. Some oil heating will remain in service buildings and
-    industrial buildings.
+  description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta
+    lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon
+    arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä
+    jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
+  description_en: Private properties change from oil heating to geothermal energy.
+    95% of the required heat is produced at COP 3 level, the rest is direct electricity.
+    This is based on Juho Rinta-Rahko's assessment of the potential of renovation
+    and energy consulting in Tampere. Some oil heating will remain in service buildings
+    and industrial buildings.
   # description_de: Private Grundstücke steigen von Ölheizungen auf Erdwärme um. 95 % der benötigten
   #  Wärme werden auf COP-3-Niveau produziert, der Rest ist direkter Strom. Dies basiert auf Juho
   #  Rinta-Rahkos Einschätzung des Potenzials von Renovierungen und Energieberatung in Tampere.
@@ -966,9 +967,8 @@ actions:
   - geothermal_heating_electricity_use
   forecast_values:
   - id: oil_heating_energy_use
-    values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025,
-        -5.73], [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030,
-        -5.73]]
+    values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025, -5.73],
+      [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030, -5.73]]
   - id: geothermal_heating_electricity_use
     values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10],
       [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
@@ -984,11 +984,11 @@ actions:
     eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden
     COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu
     pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
-  description_en: The city's properties currently consume 367 378 l / y of oil,
-    or about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced
-    by water-air heat pumps with a COP of about 2.5 when they produce all the heat
-    they need. Bio-oil has been thought to be held in reserve, but its share of
-    energy consumption is insignificant.
+  description_en: The city's properties currently consume 367 378 l / y of oil, or
+    about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced by water-air
+    heat pumps with a COP of about 2.5 when they produce all the heat they need. Bio-oil
+    has been thought to be held in reserve, but its share of energy consumption is
+    insignificant.
   # description_de: Die Gebäude der Stadt verbrauchen derzeit 367 378 l / a Öl oder etwa 3 674 MWh
   #  oder 3,67 GWh. Mit diesen Aussichten wird Öl durch Wasser-Luft-Wärmepumpen mit einem COP von
   #  etwa 2,5 ersetzt, wenn sie die gesamte benötigte Wärme produzieren. Bioöl galt als Reserve,
@@ -1074,8 +1074,8 @@ actions:
   quantity: mileage
   description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava,
     jotta tämä olisi mielekäs.
-  description_en: The second construction phase of the tramway. The first phase
-    of construction needs to be implemented for this action to make sense.
+  description_en: The second construction phase of the tramway. The first phase of
+    construction needs to be implemented for this action to make sense.
   # description_de: Der zweite Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist, muss
   #   der erste Bauabschnitt umgesetzt werden.
   output_nodes:
@@ -1171,18 +1171,17 @@ pages:
   # lead_title_de: Tampere-Emissionsszenarien
   lead_paragraph: Tampereen päästöskenaariot visualisoi Tampereen kasvihuonekaasupäästöjen
     kehityksen. Voit tarkastella, mistä Tampereen kaupungin alueen päästöt syntyvät
-    ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on
-    peruskehitys-skenaario, Hiilineutraali Tampere 2030 -tiekartan mukainen skenaario
-    ja skenaario, jota voit itse muokata. Hiilineutraaliksi pääseminen edellyttää
-    vielä lisää toimia, ja niiden riittävyyttä arvioidaan jatkossa tämän työkalun
-    avulla.
+    ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario,
+    Hiilineutraali Tampere 2030 -tiekartan mukainen skenaario ja skenaario, jota voit
+    itse muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
+    riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
   lead_paragraph_en: Tampere's emission scenarios visualize the development of Tampere's
     greenhouse gas emissions. You can look at where emissions from the Tampere city
     area come from and how they are projected to change by 2030. There is a basic
     development scenario to choose from, a scenario according to the Carbon Neutral
     Tampere 2030 roadmap and a scenario that you can edit yourself. Further efforts
-    are needed to become carbon neutral, and their adequacy will be assessed in
-    the future using this tool.
+    are needed to become carbon neutral, and their adequacy will be assessed in the
+    future using this tool.
   # lead_paragraph_de: Tamperes Emissionsszenarien visualisieren die Entwicklung der
   #   Treibhausgasemissionen der Stadt. Sie können sich ansehen, woher die Emissionen aus dem
   #   Stadtgebiet von Tampere stammen und wie sie sich voraussichtlich bis 2030 verändern werden. Es
