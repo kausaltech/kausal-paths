@@ -192,6 +192,7 @@ class MetricDimension:
 class MetricYearlyGoal:
     year: int
     value: float
+    is_interpolated: bool
 
 
 @dataclass
@@ -248,7 +249,9 @@ class DimensionalMetric:
             normalizer = None
 
         def make_goal_values(goal: NodeGoalsEntry):
-            return [MetricYearlyGoal(year=y.year, value=y.value) for y in goal.get_values(node)]
+            return [MetricYearlyGoal(
+                year=y.year, value=y.value, is_interpolated=y.is_interpolated
+            ) for y in goal.get_values(node)]
 
         goals: list[MetricDimensionGoal] = []
         if node.goals:

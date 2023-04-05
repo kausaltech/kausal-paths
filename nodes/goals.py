@@ -5,7 +5,7 @@ import typing
 from pydantic import BaseModel, Field, ValidationError, root_validator
 import polars as pl
 from common import polars as ppl
-from nodes.constants import YEAR_COLUMN
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 
 if typing.TYPE_CHECKING:
@@ -15,6 +15,7 @@ if typing.TYPE_CHECKING:
 class GoalValue(BaseModel):
     year: int
     value: float
+    is_interpolated: bool = False
 
 
 class NodeGoalsDimension(BaseModel):
@@ -26,6 +27,7 @@ class NodeGoalsEntry(BaseModel):
     values: list[GoalValue]
     normalized_by: str | None = None
     dimensions: dict[str, NodeGoalsDimension] = Field(default_factory=dict)
+    linear_interpolation: bool = False
 
     def dim_to_path(self) -> str:
         entries = []
@@ -43,9 +45,6 @@ class NodeGoalsEntry(BaseModel):
         else:
             goal_norm = None
 
-        if context.active_normalization == goal_norm:
-            return self.values
-
         m = node.get_default_output_metric()
         zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in self.values], m.column_id: [x.value for x in self.values]})
         if goal_norm:
@@ -62,10 +61,23 @@ class NodeGoalsEntry(BaseModel):
         if goal_norm:
             df = goal_norm.denormalize_output(m, df)
 
+        df = df.with_columns([pl.lit(False).alias('IsInterpolated')])
+
+        if self.linear_interpolation and len(df) > 1:
+            years = range(df[YEAR_COLUMN].min(), df[YEAR_COLUMN].max() + 1)  # type: ignore
+            ydf = ppl.to_ppdf(
+                pl.DataFrame(years, schema=[YEAR_COLUMN], orient='row'),
+                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={})
+            )
+            df = df.paths.join_over_index(ydf, how='outer', index_from='left')
+            df = df.with_columns([
+                pl.col(VALUE_COLUMN).interpolate(),
+                pl.col('IsInterpolated').fill_null(True)
+            ])
+
         if context.active_normalization:
             _, df = context.active_normalization.normalize_output(m, df)
-
-        return [GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id]) for row in df.to_dicts()]
+        return [GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id], is_interpolated=row['IsInterpolated']) for row in df.to_dicts()]
 
 
 class NodeGoals(BaseModel):

@@ -144,6 +144,7 @@ class MetricDimensionType(graphene.ObjectType):
 class MetricYearlyGoalType(graphene.ObjectType):
     year = graphene.Int(required=True)
     value = graphene.Float(required=True)
+    is_interpolated = graphene.Boolean(required=True)
 
 
 class DimensionalMetricGoalEntry(graphene.ObjectType):
