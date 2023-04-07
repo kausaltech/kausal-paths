@@ -1,6 +1,4 @@
-import pandas as pd
 import polars as pl
-from pint_pandas import PintType
 
 import common.polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_last_historical_value_pl
@@ -22,9 +20,6 @@ class BuildingEnergy(AdditiveNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
-
-        ec_dim = self.output_dimensions['energy_carrier']
-        df = df.with_columns([ec_dim.series_to_ids_pl(df['energy_carrier'])])
         meta = df.get_meta()
         metric_ids = meta.metric_cols
         if len(metric_ids) == 1:
@@ -44,16 +39,99 @@ class BuildingEnergy(AdditiveNode):
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
         # df = df.set_unit(VALUE_COLUMN, output_unit)
 
-        df = extend_last_historical_value_pl(df, self.get_end_year())
-
-        for node in self.input_nodes:
-            ndf = node.get_output_pl(self)
-            df = df.paths.add_with_dims(ndf)
+        #df = extend_last_historical_value_pl(df, self.get_end_year())
+        #for node in self.input_nodes:
+        #    ndf = node.get_output_pl(self)
+        #    df = df.paths.add_with_dims(ndf)
 
         return df
 
 
-class EnergyProductionMix(AdditiveNode):
+class BuildingFloorAreaHistorical(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+        df = df.with_columns(
+            pl.col('building_use_extended').map_dict({
+                'residential': 'residential'
+            }, default='nonresidential').alias('building_use')
+        )
+        df = df.add_to_index('building_use')
+        df = df.paths.sum_over_dims(['building_use_extended'])
+        df = df.rename({df.metric_cols[0]: self.get_default_output_metric().column_id})
+        df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+        return df
+
+
+class BuildingHeatHistorical(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        cop_node = self.get_input_node(tag='heat_pump_cop')
+        cop_df = cop_node.get_output_pl(target_node=self)
+        cop_df = cop_df.rename({VALUE_COLUMN: 'HeatPumpCOP'})
+
+        cnode = self.get_input_node(tag='consumption')
+        edf = cnode.get_output_pl(target_node=self)
+        edf = edf.filter(pl.col('energy_carrier') != 'electricity')
+        edf = edf.paths.to_wide(only_category_names=True)
+        edf = edf.paths.join_over_index(cop_df)
+        edf = edf.with_columns([
+            (pl.col('natural_gas') + pl.col('biogas')).alias('natural_gas'),
+            (pl.col('environmental_heat') / (1 - 1/pl.col('HeatPumpCOP'))).alias('heat_pumps'),
+        ])
+        edf = edf.set_unit('heat_pumps', edf.get_unit('environmental_heat'))
+        edf = edf.drop(['HeatPumpCOP', 'biogas', 'environmental_heat'])
+        renames = {col: 'Value@heating_system:%s' % col for col in edf.metric_cols}
+        edf = edf.rename(renames).paths.to_narrow()
+        return edf
+
+
+class BuildingHeatPerArea(AdditiveNode):
+    def compute(self):
+        e_node = self.get_input_node(tag='consumption')
+        f_node = self.get_input_node(tag='floor_area')
+        edf = e_node.get_output_pl(target_node=self)
+        adf = f_node.get_output_pl(target_node=self)
+        adf = adf.rename({VALUE_COLUMN: 'Area'})
+        edf = edf.paths.sum_over_dims(['heating_system'])
+        edf = edf.rename({VALUE_COLUMN: 'Energy'})
+
+        sdf = adf.paths.sum_over_dims(['building_use'])
+        sdf = sdf.rename({'Area': 'TotalArea'})
+        adf = adf.paths.join_over_index(sdf)
+        adf = adf.divide_cols(['Area', 'TotalArea'], 'AreaShare')
+
+        df = adf.paths.join_over_index(edf, how='left', index_from='union')
+        df = df.multiply_cols(['Energy', 'AreaShare'], 'Energy')
+
+        # Residential buildings use about 8 % more heat per area
+        edf = df.select_metrics(['Energy']).paths.to_wide(only_category_names=True)
+        edf = edf.with_columns([
+            (pl.col('residential') * (1 + 0.03)).alias('residential_new'),
+        ])
+        edf = edf.with_columns([
+            (pl.col('nonresidential') - (pl.col('residential_new') - pl.col('residential'))).alias('nonresidential_new')
+        ])
+        edf = edf.set_unit('nonresidential_new', edf.get_unit('residential'))
+        edf = edf.drop(['residential', 'nonresidential']).rename({
+            'residential_new': 'Energy@building_use:residential',
+            'nonresidential_new': 'Energy@building_use:nonresidential',
+        })
+        edf = edf.paths.to_narrow()
+        df = df.select_metrics(['Area']).paths.join_over_index(edf)
+        m = self.get_default_output_metric()
+        df = df.divide_cols(['Energy', 'Area'], 'Efficiency', m.unit)
+
+        df = df.filter(~pl.col(FORECAST_COLUMN))
+        df = df.sort(YEAR_COLUMN).replace_meta(df.get_meta())
+        df = df.select_metrics(['Efficiency']).rename({'Efficiency': VALUE_COLUMN}).drop_nulls()
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        nodes = list(self.input_nodes)
+        nodes.remove(e_node)
+        nodes.remove(f_node)
+        df = self.add_nodes_pl(df, nodes)
+        return df
+
+
+class MixNode(AdditiveNode):
     output_metrics = {
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
     }
@@ -74,7 +152,74 @@ class EnergyProductionMix(AdditiveNode):
         return df
 
 
-class ElectricityProductionMix(EnergyProductionMix):
+class BuildingHeatUseMix(MixNode):
+    def compute(self):
+        cnode = self.get_input_node(tag='consumption')
+        edf = cnode.get_output_pl(target_node=self)
+
+        sdf = edf.paths.sum_over_dims(['heating_system']).rename({VALUE_COLUMN: 'Total'})
+        edf = edf.paths.join_over_index(sdf)
+        edf = edf.divide_cols([VALUE_COLUMN, 'Total'], 'Share').select_metrics(['Share']).rename(dict(Share=VALUE_COLUMN))
+
+        df = extend_last_historical_value_pl(edf, self.get_end_year())
+        input_nodes = list(self.input_nodes)
+        input_nodes.remove(cnode)
+        df = self.add_mix_normalized(df, input_nodes)
+        return df
+
+
+class BiogasShare(AdditiveNode):
+    def compute(self):
+        cnode = self.get_input_node(tag='consumption')
+        cdf = cnode.get_output_pl(target_node=self)
+        df = cdf.paths.to_wide(only_category_names=True)
+        df = df.with_columns(
+            (pl.col('natural_gas') + pl.col('biogas')).alias('Total')
+        )
+        df = df.set_unit('Total', df.get_unit('natural_gas'))
+        df = df.divide_cols(['biogas', 'Total'], VALUE_COLUMN)
+
+        output_unit = self.get_default_output_metric().unit
+        df = df.select_metrics([VALUE_COLUMN]).ensure_unit(VALUE_COLUMN, output_unit)
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        input_nodes = list(self.input_nodes)
+        input_nodes.remove(cnode)
+        df = self.add_nodes_pl(df, input_nodes)
+
+        max_val = (1.0 * self.context.unit_registry.parse_units('dimensionless')).to(output_unit)
+        df = df.with_columns(pl.col(VALUE_COLUMN).clip(0, max_val.m))
+        return df
+
+
+class BuildingHeatByCarrier(Node):
+    def compute(self):
+        cop_node = self.get_input_node(tag='heat_pump_cop')
+        cop_df = cop_node.get_output_pl(target_node=self)
+        cop_df = cop_df.rename({VALUE_COLUMN: 'HeatPumpCOP'})
+
+        cnode = self.get_input_node(tag='consumption')
+        edf = cnode.get_output_pl(target_node=self)
+        bio_share = self.get_input_node(tag='biogas_share')
+        sdf = bio_share.get_output_pl(target_node=self)
+        sdf = sdf.rename({VALUE_COLUMN: 'BioShare'})
+
+        edf = edf.paths.to_wide(only_category_names=True)
+        edf = edf.paths.join_over_index(sdf)
+        edf = edf.paths.join_over_index(cop_df)
+        edf = edf.multiply_cols(['natural_gas', 'BioShare'], 'biogas', out_unit=edf.get_unit('natural_gas'))
+        edf = edf.divide_cols(['heat_pumps', 'HeatPumpCOP'], 'electricity', out_unit=edf.get_unit('heat_pumps'))
+        edf = edf.with_columns([
+            (pl.col('natural_gas') - pl.col('biogas')).alias('natural_gas'),
+            (pl.col('heat_pumps') - pl.col('electricity')).alias('environmental_heat'),
+        ])
+        edf = edf.set_unit('environmental_heat', edf.get_unit('heat_pumps'))
+        edf = edf.drop(['BioShare', 'HeatPumpCOP', 'heat_pumps'])
+        renames = {col: 'Value@energy_carrier:%s' % col for col in edf.metric_cols}
+        edf = edf.rename(renames).paths.to_narrow()
+        return edf
+
+
+class ElectricityProductionMix(MixNode):
     def compute(self) -> ppl.PathsDataFrame:
         dfs = self.get_input_datasets_pl()
         gen_mix_df, sub_mix_df, ext_energy_df = dfs
@@ -133,7 +278,7 @@ class ElectricityProductionMix(EnergyProductionMix):
         return df
 
 
-class DistrictHeatProductionMix(EnergyProductionMix):
+class DistrictHeatProductionMix(MixNode):
     def compute(self) -> ppl.PathsDataFrame:
         mix_df = self.get_input_dataset_pl()
         assert len(mix_df.metric_cols) == 1
@@ -217,6 +362,7 @@ class EmissionFactor(Node):
         if YEAR_COLUMN not in meta.primary_keys:
             meta.primary_keys.append(YEAR_COLUMN)
         df = df.paths.cast_index_to_str()
+
         for node in self.input_nodes:
             ndf = node.get_output_pl(self)
             ndf = ndf.ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
@@ -247,6 +393,7 @@ class EmissionFactorActivity(Node):
         fdf = fdf.rename({VALUE_COLUMN: 'EF'})
         df = edf.paths.join_over_index(fdf, index_from='union')
         if df['EF'].has_validity():
+            self.print(df.filter(pl.col('EF').is_null()))
             raise NodeError(self, "Emission factor not found for some categories")
 
         m = self.get_default_output_metric()

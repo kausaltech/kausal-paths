@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 33a1e01b25704c413bdd07fde1294d2f9fa32e6b
+  commit: 22c303cef8303fbf2591e2cf3bb849a23bc3b80c
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -36,7 +36,7 @@ features:
 
 dimensions:
 - id: emission_scope
-  label: Emission-scope
+  label: Emissionsbereiche
   label_en: Emission scopes
   groups:
   - id: direct
@@ -110,6 +110,31 @@ dimensions:
   - id: other_consumption
     label_de: Übriger Konsum
     label_en: Other consumption
+
+- id: transport_mode
+  label: Verkehrsmittelwahl
+  label_en: Transport mode
+  categories:
+  - id: cars
+    label: Personenwagen
+    label_en: Cars
+    id_match: ^car_.+
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+    id_match: ^van_.+
+  - id: buses
+    label: Linienbusse
+    label_en: Local buses
+    id_match: ^buses_.+
+  - id: trolleybuses
+    label: Trolleybusse
+    label_en: Trolley buses
+    id_match: ^trolley.*
+  - id: coaches
+    label: Reisebusse
+    label_en: Coaches
+    id_match: ^coach_.+
 
 - id: vehicle_type
   label: Fahrzeugtyp
@@ -372,6 +397,35 @@ dimensions:
     label_en: Waste
     color: '#007C78'
 
+- id: heating_system
+  label: Heizsystem
+  label_en: Heating system
+  categories:
+  - id: fuel_oil
+    label: Heizöl EL
+    label_en: Heating oil
+    color: '#B23A01'
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+    color: '#7EE6E2'
+  - id: district_heat
+    label: Fernwärme
+    label_en: District heating
+    color: '#009655'
+  - id: heat_pumps
+    label: Wärmepumpe
+    label_en: Heat pumps
+    color: '#0097C5'
+  - id: wood
+    label: Holz
+    label_en: Wood
+    color: '#CBB910'
+  - id: solar_collectors
+    label: Sonnenkollektoren
+    label_en: Solar thermal collectors
+    color: '#F0D800'
+
 - id: electricity_source
   label: Verfahren zur Stromerzeugung
   label_de: Electricity generation method
@@ -414,6 +468,37 @@ dimensions:
     label: Geförderter Strom
     label_en: Subsidized electricity
 
+- id: building_use_extended
+  label_de: Gebäudenutzungsart (erweitert)
+  label_en: Building use (extended)
+  categories:
+  - id: residential
+    label: Wohnen
+    label_en: Residential
+  - id: office
+    label: Büro
+    label_en: Office
+  - id: commercial_services
+    label: Verkauf und Gastgewerbe
+    label_en: Sales and Hospitality
+  - id: production
+    label: Produktion
+    label_en: Production
+  - id: other
+    label: Andere
+    label_en: Other
+
+- id: building_use
+  label_en: Building use
+  label_de: Building use
+  categories:
+  - id: residential
+    label: Wohnen
+    label_en: Residential
+  - id: nonresidential
+    label: Nicht-Wohnen
+    label_en: Non-residential
+
 - id: waste_incineration_plants
   label_en: Waste incineration plants
   label_de: Kehrichtheizkraftwerke
@@ -433,15 +518,13 @@ emission_sectors:
 - id: net_emissions
   name_en: Greenhouse gas emissions
   name_de: Treibhausgasemissionen
-  input_node_dimension:
-    label_en: Emission sectors
-    label_de: Emissionssektoren
   target_year_goal: 6.5
   goals:
   - normalized_by: population
     dimensions:
       emission_scope:
         group: direct
+    linear_interpolation: true
     values:
     - year: 2022
       value: 2.8
@@ -465,6 +548,14 @@ emission_sectors:
     - year: 2040
       value: 6.5
   is_outcome: true
+
+- id: negative_emissions
+  name_de: Negative Emissionen
+  name_en: Negative emissions
+  part_of: net_emissions
+  color: '#F7A5AF'
+  order: -1
+
 
 # - id: direct_emissions
 #   name_en: Direct emissions
@@ -544,26 +635,283 @@ nodes:
   quantity: population
   unit: cap
   name_en: Inhabitants
-  name_de: Einwohner/innen
-  historical_values: [[1990, 359050], [1991, 360730], [1992, 362450], [1993, 363278],
-    [1994, 363062], [1995, 362445], [1996, 361789], [1997, 359970], [1998, 359728],
-    [1999, 360974], [2000, 361301], [2001, 362664], [2002, 363944], [2003, 364884],
-    [2004, 365209], [2005, 366418], [2006, 368917], [2007, 373762], [2008, 379500],
-    [2009, 382453], [2010, 384246], [2011, 388057], [2012, 391729], [2013, 396342],
-    [2014, 401267], [2015, 407629], [2016, 412820], [2017, 419549], [2018, 425593],
-    [2019, 431322], [2020, 433963]]
-  forecast_values: [[2030, 492900], [2040, 520000], [2050, 540000]]
+  name_de: Einwohnerin und Einwohner
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/population
+    forecast_from: 2023
+
+- id: residential_building_area_per_resident
+  type: simple.DivisiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  name_de: Wohnflächen pro EinwohnerIn
+  name_en: Residential building area per resident
+  input_nodes:
+  - id: building_floor_area_historical
+    from_dimensions:
+    - id: building_use
+      categories: [residential]
+      flatten: true
+  - id: population
+  params:
+    only_historical: true
+    extend_rows: true
+
+- id: residential_building_area
+  name_de: Energiebezugsflächen Wohnen
+  name_en: Building floor area Residential
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: Msqm
+  input_nodes: [residential_building_area_per_resident, population]
+
+- id: number_of_jobs
+  name_de: Anzahl Arbeitsplätze
+  name_en: Number of jobs
+  type: simple.AdditiveNode
+  unit: cap
+  quantity: number
+  input_datasets:
+  - id: zuerich/number_of_jobs
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
 
-- id: global_warming_potential_100a
-  name_de: Treibhauspotenzial 100a
-  name_en: Global warming potential 100 a
-  type: emissions.GlobalWarmingPotential
-  quantity: emission_factor
-  unit: dimensionless
-  output_dimensions: [greenhouse_gases]
+- id: nonresidential_building_area_per_job
+  type: simple.DivisiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  name_de: Nicht-wohnflächen pro Arbeitzplatz
+  name_en: Non-residential building area per job
+  input_nodes:
+  - id: building_floor_area_historical
+    from_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+      flatten: true
+  - id: number_of_jobs
+  params:
+    only_historical: true
+    extend_rows: true
+
+- id: nonresidential_building_area
+  name_de: Energiebezugsflächen Nicht-Wohnen
+  name_en: Non-residential building floor area
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: m**2
+  input_nodes: [nonresidential_building_area_per_job, number_of_jobs]
+
+- id: building_floor_area_historical
+  name_de: Energiebezugsflächen (historisch)
+  name_en: Building floor area (historical)
+  type: ch.zuerich.BuildingFloorAreaHistorical
+  quantity: floor_area
+  unit: Msqm
+  input_dimensions: [building_use_extended]
+  output_dimensions: [building_use]
+  input_datasets: [zuerich/building_floor_area]
   input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1], [2021, 1]]
+
+- id: building_floor_area
+  name_de: Energiebezugsflächen
+  name_en: Building floor area
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: residential_building_area
+    to_dimensions:
+    - id: building_use
+      categories: [residential]
+  - id: nonresidential_building_area
+    to_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+
+- id: building_heat_consumption_historical
+  name_de: Wärmebedarf (historisch)
+  name_en: Building heat consumption (historical)
+  type: ch.zuerich.BuildingHeatHistorical
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_end_energy_consumption
+    tags: [consumption]
+  - id: heat_pump_cop
+    tags: [heat_pump_cop]
+    to_dimensions: []
+
+- id: building_heat_per_area
+  name_de: Wärmebedarf Gebäude auf Stadtgebiet
+  name_en: Heat energy need of buildings
+  type: ch.zuerich.BuildingHeatPerArea
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_heat_consumption_historical
+    to_dimensions:
+    - id: heating_system
+    tags: [consumption]
+  - id: building_floor_area
+    tags: [floor_area]
+    to_dimensions:
+    - id: building_use
+
+- id: building_heat_demand
+  name_de: Building heat demand
+  name_en: Building heat demand
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  output_dimensions: [building_use]
+  input_dimensions: [building_use]
+  input_nodes: [building_floor_area, building_heat_per_area]
+
+- id: building_heat_mix
+  name_de: Building heat mix
+  name_en: Building heat mix
+  type: ch.zuerich.BuildingHeatUseMix
+  unit: '%'
+  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_consumption_historical
+    tags: [consumption]
+
+- id: building_heat_consumption
+  name_de: Wärmebedarf Gebäude
+  name_en: Building heat use
+  type: simple.MultiplicativeNode
+  unit: GWh/a
+  quantity: energy
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_demand
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions: []
+    tags: [non_additive]
+  - id: building_heat_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_system
+
+- id: biogas_share
+  name_de: Biogasanteil im Gasnetz
+  name_en: Share of biogas in gas grid
+  type: ch.zuerich.BiogasShare
+  unit: '%'
+  quantity: ratio
+  input_nodes:
+  - id: building_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: building_heat_consumption_by_carrier
+  name_de: Wärmebedarf nach Energieträger
+  name_en: Heat demand by energy carrier
+  type: ch.zuerich.BuildingHeatByCarrier
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [heating_system]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: biogas_share
+    tags: [biogas_share]
+    to_dimensions: []
+  - id: building_heat_consumption
+    tags: [consumption]
+  - id: heat_pump_cop
+    tags: [heat_pump_cop]
+    to_dimensions: []
+
+- id: building_general_electricity_efficiency
+  name_de: Strombedarf Gebäude exkl. Wärmeerzeugung
+  name_en: Non-heating electricity need of buildings
+  type: simple.AdditiveNode
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets: [zuerich/building_electricity_need]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_general_electricity_consumption
+  name_de: Nichtheizstromverbrauch von Gebäuden
+  name_en: Non-heating electricity consumption of buildings
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_general_electricity_efficiency
+  - id: building_floor_area
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+
+- id: other_electricity_consumption
+  name_de: Other electricity consumption
+  name_en: Other electricity consumption
+  type: simple.SubtractiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: building_end_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: heat_pump_electricity_consumption
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+  - id: transport_electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  output_nodes: [electricity_consumption]
+  params:
+    only_historical: true
+
+- id: heat_pump_cop
+  name_de: COP von Wärmepumpen
+  name_en: COP of heat pumps
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  historical_values: [[1990, 3.4], [2023, 3.4]]
+  forecast_values: [[2030, 3.63], [2040, 3.82]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: heat_pump_electricity_consumption
+  name_de: Stromverbrauch der Wärmeerzeugung
+  name_en: Heat generation electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  output_nodes: [electricity_consumption]
 
 - id: building_end_energy_consumption
   name_de: Endenergieverbrauch Gebäude (historisch)
@@ -573,53 +921,6 @@ nodes:
   unit: GWh/a
   input_datasets:
   - zuerich/building_energy
-  output_nodes:
-  - id: district_heat_consumption
-    from_dimensions:
-    - categories: [district_heat]
-      flatten: true
-  - id: electricity_consumption
-    from_dimensions:
-    - categories: [electricity]
-      flatten: true
-  - id: environmental_heat_consumption
-    from_dimensions:
-    - categories: [environmental_heat, solar_collectors]
-  - id: fossil_fuel_heat_consumption
-    from_dimensions:
-    - categories: [natural_gas, fuel_oil]
-  - id: building_biofuel_heat_consumption
-    from_dimensions:
-    - categories: [wood, biogas]
-  #- id: building_other_energy_consumption
-  #  from_dimensions:
-  #  - categories: [district_heat, electricity, environmental_heat, solar_collectors, natural_gas, fuel_oil, wood, biogas]
-  #    exclude: true
-
-- id: district_heat_consumption
-  name_de: Endenergieverbrauch Fernwärme
-  name_en: District heat consumption
-  short_name_de: Fernwärme
-  short_name_en: District heat
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-
-- id: district_heat_emissions
-  name_de: Treibhausgasemissionen Fernwärme
-  name_en: District heat emissions
-  short_name_de: Fernwärme
-  short_name_en: District heat
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  input_nodes:
-  - district_heat_consumption
-  - id: district_heat_emission_factor
-    to_dimensions:
-    - id: emission_scope
-  output_nodes: [building_emissions]
-  output_dimensions: [emission_scope]
 
 - id: district_heat_production_mix
   type: ch.zuerich.DistrictHeatProductionMix
@@ -705,21 +1006,21 @@ nodes:
   input_dimensions: [electricity_source]
   output_dimensions: [emission_scope]
 
-- id: electricity_consumption_emissions
-  name_de: Treibhausgasemissionen Strom
-  name_en: Electricity consumption emissions
-  short_name_de: Strom
-  short_name_en: Electricity
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_dimensions: [emission_scope]
-  input_nodes:
-  - electricity_consumption
-  - id: electricity_emission_factor
-    to_dimensions:
-    - id: emission_scope
-  output_nodes: [building_emissions]
+# - id: electricity_consumption_emissions
+#   name_de: Treibhausgasemissionen Strom
+#   name_en: Electricity consumption emissions
+#   short_name_de: Strom
+#   short_name_en: Electricity
+#   type: simple.EmissionFactorActivity
+#   quantity: emissions
+#   unit: kt/a
+#   output_dimensions: [emission_scope]
+#   input_nodes:
+#   - electricity_consumption
+#   - id: electricity_emission_factor
+#     to_dimensions:
+#     - id: emission_scope
+#   output_nodes: [building_emissions]
 
 - id: building_energy_consumption_emission_factor
   name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte
@@ -736,95 +1037,87 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
     - id: emission_scope
+  - id: district_heat_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: emission_scope
 
-- id: environmental_heat_consumption
-  name_de: Endenergieverbrauch Umweltwärme
-  name_en: Environmental heat consumption
-  short_name_de: Umweltwärme
-  short_name_en: Environmental heat
-  type: simple.AdditiveNode
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  quantity: energy
-  unit: GWh/a
-
-- id: environmental_heat_emissions
-  name_de: Treibhausgasemissionen Umweltwärme
-  name_en: Environmental heat emissions
-  short_name_de: Umweltwärme
-  short_name_en: Environmental heat
+- id: building_heat_emissions
+  name_de: Treibhausgasemissionen Gebäudeheizung
+  name_en: Building heating emissions
+  short_name_de: Heizung
+  short_name_en: Heating
   type: ch.zuerich.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier]
-  output_dimensions: [emission_scope]
+  output_dimensions: [emission_scope, energy_carrier]
   input_nodes:
-  - id: environmental_heat_consumption
+  - id: building_heat_consumption_by_carrier
   - id: building_energy_consumption_emission_factor
     to_dimensions:
     - id: emission_scope
     - id: energy_carrier
-  output_nodes: [building_emissions]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
-- id: fossil_fuel_heat_consumption
-  name_de: Endenergieverbrauch Fossiler Brennstoff
-  name_en: Fossil fuel heat consumption
-  short_name_de: Fossiler Brennstoff
-  short_name_en: Fossil fuels
-  type: simple.AdditiveNode
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  quantity: energy
-  unit: GWh/a
-
-- id: fossil_fuel_heat_emissions
-  name_de: Treibhausgasemissionen Fossiler Brennstoff
-  name_en: Fossil fuel heat consumption emissions
-  short_name_de: Fossiler Brennstoff
-  short_name_en: Fossil fuels
+- id: building_general_electricity_emissions
+  name_de: Treibhausgasemissionen allgemeiner Stromverbrauch des Gebäudes
+  name_en: Building general electricity use emissions
+  short_name_de: Stromverbrauch
+  short_name_en: Electricity use
   type: ch.zuerich.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
+  output_dimensions: [emission_scope, energy_carrier]
   input_nodes:
-  - id: fossil_fuel_heat_consumption
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
   - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
     to_dimensions:
     - id: emission_scope
     - id: energy_carrier
-  input_dimensions: [energy_carrier]
-  output_dimensions: [emission_scope]
-  output_nodes: [building_emissions]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
-- id: building_biofuel_heat_consumption
-  name_de: Endenergieverbrauch Biobrennstoff
-  name_en: Biofuel heat consumption
-  short_name_de: Biobrennstoff
-  short_name_en: Biofuels
-  type: simple.AdditiveNode
-  input_dimensions:
-  - energy_carrier
-  output_dimensions:
-  - energy_carrier
-  quantity: energy
-  unit: GWh/a
-
-- id: building_biofuel_energy_emissions
-  name_de: Treibhausgasemissionen Biobrennstoff
-  name_en: Building biofuel heat consumption emissions
-  short_name_de: Biobrennstoff
-  short_name_en: Biofuels
+- id: other_electricity_use_emissions
+  name_de: Treibhausgasemissionen sonstiger Stromverbrauch
+  name_en: Otherelectricity use emissions
+  short_name_de: Sonstiger Stromverbrauch
+  short_name_en: Other electricity use
   type: ch.zuerich.EmissionFactorActivity
   quantity: emissions
-  input_dimensions: [energy_carrier]
-  output_dimensions: [emission_scope]
   unit: kt/a
+  output_dimensions: [emission_scope, energy_carrier]
   input_nodes:
-  - id: building_biofuel_heat_consumption
+  - id: other_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
   - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
     to_dimensions:
     - id: emission_scope
     - id: energy_carrier
-  output_nodes: [building_emissions]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
 - id: building_emissions
   name_en: Building emissions
@@ -893,6 +1186,23 @@ nodes:
   # input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/fuel_consumption_factor
+
+- id: transport_electricity_consumption
+  name_de: Stromverbrauch im Verkehr
+  mane_en: Transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: transport_mileage
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: transport_emission_factor
   name_de: Verkehr Emissionsfaktor
@@ -994,7 +1304,15 @@ nodes:
   - id: waste_incineration_ccs_share
     tags: [ccs_share]
   input_datasets: [zuerich/waste_incineration, zuerich/waste_incineration_emission_factors]
-  output_nodes: [waste_treatment_emissions]
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct, indirect]
+  - id: negative_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
 
 - id: waste_treatment_emissions
   name_en: Waste disposal emissions
@@ -1008,268 +1326,233 @@ nodes:
   type: simple.SectorEmissions
   color: '#F18830'
 
-
 #
 # ------- ACTIONS --------
 #
 actions:
-- id: fossil_fuels_from_heating
-  name_en: Replacement of fossil fuels in heating
-  name_de: Ersatz fossiler Heizungen
+- id: fossil_fuel_heater_replacement
+  name_en: Replacement of fossil fuel heaters
+  name_de: Heizungsersatz
   type: shift.ShiftAction
   quantity: energy
   description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
     district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
-  description_de: 'Das Schwerpunktfeld Heizungsersatz umfasst alle Massnahmen, welche
-    dazu führen, die aktuell 21000 fossil betriebenen Heizungen mit Heizsystemen zu
-    ersetzen, welche mit erneuerbarer Energie betrieben werden. Dafür stehen aktuell
-    folgende Energieträger und Heizsysteme zur Verfügung: Fernwärme, Luft-Wasser-Wärmepumpe,
-    Erdsonde, Holz und Biogas.'
+  description_de: 'Der Ersatz fossil betriebener Heizungen durch Liegenschaftsbesitzende
+    in der Stadt Zürich wird durch folgende Massnahmen unterstützt: kommunale Energieplanung,
+    Ausbau Energieverbunde und Fernwärme, städtische Energieberatung, Förderprogramm
+    Heizungsersatz, Förderprogramm Restwertentschädigung sowie Stilllegung Gasnetz.'
   output_nodes:
-  - fossil_fuel_heat_consumption
-  - environmental_heat_consumption
-  - district_heat_consumption
-  - building_biofuel_heat_consumption
-  - electricity_consumption
-  unit: GWh/a
+  - building_heat_mix
+  unit: '%'
   params:
   - id: shift
-    unit: GWh/a
+    unit: '%'
     is_customizable: false
     value:
     - source:
-        node: fossil_fuel_heat_consumption
         categories:
-          energy_carrier: fuel_oil
+          heating_system: fuel_oil
       dests:
-      - node: district_heat_consumption
-      - node: environmental_heat_consumption
-        categories:
-          energy_carrier: environmental_heat
-      - node: electricity_consumption
-      - node: building_biofuel_heat_consumption
-        categories:
-          energy_carrier: wood
-      - node: building_biofuel_heat_consumption
-        categories:
-          energy_carrier: biogas
+      - categories:
+          heating_system: district_heat
+      - categories:
+          heating_system: heat_pumps
+      - categories:
+          heating_system: wood
+      - categories:
+          heating_system: solar_collectors
       amounts:
       - year: 2023
-        source_amount: -50
-        dest_amounts: [50, 80, 16, 10, 15]
-      - year: 2025
-        source_amount: -70
-        dest_amounts: [50, 80, 16, 10, 15]
-      - year: 2035
-        source_amount: -50
-        dest_amounts: [50, 80, 16, 10, 15]
+        source_amount: -0.5
+        dest_amounts: [50, 50, 16, 3]
+      - year: 2028
+        source_amount: -1.2
+        dest_amounts: [50, 50, 16, 3]
+      - year: 2040
+        source_amount: -1.1
+        dest_amounts: [50, 50, 16, 3]
 
     - source:
-        node: fossil_fuel_heat_consumption
+        categories:
+          heating_system: natural_gas
+      dests:
+      - categories:
+          heating_system: district_heat
+      - categories:
+          heating_system: heat_pumps
+      - categories:
+          heating_system: wood
+      amounts:
+      - year: 2023
+        source_amount: -1.5
+        dest_amounts: [50, 50, 16]
+      - year: 2028
+        source_amount: -3.0
+        dest_amounts: [50, 50, 16]
+      - year: 2040
+        source_amount: -2.5
+        dest_amounts: [50, 50, 16]
+
+- id: district_heat_decarbonisation
+  name_de: Dekarbonisierung thermische Netze
+  description_de: Fossile Energieträger im Energiemix von Energieverbunden und Fernwärme,
+    die zur Spitzenlastabdeckung eingesetzt werden, werden vollständig durch erneuerbare
+    Energieträger ersetzt.
+  quantity: mix
+  unit: '%'
+  type: shift.ShiftAction
+  output_nodes: [district_heat_production_mix]
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
         categories:
           energy_carrier: natural_gas
       dests:
-      - node: district_heat_consumption
-      - node: environmental_heat_consumption
-        categories:
-          energy_carrier: environmental_heat
-      - node: electricity_consumption
-      - node: building_biofuel_heat_consumption
-        categories:
-          energy_carrier: wood
-      - node: building_biofuel_heat_consumption
-        categories:
+      - categories:
           energy_carrier: biogas
       amounts:
       - year: 2023
-        source_amount: -50
-        dest_amounts: [50, 80, 16, 10, 15]
-      - year: 2025
-        source_amount: -100
-        dest_amounts: [50, 80, 16, 10, 15]
-      - year: 2035
-        source_amount: -50
-        dest_amounts: [50, 80, 16, 10, 15]
+        source_amount: -1
+        dest_amounts: [1]
+      - year: 2028
+        source_amount: -3.5
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: -2
+        dest_amounts: [1]
+
+    - source:
+        categories:
+          energy_carrier: fuel_oil
+      dests:
+      - categories:
+          energy_carrier: biogas
+      amounts:
+      - year: 2023
+        source_amount: -0.3
+        dest_amounts: [1]
+      - year: 2028
+        source_amount: -0.3
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: 0
+        dest_amounts: [1]
+
+- id: natural_gas_network_decarbonisation
+  name_de: Dekarbonisierung Gasversorgung
+  name_en: Decarbonisation of gas network
+  description_de: Fossiles Erdgas wird vollständig durch Biogas und andere Gase aus
+    erneuerbaren Quellen ersetzt.
+  quantity: ratio
+  unit: '%'
+  type: linear.ReduceAction
+  output_nodes: [biogas_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node: biogas_share
+      amounts:
+      - year: 2023
+        amount: 9
+      - year: 2030
+        amount: 5
+      - year: 2040
+        amount: 0
 
 - id: building_energy_retrofit
   name_en: Energetic renovation of buildings
-  name_de: Energetische Sanierung der Gebäudehülle
-  description_de: Wenn jährlich 2% der Gebäude energetisch saniert werden und sich
-    die Wohnfläche pro Person um 7 m2 auf 46 m2 verringert, reduzieren sich die direkten
-    Emissionen von Gebäuden um 0.34 tCO2eq/(Einw.*a).
+  name_de: Energetische Sanierung und Anforderungen an Neubauten
+  description_de: Dieses Massnahmenpaket beschreibt die Massnahmen, die zu einer energieeffizienten
+    Gebäudehülle führen und damit die Wärmeenergie effizienter nutzen. Dies erfolgt
+    einerseits durch die energetische Gebäudesanierung, anderseits sind dies Anforderungen
+    an Neubauten und Ersatzneubauten in Bezug auf Baumaterialien und Energieeffizienz.
   type: linear.ReduceAction
   quantity: energy
   output_nodes:
-  - id: district_heat_consumption
-  - id: building_biofuel_heat_consumption
-  - id: fossil_fuel_heat_consumption
-  unit: GWh/a
+  - id: building_heat_per_area
+  unit: kWh/m**2/a
   params:
   - id: reduce
-    unit: GWh/a
+    unit: kWh/m**2/a
     is_customizable: false
     value:
     - target:
-        node: district_heat_consumption
+        categories:
+          building_use: residential
       amounts:
       - year: 2023
-        amount: -3
+        amount: -0.4
       - year: 2030
-        amount: -15
+        amount: -0.7
       - year: 2040
         amount: 0
     - target:
-        node: building_biofuel_heat_consumption
         categories:
-          energy_carrier: wood
+          building_use: nonresidential
       amounts:
       - year: 2023
         amount: -2
-      - year: 2035
-        amount: 0
-    - target:
-        node: fossil_fuel_heat_consumption
-        categories:
-          energy_carrier: natural_gas
-      amounts:
-      - year: 2023
-        amount: -20
-      - year: 2035
-        amount: 0
-    - target:
-        node: fossil_fuel_heat_consumption
-        categories:
-          energy_carrier: fuel_oil
-      amounts:
-      - year: 2023
+      - year: 2030
         amount: -1
-      - year: 2035
+      - year: 2040
         amount: 0
 
 - id: building_optimisation
   name_en: Operational optimisation of buildings
-  name_de: Betriebsoptimierung und suffiziente Nutzung
-  description_de: Dieses Schwerpunktfeld umfasst alle Massnahmen, welche zum Ziel
-    haben, dass Gebäude weniger Energie verbrauchen. Dies sind einerseits Effizienzsteigerungen
-    durch Betriebsoptimierungen sowie suffiziente Nutzungsformen von Gebäuden.
+  name_de: Effiziente und suffiziente Gebäudenutzung
+  description_de: Dieses Massnahmenpaket umfasst alle Massnahmen, welche eine effiziente
+    und suffiziente Nutzung von Gebäuden zum Ziel haben. Dies sind einerseits Effizienzsteigerungen
+    durch Betriebsoptimierungen oder suffizientere Nutzungsformen von Gebäuden.
   type: linear.ReduceAction
-  quantity: energy
+  quantity: per_capita
   output_nodes:
-  - id: district_heat_consumption
-  - id: building_biofuel_heat_consumption
-  - id: fossil_fuel_heat_consumption
-  unit: GWh/a
+  - id: residential_building_area_per_resident
+  - id: nonresidential_building_area_per_job
+  unit: m**2/cap
   params:
   - id: reduce
-    unit: GWh/a
+    unit: m**2/cap
     is_customizable: false
     value:
     - target:
-        node: district_heat_consumption
+        node: residential_building_area_per_resident
       amounts:
       - year: 2023
-        amount: -3
+        amount: 0
+      - year: 2028
+        amount: -1.0
       - year: 2030
-        amount: -15
+        amount: -0.7
+      - year: 2035
+        amount: -0.8
       - year: 2040
         amount: 0
     - target:
-        node: building_biofuel_heat_consumption
-        categories:
-          energy_carrier: wood
+        node: nonresidential_building_area_per_job
       amounts:
       - year: 2023
-        amount: -2
-      - year: 2035
-        amount: 0
-    - target:
-        node: fossil_fuel_heat_consumption
-        categories:
-          energy_carrier: natural_gas
-      amounts:
-      - year: 2023
-        amount: -20
-      - year: 2035
-        amount: 0
-    - target:
-        node: fossil_fuel_heat_consumption
-        categories:
-          energy_carrier: fuel_oil
-      amounts:
-      - year: 2023
-        amount: -1
-      - year: 2035
-        amount: 0
-
-- id: waste_incineration_ccs_installation
-  name_en: Install CCS in waste incineration
-  name_de: Install CCS in waste incineration
-  type: linear.ReduceAction
-  quantity: ratio
-  description_en: Install CCS in waste incineration
-  description_de: Install CCS in waste incineration
-  unit: '%'
-  output_nodes: [waste_incineration_ccs_share]
-  params:
-  - id: reduce
-    unit: '%'
-    is_customizable: false
-    value:
-    - target:
-        node:
-      amounts:
-      - year: 2023
-        amount: 0
-      - year: 2025
         amount: 0
       - year: 2030
-        amount: 12
+        amount: -0.25
+      - year: 2035
+        amount: -0.05
       - year: 2040
         amount: 0
 
-- id: cleaner_electricity_production
-  name_en: Cleaner electricity production
-  name_de: Cleaner electricity production
+- id: electrify_car_fleet
+  name_en: Electrify car fleet
+  name_de: Elektrifizierung der Fahrzeugflotte
   type: shift.ShiftAction
   quantity: mix
-  description_en: Electricity production shift to cleaner methods.
-  description_de: Electricity production shift to cleaner methods.
-  output_nodes:
-  - id: electricity_production_mix
-    to_dimensions:
-    - id: electricity_source
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          electricity_source: import
-      dests:
-      - categories:
-          electricity_source: solar
-      - categories:
-          electricity_source: wind
-      amounts:
-      - year: 2023
-        source_amount: -2
-        dest_amounts: [50, 50]
-      - year: 2030
-        source_amount: -2
-        dest_amounts: [50, 50]
-      - year: 2035
-        source_amount: 0
-        dest_amounts: [50, 50]
-
-- id: electrify_cars
-  name_en: Electrify cars
-  name_de: Electrify cars
-  type: shift.ShiftAction
-  quantity: mix
-  description_en: Electricity production shift to cleaner methods.
-  description_de: Electricity production shift to cleaner methods.
+  description_en: Car fleet electrification.
+  description_de: Fahrzeuge mit fossilem Antrieb werden durch batterieelektrische,
+    hybrid-, plug-in hybrid- und Brennstoffzellen-Fahrzeuge ersetzt.
   output_nodes:
   - id: transport_mileage
   unit: Mkm/a
@@ -1333,6 +1616,69 @@ actions:
         source_amount: 0
         dest_amounts: [50]
 
+# Paket 7
+- id: waste_incineration_ccs_installation
+  name_en: Install CCS in waste incineration
+  name_de: Einführung und Betrieb von CCS
+  type: linear.ReduceAction
+  quantity: ratio
+  description_en: Install CCS in waste incineration
+  description_de: Die CO2-Emissionen des Kehrichtheizkraftwerks Hagenholz, der Klärschlammverwertungsanlage
+    Werdhölzli und der Biogasaufbereitung werden abgeschieden und dauerhaft gespeichert.
+  unit: '%'
+  output_nodes: [waste_incineration_ccs_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node:
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2025
+        amount: 0
+      - year: 2030
+        amount: 12
+      - year: 2040
+        amount: 0
+
+- id: cleaner_electricity_production
+  name_en: Cleaner electricity production
+  name_de: Cleaner electricity production
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Electricity production shift to cleaner methods.
+  description_de: Electricity production shift to cleaner methods.
+  output_nodes:
+  - id: electricity_production_mix
+    to_dimensions:
+    - id: electricity_source
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          electricity_source: import
+      dests:
+      - categories:
+          electricity_source: solar
+      - categories:
+          electricity_source: wind
+      amounts:
+      - year: 2023
+        source_amount: -2
+        dest_amounts: [50, 50]
+      - year: 2030
+        source_amount: -2
+        dest_amounts: [50, 50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [50, 50]
 
 # - id: reduce_room_temperature
 #   name_en: Reduced room temperature
