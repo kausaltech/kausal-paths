@@ -1182,7 +1182,10 @@ class Node:
     def warning(self, msg: str):
         self.context.warning('%s %s' % (str(self), msg))
 
-    def add_nodes_pl(self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None, keep_nodes: bool = False) -> ppl.PathsDataFrame:
+    def add_nodes_pl(
+        self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None, keep_nodes: bool = False,
+        node_multipliers: List[float] | None = None,
+    ) -> ppl.PathsDataFrame:
         if len(nodes) == 0:
             assert df is not None
             return df
@@ -1205,6 +1208,9 @@ class Node:
             if self.debug:
                 print('%s: adding output from node %s' % (self.id, node.id))
                 self.print(df)
+            if node_multipliers:
+                mult = node_multipliers.pop(0)
+                df = df.with_columns(pl.col(VALUE_COLUMN) * mult)
         else:
             if keep_nodes:
                 df = df.with_columns(pl.lit('').alias(NODE_COLUMN)).add_to_index(NODE_COLUMN)
@@ -1227,6 +1233,10 @@ class Node:
 
             if VALUE_COLUMN not in node_df.columns:
                 raise NodeError(self, "Value column missing in output of %s" % node.id)
+
+            if node_multipliers:
+                mult = node_multipliers.pop(0)
+                node_df = node_df.with_columns(pl.col(VALUE_COLUMN) * mult)
 
             ndf_meta = node_df.get_meta()
             if set(ndf_meta.dim_ids) != set(meta.dim_ids):

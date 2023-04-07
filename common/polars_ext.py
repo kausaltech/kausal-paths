@@ -35,7 +35,7 @@ class PathsExt:
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
         return self._df.to_pandas(meta=meta)
 
-    def to_wide(self, meta: ppl.DataFrameMeta | None = None) -> ppl.PathsDataFrame:
+    def to_wide(self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False) -> ppl.PathsDataFrame:
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
@@ -46,18 +46,42 @@ class PathsExt:
         metric_cols = list(meta.units.keys())
         if not metric_cols:
             raise Exception("No metric columns in DF")
-            metric_cols = [VALUE_COLUMN]
+
+        if only_category_names and len(metric_cols) > 1:
+            raise Exception("When only_category_names=True, only one metric supported")
+
+        if only_category_names and len(dim_ids) != 1:
+            raise Exception("When only_category_names=True, must have exactly one dimension")
+
+        dim_casts = []
         for col in dim_ids + metric_cols:
             if col not in df.columns:
                 raise Exception("Column %s from metadata is not present in DF" % col)
+            if col in dim_ids:
+                if df.schema[col] == pl.Categorical:
+                    dim_casts.append(pl.col(col).cast(pl.Utf8))
+        if dim_casts:
+            df = df.with_columns(dim_casts)
 
         # Create a column '_dims' with all the categories included
         if not dim_ids:
             return df
 
+        def format_col(dim: str):
+            if only_category_names:
+                return pl.col(dim)
+            else:
+                return pl.format('{}:{}', pl.lit(dim), pl.col(dim))
+
+        def format_metric(metric_col: str, col: str):
+            if only_category_names:
+                return '%s' % col
+            else:
+                return '%s@%s' % (metric_col, col)
+
         df = df.with_columns([
             pl.concat_list([
-                pl.format('{}:{}', pl.lit(dim), pl.col(dim)) for dim in dim_ids 
+                format_col(dim) for dim in dim_ids 
             ]).arr.join('/').alias('_dims')
         ])
         mdf = None
@@ -71,8 +95,14 @@ class PathsExt:
             metric_unit = meta.units.get(metric_col)
             if metric_unit is not None:
                 for col in cols:
-                    units['%s@%s' % (metric_col, col)] = metric_unit
-            tdf = ppl.to_ppdf(tdf.rename({col: '%s@%s' % (metric_col, col) for col in cols}))
+                    units[format_metric(metric_col, col)] = metric_unit
+            tdf = ppl.to_ppdf(
+                df=tdf.rename({col: format_metric(metric_col, col) for col in cols}),
+                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units=units),
+            )
+            if tdf.paths.index_has_duplicates():
+                tdf = tdf.paths.sum_over_dims()
+
             if mdf is None:
                 mdf = tdf
             else:
@@ -172,7 +202,7 @@ class PathsExt:
         df = self._df
         meta = df.get_meta()
         if FORECAST_COLUMN in df.columns:
-            fc = [pl.first(FORECAST_COLUMN)]
+            fc = [pl.any(FORECAST_COLUMN)]
         else:
             fc = []
 
