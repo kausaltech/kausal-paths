@@ -41,20 +41,35 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     # By default, kt is knots, but here kilotonne is the most common
     # usage.
     del unit_registry._units['kt']
-    unit_registry.define('kt = kilotonne')
     del unit_registry._units['ton']  # The default is 2000 pounds and we don't want to accidentally use that.
-    unit_registry.define('ton = tonne')
-    # Mega-kilometers is often used for mileage
-    unit_registry.define('Mkm = gigameters')
     unit_registry.define(plain_facets.UnitDefinition(
         'percent', '%', (), plain_facets.ScaleConverter(0.01), reference=unit_registry.UnitsContainer({})
     ))
-    unit_registry.define('EUR = [currency]')
-    unit_registry.define('USD = nan EUR')
-    unit_registry.define('SEK = 0.1 EUR')
-    unit_registry.define('pcs = [number] = pieces')
-    unit_registry.define('capita = [population] = cap = inh = inhabitant = person')
-    unit_registry.define('MMBtu = 1e6 Btu')
+    DEFINITIONS = '''
+    kt = kilotonne
+    ton = tonne
+    # Mega-kilometers is often used for mileage
+    Mkm = gigameters
+    EUR = [currency]
+    USD = nan EUR
+    SEK = 0.1 EUR
+    pcs = [number] = pieces
+    capita = [population] = cap = inh = inhabitant = person
+    MMBtu = 1e6 Btu
+    vehicle = [vehicle] = v
+    passenger = [passenger] = p = pass
+    vkm = vehicle * kilometer
+    pkm = passenger * kilometer
+    @alias vkm = vkt = v_km
+    @alias pkm = pkt = p_km
+    million_square_meters = 1e6 * meter ** 2 = Msqm
+    '''
+
+    for line in DEFINITIONS.strip().splitlines():
+        line = line.strip()
+        if line.startswith('#'):
+            continue
+        unit_registry.define(line)
 
     unit_registry.load_definitions(os.path.join(os.path.dirname(__file__), 'health_impact_units.txt'))
 
