@@ -132,6 +132,22 @@ class AdditiveNode(SimpleNode):
         return df
 
 
+class SubtractiveNode(Node):
+    allowed_parameters = [
+        BoolParameter(local_id='only_historical', description='Perform subtraction on only historical data', is_customizable=False)
+    ]
+
+    def compute(self):
+        nodes = list(self.input_nodes)
+        mults = [1.0 if i == 0 else -1.0 for i, _ in enumerate(nodes)]
+        df = self.add_nodes_pl(None, nodes, node_multipliers=mults)
+        only_historical = self.get_parameter_value('only_historical', required=False)
+        if only_historical:
+            df = df.filter(~pl.col(FORECAST_COLUMN))
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        return df
+
+
 class SectorEmissions(AdditiveNode):
     quantity = 'emissions'
     """Simple addition of subsector emissions"""
@@ -172,6 +188,18 @@ class MultiplicativeNode(SimpleNode):
     Multiplication and addition is determined based on the input node units.
     """
 
+    allowed_parameters = SimpleNode.allowed_parameters + [
+        BoolParameter(
+            local_id='only_historical',
+            description='Process only historical rows',
+            is_customizable=False,
+        ),
+        BoolParameter(
+            local_id='extend_rows',
+            description='Extend last row to future years',
+            is_customizable=False,
+        )
+    ]
     operation_label = 'multiplication'
 
     def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
@@ -197,14 +225,10 @@ class MultiplicativeNode(SimpleNode):
         operation_nodes: list[Node] = []
         assert self.unit is not None
         non_additive_nodes = self.get_input_nodes(tag='non_additive')
-        if len(non_additive_nodes) == 1:
-            non_additive_node = non_additive_nodes[0].id
-        else:
-            non_additive_node = ''
         for node in self.input_nodes:
             if node.unit is None:
                 raise NodeError(self, "Input node %s does not have a unit" % str(node))
-            if node.id == non_additive_node:
+            if node in non_additive_nodes:
                 operation_nodes.append(node)
             elif self.is_compatible_unit(node.unit, self.unit):
                 additive_nodes.append(node)
@@ -224,7 +248,15 @@ class MultiplicativeNode(SimpleNode):
             print('%s: %s input from node 2 (%s):' % (self.operation_label, self.id, n2.id))
             self.print(df2)
 
+        if self.get_parameter_value('only_historical', required=False):
+            df1 = df1.filter(~pl.col(FORECAST_COLUMN))
+            df2 = df2.filter(~pl.col(FORECAST_COLUMN))
+
         df = self.perform_operation(n1, n2, df1, df2)
+
+        if self.get_parameter_value('extend_rows', required=False):
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+
         df = self.add_nodes_pl(df, additive_nodes)
         fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
@@ -371,5 +403,3 @@ class CurrentTrendNode(MultiplicativeNode):  # FIXME Exploratory, not necessaril
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
 
         return df
-
-
