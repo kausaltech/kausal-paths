@@ -216,6 +216,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
             if cat_obj.id in found_cats:
                 continue
             print("Deleting stale category %s" % cat_obj)
+            cat_obj.delete()
 
 
 class DatasetDimension(OrderedModel):
