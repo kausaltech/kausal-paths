@@ -1,3 +1,4 @@
+import functools
 from common.perf import PerfCounter
 from nodes.calc import extend_last_historical_value_pl, nafill_all_forecast_years
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
@@ -8,8 +9,8 @@ import pint
 
 from common.i18n import TranslatedString
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from .node import Node
+from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .node import Node, NodeMetric
 from .exceptions import NodeError
 
 
@@ -202,22 +203,32 @@ class MultiplicativeNode(SimpleNode):
     ]
     operation_label = 'multiplication'
 
-    def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        assert n1.unit is not None and n2.unit is not None and self.unit is not None
-        output_unit = n1.unit * n2.unit
+    def perform_operation(self, nodes: list[Node], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
+        for n in nodes:
+            assert n.unit is not None
+        assert self.unit is not None
+
+        output_unit = functools.reduce(lambda x, y: x * y, [n.unit for n in nodes])  # type: ignore
+        assert output_unit is not None
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
                 self,
-                "Multiplying inputs must in a unit compatible with '%s' (%s [%s] * %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
+                "Multiplying inputs must in a unit compatible with '%s' (got '%s')" % (self.unit, output_unit)
+            )
 
-        m1 = n1.get_default_output_metric()
-        m2 = n2.get_default_output_metric()
-        df1 = df1.rename({m1.column_id: '_Left'})
-        df2 = df2.rename({m2.column_id: '_Right'})
-        df = df1.paths.join_over_index(df2, how='left', index_from='union')
-        df = df.multiply_cols(['_Left', '_Right'], VALUE_COLUMN)
+        node = nodes.pop(0)
+        df = outputs.pop(0)
+        m = node.get_default_output_metric()
+        df = df.rename({m.column_id: '_Left'})
+        for n, ndf in zip(nodes, outputs):
+            m = n.get_default_output_metric()
+            ndf = ndf.rename({m.column_id: '_Right'})
+            df = df.paths.join_over_index(ndf, how='left', index_from='union')
+            df = df.multiply_cols(['_Left', '_Right'], '_Left').drop('_Right')
+
+        df = df.rename({'_Left': VALUE_COLUMN})
         df = df.drop_nulls(VALUE_COLUMN)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop(['_Left', '_Right'])
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -235,24 +246,19 @@ class MultiplicativeNode(SimpleNode):
             else:
                 operation_nodes.append(node)
 
-        if len(operation_nodes) != 2:
-            raise NodeError(self, "Must receive exactly two inputs to operate %s on" % self.operation_label)
+        if len(operation_nodes) < 2:
+            raise NodeError(self, "Must receive at least two inputs to operate %s on" % self.operation_label)
 
-        n1, n2 = operation_nodes
-        df1 = n1.get_output_pl(target_node=self)
-        df2 = n2.get_output_pl(target_node=self)
+        outputs = [n.get_output_pl(target_node=self) for n in operation_nodes]
 
         if self.debug:
-            print('%s: %s input from node 1 (%s):' % (self.operation_label, self.id, n1.id))
-            self.print(df1)
-            print('%s: %s input from node 2 (%s):' % (self.operation_label, self.id, n2.id))
-            self.print(df2)
+            for idx, (n, df) in enumerate(zip(operation_nodes, outputs)):
+                print('%s: %s input from node %d (%s):' % (self.operation_label, self.id, idx, n.id))
 
         if self.get_parameter_value('only_historical', required=False):
-            df1 = df1.filter(~pl.col(FORECAST_COLUMN))
-            df2 = df2.filter(~pl.col(FORECAST_COLUMN))
+            outputs = [df.filter(~pl.col(FORECAST_COLUMN)) for df in outputs]
 
-        df = self.perform_operation(n1, n2, df1, df2)
+        df = self.perform_operation(operation_nodes, outputs)
 
         if self.get_parameter_value('extend_rows', required=False):
             df = extend_last_historical_value_pl(df, self.get_end_year())
@@ -280,18 +286,32 @@ class DivisiveNode(MultiplicativeNode):
     operation_label = 'division'
 
     # FIXME The roles of nominator and denumerator are determined based on the node appearance, not explicitly.
-    def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        assert n1.unit is not None and n2.unit is not None and self.unit is not None
-        output_unit = n1.unit / n2.unit
+    def perform_operation(self, nodes: list[Node], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
+        for n in nodes:
+            assert n.unit is not None
+        assert self.unit is not None
+
+        output_unit = functools.reduce(lambda x, y: x / y, [n.unit for n in nodes])  # type: ignore
+        assert output_unit is not None
         if not self.is_compatible_unit(output_unit, self.unit):
             raise NodeError(
                 self,
-                "Division inputs must in a unit compatible with '%s' (%s [%s] / %s [%s])" % (self.unit, n1.id, n1.unit, n2.id, n2.unit))
+                "Divising inputs must in a unit compatible with '%s' (got '%s')" % (self.unit, output_unit)
+            )
 
-        df = df1.paths.join_over_index(df2, how='left')
-        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
+        node = nodes.pop(0)
+        df = outputs.pop(0)
+        m = node.get_default_output_metric()
+        df = df.rename({m.column_id: '_Left'})
+        for n, ndf in zip(nodes, outputs):
+            m = n.get_default_output_metric()
+            ndf = ndf.rename({m.column_id: '_Right'})
+            df = df.paths.join_over_index(ndf, how='left', index_from='union')
+            df = df.divide_cols(['_Left', '_Right'], '_Left').drop('_Right')
 
+        df = df.rename({'_Left': VALUE_COLUMN})
+        df = df.drop_nulls(VALUE_COLUMN)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 
@@ -403,3 +423,43 @@ class CurrentTrendNode(MultiplicativeNode):  # FIXME Exploratory, not necessaril
         df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
 
         return df
+
+
+class MixNode(AdditiveNode):
+    output_metrics = {
+        MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
+    }
+    default_unit = '%'
+
+    def add_mix_normalized(self, df: ppl.PathsDataFrame, nodes: list[Node], over_dims: list[str] | None = None):
+        df = self.add_nodes_pl(df=df, nodes=nodes)
+        if len(df.metric_cols) != 1:
+            raise NodeError(self, "Must have exactly one metric column")
+
+        if over_dims is None:
+            over_dims = df.dim_ids
+        col = df.metric_cols[0]
+        df = (df
+            .ensure_unit(col, 'dimensionless')
+            .with_columns(pl.col(col).clip(0, 1))
+        )
+        sdf = df.paths.sum_over_dims(over_dims).rename({col: '_YearSum'})
+        df = df.paths.join_over_index(sdf)
+        df = df.divide_cols([col, '_YearSum'], col).drop('_YearSum')
+
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        m = self.get_default_output_metric()
+        df = df.ensure_unit(m.column_id, m.unit)
+        return df
+
+    def compute(self):
+        anode = self.get_input_node(tag='activity')
+        adf = anode.get_output_pl(target_node=self)
+        am = anode.get_default_output_metric()
+        adf = adf.paths.calculate_shares(am.column_id, '_Share')
+        m = self.get_default_output_metric()
+        df = adf.select_metrics(['_Share']).ensure_unit('_Share', m.unit).rename({'_Share': m.column_id})
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        nodes = list(self.input_nodes)
+        nodes.remove(anode)
+        return self.add_mix_normalized(df, nodes)
