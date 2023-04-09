@@ -347,3 +347,19 @@ class PathsExt:
             raise Exception("Concatenation resulted in duplicated index rows")
 
         return df
+
+    def add_sum_column(self, metric_col: str, output_col: str, over_dims: list[str] | None = None) -> ppl.PathsDataFrame:
+        df = self._df
+        if over_dims is None:
+            over_dims = df.dim_ids
+        sdf = df.select_metrics([metric_col]).paths.sum_over_dims(over_dims)
+        sdf = sdf.rename({metric_col: output_col})
+        df = df.paths.join_over_index(sdf)
+        return df
+
+    def calculate_shares(self, metric_col: str, output_col: str, over_dims: list[str] | None = None) -> ppl.PathsDataFrame:
+        df = self._df
+        df = df.paths.add_sum_column(metric_col, '_Sum', over_dims=over_dims)
+        df = df.divide_cols([metric_col, '_Sum'], output_col)
+        df = df.drop('_Sum')
+        return df
