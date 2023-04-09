@@ -3,7 +3,7 @@ import polars as pl
 import common.polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_last_historical_value_pl
 from nodes.node import NodeMetric, NodeError, Node
-from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode
+from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
 from nodes.constants import DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
 
 
@@ -128,27 +128,6 @@ class BuildingHeatPerArea(AdditiveNode):
         nodes.remove(e_node)
         nodes.remove(f_node)
         df = self.add_nodes_pl(df, nodes)
-        return df
-
-
-class MixNode(AdditiveNode):
-    output_metrics = {
-        MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
-    }
-    default_unit = '%'
-
-    def add_mix_normalized(self, df: ppl.PathsDataFrame, nodes: list[Node]):
-        df = self.add_nodes_pl(df=df, nodes=nodes)
-        df = df.paths.to_wide()
-        metric_cols = df.metric_cols
-        df = (
-            df.with_columns([pl.col(col).clip_min(0) for col in metric_cols])
-            .with_columns([pl.sum(metric_cols).alias('YearSum')])
-            .with_columns([pl.col(col) / pl.col('YearSum') for col in metric_cols]).drop('YearSum')
-            .paths.to_narrow()
-        )
-        m = self.get_default_output_metric()
-        df = df.set_unit(m.column_id, 'dimensionless', force=True).ensure_unit(m.column_id, m.unit)
         return df
 
 
@@ -493,7 +472,7 @@ class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
         return df
 
 
-class VehicleMileage(AdditiveNode):
+class VehicleMileageHistorical(Node):
     output_dimension_ids = [
         'vehicle_type',
     ]
@@ -504,15 +483,161 @@ class VehicleMileage(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
         m = self.get_default_output_metric()
+        unit = df.get_unit('mileage')
+        if '[vehicle]' not in unit.dimensionality:
+            unit = unit * self.context.unit_registry('vehicle')
+            df = df.set_unit('mileage', unit, force=True)
         df = df.rename({'mileage': m.column_id}).ensure_unit(m.column_id, m.unit)
-        df = extend_last_historical_value_pl(df, self.get_end_year())
-        df = self.add_nodes_pl(df, self.input_nodes)
         return df
 
 
-class TransportFuelFactor(VehicleDatasetNode):
+class PassengerKilometers(Node):
+    input_dimension_ids = [
+        'vehicle_type',
+    ]
+    output_dimension_ids = [
+        'transport_mode'
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        vnode = self.get_input_node(tag='vehicle_mileage')
+        vdf = vnode.get_output_pl(target_node=self)
+        onode = self.get_input_node(tag='occupancy_factor')
+        odf = onode.get_output_pl(target_node=self)
+
+        tm_dim = self.output_dimensions[self.output_dimension_ids[0]]
+        vt_dim = self.input_dimensions[self.input_dimension_ids[0]]
+        vdf = vdf.with_columns([
+            vt_dim.ids_to_groups(pl.col(vt_dim.id)).alias('vehicle_group')
+        ])
+        vdf = (vdf
+            .with_columns(tm_dim.series_to_ids_pl(vdf['vehicle_group']).alias('transport_mode'))
+            .drop('vehicle_group')
+            .add_to_index('transport_mode')
+        )
+        vdf = vdf.paths.sum_over_dims(['vehicle_type']).drop_nulls(['transport_mode'])
+
+        vdf = vdf.rename({VALUE_COLUMN: 'VehicleMileage'})
+        odf = odf.rename({VALUE_COLUMN: 'OccupancyFactor'})
+        vdf = vdf.paths.join_over_index(odf).filter(pl.col('OccupancyFactor').is_not_null())
+        unit = self.get_default_output_metric().unit
+        vdf = vdf.multiply_cols(['VehicleMileage', 'OccupancyFactor'], 'PassengerKilometers', out_unit=unit)
+        vdf = vdf.select_metrics(['PassengerKilometers']).rename(dict(PassengerKilometers=VALUE_COLUMN))
+
+        return vdf
+
+
+class VehicleKilometersPerInhabitant(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        nodes = list(self.input_nodes)
+        pkm_node = self.get_input_node(tag='passenger_kilometers')
+        pdf = pkm_node.get_output_pl(target_node=self)
+        nodes.remove(pkm_node)
+
+        of_node = self.get_input_node(tag='occupancy_factor')
+        odf = of_node.get_output_pl(target_node=self)
+        nodes.remove(of_node)
+
+        m_node = self.get_input_node(tag='mileage_historical')
+        mdf = m_node.get_output_pl(target_node=self)
+        nodes.remove(m_node)
+
+        pop_node = self.get_input_node(tag='population')
+        popdf = pop_node.get_output_pl(target_node=self)
+        popdf = popdf.rename({VALUE_COLUMN: 'Pop'})
+        nodes.remove(pop_node)
+
+        m = self.get_default_output_metric()
+        pdf = pdf.rename({VALUE_COLUMN: 'Pkm'})
+        odf = odf.rename({VALUE_COLUMN: 'OF'})
+        pdf = pdf.paths.join_over_index(odf)
+        pdf = pdf.divide_cols(['Pkm', 'OF'], 'Vkm')
+        pdf = pdf.paths.join_over_index(popdf)
+        pdf = pdf.divide_cols(['Vkm', 'Pop'], 'LocalTransportVkm', out_unit=m.unit).select_metrics(['LocalTransportVkm'])
+
+        tm_dim = self.context.dimensions['transport_mode']
+        vt_dim = self.context.dimensions['vehicle_type']
+
+        mdf = mdf.with_columns([
+            vt_dim.ids_to_groups(pl.col(vt_dim.id)).alias('vehicle_group')
+        ])
+        mdf = (mdf
+            .with_columns(tm_dim.series_to_ids_pl(mdf['vehicle_group']).alias('transport_mode'))
+            .drop('vehicle_group')
+            .add_to_index('transport_mode')
+        )
+        mdf = mdf.paths.sum_over_dims(['vehicle_type']).drop_nulls(['transport_mode'])
+        mdf = mdf.rename({VALUE_COLUMN: 'Vkm'})
+        mdf = mdf.paths.join_over_index(popdf).divide_cols(['Vkm', 'Pop'], 'Vkm', out_unit=m.unit)
+        mdf = mdf.paths.join_over_index(pdf, how='outer').sort(YEAR_COLUMN)
+        mdf = mdf.with_columns(pl.col('Vkm').fill_null(pl.col('LocalTransportVkm'))).select_metrics(['Vkm'])
+        mdf = extend_last_historical_value_pl(mdf, self.get_end_year())
+
+        mdf = mdf.rename(dict(Vkm=m.column_id))
+        return self.add_nodes_pl(mdf, nodes)
+
+
+class VehicleEngineTypeSplit(MixNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        mnode = self.get_input_node(tag='mileage')
+        mdf = mnode.get_output_pl(target_node=self)
+        dim = self.input_dimensions['vehicle_type']
+        mdf = (
+            mdf.with_columns(dim.ids_to_groups(pl.col('vehicle_type')).alias('group'))
+            .add_to_index('group')
+        )
+        mdf = mdf.paths.calculate_shares(VALUE_COLUMN, 'Share', over_dims=['vehicle_type'])
+        m = self.get_default_output_metric()
+        mdf = (
+            mdf.select_metrics(['Share'])
+            .rename(dict(Share=m.column_id))
+            .ensure_unit(m.column_id, m.unit)
+        )
+        nodes = list(self.input_nodes)
+        nodes.remove(mnode)
+        df = mdf.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+
+        gdf = df.select(['vehicle_type', 'group']).unique()
+        df = df.drop('group')
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        df = self.add_nodes_pl(df, nodes)
+        df = ppl.to_ppdf(df.join(gdf, on='vehicle_type', how='left'), df.get_meta()).sort(YEAR_COLUMN).add_to_index('group')
+        df = self.add_mix_normalized(df, [], over_dims=['vehicle_type'])
+        df = df.drop('group')
+        return df
+
+
+class VehicleMileage(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        pop_node = self.get_input_node(tag='population')
+        popdf = pop_node.get_output_pl(target_node=self)
+        popdf = popdf.rename({VALUE_COLUMN: 'Pop'})
+
+        et_node = self.get_input_node(tag='engine_type_split')
+        etdf = et_node.get_output_pl(target_node=self)
+        etdf = etdf.rename({VALUE_COLUMN: 'EngineTypeShare'})
+
+        m_node = self.get_input_node(tag='mileage_per_inhabitant')
+        mdf = m_node.get_output_pl(target_node=self)
+        mdf = mdf.rename({VALUE_COLUMN: 'MileagePerPop'})
+
+        m = self.get_default_output_metric()
+        mdf = mdf.paths.join_over_index(popdf)
+        mdf = mdf.multiply_cols(['MileagePerPop', 'Pop'], 'TotalMileage', out_unit=m.unit)
+
+        vt_dim = self.context.dimensions['vehicle_type']
+        tm_dim = self.context.dimensions['transport_mode']
+        etdf = etdf.with_columns(vt_dim.ids_to_groups(pl.col('vehicle_type')).alias('vehicle_group'))
+        etdf = etdf.with_columns(tm_dim.series_to_ids_pl(etdf['vehicle_group']).alias('transport_mode')).add_to_index('transport_mode')
+        df = etdf.paths.join_over_index(mdf)
+        df = df.multiply_cols(['TotalMileage', 'EngineTypeShare'], 'Mileage', out_unit=m.unit)
+        df = df.select([YEAR_COLUMN, 'vehicle_type', FORECAST_COLUMN, pl.col('Mileage').alias(m.column_id)])
+        return df
+
+
+class TransportFuelFactor(AdditiveNode):
     output_metrics = {
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/km', quantity=EMISSION_FACTOR_QUANTITY)  # FIXME Not really emission but fuel
+        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/vkm', quantity=EMISSION_FACTOR_QUANTITY)  # FIXME Not really emission but fuel
     }
     output_dimension_ids = [
         'energy_carrier', 'vehicle_type',
@@ -522,11 +647,15 @@ class TransportFuelFactor(VehicleDatasetNode):
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        return self.process_input(
-            dimension_ids=['energy_carrier', 'vehicle_type'],
-            quantity=EMISSION_FACTOR_QUANTITY,
-            col='fuel'
-        )
+        df = self.get_input_dataset_pl()
+        df = df.select_metrics(['fuel']).drop_nulls()
+        if 'vehicle' not in df.get_unit('fuel').dimensionality:
+            df = df.set_unit('fuel', 'kg/vkm', force=True)
+        m = self.get_default_output_metric()
+        df = df.rename(dict(fuel=m.column_id)).ensure_unit(m.column_id, m.unit)
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        df = self.add_nodes_pl(df, self.input_nodes)
+        return df
 
 
 class TransportEmissionFactor(Node):
@@ -535,12 +664,6 @@ class TransportEmissionFactor(Node):
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        """
-        fdf = self.process_input(
-            dimension_ids=['emission_scope', 'greenhouse_gases', 'vehicle_type'],
-            quantity=EMISSION_FACTOR_QUANTITY
-        )
-        """
         ef_node = self.get_input_node(tag='general_electricity')
         efdf = ef_node.get_output_pl(self)
         efdf = efdf.rename({efdf.metric_cols[0]: 'EEF'})
@@ -556,8 +679,10 @@ class TransportEmissionFactor(Node):
         edf = edf.with_columns([pl.lit('co2').alias('greenhouse_gases')]).add_to_index('greenhouse_gases')
         edf = edf.select([YEAR_COLUMN, 'vehicle_type', 'emission_scope', 'greenhouse_gases', 'EF', FORECAST_COLUMN])
 
-        fdf = self.get_input_dataset_pl()
-        fdf = fdf.rename({'emission_factor': 'EF'})
+        fef_node = self.get_input_node(tag='fuel_emission_factor')
+        fdf = fef_node.get_output_pl(target_node=self)
+        fdf = fdf.rename({VALUE_COLUMN: 'EF'})
+
         ef_expr = pl.col('EF').map_dict({0.0: None}, default=pl.col('EF'))
         fdf = fdf.with_columns([ef_expr]).filter(~pl.col('EF').is_null())
         fdf = fdf.ensure_unit('EF', m.unit)
@@ -570,7 +695,27 @@ class TransportEmissionFactor(Node):
         df = df.rename({'EF': m.column_id})
 
         df = convert_to_co2e(df, 'greenhouse_gases')
+        return df
 
+
+class TransportEmissionsForFuel(AdditiveNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        ff_node = self.get_input_node(tag='fuel_factor')
+        ffdf = ff_node.get_output_pl(target_node=self)
+        ffdf = ffdf.rename({VALUE_COLUMN: 'fuel'})
+
+        efdf = self.get_input_dataset_pl()
+        eunit = efdf.get_unit('emission_factor')
+        if 'vehicle' not in eunit.dimensionality:
+            efdf = efdf.set_unit('emission_factor', 'kg/vkm', force=True)
+        df = efdf.paths.join_over_index(ffdf, index_from='union').drop_nulls()
+
+        df = df.filter(pl.col('fuel').gt(0))
+        df = df.divide_cols(['emission_factor', 'fuel'], 'EFFuel')
+        m = self.get_default_output_metric()
+        df = df.filter(pl.col('EFFuel').gt(0)).select_metrics(['EFFuel']).rename(dict(EFFuel=m.column_id))
+        df = df.paths.sum_over_dims(['energy_carrier'])
+        df = extend_last_historical_value_pl(df, self.get_end_year())
         return df
 
 
@@ -581,6 +726,7 @@ class TransportElectricity(AdditiveNode):
         # Replace 0 values with nulls
         el_expr = pl.col('electricity').map_dict({0.0: None}, default=pl.col('electricity'))
         df = df.select([YEAR_COLUMN, *df.dim_ids, el_expr])
+        df = df.set_unit('electricity', 'kWh/vkm', force=True)
         df = df.rename(dict(electricity=m.column_id)).ensure_unit(m.column_id, m.unit)
         # choose only electricity energy carrier and drop nulls
         filter_expr = pl.col('energy_carrier').eq('electricity') & ~pl.col(m.column_id).is_null()

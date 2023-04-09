@@ -32,6 +32,8 @@ BASELINE_VALUE_COLUMN = 'BaselineValue'
 EMISSION_QUANTITY = 'emissions'
 ENERGY_QUANTITY = 'energy'
 MILEAGE_QUANTITY = 'mileage'
+VEHICLE_MILEAGE_QUANTITY = 'vehicle_mileage'
+PASSENGER_MILEAGE_QUANTITY = 'passenger_mileage'
 EMISSION_FACTOR_QUANTITY = 'emission_factor'
 CONSUMPTION_FACTOR_QUANTITY = 'consumption_factor'
 CURRENCY_QUANTITY = 'currency'
@@ -41,7 +43,10 @@ NUMBER_QUANTITY = 'number'
 PER_CAPITA_QUANTITY = 'per_capita'
 POPULATION_QUANTITY = 'population'
 MIX_QUANTITY = 'mix'
-ACTIVITY_QUANTITIES = set([EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, 'mass'])
+ACTIVITY_QUANTITIES = set([
+    EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
+    PASSENGER_MILEAGE_QUANTITY, 'mass'
+])
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | set([MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY])
 
@@ -51,7 +56,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     'population', 'per_capita', 'fuel_consumption', 'ratio',
     'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
-    'probability', 'ingestion', 'energy_per_area', 'area',
+    'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
 ])
 
 DEFAULT_METRIC = 'default'

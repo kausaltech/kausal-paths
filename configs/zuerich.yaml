@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 22c303cef8303fbf2591e2cf3bb849a23bc3b80c
+  commit: d97baf5bce5a2dde6e13997d20a29e12ade3962a
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -30,9 +30,30 @@ normalizations:
     unit: kWh/cap/a
   - id: mileage
     unit: km/cap/a
+  - id: vehicle_mileage
+    unit: vkm/cap/a
+  - id: passenger_mileage
+    unit: pkm/cap/a
   default: true
 features:
   baseline_visible_in_graphs: false
+action_groups:
+- id: buildings
+  name: Heizungsersatz und Ausbau thermische Netze
+  name_en: Buildings
+  color: '#002F96'
+- id: mobility
+  name: Mobilität
+  name_en: Transportation
+  color: '#E22D53'
+- id: waste
+  name: Entsorgung
+  name_en: Waste
+  color: '#F18830'
+- id: other
+  name: Andere
+  name_en: Other
+  color: '#cccccc'
 
 dimensions:
 - id: emission_scope
@@ -118,23 +139,57 @@ dimensions:
   - id: cars
     label: Personenwagen
     label_en: Cars
-    id_match: ^car_.+
-  - id: vans
-    label: Lieferwagen
-    label_en: Vans
-    id_match: ^van_.+
+  - id: motorbikes
+    label: Motorräder
+    label_en: Motorbikes
   - id: buses
     label: Linienbusse
     label_en: Local buses
-    id_match: ^buses_.+
   - id: trolleybuses
     label: Trolleybusse
     label_en: Trolley buses
-    id_match: ^trolley.*
   - id: coaches
     label: Reisebusse
     label_en: Coaches
     id_match: ^coach_.+
+  - id: lorries
+    label: Lastwagen
+    label_en: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+    id_match: ^van_.+
+  - id: tram
+    label: Tram
+    label_en: Tram
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+    id_match: ^small_railways$
+  - id: rail_passenger
+    label: Bahn ÖV
+    label_en: Rail (passenger transport)
+  - id: rail_goods
+    label: Bahn Gueterverkehr
+    label_en: Rail (goods transport)
+    id_match: ^rail_goods.*
+  - id: liner_ship
+    label: Linienschiffe
+    label_en: Liner ship
+    id_match: ^liner_ship.*
+  - id: private_ship
+    label: Private Bootsverkehr
+    label_en: Private ships
+    id_match: ^private_ship.*
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt
+    label_en: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+    id_match: ^aviation
 
 - id: vehicle_type
   label: Fahrzeugtyp
@@ -168,14 +223,30 @@ dimensions:
     label: Lieferwagen
     label_en: Vans
     id_match: ^van_.+
-  - id: rail
-    label: Schienenverkehr
-    label_en: Rail transport
-    id_match: ^(tram|small_railways|rail).*
-  - id: maritime
-    label: Schiffsverkehr
-    label_en: Maritime transport
-    id_match: ^.*_ship_.*
+  - id: tram
+    label: Tram
+    label_en: Tram
+    id_match: ^tram$
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+    id_match: ^small_railways$
+  - id: rail_passenger
+    label: Bahn (Personverkehr)
+    label_en: Rail (passenger transport)
+    id_match: ^rail_passenger.*
+  - id: rail_goods
+    label: Bahn (Gueterverkehr)
+    label_en: Rail (goods transport)
+    id_match: ^rail_goods.*
+  - id: liner_ship
+    label: Linienschiffe
+    label_en: Liner ship
+    id_match: ^liner_ship.*
+  - id: private_ship
+    label: Private Bootsverkehr
+    label_en: Private ships
+    id_match: ^private_ship.*
   - id: mobility_outside_city
     label: Mobilität ausserhalb der Stadt
     label_en: Mobility ourside the city
@@ -372,10 +443,12 @@ dimensions:
     label: Erdgas
     label_en: Natural gas
     color: '#7EE6E2'
+    order: 1
   - id: biogas
     label: Biogas
     label_en: biogas
     color: '#65CC8B'
+    order: 2
   - id: district_heat
     label: Fernwärme
     label_en: District heating
@@ -406,8 +479,8 @@ dimensions:
     label_en: Heating oil
     color: '#B23A01'
   - id: natural_gas
-    label: Erdgas
-    label_en: Natural gas
+    label: Erdgas/Biogas
+    label_en: Natural gas or biogas
     color: '#7EE6E2'
   - id: district_heat
     label: Fernwärme
@@ -699,7 +772,7 @@ nodes:
   name_en: Non-residential building floor area
   type: simple.MultiplicativeNode
   quantity: floor_area
-  unit: m**2
+  unit: Msqm
   input_nodes: [nonresidential_building_area_per_job, number_of_jobs]
 
 - id: building_floor_area_historical
@@ -747,7 +820,7 @@ nodes:
     to_dimensions: []
 
 - id: building_heat_per_area
-  name_de: Wärmebedarf Gebäude auf Stadtgebiet
+  name_de: Spezifischer Wärmebedarf Gebäude auf Stadtgebiet
   name_en: Heat energy need of buildings
   type: ch.zuerich.BuildingHeatPerArea
   quantity: energy_per_area
@@ -765,7 +838,7 @@ nodes:
     - id: building_use
 
 - id: building_heat_demand
-  name_de: Building heat demand
+  name_de: Total Wärmebedarf Gebäude
   name_en: Building heat demand
   type: simple.MultiplicativeNode
   quantity: energy
@@ -787,7 +860,7 @@ nodes:
     tags: [consumption]
 
 - id: building_heat_consumption
-  name_de: Wärmebedarf Gebäude
+  name_de: Total Wärmebedarf Gebäude nach Heizungssystem
   name_en: Building heat use
   type: simple.MultiplicativeNode
   unit: GWh/a
@@ -864,7 +937,7 @@ nodes:
       flatten: true
 
 - id: other_electricity_consumption
-  name_de: Other electricity consumption
+  name_de: Sonstiger Strombedarf
   name_en: Other electricity consumption
   type: simple.SubtractiveNode
   quantity: energy
@@ -968,6 +1041,7 @@ nodes:
   name_en: Electricity consumer mix
   quantity: mix
   unit: '%'
+  input_dimensions: [electricity_source]
   output_dimensions: [electricity_source]
   input_datasets:
   - zuerich/general_electricity_production_mix
@@ -979,6 +1053,7 @@ nodes:
     from_dimensions:
     - categories: [electricity]
       flatten: true
+    to_dimensions: []
 
 # - id: transport_electricity_production_mix
 #   type: ch.zuerich.ElectricityProductionMix
@@ -1136,15 +1211,135 @@ nodes:
 # TRANSPORT (MULTIDIMENSIONAL)
 #
 
-- id: transport_mileage
-  name_de: Verkehr Fahrleistung
-  name_en: Vehicle kilometers
-  type: ch.zuerich.VehicleMileage
-  quantity: mileage
-  unit: Mkm/a
+- id: vehicle_mileage_historical
+  name_de: Verkehr Fahrleistung (historisch)
+  name_en: Vehicle kilometers (historical)
+  type: ch.zuerich.VehicleMileageHistorical
+  quantity: vehicle_mileage
+  unit: Mvkm/a
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/vehicle_mileage
+
+- id: transport_occupancy_factor
+  name_de: Verkehrsbelegungsfaktor
+  name_en: Transport occupancy factor
+  quantity: occupancy_factor
+  unit: passenger/vehicle
+  input_dataset_processors: [LinearInterpolation]
+  output_dimensions: [transport_mode]
+  type: simple.AdditiveNode
+  input_datasets:
+  - zuerich/transport_occupancy_factor
+
+- id: passenger_kilometers_historical
+  name_de: Personenkilometer (historisch)
+  name_en: Passenger kilometers (historical)
+  quantity: passenger_mileage
+  unit: Mpkm/a
+  type: ch.zuerich.PassengerKilometers
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: [vehicle_mileage]
+  - id: transport_occupancy_factor
+    tags: [occupancy_factor]
+    to_dimensions:
+    - id: transport_mode
+
+- id: mobility_demand_per_inhabitant
+  name_de: Mobilitätsnachfrage pro Einwohner
+  name_en: Mobility demand per inhabitant
+  quantity: per_capita
+  unit: pkm/cap/a
+  type: simple.DivisiveNode
+  params:
+    extend_rows: true
+  input_nodes:
+  - id: passenger_kilometers_historical
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+  - id: population
+
+- id: transport_modal_split
+  name_de: Verkehrsträgeranteil
+  name_en: Transport modal split
+  quantity: mix
+  unit: '%'
+  type: simple.MixNode
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometers_historical
+    tags: [activity]
+
+- id: passenger_kilometers
+  name_de: Personenkilometer
+  name_en: Passenger kilometers
+  quantity: passenger_mileage
+  unit: Mpkm/a
+  type: simple.MultiplicativeNode
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: mobility_demand_per_inhabitant
+    to_dimensions: []
+  - id: population
+    to_dimensions: []
+  - id: transport_modal_split
+
+- id: vehicle_mileage_per_inhabitant
+  name_de: Verkehr Fahrleistung pro Einwohner
+  name_en: Vehicle kilometers per inhabitant
+  quantity: per_capita
+  unit: vkm/cap/a
+  type: ch.zuerich.VehicleKilometersPerInhabitant
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometers
+    tags: [passenger_kilometers]
+  - id: transport_occupancy_factor
+    tags: [occupancy_factor]
+  - id: vehicle_mileage_historical
+    to_dimensions:
+    - id: vehicle_type
+    tags: [mileage_historical]
+  - id: population
+    to_dimensions: []
+    tags: [population]
+
+- id: vehicle_engine_type_split
+  name_de: Vehicle engine type split
+  name_en: Vehicle engine type split
+  quantity: mix
+  unit: '%'
+  type: ch.zuerich.VehicleEngineTypeSplit
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: mileage
+
+- id: vehicle_mileage
+  name_de: Verkehr Fahrleistung
+  name_en: Vehicle kilometers
+  type: ch.zuerich.VehicleMileage
+  quantity: vehicle_mileage
+  unit: Mvkm/a
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_per_inhabitant
+    tags: [mileage_per_inhabitant]
+    to_dimensions:
+    - id: transport_mode
+  - id: vehicle_engine_type_split
+    tags: [engine_type_split]
+    to_dimensions:
+    - id: vehicle_type
+  - id: population
+    tags: [population]
+    to_dimensions: []
   output_nodes:
   - id: car_emissions
     from_dimensions:
@@ -1171,7 +1366,7 @@ nodes:
   name_en: Transport electricity consumption
   type: ch.zuerich.TransportElectricity
   quantity: consumption_factor
-  unit: kWh/km
+  unit: kWh/vkm
   output_dimensions: [vehicle_type]
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
@@ -1181,11 +1376,28 @@ nodes:
   name_de: Verkehr Kraftstofffaktor
   name_en: Transport fuel factors
   type: ch.zuerich.TransportFuelFactor
-  quantity: mileage
-  unit: kg/km
-  # input_dataset_processors: [LinearInterpolation]
+  quantity: fuel_factor
+  unit: kg/vkm
+  input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/fuel_consumption_factor
+
+- id: transport_emissions_for_fuel
+  name_de: Verkehr Emissionen für den Kraftstoffverbrauch
+  name_en: Transport emissions for fuel consumption
+  type: ch.zuerich.TransportEmissionsForFuel
+  quantity: emission_factor
+  unit: kg/kg
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_nodes:
+  - id: transport_fuel_factor
+    tags: [fuel_factor]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/transport_emission_factors
 
 - id: transport_electricity_consumption
   name_de: Stromverbrauch im Verkehr
@@ -1196,7 +1408,7 @@ nodes:
   output_dimensions: [vehicle_type]
   unit: GWh/a
   input_nodes:
-  - id: transport_mileage
+  - id: vehicle_mileage
   - id: transport_electricity_consumption_factor
   output_nodes:
   - id: electricity_consumption
@@ -1209,10 +1421,8 @@ nodes:
   name_en: Transport emission factors
   type: ch.zuerich.TransportEmissionFactor
   quantity: emission_factor
-  unit: g/km
+  unit: g/vkm
   input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - zuerich/transport_emission_factors
   input_nodes:
   - id: electricity_emission_factor
     tags: [general_electricity]
@@ -1222,7 +1432,34 @@ nodes:
     tags: [electricity_consumption_factor]
     to_dimensions:
     - id: vehicle_type
+  - id: transport_fuel_emission_factor
+    tags: [fuel_emission_factor]
+    to_dimensions:
+      - id: emission_scope
+      - id: greenhouse_gases
+      - id: vehicle_type
   output_dimensions: [emission_scope, vehicle_type]
+
+- id: transport_fuel_emission_factor
+  name_de: Verkehr Emissionsfaktor des Kraftstoffs
+  name_en: Transport emission factor for fuel
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type]
+  input_nodes:
+  - id: transport_fuel_factor
+    tags: [fuel_factor, non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: transport_emissions_for_fuel
+    tags: [emissions_for_fuel, non_additive]
+    to_dimensions:
+    - id: emission_scope
+    - id: greenhouse_gases
+    - id: vehicle_type
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
 
 - id: other_road_transport_emissions
   name_de: Treibhausgasemissionen andere Strasseverkehr
@@ -1334,6 +1571,7 @@ actions:
   name_en: Replacement of fossil fuel heaters
   name_de: Heizungsersatz
   type: shift.ShiftAction
+  group: buildings
   quantity: energy
   description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
     district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
@@ -1357,20 +1595,16 @@ actions:
           heating_system: district_heat
       - categories:
           heating_system: heat_pumps
-      - categories:
-          heating_system: wood
-      - categories:
-          heating_system: solar_collectors
       amounts:
       - year: 2023
         source_amount: -0.5
-        dest_amounts: [50, 50, 16, 3]
+        dest_amounts: [40, 80]
       - year: 2028
         source_amount: -1.2
-        dest_amounts: [50, 50, 16, 3]
+        dest_amounts: [40, 80]
       - year: 2040
         source_amount: -1.1
-        dest_amounts: [50, 50, 16, 3]
+        dest_amounts: [40, 80]
 
     - source:
         categories:
@@ -1380,24 +1614,23 @@ actions:
           heating_system: district_heat
       - categories:
           heating_system: heat_pumps
-      - categories:
-          heating_system: wood
       amounts:
       - year: 2023
         source_amount: -1.5
-        dest_amounts: [50, 50, 16]
+        dest_amounts: [40, 50]
       - year: 2028
         source_amount: -3.0
-        dest_amounts: [50, 50, 16]
+        dest_amounts: [40, 50]
       - year: 2040
         source_amount: -2.5
-        dest_amounts: [50, 50, 16]
+        dest_amounts: [40, 50]
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung thermische Netze
   description_de: Fossile Energieträger im Energiemix von Energieverbunden und Fernwärme,
     die zur Spitzenlastabdeckung eingesetzt werden, werden vollständig durch erneuerbare
     Energieträger ersetzt.
+  group: buildings
   quantity: mix
   unit: '%'
   type: shift.ShiftAction
@@ -1444,6 +1677,7 @@ actions:
 - id: natural_gas_network_decarbonisation
   name_de: Dekarbonisierung Gasversorgung
   name_en: Decarbonisation of gas network
+  group: buildings
   description_de: Fossiles Erdgas wird vollständig durch Biogas und andere Gase aus
     erneuerbaren Quellen ersetzt.
   quantity: ratio
@@ -1468,6 +1702,7 @@ actions:
 - id: building_energy_retrofit
   name_en: Energetic renovation of buildings
   name_de: Energetische Sanierung und Anforderungen an Neubauten
+  group: buildings
   description_de: Dieses Massnahmenpaket beschreibt die Massnahmen, die zu einer energieeffizienten
     Gebäudehülle führen und damit die Wärmeenergie effizienter nutzen. Dies erfolgt
     einerseits durch die energetische Gebäudesanierung, anderseits sind dies Anforderungen
@@ -1506,6 +1741,7 @@ actions:
 - id: building_optimisation
   name_en: Operational optimisation of buildings
   name_de: Effiziente und suffiziente Gebäudenutzung
+  group: buildings
   description_de: Dieses Massnahmenpaket umfasst alle Massnahmen, welche eine effiziente
     und suffiziente Nutzung von Gebäuden zum Ziel haben. Dies sind einerseits Effizienzsteigerungen
     durch Betriebsoptimierungen oder suffizientere Nutzungsformen von Gebäuden.
@@ -1526,11 +1762,11 @@ actions:
       - year: 2023
         amount: 0
       - year: 2028
-        amount: -1.0
+        amount: -0.2
       - year: 2030
-        amount: -0.7
+        amount: -0.3
       - year: 2035
-        amount: -0.8
+        amount: -0.3
       - year: 2040
         amount: 0
     - target:
@@ -1539,26 +1775,93 @@ actions:
       - year: 2023
         amount: 0
       - year: 2030
-        amount: -0.25
+        amount: -0.15
       - year: 2035
-        amount: -0.05
+        amount: -0.15
       - year: 2040
-        amount: 0
+        amount: -0.15
 
-- id: electrify_car_fleet
-  name_en: Electrify car fleet
-  name_de: Elektrifizierung der Fahrzeugflotte
+- id: reduce_transportation_demand
+  name_en: Reduce transportation demand
+  name_de: Vermeidung von Verkehrsaufkommen
+  description_de: 'Dieses Massnahmenpaket umfasst Massnahmen,
+    welche dazu führen, die zurückgelegten Distanzen insgesamt zu verringern.
+    Dies betrifft alle Wege, unabhängig davon, ob sie mit dem MIV, dem öV, dem
+    Fahrrad oder zu Fuss zurückgelegt werden. Dies kann durch eine Stadt der kurzen
+    Wege erreicht werden.'
+  group: mobility
+  type: linear.ReduceAction
+  unit: pkm/cap/a
+  quantity: per_capita
+  output_nodes:
+  - id: mobility_demand_per_inhabitant
+  params:
+  - id: reduce
+    unit: pkm/cap/a
+    is_customizable: false
+    value:
+    - target: {}
+      amounts:
+      - year: 2023
+        amount: -5
+      - year: 2030
+        amount: -60
+      - year: 2045
+        amount: -30
+
+- id: cars_to_transit
+  name_en: Shift from cars to public transportation
+  name_de: Verlagerung des MIV in Richtung des Umweltverbundes
+  group: mobility
   type: shift.ShiftAction
   quantity: mix
-  description_en: Car fleet electrification.
+  description_de: 'Dieses Massnahmenpaket umfasst die relevanten Massnahmen,
+    um den Verkehr von motorisiertem Individualverkehr hin zu öffentlichem Verkehr,
+    Velo- oder Fussverkehr zu verlagern. Es geht dabei insbesondere um Massnahmen
+    auf der Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige
+    Verbesserung des öffentlichen Verkehrs, der Velo- und Fusswege.'
+  output_nodes:
+  - id: transport_modal_split
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          transport_mode: cars
+      dests:
+      - categories:
+          transport_mode: tram
+      - categories:
+          transport_mode: rail_passenger
+      amounts:
+      - year: 2023
+        source_amount: -0.2
+        dest_amounts: [50, 100]
+      - year: 2030
+        source_amount: -0.6
+        dest_amounts: [50, 100]
+      - year: 2040
+        source_amount: -0.2
+        dest_amounts: [50, 100]
+
+- id: electrify_vehicle_fleet
+  name_en: Electrify vehicle fleet
+  name_de: Elektrifizierung der Fahrzeugflotte
+  group: mobility
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Vehicle fleet electrification.
   description_de: Fahrzeuge mit fossilem Antrieb werden durch batterieelektrische,
     hybrid-, plug-in hybrid- und Brennstoffzellen-Fahrzeuge ersetzt.
   output_nodes:
-  - id: transport_mileage
-  unit: Mkm/a
+  - id: vehicle_engine_type_split
+  unit: '%'
   params:
   - id: shift
-    unit: Mkm/a
+    unit: '%'
     is_customizable: false
     value:
     - source:
@@ -1567,59 +1870,144 @@ actions:
       dests:
       - categories:
           vehicle_type: car_batteryelectric
+      - categories:
+          vehicle_type: car_plugin_hybrid
       amounts:
       - year: 2023
-        source_amount: -30
-        dest_amounts: [50]
+        source_amount: -0.5
+        dest_amounts: [50, 50]
       - year: 2030
-        source_amount: -50
-        dest_amounts: [50]
-      - year: 2035
-        source_amount: -10
-        dest_amounts: [50]
+        source_amount: -1.2
+        dest_amounts: [70, 30]
+      - year: 2040
+        source_amount: -2.5
+        dest_amounts: [100, 0]
       - year: 2050
-        source_amount: 0
-        dest_amounts: [50]
+        source_amount: -2.5
+        dest_amounts: [100, 0]
     - source:
         categories:
           vehicle_type: car_petrol
       dests:
       - categories:
           vehicle_type: car_batteryelectric
+      - categories:
+          vehicle_type: car_plugin_hybrid
       amounts:
       - year: 2023
-        source_amount: -30
-        dest_amounts: [50]
+        source_amount: -0.5
+        dest_amounts: [50, 50]
       - year: 2030
-        source_amount: -50
-        dest_amounts: [50]
-      - year: 2035
-        source_amount: -10
-        dest_amounts: [50]
+        source_amount: -1.2
+        dest_amounts: [70, 30]
+      - year: 2040
+        source_amount: -2.5
+        dest_amounts: [100, 0]
       - year: 2050
-        source_amount: 0
-        dest_amounts: [50]
+        source_amount: -2.5
+        dest_amounts: [100, 0]
+    # Vans
     - source:
         categories:
-          vehicle_type: car_natural_gas_biogas
+          vehicle_type: van_petrol
       dests:
       - categories:
-          vehicle_type: car_batteryelectric
+          vehicle_type: van_battery_electric
       amounts:
       - year: 2023
         source_amount: -0.1
-        dest_amounts: [50]
+        dest_amounts: [100]
       - year: 2030
-        source_amount: -0.05
-        dest_amounts: [50]
-      - year: 2035
-        source_amount: 0
-        dest_amounts: [50]
+        source_amount: -0.2
+        dest_amounts: [100]
+      - year: 2040
+        source_amount: -0.3
+        dest_amounts: [100]
+      - year: 2050
+        source_amount: -0.3
+        dest_amounts: [100]
+    - source:
+        categories:
+          vehicle_type: van_diesel
+      dests:
+      - categories:
+          vehicle_type: van_battery_electric
+      - categories:
+          vehicle_type: van_diesel_plugin_hybrid
+      - categories:
+          vehicle_type: van_natural_gas_biogas
+      - categories:
+          vehicle_type: van_fuel_cell
+      amounts:
+      - year: 2023
+        source_amount: -0.5
+        dest_amounts: [90, 0, 10, 0]
+      - year: 2030
+        source_amount: -1.2
+        dest_amounts: [90, 0, 10, 0]
+      - year: 2040
+        source_amount: -4.5
+        dest_amounts: [80, 8, 8, 4]
+      - year: 2050
+        source_amount: -3.0
+        dest_amounts: [100, 0, 0, 0]
+    # Lorries
+    - source:
+        categories:
+          vehicle_type: lorry_diesel
+      dests:
+      - categories:
+          vehicle_type: lorry_battery_electric
+      - categories:
+          vehicle_type: lorry_diesel_plugin_hybrid
+      - categories:
+          vehicle_type: lorry_natural_gas_biogas
+      - categories:
+          vehicle_type: lorry_fuel_cell
+      amounts:
+      - year: 2023
+        source_amount: -0.5
+        dest_amounts: [25, 25, 25, 25]
+      - year: 2030
+        source_amount: -0.7
+        dest_amounts: [35, 15, 15, 35]
+      - year: 2040
+        source_amount: -2.5
+        dest_amounts: [40, 10, 10, 40]
+      - year: 2050
+        source_amount: -0.3
+        dest_amounts: [40, 10, 10, 40]
+    # Buses
+    - source:
+        categories:
+          vehicle_type: buses_diesel
+      dests:
+      - categories:
+          vehicle_type: buses_batteryelectric
+      - categories:
+          vehicle_type: buses_diesel_plugin_hybrid
+      - categories:
+          vehicle_type: buses_fuel_cell
+      amounts:
+      - year: 2023
+        source_amount: -3.0
+        dest_amounts: [80, 0, 0]
+      - year: 2030
+        source_amount: -4.0
+        dest_amounts: [80, 0, 5]
+      - year: 2040
+        source_amount: -0.7
+        dest_amounts: [70, 10, 20]
+      - year: 2050
+        source_amount: -0.3
+        dest_amounts: [70, 10, 10]
+
 
 # Paket 7
 - id: waste_incineration_ccs_installation
   name_en: Install CCS in waste incineration
   name_de: Einführung und Betrieb von CCS
+  group: waste
   type: linear.ReduceAction
   quantity: ratio
   description_en: Install CCS in waste incineration
@@ -1645,12 +2033,15 @@ actions:
         amount: 0
 
 - id: cleaner_electricity_production
+  group: other
   name_en: Cleaner electricity production
-  name_de: Cleaner electricity production
+  name_de: Dekarbonisierung Stromversorgung
   type: shift.ShiftAction
   quantity: mix
   description_en: Electricity production shift to cleaner methods.
-  description_de: Electricity production shift to cleaner methods.
+  description_de: Dieses Massnahmenpaket beinhaltet alle Massnahmen, welche dazu führen,
+    dass der Strombedarf in der Stadt Zürich vollständig durch erneuerbare Energieträger
+    gedeckt wird.
   output_nodes:
   - id: electricity_production_mix
     to_dimensions:
@@ -1669,97 +2060,40 @@ actions:
           electricity_source: solar
       - categories:
           electricity_source: wind
+      - categories:
+          electricity_source: biogas
+      - categories:
+          electricity_source: waste
       amounts:
       - year: 2023
         source_amount: -2
-        dest_amounts: [50, 50]
+        dest_amounts: [50, 50, 10, 5]
       - year: 2030
+        source_amount: -1.65
+        dest_amounts: [50, 50, 10, 5]
+      - year: 2040
+        source_amount: 0
+        dest_amounts: [50, 50, 10, 5]
+    - source:
+        categories:
+          electricity_source: hydro
+      dests:
+      - categories:
+          electricity_source: solar
+      - categories:
+          electricity_source: wind
+      - categories:
+          electricity_source: biogas
+      amounts:
+      - year: 2023
         source_amount: -2
-        dest_amounts: [50, 50]
+        dest_amounts: [70, 30, 50]
+      - year: 2030
+        source_amount: -1.7
+        dest_amounts: [70, 30, 50]
       - year: 2035
         source_amount: 0
-        dest_amounts: [50, 50]
-
-# - id: reduce_room_temperature
-#   name_en: Reduced room temperature
-#   name_de: Reduzierte Heiztemperatur
-#   description_de: Wenn alle Gebäude künftig um 1°C weniger geheizt werden, reduzieren
-#     sich die direkten Emissionen von Gebäuden um 0.1 tCO2eq/(Einw.*a).
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: emissions
-#   output_nodes:
-#   - building_emissions_per_capita
-#   forecast_values: [[2021, 0], [2030, -0.1]]
-#   input_dataset_processors:
-#   - type: FixedMultiplier
-#     params:
-#       multiplier: 0.775
-#   unit: t/inh/a
-
-# - id: modal_shift_to_public_transport
-#   name_en: Modal shift to public transport
-#   name_de: Förderung öV/Velo/Fussgänger
-#   description_en: If the traffic volume of public transport increases and car traffic
-#     sinks by 15%, direct mobility emissions are reduced by 0.05 tCO2eq/(inh.*a).
-#   description_de: Wenn die Verkehrsleistung des öV steigt und der Autoverkehr um 15%
-#     sinkt, reduzieren sich die direkten Emissionen der Mobilität um 0.05 tCO2eq/(Einw.*a).
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: emissions
-#   output_nodes:
-#   - transportation_emissions
-#   forecast_values: [[2021, 0], [2040, -0.05]]
-#   input_dataset_processors:
-#   - type: FixedMultiplier
-#     params:
-#       multiplier: 0.833
-#   unit: t/inh/a
-
-# - id: electric_mobility
-#   name_en: Electric mobility
-#   name_de: Elektromobilität
-#   description_en: If 80% of the petrol and diesel vehicles are replaced by electric
-#     vehicles, direct mobility emissions are reduced by 0.53 tCO2eq/(inh.*a).
-#   description_de: Wenn 80% der Diesel- und Benzinfahrzeuge durch Elektroautos ersetzt
-#     werden, reduzieren sich die direkten Emissionen der Mobiliät um 0.53 tCO2eq/(Einw.*a).
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: emissions
-#   output_nodes:
-#   - transportation_emissions
-#   forecast_values: [[2021, 0], [2040, -0.53]]
-#   input_dataset_processors:
-#   - type: FixedMultiplier
-#     params:
-#       multiplier: 0.833
-#   unit: t/inh/a
-
-# - id: electric_busses
-#   name_en: Electric busses
-#   name_de: Elektrobusse
-#   description_en: If the diesel busses of the municipal public transport company (VBZ)
-#     are replaced by battery busses, direct mobility emissions are reduced by 0.03
-#     tCO2eq/(inh.*a).
-#   description_de: Wenn die Dieselbusse der VBZ durch Batteriebusse ersetzt werden,
-#     reduzieren sich die direkten Emissionen der Mobilität um 0.03 tCO2eq/(Einw.*a).
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: emissions
-#   output_nodes:
-#   - transportation_emissions
-#   forecast_values: [[2021, 0], [2035, -0.03]]
-#   input_dataset_processors:
-#   - type: FixedMultiplier
-#     params:
-#       multiplier: 0.833
-#   unit: t/inh/a
-
-# - id: increase_carbon_sinks
-#   name_en: Increase carbon sinks
-#   name_de: Kohlenstoffsenken vergrössern
-#   type: simple.LinearCumulativeAdditiveAction
-#   quantity: emissions
-#   output_nodes:
-#   - negative_emissions
-#   forecast_values: [[2021, 0], [2030, -0.1], [2040, -0.4]]
-#   unit: t/inh/a
+        dest_amounts: [70, 30, 50]
 
 pages:
 - id: home
