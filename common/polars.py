@@ -190,6 +190,15 @@ class PathsDataFrame(pl.DataFrame):
         df = super().drop_nulls(subset)
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
+    def sort(
+        self,
+        by: IntoExpr | Iterable[IntoExpr], *more_by: IntoExpr,
+        descending: bool | Sequence[bool] = False,
+        nulls_last: bool = False,
+    ) -> PathsDataFrame:
+        df = super().sort(by, *more_by, descending=descending, nulls_last=nulls_last)
+        return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
+
     def get_meta(self) -> DataFrameMeta:
         return DataFrameMeta(units=self._units.copy(), primary_keys=self._primary_keys.copy())
 
@@ -243,7 +252,9 @@ class PathsDataFrame(pl.DataFrame):
         df._primary_keys.append(col)
         return df
 
-    def ensure_unit(self, col: str, unit: Unit) -> PathsDataFrame:
+    def ensure_unit(self, col: str, unit: Unit | str) -> PathsDataFrame:
+        if isinstance(unit, str):
+            unit = unit_registry.parse_units(unit)
         col_unit = self._units[col]
         if col_unit == unit:
             return self
@@ -328,4 +339,4 @@ if not pl.using_string_cache():
 
 pl.Config.set_fmt_str_lengths(60)
 pl.Config.set_tbl_rows(100)
-pl.Config.set_tbl_cols(10)
+pl.Config.set_tbl_cols(12)
