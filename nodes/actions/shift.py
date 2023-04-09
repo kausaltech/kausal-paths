@@ -9,6 +9,7 @@ from nodes.constants import (
     FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
     VALUE_COLUMN, YEAR_COLUMN
 )
+from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.units import Unit
 from params.param import ValidationError
@@ -149,27 +150,42 @@ class ShiftAction(ActionNode):
         for dest in param.dests:
             all_dims.update(list(dest.categories.keys()))
 
-        def get_node_id(node: str | int | None):
-            if isinstance(node, str):
-                return node
-            if node is None:
+        def get_node(node_id: str | int | None) -> Node:
+            if isinstance(node_id, str):
+                for node in self.output_nodes:
+                    if node.id == node_id:
+                        return node
+                else:
+                    raise NodeError(self, "Node %s not listed in output_nodes" % node_id)
+
+            if node_id is None:
                 nr = 0
             else:
-                nr = node
-            return self.output_nodes[nr].id
+                nr = node_id
+            return self.output_nodes[nr]
 
         def make_target_df(target: ShiftTarget, valuecol: str):
             target_dims = set(target.categories.keys())
             null_dims = all_dims - target_dims
+            node = get_node(target.node)
             target_cats = sorted(target.categories.items(), key=lambda x: x[0])
+
+            for dim_id, cat_id in target_cats:
+                if dim_id not in node.input_dimensions:
+                    raise NodeError(self, "Dimension %s not found in node %s input dimensions" % (dim_id, node.id))
+                dim = node.input_dimensions[dim_id]
+                if cat_id not in dim.cat_map:
+                    raise NodeError(self, "Category %s not found in node %s input dimension %s" % (cat_id, node.id, dim.id))
+
             cat_exprs = [pl.lit(cat).alias(dim) for dim, cat in target_cats]
+
             if not self.is_enabled():
                 value_expr = pl.lit(0.0)
             else:
                 value_expr = pl.col(valuecol)
             tdf = df.select([
                 pl.col(YEAR_COLUMN),
-                pl.lit(get_node_id(target.node)).alias(NODE_COLUMN),
+                pl.lit(node.id).alias(NODE_COLUMN),
                 pl.lit(FLOW_ROLE_SOURCE if valuecol == 'Source' else FLOW_ROLE_TARGET).alias(FLOW_ROLE_COLUMN),
                 *cat_exprs,
                 *[pl.lit(None).cast(pl.Utf8).alias(null_dim) for null_dim in null_dims],
