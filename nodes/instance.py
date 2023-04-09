@@ -429,15 +429,19 @@ class InstanceLoader:
         # Setup edges
         ctx = self.context
         for node in ctx.nodes.values():
-            for ec in self._output_nodes.get(node.id, []):
-                edge = Edge.from_config(ec, node=node, is_output=True, context=ctx)
-                node.add_edge(edge)
-                edge.output_node.add_edge(edge)
+            try:
+                for ec in self._output_nodes.get(node.id, []):
+                    edge = Edge.from_config(ec, node=node, is_output=True, context=ctx)
+                    node.add_edge(edge)
+                    edge.output_node.add_edge(edge)
 
-            for ec in self._input_nodes.get(node.id, []):
-                edge = Edge.from_config(ec, node=node, is_output=False, context=ctx)
-                node.add_edge(edge)
-                edge.input_node.add_edge(edge)
+                for ec in self._input_nodes.get(node.id, []):
+                    edge = Edge.from_config(ec, node=node, is_output=False, context=ctx)
+                    node.add_edge(edge)
+                    edge.input_node.add_edge(edge)
+            except Exception:
+                logger.error("Error setting up edges for node %s" % node)
+                raise
 
         ctx.finalize_nodes()
 
