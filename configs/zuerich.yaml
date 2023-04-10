@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 05da6e2c326b00e9d380a7f365ab03f6d8763b0d
+  commit: 12fd36f38ddc556a8f6efa77d7dfa53fcfad10d3
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -17,7 +17,7 @@ reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2020
 emission_unit: kt/a
-emission_forecast_from: 2021
+emission_forecast_from: 2023
 emission_dimensions: [emission_scope]
 emission_dataset: zuerich/emissions
 emission_sector_dimension: emission_sectors
@@ -37,6 +37,7 @@ normalizations:
   default: true
 features:
   baseline_visible_in_graphs: false
+  show_accumulated_effects: false
 action_groups:
 # Handlungsfeld
 - id: buildings
@@ -607,19 +608,23 @@ emission_sectors:
 - id: net_emissions
   name_en: Greenhouse gas emissions
   name_de: Treibhausgasemissionen
-  target_year_goal: 6.5
   goals:
   - normalized_by: population
+    label_de: Direkte Emissionen
+    label_en: Direct emissions
     dimensions:
       emission_scope:
         group: direct
     linear_interpolation: true
     values:
     - year: 2022
-      value: 2.8
+      value: 2.4
     - year: 2040
       value: 0.5
+    is_main_goal: true
   - normalized_by: population
+    label_de: Indirekte Emissionen
+    label_en: Indirect emissions
     dimensions:
       emission_scope:
         group: indirect
@@ -628,14 +633,17 @@ emission_sectors:
       value: 7.9
     - year: 2040
       value: 6.0
+    is_main_goal: true
   - normalized_by: population
     label_de: Alle Emissionen
     label_en: Total emissions
     values:
     - year: 2022
-      value: 10.7
+      value: 10.3
     - year: 2040
       value: 6.5
+    is_main_goal: true
+    default: true
   is_outcome: true
 
 - id: negative_emissions
@@ -644,7 +652,6 @@ emission_sectors:
   part_of: net_emissions
   color: '#F7A5AF'
   order: -1
-
 
 # - id: direct_emissions
 #   name_en: Direct emissions
@@ -659,7 +666,8 @@ emission_sectors:
 #
 - id: transportation_emissions
   name_en: Transportation emissions
-  name_de: Mobilität
+  name_de: Treibhausgasemissionen Mobilität
+  short_name_de: Mobilität
   part_of: net_emissions
   color: '#E22D53'
   input_dataset_processors: [LinearInterpolation]
@@ -674,7 +682,8 @@ emission_sectors:
 
 - id: afolu_emissions
   name_en: Agriculture and forestry emissions
-  name_de: Land- und Forstwirtschaft
+  short_name_de: Land- und Forstwirtschaft
+  name_de: Treibhausgasemissionen Land- und Forstwirtschaft
   category: afolu
   part_of: net_emissions
   input_dataset_processors: [LinearInterpolation]
@@ -688,7 +697,8 @@ emission_sectors:
 
 - id: aviation_emissions
   name_en: Aviation
-  name_de: Flugverkehr
+  name_de: Treibhausgasemissionen Flugverkehr
+  short_name_de: Flugverkehr
   part_of: net_emissions
   category: aviation
   color: '#A174DE'
@@ -696,7 +706,8 @@ emission_sectors:
 
 - id: food_consumption_emissions
   name_en: Food consumption emissions
-  name_de: Ernährung
+  name_de: Treibhausgasemissionen Ernährung
+  short_name_de: Ernährung
   category: food_consumption
   part_of: net_emissions
   color: '#BCE59E'
@@ -704,7 +715,8 @@ emission_sectors:
 
 - id: textile_consumption_emissions
   name_en: Textile consumption emissions
-  name_de: Textilien
+  name_de: Treibhausgasemissionen Textilien
+  short_name_de: Textilien
   category: textile_consumption
   part_of: net_emissions
   color: '#FBCB97'
@@ -712,7 +724,8 @@ emission_sectors:
 
 - id: other_consumption_emissions
   name_en: Other consumption emissions
-  name_de: Übriger Konsum
+  name_de: Treibhausgasemissionen Übriger Konsum
+  short_name_de: Übriger Konsum
   category: other_consumption
   part_of: net_emissions
   color: '#2AC7C7'
@@ -927,11 +940,22 @@ nodes:
 - id: building_general_electricity_efficiency
   name_de: Strombedarf Gebäude exkl. Wärmeerzeugung
   name_en: Non-heating electricity need of buildings
-  type: simple.AdditiveNode
+  type: ch.zuerich.BuildingGeneralElectricityEfficiency
   quantity: energy_per_area
   unit: kWh/m**2/a
   input_dimensions: [building_use]
   output_dimensions: [building_use]
+  input_nodes:
+  - id: building_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_heat_consumption_by_carrier
+    tags: [heat_consumption]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_floor_area_historical
+    tags: [floor_area]
   input_datasets: [zuerich/building_electricity_need]
   input_dataset_processors: [LinearInterpolation]
 
@@ -951,31 +975,6 @@ nodes:
     from_dimensions:
     - id: building_use
       flatten: true
-
-- id: other_electricity_consumption
-  name_de: Sonstiger Strombedarf
-  name_en: Other electricity consumption
-  type: simple.SubtractiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - id: building_end_energy_consumption
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-  - id: heat_pump_electricity_consumption
-  - id: building_general_electricity_consumption
-    from_dimensions:
-    - id: building_use
-      flatten: true
-  - id: transport_electricity_consumption
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  output_nodes: [electricity_consumption]
-  params:
-    only_historical: true
 
 - id: heat_pump_cop
   name_de: COP von Wärmepumpen
@@ -1183,33 +1182,6 @@ nodes:
     - id: energy_carrier
       flatten: true
 
-- id: other_electricity_use_emissions
-  name_de: Treibhausgasemissionen sonstiger Stromverbrauch
-  name_en: Otherelectricity use emissions
-  short_name_de: Sonstiger Stromverbrauch
-  short_name_en: Other electricity use
-  type: ch.zuerich.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_dimensions: [emission_scope, energy_carrier]
-  input_nodes:
-  - id: other_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-  - id: building_energy_consumption_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-    to_dimensions:
-    - id: emission_scope
-    - id: energy_carrier
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
 - id: building_emissions
   name_en: Building emissions
   name_de: Treibhausgasemissionen Gebäude
@@ -1261,6 +1233,10 @@ nodes:
     tags: [occupancy_factor]
     to_dimensions:
     - id: transport_mode
+
+# - id: transport_electricity_consumption_historical
+#   name_de: Stromverbrauch Verkehr (historisch)
+#   name_en: Transport electricity consumption
 
 - id: mobility_demand_per_inhabitant
   name_de: Mobilitätsnachfrage pro Einwohner
@@ -1417,7 +1393,9 @@ nodes:
 
 - id: transport_electricity_consumption
   name_de: Stromverbrauch im Verkehr
-  mane_en: Transport electricity consumption
+  name_en: Transport electricity consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
   type: simple.MultiplicativeNode
   quantity: energy
   input_dimensions: [vehicle_type]
@@ -1528,7 +1506,6 @@ nodes:
   - id: zuerich/non_road_machinery_fuel_consumption
   input_dataset_processors: [LinearInterpolation]
 
-
 - id: non_road_machinery_emissions
   name_de: Treibhausgasemissionen Non-Road Maschinen
   name_en: Fuel consumption of non-road machinery
@@ -1555,8 +1532,8 @@ nodes:
   output_dimensions: [waste_incineration_plants]
 
 - id: waste_incineration_ccs_share
-  name_de: Share of CO2 captured with CCS
-  name_en: Share of CO2 captured with CCS
+  name_de: Share of CO2 captured with CCS in waste incineration
+  name_en: Share of CO2 captured with CCS in waste incineration
   type: simple.AdditiveNode
   input_datasets:
   - id: zuerich/waste_incineration
@@ -1567,6 +1544,39 @@ nodes:
       value: hagenholz
   unit: '%'
   quantity: ratio
+
+- id: sewage_sludge_processing_ccs_share
+  name_de: Share of CO2 captured with CCS in sewage sludge processing
+  name_en: Share of CO2 captured with CCS in sewage sludge processing
+  type: simple.AdditiveNode
+  historical_values: [[2015, 0], [2022, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: ratio
+
+- id: sewage_sludge_processing_emissions
+  name_de: Treibhausgasemissionen Klaerschlammverwertung
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klaerschlammverwertung
+  type: ch.zuerich.SewageSludgeProcessingEmissions
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+  input_datasets: [zuerich/sewage_sludge_processing]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: sewage_sludge_processing_ccs_share
+    to_dimensions: []
+    tags: [ccs_share]
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct, indirect]
+  - id: negative_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
 
 - id: solid_waste_treatment_emissions
   name_en: Solid waste treatment emissions
@@ -2141,14 +2151,14 @@ actions:
   description_de: Die CO2-Emissionen des Kehrichtheizkraftwerks Hagenholz- und der
     Klärschlammverwertungsanlage Werdhölzli werden abgeschieden und dauerhaft gespeichert.
   unit: '%'
-  output_nodes: [waste_incineration_ccs_share]
+  output_nodes: [waste_incineration_ccs_share, sewage_sludge_processing_ccs_share]
   params:
   - id: reduce
     unit: '%'
     is_customizable: false
     value:
     - target:
-        node:
+        node: waste_incineration_ccs_share
       amounts:
       - year: 2023
         amount: 0
@@ -2157,6 +2167,19 @@ actions:
       - year: 2030
         amount: 12
       - year: 2040
+        amount: 0
+    - target:
+        node: sewage_sludge_processing_ccs_share
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2030
+        amount: 0
+      - year: 2031
+        amount: 20
+      - year: 2034
+        amount: 20
+      - year: 2035
         amount: 0
 
 - id: cleaner_electricity_production
@@ -2221,6 +2244,38 @@ actions:
       - year: 2035
         source_amount: 0
         dest_amounts: [70, 30, 50]
+
+- id: increase_other_negative_emissions
+  name_de: Zusätzliche, zukünftige Massnahmen zur Erhöhung der negativen Emissionen
+  name_en: Increase negative emissions
+  group: other
+  type: linear.ReduceAction
+  quantity: emissions
+  description_de: 'Die Stadt Zürich prüft weitere Massnahmen, die dazu beitragen,
+    die negativen Emissionen zu erhöhen, um damit die verbleibenden unvermeidbaren
+    direkten Emissionen bis 2040 auf netto null auszugleichen.'
+  output_dimensions: [emission_scope]
+  output_nodes:
+  - id: negative_emissions
+  unit: kt/a
+  params:
+  - id: reduce
+    unit: kt/a
+    is_customizable: false
+    value:
+    - target:
+        node:
+        categories:
+          emission_scope: negative_emissions
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2030
+        amount: 0
+      - year: 2035
+        amount: -23
+      - year: 2040
+        amount: 0
 
 pages:
 - id: home

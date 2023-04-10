@@ -131,6 +131,43 @@ class BuildingHeatPerArea(AdditiveNode):
         return df
 
 
+class BuildingGeneralElectricityEfficiency(AdditiveNode):
+    def compute(self):
+        idf = self.get_input_dataset_pl()
+        e_node = self.get_input_node(tag='consumption')
+        h_node = self.get_input_node(tag='heat_consumption')
+        f_node = self.get_input_node(tag='floor_area')
+        edf = e_node.get_output_pl(target_node=self)
+        adf = f_node.get_output_pl(target_node=self)
+        hdf = h_node.get_output_pl(target_node=self)
+
+        adf = adf.rename({VALUE_COLUMN: 'Area'})
+        hdf = hdf.filter(pl.col('energy_carrier').eq('electricity')).drop('energy_carrier')
+        edf = edf.filter(pl.col('energy_carrier').eq('electricity')).drop('energy_carrier')
+        hdf = hdf.rename({VALUE_COLUMN: 'HeatElectricity'})
+        edf = edf.rename({VALUE_COLUMN: 'AllElectricity'})
+
+        df = adf.paths.join_over_index(hdf)
+        df = df.paths.join_over_index(edf)
+
+        df = df.paths.join_over_index(idf)
+        df = df.multiply_cols(['Area', 'energy_per_area'], 'EstimatedElectricity', out_unit=df.get_unit('AllElectricity'))
+        df = df.with_columns([pl.col('AllElectricity') - pl.col('HeatElectricity')])
+        df = df.paths.add_sum_column('EstimatedElectricity', 'SumEstimated')
+        df = df.with_columns([pl.col('EstimatedElectricity') * pl.col('AllElectricity') / pl.col('SumEstimated')])
+        m = self.get_default_output_metric()
+        df = df.divide_cols(['EstimatedElectricity', 'Area'], m.column_id, out_unit=m.unit)
+
+        df = df.select_metrics([m.column_id])
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        nodes = list(self.input_nodes)
+        nodes.remove(e_node)
+        nodes.remove(h_node)
+        nodes.remove(f_node)
+        df = self.add_nodes_pl(df, nodes)
+        return df
+
+
 class BuildingHeatUseMix(MixNode):
     def compute(self):
         cnode = self.get_input_node(tag='consumption')
@@ -777,6 +814,8 @@ class NonroadMachineryEmissions(Node):
         efdf = efdf.paths.to_narrow()
         efdf = efdf.with_columns(pl.when(pl.col(YEAR_COLUMN) > 2022).then(True).otherwise(False).alias(FORECAST_COLUMN))
 
+        df = df.with_columns(pl.when(pl.col(YEAR_COLUMN) > 2022).then(pl.lit(True)).otherwise(False).alias(FORECAST_COLUMN))
+
         df = df.paths.join_over_index(efdf, how='outer', index_from='union')
         df = df.drop_nulls()
         m = self.get_default_output_metric()
@@ -860,3 +899,27 @@ class WasteIncinerationEmissions(SimpleNode):
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
         return df
 
+
+class SewageSludgeProcessingEmissions(SimpleNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+        df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        ccs_node = self.get_input_node(tag='ccs_share')
+        cdf = ccs_node.get_output_pl(target_node=self)
+        cdf = cdf.rename({VALUE_COLUMN: 'CCSShare'})
+
+        df = df.paths.join_over_index(cdf).drop_nulls()
+        df = df.filter(pl.col('greenhouse_gases') == 'co2_biogen')
+        m = self.get_default_output_metric()
+        df = df.multiply_cols(['emissions', 'CCSShare'], 'Captured', out_unit=m.unit)
+        df = df.with_columns(pl.lit('negative_emissions').alias('emission_scope')).add_to_index('emission_scope')
+        df = df.drop('greenhouse_gases').select_metrics(['Captured']).rename({'Captured': m.column_id})
+        df = df.with_columns((pl.lit(0) - pl.col(m.column_id)).alias(m.column_id))
+        df = df.paths.to_wide()
+        ncol = df.metric_cols[0]
+        s1col = ncol.replace('negative_emissions', 'scope1')
+        df = df.with_columns(pl.lit(0.0).alias(s1col)).set_unit(s1col, df.get_unit(ncol))
+        df = df.paths.to_narrow()
+        return df
