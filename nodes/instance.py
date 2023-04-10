@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class InstanceFeatures:
     baseline_visible_in_graphs: bool = True
+    show_accumulated_effects: bool = True
 
 
 @dataclass
@@ -290,8 +291,12 @@ class InstanceLoader:
                 param = param_class(**fields)
                 node.add_parameter(param)
 
-                if value is not None:
-                    param.set(value)
+                try:
+                    if value is not None:
+                        param.set(value)
+                except:
+                    logger.error("Error setting parameter %s for node %s" % (param.local_id, node.id))
+                    raise
 
                 for scenario_id, value in scenario_values.items():
                     param.add_scenario_setting(scenario_id, param.clean(value))
@@ -605,10 +610,10 @@ class InstanceLoader:
         self._output_nodes = {}
         with set_default_language(self.instance.default_language):
             self.setup_dimensions()
-        self.generate_nodes_from_emission_sectors()
-        self.setup_global_parameters()
-        self.setup_nodes()
-        self.setup_actions()
+            self.generate_nodes_from_emission_sectors()
+            self.setup_global_parameters()
+            self.setup_nodes()
+            self.setup_actions()
         self.setup_edges()
         self.setup_action_efficiency_pairs()
         self.setup_scenarios()
