@@ -752,6 +752,41 @@ class TransportEmissions(MultiplicativeNode):
         return df
 
 
+class NonroadMachineryEmissions(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        node = self.get_input_node()
+        df = node.get_output_pl(target_node=self)
+        ef = dict({
+            'co2': 3.15,
+            'n2o': 1.43e-04,
+            'ch4': 1.65e-04,
+        })
+        zdf = pl.DataFrame([{YEAR_COLUMN: 2022, 'greenhouse_gases': key, 'ef': val} for key, val in ef.items()])
+        years = pl.DataFrame(range(1990, self.get_end_year() + 1), schema=[YEAR_COLUMN])
+        ef_unit = self.context.unit_registry.parse_units('kg/kg')
+        efdf = ppl.to_ppdf(zdf, meta=ppl.DataFrameMeta(
+            units={'ef': ef_unit},
+            primary_keys=[YEAR_COLUMN, 'greenhouse_gases']
+        ))
+        efdf = efdf.paths.to_wide()
+        meta = efdf.get_meta()
+        zdf = efdf.join(years, on=YEAR_COLUMN, how='outer')
+        zdf = zdf.fill_null(strategy='forward')
+        zdf = zdf.fill_null(strategy='backward')
+        efdf = ppl.to_ppdf(zdf, meta=meta)
+        efdf = efdf.paths.to_narrow()
+        efdf = efdf.with_columns(pl.when(pl.col(YEAR_COLUMN) > 2022).then(True).otherwise(False).alias(FORECAST_COLUMN))
+
+        df = df.paths.join_over_index(efdf, how='outer', index_from='union')
+        df = df.drop_nulls()
+        m = self.get_default_output_metric()
+        df = df.with_columns(pl.lit('scope1').alias('emission_scope')).add_to_index('emission_scope')
+        df = df.multiply_cols(['Value', 'ef'], out_col=m.column_id, out_unit=m.unit).select_metrics([m.column_id])
+        df = convert_to_co2e(df, 'greenhouse_gases')
+        df = df.paths.sum_over_dims(['energy_carrier', 'non_road_machinery'])
+        return df
+
+
 class WasteIncinerationEmissions(SimpleNode):
     def compute(self) -> ppl.PathsDataFrame:
         dfs = self.get_input_datasets_pl()

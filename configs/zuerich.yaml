@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d97baf5bce5a2dde6e13997d20a29e12ade3962a
+  commit: 05da6e2c326b00e9d380a7f365ab03f6d8763b0d
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -38,8 +38,9 @@ normalizations:
 features:
   baseline_visible_in_graphs: false
 action_groups:
+# Handlungsfeld
 - id: buildings
-  name: Heizungsersatz und Ausbau thermische Netze
+  name: Gebäude
   name_en: Buildings
   color: '#002F96'
 - id: mobility
@@ -382,6 +383,21 @@ dimensions:
     label: Flugverkehr
     label_en: Aviation
 
+- id: non_road_machinery
+  label: Non-Road Maschinen
+  label_en: Non-road machinery
+  categories:
+  - id: building_construction_machinery
+    label: Maschinen Hochbau
+  - id: civil_construction_machinery
+    label: Maschinen Tiefbau
+  - id: industrial_vehicles
+    label: Industrielle Fahrzeuge
+  - id: forestry_vehicles
+    label: Forstwirtschaftliche Fahrzeuge
+  - id: agricultural_vehicles
+    label: Landwirtschaftliche Fahrzeuge
+
 - id: greenhouse_gases
   label: Treibhausgase
   label_en: Greenhouse gases
@@ -648,13 +664,13 @@ emission_sectors:
   color: '#E22D53'
   input_dataset_processors: [LinearInterpolation]
 
-- id: ippu_emissions
-  name_en: Industrial and commercial process emissions
-  name_de: Industrie- und Gewerbeprozesse
-  part_of: net_emissions
-  category: ippu
-  color: '#8DAFBC'
-  input_dataset_processors: [LinearInterpolation]
+# - id: ippu_emissions
+#   name_en: Industrial and commercial process emissions
+#   name_de: Industrie- und Gewerbeprozesse
+#   part_of: net_emissions
+#   category: ippu
+#   color: '#8DAFBC'
+#   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name_en: Agriculture and forestry emissions
@@ -1435,9 +1451,9 @@ nodes:
   - id: transport_fuel_emission_factor
     tags: [fuel_emission_factor]
     to_dimensions:
-      - id: emission_scope
-      - id: greenhouse_gases
-      - id: vehicle_type
+    - id: emission_scope
+    - id: greenhouse_gases
+    - id: vehicle_type
   output_dimensions: [emission_scope, vehicle_type]
 
 - id: transport_fuel_emission_factor
@@ -1499,6 +1515,32 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+
+- id: non_road_machinery_fuel_consumption
+  name_de: Kraftstoffverbrauch Non-Road Maschinen
+  name_en: Fuel consumption of non-road machinery
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: kt/a
+  input_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [energy_carrier, non_road_machinery]
+  input_datasets:
+  - id: zuerich/non_road_machinery_fuel_consumption
+  input_dataset_processors: [LinearInterpolation]
+
+
+- id: non_road_machinery_emissions
+  name_de: Treibhausgasemissionen Non-Road Maschinen
+  name_en: Fuel consumption of non-road machinery
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.NonroadMachineryEmissions
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [emission_scope]
+  input_nodes: [non_road_machinery_fuel_consumption]
+  output_nodes: [transportation_emissions]
 
 - id: waste_incineration_amount
   name_de: Amount of incinerated waste
@@ -1784,11 +1826,10 @@ actions:
 - id: reduce_transportation_demand
   name_en: Reduce transportation demand
   name_de: Vermeidung von Verkehrsaufkommen
-  description_de: 'Dieses Massnahmenpaket umfasst Massnahmen,
-    welche dazu führen, die zurückgelegten Distanzen insgesamt zu verringern.
-    Dies betrifft alle Wege, unabhängig davon, ob sie mit dem MIV, dem öV, dem
-    Fahrrad oder zu Fuss zurückgelegt werden. Dies kann durch eine Stadt der kurzen
-    Wege erreicht werden.'
+  description_de: Dieses Massnahmenpaket umfasst Massnahmen, welche dazu führen, die
+    zurückgelegten Distanzen insgesamt zu verringern. Dies betrifft alle Wege, unabhängig
+    davon, ob sie mit dem MIV, dem öV, dem Fahrrad oder zu Fuss zurückgelegt werden.
+    Dies kann durch eine Stadt der kurzen Wege erreicht werden.
   group: mobility
   type: linear.ReduceAction
   unit: pkm/cap/a
@@ -1815,11 +1856,11 @@ actions:
   group: mobility
   type: shift.ShiftAction
   quantity: mix
-  description_de: 'Dieses Massnahmenpaket umfasst die relevanten Massnahmen,
-    um den Verkehr von motorisiertem Individualverkehr hin zu öffentlichem Verkehr,
-    Velo- oder Fussverkehr zu verlagern. Es geht dabei insbesondere um Massnahmen
-    auf der Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige
-    Verbesserung des öffentlichen Verkehrs, der Velo- und Fusswege.'
+  description_de: Dieses Massnahmenpaket umfasst die relevanten Massnahmen, um den
+    Verkehr von motorisiertem Individualverkehr hin zu öffentlichem Verkehr, Velo-
+    oder Fussverkehr zu verlagern. Es geht dabei insbesondere um Massnahmen auf der
+    Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige Verbesserung
+    des öffentlichen Verkehrs, der Velo- und Fusswege.
   output_nodes:
   - id: transport_modal_split
   unit: '%'
@@ -2002,6 +2043,92 @@ actions:
         source_amount: -0.3
         dest_amounts: [70, 10, 10]
 
+- id: increase_vehicle_efficiency
+  name_de: Effizientere Fahrzeuge
+  name_en: Increase vehicle efficiency
+  group: mobility
+  type: linear.ReduceAction
+  quantity: fuel_consumption
+  description_de: Es werden sparsamere und kleinere Fahrzeuge eingesetzt.
+  unit: g/vkm
+  output_nodes: [transport_fuel_factor]
+  params:
+  - id: reduce
+    unit: g/vkm
+    is_customizable: false
+    value:
+    - target:
+        node:
+        categories:
+          energy_carrier: petrol
+          vehicle_type: car_petrol
+      amounts:
+      - year: 2023
+        amount: -1
+      - year: 2030
+        amount: -0.5
+      - year: 2040
+        amount: -0.5
+    - target:
+        node:
+        categories:
+          energy_carrier: diesel
+          vehicle_type: car_diesel
+      amounts:
+      - year: 2023
+        amount: -1
+      - year: 2030
+        amount: -0.5
+      - year: 2040
+        amount: -0.5
+    - target:
+        node:
+        categories:
+          energy_carrier: petrol
+          vehicle_type: car_plugin_hybrid
+      amounts:
+      - year: 2023
+        amount: -0.5
+      - year: 2030
+        amount: -0.25
+      - year: 2040
+        amount: -0.25
+    - target:
+        node:
+        categories:
+          energy_carrier: diesel
+          vehicle_type: van_diesel
+      amounts:
+      - year: 2023
+        amount: -1.5
+      - year: 2030
+        amount: -0.7
+      - year: 2040
+        amount: -0.7
+    - target:
+        node:
+        categories:
+          energy_carrier: diesel
+          vehicle_type: lorry_diesel
+      amounts:
+      - year: 2023
+        amount: -2.5
+      - year: 2030
+        amount: -2
+      - year: 2040
+        amount: -1
+    - target:
+        node:
+        categories:
+          energy_carrier: diesel
+          vehicle_type: buses_diesel
+      amounts:
+      - year: 2023
+        amount: -3
+      - year: 2030
+        amount: -2
+      - year: 2040
+        amount: -1
 
 # Paket 7
 - id: waste_incineration_ccs_installation
@@ -2011,8 +2138,8 @@ actions:
   type: linear.ReduceAction
   quantity: ratio
   description_en: Install CCS in waste incineration
-  description_de: Die CO2-Emissionen des Kehrichtheizkraftwerks Hagenholz, der Klärschlammverwertungsanlage
-    Werdhölzli und der Biogasaufbereitung werden abgeschieden und dauerhaft gespeichert.
+  description_de: Die CO2-Emissionen des Kehrichtheizkraftwerks Hagenholz- und der
+    Klärschlammverwertungsanlage Werdhölzli werden abgeschieden und dauerhaft gespeichert.
   unit: '%'
   output_nodes: [waste_incineration_ccs_share]
   params:
