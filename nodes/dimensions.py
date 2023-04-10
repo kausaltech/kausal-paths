@@ -189,7 +189,7 @@ class Dimension(BaseModel):
         return val
 
 
-def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict) -> TranslatedString:
+def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict) -> TranslatedString | None:
     f = cls.__fields__[field_name]
     field_val = obj.get(field_name)
     langs: dict[str, str] = {}
@@ -224,5 +224,10 @@ def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict)
             lang = default_language
         langs[lang] = val
 
+    if not langs:
+        if not f.required:
+            return None
+        else:
+            raise KeyError('%s: Value missing' % field_name)
     ts = TranslatedString(default_language=default_language, **langs)
     return ts
