@@ -4,12 +4,14 @@ import logging
 import graphene
 from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
+from numpy import require
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
 
 from common import polars as ppl
 from nodes.context import Context
+from nodes.goals import NodeGoalsEntry
 from nodes.normalization import Normalization
 from paths.graphql_helpers import (
     GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
@@ -48,6 +50,40 @@ class ActionGroupType(graphene.ObjectType):
 
 class InstanceFeaturesType(graphene.ObjectType):
     baseline_visible_in_graphs = graphene.Boolean(required=True)
+    show_accumulated_effects = graphene.Boolean(required=True)
+
+
+class InstanceYearlyGoalType(graphene.ObjectType):
+    year = graphene.Int(required=True)
+    goal = graphene.Float(required=False)
+    actual = graphene.Float(required=False)
+    is_interpolated = graphene.Boolean(required=False)
+    is_forecast = graphene.Boolean(required=True)
+
+
+class InstanceGoalDimension(graphene.ObjectType):
+    dimension = graphene.String(required=True)
+    #categories = graphene.List(graphene.NonNull(graphene.String), required=True)
+    category = graphene.String(required=True)
+
+
+class InstanceGoalEntry(graphene.ObjectType):
+    id = graphene.ID(required=True)
+    label = graphene.String(required=False)
+    outcome_node: 'Node' = graphene.Field('nodes.schema.NodeType', required=True)  # type: ignore
+    dimensions = graphene.List(graphene.NonNull(InstanceGoalDimension), required=True)
+    default = graphene.Boolean(required=True)
+    values = graphene.List(graphene.NonNull(InstanceYearlyGoalType), required=True)
+    unit = graphene.Field('paths.schema.UnitType', required=True)
+
+    _goal: NodeGoalsEntry
+
+    def resolve_values(self, info):
+        return self._goal.get_actual(self.outcome_node)
+
+    def resolve_unit(self, info):
+        df = self._goal._get_values_df(self.outcome_node)
+        return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
 
 
 class InstanceType(graphene.ObjectType):
@@ -69,6 +105,7 @@ class InstanceType(graphene.ObjectType):
     theme_identifier = graphene.String()
     action_groups = graphene.List(graphene.NonNull(ActionGroupType), required=True)
     features = graphene.Field(InstanceFeaturesType, required=True)
+    goals = graphene.List(graphene.NonNull(InstanceGoalEntry), id=graphene.ID(required=False), required=True)
 
     @staticmethod
     def resolve_lead_title(root, info):
@@ -88,6 +125,47 @@ class InstanceType(graphene.ObjectType):
     def resolve_hostname(root, info, hostname):
         return InstanceConfig.objects.get(identifier=root.id)\
             .hostnames.filter(hostname__iexact=hostname).first()
+
+    @staticmethod
+    def resolve_goals(root: Instance, info: GQLInstanceInfo, id: str | None = None):
+        ctx = root.context
+        outcome_nodes = ctx.get_outcome_nodes()
+        goals: list[NodeGoalsEntry] = []
+        goal_nodes: list[Node] = []
+        for node in outcome_nodes:
+            if not node.goals:
+                continue
+            for ge in node.goals.__root__:
+                if not ge.is_main_goal:
+                    continue
+                goals.append(ge)
+                goal_nodes.append(node)
+
+        ret = []
+        for node, goal in zip(goal_nodes, goals):
+            id_parts: list[str] = [node.id]
+            if goal.dimensions:
+                id_parts.append(goal.dim_to_path())
+            goal_id = '/'.join(id_parts)
+
+            if id is not None:
+                if goal_id != id:
+                    continue
+
+            dims = []
+            for dim_id, path in goal.dimensions.items():
+                dims.append(InstanceGoalDimension(dimension=dim_id, category=path.group or path.category))
+
+            out = InstanceGoalEntry(
+                id=goal_id,
+                label=str(goal.label) if goal.label else str(node.name),
+                outcome_node=node,
+                dimensions=dims,
+                default=goal.default,
+            )
+            out._goal = goal
+            ret.append(out)
+        return ret
 
 
 class YearlyValue(graphene.ObjectType):
@@ -130,6 +208,7 @@ class ForecastMetricType(graphene.ObjectType):
 
 class MetricDimensionCategoryType(graphene.ObjectType):
     id = graphene.ID(required=True)
+    original_id = graphene.ID(required=False)
     label = graphene.String(required=True)
     color = graphene.String(required=False)
     order = graphene.Int(required=False)
@@ -137,6 +216,7 @@ class MetricDimensionCategoryType(graphene.ObjectType):
 
 class MetricDimensionType(graphene.ObjectType):
     id = graphene.ID(required=True)
+    original_id = graphene.ID(required=False)
     label = graphene.String(required=True)
     categories = graphene.List(graphene.NonNull(MetricDimensionCategoryType), required=True)
 

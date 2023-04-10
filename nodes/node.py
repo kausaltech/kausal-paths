@@ -311,8 +311,9 @@ class Node:
             self.goals = NodeGoals.validate(goals)
         else:
             if target_year_goal is not None:
+                is_main_goal = self.is_outcome
                 self.goals = NodeGoals.validate(
-                    [dict(values=[dict(year=context.target_year, value=target_year_goal)])]
+                    [dict(values=[dict(year=context.target_year, value=target_year_goal)], is_main_goal=is_main_goal)]
                 )
             else:
                 self.goals = None
@@ -463,7 +464,6 @@ class Node:
     def get_input_datasets(self) -> List[pd.DataFrame]:
         dfs = self.get_input_datasets_pl()
         return [df.to_pandas() for df in dfs]
-
 
     @overload
     def get_input_dataset_pl(self, required: Literal[False]) -> Optional[ppl.PathsDataFrame]: ...

@@ -1,11 +1,12 @@
-from __future__ import annotations
-
 import typing
+from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, ValidationError, root_validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator
 import polars as pl
 from common import polars as ppl
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
+from common.i18n import I18nString, TranslatedString
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.dimensions import validate_translated_string
 from nodes.exceptions import NodeError
 
 if typing.TYPE_CHECKING:
@@ -18,6 +19,15 @@ class GoalValue(BaseModel):
     is_interpolated: bool = False
 
 
+@dataclass
+class GoalActualValue:
+    year: int
+    goal: float | None
+    actual: float | None
+    is_forecast: bool
+    is_interpolated: bool
+
+
 class NodeGoalsDimension(BaseModel):
     group: str | None
     category: str | None
@@ -25,9 +35,12 @@ class NodeGoalsDimension(BaseModel):
 
 class NodeGoalsEntry(BaseModel):
     values: list[GoalValue]
+    label: I18nString | None = None
     normalized_by: str | None = None
     dimensions: dict[str, NodeGoalsDimension] = Field(default_factory=dict)
     linear_interpolation: bool = False
+    is_main_goal: bool = False
+    default: bool = False
 
     def dim_to_path(self) -> str:
         entries = []
@@ -35,7 +48,7 @@ class NodeGoalsEntry(BaseModel):
             entries.append('%s:%s' % (dim_id, path.group or path.category))
         return '/'.join(entries)
 
-    def get_values(self, node: Node):
+    def get_normalization_info(self, node: 'Node'):
         context = node.context
         if self.normalized_by:
             if self.normalized_by not in context.normalizations:
@@ -46,7 +59,6 @@ class NodeGoalsEntry(BaseModel):
             goal_norm = None
 
         m = node.get_default_output_metric()
-        zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in self.values], m.column_id: [x.value for x in self.values]})
         if goal_norm:
             for q in goal_norm.quantities:
                 if q.id == m.quantity:
@@ -56,7 +68,14 @@ class NodeGoalsEntry(BaseModel):
             unit = q.unit
         else:
             unit = m.unit
+        return goal_norm, unit
 
+
+    def _get_values_df(self, node: 'Node'):
+        context = node.context
+        goal_norm, unit = self.get_normalization_info(node)
+        m = node.get_default_output_metric()
+        zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in self.values], m.column_id: [x.value for x in self.values]})
         df = ppl.to_ppdf(zdf, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={m.column_id: unit}))
         if goal_norm:
             df = goal_norm.denormalize_output(m, df)
@@ -77,7 +96,50 @@ class NodeGoalsEntry(BaseModel):
 
         if context.active_normalization:
             _, df = context.active_normalization.normalize_output(m, df)
-        return [GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id], is_interpolated=row['IsInterpolated']) for row in df.to_dicts()]
+        return df
+
+    def get_values(self, node: 'Node'):
+        df = self._get_values_df(node)
+        m = node.get_default_output_metric()
+        return [
+            GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id], is_interpolated=row['IsInterpolated'])
+            for row in df.to_dicts()
+        ]
+
+    def get_actual(self, node: 'Node') -> list[GoalActualValue]:
+        df = node.get_output_pl()
+        context = node.context
+        for dim_id, path in self.dimensions.items():
+            dim = context.dimensions[dim_id]
+            if path.group:
+                f_expr = dim.ids_to_groups(pl.col(dim_id)).eq(path.group)
+            else:
+                f_expr = pl.col(dim_id).eq(path.category)
+            df = df.filter(f_expr)
+        df = df.paths.sum_over_dims()
+        m = node.get_default_output_metric()
+        if context.active_normalization:
+            _, df = context.active_normalization.normalize_output(m, df)
+        gdf = self._get_values_df(node)
+        gdf = gdf.rename({m.column_id: 'Goal'})
+        df = df.paths.join_over_index(gdf).sort(YEAR_COLUMN)
+        out = [
+            GoalActualValue(
+                year=row[YEAR_COLUMN], actual=row[m.column_id], is_forecast=row[FORECAST_COLUMN],
+                is_interpolated=row['IsInterpolated'], goal=row['Goal'],
+            ) for row in df.to_dicts()
+        ]
+        return out
+
+    @root_validator(pre=True)
+    @classmethod
+    def validate_translated_fields(cls, val: dict):
+        for fn, f in cls.__fields__.items():
+            t = f.type_
+            if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
+                val[fn] = validate_translated_string(cls, fn, val)
+        return val
+
 
 
 class NodeGoals(BaseModel):
@@ -86,6 +148,8 @@ class NodeGoals(BaseModel):
     @root_validator
     @classmethod
     def validate_unique(cls, data: dict):
+        if not data:
+            return data
         entries: list[NodeGoalsEntry] = data['__root__']
         paths = set()
         for entry in entries:
