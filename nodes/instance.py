@@ -5,7 +5,8 @@ import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Type, overload
+from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
 import pint
@@ -17,6 +18,7 @@ from common.i18n import TranslatedString, gettext_lazy as _, set_default_languag
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
+from nodes.goals import NodeGoalsEntry
 from nodes.node import Edge, Node
 from nodes.normalization import Normalization
 from nodes.scenario import CustomScenario, Scenario
@@ -30,10 +32,11 @@ from . import Context, Dataset, DVCDataset, FixedDataset
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@pydantic_dataclass
 class InstanceFeatures:
     baseline_visible_in_graphs: bool = True
     show_accumulated_effects: bool = True
+    show_significant_digits: int = 3
 
 
 @dataclass
@@ -95,6 +98,35 @@ class Instance:
     def warning(self, msg: Any, *args):
         self.logger.warning(msg, *args)
 
+    @overload
+    def get_goals(self, goal_id: str) -> Tuple[Node, NodeGoalsEntry]: ...
+
+    @overload
+    def get_goals(self) -> list[Tuple[Node, NodeGoalsEntry]]: ...
+
+    def get_goals(self, goal_id: str | None = None):
+        ctx = self.context
+        outcome_nodes = ctx.get_outcome_nodes()
+        goals: list[NodeGoalsEntry] = []
+        goal_nodes: list[Node] = []
+        for node in outcome_nodes:
+            if not node.goals:
+                continue
+            for ge in node.goals.__root__:
+                if not ge.is_main_goal:
+                    continue
+                if goal_id is not None:
+                    if ge.get_id(node) != goal_id:
+                        continue
+                goals.append(ge)
+                goal_nodes.append(node)
+
+        if goal_id:
+            if len(goals) != 1:
+                raise Exception("Goal with id %s not found", goal_id)
+            return goal_nodes[0], goals[0]
+
+        return list(zip(goal_nodes, goals))
 
 class InstanceLoader:
     instance: Instance

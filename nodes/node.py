@@ -1109,7 +1109,8 @@ class Node:
         return nx.has_path(self.context.node_graph, self.id, other.id)
 
     def generate_baseline_values(self):
-        assert self.baseline_values is None
+        if self.baseline_values is not None:
+            self.logger.error('Baseline values already calculated')
         assert self.context.active_scenario.id == 'baseline'
         self.baseline_values = self.get_output_pl()
 

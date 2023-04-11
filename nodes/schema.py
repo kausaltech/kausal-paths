@@ -1,8 +1,10 @@
 from typing import Optional
 import logging
+import dataclasses
 
 import graphene
 from graphql import GraphQLResolveInfo
+import graphql
 from graphql.error import GraphQLError
 from numpy import require
 from wagtail.rich_text import expand_db_html
@@ -22,7 +24,7 @@ from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 )
-from .instance import Instance
+from .instance import Instance, InstanceFeatures
 from .metric import DimensionalFlow, DimensionalMetric, Metric
 from .models import InstanceConfig, NodeConfig
 from .scenario import Scenario
@@ -48,9 +50,22 @@ class ActionGroupType(graphene.ObjectType):
         return [act for act in context.get_actions() if act.group == root]
 
 
-class InstanceFeaturesType(graphene.ObjectType):
-    baseline_visible_in_graphs = graphene.Boolean(required=True)
-    show_accumulated_effects = graphene.Boolean(required=True)
+def create_from_dataclass(kls):
+    fields = dataclasses.fields(kls)
+    gfields = {}
+    for field in fields:
+        if field.type == bool:
+            gf = graphene.Boolean
+        elif field.type == int:
+            gf = graphene.Int
+        else:
+            raise Exception("Unsupported type: %s" % field.type)
+        gfields[field.name] = gf(required=True)
+    out = type(kls.__name__ + 'Type', (graphene.ObjectType,), gfields)
+    return out
+
+
+InstanceFeaturesType = create_from_dataclass(InstanceFeatures)
 
 
 class InstanceYearlyGoalType(graphene.ObjectType):
@@ -128,26 +143,9 @@ class InstanceType(graphene.ObjectType):
 
     @staticmethod
     def resolve_goals(root: Instance, info: GQLInstanceInfo, id: str | None = None):
-        ctx = root.context
-        outcome_nodes = ctx.get_outcome_nodes()
-        goals: list[NodeGoalsEntry] = []
-        goal_nodes: list[Node] = []
-        for node in outcome_nodes:
-            if not node.goals:
-                continue
-            for ge in node.goals.__root__:
-                if not ge.is_main_goal:
-                    continue
-                goals.append(ge)
-                goal_nodes.append(node)
-
         ret = []
-        for node, goal in zip(goal_nodes, goals):
-            id_parts: list[str] = [node.id]
-            if goal.dimensions:
-                id_parts.append(goal.dim_to_path())
-            goal_id = '/'.join(id_parts)
-
+        for node, goal in root.get_goals():
+            goal_id = goal.get_id(node)
             if id is not None:
                 if goal_id != id:
                     continue
@@ -285,7 +283,7 @@ class NodeType(graphene.ObjectType):
     unit = graphene.Field('paths.schema.UnitType')
     quantity = graphene.String()
     target_year_goal = graphene.Float(deprecation_reason='Replaced by "goals".')
-    goals = graphene.List(graphene.NonNull(NodeGoal), required=True)
+    goals = graphene.List(graphene.NonNull(NodeGoal), active_goal=graphene.ID(required=False), required=True)
     is_action = graphene.Boolean(required=True)
     decision_level = graphene.Field(ActionDecisionLevel)
     input_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
@@ -303,15 +301,19 @@ class NodeType(graphene.ObjectType):
 
     # TODO: Many nodes will output multiple time series. Remove metric
     # and handle a single-metric node as a special case in the UI??
-    metric = graphene.Field(ForecastMetricType)
+    metric = graphene.Field(ForecastMetricType, goal_id=graphene.ID(required=False))
     outcome = graphene.Field(DimensionalMetricType)
 
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
-    impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False))
+    impact_metric = graphene.Field(ForecastMetricType, target_node_id=graphene.ID(required=False), goal_id=graphene.ID(required=False))
 
     metrics = graphene.List(graphene.NonNull(ForecastMetricType))
     dimensional_flow = graphene.Field(DimensionalFlowType, required=False)
+    #metric_dim = graphene.Field(
+    #    DimensionalMetricType, include_impact=graphene.Boolean(default=False), impact_action_node=graphene.ID(required=False),
+    #    required=False
+    #)
     metric_dim = graphene.Field(DimensionalMetricType, required=False)
 
     # TODO: input_datasets, baseline_values, context
@@ -364,8 +366,8 @@ class NodeType(graphene.ObjectType):
         return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
 
     @staticmethod
-    def resolve_metric(root: Node, info):
-        return Metric.from_node(root)
+    def resolve_metric(root: Node, info: GQLInstanceInfo, goal_id: str | None = None):
+        return Metric.from_node(root, goal_id=goal_id)
 
     @staticmethod
     def resolve_dimensional_flow(root: Node, info: GraphQLResolveInfo):
@@ -383,9 +385,21 @@ class NodeType(graphene.ObjectType):
         return ret
 
     @staticmethod
-    def resolve_impact_metric(root: Node, info: GraphQLResolveInfo, target_node_id: str = None):
-        context = info.context.instance.context
+    def resolve_impact_metric(root: Node, info: GQLInstanceInfo, target_node_id: str | None = None, goal_id: str | None = None):
+        instance = info.context.instance
+        context = instance.context
         upstream_node = getattr(info.context, '_upstream_node', None)
+
+        if goal_id is not None:
+            try:
+                goal_node, goal = instance.get_goals(goal_id=goal_id)
+            except:
+                raise GraphQLError("Goal not found", info.field_nodes)
+        else:
+            goal_node = None
+            goal = None
+
+        target_node: Node
         if target_node_id is not None:
             if target_node_id not in context.nodes:
                 raise GraphQLError("Node %s not found" % target_node_id, info.field_nodes)
@@ -394,21 +408,24 @@ class NodeType(graphene.ObjectType):
         elif upstream_node is not None:
             source_node = upstream_node
             target_node = root
+        elif goal_node is not None:
+            source_node = root
+            target_node = goal_node
         else:
             # FIXME: Determine a "default" target node from instance
-            source_node = root
-            for node_id in ('net_emissions', 'direct_emissions'):
-                if node_id not in context.nodes:
-                    continue
-                target_node = context.get_node(node_id)
-                break
-            else:
+            outcome_nodes = context.get_outcome_nodes()
+            if not len(outcome_nodes):
                 raise GraphQLError("No default target node available", info.field_nodes)
+            source_node = root
+            target_node = outcome_nodes[0]
 
         if not isinstance(source_node, ActionNode):
             return None
 
         df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
+        if goal is not None:
+            df = goal.filter_df(target_node, df)
+
         df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
         if df.dim_ids:
             # FIXME: Check if can be summed?
@@ -462,10 +479,18 @@ class NodeType(graphene.ObjectType):
         return expand_db_html(obj.description_i18n)
 
     @staticmethod
-    def resolve_goals(root: Node, info: GQLInstanceInfo):
+    def resolve_goals(root: Node, info: GQLInstanceInfo, active_goal: str | None = None):
         if root.goals is None:
             return []
-        goal = root.goals.get_dimensionless()
+        goal = None
+        if active_goal:
+            goal_node, agoal = info.context.instance.get_goals(active_goal)
+            if agoal.dimensions:
+                # FIXXME
+                dim_id, cats = list(agoal.dimensions.items())[0]
+                goal = root.goals.get_exact_match(dim_id, group_id=cats.group, category_id=cats.category)
+        if not goal:
+            goal = root.goals.get_dimensionless()
         if not goal:
             return []
         return goal.get_values(root)

@@ -53,13 +53,20 @@ class Metric:
         self.split_values = None
 
     @staticmethod
-    def from_node(node: Node):
+    def from_node(node: Node, goal_id: str | None = None):
         try:
             m = node.get_default_output_metric()
         except Exception:
             return None
 
         df = node.get_output_pl()
+
+        if goal_id:
+            _, goal = node.context.instance.get_goals(goal_id)
+            df = goal.filter_df(node, df)
+        else:
+            goal = None
+
         if node.context.active_normalization:
             _, df = node.context.active_normalization.normalize_output(m, df)
 
@@ -77,6 +84,9 @@ class Metric:
             bdf = node.baseline_values
             if node.context.active_normalization:
                 _, bdf = node.context.active_normalization.normalize_output(m, bdf)
+
+            if goal:
+                bdf = goal.filter_df(node, bdf)
 
             bdf_meta = bdf.get_meta()
             if bdf_meta.dim_ids:

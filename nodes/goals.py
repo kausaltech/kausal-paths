@@ -48,6 +48,32 @@ class NodeGoalsEntry(BaseModel):
             entries.append('%s:%s' % (dim_id, path.group or path.category))
         return '/'.join(entries)
 
+    def get_dimension_categories(self, node: 'Node') -> dict[str, list[str]]:
+        out = {}
+        for dim_id, gdim in self.dimensions.items():
+            dim = node.context.dimensions[dim_id]
+            if gdim.category:
+                cats = [gdim.category]
+            else:
+                assert gdim.group is not None
+                cats = [cat.id for cat in dim.get_cats_for_group(gdim.group)]
+            out[dim_id] = cats
+        return out
+
+    def filter_df(self, node: 'Node', df: ppl.PathsDataFrame):
+        goal_dims = self.get_dimension_categories(node)
+        for dim_id in df.dim_ids:
+            goal_cats = goal_dims.get(dim_id)
+            if goal_cats is not None:
+                df = df.filter(pl.col(dim_id).is_in(goal_cats))
+        return df
+
+    def get_id(self, node: 'Node') -> str:
+        id_parts: list[str] = [node.id]
+        if self.dimensions:
+            id_parts.append(self.dim_to_path())
+        return '/'.join(id_parts)
+
     def get_normalization_info(self, node: 'Node'):
         context = node.context
         if self.normalized_by:
