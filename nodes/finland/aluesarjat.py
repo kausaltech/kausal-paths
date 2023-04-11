@@ -345,7 +345,7 @@ class BuildingHeatPerArea(DivisiveNode):
             print('%s: %s input from node 2 (%s):' % (self.operation_label, self.id, n2.id))
             self.print(df2)
 
-        df = self.perform_operation(n1, n2, df1, df2)
+        df = self.perform_operation([n1, n2], [df1, df2])
 
         df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(None)).drop_nulls()
         df = df.filter(~pl.col(FORECAST_COLUMN))
