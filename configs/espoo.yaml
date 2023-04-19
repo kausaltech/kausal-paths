@@ -1,3 +1,13 @@
+# HNE 2030 -skenaario, Kausal vs. Sitowise (kt/a) -> fixed value
+# Kaukolämpö 20.5 . 12.6 -> 10.0
+# Öljylämmitys 17.3 . 1.4 -> 3.4
+# Sähkölämmitys 35.4 + 5 maalämpö . 22.3 -> 21.8 + 3.4
+# Kulutussähkö 120 . 82.6 -> 83.3
+# Liikenne 190 . 161 -> 169
+# Teollisuus ja työkoneet 6.2 . 6.5
+# Jätteiden käsittely 5.5 . 7.6
+# Maatalous 0.9 . 0.9
+
 id: espoo
 default_language: fi
 supported_languages: [sv, en]
@@ -538,6 +548,28 @@ nodes:
   output_nodes:
   - consumer_electricity_residence_energy
 
+- id: electric_heating_emission_factor_adjustment
+  name: Korjaus lämmityssähkön päästökertoimeen
+  name_en: Electric heating emission factor adjustment
+  name_sv: Korrigering av prognosen för emissionskoefficient för värmeel
+  description: Tämän verran lämmityssähkön päästökertoimen oletetaan laskevan myös pessimistisessä
+    skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta 2021.
+  description_en: This is how much the emission factor of heating electricity is expected
+    to increase also in the pessimistic scenario compared to the latest value of HSY
+    statistics for 2021.
+  description_sv: Så här mycket förväntas emissionskoefficient för värmeel minska även i
+    det pessimistiska scenariot, jämfört med det senaste värdet i HRM-statistiken
+    för 2021.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: g/kWh
+  historical_values: [[2010, 0], [2021, 0]]
+  forecast_values: [[2022, -4.308], [2023, -8.616], [2024, -12.924], [2025, -17.232],
+    [2026, -21.54], [2027, -25.848], [2028, -30.156], [2029, -34.464], [2030, -38.772],
+    [2031, -43.08], [2032, -47.388], [2033, -51.696], [2034, -56.004], [2035, -60.312]]
+  output_nodes:
+  - electric_heating_emission_factor
+
 pages:
 - id: home
   name: Hiilineutraali Espoo -päästöskenaario
@@ -712,7 +744,7 @@ actions:
   params:
   - id: target_year_level
     min_value: -500
-    max_value: 1600
+    max_value: 1000
     unit: GWh/a
     description: Kulutussähkön käytön muutos 2022-2035
     description_en: Change in household electricity consumption 2022–2035
@@ -889,9 +921,9 @@ actions:
         source_amount: -50000
         dest_amounts: [50, 50]
       - year: 2025
-        source_amount: -100000
+        source_amount: -210000
         dest_amounts: [50, 50]
-      - year: 2035
+      - year: 2030
         source_amount: -50000
         dest_amounts: [50, 50]
 
@@ -944,9 +976,9 @@ actions:
         source_amount: -11000
         dest_amounts: [50, 50]
       - year: 2025
-        source_amount: -22000
+        source_amount: -39000
         dest_amounts: [50, 50]
-      - year: 2035
+      - year: 2030
         source_amount: -10000
         dest_amounts: [50, 50]
 
@@ -999,9 +1031,9 @@ actions:
         source_amount: -10000
         dest_amounts: [50, 50]
       - year: 2025
-        source_amount: -20000
+        source_amount: -31000
         dest_amounts: [50, 50]
-      - year: 2035
+      - year: 2030
         source_amount: -10000
         dest_amounts: [50, 50]
 
@@ -1033,7 +1065,7 @@ actions:
   group: buildings
   output_nodes:
   - district_heating_emission_factor
-  forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -116.0]]
+  forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -122.5]]
   unit: g/kWh
   params:
   - id: multiplier
@@ -1295,11 +1327,13 @@ actions:
     procent fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot
     HNE2030 vara endast 4 procent och 11 procent på motsvarande sätt dvs. -4 procent
     och -11 procent jämfört med grundscenariot.
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.CumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2022, 0.0], [2030, -27.78455812], [2035, -80.38998816]]
+  forecast_values: [[2022, 0], [2023, -16.518], [2024, -16.518], [2025, -16.518], 
+    [2026, -16.518], [2027, -16.518], [2028, -16.518], [2029, -16.518], [2030, -16.518],
+    [2031, -34.599], [2032, -34.599], [2033, -34.599], [2034, -34.599], [2035, -34.599]]
   output_nodes:
   - car_energy
 
@@ -1688,7 +1722,7 @@ scenarios:
   - id: reduce_machinery_emissions.target_year_level
     value: -2.05
   - id: change_consumer_electricity.target_year_level
-    value: 1600.0
+    value: 600
 
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
