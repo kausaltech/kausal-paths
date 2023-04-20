@@ -35,6 +35,10 @@ action_groups:
   name: Liikenne
   name_en: Traffic
   name_sv: Trafik
+- id: transportation_additional
+  name: Liikenteen lisätoimet
+  name_en: Transportation, additional
+  name_sv: Trafik, ytterligare
 - id: buildings
   name: Rakennukset
   name_en: Buildings
@@ -1427,7 +1431,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
@@ -1455,7 +1459,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
@@ -1483,7 +1487,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - van_traffic_emission_factor
@@ -1511,7 +1515,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
@@ -1536,7 +1540,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -1561,7 +1565,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -1586,7 +1590,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -1611,7 +1615,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy
@@ -1636,7 +1640,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
-  group: transportation
+  group: transportation_additional
   forecast_values: [[2022, 0], [2035, 0]]
   output_nodes:
   - car_energy

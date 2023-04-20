@@ -243,7 +243,7 @@ nodes:
     tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon
     (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin
     hakkuin.</p><p>Tähän päättelyyn nojaten hypoteesi antaa puukaupalle huomattavasti suuremman arvon,
-    joka tässä harjoitusmallissa on markitty välille 200-290 yksikköä (luvuilla ei ole toistaiseksi
+    joka tässä harjoitusmallissa on merkitty välille 200-290 yksikköä (luvuilla ei ole toistaiseksi
     mitään vastinetta reaalimaailmassa.)</p>
   references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
   type: values.HypothesisNode
@@ -260,7 +260,7 @@ nodes:
 
 - id: biodiversity_in_state_forests
   name: Luonnon monimuotoisuus valtion metsissä
-  description: Tämä solmu tarkastelee nimenomaan valtion metsian monimuotoisuutta esimerkiksi
+  description: Tämä solmu tarkastelee nimenomaan valtion metsien monimuotoisuutta esimerkiksi
     uhanalaisten lajien osuutena.
   type: simple.AdditiveNode
   quantity: number
