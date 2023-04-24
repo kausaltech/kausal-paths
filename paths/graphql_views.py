@@ -202,7 +202,7 @@ class PathsGraphQLView(GraphQLView):
         request._referer = self.request.META.get('HTTP_REFERER')
         transaction = sentry_sdk.Hub.current.scope.transaction
         logger.info('GraphQL request %s from %s' % (operation_name, request._referer))
-        if settings.LOG_GRAPHQL_QUERIES:
+        if settings.LOG_GRAPHQL_QUERIES and query and query.strip():
             console = Console()
             syntax = Syntax(query, "graphql")
             console.print(syntax)
