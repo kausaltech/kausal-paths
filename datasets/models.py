@@ -16,6 +16,7 @@ from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, Unit
 from nodes.models import InstanceConfig
 from nodes.constants import YEAR_COLUMN
 from nodes.datasets import JSONDataset
+from common.i18n import get_modeltrans_attrs_from_str
 
 
 class Dataset(ClusterableModel, UserModifiableModel):
@@ -177,7 +178,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
     uuid = UUIDIdentifierField()
     label = models.CharField(verbose_name=_('label'), max_length=50)
 
-    i18n = TranslationField(fields=('label',))
+    i18n = TranslationField(fields=('label',), default_language_field='instance__primary_language')
 
     categories: models.manager.RelatedManager[DimensionCategory]
 
@@ -201,6 +202,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
     def sync_categories(self, update_existing=False, delete_stale=False):
         found_cats = set()
         instance = self.instance.get_instance()
+        default_lang = instance.default_language
         dim = instance.context.dimensions[self.identifier]
         cats = {cat.identifier: cat for cat in self.categories.all()}
         for cat in dim.categories:
@@ -211,12 +213,42 @@ class Dimension(ClusterableModel, UserModifiableModel):
                 cat_obj.save()
             else:
                 found_cats.add(cat_obj.id)
+                if not cat_obj.i18n or cat_obj.label != cat.label.i18n.get(default_lang):
+                    cat_obj.label, cat_obj.i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+                    print('Updating category %s' % cat.id)
+                    cat_obj.save()
 
         for cat_obj in cats.values():
             if cat_obj.id in found_cats:
                 continue
             print("Deleting stale category %s" % cat_obj)
             cat_obj.delete()
+
+    @classmethod
+    def sync_dimensions(cls, ic: InstanceConfig, update_existing=False, delete_stale=False):
+        instance = ic.get_instance()
+        # dims = {dim.identifier: dim for dim in self.dimensions.all()}
+        found_dims = set()
+        for dim in instance.context.dimensions.values():
+            dim_obj = ic.dimensions.filter(identifier=dim.id).first()
+            if dim_obj is None:
+                dim_obj = cls(instance=ic, identifier=dim.id)
+                print("Creating dimension %s" % dim.id)
+
+            label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', instance.default_language)  #type: ignore
+            if update_existing and (dim_obj.label != label or dim_obj.i18n != i18n):
+                if dim_obj.pk:
+                    print('Updating dimension %s' % dim.id)
+                dim_obj.label = label
+                dim_obj.i18n = i18n  # type: ignore
+            dim_obj.save()
+            found_dims.add(dim_obj)
+            dim_obj.sync_categories(update_existing=update_existing, delete_stale=delete_stale)
+
+        if delete_stale:
+            for dim_obj in ic.dimensions.all():
+                if dim_obj not in found_dims:
+                    dim_obj.delete()
 
 
 class DatasetDimension(OrderedModel):
@@ -244,7 +276,7 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
     uuid = UUIDIdentifierField()
     label = models.CharField(max_length=50)
 
-    i18n = TranslationField(fields=('label',))
+    i18n = TranslationField(fields=('label',), default_language_field='dimension__instance__primary_language')
 
     class Meta:
         ordering = ('dimension', 'order')

@@ -204,26 +204,10 @@ class InstanceConfig(models.Model):
             if delete_stale:
                 node.delete()
 
-    def sync_dimension(self, dim: Dimension, update_existing=False, delete_stale=False):
+    def sync_dimensions(self, update_existing=False, delete_stale=False):
         from datasets.models import Dimension as DimensionModel
 
-        dim_obj = self.dimensions.filter(identifier=dim.id).first()
-        if dim_obj is None:
-            dim_obj = DimensionModel(instance=self, identifier=dim.id)
-            label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.get_instance().default_language)
-            dim_obj.label = label
-            dim_obj.i18n = i18n  # type: ignore
-            print("Creating dimension %s" % dim.id)
-            dim_obj.save()
-        dim_obj.sync_categories(update_existing=update_existing, delete_stale=delete_stale)
-
-    def sync_dimensions(self, update_existing=False, delete_stale=False):
-        instance = self.get_instance()
-        # dims = {dim.identifier: dim for dim in self.dimensions.all()}
-        found_dims = set()
-        for dim in instance.context.dimensions.values():
-            self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
-            found_dims.add(dim.id)
+        DimensionModel.sync_dimensions(self, update_existing=update_existing, delete_stale=delete_stale)
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()
