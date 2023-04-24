@@ -84,7 +84,7 @@ class BuildingHeatHistorical(Node):
         return edf
 
 
-class BuildingHeatPerArea(AdditiveNode):
+class BuildingHeatPerArea(Node):
     def compute(self):
         e_node = self.get_input_node(tag='consumption')
         f_node = self.get_input_node(tag='floor_area')
