@@ -315,7 +315,7 @@ MODELTRANS_FALLBACK = {
 
 
 WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
-LANGUAGE_CODE = 'fi'
+LANGUAGE_CODE = 'en'
 TIME_ZONE = 'Europe/Helsinki'
 USE_I18N = True
 WAGTAIL_I18N_ENABLED = True
@@ -519,3 +519,4 @@ if DEBUG:
         django_stubs_ext.monkeypatch()
     except ImportError:
         pass
+ 
