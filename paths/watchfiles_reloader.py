@@ -21,14 +21,14 @@ class WatchfilesReloader(autoreload.BaseReloader):
     def watched_roots(self, watched_files: list[Path]) -> frozenset[Path]:
         extra_directories = self.directory_globs.keys()
         watched_file_dirs = {f.parent for f in watched_files}
-        sys_paths = set(autoreload.sys_path_directories())
+        sys_paths = set([path for path in autoreload.sys_path_directories() if 'site-packages' in str(path)])
         return frozenset((*extra_directories, *watched_file_dirs, *sys_paths))
 
     def tick(self) -> Generator[None, None, None]:
         watched_files = list(self.watched_files(include_globs=False))
         watched_roots = self.watched_roots(watched_files)
         roots = autoreload.common_roots(watched_roots)
-        watcher = watchfiles.watch(*roots, watch_filter=DjangoPythonFilter())
+        watcher = watchfiles.watch(*roots, watch_filter=DjangoPythonFilter(extra_extensions=('.yaml')))
         for file_changes in watcher:
             for _, path in file_changes:
                 self.notify_file_changed(Path(path))
