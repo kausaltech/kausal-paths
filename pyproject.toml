@@ -26,6 +26,9 @@ ignore = "E309"
 [tool.ruff]
 line-length = 130
 
+[tool.ruff.isort]
+split-on-trailing-comma = false
+
 [tool."pylint.MASTER"]
 load-plugins = "pylint_django"
 django-settings-module = "paths.settings"
