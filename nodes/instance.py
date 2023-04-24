@@ -500,6 +500,13 @@ class InstanceLoader:
         if default_scenario is None:
             raise Exception("Default scenario not defined")
 
+        for param in self.context.get_all_parameters():
+            if not param.is_customizable:
+                continue
+            if param.scenario_settings:
+                continue
+            param.scenario_settings[default_scenario.id] = param.value
+
         self.context.set_custom_scenario(
             CustomScenario(
                 id='custom',
@@ -593,6 +600,7 @@ class InstanceLoader:
         self.default_language = config['default_language']
 
         static_datasets = self.config.get('static_datasets')
+        instance_id = config['id']
         if static_datasets is not None:
             if self.config.get('dataset_repo') is not None:
                 raise Exception('static_datasets and dataset_repo may not be specified at the same time')
@@ -601,7 +609,10 @@ class InstanceLoader:
             dataset_repo_config = self.config['dataset_repo']
             repo_url = dataset_repo_config['url']
             commit = dataset_repo_config.get('commit')
-            dataset_repo = dvc_pandas.Repository(repo_url=repo_url, dvc_remote=dataset_repo_config.get('dvc_remote'))
+            dataset_repo = dvc_pandas.Repository(
+                repo_url=repo_url, dvc_remote=dataset_repo_config.get('dvc_remote'),
+                cache_prefix=instance_id,
+            )
             dataset_repo.set_target_commit(commit)
         target_year = self.config['target_year']
         model_end_year = self.config.get('model_end_year', target_year)
