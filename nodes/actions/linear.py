@@ -11,7 +11,7 @@ from nodes.constants import (
 )
 from nodes.node import Node
 from nodes.units import Unit
-from params.param import ValidationError
+from params.param import NumberParameter, ValidationError
 from common import polars as ppl
 from params import Parameter, ParameterWithUnit
 
@@ -94,13 +94,20 @@ class ReduceParameter(ParameterWithUnit, Parameter):
 
 class ReduceAction(ActionNode):
     allowed_parameters: ClassVar[list[Parameter]] = [
-        ReduceParameter(local_id='reduce')
+        ReduceParameter(local_id='reduce'),
+        NumberParameter(local_id='multiplier'),
     ]
 
     def _compute_one(self, flow_id: str, param: ReduceFlow, unit: Unit):
         amounts = sorted(param.amounts, key=lambda x: x.year)
         data = [[a.year, a.amount] for a in param.amounts]
         cols = [YEAR_COLUMN, 'Target']
+
+        multiplier = self.get_parameter_value('multiplier', required=False, units=True)
+        if multiplier:
+            mult = multiplier.to('dimensionless').m
+        else:
+            mult = 1
 
         df = pl.DataFrame(data, schema=cols, orient='row')
 
@@ -111,7 +118,7 @@ class ReduceAction(ActionNode):
 
         value_cols = [col for col in df.columns if col != YEAR_COLUMN]
         if self.is_enabled():
-            df = df.with_columns([pl.cumsum(col).alias(col) for col in value_cols])
+            df = df.with_columns([(pl.cumsum(col) * pl.lit(mult)).alias(col) for col in value_cols])
         else:
             df = df.with_columns([pl.lit(float(0)).alias(col) for col in value_cols])
 
