@@ -194,7 +194,7 @@ class DimensionCategorySerializer(serializers.ModelSerializer):
     id = OptionalInputIntegerField()
     order = OptionalInputIntegerField()
     uuid = OptionalInputUUIDField()
-    label = OptionalInputCharField()
+    label = OptionalInputCharField(source='label_i18n')
 
     class Meta:
         model = DimensionCategory
@@ -218,7 +218,7 @@ class DatasetDimensionSerializer(serializers.ModelSerializer):
     dimension = serializers.PrimaryKeyRelatedField(queryset=Dimension.objects.all())
     selected_categories = DatasetDimensionSelectedCategorySerializer(
         many=True,
-        source='datasetdimensionselectedcategory_set'
+        source='datasetdimensionselectedcategory_set',
     )
 
     class Meta:
@@ -523,6 +523,7 @@ class DatasetViewSet(viewsets.ModelViewSet):
 
 class DimensionSerializer(serializers.ModelSerializer):
     categories = DimensionCategorySerializer(many=True)
+    label = serializers.CharField(source='label_i18n')
 
     class Meta:
         model = Dimension
