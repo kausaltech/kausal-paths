@@ -67,41 +67,45 @@ dimensions:
     label: Direkte Emissionen
     label_en: Direct emissions
     color: '#0f05a0'
-    id_match: ^scope1$
+    #id_match: ^scope1$
     order: 1
   - id: indirect
     label: Indirekte Emissionen
     label_en: Indirect emissions
     color: '#6496ff'
-    id_match: ^scope[23]$
+    #id_match: ^scope[23]$
     order: 2
   - id: negative
     label: Negative Emissionen
     label_en: Negative emissions
     color: '#F7A5AF'
-    id_match: ^negative_emissions$
+    #id_match: ^negative_emissions$
     order: -1
   categories:
   - id: scope1
     label_de: Scope 1
     label_en: Scope 1
     color: '#0f05a0'
+    group: direct
     order: 0
   - id: scope2
     label_de: Scope 2
     label_en: Scope 2
     color: '#30505e'
+    group: indirect
     order: 1
   - id: scope3
     label_de: Scope 3
     label_en: Scope 3
     color: '#6496ff'
+    group: indirect
     order: 2
   - id: negative_emissions
     label_de: Negative Emissionen
     label_en: Negative emissions
     color: '#F7A5AF'
     order: -1
+    group: negative
 
 - id: emission_sectors
   label_de: Emissionssektoren
@@ -611,24 +615,37 @@ emission_sectors:
   name_de: Treibhausgasemissionen
   goals:
   - normalized_by: population
-    label_de: Direkte Emissionen
-    label_en: Direct emissions
+    label_de: Direkte + negative Emissionen
+    label_en: Net direct emissions
     dimensions:
       emission_scope:
-        group: direct
+        groups: [direct, negative]
+    linear_interpolation: true
+    values:
+    - year: 2022
+      value: 2.4
+    - year: 2040
+      value: 0
+    is_main_goal: true
+  - normalized_by: population
+    label_de: Direkte Emissionen
+    label_en: Net direct emissions
+    dimensions:
+      emission_scope:
+        groups: [direct]
     linear_interpolation: true
     values:
     - year: 2022
       value: 2.4
     - year: 2040
       value: 0.5
-    is_main_goal: true
+    is_main_goal: false
   - normalized_by: population
     label_de: Indirekte Emissionen
     label_en: Indirect emissions
     dimensions:
       emission_scope:
-        group: indirect
+        groups: [indirect]
     values:
     - year: 2022
       value: 7.9
@@ -669,6 +686,7 @@ emission_sectors:
   name_en: Transportation emissions
   name_de: Treibhausgasemissionen Mobilität
   short_name_de: Mobilität
+  short_name_en: Transportation
   part_of: net_emissions
   color: '#E22D53'
   input_dataset_processors: [LinearInterpolation]
@@ -684,6 +702,7 @@ emission_sectors:
 - id: afolu_emissions
   name_en: Agriculture and forestry emissions
   short_name_de: Land- und Forstwirtschaft
+  short_name_en: Agriculture and forestry
   name_de: Treibhausgasemissionen Land- und Forstwirtschaft
   category: afolu
   part_of: net_emissions
@@ -700,6 +719,7 @@ emission_sectors:
   name_en: Aviation
   name_de: Treibhausgasemissionen Flugverkehr
   short_name_de: Flugverkehr
+  short_name_en: Aviation
   part_of: net_emissions
   category: aviation
   color: '#A174DE'
@@ -709,6 +729,7 @@ emission_sectors:
   name_en: Food consumption emissions
   name_de: Treibhausgasemissionen Ernährung
   short_name_de: Ernährung
+  short_name_en: Food consumption
   category: food_consumption
   part_of: net_emissions
   color: '#BCE59E'
@@ -718,6 +739,7 @@ emission_sectors:
   name_en: Textile consumption emissions
   name_de: Treibhausgasemissionen Textilien
   short_name_de: Textilien
+  short_name_en: Textile consumption
   category: textile_consumption
   part_of: net_emissions
   color: '#FBCB97'
@@ -727,6 +749,7 @@ emission_sectors:
   name_en: Other consumption emissions
   name_de: Treibhausgasemissionen Übriger Konsum
   short_name_de: Übriger Konsum
+  short_name_en: Other consumption
   category: other_consumption
   part_of: net_emissions
   color: '#2AC7C7'
@@ -963,6 +986,8 @@ nodes:
 - id: building_general_electricity_consumption
   name_de: Nichtheizstromverbrauch von Gebäuden
   name_en: Non-heating electricity consumption of buildings
+  short_name_de: Nichtheizstromverbrauch Gebäude
+  short_name_en: Buildings, non-heating
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -990,6 +1015,8 @@ nodes:
 - id: heat_pump_electricity_consumption
   name_de: Stromverbrauch der Wärmeerzeugung
   name_en: Heat generation electricity consumption
+  short_name_de: Wärmeerzeugung
+  short_name_en: Heat generation
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -2277,6 +2304,13 @@ actions:
         amount: -23
       - year: 2040
         amount: 0
+  # - id: multiplier
+  #   unit: '%'
+  #   min_value: 0
+  #   max_value: 200
+  #   value: 100
+  #   step: 5
+  #   is_customizable: true
 
 pages:
 - id: home
@@ -2291,8 +2325,8 @@ pages:
     modeling platform for the Net Zero goal. All information on this website is to
     be considered incomplete and experimental.
   lead_paragraph_de: Dies ist eine Testversion der interaktiven Szenariomodellierungsplattform
-    zu Zürichs Ziel Netto-Null 2040. Alle Informationen auf dieser Website sind als
-    unvollständig und experimentell zu verstehen.
+    zum Klimaschutzziel Netto-Null 2040. Alle Informationen auf dieser Website sind als
+    unvollständig und provisorisch zu verstehen.
 
 scenarios:
 - id: baseline
