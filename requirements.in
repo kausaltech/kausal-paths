@@ -1,5 +1,5 @@
 psycopg2-binary
-pandas
+pandas<2.0
 python-dotenv
 wagtail
 django
@@ -8,10 +8,9 @@ django-cors-headers
 sentry_sdk
 djangorestframework
 django-extensions
-scipy
 dvc-pandas
 ipython
-numba
+numba>=0.57.0rc1
 pint
 pint-pandas
 colored
@@ -42,4 +41,4 @@ drf-nested-routers
 drf-spectacular
 social-auth-app-django
 django-storages
-boto3
+#boto3
