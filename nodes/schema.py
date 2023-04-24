@@ -78,8 +78,12 @@ class InstanceYearlyGoalType(graphene.ObjectType):
 
 class InstanceGoalDimension(graphene.ObjectType):
     dimension = graphene.String(required=True)
-    #categories = graphene.List(graphene.NonNull(graphene.String), required=True)
-    category = graphene.String(required=True)
+    categories = graphene.List(graphene.NonNull(graphene.String), required=True)
+    category = graphene.String(required=True, deprecation_reason='replaced with categories')
+
+    @staticmethod
+    def resolve_category(root, info):
+        return root.categories[0]  # type: ignore
 
 
 class InstanceGoalEntry(graphene.ObjectType):
@@ -94,10 +98,10 @@ class InstanceGoalEntry(graphene.ObjectType):
     _goal: NodeGoalsEntry
 
     def resolve_values(self, info):
-        return self._goal.get_actual(self.outcome_node)
+        return self._goal.get_actual()
 
     def resolve_unit(self, info):
-        df = self._goal._get_values_df(self.outcome_node)
+        df = self._goal._get_values_df()
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
 
 
@@ -144,15 +148,16 @@ class InstanceType(graphene.ObjectType):
     @staticmethod
     def resolve_goals(root: Instance, info: GQLInstanceInfo, id: str | None = None):
         ret = []
-        for node, goal in root.get_goals():
-            goal_id = goal.get_id(node)
+        for goal in root.get_goals():
+            node = goal.get_node()
+            goal_id = goal.get_id()
             if id is not None:
                 if goal_id != id:
                     continue
 
             dims = []
             for dim_id, path in goal.dimensions.items():
-                dims.append(InstanceGoalDimension(dimension=dim_id, category=path.group or path.category))
+                dims.append(InstanceGoalDimension(dimension=dim_id, categories=path.groups or path.categories))
 
             out = InstanceGoalEntry(
                 id=goal_id,
@@ -392,11 +397,10 @@ class NodeType(graphene.ObjectType):
 
         if goal_id is not None:
             try:
-                goal_node, goal = instance.get_goals(goal_id=goal_id)
+                goal = instance.get_goals(goal_id=goal_id)
             except:
                 raise GraphQLError("Goal not found", info.field_nodes)
         else:
-            goal_node = None
             goal = None
 
         target_node: Node
@@ -408,9 +412,9 @@ class NodeType(graphene.ObjectType):
         elif upstream_node is not None:
             source_node = upstream_node
             target_node = root
-        elif goal_node is not None:
+        elif goal is not None:
             source_node = root
-            target_node = goal_node
+            target_node = goal.get_node()
         else:
             # FIXME: Determine a "default" target node from instance
             outcome_nodes = context.get_outcome_nodes()
@@ -424,7 +428,7 @@ class NodeType(graphene.ObjectType):
 
         df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
         if goal is not None:
-            df = goal.filter_df(target_node, df)
+            df = goal.filter_df(df)
 
         df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
         if df.dim_ids:
@@ -463,8 +467,8 @@ class NodeType(graphene.ObjectType):
             .filter(instance__identifier=info.context.instance.id, identifier=root.id)
             .first()
         )
-        if obj is not None and obj.short_description_i18n:
-            return expand_db_html(obj.short_description_i18n)
+        if obj is not None and obj.short_description_i18n:  # type: ignore
+            return expand_db_html(obj.short_description_i18n)  # type: ignore
         if root.description:
             return '<p>%s</p>' % root.description
         return None
@@ -474,9 +478,9 @@ class NodeType(graphene.ObjectType):
         obj = (NodeConfig.objects
                .filter(instance__identifier=info.context.instance.id, identifier=root.id)
                .first())
-        if obj is None or not obj.description_i18n:
+        if obj is None or not obj.description_i18n:  # type: ignore
             return None
-        return expand_db_html(obj.description_i18n)
+        return expand_db_html(obj.description_i18n)  # type: ignore
 
     @staticmethod
     def resolve_goals(root: Node, info: GQLInstanceInfo, active_goal: str | None = None):
@@ -484,16 +488,20 @@ class NodeType(graphene.ObjectType):
             return []
         goal = None
         if active_goal:
-            goal_node, agoal = info.context.instance.get_goals(active_goal)
+            agoal = info.context.instance.get_goals(active_goal)
             if agoal.dimensions:
-                # FIXXME
+                # FIXME
                 dim_id, cats = list(agoal.dimensions.items())[0]
-                goal = root.goals.get_exact_match(dim_id, group_id=cats.group, category_id=cats.category)
+                goal = root.goals.get_exact_match(
+                    dim_id,
+                    groups=cats.groups,
+                    categories=cats.categories
+                )
         if not goal:
             goal = root.goals.get_dimensionless()
         if not goal:
             return []
-        return goal.get_values(root)
+        return goal.get_values()
 
     @staticmethod
     def resolve_target_year_goal(root: Node, info: GQLInstanceInfo):
@@ -504,7 +512,7 @@ class NodeType(graphene.ObjectType):
             return None
 
         target_year = root.context.target_year
-        vals = goal.get_values(root)
+        vals = goal.get_values()
         for val in vals:
             if val.year == target_year:
                 break
@@ -520,7 +528,7 @@ class ScenarioType(graphene.ObjectType):
     is_default = graphene.Boolean()
 
     @staticmethod
-    def resolve_is_active(root: Scenario, info: GQLInfo):
+    def resolve_is_active(root: Scenario, info: GQLInstanceInfo):
         context = info.context.instance.context
         return context.active_scenario == root
 
@@ -595,13 +603,13 @@ class InstanceBasicConfiguration(graphene.ObjectType):
 
     @staticmethod
     def resolve_is_protected(root: Instance, info: GQLInfo):
-        return root._config.is_protected
+        return root._config.is_protected  # type: ignore
 
     @staticmethod
     def resolve_hostname(root: Instance, info: GQLInfo):
-        hostname = root._config.hostnames.filter(hostname=root._hostname.lower()).first()
+        hostname = root._config.hostnames.filter(hostname=root._hostname.lower()).first()  # type: ignore
         if not hostname:
-            return dict(hostname=root._hostname, base_path='')
+            return dict(hostname=root._hostname, base_path='')  # type: ignore
 
 
 class NormalizationType(graphene.ObjectType):
@@ -703,8 +711,8 @@ class Query(graphene.ObjectType):
         instances = []
         for config in qs:
             instance = config.get_instance()
-            instance._config = config
-            instance._hostname = hostname
+            instance._config = config  # type: ignore
+            instance._hostname = hostname  # type: ignore
             instances.append(instance)
         return instances
 

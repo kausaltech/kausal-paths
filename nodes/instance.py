@@ -99,16 +99,15 @@ class Instance:
         self.logger.warning(msg, *args)
 
     @overload
-    def get_goals(self, goal_id: str) -> Tuple[Node, NodeGoalsEntry]: ...
+    def get_goals(self, goal_id: str) -> NodeGoalsEntry: ...
 
     @overload
-    def get_goals(self) -> list[Tuple[Node, NodeGoalsEntry]]: ...
+    def get_goals(self) -> list[NodeGoalsEntry]: ...
 
     def get_goals(self, goal_id: str | None = None):
         ctx = self.context
         outcome_nodes = ctx.get_outcome_nodes()
         goals: list[NodeGoalsEntry] = []
-        goal_nodes: list[Node] = []
         for node in outcome_nodes:
             if not node.goals:
                 continue
@@ -116,17 +115,16 @@ class Instance:
                 if not ge.is_main_goal:
                     continue
                 if goal_id is not None:
-                    if ge.get_id(node) != goal_id:
+                    if ge.get_id() != goal_id:
                         continue
                 goals.append(ge)
-                goal_nodes.append(node)
 
         if goal_id:
             if len(goals) != 1:
                 raise Exception("Goal with id %s not found", goal_id)
-            return goal_nodes[0], goals[0]
+            return goals[0]
 
-        return list(zip(goal_nodes, goals))
+        return goals
 
 class InstanceLoader:
     instance: Instance
@@ -235,14 +233,14 @@ class InstanceLoader:
                 dc = ds
             ds_unit = dc.pop('unit', None)
             if ds_unit is not None and not isinstance(ds_unit, pint.Unit):
-                ds_unit = self.context.unit_registry(ds_unit).units
+                ds_unit = self.context.unit_registry.parse_units(ds_unit)
                 assert isinstance(ds_unit, pint.Unit)
             o = DVCDataset(id=ds_id, unit=ds_unit, **dc)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
             datasets.append(FixedDataset(
-                id=config['id'], unit=unit,
+                id=config['id'], unit=unit,  # type: ignore
                 historical=config.get('historical_values'),
                 forecast=config.get('forecast_values'),
             ))
@@ -628,7 +626,7 @@ class InstanceLoader:
             context=self.context,
             action_groups=agcs,
             features=self.config.get('features', {}),
-            **{attr: self.config.get(attr) for attr in instance_attrs},
+            **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
             **self._build_instance_args_from_home_page(),

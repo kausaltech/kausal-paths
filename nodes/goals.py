@@ -1,7 +1,7 @@
 import typing
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator
+from pydantic import BaseModel, Field, PrivateAttr, root_validator
 import polars as pl
 from common import polars as ppl
 from common.i18n import I18nString, TranslatedString
@@ -29,8 +29,8 @@ class GoalActualValue:
 
 
 class NodeGoalsDimension(BaseModel):
-    group: str | None
-    category: str | None
+    groups: list[str] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list)
 
 
 class NodeGoalsEntry(BaseModel):
@@ -42,49 +42,65 @@ class NodeGoalsEntry(BaseModel):
     is_main_goal: bool = False
     default: bool = False
 
+    _node: 'Node' = PrivateAttr()
+
+    def __init__(self, **data) -> None:
+        super().__init__(**data)
+        self._node = None  # type:ignore
+
+    def set_node(self, node: 'Node'):
+        self._node = node
+
+    def get_node(self) -> 'Node':
+        return self._node
+
     def dim_to_path(self) -> str:
         entries = []
         for dim_id, path in self.dimensions.items():
-            entries.append('%s:%s' % (dim_id, path.group or path.category))
+            grp = '+'.join(path.groups)
+            cat = '+'.join(path.categories)
+            entries.append('%s:%s' % (dim_id, grp or cat))
         return '/'.join(entries)
 
-    def get_dimension_categories(self, node: 'Node') -> dict[str, list[str]]:
+    def get_dimension_categories(self) -> dict[str, list[str]]:
         out = {}
         for dim_id, gdim in self.dimensions.items():
-            dim = node.context.dimensions[dim_id]
-            if gdim.category:
-                cats = [gdim.category]
+            dim = self._node.context.dimensions[dim_id]
+            if gdim.categories:
+                cats = [*gdim.categories]
             else:
-                assert gdim.group is not None
-                cats = [cat.id for cat in dim.get_cats_for_group(gdim.group)]
+                cats = []
+                assert len(gdim.groups)
+                for grp in gdim.groups:
+                    cats += [cat.id for cat in dim.get_cats_for_group(grp)]
             out[dim_id] = cats
         return out
 
-    def filter_df(self, node: 'Node', df: ppl.PathsDataFrame):
-        goal_dims = self.get_dimension_categories(node)
+    def filter_df(self, df: ppl.PathsDataFrame):
+        goal_dims = self.get_dimension_categories()
         for dim_id in df.dim_ids:
             goal_cats = goal_dims.get(dim_id)
             if goal_cats is not None:
                 df = df.filter(pl.col(dim_id).is_in(goal_cats))
         return df
 
-    def get_id(self, node: 'Node') -> str:
-        id_parts: list[str] = [node.id]
+    def get_id(self) -> str:
+        id_parts: list[str] = [self._node.id]
         if self.dimensions:
             id_parts.append(self.dim_to_path())
         return '/'.join(id_parts)
 
-    def get_normalization_info(self, node: 'Node'):
-        context = node.context
+    def get_normalization_info(self):
+        context = self._node.context
         if self.normalized_by:
             if self.normalized_by not in context.normalizations:
-                raise NodeError(node, "Goal normalization '%s' not found" % self.normalized_by)
+                raise NodeError(self._node, "Goal normalization '%s' not found" % self.normalized_by)
 
             goal_norm = context.normalizations[self.normalized_by]
         else:
             goal_norm = None
 
-        m = node.get_default_output_metric()
+        m = self._node.get_default_output_metric()
         if goal_norm:
             for q in goal_norm.quantities:
                 if q.id == m.quantity:
@@ -97,10 +113,10 @@ class NodeGoalsEntry(BaseModel):
         return goal_norm, unit
 
 
-    def _get_values_df(self, node: 'Node'):
-        context = node.context
-        goal_norm, unit = self.get_normalization_info(node)
-        m = node.get_default_output_metric()
+    def _get_values_df(self):
+        context = self._node.context
+        goal_norm, unit = self.get_normalization_info()
+        m = self._node.get_default_output_metric()
         zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in self.values], m.column_id: [x.value for x in self.values]})
         df = ppl.to_ppdf(zdf, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={m.column_id: unit}))
         if goal_norm:
@@ -124,29 +140,30 @@ class NodeGoalsEntry(BaseModel):
             _, df = context.active_normalization.normalize_output(m, df)
         return df
 
-    def get_values(self, node: 'Node'):
-        df = self._get_values_df(node)
-        m = node.get_default_output_metric()
+    def get_values(self):
+        df = self._get_values_df()
+        m = self._node.get_default_output_metric()
         return [
             GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id], is_interpolated=row['IsInterpolated'])
             for row in df.to_dicts()
         ]
 
-    def get_actual(self, node: 'Node') -> list[GoalActualValue]:
+    def get_actual(self) -> list[GoalActualValue]:
+        node = self._node
         df = node.get_output_pl()
         context = node.context
         for dim_id, path in self.dimensions.items():
             dim = context.dimensions[dim_id]
-            if path.group:
-                f_expr = dim.ids_to_groups(pl.col(dim_id)).eq(path.group)
+            if path.groups:
+                f_expr = dim.ids_to_groups(pl.col(dim_id)).is_in(path.groups)
             else:
-                f_expr = pl.col(dim_id).eq(path.category)
+                f_expr = pl.col(dim_id).is_in(path.categories)
             df = df.filter(f_expr)
         df = df.paths.sum_over_dims()
         m = node.get_default_output_metric()
         if context.active_normalization:
             _, df = context.active_normalization.normalize_output(m, df)
-        gdf = self._get_values_df(node)
+        gdf = self._get_values_df()
         gdf = gdf.rename({m.column_id: 'Goal'})
         df = df.paths.join_over_index(gdf).sort(YEAR_COLUMN)
         out = [
@@ -170,6 +187,16 @@ class NodeGoalsEntry(BaseModel):
 
 class NodeGoals(BaseModel):
     __root__: typing.List[NodeGoalsEntry]
+    _node: 'Node' = PrivateAttr()
+
+    def __init__(self, **data) -> None:
+        super().__init__(**data)
+        self._node = None  # type:ignore
+
+    def set_node(self, node: 'Node'):
+        self._node = node
+        for ge in self.__root__:
+            ge.set_node(node)
 
     @root_validator
     @classmethod
@@ -191,16 +218,16 @@ class NodeGoals(BaseModel):
             return None
         return vals[0]
 
-    def get_exact_match(self, dimension_id: str, group_id: str | None = None, category_id: str | None = None) -> NodeGoalsEntry | None:
+    def get_exact_match(self, dimension_id: str, groups: list[str] = [], categories: list[str] = []) -> NodeGoalsEntry | None:
         for e in self.__root__:
             dim = e.dimensions.get(dimension_id)
             if not dim:
                 continue
-            if group_id:
-                if dim.group == group_id:
+            if groups:
+                if set(dim.groups) == set(groups):
                     break
-            elif category_id:
-                if dim.category == category_id:
+            elif categories:
+                if set(dim.categories) == set(categories):
                     break
         else:
             return None

@@ -1,11 +1,10 @@
 from __future__ import annotations
+
 import functools
+from dataclasses import dataclass, field
+from typing import List, Optional, TypedDict
 
 import numpy as np
-from itertools import groupby
-from typing import Any, Dict, List, Optional, Union, TypedDict
-from dataclasses import dataclass, field
-
 import pandas as pd
 import pint
 import polars as pl
@@ -16,9 +15,9 @@ from nodes import Node
 from nodes.actions import ActionNode
 from nodes.actions.shift import ShiftAction
 from nodes.constants import (
-    ACTIVITY_QUANTITIES, BASELINE_VALUE_COLUMN, DEFAULT_METRIC,
-    FLOW_ROLE_COLUMN, FLOW_ROLE_TARGET, FLOW_ROLE_SOURCE, FLOW_ID_COLUMN,
-    FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES, VALUE_COLUMN, YEAR_COLUMN
+    BASELINE_VALUE_COLUMN, FLOW_ID_COLUMN, FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE,
+    FLOW_ROLE_TARGET, FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES,
+    VALUE_COLUMN, YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
 from nodes.goals import NodeGoalsEntry
@@ -62,8 +61,8 @@ class Metric:
         df = node.get_output_pl()
 
         if goal_id:
-            _, goal = node.context.instance.get_goals(goal_id)
-            df = goal.filter_df(node, df)
+            goal = node.context.instance.get_goals(goal_id)
+            df = goal.filter_df(df)
         else:
             goal = None
 
@@ -86,7 +85,7 @@ class Metric:
                 _, bdf = node.context.active_normalization.normalize_output(m, bdf)
 
             if goal:
-                bdf = goal.filter_df(node, bdf)
+                bdf = goal.filter_df(bdf)
 
             bdf_meta = bdf.get_meta()
             if bdf_meta.dim_ids:
@@ -261,7 +260,7 @@ class DimensionalMetric:
         def make_goal_values(goal: NodeGoalsEntry):
             return [MetricYearlyGoal(
                 year=y.year, value=y.value, is_interpolated=y.is_interpolated
-            ) for y in goal.get_values(node)]
+            ) for y in goal.get_values()]
 
         goals: list[MetricDimensionGoal] = []
         if node.goals:
@@ -288,7 +287,7 @@ class DimensionalMetric:
                         original_id=grp.id,
                     ))
                     if node.goals:
-                        goal = node.goals.get_exact_match(dim.id, group_id=grp.id)
+                        goal = node.goals.get_exact_match(dim.id, groups=[grp.id])
                         if goal:
                             goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
 
@@ -306,7 +305,7 @@ class DimensionalMetric:
                         original_id=cat.id,
                     ))
                     if node.goals:
-                        goal = node.goals.get_exact_match(dim.id, category_id=cat.id)
+                        goal = node.goals.get_exact_match(dim.id, categories=[cat.id])
                         if goal:
                             goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
 

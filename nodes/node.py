@@ -130,7 +130,7 @@ class Node:
     name: I18nString
     "Human-readable label for the Node instance."
 
-    short_name: I18nString
+    short_name: I18nString | None
     "Shortened label for the node"
 
     # Description for the Node instance
@@ -280,10 +280,10 @@ class Node:
             return dims
 
         for dim_id in arg_dims:
-            dim = self.context.dimensions.get(dim_id)
-            if not dim:
+            d = self.context.dimensions.get(dim_id)
+            if not d:
                 raise NodeError(self, "Dimension %s not found" % dim_id)
-            dims[dim_id] = dim
+            dims[dim_id] = d
         return dims
 
     def __init__(
@@ -317,6 +317,8 @@ class Node:
                 )
             else:
                 self.goals = None
+        if self.goals is not None:
+            self.goals.set_node(self)
 
         self.input_dataset_instances = input_datasets
         self.edges = []
@@ -1147,7 +1149,7 @@ class Node:
             unit = old_ds.get_unit(self.context)
         except:
             # FIXME: Make this more robust
-            unit = self.unit
+            unit = self.unit  # type: ignore
         self.input_dataset_instances[0] = JSONDataset(
             id=old_ds.id, data=d, unit=unit
         )
