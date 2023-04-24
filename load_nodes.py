@@ -11,6 +11,7 @@ from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.instance import InstanceLoader
 from common.perf import PerfCounter
+from rich import print
 import rich.traceback
 from rich.table import Table
 from rich.console import Console
@@ -172,7 +173,7 @@ if args.check or args.update_instance or args.update_nodes:
         instance_obj.update_from_instance(instance, overwrite=True)
         instance_obj.save()
     instance_obj.sync_nodes(update_existing=args.update_nodes, delete_stale=args.delete_stale_nodes)
-    instance_obj.sync_dimensions()
+    instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
     instance_obj.create_default_content()
 
 for param_arg in (args.param or []):
