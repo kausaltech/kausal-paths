@@ -102,7 +102,6 @@ INSTALLED_APPS = [
     'wagtail.contrib.styleguide',
     'wagtail_localize',
     'wagtail_localize.locales',  # replaces `wagtail.locales`
-    'wagtailfontawesome',
 
     'taggit',
     'modelcluster',
@@ -423,7 +422,7 @@ LOG_GRAPHQL_QUERIES = env('LOG_GRAPHQL_QUERIES')
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     import warnings
-    from wagtail.utils.deprecation import RemovedInWagtail50Warning
+    #from wagtail.utils.deprecation import RemovedInWagtail50Warning
 
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
@@ -432,7 +431,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             level=level,
         )
 
-    warnings.filterwarnings(action='ignore', category=RemovedInWagtail50Warning)
+    #warnings.filterwarnings(action='ignore', category=RemovedInWagtail50Warning)
 
     LOGGING = {
         'version': 1,

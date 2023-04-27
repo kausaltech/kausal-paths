@@ -43,5 +43,5 @@ instance_chooser = InstanceChooserMenu(None)
 @hooks.register('register_admin_menu_item')
 def register_instance_chooser():
     return InstanceChooserMenuItem(
-        _('Choose instance'), instance_chooser, classnames='icon icon-fa-check-circle-o', order=9000
+        _('Choose instance'), instance_chooser, icon_name='home', order=9000
     )

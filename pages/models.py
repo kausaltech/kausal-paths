@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import (
-    FieldPanel, MultiFieldPanel, StreamFieldPanel
+    FieldPanel, MultiFieldPanel,
 )
 from wagtail.fields import RichTextField
 from wagtail.models import Page, Site
