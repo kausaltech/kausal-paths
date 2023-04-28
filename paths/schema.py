@@ -22,57 +22,51 @@ from paths.utils import validate_unit
 CO2E = 'CO<sub>2</sub>e'
 
 
+def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
+    if dict(unit._units) == dict(percent=1):
+        return '%'
+
+    lang = get_language().replace('-', '_')
+    fmt = '~P' if not html else '~Z'
+    f = unit.format_babel(fmt, locale=lang, sort=False)  # type: ignore
+    if not long:
+        if f == 't/a/cap':
+            if lang == 'de':
+                return 't/a/Einw.'
+            elif lang == 'en':
+                return 't/a/inh.'
+    else:
+        if f == 't/a/cap':
+            if lang == 'de':
+                return 't CO₂e/Jahr/Einw.'
+            elif lang == 'en':
+                return 't CO₂e/year/inh.'
+
+    return f
+
+
 class UnitType(graphene.ObjectType):
     short = graphene.String(required=True)
     long = graphene.String(required=True)
     html_short = graphene.String(required=True)
     html_long = graphene.String(required=True)
 
-    def resolve_short(self: Unit, info):  # type: ignore
-        lang = get_language()
-        val = self.format_babel('~P', locale=lang, sort=False)  # type: ignore
-        if val == 't/a/cap':
-            if lang == 'de':
-                return 't/a/Einw.'
-            elif lang == 'en':
-                return 't/a/inh.'
+    @staticmethod
+    def resolve_short(root: Unit, info):
+        val = format_unit(root, html=False)
         return val
 
-    def resolve_long(self: Unit, info):  # type: ignore
-        lang = get_language()
-        val = self.format_babel('~P', locale=lang, sort=False)  # type: ignore
-        if val == 't/a/cap':
-            if lang == 'de':
-                return 't CO₂e/Jahr/Einw.'
-            elif lang == 'en':
-                return 't CO₂e/year/inh.'
-        return val
+    @staticmethod
+    def resolve_long(root: Unit, info):
+        return format_unit(root, long=True, html=False)
 
-    def resolve_html_short(self: Unit, info):  # type: ignore
-        if dict(self._units) == dict(percent=1):
-            return '%'
-        lang = get_language()
-        val = self.format_babel('~Z', locale=lang, sort=False)  # type: ignore
-        return val
+    @staticmethod
+    def resolve_html_short(root: Unit, info):
+        return format_unit(root, long=False, html=True)
 
-    def resolve_html_long(self: Unit, info):  # type: ignore
-        lang = get_language()
-        val = self.format_babel('~Z', locale=lang, sort=False)  # type: ignore
-        return val
-        # FIXME
-        if val == 't/(a cap)':
-            if lang == 'de':
-                return f't {CO2E}∕Jahr∕Einw.'
-            elif lang == 'en':
-                return f't {CO2E}∕year∕inh.'
-        elif val == 'kt/a':
-            if lang == 'fi':
-                return f'kt {CO2E}∕vuosi'
-            elif lang == 'en':
-                return f'kt {CO2E}∕year'
-            elif lang == 'de':
-                return f'kt {CO2E}∕Jahr'
-        return val
+    @staticmethod
+    def resolve_html_long(root: Unit, info):
+        return format_unit(root, long=True, html=True)
 
 
 class Query(NodesQuery, ParamsQuery, PagesQuery):
