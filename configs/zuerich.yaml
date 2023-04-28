@@ -617,6 +617,7 @@ emission_sectors:
   - normalized_by: population
     label_de: Direkte + negative Emissionen
     label_en: Net direct emissions
+    default: true
     dimensions:
       emission_scope:
         groups: [direct, negative]
@@ -661,7 +662,6 @@ emission_sectors:
     - year: 2040
       value: 6.5
     is_main_goal: true
-    default: true
   is_outcome: true
 
 - id: negative_emissions
@@ -901,7 +901,7 @@ nodes:
   input_nodes: [building_floor_area, building_heat_per_area]
 
 - id: building_heat_mix
-  name_de: Building heat mix
+  name_de: Wärmemix
   name_en: Building heat mix
   type: ch.zuerich.BuildingHeatUseMix
   unit: '%'
@@ -1652,7 +1652,7 @@ actions:
   name_de: Heizungsersatz
   type: shift.ShiftAction
   group: buildings
-  quantity: energy
+  quantity: mix
   description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
     district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
   description_de: 'Der Ersatz fossil betriebener Heizungen durch Liegenschaftsbesitzende
@@ -1677,13 +1677,13 @@ actions:
           heating_system: heat_pumps
       amounts:
       - year: 2023
-        source_amount: -0.5
+        source_amount: -1.1
         dest_amounts: [40, 80]
       - year: 2028
-        source_amount: -1.2
+        source_amount: -1.8
         dest_amounts: [40, 80]
       - year: 2040
-        source_amount: -1.1
+        source_amount: -1.2
         dest_amounts: [40, 80]
 
     - source:
@@ -1697,13 +1697,13 @@ actions:
       amounts:
       - year: 2023
         source_amount: -1.5
-        dest_amounts: [40, 50]
+        dest_amounts: [60, 50]
       - year: 2028
-        source_amount: -3.0
-        dest_amounts: [40, 50]
+        source_amount: -3.1
+        dest_amounts: [60, 50]
       - year: 2040
-        source_amount: -2.5
-        dest_amounts: [40, 50]
+        source_amount: -2.4
+        dest_amounts: [60, 50]
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung thermische Netze
@@ -1788,7 +1788,7 @@ actions:
     einerseits durch die energetische Gebäudesanierung, anderseits sind dies Anforderungen
     an Neubauten und Ersatzneubauten in Bezug auf Baumaterialien und Energieeffizienz.
   type: linear.ReduceAction
-  quantity: energy
+  quantity: energy_per_area
   output_nodes:
   - id: building_heat_per_area
   unit: kWh/m**2/a
@@ -1884,9 +1884,9 @@ actions:
       - year: 2023
         amount: -5
       - year: 2030
-        amount: -60
+        amount: -65
       - year: 2045
-        amount: -30
+        amount: -45
 
 - id: cars_to_transit
   name_en: Shift from cars to public transportation
