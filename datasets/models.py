@@ -16,6 +16,7 @@ from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, Unit
 from nodes.models import InstanceConfig
 from nodes.constants import YEAR_COLUMN
 from nodes.datasets import JSONDataset
+from nodes.dimensions import Dimension as NodeDimension
 from common.i18n import get_modeltrans_attrs_from_str
 
 
@@ -225,25 +226,31 @@ class Dimension(ClusterableModel, UserModifiableModel):
             cat_obj.delete()
 
     @classmethod
+    def sync_dimension(cls, ic: InstanceConfig, dim: NodeDimension, update_existing=False, delete_stale=False):
+        instance = ic.get_instance()
+        dim_obj = ic.dimensions.filter(identifier=dim.id).first()
+        if dim_obj is None:
+            dim_obj = cls(instance=ic, identifier=dim.id)
+            print("Creating dimension %s" % dim.id)
+
+        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', instance.default_language)  #type: ignore
+        if update_existing and (dim_obj.label != label or dim_obj.i18n != i18n):
+            if dim_obj.pk:
+                print('Updating dimension %s' % dim.id)
+            dim_obj.label = label
+            dim_obj.i18n = i18n  # type: ignore
+        dim_obj.save()
+        dim_obj.sync_categories(update_existing=update_existing, delete_stale=delete_stale)
+        return dim_obj
+
+    @classmethod
     def sync_dimensions(cls, ic: InstanceConfig, update_existing=False, delete_stale=False):
         instance = ic.get_instance()
         # dims = {dim.identifier: dim for dim in self.dimensions.all()}
         found_dims = set()
         for dim in instance.context.dimensions.values():
-            dim_obj = ic.dimensions.filter(identifier=dim.id).first()
-            if dim_obj is None:
-                dim_obj = cls(instance=ic, identifier=dim.id)
-                print("Creating dimension %s" % dim.id)
-
-            label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', instance.default_language)  #type: ignore
-            if update_existing and (dim_obj.label != label or dim_obj.i18n != i18n):
-                if dim_obj.pk:
-                    print('Updating dimension %s' % dim.id)
-                dim_obj.label = label
-                dim_obj.i18n = i18n  # type: ignore
-            dim_obj.save()
-            found_dims.add(dim_obj)
-            dim_obj.sync_categories(update_existing=update_existing, delete_stale=delete_stale)
+            obj = cls.sync_dimension(ic, dim, update_existing=update_existing, delete_stale=delete_stale)
+            found_dims.add(obj)
 
         if delete_stale:
             for dim_obj in ic.dimensions.all():

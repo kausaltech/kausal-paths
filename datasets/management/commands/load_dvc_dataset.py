@@ -44,7 +44,7 @@ class Command(BaseCommand):
 
         for col in meta.dim_ids:
             dim = ctx.dimensions[col]
-            ic.sync_dimension(dim)
+            Dimension.sync_dimension(ic, dim)
             df = df.with_columns([dim.series_to_ids_pl(df[col])])
             dims.append(ic.dimensions.get(identifier=col))
             all_cols.remove(col)
