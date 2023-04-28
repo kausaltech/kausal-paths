@@ -9,6 +9,7 @@ if typing.TYPE_CHECKING:
 
 class PathsRequest(HttpRequest):
     admin_instance: InstanceConfig
+    user: 'User'
 
 
 class PathsAuthenticatedRequest(HttpRequest):
