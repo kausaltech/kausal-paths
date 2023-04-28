@@ -525,6 +525,7 @@ class VehicleMileageHistorical(Node):
             unit = unit * self.context.unit_registry('vehicle')
             df = df.set_unit('mileage', unit, force=True)
         df = df.rename({'mileage': m.column_id}).ensure_unit(m.column_id, m.unit)
+        df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
         return df
 
 
