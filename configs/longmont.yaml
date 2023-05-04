@@ -2,15 +2,6 @@
 # CHECK Slight update to this paragraph in the Scenario Planning Actions, for the 100% RE action (check email from Apr 6th) → Jouni
 # CHECK Francie has sent an email about emission factors going to 90 % reduction by the energy company, but the city wants to achieve 100 %.
 
-#Datasets using use_type (should update to use emission_sector instead after streetlights has been added):
-#stationary fuel use
-#stationary wood consumption DONE
-#stationary natural gas use DONE
-#building floor area DONE
-#building energy factor DONE
-#building electricity consumption factor DONE
-#building natural gas consumption factor DONE
-
 #### FINAL_LONGMONT_2021_GHG_INVENTORY_04032023.XLSX
 # Community indicators copied DONE
 # Year over year sheet data copied for 2016, 2019, 2021. 
@@ -639,7 +630,8 @@ nodes:
   type: costs.ExponentialNode
   quantity: ratio
   unit: '%'
-  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100], [2021, 100]]
+  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
+    [2021, 100]]
   params:
   - id: current_value
     value: 100.0
@@ -655,7 +647,8 @@ nodes:
   type: costs.ExponentialNode
   quantity: ratio
   unit: '%'
-  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100], [2021, 100]]
+  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
+    [2021, 100]]
   params:
   - id: current_value
     value: 100.0
@@ -668,7 +661,8 @@ nodes:
 
 - id: floor_increase
   name: Relative floor area
-  description: In the excel model, 1 % increase is assumed until 2035 and then 0 %. Here, the increase continues.
+  description: In the excel model, 1 % increase is assumed until 2035 and then 0 %.
+    Here, the increase continues.
   type: simple.AdditiveNode
   quantity: ratio
   unit: '%'
@@ -716,8 +710,70 @@ nodes:
 
 # Electricity
 
-- id: building_heating_electricity_factor
-  name: Building electricity factor EUI
+- id: eui_change_residential
+  name: Relative residential EUI change
+  description: <p>Percentage increase in residential efficiency on top of past upgrades.
+    Assumes that all municipalities within the County regularly adopt the new IECC
+    when it comes out every three years. Savings based on increase from 2012 to 2015
+    IECC.</p> <p><b>Source.</b> Savings based on conversation with Christine Brinker
+    at SWEEP, who said that savings improvements between 2012 and 2015 IECC are very
+    modest compared to historic savings values.</p>
+  type: costs.ExponentialNode
+  quantity: ratio
+  unit: '%'
+  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
+    [2021, 100]]
+  params:
+  - id: current_value
+    value: 100.0
+    unit: '%'
+  - id: annual_change
+    value: -1.6667  # Originally 5 % in three years
+    unit: '%'
+  - id: replace_output_using_input_dataset
+    value: true
+
+- id: eui_change_commercial
+  name: Relative commercial EUI change
+  description: <p>Percentage increase in commercial efficiency on top of past upgrades.
+    Assumes that all municipalities within the County regularly adopt the new IECC
+    when it comes out every three years. Savings based on increase from 2012 to 2015
+    IECC.</p> <p><b>Source.</b> 1. City of Boulder spreadsheet "Boulder Climate Commitment
+    Analysis Tool". 2. Savings from Department of Energy's "Energy and Energy Cost
+    Savings Analysis of the 2015 IECC for Commercial Buildings". Document on file.</p>
+  type: costs.ExponentialNode
+  quantity: ratio
+  unit: '%'
+  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
+    [2021, 100]]
+  params:
+  - id: current_value
+    value: 100.0
+    unit: '%'
+  - id: annual_change
+    value: -3.7  # Originally 11.1 % in three years
+    unit: '%'
+  - id: replace_output_using_input_dataset
+    value: true
+
+- id: eui_change
+  name: Relative eui change
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: '%'
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: eui_change_residential
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+  - id: eui_change_commercial
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+
+- id: building_heating_electricity_factor_historical
+  name: Building electricity factor EUI, historical
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
@@ -728,6 +784,20 @@ nodes:
     value: electricity
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
+
+- id: building_heating_electricity_factor
+  name: Building electricity factor EUI
+  type: simple.MultiplicativeNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - longmont/building_energy_factor
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_heating_electricity_factor_historical
+    tags: [non_additive]
+  - id: eui_change
   output_nodes:
   - id: building_electricity_consumption
     to_dimensions:
@@ -861,8 +931,8 @@ nodes:
 
 # Natural gas
 
-- id: building_heating_natural_gas_factor
-  name: Building natural gas factor EUI
+- id: building_heating_natural_gas_factor_historical
+  name: Building natural gas factor EUI, historical
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: thm/ft**2/a
@@ -873,6 +943,18 @@ nodes:
     value: natural_gas
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
+
+- id: building_heating_natural_gas_factor
+  name: Building natural gas factor EUI
+  type: simple.MultiplicativeNode
+  quantity: consumption_factor
+  unit: thm/ft**2/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_heating_natural_gas_factor_historical
+    tags: [non_additive]
+  - id: eui_change
   output_nodes:
   - id: building_natural_gas_consumption
     to_dimensions:
@@ -1213,9 +1295,19 @@ nodes:
 
 actions:
 
-- id: updated_building_code_residential  # FIXME the graph for this node type does not show
+- id: updated_building_code_residential  # FIXME This action type is just a placeholder for actual actions that do not yet have a proper type.
   name: Use updated building code and enforce in residential buildings
-  description: Adopt and enforce the latest IECC every year a new IECC is released.
+  description: '<p>Adopt and enforce the latest IECC every year a new IECC is released.</p>
+    <p>Existing buildings: Percentage of residential square footage triggering code
+    upgrades</p><p>Target reduction: 1%</p><p>Confidence ranking: Low</p><p>Assumption.
+    No data resides with the City. They support this assumption.</p><p><b>Source.</b>
+    Email from Erin Fosdick. On file.</p> <p>New buildings: Average percent increase
+    of new residential buildings Target reduction: 1% Confidence ranking:  Med. Data
+    provided by the Boulder County assessor shows historic trends that may overestimate
+    continued growth. Information from Erin Fosdick with the City of Longmont suggests
+    annual increases of 1%. Potential buildout around 2035. New square footage remains
+    constant after 2035. Assume constant increase over time. Email from Erin Fosdick.
+    On file.</p>'
   type: energy_saving.BuildingEnergySavingActionUs
   quantity: fraction
   unit: '%'
