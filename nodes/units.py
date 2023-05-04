@@ -56,6 +56,8 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     pcs = [number] = pieces
     capita = [population] = cap = inh = inhabitant = person
     MMBtu = 1e6 Btu
+    standard_cubic_feet = 0.01 therm = scf
+    diesel_gallon_equivalent = 0.1385 MMBtu = DGE
     vehicle = [vehicle] = v
     passenger = [passenger] = p = pass
     vkm = vehicle * kilometer

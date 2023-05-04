@@ -78,7 +78,7 @@ def compute_exponential(
 
 
 class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for each category
-    allowed_parameters = [
+    allowed_parameters = SimpleNode.allowed_parameters + [
         NumberParameter(
             local_id='current_value',
             is_customizable=True,
@@ -130,7 +130,14 @@ class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for e
         return ndf
 
     def compute(self):
-        return self.compute_exponential()
+        df = self.compute_exponential()
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        print('replace:', replace_output)
+        
+        if replace_output:
+            df = self.replace_output_using_input_dataset(df)
+        return df
+
 
 
 class DiscountNode(ExponentialNode):
