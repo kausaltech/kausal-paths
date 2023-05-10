@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
+import logging, sys
 
 from nodes.models import InstanceConfig
 
@@ -13,6 +14,9 @@ def global_admin_css():
 
 hooks.register('insert_global_admin_css', global_admin_css)
 
+@hooks.register("register_icons")
+def register_icons(icons):
+    return icons + ['wagtailadmin/icons/icon-test.svg', 'wagtailadmin/icons/kausal-node.svg', 'wagtailadmin/icons/kausal-dataset.svg', 'wagtailadmin/icons/kausal-dimensions.svg']
 
 class InstanceChooserMenuItem(SubmenuMenuItem):
     def is_shown(self, request):

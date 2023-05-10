@@ -1,5 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap');
+
 :root {
-    /* --w-font-sans: Papyrus;
-    --w-font-mono: Courier;
-    */
+    --w-font-sans: "Inter";
+    /*--w-font-mono: Inconsolata;*/
+    --w-color-primary-hue: 161;
+    --w-color-secondary-hue: 206;
+    --w-login-fullscreen-background: radial-gradient(100% 300.28% at 100% 0%,var(--w-color-primary) 0%,var(--w-color-primary) 32.94%,var(--w-color-primary) 49.9%,var(--w-color-primary) 50.2%,var(--w-color-secondary) 100%);
+    /*--w-color-surface-menus: #107251;
+    --w-color-surface-menu-item-active: #074A35;
+    --w-color-text-label-menus-default: #ffffff;
+    --w-color-text-label-menus-active: #333333;*/
+}
+
+.sidebar-custom-branding {
+    margin: 1rem auto;
+}
+
+.sidebar--slim .sidebar-custom-branding {
+    padding: 10px 0;
+}
+
+.login .login-logo {
+    width: 3.5rem;
+}
+
+
+.w-header h1 {
+    font-weight: 600;
+}
+
+.page-explorer .w-breadcrumb li:only-child a, .page-explorer .w-breadcrumb li[hidden]~li:last-child a {
+    font-weight: 600;
 }

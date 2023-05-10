@@ -1,5 +1,12 @@
 {% extends "wagtailadmin/login.html" %}
 {% load i18n wagtailadmin_tags %}
+{% load static %}
+
+{% block branding_logo %}
+    <div class="login-logo">
+        <img src="{% static 'images/kausal-avatar-blue.svg' %}" alt="Kausal Logo" width="80" />
+    </div>
+{% endblock %}
 
 {% block branding_login %}{% trans "Sign in to Kausal Paths admin" %}{% endblock %}
 
