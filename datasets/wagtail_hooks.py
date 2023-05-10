@@ -9,8 +9,8 @@ from nodes.models import DataSource
 
 class DimensionAdmin(ModelAdmin):
     model = Dimension
-    menu_label = _('Dimensions')
-    menu_icon = 'table'
+    menu_label = _('Data dimensions')
+    menu_icon = 'kausal-dimensions'
     menu_order = 10
     add_to_settings_menu = True
     list_display = ('label',)
