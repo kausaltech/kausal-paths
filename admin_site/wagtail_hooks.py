@@ -24,7 +24,9 @@ def register_icons(icons):
         'wagtailadmin/icons/kausal-indicators.svg',
         'wagtailadmin/icons/kausal-organisations.svg',
         'wagtailadmin/icons/kausal-plans.svg',
-        'wagtailadmin/icons/kausal-spreadsheets.svg'
+        'wagtailadmin/icons/kausal-spreadsheets.svg',
+        'wagtailadmin/icons/kausal-categories.svg',
+        'wagtailadmin/icons/kausal-attributes.svg'
     ]
 
 class InstanceChooserMenuItem(SubmenuMenuItem):
