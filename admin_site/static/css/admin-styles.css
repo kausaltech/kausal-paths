@@ -9,12 +9,11 @@
     --w-color-grey-100: #E1DFDA;
     --w-color-grey-150: #D8D5CF;
     --w-color-grey-200: #CBC7C1;
-    --w-color-grey-400: #9F9A92;
-    --w-color-grey-500: #88847C;
+    --w-color-grey-400:#88847C;
+    --w-color-grey-500: #726E67;
     --w-color-grey-600: #5C5853;
     --w-color-grey-700: #46423E;
     --w-color-grey-800: #302D2B;
-    --w-color-grey-900: #302D2B;
 
     --w-login-fullscreen-background: radial-gradient(100% 300.28% at 100% 0%,var(--w-color-primary) 0%,var(--w-color-primary) 32.94%,var(--w-color-primary) 49.9%,var(--w-color-primary) 50.2%,var(--w-color-secondary) 100%);
     --w-color-surface-menus: var(--w-color-grey-700);
@@ -34,7 +33,6 @@
 .login .login-logo {
     width: 3.5rem;
 }
-
 
 .w-header h1 {
     font-weight: 600;
