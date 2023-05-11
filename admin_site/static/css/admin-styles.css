@@ -3,13 +3,24 @@
 :root {
     --w-font-sans: "Inter";
     /*--w-font-mono: Inconsolata;*/
-    --w-color-primary-hue: 161;
-    --w-color-secondary-hue: 206;
+    --w-color-primary-hue: 160;
+    --w-color-secondary-hue: 160;
+    --w-color-grey-50: #ECEAE6;
+    --w-color-grey-100: #E1DFDA;
+    --w-color-grey-150: #D8D5CF;
+    --w-color-grey-200: #CBC7C1;
+    --w-color-grey-400: #9F9A92;
+    --w-color-grey-500: #88847C;
+    --w-color-grey-600: #5C5853;
+    --w-color-grey-700: #46423E;
+    --w-color-grey-800: #302D2B;
+    --w-color-grey-900: #302D2B;
+
     --w-login-fullscreen-background: radial-gradient(100% 300.28% at 100% 0%,var(--w-color-primary) 0%,var(--w-color-primary) 32.94%,var(--w-color-primary) 49.9%,var(--w-color-primary) 50.2%,var(--w-color-secondary) 100%);
-    /*--w-color-surface-menus: #107251;
-    --w-color-surface-menu-item-active: #074A35;
-    --w-color-text-label-menus-default: #ffffff;
-    --w-color-text-label-menus-active: #333333;*/
+    --w-color-surface-menus: var(--w-color-grey-700);
+    --w-color-surface-menu-item-active: var(--w-color-grey-800);
+    --w-color-text-label-menus-default: var(--w-color-white);
+    --w-color-text-label-menus-active: var(--w-color-grey-50);
 }
 
 .sidebar-custom-branding {
