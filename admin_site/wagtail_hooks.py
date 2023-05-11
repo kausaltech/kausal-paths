@@ -16,7 +16,16 @@ hooks.register('insert_global_admin_css', global_admin_css)
 
 @hooks.register("register_icons")
 def register_icons(icons):
-    return icons + ['wagtailadmin/icons/icon-test.svg', 'wagtailadmin/icons/kausal-node.svg', 'wagtailadmin/icons/kausal-dataset.svg', 'wagtailadmin/icons/kausal-dimensions.svg']
+    return icons + [
+        'wagtailadmin/icons/kausal-node.svg',
+        'wagtailadmin/icons/kausal-dataset.svg',
+        'wagtailadmin/icons/kausal-dimensions.svg',
+        'wagtailadmin/icons/kausal-actions.svg',
+        'wagtailadmin/icons/kausal-indicators.svg',
+        'wagtailadmin/icons/kausal-organisations.svg',
+        'wagtailadmin/icons/kausal-plans.svg',
+        'wagtailadmin/icons/kausal-spreadsheets.svg'
+    ]
 
 class InstanceChooserMenuItem(SubmenuMenuItem):
     def is_shown(self, request):
