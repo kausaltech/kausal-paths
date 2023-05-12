@@ -20,6 +20,12 @@
     --w-color-surface-menu-item-active: var(--w-color-grey-800);
     --w-color-text-label-menus-default: var(--w-color-white);
     --w-color-text-label-menus-active: var(--w-color-grey-50);
+
+    &.w-theme-dark {
+        --w-color-text-link-default: #C0F5D2;
+        --w-color-secondary-100: #C0F5D2;
+        --w-color-critical-200: #E37D7D;
+    }
 }
 
 .sidebar-custom-branding {
