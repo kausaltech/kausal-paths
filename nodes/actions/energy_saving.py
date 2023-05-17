@@ -14,6 +14,7 @@ from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN,
 from nodes.calc import nafill_all_forecast_years
 from params import Parameter, NumberParameter
 from params.utils import sep_unit_pt
+from common import polars as ppl
 
 from .action import ActionNode
 from .simple import ExponentialAction
@@ -602,5 +603,59 @@ class EnergyCostAction(ExponentialAction):
             cols = ['NetworkPrice']
         for col in cols:
             df[VALUE_COLUMN] += df[col]
+
+        return df
+
+
+class FutureBuildingActionUs(BuildingEnergySavingAction):
+    """
+    BuildingEnergySavingAction with cumulative energy savings.
+    """
+
+    output_metrics = {
+        'triggered': NodeMetric('%', 'fraction'),  # fraction of existing buildings triggering code updates
+        'compliant': NodeMetric('%', 'fraction'),  # compliance of new buildings to the more active regulations
+        VALUE_COLUMN: NodeMetric('%', 'fraction')  # improvement in energy consumption
+    }
+    allowed_parameters: typing.ClassVar[list[Parameter]] = [
+        NumberParameter(
+            local_id='triggered',
+            label=_('Existing buildings triggering code updates'),
+            unit_str='%',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='compliant',
+            label=_('Compliance of new buildings'),
+            unit_str='%',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='improvement',
+            label=_('Improvement in energy consumption'),
+            unit_str='%',
+            is_customizable=False,
+        ),
+    ]
+
+    def compute_effect(self) -> pd.DataFrame:
+
+        triggered = self.get_parameter_value('triggered', units=True).to('dimensionless').m
+        compliant = self.get_parameter_value('compliant', units=True).to('dimensionless').m
+        improvement = self.get_parameter_value('improvement', units=True).to('dimensionless').m
+
+        if not self.is_enabled():
+            improvement = 0
+
+        years = np.arange(self.context.instance.maximum_historical_year, self.context.model_end_year + 1)
+
+        df = pd.DataFrame({
+            'triggered': pint_pandas.PintArray([triggered * 100], '%'),
+            'compliant': pint_pandas.PintArray([compliant * 100], '%'),
+            VALUE_COLUMN: pint_pandas.PintArray([improvement * 100], '%'),
+            FORECAST_COLUMN: [True],
+        }, index=years)
+
+        df.index.name = YEAR_COLUMN
 
         return df

@@ -463,3 +463,220 @@ class MixNode(AdditiveNode):
         nodes = list(self.input_nodes)
         nodes.remove(anode)
         return self.add_mix_normalized(df, nodes)
+
+
+class AdditiveRelativeNode(SimpleNode):
+    """Simple addition of inputs with a possiblity to have a relative change for the output"""
+    allowed_parameters: ClassVar[list[Parameter]] = [
+        StringParameter(local_id='metric', is_customizable=False),
+    ] + SimpleNode.allowed_parameters
+
+    def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
+        if ndf is not None:
+            df = ppl.from_pandas(ndf)
+        else:
+            df = None
+        out = self.add_nodes_pl(df, nodes, metric)
+        return out.to_pandas()
+
+    def compute(self):
+        additive_nodes: list[Node] = []
+        relative_nodes: list[Node] = []
+        assert self.unit is not None
+
+        for node in self.input_nodes:
+            if node.unit is None:
+                raise NodeError(self, "Input node %s does not have a unit" % str(node))
+            if node.quantity == 'fraction':
+                relative_nodes.append(node)
+            else:
+                additive_nodes.append(node)
+
+        df = self.get_input_dataset_pl(required=False)
+        metric = self.get_parameter_value('metric', required=False)
+        assert self.unit is not None
+        if df is not None:
+            if VALUE_COLUMN not in df.columns:
+                if len(df.metric_cols) == 1:
+                    df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+                elif metric is not None:
+                    if metric in df.columns:
+                        df = df.rename({metric: VALUE_COLUMN})
+                        cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
+                        if FORECAST_COLUMN in df.columns:
+                            cols.append(FORECAST_COLUMN)
+                        df = df.select(cols)
+                    else:
+                        raise NodeError(self, "Metric is not found in metric columns")
+                else:
+                    compatible_cols = [
+                        col for col, unit in df.get_meta().units.items()
+                        if self.is_compatible_unit(unit, self.unit)
+                    ]
+                    if len(compatible_cols) == 1:
+                        df = df.rename({compatible_cols[0]: VALUE_COLUMN})
+                        cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
+                        if FORECAST_COLUMN in df.columns:
+                            cols.append(FORECAST_COLUMN)
+                        df = df.select(cols)
+                    else:
+                        raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
+            df = self.add_nodes_pl(None, additive_nodes, metric)
+            df = self.fill_gaps_using_input_dataset_pl(df)
+        else:
+            df = self.add_nodes_pl(df, additive_nodes, metric)
+
+        factors = [n.get_output_pl(target_node=self) for n in relative_nodes]
+        # to be continued
+
+        return df
+
+
+class MultiplicativeRelativeNode(MultiplicativeNode):
+    """Multiply nodes together with potentially adding other input nodes.
+
+    Multiplication and addition is determined based on the input node units.
+    Finally, the result is scaled relative to dimsionless input nodes.
+    """
+
+    allowed_parameters = SimpleNode.allowed_parameters + [
+        BoolParameter(
+            local_id='only_historical',
+            description='Process only historical rows',
+            is_customizable=False,
+        ),
+        BoolParameter(
+            local_id='extend_rows',
+            description='Extend last row to future years',
+            is_customizable=False,
+        )
+    ]
+    operation_label = 'multiplication'
+
+    def compute_old(self):
+        all_nodes = self.get_input_nodes()
+        input_nodes: list[Node] = []
+        relative_nodes: list[Node] = []
+
+        for node in all_nodes:
+            if node.quantity == 'fraction':
+                relative_nodes.append(node)
+            else:
+                input_nodes.append(node)
+        print(all_nodes, input_nodes, relative_nodes)
+        stripped_node = self
+#        stripped_node.input_nodes = input_nodes
+
+        df = super(MultiplicativeRelativeNode, stripped_node).compute()
+
+        return df
+
+    # Fork the whole compute() function because I don't know how to super() it with relative_nodes stripped.
+    def compute(self) -> ppl.PathsDataFrame:
+        additive_nodes: list[Node] = []
+        operation_nodes: list[Node] = []
+        relative_nodes: list[Node] = []
+        assert self.unit is not None
+        non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        for node in self.input_nodes:
+            if node.unit is None:
+                raise NodeError(self, "Input node %s does not have a unit" % str(node))
+            if node in non_additive_nodes:
+                operation_nodes.append(node)
+            elif self.is_compatible_unit(node.unit, self.unit):
+                additive_nodes.append(node)
+            elif node.quantity == 'fraction':
+                relative_nodes.append(node)
+            else:
+                operation_nodes.append(node)
+
+        if len(operation_nodes) < 2:
+            raise NodeError(self, "Must receive at least two inputs to operate %s on" % self.operation_label)
+
+        outputs = [n.get_output_pl(target_node=self) for n in operation_nodes]
+
+        if self.debug:
+            for idx, (n, df) in enumerate(zip(operation_nodes, outputs)):
+                print('%s: %s input from node %d (%s):' % (self.operation_label, self.id, idx, n.id))
+
+        if self.get_parameter_value('only_historical', required=False):
+            outputs = [df.filter(~pl.col(FORECAST_COLUMN)) for df in outputs]
+
+        df = self.perform_operation(operation_nodes, outputs)
+
+        if self.get_parameter_value('extend_rows', required=False):
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        df = self.add_nodes_pl(df, additive_nodes)
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
+        if fill_gaps:
+            df = self.fill_gaps_using_input_dataset_pl(df)
+        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
+        if replace_output:
+            df = self.replace_output_using_input_dataset_pl(df)
+        if self.debug:
+            print('%s: Output:' % self.id)
+            self.print(df)
+
+        factors = [n.get_output_pl(target_node=self) for n in relative_nodes]
+        # to be continued
+
+        return df
+
+
+class UsBuildingNode(AdditiveNode):
+
+    def compute(self) -> pd.DataFrame:
+        for node in self.input_nodes:
+            if node.quantity == 'floor_area':
+                floor = node.get_output_pl()
+            elif node.quantity == 'consumption_factor':
+                cf = node.get_output_pl()
+            elif node.quantity == 'fraction':
+                action = node.get_output_pl()
+            else:
+#                raise NodeError(node, 'Node %s has wrong quantity %s' % (node.id, node.quantity))
+                action = node.get_output_pl()  # FIXME For some reason, the quantity of the required action is None.
+
+        df = floor.paths.join_over_index(cf)
+        meta = df.get_meta()
+        df = df.with_columns(pl.col(VALUE_COLUMN + '_right').alias('cf'))
+        df = df.drop(VALUE_COLUMN + '_right')
+        df = df.paths.join_over_index(action)
+        df = df.with_columns(pl.col(VALUE_COLUMN).alias('floor'))
+        df = df.with_columns(pl.col(VALUE_COLUMN + '_right').alias('improvement'))
+        df = df.drop([VALUE_COLUMN, VALUE_COLUMN + '_right'])
+
+        df = df.with_columns(pl.col('floor').alias('floor_new'))
+        df = df.diff('floor_new')
+        extra = ['triggered', 'compliant', 'improvement', 'floor', 'floor_new', 'cf']
+
+        df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
+        df = df.with_columns(pl.col('compliant').fill_null(pl.lit(0)))
+        df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
+        df = df.with_columns(pl.col('floor_new').fill_null(pl.lit(0)))
+
+        # Existing (old) floor area
+        df = df.multiply_cols(['floor', 'cf'], 'energy_old')
+        df = df.multiply_cols(['floor', 'cf', 'triggered'], 'energy_saving_old')  # FIXME cf_improvement
+        df = df.subtract_cols(['energy_old', 'energy_saving_old'], 'net_energy_old')
+        extra = extra + ['energy_old', 'energy_saving_old', 'net_energy_old']
+
+        # New building floow area
+        df = df.multiply_cols(['floor_new', 'cf'], 'energy_new')
+        df = df.multiply_cols(['floor_new', 'cf', 'compliant', 'improvement'], 'energy_saving_new')
+        df = df.cumulate('energy_new')
+        df = df.cumulate('energy_saving_new')
+        df = df.subtract_cols(['energy_new', 'energy_saving_new'], 'net_energy_new')
+        extra = extra + ['energy_new', 'energy_saving_new', 'net_energy_new']
+
+        df = df.sum_cols(['net_energy_old', 'net_energy_new'], VALUE_COLUMN)
+        df = df.drop(extra)
+
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return df

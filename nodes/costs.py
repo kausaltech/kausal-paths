@@ -132,7 +132,6 @@ class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for e
     def compute(self):
         df = self.compute_exponential()
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-        print('replace:', replace_output)
         
         if replace_output:
             df = self.replace_output_using_input_dataset(df)
