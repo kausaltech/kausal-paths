@@ -4,7 +4,7 @@ supported_languages: [de, fi]  # FIXME instance_config.other_languages is [] for
 site_url: https://sunnydale.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0b6112fb402d720f55705d2f8320baa81267ecf5
+  commit: 15442679dde7b89b8a230dac76251533ed6e1b7e
   dvc_remote: kausal-s3
 name: Carbon-neutral Sunnydale 2030
 name_fi: Hiilineutraali Sunnydale 2030
@@ -21,9 +21,520 @@ maximum_historical_year: 2018
 emission_dataset: tampere/scenarios/emissions/bau
 emission_unit: kt/a
 emission_forecast_from: 2019
+normalizations:
+- normalizer_node: population2
+  quantities:
+  - id: energy
+    unit: kWh/cap/a
+  default: true
+
+dimensions:
+- id: emission_sectors
+  label_de: Emissionssektoren
+  label: Emission sectors
+  categories:
+  - id: business_commerce_services
+    label_de: Gewerbe, Handel, Dienstleistungen
+    label: Business, Commerce, Services
+  - id: industry
+    label_de: Industrie
+    label: Industry
+  - id: local_facilities
+    label_de: Kommunale Einrichtungen
+    label: Local facilities
+  - id: private_households
+    label_de: Private Haushalte
+    label: Private households
+  - id: traffic
+    label_de: Verkehr
+    label: Traffic
+  - id: buildings
+    label_de: Gebäude
+    label: Buildings
+  - id: transport
+    label_de: Mobilität
+    label: Transport
+  - id: waste_treatment
+    label_de: Entsorgung
+    label: Waste treastment
+  - id: ippu
+    label_de: Industrie- und Gewerbeprozesse
+    label: Industrial and commercial process emissions
+  - id: afolu
+    label_de: Land- und Forstwirtschaft
+    label: Agriculture and forestry emissions
+  - id: aviation
+    label_de: Flugverkehr
+    label: Aviation
+  - id: food_consumption
+    label_de: Ernährung
+    label: Food
+  - id: textile_consumption
+    label_de: Textilien
+    label: Textiles
+  - id: other_consumption
+    label_de: Übriger Konsum
+    label: Other consumption
+
+- id: transport_mode
+  label_de: Verkehrsmittelwahl
+  label: Transport mode
+  categories:
+  - id: cars
+    label_de: Personenwagen
+    label: Cars
+  - id: motorbikes
+    label_de: Motorräder
+    label: Motorbikes
+  - id: buses
+    label_de: Linienbusse
+    label: Local buses
+  - id: trolleybuses
+    label_de: Trolleybusse
+    label: Trolley buses
+  - id: coaches
+    label_de: Reisebusse
+    label: Coaches
+    id_match: ^coach_.+
+  - id: lorries
+    label_de: Lastwagen
+    label: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label_de: Lieferwagen
+    label: Vans
+    id_match: ^van_.+
+  - id: tram
+    label_de: Tram
+    label: Tram
+  - id: small_railways
+    label_de: Kleinbahnen
+    label: Small railways
+    id_match: ^small_railways$
+  - id: rail_passenger
+    label_de: Bahn ÖV
+    label: Rail (passenger transport)
+  - id: rail_goods
+    label_de: Bahn Gueterverkehr
+    label: Rail (goods transport)
+    id_match: ^rail_goods.*
+  - id: liner_ship
+    label_de: Linienschiffe
+    label: Liner ship
+    id_match: ^liner_ship.*
+  - id: private_ship
+    label_de: Private Bootsverkehr
+    label: Private ships
+    id_match: ^private_ship.*
+  - id: mobility_outside_city
+    label_de: Mobilität ausserhalb der Stadt
+    label: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label_de: Flugverkehr
+    label: Aviation
+    id_match: ^aviation
+
+- id: vehicle_type
+  label_de: Fahrzeugtyp
+  label: Vehicle type
+  groups:
+  - id: cars
+    label_de: Personenwagen
+    label: Cars
+    id_match: ^car_.+
+  - id: motorbikes
+    label_de: Motorräder
+    label: Motorbikes
+    id_match: ^motorbike_.+
+  - id: buses
+    label_de: Linienbusse
+    label: Local buses
+    id_match: ^buses_.+
+  - id: trolleybuses
+    label_de: Trolleybusse
+    label: Trolley buses
+    id_match: ^trolley.*
+  - id: coaches
+    label_de: Reisebusse
+    label: Coaches
+    id_match: ^coach_.+
+  - id: lorries
+    label_de: Lastwagen
+    label: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label_de: Lieferwagen
+    label: Vans
+    id_match: ^van_.+
+  - id: tram
+    label_de: Tram
+    label: Tram
+    id_match: ^tram$
+  - id: small_railways
+    label_de: Kleinbahnen
+    label: Small railways
+    id_match: ^small_railways$
+  - id: rail_passenger
+    label_de: Bahn (Personverkehr)
+    label: Rail (passenger transport)
+    id_match: ^rail_passenger.*
+  - id: rail_goods
+    label_de: Bahn (Gueterverkehr)
+    label: Rail (goods transport)
+    id_match: ^rail_goods.*
+  - id: liner_ship
+    label_de: Linienschiffe
+    label: Liner ship
+    id_match: ^liner_ship.*
+  - id: private_ship
+    label_de: Private Bootsverkehr
+    label: Private ships
+    id_match: ^private_ship.*
+  - id: mobility_outside_city
+    label_de: Mobilität ausserhalb der Stadt
+    label: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label_de: Flugverkehr
+    label: Aviation
+    id_match: ^aviation
+
+    # TODO: Add the rest of the groups
+  categories:
+  - id: car_petrol
+    label_de: Personenwagen / Benzin
+    label: Passenger cars / Petrol
+  - id: car_diesel
+    label_de: Personenwagen / Diesel
+    label: Passenger cars / Diesel
+  - id: car_natural_gas_biogas
+    label_de: Personenwagen / Erdgas/Biogas
+    label: Passenger cars / Natural gas / biogas
+  - id: car_plugin_hybrid
+    label_de: Personenwagen / Plug-in Hybrid
+    label: Passenger cars / Plug-in hybrid
+  - id: car_batteryelectric
+    label_de: Personenwagen / Elektrisch
+    label: Passenger cars / Battery-Electric
+  - id: car_fuel_cell
+    label_de: Personenwagen / Brennstoffzelle
+    label: Passenger cars / Fuel cell
+  - id: motorbike_petrol_4stroke
+    label_de: Motorräder / Benzin (4-Takt-Motor)
+    label: Motorbikes / Petrol 4-stroke engine
+  - id: motorbike_petrol_2stroke
+    label_de: Motorräder / Benzin (2-Takt-Motor)
+    label: Motorbikes / Petrol 2-stroke engine
+  - id: motorbike_batteryelectric
+    label_de: Motorräder / Elektrisch
+    label: Motorbikes / Battery-Electric
+  - id: buses_diesel
+    label_de: Linienbusse / Diesel
+    label: Regular buses / Diesel
+  - id: buses_diesel_hybrid
+    label_de: Linienbusse / Diesel Hybrid
+    label: Regular buses / Diesel hybrid
+  - id: buses_diesel_plugin_hybrid
+    label_de: Linienbusse / Diesel Plug- in Hybrid
+    label: Regular buses / Diesel plug-in hybrid
+  - id: buses_batteryelectric
+    label_de: Linienbusse / Elektrisch
+    label: Regular buses / Battery-Electric
+  - id: buses_fuel_cell
+    label_de: Linienbusse / Brennstoffzelle
+    label: Regular buses / Fuel cell
+  - id: trolley
+    label_de: Trolleybusse
+    label: Trolley buses
+  - id: coach_diesel
+    label_de: Reisebusse / Diesel
+    label: Coaches / Diesel
+  - id: coach_natural_gas_biogas
+    label_de: Reisebusse / Erdgas/Biogas
+    label: Coaches / Natural gas/Biogas
+  - id: coach_battery_electric
+    label_de: Reisebusse / Elektrisch
+    label: Coaches / Battery-Electric
+  - id: coach_fuel_cell
+    label_de: Reisebusse / Brennstoffzelle
+    label: Coaches / Fuel cell
+  - id: lorry_diesel
+    label_de: Lastwagen / Diesel
+    label: Lorries / Diesel
+  - id: lorry_natural_gas_biogas
+    label_de: Lastwagen / Erdgas/Biogas
+    label: Lorries / Natural gas/Biogas
+  - id: lorry_diesel_plugin_hybrid
+    label_de: Lastwagen / Diesel Plug-in Hybrid
+    label: Lorries / Diesel plug-in hybrid
+  - id: lorry_battery_electric
+    label_de: Lastwagen / Elektrisch
+    label: Lorries / Battery-Electric
+  - id: lorry_fuel_cell
+    label_de: Lastwagen / Brennstoffzelle
+    label: Lorries / Fuel cell
+  - id: van_petrol
+    label_de: Lieferwagen / Benzin
+    label: Vans / Petrol
+  - id: van_diesel
+    label_de: Lieferwagen / Diesel
+    label: Van / Diesel
+  - id: van_natural_gas_biogas
+    label_de: Lieferwagen / Erdgas/Biogas
+    label: Van / Natural gas/Biogas
+  - id: van_diesel_plugin_hybrid
+    label_de: Lieferwagen / Plug-in Hybrid
+    label: Van / Plug-in hybrid
+  - id: van_battery_electric
+    label_de: Lieferwagen / Elektrisch
+    label: Van / Battery-Electric
+  - id: van_fuel_cell
+    label_de: Lieferwagen / Brennstoffzelle
+    label: Van / Fuel cell
+  - id: tram
+    label_de: Tram
+    label: Tram
+  - id: small_railways
+    label_de: Kleinbahnen
+    label: Small railways
+  - id: rail_passenger
+    label_de: Bahn (Personverkehr)
+    label: Rail (passenger transport)
+  - id: rail_goods
+    label_de: Bahn (Gueterverkehr)
+    label: Rail (goods transport)
+  - id: liner_ship_diesel
+    label_de: Linienschiffe / Diesel
+    label: Liner ship / Diesel
+  - id: liner_ship_battery_electric
+    label_de: Linienschiffe / Elektrisch
+    label: Liner ship / Battery-Electric
+  - id: private_ship_petrol
+    label_de: Private Bootsverkehr / Benzin
+    label: Private ships / Petrol
+  - id: private_ship_diesel
+    label_de: Private Bootsverkehr / Diesel
+    label: Private ships / Diesel
+  - id: private_ship_battery_electric
+    label_de: Private Bootsverkehr / Elektrisch
+    label: Private ships / Battery-Electric
+  - id: mobility_outside_city
+    label_de: Mobilität ausserhalb der Stadt (exkl. Flugverkehr)
+    label: Mobility ourside the city (excl. aviation)
+  - id: aviation
+    label_de: Flugverkehr
+    label: Aviation
+
+- id: non_road_machinery
+  label_de: Non-Road Maschinen
+  label: Non-road machinery
+  categories:
+  - id: building_construction_machinery
+    label_de: Maschinen Hochbau
+  - id: civil_construction_machinery
+    label_de: Maschinen Tiefbau
+  - id: industrial_vehicles
+    label_de: Industrielle Fahrzeuge
+  - id: forestry_vehicles
+    label_de: Forstwirtschaftliche Fahrzeuge
+  - id: agricultural_vehicles
+    label_de: Landwirtschaftliche Fahrzeuge
+
+- id: greenhouse_gases
+  label_de: Treibhausgase
+  label: Greenhouse gases
+  categories:
+  - id: co2_eq
+    label_de: CO2-Äquivalent
+    label: CO2 equivalent
+  - id: co2
+    label_de: CO2, fossil
+    label: CO2, fossil
+    aliases: [co2_fossil]
+  - id: ch4
+    label_de: CH4
+    label: CH4
+  - id: n2o
+    label_de: N2O
+    label: N2O
+  - id: hfc
+    label_de: HFC
+    label: HFC
+  - id: pfc
+    label_de: PFC
+    label: PFC
+  - id: sf6
+    label_de: SF6
+    label: SF6
+  - id: nf3
+    label_de: NF3
+    label: NF3
+  - id: co2_biogen
+    label_de: CO2, biogenic
+    label: CO2, biogen
+
+- id: energy_carrier
+  label_de: Energieträger
+  label: Energy carrier
+  categories:
+  - id: electricity
+    label_de: Strom
+    label: Electricity
+    color: '#0097C5'
+  - id: fuel_oil
+    label_de: Heizöl EL
+    label: Heating oil
+    color: '#B23A01'
+  - id: petrol
+    label_de: Benzin
+    label: Petrol
+    color: '#BF8500'
+  - id: diesel
+    label_de: Diesel
+    label: Diesel
+    color: '#EB5E00'
+  - id: kerosene
+    label_de: Kerosin
+    label: Kerosene
+    color: '#F6A960'
+  - id: natural_gas
+    label_de: Erdgas
+    label: Natural gas
+    color: '#7EE6E2'
+    order: 1
+  - id: biogas
+    label_de: Biogas
+    label: biogas
+    color: '#65CC8B'
+    order: 2
+  - id: district_heat
+    label_de: Fernwärme
+    label: District heating
+    color: '#009655'
+  - id: wood
+    label_de: Holz
+    label: Wood
+    color: '#CBB910'
+  - id: environmental_heat
+    label_de: Umweltwärme
+    label: Environmental heat
+    color: '#91A110'
+  - id: solar_collectors
+    label_de: Sonnenkollektoren
+    label: Solar thermal collectors
+    color: '#F0D800'
+  - id: waste
+    label_de: Abfall
+    label: Waste
+    color: '#007C78'
+
+- id: heating_system
+  label_de: Heizsystem
+  label: Heating system
+  categories:
+  - id: fuel_oil
+    label_de: Heizöl EL
+    label: Heating oil
+    color: '#B23A01'
+  - id: natural_gas
+    label_de: Erdgas/Biogas
+    label: Natural gas or biogas
+    color: '#7EE6E2'
+  - id: district_heat
+    label_de: Fernwärme
+    label: District heating
+    color: '#009655'
+  - id: heat_pumps
+    label_de: Wärmepumpe
+    label: Heat pumps
+    color: '#0097C5'
+  - id: wood
+    label_de: Holz
+    label: Wood
+    color: '#CBB910'
+  - id: solar_collectors
+    label_de: Sonnenkollektoren
+    label: Solar thermal collectors
+    color: '#F0D800'
+
+- id: electricity_source
+  label_de: Verfahren zur Stromerzeugung
+  label: Electricity generation method
+  categories:
+  - id: hydro
+    label_de: Wasser
+    label: Hydropower
+  - id: nuclear
+    label_de: Atomkraft
+    label: Nuclear power
+  - id: natural_gas
+    label_de: Erdgas
+    label: Natural gas
+  - id: solar
+    label_de: Sonne
+    label: Solar
+  - id: biogas
+    label_de: Biogas
+    label: Biogas
+  - id: waste
+    label_de: Abfall
+    label: Waste incineration
+  - id: wind
+    label_de: Wind
+    label: Wind
+  - id: wood
+    label_de: Holz
+    label: Wood
+  - id: fuel_oil
+    label_de: Heizöl
+    label: Heating oil
+  - id: import
+    label_de: Strommix Europa
+    label: European import
+    aliases:
+    - UCTE-Mix / ENTSO-E Mix
+    - Nicht deklariert (UCTE)
+    - Nicht deklariert (UCTE-Mix)
+  - id: subsidized
+    label_de: Geförderter Strom
+    label: Subsidized electricity
+
+- id: building_use_extended
+  label_de: Gebäudenutzungsart (erweitert)
+  label: Building use (extended)
+  categories:
+  - id: residential
+    label_de: Wohnen
+    label: Residential
+  - id: office
+    label_de: Büro
+    label: Office
+  - id: commercial_services
+    label_de: Verkauf und Gastgewerbe
+    label: Sales and Hospitality
+  - id: production
+    label_de: Produktion
+    label: Production
+  - id: other
+    label_de: Andere
+    label: Other
+
+- id: building_use
+  label: Building use
+  label_de: Building use
+  categories:
+  - id: residential
+    label_de: Wohnen
+    label: Residential
+  - id: nonresidential
+    label_de: Nicht-Wohnen
+    label: Non-residential
+
 params:
 - id: municipality_name
   value: Tampere
+
 emission_sectors:
 - id: net_emissions
   name: Net emissions (scope 2)
@@ -204,6 +715,24 @@ nodes:
   name: Population
   name_fi: Väestö
   name_de: Bevölkerung
+
+- id: population2
+  type: simple.AdditiveNode
+  name: Population
+  quantity: population
+  unit: inhabitants
+  input_datasets:
+  - sunnydale/bevolkerungsstand
+
+- id: energy_consumption_total
+  type: simple.AdditiveNode
+  name: Energy consumption, total
+  name_de: Energieverbrauch, gesamt
+  quantity: energy
+  unit: MWh/a
+  input_datasets:
+  - sunnydale/energieverbrauch_gesamt
+  output_dimensions: [emission_sectors]
 
 - id: district_heating_emissions
   name: District heating emissions
