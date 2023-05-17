@@ -650,9 +650,9 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
         years = np.arange(self.context.instance.maximum_historical_year, self.context.model_end_year + 1)
 
         df = pd.DataFrame({
-            'triggered': pint_pandas.PintArray([triggered * 100], '%'),
-            'compliant': pint_pandas.PintArray([compliant * 100], '%'),
-            VALUE_COLUMN: pint_pandas.PintArray([improvement * 100], '%'),
+            'triggered': pint_pandas.PintArray([triggered * 100.0], '%'),
+            'compliant': pint_pandas.PintArray([compliant * 100.0], '%'),
+            VALUE_COLUMN: pint_pandas.PintArray([improvement * 100.0], '%'),
             FORECAST_COLUMN: [True],
         }, index=years)
 

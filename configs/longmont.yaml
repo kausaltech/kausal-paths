@@ -1379,7 +1379,7 @@ actions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
 
-- id: updated_building_code_residential  # FIXME This action type is just a placeholder for actual actions that do not yet have a proper type.
+- id: updated_building_code_residential
   name: Use updated building code and enforce in residential buildings
   description: '<p>Adopt and enforce the latest IECC every year a new IECC is released, rather than adopting it on the third year.</p>
     <p>Existing buildings: Percentage of residential square footage triggering code
@@ -1450,7 +1450,7 @@ actions:
     energy use, including the Climate Action Recommendations Report strategies to
     add solar ready and electric vehicle ready as part of the 2021 residential code
     update.
-  type: simple.AdditiveAction
+  type: simple.AdditiveAction  # FIXME This action type is just a placeholder for actual actions that do not yet have a proper type.
   quantity: energy
   unit: kWh/a
   forecast_values: [[2023, 0], [2050, 0]]

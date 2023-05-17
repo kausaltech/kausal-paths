@@ -628,7 +628,10 @@ class MultiplicativeRelativeNode(MultiplicativeNode):
         return df
 
 
-class UsBuildingNode(AdditiveNode):
+class UsBuildingNode(SimpleNode):
+    output_metrics = {
+        VALUE_COLUMN: NodeMetric('kWh/a', 'energy')
+    }
 
     def compute(self) -> pd.DataFrame:
         for node in self.input_nodes:
@@ -678,5 +681,7 @@ class UsBuildingNode(AdditiveNode):
         df = df.drop(extra)
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+#        self.print(df)
+#        exit()
 
         return df
