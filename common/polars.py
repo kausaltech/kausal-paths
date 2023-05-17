@@ -245,6 +245,54 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(out_col, out_unit)
         return df
 
+    def sum_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
+        res_unit = None
+        for col in cols:
+            if res_unit is None:
+                res_unit = self._units[col]
+                s = self[col]
+            else:
+                s = s + self.ensure_unit(col, res_unit)[col]
+
+        df = self.with_columns([s.alias(out_col)])
+        df._units[out_col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(out_col, out_unit)
+        return df
+
+    def subtract_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
+        res_unit = None
+        for col in cols:
+            if res_unit is None:
+                res_unit = self._units[col]
+                s = self[col]
+            else:
+                s = s - self.ensure_unit(col, res_unit)[col]
+
+        df = self.with_columns([s.alias(out_col)])
+        df._units[out_col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(out_col, out_unit)
+        return df
+    
+    def cumulate(self, col: str) -> PathsDataFrame:
+        df = self.paths.to_wide()
+        for df_col in df.columns:
+            if col + '@' in df_col:
+                df = df.with_columns(pl.col(df_col).cumsum())
+            else:
+                continue
+        return df.paths.to_narrow()
+
+    def diff(self, col: str, n: Any = 1) -> PathsDataFrame:
+        df = self.paths.to_wide()
+        for df_col in df.columns:
+            if col + '@' in df_col:
+                df = df.with_columns(pl.col(df_col).diff(n))
+            else:
+                continue
+        return df.paths.to_narrow()
+
     def add_to_index(self, col: str) -> PathsDataFrame:
         assert col in self.columns
         assert col not in self._primary_keys
