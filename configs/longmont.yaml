@@ -416,7 +416,7 @@ params:
 emission_sectors:
 - id: net_emissions
   name: Greenhouse gas emissions
-  color: #273E60
+  color: '#273E60'
   input_node_dimension:
     label: Emission sectors
   goals:
@@ -432,34 +432,34 @@ emission_sectors:
 - id: stationary_energy_emissions
   name: Stationary energy emissions  # FIXME There is apparently double counting due to building_emissions
   part_of: net_emissions
-  color: #73C1B7
+  color: '#73C1B7'
   input_dataset_processors: [LinearInterpolation]
 
 - id: transportation_emissions
   name: Transportation emissions
   part_of: net_emissions
   category: transport
-  color: #F4BD7B
+  color: '#F4BD7B'
   input_dataset_processors: [LinearInterpolation]
 
 - id: waste_emissions
   name: Waste emissions
   part_of: net_emissions
-  color: #D3805E
+  color: '#D3805E'
   category: waste
   input_dataset_processors: [LinearInterpolation]
 
 - id: ippu_emissions
   name: Industrial processes and product use emissions
   part_of: net_emissions
-  color: #6686B9
+  color: '#6686B9'
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name: Agriculture,forestry, and other land use emissions
   category: afolu
   part_of: net_emissions
-  color: #5D9C6F
+  color: '#5D9C6F'
   input_dataset_processors: [LinearInterpolation]
 
 # Subsector emissions
@@ -467,7 +467,7 @@ emission_sectors:
 - id: fugitive_emissions
   name: Fugitive emissions
   category: fugitive_emissions
-  color: #8DAFBC
+  color: '#8DAFBC'
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -475,7 +475,7 @@ emission_sectors:
 - id: building_emissions
   name: Building emissions
   category: buildings
-  color: #002F96
+  color: '#002F96'
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -1395,14 +1395,7 @@ actions:
   type: energy_saving.FutureBuildingActionUs
   quantity: fraction
   unit: '%'
-  params:  # FIXME Make sure that change per year is correct.
-  # renovation rate % of existing building stock/a OR 
-  # compliance rate
-  # affected footage: new buildings: derivate of floor area
-  # affected footage: old buildlings: renovation rate * floor area
-  # You can fool everyone for some time, some people all the time, but you can not fool everyone all the time.
-  # If you can separate planning from actual decision making, you can do much more detailed analyses on all action options.
-  # You can commit some people to 
+  params:
   - id: compliant
     value: 90.0
   - id: triggered
