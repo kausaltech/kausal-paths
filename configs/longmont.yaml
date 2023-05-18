@@ -702,114 +702,6 @@ nodes:
     tags: [non_additive]
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
-  output_nodes:
-  - id: building_electricity_consumption
-    to_dimensions:
-    - id: emission_sectors
-    - id: site
-      categories: [longmont_power]
-  - id: building_natural_gas_consumption
-    to_dimensions:
-    - id: emission_sectors
-
-# Electricity
-
-- id: eui_change_residential
-  name: Relative residential EUI change
-  description: <p>Percentage increase in residential efficiency on top of past upgrades.
-    Assumes that all municipalities within the County regularly adopt the new IECC
-    when it comes out every three years. Savings based on increase from 2012 to 2015
-    IECC.</p> <p><b>Source.</b> Savings based on conversation with Christine Brinker
-    at SWEEP, who said that savings improvements between 2012 and 2015 IECC are very
-    modest compared to historic savings values.</p>
-  type: costs.ExponentialNode
-  quantity: ratio
-  unit: '%'
-  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
-    [2021, 100]]
-  params:
-  - id: current_value
-    value: 100.0
-    unit: '%'
-  - id: annual_change
-    value: -1.6667  # Originally 5 % in three years
-    unit: '%'
-  - id: replace_output_using_input_dataset
-    value: true
-
-- id: eui_change_commercial
-  name: Relative commercial EUI change
-  description: <p>Percentage increase in commercial efficiency on top of past upgrades.
-    Assumes that all municipalities within the County regularly adopt the new IECC
-    when it comes out every three years. Savings based on increase from 2012 to 2015
-    IECC.</p> <p><b>Source.</b> 1. City of Boulder spreadsheet "Boulder Climate Commitment
-    Analysis Tool". 2. Savings from Department of Energy's "Energy and Energy Cost
-    Savings Analysis of the 2015 IECC for Commercial Buildings". Document on file.</p>
-  type: costs.ExponentialNode
-  quantity: ratio
-  unit: '%'
-  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
-    [2021, 100]]
-  params:
-  - id: current_value
-    value: 100.0
-    unit: '%'
-  - id: annual_change
-    value: -3.7  # Originally 11.1 % in three years
-    unit: '%'
-  - id: replace_output_using_input_dataset
-    value: true
-
-- id: eui_change
-  name: Relative EUI change
-  type: simple.AdditiveNode
-  quantity: ratio
-  unit: '%'
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: eui_change_residential
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-  - id: eui_change_commercial
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-- id: building_heating_electricity_factor_historical
-  name: Building electricity factor EUI, historical
-  type: simple.AdditiveNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-  params:
-  - id: metric
-    value: electricity
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-
-- id: building_heating_electricity_factor
-  name: Building electricity factor EUI
-  type: simple.MultiplicativeNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: building_heating_electricity_factor_historical
-    tags: [non_additive]
-  - id: eui_change
-  output_nodes:
-  - id: building_electricity_consumption
-    to_dimensions:
-    - id: emission_sectors
-    - id: site
-      categories: [longmont_power]
 
 # Total Floor area: Building 55:56
 # standard energy consumption of existing buildings: MISSING
@@ -824,7 +716,7 @@ nodes:
 # Energy consumption of existing non-renovated buildings: MISSING
 
 - id: electricity_eui
-  name: Electricity EUI
+  name: Electricity energy use intensity EUI
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
@@ -834,7 +726,7 @@ nodes:
   output_dimensions: [emission_sectors]
 
 - id: natural_gas_eui
-  name: Natural gas EUI
+  name: Natural gas energy use intensity EUI
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -843,11 +735,11 @@ nodes:
     column: natural_gas
   output_dimensions: [emission_sectors]
 
-- id: building_electricity_consumption2
-  name: Building electricity_consumption2
+- id: building_electricity_consumption_residential
+  name: Building electricity consumption residential
   type: simple.UsBuildingNode
   quantity: energy
-  unit: kWh/a
+  unit: GWh/a
   input_nodes:
   - id: updated_building_code_residential
     metrics: [triggered, compliant, Value]
@@ -862,17 +754,79 @@ nodes:
   - id: energy_efficiency_action
     ref: placeholder
 
-- id: building_electricity_consumption
-  name: Housing and commerce electricity consumption
-  type: simple.MultiplicativeNode
+- id: building_natural_gas_consumption_residential
+  name: Building natural gas consumption residential
+  type: simple.UsBuildingNode
+  quantity: energy
+  unit: therm/a
+  input_nodes:
+  - id: updated_building_code_residential
+    metrics: [triggered, compliant, Value]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+  - building_floor_area
+  - natural_gas_eui
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+  - id: energy_efficiency_action
+    ref: placeholder
+
+- id: building_electricity_consumption_commercial
+  name: Building electricity consumption commercial
+  type: simple.UsBuildingNode
   quantity: energy
   unit: GWh/a
-  input_datasets:
-  - longmont/stationary_electricity_use
+  input_nodes:
+  - id: updated_building_code_commercial
+    metrics: [triggered, compliant, Value]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - building_floor_area
+  - electricity_eui
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+  - id: energy_efficiency_action
+    ref: placeholder
+
+- id: building_natural_gas_consumption_commercial
+  name: Building natural gas consumption commercial
+  type: simple.UsBuildingNode
+  quantity: energy
+  unit: therm/a
+  input_nodes:
+  - id: updated_building_code_commercial
+    metrics: [triggered, compliant, Value]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - building_floor_area
+  - natural_gas_eui
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+  - id: energy_efficiency_action
+    ref: placeholder
+
+- id: building_electricity_consumption
+  name: Building electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - building_electricity_consumption_residential
+  - building_electricity_consumption_commercial
   output_nodes:
-  - electricity_consumption
-  input_dimensions: [emission_sectors, site]
-  output_dimensions: [emission_sectors, site]
+  - id: electricity_consumption
+    to_dimensions:
+    - id: site
+      categories: [longmont_power]
+    - id: emission_sectors
 
 - id: electricity_consumption
   name: Electricity consumption
@@ -988,45 +942,18 @@ nodes:
 
 # Natural gas
 
-- id: building_heating_natural_gas_factor_historical
-  name: Building natural gas factor EUI, historical
-  type: simple.AdditiveNode
-  quantity: consumption_factor
-  unit: thm/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-  params:
-  - id: metric
-    value: natural_gas
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-
-- id: building_heating_natural_gas_factor
-  name: Building natural gas factor EUI
-  type: simple.MultiplicativeNode
-  quantity: consumption_factor
-  unit: thm/ft**2/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: building_heating_natural_gas_factor_historical
-    tags: [non_additive]
-  - id: eui_change
-  output_nodes:
-  - id: building_natural_gas_consumption
-    to_dimensions:
-    - id: emission_sectors
-
 - id: building_natural_gas_consumption
-  name: Housing and commerce natural gas consumption
-  type: simple.MultiplicativeNode
+  name: Building natural gas consumption
+  type: simple.AdditiveNode
   quantity: energy
   unit: Mthm/a
   input_datasets:
   - longmont/stationary_natural_gas_use
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
+  input_nodes:
+  - building_natural_gas_consumption_residential
+  - building_natural_gas_consumption_commercial
 
 - id: emission_factor_natural_gas
   name: Emission factor of natural gas
@@ -1216,8 +1143,12 @@ nodes:
   input_dimensions: [site, emission_sectors]
   output_dimensions: [site, emission_sectors]
   input_nodes:
-  - id: building_electricity_consumption
+  - id: electricity_consumption
     tags: [non_additive]
+    to_dimensions:
+    - id: site
+      categories: [longmont_power]
+    - id: emission_sectors
 
 - id: electricity_loss_emissions
   name: Emissions due to electricity losses
@@ -1356,6 +1287,12 @@ actions:
 
 - id: residential_electricity_eui_trend
   name: Residential electricity EUI trend
+  description: <p>Percentage increase in residential efficiency on top of past upgrades.
+    Assumes that all municipalities within the County regularly adopt the new IECC
+    when it comes out every three years. Savings based on increase from 2012 to 2015
+    IECC.</p> <p><b>Source.</b> Savings based on conversation with Christine Brinker
+    at SWEEP, who said that savings improvements between 2012 and 2015 IECC are very
+    modest compared to historic savings values.</p>
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: kWh/ft**2/a
@@ -1373,6 +1310,12 @@ actions:
 
 - id: commercial_electricity_eui_trend
   name: Commercial electricity EUI trend
+  description: <p>Percentage increase in commercial efficiency on top of past upgrades.
+    Assumes that all municipalities within the County regularly adopt the new IECC
+    when it comes out every three years. Savings based on increase from 2012 to 2015
+    IECC.</p> <p><b>Source.</b> 1. City of Boulder spreadsheet "Boulder Climate Commitment
+    Analysis Tool". 2. Savings from Department of Energy's "Energy and Energy Cost
+    Savings Analysis of the 2015 IECC for Commercial Buildings". Document on file.</p>
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: kWh/ft**2/a
@@ -1391,6 +1334,12 @@ actions:
 
 - id: residential_natural_gas_eui_trend
   name: Residential natural gas EUI trend
+  description: <p>Percentage increase in residential efficiency on top of past upgrades.
+    Assumes that all municipalities within the County regularly adopt the new IECC
+    when it comes out every three years. Savings based on increase from 2012 to 2015
+    IECC.</p> <p><b>Source.</b> Savings based on conversation with Christine Brinker
+    at SWEEP, who said that savings improvements between 2012 and 2015 IECC are very
+    modest compared to historic savings values.</p>
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -1408,6 +1357,12 @@ actions:
 
 - id: commercial_natural_gas_eui_trend
   name: Commercial natural gas EUI trend
+  description: <p>Percentage increase in commercial efficiency on top of past upgrades.
+    Assumes that all municipalities within the County regularly adopt the new IECC
+    when it comes out every three years. Savings based on increase from 2012 to 2015
+    IECC.</p> <p><b>Source.</b> 1. City of Boulder spreadsheet "Boulder Climate Commitment
+    Analysis Tool". 2. Savings from Department of Energy's "Energy and Energy Cost
+    Savings Analysis of the 2015 IECC for Commercial Buildings". Document on file.</p>
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -1445,42 +1400,38 @@ actions:
     value: 90.0
   - id: triggered
     value: 1.0
+    min_value: 0.0
+    max_value: 3.0
+    description: Percentage of square footage triggering code upgrades
   - id: improvement
     value: 5.0
-#  output_nodes:
-#  - id: electricity_per_area
-#    metrics: [electricity]
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [residential_energy]
 
 - id: updated_building_code_commercial
-  name: Use updated building code and enforce in commercial and industrial buildings
-  description: Adopt and enforce the latest IECC every year a new IECC is released.
-  type: energy_saving.BuildingEnergySavingActionUs
+  name: Use updated building code and enforce in commercial buildings
+  description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
+    rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
+    of commeercial square footage triggering code upgrades</p><p>Target reduction:
+    1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
+    They support this assumption.</p><p><b>Source.</b> Email from Erin Fosdick. On
+    file.</p> <p>New buildings: Average percent increase of new residential buildings
+    Target reduction: 1% Confidence ranking:  Med. Data provided by the Boulder County
+    assessor shows historic trends that may overestimate continued growth. Information
+    from Erin Fosdick with the City of Longmont suggests annual increases of 1%. Potential
+    buildout around 2035. New square footage remains constant after 2035. Assume constant
+    increase over time. Email from Erin Fosdick. On file.</p>'
+  type: energy_saving.FutureBuildingActionUs
   quantity: fraction
   unit: '%'
   params:
-  - id: renovation_potential
+  - id: compliant
     value: 90.0
-  - id: investment_lifetime
-    value: 100
-  - id: investment_cost
-    value: 0.0
-  - id: maintenance_cost
-    value: 0.0
-  - id: natural_gas_saving
-    value: 0.04108
-  - id: electricity_saving
-    value: 1.32840
-  output_nodes:
-  - id: electricity_per_area
-    metrics: [electricity]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-#  - heat_per_area_single_family
-#  - renovation_cost_per_area_single_family
+  - id: triggered
+    value: 1.0
+    min_value: 0.0
+    max_value: 3.0
+    description: Percentage of square footage triggering code upgrades
+  - id: improvement
+    value: 5.0
 
 - id: beyond_building_code
   name: Develop beyond building code

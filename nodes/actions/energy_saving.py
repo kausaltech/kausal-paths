@@ -622,7 +622,7 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
             local_id='triggered',
             label=_('Existing buildings triggering code updates'),
             unit_str='%',
-            is_customizable=False,
+            is_customizable=True,
         ),
         NumberParameter(
             local_id='compliant',
