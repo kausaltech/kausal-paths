@@ -717,23 +717,31 @@ nodes:
 
 - id: electricity_eui
   name: Electricity energy use intensity EUI
-  type: simple.AdditiveNode
+  type: simple.MultiplyLastNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
   output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: updated_building_code_residential
+    metric: Value
+    tags: non_additive
 
 - id: natural_gas_eui
   name: Natural gas energy use intensity EUI
-  type: simple.AdditiveNode
+  type: simple.MultiplyLastNode
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
   output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: updated_building_code_residential
+    metric: Value
+    tags: non_additive
 
 - id: building_electricity_consumption_residential
   name: Building electricity consumption residential
@@ -1405,6 +1413,9 @@ actions:
     description: Percentage of square footage triggering code upgrades
   - id: improvement
     value: 5.0
+    min_value: 3.0
+    max_value: 7.0
+    description: Percentage increase in efficiency on top of past upgrades
 
 - id: updated_building_code_commercial
   name: Use updated building code and enforce in commercial buildings
@@ -1431,7 +1442,10 @@ actions:
     max_value: 3.0
     description: Percentage of square footage triggering code upgrades
   - id: improvement
-    value: 5.0
+    value: 11.0
+    min_value: 5.0
+    max_value: 15.0
+    description: Percentage increase in efficiency on top of past upgrades
 
 - id: beyond_building_code
   name: Develop beyond building code
