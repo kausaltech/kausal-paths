@@ -291,7 +291,7 @@ class InstanceLoader:
                 if ref is not None:
                     target = self.context.global_parameters.get(ref)
                     if target is None:
-                        raise NodeError(node, "Parameter %s refers to an unknown global parameter: %s" % ref)
+                        raise NodeError(node, "Parameter %s refers to an unknown global parameter: %s" % (param_id, ref))
 
                     if not isinstance(target, param_class):
                         raise NodeError(node, "Node requires parameter of type %s, but referenced parameter %s is %s" % (

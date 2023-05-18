@@ -108,3 +108,8 @@ class PriceOfHeatAnnualChange(NumberParameter):
 class AllInInvestment(BoolParameter):
     name = _('Invest all on the first year (in contrast to continuous investing)?')
     id = 'all_in_investment'
+
+
+class Placeholder(BoolParameter):
+    name = _('Placeholder for updated_building_code_residential')
+    id = 'placeholder'

@@ -629,6 +629,13 @@ class MultiplicativeRelativeNode(MultiplicativeNode):
 
 
 class UsBuildingNode(SimpleNode):
+    allowed_parameters = SimpleNode.allowed_parameters + [
+        BoolParameter(
+            local_id='energy_efficiency_action',
+            description='This parameter checks the status of the action on energy efficiency',
+            is_customizable=False,
+        )
+    ]
     output_metrics = {
         VALUE_COLUMN: NodeMetric('kWh/a', 'energy')
     }
@@ -653,35 +660,57 @@ class UsBuildingNode(SimpleNode):
         df = df.with_columns(pl.col(VALUE_COLUMN).alias('floor'))
         df = df.with_columns(pl.col(VALUE_COLUMN + '_right').alias('improvement'))
         df = df.drop([VALUE_COLUMN, VALUE_COLUMN + '_right'])
-
-        df = df.with_columns(pl.col('floor').alias('floor_new'))
-        df = df.diff('floor_new')
         extra = ['triggered', 'compliant', 'improvement', 'floor', 'floor_new', 'cf']
 
         df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
         df = df.with_columns(pl.col('compliant').fill_null(pl.lit(0)))
         df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
-        df = df.with_columns(pl.col('floor_new').fill_null(pl.lit(0)))
+        df = df.ensure_unit('triggered', 'dimensionless')
+        df = df.ensure_unit('compliant', 'dimensionless')
+        df = df.ensure_unit('improvement', 'dimensionless')
+
+        act = self.get_parameter_value('energy_efficiency_action')
+        if act:
+            df = df.with_columns((pl.col('cf') / (1 - pl.col('improvement'))).alias('cf_bau'))
+            df = df.set_unit('cf_bau', df.get_unit('cf'))
+        else:
+            df = df.with_columns(pl.col('cf').alias('cf_bau'))
 
         # Existing (old) floor area
-        df = df.multiply_cols(['floor', 'cf'], 'energy_old')
-        df = df.multiply_cols(['floor', 'cf', 'triggered'], 'energy_saving_old')  # FIXME cf_improvement
-        df = df.subtract_cols(['energy_old', 'energy_saving_old'], 'net_energy_old')
-        extra = extra + ['energy_old', 'energy_saving_old', 'net_energy_old']
+        df = df.multiply_cols(['floor', 'cf'], 'ene')
+        df = df.multiply_cols(['floor', 'cf_bau'], 'ene_bau')
+
+        code1 = (pl.col('ene')) * pl.col('triggered') + pl.col('ene_bau') * (1 - pl.col('triggered'))
+        df = df.with_columns(code1.alias('ene_old'))
+        df = df.set_unit('ene_old', df.get_unit('ene'))
+
+        # New floor area
+        df = df.with_columns(pl.col('floor').alias('floor_new'))
+        df = df.diff('floor_new')
+        df = df.with_columns(pl.col('floor_new').fill_null(pl.lit(0)))
+        df = df.multiply_cols(['floor_new', 'cf'], 'enen')
+        df = df.multiply_cols(['floor_new', 'cf_bau'], 'enen_bau')
+
+        code2 = (pl.col('enen')) * pl.col('compliant') + pl.col('enen_bau') * (1 - pl.col('compliant'))
+        df = df.with_columns(code2.alias('ene_new'))
+        df = df.set_unit('ene_new', df.get_unit('ene'))
+        extra = extra + ['cf_bau', 'ene', 'ene_bau', 'ene_old', 'enen', 'enen_bau', 'ene_new', 'ene_old']
+
+#        df = df.multiply_cols(['floor', 'cf', 'triggered'], 'energy_saving_old')  # FIXME cf_improvement
+#        df = df.subtract_cols(['energy_old', 'energy_saving_old'], 'net_energy_old')
+#        extra = extra + ['energy_old', 'energy_saving_old', 'net_energy_old']
 
         # New building floow area
-        df = df.multiply_cols(['floor_new', 'cf'], 'energy_new')
-        df = df.multiply_cols(['floor_new', 'cf', 'compliant', 'improvement'], 'energy_saving_new')
-        df = df.cumulate('energy_new')
-        df = df.cumulate('energy_saving_new')
-        df = df.subtract_cols(['energy_new', 'energy_saving_new'], 'net_energy_new')
-        extra = extra + ['energy_new', 'energy_saving_new', 'net_energy_new']
+#        df = df.multiply_cols(['floor_new', 'cf'], 'energy_new')
+#        df = df.multiply_cols(['floor_new', 'cf', 'compliant', 'improvement'], 'energy_saving_new')
+#        df = df.cumulate('energy_new')
+#        df = df.cumulate('energy_saving_new')
+#        df = df.subtract_cols(['energy_new', 'energy_saving_new'], 'net_energy_new')
+#        extra = extra + ['energy_new', 'energy_saving_new', 'net_energy_new']
 
-        df = df.sum_cols(['net_energy_old', 'net_energy_new'], VALUE_COLUMN)
+        df = df.sum_cols(['ene_old', 'ene_new'], VALUE_COLUMN).cumulate(VALUE_COLUMN)
         df = df.drop(extra)
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
-#        self.print(df)
-#        exit()
 
         return df
