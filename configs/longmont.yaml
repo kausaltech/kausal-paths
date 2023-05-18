@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c26a1ecd2734ee5997f927118deaa15fdbf19bec
+  commit: a6351c6949850d16891a56ee13324f21d0948aa3
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -412,6 +412,10 @@ params:
   min_value: 0
   max_value: 2
   unit: '%/a'
+- id: placeholder
+  label: This is a placeholder for a local parameter updated_building_code_residential.enabled
+  is_customizable: true
+  value: true
 
 emission_sectors:
 - id: net_emissions
@@ -778,7 +782,8 @@ nodes:
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
-  - longmont/building_energy_factor
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
   params:
   - id: metric
     value: electricity
@@ -791,7 +796,8 @@ nodes:
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
-  - longmont/building_energy_factor
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
@@ -805,13 +811,25 @@ nodes:
     - id: site
       categories: [longmont_power]
 
+# Total Floor area: Building 55:56
+# standard energy consumption of existing buildings: MISSING
+# standard energy consumption of new buildings: building 57:60
+# standard energy consumption of new buildings with action: Buildings 61:64 = 0.95 * EUI
+# New floor area: Buildings 70:71
+# Energy consumption of new buildings: Buildings 72:75 =
+## new floor area * compliant * better EUI + new floor area * non-compliant * normal EUI -- cumulated
+# Renovated existing buildings: Buildings 77:78 = existing buildings * triggered
+# Energy consumption of existing renovated buildings: Buildings 79:82 = 
+## renovated floor area * compliant * better EUI + renovated floor area * non-compliant * normal EUI - cumulated
+# Energy consumption of existing non-renovated buildings: MISSING
+
 - id: electricity_eui
   name: Electricity EUI
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
-  - id: longmont/building_energy_factor
+  - id: longmont/building_energy_use_intensity_eui
     column: electricity
   output_dimensions: [emission_sectors]
 
@@ -821,7 +839,7 @@ nodes:
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
-  - id: longmont/building_energy_factor
+  - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
   output_dimensions: [emission_sectors]
 
@@ -840,6 +858,9 @@ nodes:
   - electricity_eui
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
+  params:
+  - id: energy_efficiency_action
+    ref: placeholder
 
 - id: building_electricity_consumption
   name: Housing and commerce electricity consumption
@@ -973,7 +994,8 @@ nodes:
   quantity: consumption_factor
   unit: thm/ft**2/a
   input_datasets:
-  - longmont/building_energy_factor
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
   params:
   - id: metric
     value: natural_gas
@@ -1294,7 +1316,8 @@ nodes:
   quantity: energy_per_area
   unit: kWh/ft**2/a
   input_datasets:
-  - longmont/building_electricity_consumption_factor
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
 
@@ -1336,7 +1359,12 @@ actions:
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: kWh/ft**2/a
-  forecast_values: [[2021, 0], [2022, -0.172], [2023, -0.172], [2024, -0.172], [2025, -0.336], [2026, -0.336], [2027, -0.336], [2028, -0.492], [2029, -0.492], [2030, -0.492], [2031, -0.639], [2032, -0.639], [2033, -0.639], [2034, -0.78], [2035, -0.78], [2036, -0.78], [2037, -0.913], [2038, -0.913], [2039, -0.913], [2040, -1.04], [2041, -1.04], [2042, -1.04], [2043, -1.16], [2044, -1.16], [2045, -1.16], [2046, -1.274], [2047, -1.274], [2048, -1.274], [2049, -1.383], [2050, -1.383]]
+  forecast_values: [[2021, 0], [2022, -0.172], [2023, -0.172], [2024, -0.172], [2025,
+      -0.336], [2026, -0.336], [2027, -0.336], [2028, -0.492], [2029, -0.492], [2030,
+      -0.492], [2031, -0.639], [2032, -0.639], [2033, -0.639], [2034, -0.78], [2035,
+      -0.78], [2036, -0.78], [2037, -0.913], [2038, -0.913], [2039, -0.913], [2040,
+      -1.04], [2041, -1.04], [2042, -1.04], [2043, -1.16], [2044, -1.16], [2045, -1.16],
+    [2046, -1.274], [2047, -1.274], [2048, -1.274], [2049, -1.383], [2050, -1.383]]
   output_nodes:
   - id: electricity_eui
     to_dimensions:
@@ -1348,7 +1376,13 @@ actions:
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: kWh/ft**2/a
-  forecast_values: [[2021, 0], [2022, -1.891], [2023, -1.891], [2024, -1.891], [2025, -3.572], [2026, -3.572], [2027, -3.572], [2028, -5.066], [2029, -5.066], [2030, -5.066], [2031, -6.394], [2032, -6.394], [2033, -6.394], [2034, -7.575], [2035, -7.575], [2036, -7.575], [2037, -8.625], [2038, -8.625], [2039, -8.625], [2040, -9.558], [2041, -9.558], [2042, -9.558], [2043, -10.388], [2044, -10.388], [2045, -10.388], [2046, -11.126], [2047, -11.126], [2048, -11.126], [2049, -11.781], [2050, -11.781]]
+  forecast_values: [[2021, 0], [2022, -1.891], [2023, -1.891], [2024, -1.891], [2025,
+      -3.572], [2026, -3.572], [2027, -3.572], [2028, -5.066], [2029, -5.066], [2030,
+      -5.066], [2031, -6.394], [2032, -6.394], [2033, -6.394], [2034, -7.575], [2035,
+      -7.575], [2036, -7.575], [2037, -8.625], [2038, -8.625], [2039, -8.625], [2040,
+      -9.558], [2041, -9.558], [2042, -9.558], [2043, -10.388], [2044, -10.388], [
+      2045, -10.388], [2046, -11.126], [2047, -11.126], [2048, -11.126], [2049, -11.781],
+    [2050, -11.781]]
   output_nodes:
   - id: electricity_eui
     to_dimensions:
@@ -1360,7 +1394,12 @@ actions:
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: therm/ft**2/a
-  forecast_values: [[2021, 0], [2022, -0.014], [2023, -0.014], [2024, -0.014], [2025, -0.026], [2026, -0.026], [2027, -0.026], [2028, -0.039], [2029, -0.039], [2030, -0.039], [2031, -0.05], [2032, -0.05], [2033, -0.05], [2034, -0.061], [2035, -0.061], [2036, -0.061], [2037, -0.072], [2038, -0.072], [2039, -0.072], [2040, -0.081], [2041, -0.081], [2042, -0.081], [2043, -0.091], [2044, -0.091], [2045, -0.091], [2046, -0.1], [2047, -0.1], [2048, -0.1], [2049, -0.108], [2050, -0.108]]
+  forecast_values: [[2021, 0], [2022, -0.014], [2023, -0.014], [2024, -0.014], [2025,
+      -0.026], [2026, -0.026], [2027, -0.026], [2028, -0.039], [2029, -0.039], [2030,
+      -0.039], [2031, -0.05], [2032, -0.05], [2033, -0.05], [2034, -0.061], [2035,
+      -0.061], [2036, -0.061], [2037, -0.072], [2038, -0.072], [2039, -0.072], [2040,
+      -0.081], [2041, -0.081], [2042, -0.081], [2043, -0.091], [2044, -0.091], [2045,
+      -0.091], [2046, -0.1], [2047, -0.1], [2048, -0.1], [2049, -0.108], [2050, -0.108]]
   output_nodes:
   - id: natural_gas_eui
     to_dimensions:
@@ -1372,7 +1411,13 @@ actions:
   type: simple.AdditiveAction
   quantity: consumption_factor
   unit: therm/ft**2/a
-  forecast_values: [[2021, 0], [2022, -0.058], [2023, -0.058], [2024, -0.058], [2025, -0.11], [2026, -0.11], [2027, -0.11], [2028, -0.157], [2029, -0.157], [2030, -0.157], [2031, -0.198], [2032, -0.198], [2033, -0.198], [2034, -0.234], [2035, -0.234], [2036, -0.234], [2037, -0.267], [2038, -0.267], [2039, -0.267], [2040, -0.296], [2041, -0.296], [2042, -0.296], [2043, -0.321], [2044, -0.321], [2045, -0.321], [2046, -0.344], [2047, -0.344], [2048, -0.344], [2049, -0.364], [2050, -0.364]]
+  forecast_values: [[2021, 0], [2022, -0.058], [2023, -0.058], [2024, -0.058], [2025,
+      -0.11], [2026, -0.11], [2027, -0.11], [2028, -0.157], [2029, -0.157], [2030,
+      -0.157], [2031, -0.198], [2032, -0.198], [2033, -0.198], [2034, -0.234], [2035,
+      -0.234], [2036, -0.234], [2037, -0.267], [2038, -0.267], [2039, -0.267], [2040,
+      -0.296], [2041, -0.296], [2042, -0.296], [2043, -0.321], [2044, -0.321], [2045,
+      -0.321], [2046, -0.344], [2047, -0.344], [2048, -0.344], [2049, -0.364], [2050,
+      -0.364]]
   output_nodes:
   - id: natural_gas_eui
     to_dimensions:
@@ -1381,17 +1426,17 @@ actions:
 
 - id: updated_building_code_residential
   name: Use updated building code and enforce in residential buildings
-  description: '<p>Adopt and enforce the latest IECC every year a new IECC is released, rather than adopting it on the third year.</p>
-    <p>Existing buildings: Percentage of residential square footage triggering code
-    upgrades</p><p>Target reduction: 1%</p><p>Confidence ranking: Low</p><p>Assumption.
-    No data resides with the City. They support this assumption.</p><p><b>Source.</b>
-    Email from Erin Fosdick. On file.</p> <p>New buildings: Average percent increase
-    of new residential buildings Target reduction: 1% Confidence ranking:  Med. Data
-    provided by the Boulder County assessor shows historic trends that may overestimate
-    continued growth. Information from Erin Fosdick with the City of Longmont suggests
-    annual increases of 1%. Potential buildout around 2035. New square footage remains
-    constant after 2035. Assume constant increase over time. Email from Erin Fosdick.
-    On file.</p>'
+  description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
+    rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
+    of residential square footage triggering code upgrades</p><p>Target reduction:
+    1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
+    They support this assumption.</p><p><b>Source.</b> Email from Erin Fosdick. On
+    file.</p> <p>New buildings: Average percent increase of new residential buildings
+    Target reduction: 1% Confidence ranking:  Med. Data provided by the Boulder County
+    assessor shows historic trends that may overestimate continued growth. Information
+    from Erin Fosdick with the City of Longmont suggests annual increases of 1%. Potential
+    buildout around 2035. New square footage remains constant after 2035. Assume constant
+    increase over time. Email from Erin Fosdick. On file.</p>'
   type: energy_saving.FutureBuildingActionUs
   quantity: fraction
   unit: '%'
