@@ -634,7 +634,7 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
             local_id='improvement',
             label=_('Improvement in energy consumption'),
             unit_str='%',
-            is_customizable=False,
+            is_customizable=True,
         ),
     ]
 

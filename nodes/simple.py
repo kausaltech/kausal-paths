@@ -677,11 +677,21 @@ class UsBuildingNode(SimpleNode):
             df = df.with_columns(pl.col('cf').alias('cf_bau'))
 
         # Existing (old) floor area  # FIXME Should stay constant in the future
-        df = df.multiply_cols(['floor', 'cf', 'triggered'], 'renovated').cumulate('renovated')
-        df = df.multiply_cols(['floor', 'cf_bau'], 'ene_bau')
+        last_values = floor.get_last_historical_values()
+        last_year = last_values[YEAR_COLUMN][0]
+        df = df.paths.join_over_index(last_values.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        df = df.with_columns(
+            pl.when(pl.col(YEAR_COLUMN) > last_year).then(pl.col(VALUE_COLUMN))
+            .otherwise(pl.col('floor')).alias('floor_old')
+        ).drop(VALUE_COLUMN)
+        df = df.set_unit('floor_old', df.get_unit('floor'))
 
-        df = df.with_columns((pl.col('ene_bau') - pl.col('renovated')).alias('nonrenovated'))
-        df = df.set_unit('nonrenovated', df.get_unit('renovated'))
+        df = df.multiply_cols(['floor_old', 'cf', 'triggered'], 'renovated').cumulate('renovated')
+        df = df.multiply_cols(['floor_old', 'cf_bau'], 'nonrenovated')
+
+        df = df.with_columns((pl.col('nonrenovated') - pl.col('renovated')).alias('nonrenovated'))
+#        self.print(df)
+#        df = df.set_unit('nonrenovated', df.get_unit('renovated'))
 
         # New floor area
         df = df.with_columns(pl.col('floor').alias('floor_new'))
@@ -693,12 +703,64 @@ class UsBuildingNode(SimpleNode):
         code2 = (pl.col('enen')) * pl.col('compliant') + pl.col('enen_bau') * (1 - pl.col('compliant'))
         df = df.with_columns(code2.alias('ene_new'))
         df = df.set_unit('ene_new', df.get_unit('renovated'))
-        extra = extra + ['cf_bau', 'ene_bau', 'enen', 'enen_bau', 'ene_new', 'renovated', 'nonrenovated']
+        df = df.cumulate('ene_new')
+        self.print(df)
+        extra = extra + ['floor_old', 'cf_bau', 'enen', 'enen_bau', 'ene_new', 'renovated', 'nonrenovated']
 
-        df = df.sum_cols(['renovated', 'ene_new'], VALUE_COLUMN).cumulate(VALUE_COLUMN)
-        df = df.sum_cols([VALUE_COLUMN, 'nonrenovated'], VALUE_COLUMN)
+#        df = df.sum_cols(['renovated', 'ene_new'], VALUE_COLUMN).cumulate(VALUE_COLUMN)
+        df = df.sum_cols(['nonrenovated', 'renovated', 'ene_new'], VALUE_COLUMN)
         df = df.drop(extra)
 
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return df
+
+
+class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for one purpose only. Generalize!
+    """First add other input nodes, then multiply the output.
+
+    Multiplication and addition is determined based on the input node units.
+    """
+
+    allowed_parameters = SimpleNode.allowed_parameters + [
+        BoolParameter(
+            local_id='only_historical',
+            description='Process only historical rows',
+            is_customizable=False,
+        ),
+        BoolParameter(
+            local_id='extend_rows',
+            description='Extend last row to future years',
+            is_customizable=False,
+        )
+    ]
+    operation_label = 'multiplication'
+
+    def compute(self) -> ppl.PathsDataFrame:
+        additive_nodes: list[Node] = []
+        operation_nodes: list[Node] = []
+        assert self.unit is not None
+        non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        for node in self.input_nodes:
+            if node in non_additive_nodes:
+                operation_nodes.append(node)
+            elif self.is_compatible_unit(node.unit, self.unit):
+                additive_nodes.append(node)
+            else:
+                operation_nodes.append(node)
+
+        df = self.get_input_dataset_pl()
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        outputs = [n.get_output_pl(metric=VALUE_COLUMN) for n in operation_nodes]
+
+        df = self.add_nodes_pl(df, additive_nodes)
+
+        col = VALUE_COLUMN + '_right'
+        df = df.paths.join_over_index(outputs.pop(0))
+        df = df.with_columns(pl.col(col).fill_null(pl.lit(0)))
+        df = df.ensure_unit(col, 'dimensionless')
+        df = df.with_columns((pl.col(VALUE_COLUMN) * (1 - pl.col(col))).alias(VALUE_COLUMN))
+        df = df.drop(col)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
