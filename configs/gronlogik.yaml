@@ -17,6 +17,7 @@ minimum_historical_year: 2019
 maximum_historical_year: 2021
 emission_unit: kt/a
 emission_forecast_from: 2021
+
 action_groups:
 - id: apartment
   name_fi: Kerrostalot
@@ -226,7 +227,6 @@ emission_sectors:
   name_fi: Kokonaispäästöt
   name_en: Net emissions
   name: Netutsläpp
-  target_year_goal: 260
   is_outcome: true
 
 - id: apartment_building_emissions
