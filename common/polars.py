@@ -278,7 +278,7 @@ class PathsDataFrame(pl.DataFrame):
     def cumulate(self, col: str) -> PathsDataFrame:
         df = self.paths.to_wide()
         for df_col in df.columns:
-            if col + '@' in df_col:
+            if col + '@' in df_col or col == df_col:
                 df = df.with_columns(pl.col(df_col).cumsum())
             else:
                 continue
@@ -287,7 +287,7 @@ class PathsDataFrame(pl.DataFrame):
     def diff(self, col: str, n: Any = 1) -> PathsDataFrame:
         df = self.paths.to_wide()
         for df_col in df.columns:
-            if col + '@' in df_col:
+            if col + '@' in df_col or col == df_col:
                 df = df.with_columns(pl.col(df_col).diff(n))
             else:
                 continue

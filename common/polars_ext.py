@@ -230,12 +230,16 @@ class PathsExt:
         # Join on subset of keys
         join_on = list(set(sm.primary_keys) & set(om.primary_keys))
         if not len(join_on):
-            raise ValueError("No shared primary keys between joined DFs")
-        for col in join_on:
-            sdt = sdf[col].dtype
-            if sdt != other[col].dtype:
-                other = other.with_columns([pl.col(col).cast(sdt)])
-        df = sdf.join(other, on=join_on, how=how)
+            if len(other) == 1:  # A single value copied to all rows
+                df = sdf.with_columns(other)
+            else:
+                raise ValueError("No shared primary keys between joined DFs")
+        else:
+            for col in join_on:
+                sdt = sdf[col].dtype
+                if sdt != other[col].dtype:
+                    other = other.with_columns([pl.col(col).cast(sdt)])
+            df = sdf.join(other, on=join_on, how=how)
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
