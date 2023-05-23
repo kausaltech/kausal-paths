@@ -643,11 +643,11 @@ class UsBuildingNode(SimpleNode):
     def compute(self) -> pd.DataFrame:
         for node in self.input_nodes:
             if node.quantity == 'floor_area':
-                floor = node.get_output_pl()
+                floor = node.get_output_pl(target_node=self)
             elif node.quantity == 'consumption_factor':
-                cf = node.get_output_pl()
+                cf = node.get_output_pl(target_node=self)
             elif node.quantity == 'fraction':
-                action = node.get_output_pl()
+                action = node.get_output_pl(target_node=self)
             else:
 #                raise NodeError(node, 'Node %s has wrong quantity %s' % (node.id, node.quantity))
                 action = node.get_output_pl()  # FIXME For some reason, the quantity of the required action is None.
@@ -676,38 +676,45 @@ class UsBuildingNode(SimpleNode):
         else:
             df = df.with_columns(pl.col('cf').alias('cf_bau'))
 
-        # Existing (old) floor area  # FIXME Should stay constant in the future
-        last_values = floor.get_last_historical_values()
-        last_year = last_values[YEAR_COLUMN][0]
-        df = df.paths.join_over_index(last_values.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        # Existing (old) floor area
+        floor_last_values = floor.get_last_historical_values()
+        floor_last_year = floor_last_values[YEAR_COLUMN][0]
+        df = df.paths.join_over_index(floor_last_values.drop([YEAR_COLUMN, FORECAST_COLUMN]))
         df = df.with_columns(
-            pl.when(pl.col(YEAR_COLUMN) > last_year).then(pl.col(VALUE_COLUMN))
+            pl.when(pl.col(YEAR_COLUMN) > floor_last_year).then(pl.col(VALUE_COLUMN))
             .otherwise(pl.col('floor')).alias('floor_old')
         ).drop(VALUE_COLUMN)
         df = df.set_unit('floor_old', df.get_unit('floor'))
 
-        df = df.multiply_cols(['floor_old', 'cf', 'triggered'], 'renovated').cumulate('renovated')
-        df = df.multiply_cols(['floor_old', 'cf_bau'], 'nonrenovated')
+        # Old consumption factor
+        cf_last_values = cf.get_last_historical_values()
+        cf_last_year = cf_last_values[YEAR_COLUMN][0]
+        df = df.paths.join_over_index(cf_last_values.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        df = df.with_columns(
+            pl.when(pl.col(YEAR_COLUMN) > cf_last_year).then(pl.col(VALUE_COLUMN))
+            .otherwise(pl.col('cf')).alias('cf_old')
+        ).drop(VALUE_COLUMN)
+        df = df.set_unit('cf_old', df.get_unit('cf'))
 
-        df = df.with_columns((pl.col('nonrenovated') - pl.col('renovated')).alias('nonrenovated'))
-#        self.print(df)
-#        df = df.set_unit('nonrenovated', df.get_unit('renovated'))
+        df = df.multiply_cols(['floor_old', 'triggered'], 'renovated').cumulate('renovated')
+        df = df.with_columns((pl.col('floor_old') - pl.col('renovated')).alias('nonrenovated'))
+        df = df.set_unit('nonrenovated', df.get_unit('floor_old'))
+        df = df.multiply_cols(['nonrenovated', 'cf_old'], 'nonrenovated')
+        df = df.multiply_cols(['renovated', 'cf'], 'renovated')
 
         # New floor area
         df = df.with_columns(pl.col('floor').alias('floor_new'))
         df = df.diff('floor_new')
         df = df.with_columns(pl.col('floor_new').fill_null(pl.lit(0)))
-        df = df.multiply_cols(['floor_new', 'cf'], 'enen')
-        df = df.multiply_cols(['floor_new', 'cf_bau'], 'enen_bau')
+        df = df.multiply_cols(['floor_new', 'cf'], 'ene')
+        df = df.multiply_cols(['floor_new', 'cf_bau'], 'ene_bau')
 
-        code2 = (pl.col('enen')) * pl.col('compliant') + pl.col('enen_bau') * (1 - pl.col('compliant'))
+        code2 = (pl.col('ene')) * pl.col('compliant') + pl.col('ene_bau') * (1 - pl.col('compliant'))
         df = df.with_columns(code2.alias('ene_new'))
         df = df.set_unit('ene_new', df.get_unit('renovated'))
         df = df.cumulate('ene_new')
-        self.print(df)
-        extra = extra + ['floor_old', 'cf_bau', 'enen', 'enen_bau', 'ene_new', 'renovated', 'nonrenovated']
+        extra = extra + ['floor_old', 'cf_bau', 'cf_old', 'ene', 'ene_bau', 'ene_new', 'renovated', 'nonrenovated']
 
-#        df = df.sum_cols(['renovated', 'ene_new'], VALUE_COLUMN).cumulate(VALUE_COLUMN)
         df = df.sum_cols(['nonrenovated', 'renovated', 'ene_new'], VALUE_COLUMN)
         df = df.drop(extra)
 
@@ -722,18 +729,6 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for one purp
     Multiplication and addition is determined based on the input node units.
     """
 
-    allowed_parameters = SimpleNode.allowed_parameters + [
-        BoolParameter(
-            local_id='only_historical',
-            description='Process only historical rows',
-            is_customizable=False,
-        ),
-        BoolParameter(
-            local_id='extend_rows',
-            description='Extend last row to future years',
-            is_customizable=False,
-        )
-    ]
     operation_label = 'multiplication'
 
     def compute(self) -> ppl.PathsDataFrame:
