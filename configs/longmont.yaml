@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a6351c6949850d16891a56ee13324f21d0948aa3
+  commit: 90f9f7c34f5641373a35092602d7df3d5a0f563b
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -70,6 +70,20 @@ normalizations:
     unit: miles/cap/a
 features:
   baseline_visible_in_graphs: false
+
+action_groups:
+- id: trend
+  name: Trends beyond own control
+- id: electric_grid
+  name: Electric grid
+- id: buildings
+  name: Buildings
+- id: transportation
+  name: Transportation
+- id: solid_waste
+  name: Solid waste
+- id: oil_and_gas
+  name: Oil and gas
 
 dimensions:
 - id: emission_scope
@@ -715,31 +729,67 @@ nodes:
 ## renovated floor area * compliant * better EUI + renovated floor area * non-compliant * normal EUI - cumulated
 # Energy consumption of existing non-renovated buildings: MISSING
 
-- id: electricity_eui
-  name: Electricity energy use intensity EUI
+- id: electricity_residential_eui
+  name: Electricity residential energy use intensity EUI
   type: simple.MultiplyLastNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
-  output_dimensions: [emission_sectors]
+    filters:
+    - column: emission_sectors
+      value: residential_energy
   input_nodes:
   - id: updated_building_code_residential
     metric: Value
     tags: non_additive
 
-- id: natural_gas_eui
-  name: Natural gas energy use intensity EUI
+- id: electricity_commercial_eui
+  name: Electricity commercial energy use intensity EUI
+  type: simple.MultiplyLastNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+    filters:
+    - column: emission_sectors
+      value: commercial_industrial_energy
+  input_nodes:
+  - id: updated_building_code_commercial
+    metric: Value
+    tags: non_additive
+
+- id: natural_gas_residential_eui
+  name: Natural gas residential energy use intensity EUI
   type: simple.MultiplyLastNode
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
-  output_dimensions: [emission_sectors]
+    filters:
+    - column: emission_sectors
+      value: residential_energy
   input_nodes:
   - id: updated_building_code_residential
+    metric: Value
+    tags: non_additive
+
+- id: natural_gas_commercial_eui
+  name: Natural gas commercial energy use intensity EUI
+  type: simple.MultiplyLastNode
+  quantity: consumption_factor
+  unit: therm/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+    filters:
+    - column: emission_sectors
+      value: commercial_industrial_energy
+  input_nodes:
+  - id: updated_building_code_commercial
     metric: Value
     tags: non_additive
 
@@ -754,10 +804,15 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
-  - building_floor_area
-  - electricity_eui
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+  - id: building_floor_area
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+      flatten: true
+  - id: electricity_residential_eui
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
   params:
   - id: energy_efficiency_action
     ref: placeholder
@@ -773,10 +828,12 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
-  - building_floor_area
-  - natural_gas_eui
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+  - id: building_floor_area
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+      flatten: true
+  - natural_gas_residential_eui
   params:
   - id: energy_efficiency_action
     ref: placeholder
@@ -789,13 +846,12 @@ nodes:
   input_nodes:
   - id: updated_building_code_commercial
     metrics: [triggered, compliant, Value]
-    to_dimensions:
+  - id: building_floor_area
+    from_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
-  - building_floor_area
-  - electricity_eui
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+      flatten: true
+  - electricity_commercial_eui
   params:
   - id: energy_efficiency_action
     ref: placeholder
@@ -808,13 +864,12 @@ nodes:
   input_nodes:
   - id: updated_building_code_commercial
     metrics: [triggered, compliant, Value]
-    to_dimensions:
+  - id: building_floor_area
+    from_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
-  - building_floor_area
-  - natural_gas_eui
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+      flatten: true
+  - natural_gas_commercial_eui
   params:
   - id: energy_efficiency_action
     ref: placeholder
@@ -827,8 +882,14 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
-  - building_electricity_consumption_residential
-  - building_electricity_consumption_commercial
+  - id: building_electricity_consumption_residential
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+  - id: building_electricity_consumption_commercial
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
   output_nodes:
   - id: electricity_consumption
     to_dimensions:
@@ -960,8 +1021,14 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
-  - building_natural_gas_consumption_residential
-  - building_natural_gas_consumption_commercial
+  - id: building_natural_gas_consumption_residential
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+  - id: building_natural_gas_consumption_commercial
+    to_dimensions:
+      - id: emission_sectors
+        categories: [commercial_industrial_energy]
 
 - id: emission_factor_natural_gas
   name: Emission factor of natural gas
@@ -970,6 +1037,7 @@ nodes:
   unit: t/thm
   input_datasets:
   - longmont/emission_factor_natural_gas
+  input_dataset_processors: [LinearInterpolation]
   output_dimensions: [energy_carrier, greenhouse_gases]
 
 - id: natural_gas_consumption_emissions
@@ -1024,29 +1092,28 @@ nodes:
 
 - id: stationary_fuel_consumption_emissions
   name: Stationary fuel consumption emissions
-  description: <p>1) Stationary Diesel Use data was provided by Adam Wozniak at CDPHE.
-    Spreadsheet on file.</p> <p>2) Xcel Energy emission factor, electricity and natural
-    gas usage data, and renewable energy data is from Xcel's 2021 Community Energy
-    Report for Longmont, on file.</p> <p>3) Longmont Power & Communications data provided
-    by Chuck Finleon. PDF on file. Per Francie Jaffe. The commercial buildings in
-    Longmont's Weld County portion consumed 31,000,000 kWh in 2021.</p> <p>4) T&D
-    losses are calculated for Xcel and Longmont based on the EIA 861 (https://www.eia.gov/electricity/data/eia861/)
-    reported data. Specifically the Utility Operational Data_2021. Spreadsheet on
-    file.</p> <p>5) Propane data provided by Matt Hanson with FerrellGas. Spreadsheet
-    on file.</p> <p>6) Houses heated with wood were pulled from the US Census Bureau,
-    data on file. It was assumed that all of the houses heated by wood in Longmont
-    fell within the Boulder County portion of Longmont.</p> <p>7) Longmont Power and
-    Communications data was provided in an email by Chuck Finleon with Longmont Power
-    & Communications. PDF on file.</p> <p>8) Longmont Power & Communications and Lyons
-    Municipal rooftop solar data was provided in kW of capacity rather than kWh generated.
-    NREL's PVWatts wasused to estimate kWh generated by rooftop solar systems. PDF
-    of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due to Xcel's 15/15
-    rule, with less than 15 customers in the commercial and residential data sets
-    they cannot provide usage for those customers to avoid violating privacy concerns.
-    Therefore Lotus applied the average residential and commercial kWh use from LPC
-    to the 7 residential and commercial customers (respectively) in Xcel territory
-    to estimate use.</p> <p>11) PRPA emission factor and transmission and distribution
-    loss rate for 2021 was provided by Francie Jaffe. Email on file. Emissions factor
+  description: <p>1) Stationary Diesel Use data was provided by CDPHE. Spreadsheet
+    on file.</p> <p>2) Xcel Energy emission factor, electricity and natural gas usage
+    data, and renewable energy data is from Xcel's 2021 Community Energy Report for
+    Longmont, on file.</p> <p>3) Longmont Power & Communications data provided. PDF
+    on file. The commercial buildings in Longmont's Weld County portion consumed 31,000,000
+    kWh in 2021.</p> <p>4) T&D losses are calculated for Xcel and Longmont based on
+    the EIA 861 (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically
+    the Utility Operational Data_2021. Spreadsheet on file.</p> <p>5) Propane data
+    provided by FerrellGas. Spreadsheet on file.</p> <p>6) Houses heated with wood
+    were pulled from the US Census Bureau, data on file. It was assumed that all of
+    the houses heated by wood in Longmont fell within the Boulder County portion of
+    Longmont.</p> <p>7) Longmont Power and Communications data was provided by Longmont
+    Power & Communications. PDF on file.</p> <p>8) Longmont Power & Communications
+    and Lyons Municipal rooftop solar data was provided in kW of capacity rather than
+    kWh generated. NREL's PVWatts was used to estimate kWh generated by rooftop solar
+    systems. PDF of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due
+    to Xcel's 15/15 rule, with less than 15 customers in the commercial and residential
+    data sets they cannot provide usage for those customers to avoid violating privacy
+    concerns. Therefore Lotus applied the average residential and commercial kWh use
+    from LPC to the 7 residential and commercial customers (respectively) in Xcel
+    territory to estimate use.</p> <p>11) PRPA emission factor and transmission and
+    distribution loss rate for 2021 was provided. Email on file. Emissions factor
     value represents Longmont's load share emissions rate without unbundled RECs.</p>
   type: simple.EmissionFactorActivity
   quantity: emissions
@@ -1293,116 +1360,22 @@ nodes:
 
 actions:
 
-- id: residential_electricity_eui_trend
-  name: Residential electricity EUI trend
-  description: <p>Percentage increase in residential efficiency on top of past upgrades.
-    Assumes that all municipalities within the County regularly adopt the new IECC
-    when it comes out every three years. Savings based on increase from 2012 to 2015
-    IECC.</p> <p><b>Source.</b> Savings based on conversation with Christine Brinker
-    at SWEEP, who said that savings improvements between 2012 and 2015 IECC are very
-    modest compared to historic savings values.</p>
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  forecast_values: [[2021, 0], [2022, -0.172], [2023, -0.172], [2024, -0.172], [2025,
-      -0.336], [2026, -0.336], [2027, -0.336], [2028, -0.492], [2029, -0.492], [2030,
-      -0.492], [2031, -0.639], [2032, -0.639], [2033, -0.639], [2034, -0.78], [2035,
-      -0.78], [2036, -0.78], [2037, -0.913], [2038, -0.913], [2039, -0.913], [2040,
-      -1.04], [2041, -1.04], [2042, -1.04], [2043, -1.16], [2044, -1.16], [2045, -1.16],
-    [2046, -1.274], [2047, -1.274], [2048, -1.274], [2049, -1.383], [2050, -1.383]]
-  output_nodes:
-  - id: electricity_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
-- id: commercial_electricity_eui_trend
-  name: Commercial electricity EUI trend
-  description: <p>Percentage increase in commercial efficiency on top of past upgrades.
-    Assumes that all municipalities within the County regularly adopt the new IECC
-    when it comes out every three years. Savings based on increase from 2012 to 2015
-    IECC.</p> <p><b>Source.</b> 1. City of Boulder spreadsheet "Boulder Climate Commitment
-    Analysis Tool". 2. Savings from Department of Energy's "Energy and Energy Cost
-    Savings Analysis of the 2015 IECC for Commercial Buildings". Document on file.</p>
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  forecast_values: [[2021, 0], [2022, -1.891], [2023, -1.891], [2024, -1.891], [2025,
-      -3.572], [2026, -3.572], [2027, -3.572], [2028, -5.066], [2029, -5.066], [2030,
-      -5.066], [2031, -6.394], [2032, -6.394], [2033, -6.394], [2034, -7.575], [2035,
-      -7.575], [2036, -7.575], [2037, -8.625], [2038, -8.625], [2039, -8.625], [2040,
-      -9.558], [2041, -9.558], [2042, -9.558], [2043, -10.388], [2044, -10.388], [
-      2045, -10.388], [2046, -11.126], [2047, -11.126], [2048, -11.126], [2049, -11.781],
-    [2050, -11.781]]
-  output_nodes:
-  - id: electricity_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-- id: residential_natural_gas_eui_trend
-  name: Residential natural gas EUI trend
-  description: <p>Percentage increase in residential efficiency on top of past upgrades.
-    Assumes that all municipalities within the County regularly adopt the new IECC
-    when it comes out every three years. Savings based on increase from 2012 to 2015
-    IECC.</p> <p><b>Source.</b> Savings based on conversation with Christine Brinker
-    at SWEEP, who said that savings improvements between 2012 and 2015 IECC are very
-    modest compared to historic savings values.</p>
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  forecast_values: [[2021, 0], [2022, -0.014], [2023, -0.014], [2024, -0.014], [2025,
-      -0.026], [2026, -0.026], [2027, -0.026], [2028, -0.039], [2029, -0.039], [2030,
-      -0.039], [2031, -0.05], [2032, -0.05], [2033, -0.05], [2034, -0.061], [2035,
-      -0.061], [2036, -0.061], [2037, -0.072], [2038, -0.072], [2039, -0.072], [2040,
-      -0.081], [2041, -0.081], [2042, -0.081], [2043, -0.091], [2044, -0.091], [2045,
-      -0.091], [2046, -0.1], [2047, -0.1], [2048, -0.1], [2049, -0.108], [2050, -0.108]]
-  output_nodes:
-  - id: natural_gas_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
-- id: commercial_natural_gas_eui_trend
-  name: Commercial natural gas EUI trend
-  description: <p>Percentage increase in commercial efficiency on top of past upgrades.
-    Assumes that all municipalities within the County regularly adopt the new IECC
-    when it comes out every three years. Savings based on increase from 2012 to 2015
-    IECC.</p> <p><b>Source.</b> 1. City of Boulder spreadsheet "Boulder Climate Commitment
-    Analysis Tool". 2. Savings from Department of Energy's "Energy and Energy Cost
-    Savings Analysis of the 2015 IECC for Commercial Buildings". Document on file.</p>
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  forecast_values: [[2021, 0], [2022, -0.058], [2023, -0.058], [2024, -0.058], [2025,
-      -0.11], [2026, -0.11], [2027, -0.11], [2028, -0.157], [2029, -0.157], [2030,
-      -0.157], [2031, -0.198], [2032, -0.198], [2033, -0.198], [2034, -0.234], [2035,
-      -0.234], [2036, -0.234], [2037, -0.267], [2038, -0.267], [2039, -0.267], [2040,
-      -0.296], [2041, -0.296], [2042, -0.296], [2043, -0.321], [2044, -0.321], [2045,
-      -0.321], [2046, -0.344], [2047, -0.344], [2048, -0.344], [2049, -0.364], [2050,
-      -0.364]]
-  output_nodes:
-  - id: natural_gas_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
 - id: updated_building_code_residential
   name: Use updated building code and enforce in residential buildings
   description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
     rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
     of residential square footage triggering code upgrades</p><p>Target reduction:
     1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
-    They support this assumption.</p><p><b>Source.</b> Email from Erin Fosdick. On
-    file.</p> <p>New buildings: Average percent increase of new residential buildings
-    Target reduction: 1% Confidence ranking:  Med. Data provided by the Boulder County
-    assessor shows historic trends that may overestimate continued growth. Information
-    from Erin Fosdick with the City of Longmont suggests annual increases of 1%. Potential
-    buildout around 2035. New square footage remains constant after 2035. Assume constant
-    increase over time. Email from Erin Fosdick. On file.</p>'
+    They support this assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings:
+    Average percent increase of new residential buildings Target reduction: 1% Confidence
+    ranking:  Med. Data provided by the Boulder County assessor shows historic trends
+    that may overestimate continued growth. Information from the City of Longmont
+    suggests annual increases of 1%. Potential buildout around 2035. New square footage
+    remains constant after 2035. Assume constant increase over time. On file.</p>'
   type: energy_saving.FutureBuildingActionUs
   quantity: fraction
   unit: '%'
+  group: buildings
   params:
   - id: compliant
     value: 90.0
@@ -1423,16 +1396,16 @@ actions:
     rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
     of commeercial square footage triggering code upgrades</p><p>Target reduction:
     1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
-    They support this assumption.</p><p><b>Source.</b> Email from Erin Fosdick. On
-    file.</p> <p>New buildings: Average percent increase of new residential buildings
-    Target reduction: 1% Confidence ranking:  Med. Data provided by the Boulder County
-    assessor shows historic trends that may overestimate continued growth. Information
-    from Erin Fosdick with the City of Longmont suggests annual increases of 1%. Potential
-    buildout around 2035. New square footage remains constant after 2035. Assume constant
-    increase over time. Email from Erin Fosdick. On file.</p>'
+    They support this assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings:
+    Average percent increase of new residential buildings Target reduction: 1% Confidence
+    ranking:  Med. Data provided by the Boulder County assessor shows historic trends
+    that may overestimate continued growth. Information from the City of Longmont
+    suggests annual increases of 1%. Potential buildout around 2035. New square footage
+    remains constant after 2035. Assume constant increase over time. On file.</p>'
   type: energy_saving.FutureBuildingActionUs
   quantity: fraction
   unit: '%'
+  group: buildings
   params:
   - id: compliant
     value: 90.0
@@ -1456,6 +1429,7 @@ actions:
   type: simple.AdditiveAction  # FIXME This action type is just a placeholder for actual actions that do not yet have a proper type.
   quantity: energy
   unit: kWh/a
+  group: buildings
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: benchmark_energy_use
@@ -1466,6 +1440,7 @@ actions:
     see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.
   type: simple.AdditiveAction
   quantity: energy
+  group: buildings
   unit: kWh/a
   forecast_values: [[2023, 0], [2050, 0]]
 
@@ -1477,6 +1452,7 @@ actions:
   type: simple.AdditiveAction
   quantity: energy
   unit: kWh/a
+  group: buildings
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: replace_natural_gas
@@ -1487,6 +1463,7 @@ actions:
   type: simple.AdditiveAction
   quantity: energy
   unit: therm/a
+  group: buildings
   forecast_values: [[2023, 0], [2050, 0]]
 
 #- id: renewable_energy_plan
@@ -1510,6 +1487,7 @@ actions:
   type: linear.ReduceAction
   quantity: ratio
   unit: '%'
+  group: electric_grid
   output_nodes:
   - id: participation_smart_grid
   - id: smart_grid_improvement
@@ -1544,6 +1522,7 @@ actions:
   type: linear.ReduceAction
   quantity: ratio
   unit: '%'
+  group: electric_grid
   output_nodes:
   - id: transmission_loss_change
   params:
@@ -1566,6 +1545,7 @@ actions:
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
+  group: transportation
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: increase_access_of_public_transit
@@ -1575,6 +1555,7 @@ actions:
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
+  group: transportation
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: multimodal_transportation_system
@@ -1585,6 +1566,7 @@ actions:
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/a
+  group: transportation
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: leak_detection
@@ -1597,6 +1579,7 @@ actions:
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
+  group: oil_and_gas
   forecast_values: [[2023, 0], [2050, 0]]
 
 - id: increase_waste_diversion
@@ -1605,6 +1588,7 @@ actions:
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
+  group: solid_waste
   forecast_values: [[2023, 0], [2050, 0]]
 
 #- id: commercial_power_purchase_program
@@ -1654,6 +1638,7 @@ actions:
   type: simple.CumulativeAdditiveAction
   quantity: emissions  # FIXME Is this negative emission or what happens here?
   unit: t/a
+  group: electric_grid
   forecast_values: [[2022, 0], [2023, 307035]]
   output_nodes:
   - id: equity_share_emissions
@@ -1679,6 +1664,7 @@ actions:
   type: linear.ReduceAction
   quantity: emission_factor
   unit: t/MWh
+  group: electric_grid
   output_nodes:
   - electricity_emission_factor
   params:
@@ -1710,6 +1696,88 @@ actions:
         amount: -0.05875
       - year: 2031
         amount: 0
+
+- id: residential_electricity_eui_trend
+  name: Residential electricity EUI trend
+  description: Change in residential electricity use intensity in new buildings based
+    in stricter IECC values every three years.
+  type: simple.AdditiveAction
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  group: trend
+  forecast_values: [[2021, 0], [2022, -0.172], [2023, -0.172], [2024, -0.172], [2025,
+      -0.336], [2026, -0.336], [2027, -0.336], [2028, -0.492], [2029, -0.492], [2030,
+      -0.492], [2031, -0.639], [2032, -0.639], [2033, -0.639], [2034, -0.78], [2035,
+      -0.78], [2036, -0.78], [2037, -0.913], [2038, -0.913], [2039, -0.913], [2040,
+      -1.04], [2041, -1.04], [2042, -1.04], [2043, -1.16], [2044, -1.16], [2045, -1.16],
+    [2046, -1.274], [2047, -1.274], [2048, -1.274], [2049, -1.383], [2050, -1.383]]
+  output_nodes:
+  - id: electricity_residential_eui
+#    to_dimensions:
+#    - id: emission_sectors
+#      categories: [residential_energy]
+
+- id: commercial_electricity_eui_trend
+  name: Commercial electricity EUI trend
+  description: Change in commercial electricity use intensity in new buildings based
+    in stricter IECC values every three years.
+  type: simple.AdditiveAction
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  group: trend
+  forecast_values: [[2021, 0], [2022, -1.891], [2023, -1.891], [2024, -1.891], [2025,
+      -3.572], [2026, -3.572], [2027, -3.572], [2028, -5.066], [2029, -5.066], [2030,
+      -5.066], [2031, -6.394], [2032, -6.394], [2033, -6.394], [2034, -7.575], [2035,
+      -7.575], [2036, -7.575], [2037, -8.625], [2038, -8.625], [2039, -8.625], [2040,
+      -9.558], [2041, -9.558], [2042, -9.558], [2043, -10.388], [2044, -10.388], [
+      2045, -10.388], [2046, -11.126], [2047, -11.126], [2048, -11.126], [2049, -11.781],
+    [2050, -11.781]]
+  output_nodes:
+  - id: electricity_commercial_eui
+ #   to_dimensions:
+ #   - id: emission_sectors
+ #     categories: [commercial_industrial_energy]
+
+- id: residential_natural_gas_eui_trend
+  name: Residential natural gas EUI trend
+  description: Change in residential natural gas use intensity in new buildings based
+    in stricter IECC values every three years.
+  type: simple.AdditiveAction
+  quantity: consumption_factor
+  unit: therm/ft**2/a
+  group: trend
+  forecast_values: [[2021, 0], [2022, -0.014], [2023, -0.014], [2024, -0.014], [2025,
+      -0.026], [2026, -0.026], [2027, -0.026], [2028, -0.039], [2029, -0.039], [2030,
+      -0.039], [2031, -0.05], [2032, -0.05], [2033, -0.05], [2034, -0.061], [2035,
+      -0.061], [2036, -0.061], [2037, -0.072], [2038, -0.072], [2039, -0.072], [2040,
+      -0.081], [2041, -0.081], [2042, -0.081], [2043, -0.091], [2044, -0.091], [2045,
+      -0.091], [2046, -0.1], [2047, -0.1], [2048, -0.1], [2049, -0.108], [2050, -0.108]]
+  output_nodes:
+  - id: natural_gas_residential_eui
+  #  to_dimensions:
+  #  - id: emission_sectors
+  #    categories: [residential_energy]
+
+- id: commercial_natural_gas_eui_trend
+  name: Commercial natural gas EUI trend
+  description: Change in commercial natural gas use intensity in new buildings based
+    in stricter IECC values every three years.
+  type: simple.AdditiveAction
+  quantity: consumption_factor
+  unit: therm/ft**2/a
+  group: trend
+  forecast_values: [[2021, 0], [2022, -0.058], [2023, -0.058], [2024, -0.058], [2025,
+      -0.11], [2026, -0.11], [2027, -0.11], [2028, -0.157], [2029, -0.157], [2030,
+      -0.157], [2031, -0.198], [2032, -0.198], [2033, -0.198], [2034, -0.234], [2035,
+      -0.234], [2036, -0.234], [2037, -0.267], [2038, -0.267], [2039, -0.267], [2040,
+      -0.296], [2041, -0.296], [2042, -0.296], [2043, -0.321], [2044, -0.321], [2045,
+      -0.321], [2046, -0.344], [2047, -0.344], [2048, -0.344], [2049, -0.364], [2050,
+      -0.364]]
+  output_nodes:
+  - id: natural_gas_commercial_eui
+#    to_dimensions:
+#    - id: emission_sectors
+#      categories: [commercial_industrial_energy]
 
 pages:
 - id: home
