@@ -69,7 +69,7 @@ class SimpleNode(Node):
         meta = df.get_meta()
         df = df.paths.join_over_index(data_df, how='outer')
         for metric_col in meta.metric_cols:
-            right = '%s_right' % metric_col
+            right = '%s_right' % metric_col  # FIXME Not clear that the right column has same metric name as left
             df = df.ensure_unit(right, meta.units[metric_col])
             df = df.with_columns([
                 pl.col(metric_col).fill_null(pl.col(right))
@@ -629,6 +629,14 @@ class MultiplicativeRelativeNode(MultiplicativeNode):
 
 
 class UsBuildingNode(SimpleNode):
+    '''Calculates the energy consumption based on
+    * floor area
+    * consumption factor (energy use intensity EUI)
+    * exactly one action that contains information about
+    ** compliance (fraction of new floor area affected)
+    ** triggering (fraction of old floor area renovated per year)
+    ** improvement (per cent reduction of energy consumption)
+    '''
     output_metrics = {
         VALUE_COLUMN: NodeMetric('kWh/a', 'energy')
     }
@@ -648,15 +656,11 @@ class UsBuildingNode(SimpleNode):
                 action_enabled = node.get_parameter_value('enabled')
 
         df = floor.paths.join_over_index(cf)
-        meta = df.get_meta()
         df = df.with_columns(pl.col(VALUE_COLUMN + '_right').alias('cf'))
         df = df.drop(VALUE_COLUMN + '_right')
         df = df.paths.join_over_index(action)
-        df = df.with_columns(pl.col(VALUE_COLUMN).alias('floor'))
-        df = df.with_columns(pl.col(VALUE_COLUMN + '_right').alias('improvement'))
-        df = df.drop([VALUE_COLUMN, VALUE_COLUMN + '_right'])
+        df = df.with_columns(pl.col(VALUE_COLUMN).alias('floor')).drop([VALUE_COLUMN])
         extra = ['triggered', 'compliant', 'improvement', 'floor', 'floor_new', 'cf']
-
         df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
         df = df.with_columns(pl.col('compliant').fill_null(pl.lit(0)))
         df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
@@ -664,6 +668,7 @@ class UsBuildingNode(SimpleNode):
         df = df.ensure_unit('compliant', 'dimensionless')
         df = df.ensure_unit('improvement', 'dimensionless')
 
+        # Get the original cf for non-renovated buildings
         if action_enabled:
             df = df.with_columns((pl.col('cf') / (1 - pl.col('improvement'))).alias('cf_bau'))
             df = df.set_unit('cf_bau', df.get_unit('cf'))
@@ -717,7 +722,7 @@ class UsBuildingNode(SimpleNode):
         return df
 
 
-class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for one purpose only. Generalize!
+class MultiplyLastBuildingNode(MultiplicativeNode):  # FIXME Tailored class for one purpose only. Generalize!
     """First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
@@ -738,9 +743,10 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for one purp
             else:
                 operation_nodes.append(node)
 
-        df = self.get_input_dataset_pl()
-        df = extend_last_historical_value_pl(df, self.get_end_year())
-        outputs = [n.get_output_pl(metric=VALUE_COLUMN) for n in operation_nodes]
+        df = self.get_input_dataset_pl(required=False)
+        if df is not None:
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+        outputs = [n.get_output_pl(metric='improvement') for n in operation_nodes]
 
         df = self.add_nodes_pl(df, additive_nodes)
 
@@ -750,6 +756,48 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for one purp
         df = df.ensure_unit(col, 'dimensionless')
         df = df.with_columns((pl.col(VALUE_COLUMN) * (1 - pl.col(col))).alias(VALUE_COLUMN))
         df = df.drop(col)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return df
+
+
+class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
+    """First add other input nodes, then multiply the output.
+
+    Multiplication and addition is determined based on the input node units.
+    """
+
+    operation_label = 'multiplication'
+
+    def compute(self) -> ppl.PathsDataFrame:
+        additive_nodes: list[Node] = []
+        operation_nodes: list[Node] = []
+        assert self.unit is not None
+        non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        for node in self.input_nodes:
+            if node in non_additive_nodes:
+                operation_nodes.append(node)
+            elif self.is_compatible_unit(node.unit, self.unit):
+                additive_nodes.append(node)
+            else:
+                operation_nodes.append(node)
+
+        df = self.get_input_dataset_pl(required=False)
+        if df is not None:
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+        outputs = [n.get_output_pl() for n in operation_nodes]
+        assert len(operation_nodes) == 1  # FIXME Multiplication should be generalised to several operation nodes.
+
+        df = self.add_nodes_pl(df, additive_nodes)
+
+        col = VALUE_COLUMN + '_right'
+        df = df.paths.join_over_index(outputs.pop(0))
+        df = df.ensure_unit(col, 'dimensionless')
+        df = df.with_columns([
+            pl.col(col).fill_null(pl.lit(0)),
+            (1 - pl.col(col)).alias('ratio')
+            ])
+        df = df.multiply_cols([VALUE_COLUMN, 'ratio'], VALUE_COLUMN).drop([col, 'ratio'])
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df

@@ -3,6 +3,7 @@ import typing
 import pandas as pd
 import numpy as np
 import pint_pandas
+import polars as pl
 
 from numba import njit, int32, types as nbt
 import numba as nb
@@ -640,6 +641,12 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
 
     def compute_effect(self) -> pd.DataFrame:
 
+        df = self.get_input_dataset_pl(required=False)
+        if df is not None:
+            if not self.is_enabled():
+                df = df.with_columns(improvement=pl.lit(0))
+            return df
+
         triggered = self.get_parameter_value('triggered', units=True).to('dimensionless').m
         compliant = self.get_parameter_value('compliant', units=True).to('dimensionless').m
         improvement = self.get_parameter_value('improvement', units=True).to('dimensionless').m
@@ -652,7 +659,7 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
         df = pd.DataFrame({
             'triggered': pint_pandas.PintArray([triggered * 100.0], '%'),
             'compliant': pint_pandas.PintArray([compliant * 100.0], '%'),
-            VALUE_COLUMN: pint_pandas.PintArray([improvement * 100.0], '%'),
+            'improvement': pint_pandas.PintArray([improvement * 100.0], '%'),
             FORECAST_COLUMN: [True],
         }, index=years)
 
