@@ -184,9 +184,9 @@ class InstanceMiddleware:
             return next(root, info, **kwargs)
 
 class PathsGraphQLView(GraphQLView):
-    graphiql_version = "2.2.0"
-    graphiql_sri = "sha256-fLMqXdOkS8Q7/tzR9a511DnNqR1Z9sk2hPOBXMVrCnY="
-    graphiql_css_sri = "sha256-JZnrtAzCwc6VWlHZwhlFS77c7Jv8tcD2jGd3vdjMfWU="
+    graphiql_version = "2.4.1"
+    graphiql_sri = "sha256-s+f7CFAPSUIygFnRC2nfoiEKd3liCUy+snSdYFAoLUc="
+    graphiql_css_sri = "sha256-88yn8FJMyGboGs4Bj+Pbb3kWOWXo7jmb+XCRHE+282k="
 
     def __init__(self, *args, **kwargs):
         if 'middleware' not in kwargs:
