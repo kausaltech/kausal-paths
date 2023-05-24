@@ -16,7 +16,7 @@ jobs:
       BUILDKIT_PROGRESS: plain
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Check for deployment branch
         if: github.ref == 'refs/heads/deployment/production' || github.ref == 'refs/heads/deployment/staging' || github.ref == 'refs/heads/deployment/testing'|| github.ref == 'refs/heads/deployment/wip'
@@ -37,7 +37,7 @@ jobs:
         run: docker-compose down
       - name: Log into Docker registry
         if: env.DEPLOYMENT_TYPE
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: docker.kausal.tech
           username: docker
