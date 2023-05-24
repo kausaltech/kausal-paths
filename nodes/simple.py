@@ -652,7 +652,7 @@ class UsBuildingNode(SimpleNode):
                 action_enabled = node.get_parameter_value('enabled')
             else:
 #                raise NodeError(node, 'Node %s has wrong quantity %s' % (node.id, node.quantity))
-                action = node.get_output_pl()  # FIXME For some reason, the quantity of the required action is None.
+                action = node.get_output_pl(target_node=self)  # FIXME For some reason, the quantity of the required action is None.
                 action_enabled = node.get_parameter_value('enabled')
 
         df = floor.paths.join_over_index(cf)
@@ -670,6 +670,7 @@ class UsBuildingNode(SimpleNode):
 
         # Get the original cf for non-renovated buildings
         if action_enabled:
+            # Make sure improvement column is less than 100 %
             df = df.with_columns((pl.col('cf') / (1 - pl.col('improvement'))).alias('cf_bau'))
             df = df.set_unit('cf_bau', df.get_unit('cf'))
         else:
@@ -746,7 +747,7 @@ class MultiplyLastBuildingNode(MultiplicativeNode):  # FIXME Tailored class for 
         df = self.get_input_dataset_pl(required=False)
         if df is not None:
             df = extend_last_historical_value_pl(df, self.get_end_year())
-        outputs = [n.get_output_pl(metric='improvement') for n in operation_nodes]
+        outputs = [n.get_output_pl(metric='improvement', target_node=self) for n in operation_nodes]
 
         df = self.add_nodes_pl(df, additive_nodes)
 

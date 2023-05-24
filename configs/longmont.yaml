@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ed56f9ec4bb8f4d294179f66066361a998770b94
+  commit: e6c7ab8e7b9cf4d3ecfafeed770e1d0f564bc26f
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -732,7 +732,7 @@ nodes:
   unit: therm/a
   input_nodes:
   - id: benchmark_energy_use
-    metrics: [triggered, compliant, interaction]
+    metrics: [triggered, compliant, improvement]
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
@@ -844,7 +844,7 @@ nodes:
   unit: GWh/a
   input_nodes:
   - id: updated_building_code_residential
-    metrics: [triggered, compliant, Value]
+    metrics: [triggered, compliant, improvement]
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
@@ -885,7 +885,7 @@ nodes:
   unit: therm/a
   input_nodes:
   - id: updated_building_code_residential
-    metrics: [triggered, compliant, Value]
+    metrics: [triggered, compliant, improvement]
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
@@ -903,7 +903,7 @@ nodes:
   unit: GWh/a
   input_nodes:
   - id: updated_building_code_commercial
-    metrics: [triggered, compliant, Value]
+    metrics: [triggered, compliant, improvement]
   - id: building_floor_area
     from_dimensions:
     - id: emission_sectors
@@ -918,7 +918,7 @@ nodes:
   unit: therm/a
   input_nodes:
   - id: updated_building_code_commercial
-    metrics: [triggered, compliant, Value]
+    metrics: [triggered, compliant, improvement]
   - id: building_floor_area
     from_dimensions:
     - id: emission_sectors
@@ -997,6 +997,43 @@ nodes:
       flatten: true
     to_dimensions:
     - id: greenhouse_gases
+
+- id: beyond_electricity_commercial_eui
+  name: Beyond electricity commercial energy use intensity EUI
+  type: simple.MultiplyLastBuildingNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+    filters:
+    - column: emission_sectors
+      value: commercial_industrial_energy
+  input_nodes:
+  - id: develop_beyond_building_code
+    metric: Value
+    tags: non_additive
+
+- id: beyond_code_electricity_commercial  # FIXME This is double counting. Not clear how this should be done.
+  name: Electricity use after beyond code action
+  type: simple.UsBuildingNode
+  quantity: energy
+  unit: kWh/a
+  input_nodes:
+  - id: building_floor_area
+    from_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+      flatten: true
+  - id: develop_beyond_building_code
+    metrics: [triggered, compliant, improvement]
+  - id: beyond_electricity_commercial_eui
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+
 
 # Building model, updated building code
 # Floor area increses by B32 every year. categories residential, commercial
@@ -1498,18 +1535,21 @@ actions:
     max_value: 15.0
     description: Percentage increase in efficiency on top of past upgrades
 
-#- id: beyond_building_code  # FIXME Return when the dataset editor works
-#  name: Develop beyond building code
-#  description: Develop building codes that go beyond the IECC and towards net-zero
-#    energy use, including the Climate Action Recommendations Report strategies to
-#    add solar ready and electric vehicle ready as part of the 2021 residential code
-#    update.
-#  type: energy_saving.FutureBuildingActionUs
-#  quantity: fraction
-#  unit: '%'
-#  group: buildings
-#  input_datasets:
-#  - id: longmont/improvements_beyond_building_code
+- id: develop_beyond_building_code
+  name: Develop beyond building code
+  description: Develop building codes that go beyond the IECC and towards net-zero
+    energy use, including the Climate Action Recommendations Report strategies to
+    add solar ready and electric vehicle ready as part of the 2021 residential code
+    update. <b>NOTE! This action causes double counting; it will be fixed.</b>
+  type: energy_saving.FutureBuildingActionUs
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_datasets:
+  - id: longmont/improvements_beyond_building_code
+    filters:
+    - column: emission_sectors
+      value: [commercial_industrial_energy]
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -1537,18 +1577,30 @@ actions:
   unit: '%'
   group: buildings
   historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0]]
-  forecast_values: [[2021, 1], [2022, 1.25], [2023, 1.5], [2024, 1.75], [2025, 2], [2026, 2], [2027, 2], [2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [2033, 2], [2034, 2], [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2], [2040, 2], [2041, 2], [2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [2047, 2], [2048, 2], [2049, 2], [2050, 2]]
+  forecast_values: [[2021, 1], [2022, 1.25], [2023, 1.5], [2024, 1.75], [2025, 2],
+    [2026, 2], [2027, 2], [2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [
+      2033, 2], [2034, 2], [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2],
+    [2040, 2], [2041, 2], [2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [
+      2047, 2], [2048, 2], [2049, 2], [2050, 2]]
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential
-  description: Converting residential building systems that use fossil fuels (gas, oil, or propane)
-    to high efficiency electric equipment powered by increasingly clean and renewable
-    electricity. Savings are modeled with projected renewable energy emission factors.
+  description: Converting residential building systems that use fossil fuels (gas,
+    oil, or propane) to high efficiency electric equipment powered by increasingly
+    clean and renewable electricity. Savings are modeled with projected renewable
+    energy emission factors.
   type: simple.CumulativeAdditiveAction
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2021, 0], [2022, 0], [2023, -192.409], [2024, -192.409], [2025, -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030, -192.409], [2031, -1243.774], [2032, -1243.774], [2033, -1243.774], [2034, -1243.774], [2035, -1243.774], [2036, -1243.774], [2037, -1243.774], [2038, -1243.774], [2039, -1243.774], [2040, -1243.774], [2041, -1243.774], [2042, -1243.774], [2043, -1243.774], [2044, -1243.774], [2045, -1243.774], [2046, -1243.774], [2047, -1243.774], [2048, -1243.774], [2049, -1243.774], [2050, -1243.774]]
+  forecast_values: [[2021, 0], [2022, 0], [2023, -192.409], [2024, -192.409], [2025,
+      -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409],
+    [2030, -192.409], [2031, -1243.774], [2032, -1243.774], [2033, -1243.774], [2034,
+      -1243.774], [2035, -1243.774], [2036, -1243.774], [2037, -1243.774], [2038,
+      -1243.774], [2039, -1243.774], [2040, -1243.774], [2041, -1243.774], [2042,
+      -1243.774], [2043, -1243.774], [2044, -1243.774], [2045, -1243.774], [2046,
+      -1243.774], [2047, -1243.774], [2048, -1243.774], [2049, -1243.774], [2050,
+      -1243.774]]
   output_nodes:
   - id: building_natural_gas_consumption
     to_dimensions:
@@ -1558,14 +1610,21 @@ actions:
 
 - id: replace_natural_gas_commercial
   name: Beneficial Building Electrification Commercial
-  description: Converting commercial building systems that use fossil fuels (gas, oil, or propane)
-    to high efficiency electric equipment powered by increasingly clean and renewable
-    electricity. Savings are modeled with projected renewable energy emission factors.
+  description: Converting commercial building systems that use fossil fuels (gas,
+    oil, or propane) to high efficiency electric equipment powered by increasingly
+    clean and renewable electricity. Savings are modeled with projected renewable
+    energy emission factors.
   type: simple.CumulativeAdditiveAction
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2021, 0], [2022, 0], [2023, -88.707], [2024, -88.707], [2025, -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707], [2031, -741.592], [2032, -741.592], [2033, -741.592], [2034, -741.592], [2035, -741.592], [2036, -741.592], [2037, -741.592], [2038, -741.592], [2039, -741.592], [2040, -741.592], [2041, -741.592], [2042, -741.592], [2043, -741.592], [2044, -741.592], [2045, -741.592], [2046, -741.592], [2047, -741.592], [2048, -741.592], [2049, -741.592], [2050, -741.592]]
+  forecast_values: [[2021, 0], [2022, 0], [2023, -88.707], [2024, -88.707], [2025,
+      -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707],
+    [2030, -88.707], [2031, -741.592], [2032, -741.592], [2033, -741.592], [2034,
+      -741.592], [2035, -741.592], [2036, -741.592], [2037, -741.592], [2038, -741.592],
+    [2039, -741.592], [2040, -741.592], [2041, -741.592], [2042, -741.592], [2043,
+      -741.592], [2044, -741.592], [2045, -741.592], [2046, -741.592], [2047, -741.592],
+    [2048, -741.592], [2049, -741.592], [2050, -741.592]]
   output_nodes:
   - id: building_natural_gas_consumption
     to_dimensions:
