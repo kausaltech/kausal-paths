@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 90f9f7c34f5641373a35092602d7df3d5a0f563b
+  commit: ed56f9ec4bb8f4d294179f66066361a998770b94
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -717,6 +717,34 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
 
+- id: commercial_square_footage_over_20000_sf
+  name: Commercial square footage over 20,000 square feet
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: ft**2
+  input_datasets:
+  - id: longmont/commercial_square_footage_over_20000_sf
+
+- id: natural_gas_consumption_large_commercial
+  name: Natural gas use of large commercial buildings
+  type: simple.UsBuildingNode
+  quantity: energy
+  unit: therm/a
+  input_nodes:
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant, interaction]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+      flatten: true
+  - commercial_square_footage_over_20000_sf
+  - natural_gas_commercial_eui
+  output_nodes:
+  - id: building_natural_gas_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+
 # Total Floor area: Building 55:56
 # standard energy consumption of existing buildings: MISSING
 # standard energy consumption of new buildings: building 57:60
@@ -731,7 +759,7 @@ nodes:
 
 - id: electricity_residential_eui
   name: Electricity residential energy use intensity EUI
-  type: simple.MultiplyLastNode
+  type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
@@ -747,7 +775,7 @@ nodes:
 
 - id: electricity_commercial_eui
   name: Electricity commercial energy use intensity EUI
-  type: simple.MultiplyLastNode
+  type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
@@ -763,9 +791,9 @@ nodes:
 
 - id: natural_gas_residential_eui
   name: Natural gas residential energy use intensity EUI
-  type: simple.MultiplyLastNode
+  type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
-  unit: therm/ft**2/a
+  unit: kWh/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
@@ -779,7 +807,7 @@ nodes:
 
 - id: natural_gas_commercial_eui
   name: Natural gas commercial energy use intensity EUI
-  type: simple.MultiplyLastNode
+  type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
@@ -793,8 +821,24 @@ nodes:
     metric: Value
     tags: non_additive
 
-- id: building_electricity_consumption_residential
-  name: Building electricity consumption residential
+- id: natural_gas_large_commercial_eui
+  name: Natural gas energy use intensity EUI for large commercial buildings
+  type: simple.MultiplyLastBuildingNode
+  quantity: consumption_factor
+  unit: therm/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+    filters:
+    - column: emission_sectors
+      value: commercial_industrial_energy
+  input_nodes:
+  - id: benchmark_energy_use
+    metric: improvement
+    tags: non_additive
+
+- id: building_electricity_consumption_residential_wo_saving
+  name: Building electricity consumption residential without savings
   type: simple.UsBuildingNode
   quantity: energy
   unit: GWh/a
@@ -814,6 +858,26 @@ nodes:
     - id: emission_sectors
       categories: [residential_energy]
 
+- id: building_electricity_consumption_residential
+  name: Building electricity consumption residential
+  type: simple.MultiplyLastNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: building_electricity_consumption_residential_wo_saving
+  - id: efficiency_works_program
+    tags: [non_additive]
+
+- id: building_electricity_consumption_commercial
+  name: Building electricity consumption commercial
+  type: simple.MultiplyLastNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: building_electricity_consumption_commercial_wo_saving
+  - id: efficiency_works_program
+    tags: [non_additive]
+
 - id: building_natural_gas_consumption_residential
   name: Building natural gas consumption residential
   type: simple.UsBuildingNode
@@ -832,8 +896,8 @@ nodes:
       flatten: true
   - natural_gas_residential_eui
 
-- id: building_electricity_consumption_commercial
-  name: Building electricity consumption commercial
+- id: building_electricity_consumption_commercial_wo_saving
+  name: Building electricity consumption commercial without savings
   type: simple.UsBuildingNode
   quantity: energy
   unit: GWh/a
@@ -997,6 +1061,34 @@ nodes:
     - id: emission_scope
       categories: [scope2]
 
+- id: electricity_replacing_natural_gas_residential
+  name: Electricity that replaces natural gas in residential buildings
+  type: simple.FixedMultiplierNode
+  quantity: energy
+  unit: kWh/a
+  params:
+  - id: multiplier
+    value: -0.33
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+
+- id: electricity_replacing_natural_gas_commercial
+  name: Electricity that replaces natural gas in commercial buildings
+  type: simple.FixedMultiplierNode
+  quantity: energy
+  unit: kWh/a
+  params:
+  - id: multiplier
+    value: -0.39
+  output_nodes:
+  - id: building_electricity_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+
 # Natural gas
 
 - id: building_natural_gas_consumption
@@ -1004,8 +1096,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: Mthm/a
-  input_datasets:
-  - longmont/stationary_natural_gas_use
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
@@ -1015,8 +1105,8 @@ nodes:
       categories: [residential_energy]
   - id: building_natural_gas_consumption_commercial
     to_dimensions:
-      - id: emission_sectors
-        categories: [commercial_industrial_energy]
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
 
 - id: emission_factor_natural_gas
   name: Emission factor of natural gas
@@ -1408,29 +1498,34 @@ actions:
     max_value: 15.0
     description: Percentage increase in efficiency on top of past upgrades
 
-- id: beyond_building_code
-  name: Develop beyond building code
-  description: Develop building codes that go beyond the IECC and towards net-zero
-    energy use, including the Climate Action Recommendations Report strategies to
-    add solar ready and electric vehicle ready as part of the 2021 residential code
-    update.
-  type: simple.AdditiveAction  # FIXME This action type is just a placeholder for actual actions that do not yet have a proper type.
-  quantity: energy
-  unit: kWh/a
-  group: buildings
-  forecast_values: [[2023, 0], [2050, 0]]
+#- id: beyond_building_code  # FIXME Return when the dataset editor works
+#  name: Develop beyond building code
+#  description: Develop building codes that go beyond the IECC and towards net-zero
+#    energy use, including the Climate Action Recommendations Report strategies to
+#    add solar ready and electric vehicle ready as part of the 2021 residential code
+#    update.
+#  type: energy_saving.FutureBuildingActionUs
+#  quantity: fraction
+#  unit: '%'
+#  group: buildings
+#  input_datasets:
+#  - id: longmont/improvements_beyond_building_code
 
 - id: benchmark_energy_use
-  name: Report and benchmark energy use
+  name: Report and benchmark energy use in commercial buildings
   description: Requires commercial and industrial buildings owners whose buildings
     exceed 20,000 square feet to rate their building's energy use, report energy metrics,
     and encourages buildings owners to implement energy efficiency measures. For updates,
     see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.
-  type: simple.AdditiveAction
-  quantity: energy
+  type: energy_saving.FutureBuildingActionUs
+  quantity: fraction
+  unit: '%'
   group: buildings
-  unit: kWh/a
-  forecast_values: [[2023, 0], [2050, 0]]
+  input_datasets:
+  - id: longmont/benchmark_commercial_energy_use_action
+    filters:
+    - column: emission_sectors
+      value: commercial_industrial_energy
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
@@ -1438,21 +1533,45 @@ actions:
     2025 through commercial retro-commissioning, low-income programs, and residential
     and commercial savings.
   type: simple.AdditiveAction
-  quantity: energy
-  unit: kWh/a
+  quantity: fraction
+  unit: '%'
   group: buildings
-  forecast_values: [[2023, 0], [2050, 0]]
+  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0]]
+  forecast_values: [[2021, 1], [2022, 1.25], [2023, 1.5], [2024, 1.75], [2025, 2], [2026, 2], [2027, 2], [2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [2033, 2], [2034, 2], [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2], [2040, 2], [2041, 2], [2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [2047, 2], [2048, 2], [2049, 2], [2050, 2]]
 
-- id: replace_natural_gas
-  name: Beneficial Building Electrification
-  description: Converting building systems that use fossil fuels (gas, oil, or propane)
+- id: replace_natural_gas_residential
+  name: Beneficial Building Electrification Residential
+  description: Converting residential building systems that use fossil fuels (gas, oil, or propane)
     to high efficiency electric equipment powered by increasingly clean and renewable
     electricity. Savings are modeled with projected renewable energy emission factors.
-  type: simple.AdditiveAction
+  type: simple.CumulativeAdditiveAction
   quantity: energy
-  unit: therm/a
+  unit: ktherm/a
   group: buildings
-  forecast_values: [[2023, 0], [2050, 0]]
+  forecast_values: [[2021, 0], [2022, 0], [2023, -192.409], [2024, -192.409], [2025, -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030, -192.409], [2031, -1243.774], [2032, -1243.774], [2033, -1243.774], [2034, -1243.774], [2035, -1243.774], [2036, -1243.774], [2037, -1243.774], [2038, -1243.774], [2039, -1243.774], [2040, -1243.774], [2041, -1243.774], [2042, -1243.774], [2043, -1243.774], [2044, -1243.774], [2045, -1243.774], [2046, -1243.774], [2047, -1243.774], [2048, -1243.774], [2049, -1243.774], [2050, -1243.774]]
+  output_nodes:
+  - id: building_natural_gas_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+  - id: electricity_replacing_natural_gas_residential
+
+- id: replace_natural_gas_commercial
+  name: Beneficial Building Electrification Commercial
+  description: Converting commercial building systems that use fossil fuels (gas, oil, or propane)
+    to high efficiency electric equipment powered by increasingly clean and renewable
+    electricity. Savings are modeled with projected renewable energy emission factors.
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: ktherm/a
+  group: buildings
+  forecast_values: [[2021, 0], [2022, 0], [2023, -88.707], [2024, -88.707], [2025, -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707], [2031, -741.592], [2032, -741.592], [2033, -741.592], [2034, -741.592], [2035, -741.592], [2036, -741.592], [2037, -741.592], [2038, -741.592], [2039, -741.592], [2040, -741.592], [2041, -741.592], [2042, -741.592], [2043, -741.592], [2044, -741.592], [2045, -741.592], [2046, -741.592], [2047, -741.592], [2048, -741.592], [2049, -741.592], [2050, -741.592]]
+  output_nodes:
+  - id: building_natural_gas_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - id: electricity_replacing_natural_gas_commercial
 
 #- id: renewable_energy_plan
 #  name: Develop a comprehensive 100% renewable energy plan
