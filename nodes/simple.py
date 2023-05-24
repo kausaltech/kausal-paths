@@ -629,13 +629,6 @@ class MultiplicativeRelativeNode(MultiplicativeNode):
 
 
 class UsBuildingNode(SimpleNode):
-    allowed_parameters = SimpleNode.allowed_parameters + [
-        BoolParameter(
-            local_id='energy_efficiency_action',
-            description='This parameter checks the status of the action on energy efficiency',
-            is_customizable=False,
-        )
-    ]
     output_metrics = {
         VALUE_COLUMN: NodeMetric('kWh/a', 'energy')
     }
@@ -648,9 +641,11 @@ class UsBuildingNode(SimpleNode):
                 cf = node.get_output_pl(target_node=self)
             elif node.quantity == 'fraction':
                 action = node.get_output_pl(target_node=self)
+                action_enabled = node.get_parameter_value('enabled')
             else:
 #                raise NodeError(node, 'Node %s has wrong quantity %s' % (node.id, node.quantity))
                 action = node.get_output_pl()  # FIXME For some reason, the quantity of the required action is None.
+                action_enabled = node.get_parameter_value('enabled')
 
         df = floor.paths.join_over_index(cf)
         meta = df.get_meta()
@@ -669,8 +664,7 @@ class UsBuildingNode(SimpleNode):
         df = df.ensure_unit('compliant', 'dimensionless')
         df = df.ensure_unit('improvement', 'dimensionless')
 
-        act = self.get_parameter_value('energy_efficiency_action')
-        if act:
+        if action_enabled:
             df = df.with_columns((pl.col('cf') / (1 - pl.col('improvement'))).alias('cf_bau'))
             df = df.set_unit('cf_bau', df.get_unit('cf'))
         else:

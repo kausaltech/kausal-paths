@@ -72,18 +72,18 @@ features:
   baseline_visible_in_graphs: false
 
 action_groups:
-- id: trend
-  name: Trends beyond own control
-- id: electric_grid
-  name: Electric grid
 - id: buildings
   name: Buildings
 - id: transportation
   name: Transportation
+- id: electric_grid
+  name: Electric grid
 - id: solid_waste
   name: Solid waste
 - id: oil_and_gas
   name: Oil and gas
+- id: trend
+  name: Trends beyond own control
 
 dimensions:
 - id: emission_scope
@@ -813,9 +813,6 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
-  params:
-  - id: energy_efficiency_action
-    ref: placeholder
 
 - id: building_natural_gas_consumption_residential
   name: Building natural gas consumption residential
@@ -834,9 +831,6 @@ nodes:
       categories: [residential_energy]
       flatten: true
   - natural_gas_residential_eui
-  params:
-  - id: energy_efficiency_action
-    ref: placeholder
 
 - id: building_electricity_consumption_commercial
   name: Building electricity consumption commercial
@@ -852,9 +846,6 @@ nodes:
       categories: [commercial_industrial_energy]
       flatten: true
   - electricity_commercial_eui
-  params:
-  - id: energy_efficiency_action
-    ref: placeholder
 
 - id: building_natural_gas_consumption_commercial
   name: Building natural gas consumption commercial
@@ -870,9 +861,6 @@ nodes:
       categories: [commercial_industrial_energy]
       flatten: true
   - natural_gas_commercial_eui
-  params:
-  - id: energy_efficiency_action
-    ref: placeholder
 
 - id: building_electricity_consumption
   name: Building electricity consumption
