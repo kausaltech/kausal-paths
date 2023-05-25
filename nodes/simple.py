@@ -628,7 +628,7 @@ class MultiplicativeRelativeNode(MultiplicativeNode):
         return df
 
 
-class UsBuildingNode(SimpleNode):
+class UsBuildingNode(SimpleNode):  # FIXME Should a) work with dimensions and b) take >= 0 actions
     '''Calculates the energy consumption based on
     * floor area
     * consumption factor (energy use intensity EUI)
@@ -638,7 +638,7 @@ class UsBuildingNode(SimpleNode):
     ** improvement (per cent reduction of energy consumption)
     '''
     output_metrics = {
-        VALUE_COLUMN: NodeMetric('kWh/a', 'energy')
+        VALUE_COLUMN: NodeMetric('GWh/a', 'energy')
     }
 
     def compute(self) -> pd.DataFrame:
@@ -659,6 +659,8 @@ class UsBuildingNode(SimpleNode):
         df = df.with_columns(pl.col(VALUE_COLUMN + '_right').alias('cf'))
         df = df.drop(VALUE_COLUMN + '_right')
         df = df.paths.join_over_index(action)
+        if 'emission_sectors_right' in df.columns:
+            df = df.drop('emission_sectors_right')  # FIXME Quick bugfix
         df = df.with_columns(pl.col(VALUE_COLUMN).alias('floor')).drop([VALUE_COLUMN])
         extra = ['triggered', 'compliant', 'improvement', 'floor', 'floor_new', 'cf']
         df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
@@ -675,6 +677,22 @@ class UsBuildingNode(SimpleNode):
             df = df.set_unit('cf_bau', df.get_unit('cf'))
         else:
             df = df.with_columns(pl.col('cf').alias('cf_bau'))
+
+        '''
+        Floor area splits into 4 categories:
+        # floor_old: existing floor area at the last historical year
+        ## renovated: floor area that is triggered to renovation (increases yearly)
+        ## nonrenovated: the remaining existing floor area (decreases yearly)
+        # floor_new: floor area that is built after the last historical year (yearly values)
+        ## compliant: fraction of new floor area that follows the stricter energy efficiency
+        ## 1 - compliant: fraction that does not follow the stricter energy efficiency
+
+        Consumption fraction has 3 categories, used with floor categories:
+        # cf_old: the cf freezes at the last historical year and stays constant afterward
+        # cf: cf directly from the input node, i.e. according to the current best practice
+        # cf is used for both renovated an compliant floor area
+        # cf_bau: backcalculated value for the situation if the action did not take place
+        '''
 
         # Existing (old) floor area
         floor_last_values = floor.get_last_historical_values()
@@ -800,5 +818,24 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wi
             ])
         df = df.multiply_cols([VALUE_COLUMN, 'ratio'], VALUE_COLUMN).drop([col, 'ratio'])
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return df
+
+
+class ImprovementNode(MultiplicativeNode):
+    '''First does what MultiplicativeNode does, then calculates 1 - result.
+    Can only be used for dimensionless content (i.e., fractions and percentages)
+    '''
+
+    def compute(self):
+        if len(self.input_nodes) == 1:
+            node = self.input_nodes[0]
+            df = node.get_output_pl(target_node=self)
+        else:
+            df = super().compute()
+        if not isinstance(df, ppl.PathsDataFrame):
+            df = ppl.from_pandas(df)
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        df = df.with_columns((pl.lit(1) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
         return df

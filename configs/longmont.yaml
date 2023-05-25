@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e6c7ab8e7b9cf4d3ecfafeed770e1d0f564bc26f
+  commit: 7d7cb4a491e0f5dd5d691292abf1c9386524beeb
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -170,8 +170,8 @@ dimensions:
   - id: cars
     label: Cars
     id_match: ^car_.+
-  - id: motorbikes
-    label: Motorbikes
+  - id: motorcycles
+    label: Motorcycles
     id_match: ^motorbike_.+
   - id: buses
     label: Local buses
@@ -729,7 +729,7 @@ nodes:
   name: Natural gas use of large commercial buildings
   type: simple.UsBuildingNode
   quantity: energy
-  unit: therm/a
+  unit: Mtherm/a
   input_nodes:
   - id: benchmark_energy_use
     metrics: [triggered, compliant, improvement]
@@ -738,9 +738,29 @@ nodes:
       categories: [commercial_industrial_energy]
       flatten: true
   - commercial_square_footage_over_20000_sf
-  - natural_gas_commercial_eui
+  - natural_gas_large_commercial_eui
   output_nodes:
   - id: building_natural_gas_consumption
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+
+- id: electricity_consumption_large_commercial
+  name: Electricity use of large commercial buildings
+  type: simple.UsBuildingNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant, improvement]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+      flatten: true
+  - commercial_square_footage_over_20000_sf
+  - electricity_large_commercial_eui
+  output_nodes:
+  - id: building_electricity_consumption
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
@@ -829,6 +849,22 @@ nodes:
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
+    filters:
+    - column: emission_sectors
+      value: commercial_industrial_energy
+  input_nodes:
+  - id: benchmark_energy_use
+    metric: improvement
+    tags: non_additive
+
+- id: electricity_large_commercial_eui
+  name: Electricity energy use intensity EUI for large commercial buildings
+  type: simple.MultiplyLastBuildingNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
     filters:
     - column: emission_sectors
       value: commercial_industrial_energy
@@ -943,11 +979,16 @@ nodes:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
   output_nodes:
-  - id: electricity_consumption
-    to_dimensions:
-    - id: site
-      categories: [longmont_power]
+  - id: electricity_consumption_residential
+    tags: [non_additive]
+    from_dimensions:
     - id: emission_sectors
+      categories: [residential_energy]
+  - id: electricity_consumption_commercial
+    tags: [non_additive]
+    from_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
 
 - id: electricity_consumption
   name: Electricity consumption
@@ -956,6 +997,34 @@ nodes:
   unit: GWh/a
   input_dimensions: [emission_sectors, site]
   output_dimensions: [emission_sectors, site]
+
+- id: electricity_consumption_residential
+  name: Electricity consumption, residential
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  output_nodes:
+  - id: electricity_consumption
+    to_dimensions:
+    - id: site
+      categories: [longmont_power]
+    - id: emission_sectors
+
+- id: electricity_consumption_commercial
+  name: Electricity consumption, commercial
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  output_nodes:
+  - id: electricity_consumption
+    to_dimensions:
+    - id: site
+      categories: [longmont_power]
+    - id: emission_sectors
 
 - id: change_xcel_electricity_emission_factor
   name: Expected change in Xcel Energy electricity emission factors
@@ -1389,15 +1458,16 @@ nodes:
     unit: pcs/person
     is_customizable: false
 
-#- id: vehicle_fuel_efficiency
-#  name: Vehicle fuel efficiency
-#  type: simple.AdditiveNode
-#  quantity: emission_factor
-#  unit: miles/gallon
-#  input_datasets:
-#  - longmont/fuel_consumption_by_vehicle_type
-#  input_dimensions: [vehicle_type]
-#  output_dimensions: [vehicle_type]
+- id: vehicle_fuel_efficiency
+  name: Vehicle fuel efficiency
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: miles/gallon
+  input_datasets:
+  - id: longmont/fuel_consumption_by_vehicle_type
+  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
 
 # Equity shares (not part of the main emission inventory)
 
@@ -1447,31 +1517,78 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2017, 0], [2018, 2], [2019, 5], [2020, 7], [2021, 9]]
+  historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [2021,
+      9]]
 
 - id: smart_grid_improvement
   name: Relative improvement due to smart grid implementation
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 0], [2021, 0]]
+  historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
+      0]]
 
-- id: smart_grid_benefits
-  name: Smart grid action benefits
-  type: simple.MultiplicativeNode
+- id: smart_grid_benefits_residential
+  name: Smart grid action benefits, residential
+  type: simple.ImprovementNode
   quantity: fraction
-  unit: '%'
+  unit: dimensionless
+  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
   input_nodes:
   - id: participation_smart_grid
     tags: [non_additive]
   - id: smart_grid_improvement
     tags: [non_additive]
+  output_nodes:
+  - id: electricity_consumption_residential
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
+
+- id: smart_grid_benefits_commercial
+  name: Smart grid action benefits, commercial
+  type: simple.ImprovementNode
+  quantity: fraction
+  unit: dimensionless
+  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
+  input_nodes:
+  - id: participation_smart_grid
+    tags: [non_additive]
+  - id: smart_grid_improvement
+    tags: [non_additive]
+  output_nodes:
+  - id: electricity_consumption_commercial
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
 
 - id: transmission_loss_change
   name: Transmission_loss_changes
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
+  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
+      0], [2022, 0]]
+
+- id: transmission_loss_work_benefits
+  name: Improvements due to transmission loss work
+  type: simple.ImprovementNode
+  quantity: fraction
+  unit: dimensionless
+  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [2021,
+      1], [2022, 1]]
+  input_nodes:
+  - id: transmission_loss_change
+    tags: [non_additive]
+  output_nodes:
+  - id: electricity_consumption_commercial
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - id: electricity_consumption_residential
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
 
 actions:
 
@@ -1699,10 +1816,10 @@ actions:
     - target:
         node: transmission_loss_change
       amounts:
-      - year: 2022
-        amount: 1.5
       - year: 2023
-        amount: 0
+        amount: 1.5
+      - year: 2024
+        amount: 0.0
 
 - id: vehicle_incentives
   name: Increase electric vehicles through vehicle incentives and improved infrastructure
