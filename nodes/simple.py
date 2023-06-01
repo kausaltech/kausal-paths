@@ -341,7 +341,7 @@ class Activity(AdditiveNode):
     pass
 
 
-class FixedMultiplierNode(SimpleNode):
+class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with MultiplicativeNode
     allowed_parameters = [
         NumberParameter(local_id='multiplier'),
         StringParameter(local_id='global_multiplier'),
