@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0667d8b13bc71fe79ede11626791ddd402281f2e
+  commit: 67bd44992bd819c2ce66a9a4ab1f67bb64abb1de
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -474,7 +474,7 @@ emission_sectors:
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
-  name: Agriculture,forestry, and other land use emissions
+  name: Agriculture, forestry, and other land use emissions
   category: afolu
   part_of: net_emissions
   color: '#5D9C6F'
@@ -528,7 +528,7 @@ emission_sectors:
   input_dataset_processors: [LinearInterpolation]
 
 - id: aviation_emissions
-  name: Aviation_emissions
+  name: Aviation emissions
   category: aviation
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
@@ -1272,6 +1272,7 @@ nodes:
   unit: t/gal
   input_datasets:
   - longmont/emission_factor_fuels
+  input_dataset_processors: [LinearInterpolation]
   output_dimensions: [energy_carrier, greenhouse_gases]
 
 - id: stationary_fuel_consumption_emissions
@@ -1490,6 +1491,9 @@ nodes:
 
 - id: vehicle_miles_per_vehicle
   name: Vehicle miles per vehicle
+  description: 'The model has two different estimates for VMT:
+    <ul><li>Row 50: Average annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li>
+    <li>Row 76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul>'
   type: simple.AdditiveNode
   quantity: mileage
   unit: miles/pcs/a
@@ -1576,7 +1580,7 @@ nodes:
   - electric_vehicle_efficiency
 
 - id: vehicle_electricity_use_residential
-  name: Residential vehicle electricity use
+  name: Vehicle electricity use, residential sites
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: kWh/a
@@ -1592,7 +1596,7 @@ nodes:
       categories: [residential_energy]
 
 - id: vehicle_electricity_use_commercial
-  name: Commercial vehicle electricity use
+  name: Vehicle electricity use, commercial sites
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: kWh/a
@@ -1606,6 +1610,54 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
+
+- id: free_rides_per_person
+  name: Rides per person from Ride Free program
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pieces/inhabitant/a
+  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019, 1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
+
+- id: ridership_program
+  name: Ridership from Ride Free program
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: pcs/a
+  input_nodes:
+  - free_rides_per_person
+  - population
+
+- id: vmt_change_from_free_rides_program
+  name: Change in vehicle miles traveled due to Ride Free program
+  type: simple.FixedMultiplierNode
+  quantity: mileage
+  unit: miles/a
+  input_nodes:
+  - ridership_program
+  params:
+  - id: multiplier
+    value: -8.8
+    unit: miles/pcs
+  output_nodes:
+  - total_vehicle_miles_traveled
+
+- id: modal_share_of_active_transportation
+  name: Modal share of active transportation
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10], [2021, 10]]
+
+- id: vmt_change_from_active_transportation
+  name: Change in vehicle miles traveled due to active transportation
+  type: simple.ImprovementNode
+  quantity: mileage
+  unit: dimensionless
+  input_nodes:
+  - modal_share_of_active_transportation
+  output_nodes:
+  - id: total_vehicle_miles_traveled
+    tags: [non_additive]
 
 # Equity shares (not part of the main emission inventory)
 
@@ -1964,20 +2016,31 @@ actions:
   description: Increase the rate of electric vehicle adoption until a majority of
     vehicles are powered by clean electricity.
   type: simple.AdditiveAction
-  quantity: mileage
-  unit: miles/a
+  quantity: number
+  unit: pcs
   group: transportation
-  forecast_values: [[2023, 0], [2050, 0]]
+  forecast_values: [[2022, 1996.731], [2023, 4038.337], [2024, 6124.817], [2025, 8256.17],
+    [2026, 10432.398], [2027, 12653.501], [2028, 14919.477], [2029, 17230.327], [
+      2030, 19586.052], [2031, 23076.258], [2032, 26634.523], [2033, 30260.847], [
+      2034, 33955.23], [2035, 37717.673], [2036, 41295.753], [2037, 44908.55], [2038,
+      48556.321], [2039, 52239.327], [2040, 55957.828], [2041, 59712.089], [2042,
+      63502.373], [2043, 67328.948], [2044, 71192.082], [2045, 75092.045], [2046,
+      79029.11], [2047, 83003.551], [2048, 87015.642], [2049, 91065.662], [2050, 95153.89]]
+  output_nodes:
+  - registered_electric_vehicles
 
 - id: increase_access_of_public_transit
   name: Address barriers to increase access and use of public transit
   description: Address barriers to increase access and use of public transit, especially
     for underserved communities.
   type: simple.AdditiveAction
-  quantity: mileage
-  unit: miles/a
+  quantity: number
+  unit: pcs/inhabitant/a
   group: transportation
-  forecast_values: [[2023, 0], [2050, 0]]
+  forecast_values: [[2023, 1.101064], [2050, 1.101064]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - free_rides_per_person
 
 - id: multimodal_transportation_system
   name: Develop multimodal transportation system
@@ -1985,10 +2048,13 @@ actions:
     reduce greenhouse gas emissions through bicycle and pedestrian improvements and
     first/last mile connections.
   type: simple.AdditiveAction
-  quantity: mileage
-  unit: miles/a
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2023, 0], [2050, 0]]
+  forecast_values: [[2021, 0], [2050, 15]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - modal_share_of_active_transportation
 
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
@@ -2218,22 +2284,6 @@ actions:
     [2049, -302.553], [2050, -313.359]]
   output_nodes:
   - vehicle_miles_per_vehicle
-
-- id: registered_electric_vehicles_trend
-  name: Registered electric vehicles trend
-  type: simple.AdditiveAction
-  quantity: number
-  unit: pcs
-  group: trend
-  forecast_values: [[2022, 1996.731], [2023, 4038.337], [2024, 6124.817], [2025, 8256.17],
-    [2026, 10432.398], [2027, 12653.501], [2028, 14919.477], [2029, 17230.327], [
-      2030, 19586.052], [2031, 23076.258], [2032, 26634.523], [2033, 30260.847], [
-      2034, 33955.23], [2035, 37717.673], [2036, 41295.753], [2037, 44908.55], [2038,
-      48556.321], [2039, 52239.327], [2040, 55957.828], [2041, 59712.089], [2042,
-      63502.373], [2043, 67328.948], [2044, 71192.082], [2045, 75092.045], [2046,
-      79029.11], [2047, 83003.551], [2048, 87015.642], [2049, 91065.662], [2050, 95153.89]]
-  output_nodes:
-  - registered_electric_vehicles
 
 - id: electric_vehicle_efficiency_trend
   name: Electric vehicle efficiency trend
