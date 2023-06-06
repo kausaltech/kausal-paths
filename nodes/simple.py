@@ -839,3 +839,22 @@ class ImprovementNode(MultiplicativeNode):
         df = df.with_columns((pl.lit(1) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
         return df
+
+
+class ImprovementNode2(MultiplicativeNode):
+    '''First does what MultiplicativeNode does, then calculates 1 + result.
+    Can only be used for dimensionless content (i.e., fractions and percentages)
+    '''
+
+    def compute(self):
+        if len(self.input_nodes) == 1:
+            node = self.input_nodes[0]
+            df = node.get_output_pl(target_node=self)
+        else:
+            df = super().compute()
+        if not isinstance(df, ppl.PathsDataFrame):
+            df = ppl.from_pandas(df)
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        df = df.with_columns((pl.lit(1) + pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+
+        return df

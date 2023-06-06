@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 67bd44992bd819c2ce66a9a4ab1f67bb64abb1de
+  commit: adadb8b090f86e714298077e79cf41d31de819e2
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -402,6 +402,18 @@ dimensions:
     label: Various
   - id: home
     label: Home
+
+- id: waste
+  label: Waste type
+  categories:
+  - id: landfilled
+    label: Landfilled waste
+  - id: composted
+    label: Composted waste
+  - id: recycled
+    label: Recycled waste
+  - id: wastewater
+    label: Wastewater
 
 params:
 - id: municipality_name
@@ -1437,7 +1449,7 @@ nodes:
 #
 
 - id: emission_factor_fuels
-  name: Fuel emission factors
+  name: Fuel emission factors for CO2
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/gal
@@ -1491,9 +1503,9 @@ nodes:
 
 - id: vehicle_miles_per_vehicle
   name: Vehicle miles per vehicle
-  description: 'The model has two different estimates for VMT:
-    <ul><li>Row 50: Average annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li>
-    <li>Row 76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul>'
+  description: 'The model has two different estimates for VMT: <ul><li>Row 50: Average
+    annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li> <li>Row
+    76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul>'
   type: simple.AdditiveNode
   quantity: mileage
   unit: miles/pcs/a
@@ -1526,7 +1538,7 @@ nodes:
   - vehicle_miles_per_vehicle
   - registered_non_electric_vehicles
 
-- id: non_electric_vehicle_fuel_use
+- id: non_electric_vehicle_fuel_use  # FIXME Sepearately for different fuels
   name: Non-electric vehicle fuel use
   type: simple.DivisiveNode
   quantity: energy
@@ -1616,7 +1628,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: number
   unit: pieces/inhabitant/a
-  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019, 1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
+  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019,
+      1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
 
 - id: ridership_program
   name: Ridership from Ride Free program
@@ -1627,13 +1640,13 @@ nodes:
   - free_rides_per_person
   - population
 
-- id: vmt_change_from_free_rides_program
-  name: Change in vehicle miles traveled due to Ride Free program
+- id: vmt_change_due_to_public_transportation
+  name: Change in vehicle miles traveled due to public transportation
   type: simple.FixedMultiplierNode
   quantity: mileage
   unit: miles/a
   input_nodes:
-  - ridership_program
+  - public_transportation_trips
   params:
   - id: multiplier
     value: -8.8
@@ -1646,7 +1659,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10], [2021, 10]]
+  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10],
+    [2021, 10]]
 
 - id: vmt_change_from_active_transportation
   name: Change in vehicle miles traveled due to active transportation
@@ -1658,6 +1672,120 @@ nodes:
   output_nodes:
   - id: total_vehicle_miles_traveled
     tags: [non_additive]
+
+- id: public_transportation_change
+  name: Public transportation change by last-mile actions
+  type: simple.ImprovementNode2
+  quantity: ratio
+  unit: dimensionless
+  historical_values: [[2016, 1.0], [2021, 1.9]]
+  input_dataset_processsors: [LinearInterpolation]
+
+- id: public_transportation_trips_per_person
+  name: Public transportation trips per person
+  description: Number of public transportation trips per person is assumed to be constant
+    and at the level of 2017. In contrast, in the excel model the total number of
+    transportation trips is higher by the factor of population increase in that year
+    but not accumulating over time; this does not make sense and is probably a thought
+    error in the equation.
+  type: simple.FixedMultiplierNode
+  quantity: number
+  unit: pcs/inhabitant/a  # FIXME Make new units for pieces: pcs = nan trip = nan vehicle
+  historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 5.906333777],
+    [2019, 5.922192747], [2020, 5.938051718], [2021, 5.953910689]]
+  input_nodes:
+  - public_transportation_change
+  params:
+  - id: multiplier
+    value: 5.890474806
+    unit: pcs/inhabitant/a
+  - id: replace_output_using_input_dataset
+    value: true
+
+- id: public_transportation_trips
+  name: Public transportation trips
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: pcs/a
+  input_nodes:
+  - population
+  - public_transportation_trips_per_person
+  - ridership_program
+
+### WASTE
+
+- id: amount_of_waste_per_person
+  name: Amount of waste per person
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: short_ton/inhabitant/a  # FIXME Assumes these to be metric tons!?
+  input_datasets:
+  - longmont/amount_of_waste
+  output_dimensions: [waste]
+
+- id: amount_of_waste
+  name: Amount of waste
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: short_ton/a
+  input_nodes:
+  - id: amount_of_waste_per_person
+    from_dimensions:
+    - id: waste
+      flatten: true
+  - population
+  - waste_reduction
+
+- id: diversion_rate
+  name: Diversion rate
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [2020,
+      31.1], [2021, 35.0]]
+
+- id: waste_reduction
+  name: Waste reduction
+  type: simple.ImprovementNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - diversion_rate
+
+- id: waste_emission_factor
+  name: Waste emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/short_ton
+  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 6], [2020, 6],
+    [2021, 6]]
+
+- id: landfill_emissions
+  name: Landfill emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: metric_ton/a
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_nodes:
+  - id: amount_of_waste
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+      categories: [ch4]
+  - id: waste_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+      categories: [ch4]
+  - id: global_warming_potential_100a
+  output_nodes:
+  - id: waste_disposal_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope3]
 
 # Equity shares (not part of the main emission inventory)
 
@@ -2043,7 +2171,7 @@ actions:
   - free_rides_per_person
 
 - id: multimodal_transportation_system
-  name: Develop multimodal transportation system
+  name: Develop multimodal transportation system / bicycle and pedestrian improvements
   description: Pursue all elements of Longmont's multimodal transportation plan. Actively
     reduce greenhouse gas emissions through bicycle and pedestrian improvements and
     first/last mile connections.
@@ -2056,6 +2184,23 @@ actions:
   output_nodes:
   - modal_share_of_active_transportation
 
+- id: last_mile_connections
+  name: Improve last mile connections
+  description: Pursue all elements of Longmont's multimodal transportation plan. Actively
+    reduce greenhouse gas emissions through first/last mile connections.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  group: transportation
+  forecast_values: [[2022, 1.346], [2023, 1.615], [2024, 1.885], [2025, 2.154], [
+      2026, 2.423], [2027, 2.692], [2028, 2.962], [2029, 3.231], [2030, 3.5], [2031,
+      3.5], [2032, 3.5], [2033, 3.5], [2034, 3.5], [2035, 3.5], [2036, 3.5], [2037,
+      3.5], [2038, 3.5], [2039, 3.5], [2040, 3.5], [2041, 3.5], [2042, 3.5], [2043,
+      3.5], [2044, 3.5], [2045, 3.5], [2046, 3.5], [2047, 3.5], [2048, 3.5], [2049,
+      3.5], [2050, 3.5]]
+  output_nodes:
+  - public_transportation_change
+
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
   description: The original intent of this action was to improve monitoring of oil
@@ -2064,10 +2209,15 @@ actions:
     no longer any active oil and gas facilities within City limits and the City has
     no legal authority to enforce leaks or repairs associated with oil and gas operations.
   type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
+  quantity: emissions
+  unit: t/a
   group: oil_and_gas
   forecast_values: [[2023, 0], [2050, 0]]
+  output_nodes:
+  - id: leakage_from_oil_and_gas_wells_emissions
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
 
 - id: increase_waste_diversion
   name: Increase waste diversion
@@ -2076,7 +2226,13 @@ actions:
   quantity: fraction
   unit: '%'
   group: solid_waste
-  forecast_values: [[2023, 0], [2050, 0]]
+  forecast_values: [[2022, 3.9], [2023, 7.8], [2024, 11.7], [2025, 15.6], [2026, 19.5],
+    [2027, 23.4], [2028, 27.3], [2029, 31.1], [2030, 35], [2031, 35.8], [2032, 36.5],
+    [2033, 37.3], [2034, 38], [2035, 38.8], [2036, 39.5], [2037, 40.3], [2038, 41],
+    [2039, 41.8], [2040, 42.5], [2041, 43.3], [2042, 44], [2043, 44.8], [2044, 45.5],
+    [2045, 46.3], [2046, 47], [2047, 47.8], [2048, 48.5], [2049, 49.3], [2050, 50]]
+  output_nodes:
+  - diversion_rate
 
 #- id: commercial_power_purchase_program
 #  name: Commercial power purchase program
