@@ -1097,7 +1097,7 @@ nodes:
 
 - id: beyond_code_electricity_commercial  # FIXME This is double counting. Not clear how this should be done.
   name: Electricity use after beyond code action
-  type: simple.UsBuildingNode
+  type: simple.UsBuildingNode2
   quantity: energy
   unit: kWh/a
   input_nodes:
@@ -1538,7 +1538,7 @@ nodes:
   - vehicle_miles_per_vehicle
   - registered_non_electric_vehicles
 
-- id: non_electric_vehicle_fuel_use  # FIXME Sepearately for different fuels
+- id: non_electric_vehicle_fuel_use
   name: Non-electric vehicle fuel use
   type: simple.DivisiveNode
   quantity: energy
