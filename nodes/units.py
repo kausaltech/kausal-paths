@@ -59,9 +59,10 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     standard_cubic_feet = 0.01 therm = scf
     diesel_gallon_equivalent = 0.1385 MMBtu = DGE
     vehicle = [vehicle] = v
-    passenger = [passenger] = p = pass
+    passenger = [passenger] = p = pass = trip
     vkm = vehicle * kilometer
     pkm = passenger * kilometer
+    VMT = vehicle * mile
     @alias vkm = vkt = v_km
     @alias pkm = pkt = p_km
     million_square_meters = 1e6 * meter ** 2 = Msqm

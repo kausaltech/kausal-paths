@@ -44,7 +44,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: adadb8b090f86e714298077e79cf41d31de819e2
+  commit: f683b24ab13de6f834782556fb5e34aac1164151
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -1462,13 +1462,13 @@ nodes:
   name: Registered vehicles
   type: simple.FixedMultiplierNode
   quantity: number
-  unit: pcs
+  unit: vehicle
   input_nodes:
   - population
   params:
   - id: multiplier
     value: 0.8140
-    unit: pcs/person
+    unit: vehicle/person
     is_customizable: false
 
 - id: vehicle_fuel_efficiency
@@ -1508,7 +1508,7 @@ nodes:
     76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul>'
   type: simple.AdditiveNode
   quantity: mileage
-  unit: miles/pcs/a
+  unit: miles/vehicle/a
   input_datasets:
   - longmont/annual_vehicle_miles_per_vehicle
 
@@ -1516,7 +1516,7 @@ nodes:
   name: Registered electric vehicles
   type: simple.AdditiveNode
   quantity: number
-  unit: pcs
+  unit: vehicle
   input_datasets:
   - longmont/registered_electric_vehicles
 
@@ -1524,7 +1524,7 @@ nodes:
   name: Registered non-electric vehicles
   type: simple.SubtractiveNode
   quantity: number
-  unit: pcs
+  unit: vehicle
   input_nodes:
   - registered_vehicles
   - registered_electric_vehicles
@@ -1559,9 +1559,10 @@ nodes:
     to_dimensions:
     - id: energy_carrier
       categories: [petrol]
+  - id: emission_factor_fuels
+    to_dimensions:
+    - id: energy_carrier
     - id: greenhouse_gases
-      categories: [co2]  # FIXME Other gases are missing
-  - emission_factor_fuels
   output_nodes:
   - id: on_road_transportation_emissions
     from_dimensions:
@@ -1627,7 +1628,7 @@ nodes:
   name: Rides per person from Ride Free program
   type: simple.AdditiveNode
   quantity: number
-  unit: pieces/inhabitant/a
+  unit: trip/inhabitant/a
   historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019,
       1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
 
@@ -1635,7 +1636,7 @@ nodes:
   name: Ridership from Ride Free program
   type: simple.MultiplicativeNode
   quantity: number
-  unit: pcs/a
+  unit: trip/a
   input_nodes:
   - free_rides_per_person
   - population
@@ -1650,7 +1651,7 @@ nodes:
   params:
   - id: multiplier
     value: -8.8
-    unit: miles/pcs
+    unit: miles/trip
   output_nodes:
   - total_vehicle_miles_traveled
 
@@ -1690,7 +1691,7 @@ nodes:
     error in the equation.
   type: simple.FixedMultiplierNode
   quantity: number
-  unit: pcs/inhabitant/a  # FIXME Make new units for pieces: pcs = nan trip = nan vehicle
+  unit: trips/inhabitant/a
   historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 5.906333777],
     [2019, 5.922192747], [2020, 5.938051718], [2021, 5.953910689]]
   input_nodes:
@@ -1698,7 +1699,7 @@ nodes:
   params:
   - id: multiplier
     value: 5.890474806
-    unit: pcs/inhabitant/a
+    unit: trip/inhabitant/a
   - id: replace_output_using_input_dataset
     value: true
 
@@ -1706,7 +1707,7 @@ nodes:
   name: Public transportation trips
   type: simple.MultiplicativeNode
   quantity: number
-  unit: pcs/a
+  unit: trip/a
   input_nodes:
   - population
   - public_transportation_trips_per_person
@@ -2145,7 +2146,7 @@ actions:
     vehicles are powered by clean electricity.
   type: simple.AdditiveAction
   quantity: number
-  unit: pcs
+  unit: vehicle
   group: transportation
   forecast_values: [[2022, 1996.731], [2023, 4038.337], [2024, 6124.817], [2025, 8256.17],
     [2026, 10432.398], [2027, 12653.501], [2028, 14919.477], [2029, 17230.327], [
@@ -2163,7 +2164,7 @@ actions:
     for underserved communities.
   type: simple.AdditiveAction
   quantity: number
-  unit: pcs/inhabitant/a
+  unit: trip/inhabitant/a
   group: transportation
   forecast_values: [[2023, 1.101064], [2050, 1.101064]]
   input_dataset_processors: [LinearInterpolation]
@@ -2429,7 +2430,7 @@ actions:
   name: Vehicle miles per vehicle trend
   type: simple.AdditiveAction
   quantity: mileage
-  unit: miles/pcs/a
+  unit: miles/vehicle/a
   group: trend
   forecast_values: [[2022, -10.805], [2023, -21.611], [2024, -32.416], [2025, -43.222],
     [2026, -54.027], [2027, -64.833], [2028, -75.638], [2029, -86.444], [2030, -97.249],
