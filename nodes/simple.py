@@ -827,10 +827,13 @@ class UsBuildingNode2(SimpleNode):  # FIXME Should a) work with dimensions and b
             bau = bau.drop(['triggered', 'compliant', 'improvement'])
 
         # Energy consumption in baseline
-        df = df.paths.join_over_index(bau)
+        df = df.paths.join_over_index(bau, how='outer', index_from='union')
+        df = df.with_columns(pl.col('f_bau').fill_null(pl.lit(1.0)))
+        if 'emission_sectors' in df.columns:
+            df = df.with_columns(pl.col('emission_sectors').fill_null(pl.lit('commercial_industrial_energy')))
         df = df.multiply_cols(['floor_old', 'cf_old'], 'ene_old')
-        self.print(df)
-        df = df.multiply_cols(['floor_new', 'cf', 'f_bau'], 'ene_new').cumulate('ene_new')
+        df = df.multiply_cols(['floor_new', 'cf', 'f_bau'], 'ene_new')
+        df = df.cumulate('ene_new')
 
         # Implement each action
 
@@ -878,6 +881,151 @@ class UsBuildingNode2(SimpleNode):  # FIXME Should a) work with dimensions and b
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
+        return df
+
+
+class UsBuildingNodeBau(SimpleNode):  # FIXME Should a) work with dimensions and b) take >= 0 actions
+    '''Calculates the BAU energy consumption based on
+    * floor area
+    * consumption factor (energy use intensity EUI)
+
+    Floor area splits into 2 categories:
+    # floor_old: existing floor area before and at the last historical year
+    # floor_new: floor area that is built after the last historical year (yearly values)
+
+    Consumption fraction has 3 categories, used with floor categories:
+    # cf_old: the cf freezes at the last historical year and stays constant afterward
+    # cf: cf directly from the input node of BAU EUI.
+    '''
+
+    def compute(self) -> pd.DataFrame:
+        actions = []
+        for node in self.input_nodes:
+            if node.quantity == 'floor_area':
+                floor = node.get_output_pl(target_node=self)
+                floor = floor.rename({floor.metric_cols[0]: 'floor'})
+            elif node.quantity == 'consumption_factor':
+                cf = node.get_output_pl(target_node=self)
+                cf = cf.rename({cf.metric_cols[0]: 'cf'})
+            else:
+                actions = actions + [node]
+        assert len(actions) == 0
+
+        df = floor.paths.join_over_index(cf)
+
+        # Existing (old) and new floor area in baseline
+        flhv = floor.get_last_historical_values()
+        flhv = flhv.rename({flhv.metric_cols[0]: 'floor_old'})
+        df = df.paths.join_over_index(flhv.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        df = df.with_columns(
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('floor_old'))
+            .otherwise(pl.col('floor')).alias('floor_old')
+        )
+        df = df.with_columns((pl.col('floor') - pl.col('floor_old')).alias('floor_new'))
+        df = df.set_unit('floor_new', df.get_unit('floor'))
+        df = df.diff('floor_new')
+        df = df.with_columns(pl.col('floor_new').fill_null(pl.lit(0)))
+
+        # Old consumption factor
+        cf_last_values = cf.get_last_historical_values()
+        cf_last_values = cf_last_values.rename({cf_last_values.metric_cols[0]: 'cf_old'})
+        df = df.paths.join_over_index(cf_last_values.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        df = df.with_columns(
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('cf_old'))
+            .otherwise(pl.col('cf')).alias('cf_old')
+        )
+
+        df = df.multiply_cols(['floor_old', 'cf_old'], 'ene_old')
+        df = df.multiply_cols(['floor_new', 'cf'], 'ene_new')
+        df = df.cumulate('ene_new')
+        df = df.sum_cols(['ene_old', 'ene_new'], VALUE_COLUMN)
+        df = df.drop('cf')
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return(df)
+
+
+class UsBuildingNode3(SimpleNode):  # FIXME Should a) work with dimensions and b) take >= 0 actions
+    '''Calculates the energy consumption based on
+    * floor area
+    * consumption factor (energy use intensity EUI)
+    * exactly one action that contains information about
+    ** compliance (fraction of new floor area affected)
+    ** triggering (fraction of old floor area renovated per year)
+    ** improvement (per cent reduction of energy consumption)
+
+    Floor area splits into 4 categories:
+    # floor_old: existing floor area at the last historical year
+    ## renovated: floor area that is triggered to renovation (increases yearly)
+    ## nonrenovated: the remaining existing floor area (decreases yearly)
+    # floor_new: floor area that is built after the last historical year (yearly values)
+    ## compliant: fraction of new floor area that follows the stricter energy efficiency
+    ## 1 - compliant: fraction that does not follow the stricter energy efficiency
+
+    Consumption fraction has 3 categories, used with floor categories:
+    # cf_old: the cf freezes at the last historical year and stays constant afterward
+    # cf: cf directly from the input node, i.e. according to the current best practice
+    # cf is used for both renovated an compliant floor area
+    # cf_bau: backcalculated value for the situation if the action did not take place
+    '''
+
+    def compute(self) -> pd.DataFrame:
+        actions = []
+        for node in self.input_nodes:  # Assumes that no actions target floor area, therefore ene_bau used.
+            if node.quantity == 'consumption_factor':
+                cf = node.get_output_pl(target_node=self)
+                cf = cf.rename({cf.metric_cols[0]: 'cf'})
+            elif node.quantity == 'energy':
+                ene_bau = node.get_output_pl(target_node=self)
+            else:
+                actions = actions + [node]
+
+        df = cf.paths.join_over_index(ene_bau)
+
+        # Implement each action
+
+        for node in actions:  # Actions must be of type FutureBuildingActionUs
+
+            action = node.get_output_pl(target_node=self)
+            df = df.paths.join_over_index(action)
+
+            df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
+            df = df.with_columns(pl.col('compliant').fill_null(pl.lit(0)))
+            df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
+            df = df.ensure_unit('triggered', 'dimensionless')
+            df = df.ensure_unit('compliant', 'dimensionless')
+            df = df.ensure_unit('improvement', 'dimensionless')
+            df = df.ensure_unit('cf_old', df.get_unit('cf'))
+            # FIXME cf_old is 17.0334 for UsBuildingNode3 but 11.792354 for UsBuildingNode2. Not clear
+            # what is the exact difference and how it should be calculated (kWh/ft**2/a).
+
+            # Old floor area: renovation saving subtracted from energy and floor area
+            df = df.with_columns((pl.col('cf') - pl.col('cf_old')).alias('cf_change'))
+            df = df.set_unit('cf_change', df.get_unit('cf'))
+            df = df.multiply_cols(['floor_old', 'triggered', 'cf_change'], 'reno_saving')
+            df = df.cumulate('reno_saving')
+            df = df.sum_cols(['ene_old', 'reno_saving'], 'ene_old')
+
+            df = df.multiply_cols(['floor_old', 'triggered'], 'renovated').cumulate('renovated')
+            df = df.with_columns((pl.col('floor_old') - pl.col('renovated')).alias('floor_old'))
+
+            # New floor area
+            # FIXME If several actions, their interaction may not be correct with the current code.
+            # df = df.with_columns((pl.col('cf') * (pl.lit(1.0) - pl.col('f_bau'))).alias('compliance'))
+            # df = df.set_unit('compliance', df.get_unit('cf'))
+            df = df.multiply_cols(['floor_new', 'compliant', 'cf_change'], 'compliance_saving')
+            df = df.cumulate('compliance_saving')
+            df = df.sum_cols(['ene_new', 'compliance_saving'], 'ene_new')
+            df = df.sum_cols(['reno_saving', 'compliance_saving', VALUE_COLUMN], VALUE_COLUMN)
+
+            extra = ['triggered', 'compliant', 'improvement', 'renovated', 'cf_change', 'compliance_saving', 'reno_saving']
+            df = df.drop(extra)
+
+#        df = df.sum_cols(['ene_old', 'ene_new'], VALUE_COLUMN)
+        extra = ['floor', 'floor_new', 'floor_old', 'cf', 'cf_old', 'ene_old', 'ene_new']
+        df = df.drop(extra)
+
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 

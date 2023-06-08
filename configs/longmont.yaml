@@ -737,7 +737,7 @@ nodes:
   input_datasets:
   - id: longmont/commercial_square_footage_over_20000_sf
 
-- id: natural_gas_consumption_large_commercial
+- id: natural_gas_consumption_large_commercial  # REMOVE
   name: Natural gas use of large commercial buildings
   type: simple.UsBuildingNode
   quantity: energy
@@ -748,16 +748,15 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
-      flatten: true
   - commercial_square_footage_over_20000_sf
   - natural_gas_large_commercial_eui
-  output_nodes:
-  - id: building_natural_gas_consumption
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
+#  output_nodes:
+#  - id: building_natural_gas_consumption
+#    to_dimensions: []
+#    - id: emission_sectors
+#      categories: [commercial_industrial_energy]
 
-- id: electricity_consumption_large_commercial
+- id: electricity_consumption_large_commercial  # REMOVE
   name: Electricity use of large commercial buildings
   type: simple.UsBuildingNode
   quantity: energy
@@ -777,6 +776,48 @@ nodes:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
 
+- id: electricity_consumption_large_commercial2  # FIXME Double counting; should calculate savings, not use.
+  name: Electricity use of large commercial buildings
+  type: simple.UsBuildingNode  # FIXME Use Node3 instead but needs to generalise floor_area
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant, improvement]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - id: commercial_square_footage_over_20000_sf
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - building_electricity_eui
+  output_nodes:
+  - building_electricity_use
+  
+- id: natural_gas_consumption_large_commercial2  # FIXME Double counting; should calculate savings, not use.
+  name: Natural gas use of large commercial buildings
+  type: simple.UsBuildingNode  # FIXME Use Node3 instead but needs to generalise floor_area
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant, improvement]
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - id: commercial_square_footage_over_20000_sf
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
+  - building_natural_gas_eui
+  output_nodes:
+  - building_natural_gas_use
+  
 # Total Floor area: Building 55:56
 # standard energy consumption of existing buildings: MISSING
 # standard energy consumption of new buildings: building 57:60
@@ -789,7 +830,7 @@ nodes:
 ## renovated floor area * compliant * better EUI + renovated floor area * non-compliant * normal EUI - cumulated
 # Energy consumption of existing non-renovated buildings: MISSING
 
-- id: electricity_residential_eui
+- id: electricity_residential_eui  # REMOVE
   name: Electricity residential energy use intensity EUI
   type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
@@ -805,7 +846,7 @@ nodes:
     metric: Value
     tags: non_additive
 
-- id: electricity_commercial_eui
+- id: electricity_commercial_eui  # REMOVE
   name: Electricity commercial energy use intensity EUI
   type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
@@ -821,7 +862,24 @@ nodes:
     metric: Value
     tags: non_additive
 
-- id: natural_gas_residential_eui
+- id: building_natural_gas_eui
+  name: Energy use intensity EUI for natural gas
+  type: simple.AdditiveNode  # FIXME add action with MultiplyLastBuildingNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+  output_dimensions: [emission_sectors]
+#    filters:
+#    - column: emission_sectors
+#      value: residential_energy
+#  input_nodes:
+#  - id: updated_building_code_residential
+#    metric: Value
+#    tags: non_additive
+
+- id: natural_gas_residential_eui  # REMOVE
   name: Natural gas residential energy use intensity EUI
   type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
@@ -837,7 +895,7 @@ nodes:
     metric: Value
     tags: non_additive
 
-- id: natural_gas_commercial_eui
+- id: natural_gas_commercial_eui  # REMOVE
   name: Natural gas commercial energy use intensity EUI
   type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
@@ -853,7 +911,7 @@ nodes:
     metric: Value
     tags: non_additive
 
-- id: natural_gas_large_commercial_eui
+- id: natural_gas_large_commercial_eui  # REMOVE
   name: Natural gas energy use intensity EUI for large commercial buildings
   type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
@@ -869,7 +927,7 @@ nodes:
     metric: improvement
     tags: non_additive
 
-- id: electricity_large_commercial_eui
+- id: electricity_large_commercial_eui  # REMOVE
   name: Electricity energy use intensity EUI for large commercial buildings
   type: simple.MultiplyLastBuildingNode
   quantity: consumption_factor
@@ -885,7 +943,7 @@ nodes:
     metric: improvement
     tags: non_additive
 
-- id: building_electricity_consumption_residential_wo_saving
+- id: building_electricity_consumption_residential_wo_saving  # REMOVE
   name: Building electricity consumption residential without savings
   type: simple.UsBuildingNode
   quantity: energy
@@ -906,7 +964,27 @@ nodes:
     - id: emission_sectors
       categories: [residential_energy]
 
-- id: building_electricity_consumption_residential
+- id: building_electricity_use
+  name: Building electricity use
+  type: simple.MultiplyLastNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_electricity_use_intermediate
+
+- id: building_natural_gas_use
+  name: Building natural gas use
+  type: simple.MultiplyLastNode
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_natural_gas_use_intermediate
+
+- id: building_electricity_consumption_residential  # REMOVE
   name: Building electricity consumption residential
   type: simple.MultiplyLastNode
   quantity: energy
@@ -916,7 +994,7 @@ nodes:
   - id: efficiency_works_program
     tags: [non_additive]
 
-- id: building_electricity_consumption_commercial
+- id: building_electricity_consumption_commercial  # REMOVE
   name: Building electricity consumption commercial
   type: simple.MultiplyLastNode
   quantity: energy
@@ -926,7 +1004,28 @@ nodes:
   - id: efficiency_works_program
     tags: [non_additive]
 
-- id: building_natural_gas_consumption_residential
+- id: building_natural_gas_use_intermediate
+  name: Building natural gas use (intermediate)
+  type: simple.UsBuildingNode
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: updated_building_code_residential
+    to_dimensions: []
+    metrics: [triggered, compliant, improvement]
+#    to_dimensions:
+#    - id: emission_sectors
+#      categories: [residential_energy]
+  - id: building_floor_area
+#    from_dimensions:
+#    - id: emission_sectors
+#      categories: [residential_energy]
+#      flatten: true
+  - building_natural_gas_eui
+
+- id: building_natural_gas_consumption_residential  # REMOVE
   name: Building natural gas consumption residential
   type: simple.UsBuildingNode
   quantity: energy
@@ -944,7 +1043,7 @@ nodes:
       flatten: true
   - natural_gas_residential_eui
 
-- id: building_electricity_consumption_commercial_wo_saving
+- id: building_electricity_consumption_commercial_wo_saving  # REMOVE
   name: Building electricity consumption commercial without savings
   type: simple.UsBuildingNode
   quantity: energy
@@ -959,7 +1058,7 @@ nodes:
       flatten: true
   - electricity_commercial_eui
 
-- id: building_natural_gas_consumption_commercial
+- id: building_natural_gas_consumption_commercial  # REMOVE
   name: Building natural gas consumption commercial
   type: simple.UsBuildingNode
   quantity: energy
@@ -974,7 +1073,7 @@ nodes:
       flatten: true
   - natural_gas_commercial_eui
 
-- id: building_electricity_consumption
+- id: building_electricity_consumption  # FIXME update the upstream nodes
   name: Building electricity consumption
   type: simple.AdditiveNode
   quantity: energy
@@ -1010,7 +1109,7 @@ nodes:
   input_dimensions: [emission_sectors, site]
   output_dimensions: [emission_sectors, site]
 
-- id: electricity_consumption_residential
+- id: electricity_consumption_residential  # REMOVE
   name: Electricity consumption, residential
   type: simple.MultiplicativeNode
   quantity: energy
@@ -1024,7 +1123,7 @@ nodes:
       categories: [longmont_power]
     - id: emission_sectors
 
-- id: electricity_consumption_commercial
+- id: electricity_consumption_commercial  # REMOVE
   name: Electricity consumption, commercial
   type: simple.MultiplicativeNode
   quantity: energy
@@ -1079,27 +1178,49 @@ nodes:
     to_dimensions:
     - id: greenhouse_gases
 
-- id: beyond_electricity_commercial_eui
-  name: Beyond electricity commercial energy use intensity EUI
+- id: building_electricity_eui
+  name: Energy use intensity EUI for electricity
   type: simple.MultiplyLastBuildingNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_electricity_eui_bau
+  - id: develop_beyond_building_code
+    metric: Value
+    tags: non_additive
+
+- id: building_electricity_eui_bau
+  name: Energy use intensity EUI for electricity (BAU)
+  type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
-    filters:
-    - column: emission_sectors
-      value: commercial_industrial_energy
+  output_dimensions: [emission_sectors]
+
+- id: building_electricity_use_intermediate
+  name: Building electricity use (intermediate)
+  type: simple.UsBuildingNode3
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
   input_nodes:
   - id: develop_beyond_building_code
-    metric: Value
-    tags: non_additive
+    metrics: [triggered, compliant, improvement]
+    to_dimensions: []
+  - id: building_electricity_eui
+  - id: building_electricity_use_bau
 
-- id: beyond_code_electricity_commercial  # FIXME This is double counting. Not clear how this should be done.
+- id: beyond_code_electricity_commercial
   name: Electricity use after beyond code action
-  type: simple.UsBuildingNode2
+  description: This node is a previous version of the node Electricity use (intermediate). It is kept for comparison and quality control.
+  type: simple.UsBuildingNode
   quantity: energy
-  unit: kWh/a
+  unit: GWh/a
   input_nodes:
   - id: building_floor_area
     from_dimensions:
@@ -1108,13 +1229,22 @@ nodes:
       flatten: true
   - id: develop_beyond_building_code
     metrics: [triggered, compliant, improvement]
-  - id: beyond_electricity_commercial_eui
-  output_nodes:
-  - id: building_electricity_consumption
-    to_dimensions:
+  - id: building_electricity_eui
+    from_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
+      flatten: true
 
+- id: building_electricity_use_bau
+  name: Building electricity use (BAU)
+  type: simple.UsBuildingNodeBau
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_floor_area
+  - id: building_electricity_eui_bau
 
 # Building model, updated building code
 # Floor area increses by B32 every year. categories residential, commercial
@@ -2018,6 +2148,11 @@ actions:
       2033, 2], [2034, 2], [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2],
     [2040, 2], [2041, 2], [2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [
       2047, 2], [2048, 2], [2049, 2], [2050, 2]]
+  output_nodes:
+  - id: building_electricity_use
+    tags: [non_additive]
+  - id: building_natural_gas_use
+    tags: [non_additive]
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential
