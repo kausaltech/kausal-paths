@@ -415,6 +415,36 @@ dimensions:
   - id: wastewater
     label: Wastewater
 
+- id: building_energy_class
+  label: Building energy class
+  categories:
+  - id: all
+    label: All buildings
+  - id: regular
+    label: Regular old building
+  - id: renovated
+    label: Renovated old building
+  - id: compliant
+    label: New code-compliant building
+  - id: non_compliant
+    label: New building not compliant with code
+
+- id: action
+  label: Actions affecting nodes
+  categories:
+  - id: none
+    label: No actions taken
+  - id: updated_building_code_residential
+    label: Updated building code residential
+  - id: updated_building_code_residential
+    label: Use updated building code and enforce in residential buildings
+  - id: updated_building_code_commercial
+    label: Use updated building code and enforce in commercial buildings
+  - id: develop_beyond_building_code
+    label: Develop beyond building code
+  - id: benchmark_energy_use
+    label: Report and benchmark energy use in commercial buildings
+
 params:
 - id: municipality_name
   value: longmont
@@ -461,7 +491,7 @@ emission_sectors:
   color: '#73C1B7'
   input_dataset_processors: [LinearInterpolation]
 
-- id: transportation_emissions
+- id: transportation_emissions  # FIXME Does not match with historical data
   name: Transportation emissions
   part_of: net_emissions
   category: transport
@@ -725,6 +755,25 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
 
+- id: building_floor_area2
+  name: Building floor area
+  type: simple.UsFloorAreaNode
+  quantity: floor_area
+  unit: ft**2
+  input_nodes:
+  - id: floor_increase
+    to_dimensions:
+    - id: emission_sectors
+  - id: building_floor_area_historical
+    tags: [non_additive]
+    to_dimensions:
+    - id: emission_sectors
+  - id: updated_building_code_residential
+    metrics: [triggered, compliant]
+    to_dimensions: []
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors, action, building_energy_class]
+
 - id: commercial_square_footage_over_20000_sf
   name: Commercial square footage over 20,000 square feet
   type: simple.AdditiveNode
@@ -798,7 +847,7 @@ nodes:
   - id: building_natural_gas_eui_bau
 
 - id: building_natural_gas_eui_bau
-  name: Energy use intensity EUI for netural gas (BAU)
+  name: Energy use intensity EUI for natural gas (BAU)
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -829,53 +878,25 @@ nodes:
 
 - id: building_natural_gas_use_intermediate
   name: Building natural gas use (intermediate)
-  type: simple.UsBuildingNode
+  type: simple.UsBuildingNode3
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - building_natural_gas_use_bau
+  - building_natural_gas_eui
+
+- id: building_natural_gas_use_bau
+  name: Building natural gas use (BAU)
+  type: simple.UsBuildingNodeBau
   quantity: energy
   unit: Mtherm/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
   - building_floor_area
-  - building_natural_gas_eui
-
-#- id: building_natural_gas_use_bau
-#  name: Building natural gas use (BAU)
-#  type: simple.UsBuildingNodeBau
-#  quantity: energy
-#  unit: Mtherm/a
-#  input_dimensions: [emission_sectors]
-#  output_dimensions: [emission_sectors]
-#  input_nodes:
-#  - building_floor_area
-#  - building_natural_gas_eui_bau
-
-#- id: building_electricity_use  # FIXME update the upstream nodes
-#  name: Building electricity use
-#  type: simple.AdditiveNode
-#  quantity: energy
-#  unit: GWh/a
-#  input_dimensions: [emission_sectors]
-#  output_dimensions: [emission_sectors]
-#  input_nodes:
-#  - id: building_electricity_consumption_residential
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [residential_energy]
-#  - id: building_electricity_consumption_commercial
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [commercial_industrial_energy]
-#  output_nodes:
-#  - id: electricity_consumption_residential
-#    tags: [non_additive]
-#    from_dimensions:
-#    - id: emission_sectors
-#      categories: [residential_energy]
-#  - id: electricity_consumption_commercial
-#    tags: [non_additive]
-#    from_dimensions:
-#    - id: emission_sectors
-#      categories: [commercial_industrial_energy]
+  - building_natural_gas_eui_bau
 
 - id: electricity_use
   name: Electricity use
@@ -947,6 +968,32 @@ nodes:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
   output_dimensions: [emission_sectors]
+
+- id: building_electricity_eui2  # FIXME 
+  name: Energy use intensity EUI for electricity (BAU)
+  type: simple.UsEuiNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+#  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: updated_building_code_residential
+    metrics: [improvement]
+
+- id: building_electricity_use2
+  name: Building electricity use (intermediate)
+  type: simple.UsEnergyNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors, action, building_energy_class]
+  output_dimensions: [emission_sectors, building_energy_class]
+  input_nodes:
+  - id: building_electricity_eui2
+    tags: consumption_factor
+  - id: building_floor_area2
+    tags: floor_area
 
 - id: building_electricity_use_intermediate
   name: Building electricity use (intermediate)
@@ -1750,17 +1797,27 @@ actions:
   - id: building_natural_gas_eui
     metric: Value
     tags: non_additive
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
   - id: building_natural_gas_use_intermediate
     metrics: [triggered, compliant, improvement]
-    to_dimensions: []
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
   - id: building_electricity_eui
     metric: Value
     tags: non_additive
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
   - id: building_electricity_use_intermediate
     metrics: [triggered, compliant, improvement]
-    to_dimensions: []
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
 
-- id: updated_building_code_commercial  # FIXME attach to building natural gas use (intermediate)
+- id: updated_building_code_commercial
   name: Use updated building code and enforce in commercial buildings
   description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
     rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
@@ -1793,15 +1850,25 @@ actions:
   - id: building_natural_gas_eui
     metric: Value
     tags: non_additive
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
   - id: building_natural_gas_use_intermediate
     metrics: [triggered, compliant, improvement]
-    to_dimensions: []
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
   - id: building_electricity_eui
     metric: Value
     tags: non_additive
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
   - id: building_electricity_use_intermediate
     metrics: [triggered, compliant, improvement]
-    to_dimensions: []
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -1857,8 +1924,8 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
-  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0]]
-  forecast_values: [[2021, 1], [2022, 1.25], [2023, 1.5], [2024, 1.75], [2025, 2],
+  historical_values: [[2016, 0.5], [2017, 0.7], [2018, 1.1], [2019, 0.8], [2020, 1.1], [2021, 0.7], [2022, 0.9]]  # FIXME do not show on graph
+  forecast_values: [[2023, 1.5], [2024, 1.75], [2025, 2],
     [2026, 2], [2027, 2], [2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [
       2033, 2], [2034, 2], [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2],
     [2040, 2], [2041, 2], [2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [
