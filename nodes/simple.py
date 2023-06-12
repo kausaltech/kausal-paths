@@ -1042,8 +1042,19 @@ class UsFloorAreaNode(MultiplicativeNode):
     ### compliant: share of new floor area that follows the stricter energy efficiency
     ### non_compliant: share that does not follow the stricter energy efficiency
     '''
-    output_dimension_ids = ['building_energy_class', 'action', 'emission_sectors']
+    output_dimension_ids = ['building_energy_class', 'action', 'emission_sectors']  # FIXME Generalise and remove emission_sectors
 
+    def include_customer_dimension(self, df: ppl.PathsDataFrame):  # Dimension must be explained in column name in the right syntax
+        df = df.paths.to_wide()  # Make column names consistent
+        for s in df.columns:
+            arr = s.split('@')
+            if len(arr) > 2:
+                s2 = '@'.join(arr[:2]) + '/' + ''.join(arr[2:])
+                df = df.rename({s: s2})
+        df = df.paths.to_narrow()
+
+        return df
+    
     def compute(self):
         nodes: list(Node) = []
         actions: list(FutureBuildingActionUs) = []
@@ -1062,13 +1073,19 @@ class UsFloorAreaNode(MultiplicativeNode):
         # Existing (old) and new floor area in baseline
         flhv = df.get_last_historical_values()
         flhv = flhv.rename({flhv.metric_cols[0]: 'floor_old'})
-        df = df.paths.join_over_index(flhv.drop([YEAR_COLUMN, FORECAST_COLUMN]))
-        df = df.with_columns(
+        df_bau = df.paths.join_over_index(flhv.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        df_bau = df_bau.with_columns(
             pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('floor_old'))
             .otherwise(pl.col(VALUE_COLUMN)).alias('floor_old')
             )
-        df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col('floor_old')).alias('floor_new'))
-        df = df.set_unit('floor_new', df.get_unit('floor_old'))
+        df_bau = df_bau.with_columns((pl.col(VALUE_COLUMN) - pl.col('floor_old')).alias('floor_new'))
+        df_bau = df_bau.set_unit('floor_new', df_bau.get_unit('floor_old'))
+
+        col = 'floor_area@building_energy_class:'
+        df_out = df_bau.rename({'floor_old': col + 'regular/action:none'})
+        df_out = df_out.rename({VALUE_COLUMN: col + 'all/action:none'})
+        df_out = df_out.drop('floor_new')
+        df_out = self.include_customer_dimension(df_out)
 
         for action in actions:
             df_a = action.get_output_pl(target_node=self)
@@ -1076,14 +1093,13 @@ class UsFloorAreaNode(MultiplicativeNode):
             df_a = df_a.ensure_unit('triggered', 'dimensionless')
             df_a = df_a.ensure_unit('f_compliant', 'dimensionless')
 
-            df = df.paths.join_over_index(df_a)
+            df = df_bau.paths.join_over_index(df_a)
             df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
             df = df.with_columns(pl.col('f_compliant').fill_null(pl.lit(0)))
 
             # Old floor area: regular floor area stays, renovation adds floor area
             df = df.multiply_cols(['floor_old', 'triggered'], 'renovated')
             df = df.cumulate('renovated')
-            col = 'floor_area@building_energy_class:'
             df = df.rename({'renovated': col + 'renovated/action:' + action.id})
 
             # New floor area
@@ -1092,26 +1108,22 @@ class UsFloorAreaNode(MultiplicativeNode):
             df = df.set_unit('non_compliant', df.get_unit('floor_new'))
             df = df.rename({'compliant': col + 'compliant/action:' + action.id})
             df = df.rename({'non_compliant': col + 'non_compliant/action:' + action.id})
-            df = df.drop(['triggered', 'f_compliant'])
+            df = df.drop(['triggered', 'f_compliant', 'floor_old', 'floor_new', VALUE_COLUMN])
 
-        df = df.rename({'floor_old': col + 'regular/action:none'})
-        df = df.rename({VALUE_COLUMN: col + 'all/action:none'})
-        df = df.drop('floor_new')
+            df = self.include_customer_dimension(df)
+            meta = df.get_meta()
+            df_out = pl.concat([df_out, df], rechunk=True)
+            df_out = ppl.to_ppdf(df_out, meta)
 
-        df = df.paths.to_wide()  # Make column names consistent
-        for s in df.columns:
-            arr = s.split('@')
-            if len(arr) > 2:
-                s2 = '@'.join(arr[:2]) + '/' + ''.join(arr[2:])
-                df = df.rename({s: s2})
-        df = df.paths.to_narrow()
-
-        df = df.ensure_unit('floor_area', self.unit)
-        df = df.rename({'floor_area': VALUE_COLUMN})
-        return df
+        df_out = df_out.ensure_unit('floor_area', self.unit)
+        df_out = df_out.with_columns(pl.col('floor_area').alias(VALUE_COLUMN))
+        df_out = df_out.with_columns(
+            pl.when(pl.col('building_energy_class').eq('all'))
+            .then(pl.col(VALUE_COLUMN)).otherwise(pl.lit(0.0)).alias(VALUE_COLUMN))
+        return df_out
 
 
-class UsEuiNode(MultiplicativeNode):
+class UsEuiNode(UsFloorAreaNode):
     '''
     Consumption fraction has 2 + 3 * i combined categories for action * building_energy class:
     # none * all: the BAU CF
@@ -1156,13 +1168,7 @@ class UsEuiNode(MultiplicativeNode):
         df = df.rename({'regular': col + 'regular'})
         df = df.rename({'bau': col + 'all'})
 
-        df = df.paths.to_wide()  # Make column names consistent
-        for s in df.columns:
-            arr = s.split('@')
-            if len(arr) > 2:
-                s2 = '@'.join(arr[:2]) + '/' + ''.join(arr[2:])
-                df = df.rename({s: s2})
-        df = df.paths.to_narrow()
+        df = self.include_customer_dimension(df)
 
         df = df.rename({'consumption_factor': VALUE_COLUMN})
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
