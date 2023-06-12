@@ -330,11 +330,14 @@ class PathsDataFrame(pl.DataFrame):
     def copy(self) -> PathsDataFrame:
         return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
 
-    def get_last_historical_values(self):
+    def get_last_historical_values(self, year=None):
         meta = self.get_meta()
         df = self.paths.to_wide()
 
-        last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
+        if year is None:
+            last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
+        else:
+            last_hist_year = year
         df = df.filter(pl.col(YEAR_COLUMN).eq(last_hist_year))
         df = df.paths.to_narrow()
         return to_ppdf(df, meta=meta)
