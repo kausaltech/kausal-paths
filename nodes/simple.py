@@ -12,6 +12,7 @@ from common import polars as ppl
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .node import Node, NodeMetric
 from .exceptions import NodeError
+from nodes.actions.energy_saving import FutureBuildingActionUs
 
 
 EMISSION_UNIT = 'kg'
@@ -945,7 +946,7 @@ class UsBuildingNodeBau(SimpleNode):  # FIXME Should a) work with dimensions and
         return(df)
 
 
-class UsBuildingNode3(SimpleNode):  # FIXME Should a) work with dimensions and b) take >= 0 actions
+class UsBuildingNode3(SimpleNode):  # FIXME should take >= 0 actions
     '''Calculates the energy consumption based on
     * floor area
     * consumption factor (energy use intensity EUI)
@@ -970,7 +971,8 @@ class UsBuildingNode3(SimpleNode):  # FIXME Should a) work with dimensions and b
     '''
 
     def compute(self) -> pd.DataFrame:
-        actions = []
+        actions: list[Node] = []
+        floor = None
         for node in self.input_nodes:  # Assumes that no actions target floor area, therefore ene_bau used.
             if node.quantity == 'consumption_factor':
                 cf = node.get_output_pl(target_node=self)
@@ -980,6 +982,283 @@ class UsBuildingNode3(SimpleNode):  # FIXME Should a) work with dimensions and b
             else:
                 actions = actions + [node]
 
+        df = cf.paths.join_over_index(ene_bau)
+
+        # Implement each action
+
+        for node in actions:  # Actions must be of type FutureBuildingActionUs
+
+            action = node.get_output_pl(target_node=self)
+            df = df.paths.join_over_index(action)
+
+            df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
+            df = df.with_columns(pl.col('compliant').fill_null(pl.lit(0)))
+            df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
+            df = df.ensure_unit('triggered', 'dimensionless')
+            df = df.ensure_unit('compliant', 'dimensionless')
+            df = df.ensure_unit('improvement', 'dimensionless')
+            df = df.ensure_unit('cf_old', df.get_unit('cf'))
+            # FIXME cf_old is 17.0334 for UsBuildingNode3 but 11.792354 for UsBuildingNode2. Not clear
+            # what is the exact difference and how it should be calculated (kWh/ft**2/a).
+
+            # Old floor area: renovation saving subtracted from energy and floor area
+            df = df.with_columns((pl.col('cf') - pl.col('cf_old')).alias('cf_change'))
+            df = df.set_unit('cf_change', df.get_unit('cf'))
+            df = df.multiply_cols(['floor_old', 'triggered', 'cf_change'], 'reno_saving')
+            df = df.cumulate('reno_saving')
+            df = df.sum_cols(['ene_old', 'reno_saving'], 'ene_old')
+
+            df = df.multiply_cols(['floor_old', 'triggered'], 'renovated').cumulate('renovated')
+            df = df.with_columns((pl.col('floor_old') - pl.col('renovated')).alias('floor_old'))
+
+            # New floor area
+            # FIXME If several actions, their interaction may not be correct with the current code.
+            # df = df.with_columns((pl.col('cf') * (pl.lit(1.0) - pl.col('f_bau'))).alias('compliance'))
+            # df = df.set_unit('compliance', df.get_unit('cf'))
+            df = df.multiply_cols(['floor_new', 'compliant', 'cf_change'], 'compliance_saving')
+            df = df.cumulate('compliance_saving')
+            df = df.sum_cols(['ene_new', 'compliance_saving'], 'ene_new')
+            df = df.sum_cols(['reno_saving', 'compliance_saving', VALUE_COLUMN], VALUE_COLUMN)
+
+            extra = ['triggered', 'compliant', 'improvement', 'renovated', 'cf_change', 'compliance_saving', 'reno_saving']
+            df = df.drop(extra)
+
+#        df = df.sum_cols(['ene_old', 'ene_new'], VALUE_COLUMN)
+        extra = ['floor', 'floor_new', 'floor_old', 'cf', 'cf_old', 'ene_old', 'ene_new']
+        df = df.drop(extra)
+
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class UsFloorAreaNode(MultiplicativeNode):
+    '''
+    Floor area splits into 1+2+4 categories based on building energy class:
+    # all: all floor area
+    ## floor_old: existing floor area built by the last historical year
+    ### renovated: floor area that is triggered to renovation (increases yearly)
+    ### regular: the remaining existing floor area (stays constant in future years)
+    ## floor_new: floor area that is built after the last historical year (cumulative)
+    ### compliant: share of new floor area that follows the stricter energy efficiency
+    ### non_compliant: share that does not follow the stricter energy efficiency
+    '''
+    output_dimension_ids = ['building_energy_class', 'action', 'emission_sectors']
+
+    def compute(self):
+        nodes: list(Node) = []
+        actions: list(FutureBuildingActionUs) = []
+        for node in self.get_input_nodes():
+            if isinstance(node, FutureBuildingActionUs):
+                actions += [node]
+            else:
+                nodes += [node]
+
+        df: ppl.PathsDataFrame = nodes.pop(0).get_output_pl(target_node=self)
+        for node in nodes:
+            df = df.paths.join_over_index(node.get_output_pl(target_node=self))
+            df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+            df = df.drop(VALUE_COLUMN + '_right')
+
+        # Existing (old) and new floor area in baseline
+        flhv = df.get_last_historical_values()
+        flhv = flhv.rename({flhv.metric_cols[0]: 'floor_old'})
+        df = df.paths.join_over_index(flhv.drop([YEAR_COLUMN, FORECAST_COLUMN]))
+        df = df.with_columns(
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('floor_old'))
+            .otherwise(pl.col(VALUE_COLUMN)).alias('floor_old')
+            )
+        df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col('floor_old')).alias('floor_new'))
+        df = df.set_unit('floor_new', df.get_unit('floor_old'))
+
+        for action in actions:
+            df_a = action.get_output_pl(target_node=self)
+            df_a = df_a.rename({'compliant': 'f_compliant'})
+            df_a = df_a.ensure_unit('triggered', 'dimensionless')
+            df_a = df_a.ensure_unit('f_compliant', 'dimensionless')
+
+            df = df.paths.join_over_index(df_a)
+            df = df.with_columns(pl.col('triggered').fill_null(pl.lit(0)))
+            df = df.with_columns(pl.col('f_compliant').fill_null(pl.lit(0)))
+
+            # Old floor area: regular floor area stays, renovation adds floor area
+            df = df.multiply_cols(['floor_old', 'triggered'], 'renovated')
+            df = df.cumulate('renovated')
+            col = 'floor_area@building_energy_class:'
+            df = df.rename({'renovated': col + 'renovated/action:' + action.id})
+
+            # New floor area
+            df = df.multiply_cols(['floor_new', 'f_compliant'], 'compliant')
+            df = df.with_columns((pl.col('floor_new') - pl.col('compliant')).alias('non_compliant'))
+            df = df.set_unit('non_compliant', df.get_unit('floor_new'))
+            df = df.rename({'compliant': col + 'compliant/action:' + action.id})
+            df = df.rename({'non_compliant': col + 'non_compliant/action:' + action.id})
+            df = df.drop(['triggered', 'f_compliant'])
+
+        df = df.rename({'floor_old': col + 'regular/action:none'})
+        df = df.rename({VALUE_COLUMN: col + 'all/action:none'})
+        df = df.drop('floor_new')
+
+        df = df.paths.to_wide()  # Make column names consistent
+        for s in df.columns:
+            arr = s.split('@')
+            if len(arr) > 2:
+                s2 = '@'.join(arr[:2]) + '/' + ''.join(arr[2:])
+                df = df.rename({s: s2})
+        df = df.paths.to_narrow()
+
+        df = df.ensure_unit('floor_area', self.unit)
+        df = df.rename({'floor_area': VALUE_COLUMN})
+        return df
+
+
+class UsEuiNode(MultiplicativeNode):
+    '''
+    Consumption fraction has 2 + 3 * i combined categories for action * building_energy class:
+    # none * all: the BAU CF
+    # none * regular: the difference between BAU CF and CF for regular old buildings (0 by definition)
+    # action_i * renovated: the difference between BAU CF and CF of action_i
+    # action_i * compliant: same as action_i * renovated
+    # action_i * non_compliant: same as none * regular
+    '''
+    output_dimension_ids = ['building_energy_class', 'action', 'emission_sectors']
+
+    def compute(self):
+        nodes: list(Node) = []
+        actions: list(FutureBuildingActionUs) = []
+        for node in self.get_input_nodes():
+            if isinstance(node, FutureBuildingActionUs):
+                actions += [node]
+            else:
+                nodes += [node]
+
+        df = self.get_input_dataset_pl(required=True)
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        df = df.rename({VALUE_COLUMN: 'bau'})
+        df = df.with_columns(pl.lit(0.0).alias('regular'))
+        df = df.set_unit('regular', df.get_unit('bau'))
+
+        for action in actions:
+            df_a = action.get_output_pl(target_node=self)
+            df_a = df_a.rename({VALUE_COLUMN: 'improvement'})
+            df_a = df_a.ensure_unit('improvement', 'dimensionless')
+            df_a = df_a.with_columns((-pl.col('improvement')).alias('improvement'))
+
+            df = df.paths.join_over_index(df_a)
+            df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
+            df = df.multiply_cols(['improvement', 'bau'], 'improvement')
+
+            col = 'consumption_factor@action:' + action.id + '/building_energy_class:'
+            df = df.with_columns(pl.col('improvement').alias(col + 'compliant'))
+            df = df.with_columns(pl.col('regular').alias(col + 'non_compliant'))
+            df = df.rename({'improvement': col + 'renovated'})
+
+        col = 'consumption_factor@action:none/building_energy_class:'
+        df = df.rename({'regular': col + 'regular'})
+        df = df.rename({'bau': col + 'all'})
+
+        df = df.paths.to_wide()  # Make column names consistent
+        for s in df.columns:
+            arr = s.split('@')
+            if len(arr) > 2:
+                s2 = '@'.join(arr[:2]) + '/' + ''.join(arr[2:])
+                df = df.rename({s: s2})
+        df = df.paths.to_narrow()
+
+        df = df.rename({'consumption_factor': VALUE_COLUMN})
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class UsEnergyNode(MultiplicativeNode):
+    '''
+    Takes the floor area and consumption factor categorized by building energy class and action.
+    The consumption factors are differences to the baseline, except the combination 
+    building energy class: all * none has the baseline values. This gives the total without any actions,
+    and each action has some energy-reducing impact on this.
+
+    Then the change in floor area is calculated, and this is multiplied by the difference in consumption
+    factor compared with the regular building energy class.
+    Finally, this energy change is accumulated over time to reflect the situation that
+    the energy use of a building stays constant after renovation.
+    '''
+    output_dimension_ids = ['building_energy_class', 'emission_sectors']
+
+    def compute(self):
+        floor = self.get_input_node(tag='floor_area')
+        floor = floor.get_output_pl(target_node=self)
+        floor = floor.with_columns(pl.col(VALUE_COLUMN).alias('diff'))
+        floor = floor.diff('diff')
+        floor = floor.with_columns(pl.col('diff').fill_null(0))
+
+        cf = self.get_input_node(tag='consumption_factor')
+        cf = cf.get_output_pl(target_node=self)
+
+        df = floor.paths.join_over_index(cf, how='outer')
+        df = df.multiply_cols(['diff', VALUE_COLUMN + '_right'], 'diff')
+        df = df.cumulate('diff')
+        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df = df.with_columns([
+            pl.when(pl.col('building_energy_class').eq('all'))
+            .then(pl.col(VALUE_COLUMN)).otherwise(pl.col('diff')).alias(VALUE_COLUMN)
+            ])
+
+        df = df.drop([VALUE_COLUMN + '_right', 'diff'])
+        cols = list(set(df.columns) - {VALUE_COLUMN, 'action'})
+        meta = df.get_meta()
+        df = df.groupby(cols).sum().drop('action')
+        df = ppl.to_ppdf(df, meta=meta)
+
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class UsBuildingNode4(SimpleNode):  # FIXME should take >= 0 actions
+    '''Calculates the energy consumption based on
+    * floor area
+    * consumption factor (energy use intensity EUI)
+    * exactly one action that contains information about
+    ** compliance (fraction of new floor area affected)
+    ** triggering (fraction of old floor area renovated per year)
+    ** improvement (per cent reduction of energy consumption)
+
+    Floor area splits into 4 categories:
+    # floor_old: existing floor area at the last historical year
+    ## renovated: floor area that is triggered to renovation (increases yearly)
+    ## nonrenovated: the remaining existing floor area (decreases yearly)
+    # floor_new: floor area that is built after the last historical year (yearly values)
+    ## compliant: fraction of new floor area that follows the stricter energy efficiency
+    ## 1 - compliant: fraction that does not follow the stricter energy efficiency
+
+    Consumption fraction has 3 categories, used with floor categories:
+    # cf_old: the cf freezes at the last historical year and stays constant afterward
+    # cf: cf directly from the input node, i.e. according to the current best practice
+    # cf is used for both renovated an compliant floor area
+    # cf_bau: backcalculated value for the situation if the action did not take place
+    '''
+
+    def compute(self) -> pd.DataFrame:
+        actions: list[Node] = []
+        floor = None
+        for node in self.input_nodes:  # Assumes that no actions target floor area, therefore ene_bau used.
+            if node.quantity == 'floor_area':
+                floor = node.get_output_pl(target_node=self)
+                floor = floor.rename({floor.metric_cols[0]: 'floor'})
+            if node.quantity == 'consumption_factor':
+                cf = node.get_output_pl(target_node=self)
+                cf = cf.rename({cf.metric_cols[0]: 'cf'})
+            elif node.quantity == 'energy':
+                ene_bau = node.get_output_pl(target_node=self)
+            else:
+                actions = actions + [node]
+
+        self.print(cf)
+        self.print(ene_bau)
+        up = self.get_upstream_nodes()
+        pick = [isinstance(x, ActionNode) for x in up]
+        print([up[x] for x in range(len(up)) if pick[x]])
+
+        if floor is not None:
+            pass
         df = cf.paths.join_over_index(ene_bau)
 
         # Implement each action
