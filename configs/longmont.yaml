@@ -1,40 +1,10 @@
 # CHECK There was another slight update to the GHG inventory. Francie uploaded the newest version. It was just I66 on the On-Road data tab → Jouni
 # CHECK Slight update to this paragraph in the Scenario Planning Actions, for the 100% RE action (check email from Apr 6th) → Jouni
 # CHECK Francie has sent an email about emission factors going to 90 % reduction by the energy company, but the city wants to achieve 100 %.
+# CHECK Add some actions (UsFutureBuildingNode) to datasets.
+# Add historical datasets from inventories to energy and emission nodes.
 
 #### FINAL_LONGMONT_2021_GHG_INVENTORY_04032023.XLSX
-# Community indicators copied DONE
-# Year over year sheet data copied for 2016, 2019, 2021. 
-#   Population DONE
-#   Emissions by sector (historical emissions) DONE
-#   Stationary electricity use DONE
-#   Natural gas use DONE
-#   C&I diesel (stationary fuels) DONE
-#   Leakage from natural gas and oil & gas wells DONE
-
-# Status update
-# Emission factors 
-# Business as usual
-# Electricity consumption
-# Solid waste
-# Oil and gas
-# Transportation
-# Electric grid
-# Building energy
-# Renewable energy
-## STRATEGIES
-#Use Updated Building Code and Enforce
-#Develop 'beyond' building code
-#Report and benchmark energy use
-#Expand the Efficiency Works Program
-#Electrify Buildings
-#Develop a comprehensive 100% renewable energy plan for Longmont's just transition to a clean energy economy
-#Accelerate and implement smart grid projects
-#Encourage practices that reduce transmission and distribution losses
-#Increase electric vehicles through vehicles incentives and improved infrastructure (savings from gasoline and additions from electricity)
-#Address barriers to increase access and use of public transit, especially for underserved communities
-#Develop multimodal transportation system
-#Encourage regulations and policies that reduce oil and gas impacts 
 #Scenario 1 Achieve 85% waste diversion by 2050.
 #Scenario 2 Achieve 85% waste diversion by 2035 and 95% waste diversion by 2050. 
 
@@ -528,7 +498,7 @@ emission_sectors:
 # FIXME Building emissions have double counting
 - id: building_emissions
   name: Building emissions
-  category: buildings
+#  category: buildings
   color: '#002F96'
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
@@ -656,24 +626,12 @@ nodes:
 
 - id: historical_emissions
   name: Historical emissions
+  description: Historical emissions by subsector. Note! This node contains subsectors from several different hierarchical levels, and therefore many emissions are counted twice or even three times.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
-  output_dimensions: [emission_scope, emission_sectors]
-  output_nodes:
-  - id: residential_emissions
-    from_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy, commercial_industrial_energy]
-
-- id: residential_emissions
-  name: Residential emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_scope, emission_sectors]
   output_dimensions: [emission_scope, emission_sectors]
 
 #
@@ -764,19 +722,6 @@ nodes:
   unit: ft**2
   input_datasets:
   - id: longmont/commercial_square_footage_over_20000_sf
-#  output_dimensions: [emission_sectors]
-
-# Total Floor area: Building 55:56
-# standard energy consumption of existing buildings: MISSING
-# standard energy consumption of new buildings: building 57:60
-# standard energy consumption of new buildings with action: Buildings 61:64 = 0.95 * EUI
-# New floor area: Buildings 70:71
-# Energy consumption of new buildings: Buildings 72:75 =
-## new floor area * compliant * better EUI + new floor area * non-compliant * normal EUI -- cumulated
-# Renovated existing buildings: Buildings 77:78 = existing buildings * triggered
-# Energy consumption of existing renovated buildings: Buildings 79:82 = 
-## renovated floor area * compliant * better EUI + renovated floor area * non-compliant * normal EUI - cumulated
-# Energy consumption of existing non-renovated buildings: MISSING
 
 - id: building_natural_gas_eui
   name: Energy use intensity EUI for natural gas
@@ -834,8 +779,8 @@ nodes:
   type: simple.MultiplyLastNode2
   quantity: energy
   unit: GWh/a
-  input_dimensions: [emission_sectors] #, site]
-  output_dimensions: [emission_sectors] #, site]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
   input_nodes:
   - building_electricity_use
 
@@ -902,7 +847,6 @@ nodes:
   - id: building_floor_area
     tags: floor_area
     metrics: [floor_area]
-
 
 # Building model, updated building code
 # Floor area increses by B32 every year. categories residential, commercial
@@ -1143,7 +1087,7 @@ nodes:
       flatten: true
     to_dimensions:
     - id: emission_scope
-      categories: [scope2]
+      categories: [scope1]
 
 # Losses
 
@@ -1624,9 +1568,6 @@ nodes:
     tags: [non_additive]
   output_nodes:
   - id: electricity_use
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [residential_energy]
 
 actions:
 
@@ -1857,15 +1798,15 @@ actions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
 
-#- id: renewable_energy_plan
-#  name: Develop a comprehensive 100% renewable energy plan
-#  description: Develop a comprehensive 100% renewable energy plan for Longmont's just
-#    transition to a clean energy economy. Acquire all electricity from renewable energy
-#    sources by 2030.
-#  type: simple.AdditiveAction
-#  quantity: fraction
-#  unit: '%'
-#  forecast_values: [[2023, 0], [2050, 0]]
+- id: renewable_energy_plan
+  name: Develop a comprehensive 100% renewable energy plan
+  description: Develop a comprehensive 100% renewable energy plan for Longmont's just
+    transition to a clean energy economy. Acquire all electricity from renewable energy
+    sources by 2030.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  forecast_values: [[2023, 0], [2050, 0]]
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
@@ -2024,47 +1965,41 @@ actions:
   output_nodes:
   - diversion_rate
 
-#- id: commercial_power_purchase_program
-#  name: Commercial power purchase program
-#  type: simple.CumulativeAdditiveAction
-#  quantity: energy
-#  unit: kWh/a
-#  forecast_values: [[2022, 0], [2023, -3544251]]
-#  output_nodes:
-#  - id: electricity_use
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [commercial_industrial_energy]
-#    - id: site
-#      categories: [longmont_power]
+- id: commercial_power_purchase_program
+  name: Commercial power purchase program
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2022, 0], [2023, -3544251]]
+  output_nodes:
+  - id: electricity_use
+    to_dimensions:
+    - id: emission_sectors
+      categories: [commercial_industrial_energy]
 
-#- id: residential_power_purchase_program
-#  name: Residential power purchase program
-#  type: simple.CumulativeAdditiveAction
-#  quantity: energy
-#  unit: kWh/a
-#  forecast_values: [[2022, 0], [2023, -3550001]]
-#  output_nodes:
-#  - id: electricity_use
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [residential_energy]
-#    - id: site
-#      categories: [longmont_power]
+- id: residential_power_purchase_program
+  name: Residential power purchase program
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2022, 0], [2023, -3550001]]
+  output_nodes:
+  - id: electricity_use
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
 
-#- id: residential_rooftop_solar
-#  name: Residential rooftop solar
-#  type: simple.CumulativeAdditiveAction
-#  quantity: energy
-#  unit: kWh/a
-#  forecast_values: [[2022, 0], [2023, -5080497]]
-#  output_nodes:
-#  - id: electricity_use
-#    to_dimensions:
-#    - id: emission_sectors
-#      categories: [residential_energy]
-#    - id: site
-#      categories: [longmont_power]
+- id: residential_rooftop_solar
+  name: Residential rooftop solar
+  type: simple.CumulativeAdditiveAction
+  quantity: energy
+  unit: kWh/a
+  forecast_values: [[2022, 0], [2023, -5080497]]
+  output_nodes:
+  - id: electricity_use
+    to_dimensions:
+    - id: emission_sectors
+      categories: [residential_energy]
 
 - id: longmont_equity_share_platte_river_power_authority
   name: Longmont equity share emissions from Platte River Power Authority
@@ -2130,7 +2065,7 @@ actions:
       - year: 2031
         amount: 0
 
-- id: residential_electricity_eui_trend
+- id: residential_electricity_eui_trend  # DELETE
   name: Residential electricity EUI trend
   description: Change in residential electricity use intensity in new buildings based
     in stricter IECC values every three years.
@@ -2150,7 +2085,7 @@ actions:
     - id: emission_sectors
       categories: [residential_energy]
 
-- id: commercial_electricity_eui_trend
+- id: commercial_electricity_eui_trend  # DELETE
   name: Commercial electricity EUI trend
   description: Change in commercial electricity use intensity in new buildings based
     in stricter IECC values every three years.
@@ -2171,7 +2106,7 @@ actions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
 
-- id: residential_natural_gas_eui_trend
+- id: residential_natural_gas_eui_trend  # DELETE
   name: Residential natural gas EUI trend
   description: Change in residential natural gas use intensity in new buildings based
     in stricter IECC values every three years.
@@ -2191,7 +2126,7 @@ actions:
     - id: emission_sectors
       categories: [residential_energy]
 
-- id: commercial_natural_gas_eui_trend
+- id: commercial_natural_gas_eui_trend  # DELETE
   name: Commercial natural gas EUI trend
   description: Change in commercial natural gas use intensity in new buildings based
     in stricter IECC values every three years.
@@ -2381,7 +2316,3 @@ scenarios:
   default: true
   name: Climate Action Recommendations
   all_actions_enabled: true
-
-##################
-# DESCRIPTION OF DATA AND CALCULATIONS
-# Data and equations come from file Longmont_Model_Feb 2023 Update_FINAL.xlsx
