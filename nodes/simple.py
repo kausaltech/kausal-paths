@@ -1063,12 +1063,16 @@ class UsFloorAreaNode(MultiplicativeNode):
                 actions += [node]
             else:
                 nodes += [node]
-
-        df: ppl.PathsDataFrame = nodes.pop(0).get_output_pl(target_node=self)
-        for node in nodes:
-            df = df.paths.join_over_index(node.get_output_pl(target_node=self))
-            df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
-            df = df.drop(VALUE_COLUMN + '_right')
+        if len(nodes) > 0:
+            df: ppl.PathsDataFrame = nodes.pop(0).get_output_pl(target_node=self)
+            for node in nodes:
+                df = df.paths.join_over_index(node.get_output_pl(target_node=self))
+                df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+                df = df.drop(VALUE_COLUMN + '_right')
+        else:
+            df = self.get_input_dataset_pl(required=True)
+            df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+            df = df.rename({'floor_area': VALUE_COLUMN})
 
         # Existing (old) and new floor area in baseline
         flhv = df.get_last_historical_values()
@@ -1209,7 +1213,7 @@ class UsEnergyNode(MultiplicativeNode):
             ])
 
         df = df.drop([VALUE_COLUMN + '_right', 'diff'])
-        cols = list(set(df.columns) - {VALUE_COLUMN, 'action'})
+        cols = list(set(df.columns) - {VALUE_COLUMN, 'floor_area', 'action'})
         meta = df.get_meta()
         df = df.groupby(cols).sum().drop('action')
         df = ppl.to_ppdf(df, meta=meta)
