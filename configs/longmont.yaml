@@ -14,7 +14,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 37d2cfa9a849e03b1217b2bcf6f607394036621d
+  commit: c5f21780fd9675d06dc50487143155cd138f6196
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -404,14 +404,26 @@ dimensions:
   categories:
   - id: none
     label: No actions taken
+  - id: updated_building_code
+    label: Use updated building code
   - id: updated_building_code_residential
-    label: Use updated building code and enforce in residential buildings
+    label: Use updated building code, residential
   - id: updated_building_code_commercial
-    label: Use updated building code and enforce in commercial buildings
+    label: Use updated building code, commercial
   - id: develop_beyond_building_code
     label: Develop beyond building code
   - id: benchmark_energy_use
-    label: Report and benchmark energy use in commercial buildings
+    label: Report and benchmark energy use
+
+- id: action_change
+  label: Changes caused by actions
+  categories:
+  - id: triggered
+    label: Fraction triggered to change
+  - id: compliant
+    label: Fraction compliant with criteria
+  - id: improvement
+    label: Relative improvement
 
 params:
 - id: municipality_name
@@ -626,7 +638,9 @@ nodes:
 
 - id: historical_emissions
   name: Historical emissions
-  description: Historical emissions by subsector. Note! This node contains subsectors from several different hierarchical levels, and therefore many emissions are counted twice or even three times.
+  description: Historical emissions by subsector. Note! This node contains subsectors
+    from several different hierarchical levels, and therefore many emissions are counted
+    twice or even three times.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -762,6 +776,7 @@ nodes:
 
 - id: building_natural_gas_use_intermediate
   name: Building natural gas use (intermediate)
+  description: <p>This node shows the building natural gas use when some, but not all, actions have been implemented. the actual natural gas use with all the actions is shown downstream in the node "Building natural gas use". </p><p>Building energy class has a specific use here. "All buildings, baseline" shows the natural gas use that would occur in the building stock if none of the upstream actions are implemented. All other classes show the difference to the baseline; in other words energy saving actions take the natural gas use to the negative side. If the actions do not affect a particular class, the graph of that class seems empty.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: Mtherm/a
@@ -833,9 +848,11 @@ nodes:
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
+  input_dimensions: [emission_sectors]
 
 - id: building_electricity_use_intermediate
   name: Building electricity use (intermediate)
+  description: <p>This node shows the building electricity use when some, but not all, actions have been implemented. the actual electricity use with all the actions is shown downstream in the node "Building electricity use". </p><p>Building energy class has a specific use here. "All buildings, baseline" shows the electricity use that would occur in the building stock if none of the upstream actions are implemented. All other classes show the difference to the baseline; in other words energy saving actions take the electricity use to the negative side. If the actions do not affect a particular class, the graph of that class seems empty.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: GWh/a
@@ -1275,6 +1292,35 @@ nodes:
     - id: emission_scope
       categories: [scope1]
 
+- id: vehicle_electricity_emissions  # FIXME Historical values overridden
+  name: Vehicle electricity emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_nodes:
+  - id: vehicle_electricity_use
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    to_dimensions: []
+  - id: electricity_emission_factor
+    from_dimensions:
+    - id: site
+      categories: [longmont_power]
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+  output_nodes:
+  - id: on_road_transportation_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+
 - id: electric_vehicle_efficiency
   name: Electric vehicle efficiency
   type: simple.AdditiveNode
@@ -1298,8 +1344,8 @@ nodes:
   - id: electric_vehicle_efficiency
     to_dimensions: []
   - vehicle_charging_shares
-  output_nodes:
-  - electricity_use
+#  output_nodes:  # FIXME Return these if we want to not put vehicle electricity to transportation.
+#  - electricity_use
 
 - id: vehicle_charging_shares
   name: Vehicle charging shares
@@ -1571,123 +1617,71 @@ nodes:
 
 actions:
 
-- id: updated_building_code_residential
-  name: Use updated building code and enforce in residential buildings
+- id: updated_building_code
+  name: Use updated building code and enforce
   description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
     rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
-    of residential square footage triggering code upgrades</p><p>Target reduction:
+    of square footage triggering code upgrades</p><p>Target reduction:
     1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
     They support this assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings:
-    Average percent increase of new residential buildings Target reduction: 1% Confidence
-    ranking: Med. Data provided by the Boulder County assessor shows historic trends
-    that may overestimate continued growth. Information from the City of Longmont
-    suggests annual increases of 1%. Potential buildout around 2035. New square footage
-    remains constant after 2035. Assume constant increase over time. On file.</p>'
-  type: energy_saving.FutureBuildingActionUs
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  params:
-  - id: compliant
-    value: 90.0
-  - id: triggered
-    value: 1.0
-    min_value: 0.0
-    max_value: 3.0
-    description: Percentage of square footage triggering code upgrades per year
-  - id: improvement
-    value: 5.0
-    min_value: 3.0
-    max_value: 7.0
-    description: Percentage increase in efficiency on top of past upgrades
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-  - id: building_electricity_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-  - id: building_floor_area
-    metrics: [triggered, compliant]
-    to_dimensions: []
-
-- id: updated_building_code_commercial
-  name: Use updated building code and enforce in commercial buildings
-  description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
-    rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
-    of commeercial square footage triggering code upgrades</p><p>Target reduction:
-    1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
-    They support this assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings:
-    Average percent increase of new residential buildings Target reduction: 1% Confidence
+    Average percent increase of new buildings Target reduction: 1% Confidence
     ranking:  Med. Data provided by the Boulder County assessor shows historic trends
     that may overestimate continued growth. Information from the City of Longmont
     suggests annual increases of 1%. Potential buildout around 2035. New square footage
     remains constant after 2035. Assume constant increase over time. On file.</p>'
-  type: energy_saving.FutureBuildingActionUs
+  type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
   group: buildings
-  params:
-  - id: compliant
-    value: 90.0
-  - id: triggered
-    value: 1.0
-    min_value: 0.0
-    max_value: 3.0
-    description: Percentage of square footage triggering code upgrades per year
-  - id: improvement
-    value: 11.0
-    min_value: 5.0
-    max_value: 15.0
-    description: Percentage increase in efficiency on top of past upgrades
+  input_datasets:
+  - id: longmont/energy_use_intensity_with_building_actions
+    filters:
+    - column: action
+      value: updated_building_code
+  output_dimensions: [emission_sectors]
   output_nodes:
   - id: building_natural_gas_eui
     metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
   - id: building_electricity_eui
     metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
   - id: building_floor_area
     metrics: [triggered, compliant]
-    to_dimensions: []
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
   description: Develop building codes that go beyond the IECC and towards net-zero
     energy use, including the Climate Action Recommendations Report strategies to
     add solar ready and electric vehicle ready as part of the 2021 residential code
-    update. <b>NOTE! This action causes double counting; it will be fixed.</b>
-  type: energy_saving.FutureBuildingActionUs
+    update.
+  type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
   group: buildings
   input_datasets:
-  - id: longmont/improvements_beyond_building_code
+  - id: longmont/energy_use_intensity_with_building_actions
     filters:
-    - column: emission_sectors
-      value: [commercial_industrial_energy]
+    - column: action
+      value: develop_beyond_building_code
+  output_dimensions: [emission_sectors]
   output_nodes:
   - id: building_natural_gas_eui
     metrics: [improvement]
     to_dimensions:
+    - id: building_energy_class
+      categories: [compliant]  # FIXME Should not affect renovated but still does
     - id: emission_sectors
-      categories: [commercial_industrial_energy]
   - id: building_electricity_eui
     metrics: [improvement]
     to_dimensions:
+    - id: building_energy_class
+      categories: [compliant]
     - id: emission_sectors
-      categories: [commercial_industrial_energy]
   - id: building_floor_area
     metrics: [triggered, compliant]
-    to_dimensions: []
+    to_dimensions:
+    - id: building_energy_class
+      categories: [compliant]
+    - id: emission_sectors
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -1695,15 +1689,16 @@ actions:
     exceed 20,000 square feet to rate their building's energy use, report energy metrics,
     and encourages buildings owners to implement energy efficiency measures. For updates,
     see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.
-  type: energy_saving.FutureBuildingActionUs
+  type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
   group: buildings
   input_datasets:
-  - id: longmont/benchmark_commercial_energy_use_action
+  - id: longmont/energy_use_intensity_with_building_actions
     filters:
-    - column: emission_sectors
-      value: commercial_industrial_energy
+    - column: action
+      value: benchmark_energy_use
+  output_dimensions: [emission_sectors]
   output_nodes:
   - id: building_natural_gas_eui
     metrics: [improvement]
@@ -2065,88 +2060,6 @@ actions:
       - year: 2031
         amount: 0
 
-- id: residential_electricity_eui_trend  # DELETE
-  name: Residential electricity EUI trend
-  description: Change in residential electricity use intensity in new buildings based
-    in stricter IECC values every three years.
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  group: trend
-  forecast_values: [[2021, 0], [2022, -0.172], [2023, -0.172], [2024, -0.172], [2025,
-      -0.336], [2026, -0.336], [2027, -0.336], [2028, -0.492], [2029, -0.492], [2030,
-      -0.492], [2031, -0.639], [2032, -0.639], [2033, -0.639], [2034, -0.78], [2035,
-      -0.78], [2036, -0.78], [2037, -0.913], [2038, -0.913], [2039, -0.913], [2040,
-      -1.04], [2041, -1.04], [2042, -1.04], [2043, -1.16], [2044, -1.16], [2045, -1.16],
-    [2046, -1.274], [2047, -1.274], [2048, -1.274], [2049, -1.383], [2050, -1.383]]
-  output_nodes:
-  - id: building_electricity_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
-- id: commercial_electricity_eui_trend  # DELETE
-  name: Commercial electricity EUI trend
-  description: Change in commercial electricity use intensity in new buildings based
-    in stricter IECC values every three years.
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  group: trend
-  forecast_values: [[2021, 0], [2022, -1.891], [2023, -1.891], [2024, -1.891], [2025,
-      -3.572], [2026, -3.572], [2027, -3.572], [2028, -5.066], [2029, -5.066], [2030,
-      -5.066], [2031, -6.394], [2032, -6.394], [2033, -6.394], [2034, -7.575], [2035,
-      -7.575], [2036, -7.575], [2037, -8.625], [2038, -8.625], [2039, -8.625], [2040,
-      -9.558], [2041, -9.558], [2042, -9.558], [2043, -10.388], [2044, -10.388], [
-      2045, -10.388], [2046, -11.126], [2047, -11.126], [2048, -11.126], [2049, -11.781],
-    [2050, -11.781]]
-  output_nodes:
-  - id: building_electricity_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-- id: residential_natural_gas_eui_trend  # DELETE
-  name: Residential natural gas EUI trend
-  description: Change in residential natural gas use intensity in new buildings based
-    in stricter IECC values every three years.
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  group: trend
-  forecast_values: [[2021, 0], [2022, -0.014], [2023, -0.014], [2024, -0.014], [2025,
-      -0.026], [2026, -0.026], [2027, -0.026], [2028, -0.039], [2029, -0.039], [2030,
-      -0.039], [2031, -0.05], [2032, -0.05], [2033, -0.05], [2034, -0.061], [2035,
-      -0.061], [2036, -0.061], [2037, -0.072], [2038, -0.072], [2039, -0.072], [2040,
-      -0.081], [2041, -0.081], [2042, -0.081], [2043, -0.091], [2044, -0.091], [2045,
-      -0.091], [2046, -0.1], [2047, -0.1], [2048, -0.1], [2049, -0.108], [2050, -0.108]]
-  output_nodes:
-  - id: building_natural_gas_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
-- id: commercial_natural_gas_eui_trend  # DELETE
-  name: Commercial natural gas EUI trend
-  description: Change in commercial natural gas use intensity in new buildings based
-    in stricter IECC values every three years.
-  type: simple.AdditiveAction
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  group: trend
-  forecast_values: [[2021, 0], [2022, -0.058], [2023, -0.058], [2024, -0.058], [2025,
-      -0.11], [2026, -0.11], [2027, -0.11], [2028, -0.157], [2029, -0.157], [2030,
-      -0.157], [2031, -0.198], [2032, -0.198], [2033, -0.198], [2034, -0.234], [2035,
-      -0.234], [2036, -0.234], [2037, -0.267], [2038, -0.267], [2039, -0.267], [2040,
-      -0.296], [2041, -0.296], [2042, -0.296], [2043, -0.321], [2044, -0.321], [2045,
-      -0.321], [2046, -0.344], [2047, -0.344], [2048, -0.344], [2049, -0.364], [2050,
-      -0.364]]
-  output_nodes:
-  - id: building_natural_gas_eui
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
 - id: mpg_trend
   name: Miles per gallon increasing trend
   type: simple.AdditiveAction
@@ -2302,15 +2215,6 @@ pages:
 scenarios:
 - id: baseline
   name: Baseline
-  params:
-  - id: residential_electricity_eui_trend.enabled
-    value: true
-  - id: commercial_electricity_eui_trend.enabled
-    value: true
-  - id: residential_natural_gas_eui_trend.enabled
-    value: true
-  - id: commercial_natural_gas_eui_trend.enabled
-    value: true
 
 - id: default
   default: true
