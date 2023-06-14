@@ -9,10 +9,10 @@ import pint
 
 from common.i18n import TranslatedString
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN, DEFAULT_METRIC
 from .node import Node, NodeMetric
 from .exceptions import NodeError
-from nodes.actions.energy_saving import FutureBuildingActionUs
+from nodes.actions.energy_saving import UsBuildingAction
 
 
 EMISSION_UNIT = 'kg'
@@ -655,9 +655,9 @@ class UsFloorAreaNode(MultiplicativeNode):
     
     def compute(self):
         nodes: list(Node) = []
-        actions: list(FutureBuildingActionUs) = []
+        actions: list(UsBuildingAction) = []
         for node in self.get_input_nodes():
-            if isinstance(node, FutureBuildingActionUs):
+            if isinstance(node, UsBuildingAction):
                 actions += [node]
             else:
                 nodes += [node]
@@ -738,9 +738,9 @@ class UsEuiNode(UsFloorAreaNode):
 
     def compute(self):
         nodes: list(Node) = []
-        actions: list(FutureBuildingActionUs) = []
+        actions: list(UsBuildingAction) = []
         for node in self.get_input_nodes():
-            if isinstance(node, FutureBuildingActionUs):
+            if isinstance(node, UsBuildingAction):
                 actions += [node]
             else:
                 nodes += [node]

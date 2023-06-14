@@ -11,7 +11,7 @@ from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeMetric
-from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN
+from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN, DEFAULT_METRIC
 from nodes.calc import nafill_all_forecast_years
 from params import Parameter, NumberParameter
 from params.utils import sep_unit_pt
@@ -608,15 +608,18 @@ class EnergyCostAction(ExponentialAction):
         return df
 
 
-class FutureBuildingActionUs(BuildingEnergySavingAction):
+class UsBuildingAction(BuildingEnergySavingAction):
     """
     BuildingEnergySavingAction with cumulative energy savings.
+    # fraction of existing buildings triggering code updates
+    # compliance of new buildings to the more active regulations
+    # improvement in energy consumption
     """
 
     output_metrics = {
-        'triggered': NodeMetric('%', 'fraction'),  # fraction of existing buildings triggering code updates
-        'compliant': NodeMetric('%', 'fraction'),  # compliance of new buildings to the more active regulations
-        VALUE_COLUMN: NodeMetric('%', 'fraction')  # improvement in energy consumption
+        'triggered': NodeMetric('%', 'fraction', column_id='triggered'),
+        'compliant': NodeMetric('%', 'fraction', column_id='compliant'),
+        DEFAULT_METRIC: NodeMetric('%', 'fraction', column_id='improvement')
     }
     allowed_parameters: typing.ClassVar[list[Parameter]] = [
         NumberParameter(
@@ -643,10 +646,26 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
 
         df = self.get_input_dataset_pl(required=False)
         if df is not None:
+            if 'action_change' in df.primary_keys:  # New structure with a single metric
+                triggered = df.filter(pl.col('action_change').eq('triggered'))
+                triggered = triggered.rename({'fraction': 'triggered'}).drop('action_change')
+                compliant = df.filter(pl.col('action_change').eq('compliant'))
+                compliant = compliant.rename({'fraction': 'compliant'}).drop('action_change')
+                improvement = df.filter(pl.col('action_change').eq('improvement'))
+                improvement = improvement.rename({'fraction': 'improvement'}).drop('action_change')
+
+                df = triggered.paths.join_over_index(compliant)
+                df = df.paths.join_over_index(improvement)
             if not self.is_enabled():
-                df = df.with_columns(improvement=pl.lit(0))
+                df = df.with_columns(pl.lit(0.0).alias('improvement'))
+            df = df.with_columns(pl.lit(True).alias(FORECAST_COLUMN))
+            self.print(df)
+            print(self.output_metrics)
+            print(df.get_meta())
+
             return df
 
+        # FIXME Combine approaches so that parameters can replace parts of the dataset.
         triggered = self.get_parameter_value('triggered', units=True).to('dimensionless').m
         compliant = self.get_parameter_value('compliant', units=True).to('dimensionless').m
         improvement = self.get_parameter_value('improvement', units=True).to('dimensionless').m
@@ -663,6 +682,6 @@ class FutureBuildingActionUs(BuildingEnergySavingAction):
             FORECAST_COLUMN: [True],
         }, index=years)
 
-        df.index.name = YEAR_COLUMN
+        df.index.name = YEAR_COLUMN  # FIXME Make improvement the default metric
 
         return df
