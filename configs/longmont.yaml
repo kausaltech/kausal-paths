@@ -14,7 +14,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c5f21780fd9675d06dc50487143155cd138f6196
+  commit: 0f4a82eff514ed174f98ec061bb890ecfc433475
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -466,15 +466,14 @@ emission_sectors:
 # Sector emissions
 
 - id: stationary_energy_emissions
-  name: Stationary energy emissions  # FIXME There is apparently double counting due to building_emissions
+  name: Stationary energy emissions
   part_of: net_emissions
   color: '#73C1B7'
   input_dataset_processors: [LinearInterpolation]
 
-- id: transportation_emissions  # FIXME Does not match with historical data
+- id: transportation_emissions
   name: Transportation emissions
   part_of: net_emissions
-  category: transport
   color: '#F4BD7B'
   input_dataset_processors: [LinearInterpolation]
 
@@ -482,7 +481,6 @@ emission_sectors:
   name: Waste emissions
   part_of: net_emissions
   color: '#D3805E'
-  category: waste
   input_dataset_processors: [LinearInterpolation]
 
 - id: ippu_emissions
@@ -502,22 +500,18 @@ emission_sectors:
 
 - id: fugitive_emissions
   name: Fugitive emissions
-  category: fugitive_emissions
   color: '#8DAFBC'
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
-# FIXME Building emissions have double counting
 - id: building_emissions
   name: Building emissions
-#  category: buildings
   color: '#002F96'
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: waste_disposal_emissions
   name: Waste disposal emissions
-  category: waste_disposal
   part_of: waste_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -541,7 +535,6 @@ emission_sectors:
 
 - id: on_road_transportation_emissions
   name: On-road transportation
-  category: on_road_transportation
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -561,12 +554,6 @@ emission_sectors:
   name: Off-road transportation
   category: off_road
   part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: leakage_from_natural_gas_emissions
-  name: Emissions from natural gas leakage
-  category: leakage_from_natural_gas
-  part_of: fugitive_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: leakage_from_oil_and_gas_wells_emissions
@@ -776,7 +763,14 @@ nodes:
 
 - id: building_natural_gas_use_intermediate
   name: Building natural gas use (intermediate)
-  description: <p>This node shows the building natural gas use when some, but not all, actions have been implemented. the actual natural gas use with all the actions is shown downstream in the node "Building natural gas use". </p><p>Building energy class has a specific use here. "All buildings, baseline" shows the natural gas use that would occur in the building stock if none of the upstream actions are implemented. All other classes show the difference to the baseline; in other words energy saving actions take the natural gas use to the negative side. If the actions do not affect a particular class, the graph of that class seems empty.</p>
+  description: <p>This node shows the building natural gas use when some, but not
+    all, actions have been implemented. the actual natural gas use with all the actions
+    is shown downstream in the node "Building natural gas use". </p><p>Building energy
+    class has a specific use here. "All buildings, baseline" shows the natural gas
+    use that would occur in the building stock if none of the upstream actions are
+    implemented. All other classes show the difference to the baseline; in other words
+    energy saving actions take the natural gas use to the negative side. If the actions
+    do not affect a particular class, the graph of that class seems empty.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: Mtherm/a
@@ -828,7 +822,6 @@ nodes:
   input_datasets:
   - longmont/electricity_emission_factor
   input_dataset_processors: [LinearInterpolation]
-  #forecast_values: [[2025, 0.5195], [2026, 0.5156], [2027, 0.5132], [2028, 0.5433], [2029, 0.5424], [2030, 0.5253], [2035, 0.5253], [2040, 0.5253], [2045, 0.5253], [2050, 0.5253]]
   input_dimensions: [site, greenhouse_gases]
   output_dimensions: [site, greenhouse_gases]
   output_nodes:
@@ -852,7 +845,14 @@ nodes:
 
 - id: building_electricity_use_intermediate
   name: Building electricity use (intermediate)
-  description: <p>This node shows the building electricity use when some, but not all, actions have been implemented. the actual electricity use with all the actions is shown downstream in the node "Building electricity use". </p><p>Building energy class has a specific use here. "All buildings, baseline" shows the electricity use that would occur in the building stock if none of the upstream actions are implemented. All other classes show the difference to the baseline; in other words energy saving actions take the electricity use to the negative side. If the actions do not affect a particular class, the graph of that class seems empty.</p>
+  description: <p>This node shows the building electricity use when some, but not
+    all, actions have been implemented. the actual electricity use with all the actions
+    is shown downstream in the node "Building electricity use". </p><p>Building energy
+    class has a specific use here. "All buildings, baseline" shows the electricity
+    use that would occur in the building stock if none of the upstream actions are
+    implemented. All other classes show the difference to the baseline; in other words
+    energy saving actions take the electricity use to the negative side. If the actions
+    do not affect a particular class, the graph of that class seems empty.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: GWh/a
@@ -953,6 +953,29 @@ nodes:
   - longmont/emission_factor_natural_gas
   input_dataset_processors: [LinearInterpolation]
   output_dimensions: [energy_carrier, greenhouse_gases]
+
+- id: leakage_from_natural_gas_emissions
+  name: Emissions from natural gas leakage
+  category: leakage_from_natural_gas
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - building_natural_gas_use
+  output_nodes:
+  - id: fugitive_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  params:
+  - id: multiplier
+    value: 0.18409014  # =(D47*100000/1028*0.02832*0.8*0.934/1000*0.003*'Emission Factors and Constants'!$C$21)+(D47*100000/1028*0.02832*0.8*0.01/1000*0.003) = D47 * 0.00018409014
+    unit: kg/therm
 
 - id: natural_gas_consumption_emissions
   name: Natural gas consumption emissions
@@ -1621,14 +1644,14 @@ actions:
   name: Use updated building code and enforce
   description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
     rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
-    of square footage triggering code upgrades</p><p>Target reduction:
-    1%</p><p>Confidence ranking: Low</p><p>Assumption. No data resides with the City.
-    They support this assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings:
-    Average percent increase of new buildings Target reduction: 1% Confidence
-    ranking:  Med. Data provided by the Boulder County assessor shows historic trends
-    that may overestimate continued growth. Information from the City of Longmont
-    suggests annual increases of 1%. Potential buildout around 2035. New square footage
-    remains constant after 2035. Assume constant increase over time. On file.</p>'
+    of square footage triggering code upgrades</p><p>Target reduction: 1%</p><p>Confidence
+    ranking: Low</p><p>Assumption. No data resides with the City. They support this
+    assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings: Average percent
+    increase of new buildings Target reduction: 1% Confidence ranking:  Med. Data
+    provided by the Boulder County assessor shows historic trends that may overestimate
+    continued growth. Information from the City of Longmont suggests annual increases
+    of 1%. Potential buildout around 2035. New square footage remains constant after
+    2035. Assume constant increase over time. On file.</p>'
   type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
