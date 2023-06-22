@@ -520,11 +520,6 @@ emission_sectors:
   part_of: waste_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: avoided_emissions_from_recycling
-  name: Avoided emissions from recycling
-  category: avoided_waste
-  input_dataset_processors: [LinearInterpolation]
-
 - id: refridgerant_emissions
   name: Refridgerant emissions
   category: refridgerant
@@ -561,37 +556,6 @@ emission_sectors:
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
-- id: community_indicators
-  name: Community indicators
-  description: '<b>Required indicators</b>: <ul><li><b>Name of city</b>: Longmont</li>
-    <li><b>State</b>: Colorado</li> <li><b>Country</b>: USA</li> <li><b>Inventory
-    year</b>: 2021</li> <li><b>Inventory date</b>: 44197</li> <li><b>Geographic boundary</b>:
-    City limits</li> <li><b>Land area (mi2)</b>: 28.78</li> <li><b>Resident population</b>:
-    99629</li> <li><b>GDP ($) </b>: N/A</li> <li><b>Composition of economy</b>: Professional,
-    technology and science; education; retail trade; health care and social assistance;
-    acconodation and food services; manufacturing; admuinistrative and waste management;
-    public administration; wholesale trade; construction</li> <li><b>Climate</b>:
-    Semi-arid, continental climate</li> <li><b>Other information</b>: None</li></ul>
-    <b>Optional Indicators</b>:<ul> <li><b>Input</b>: Value</li> <li><b>Number of
-    housing units </b>: 40310</li> <li><b>Number of people employed in the city</b>:
-    50034</li> <li><b>Heating degree days</b>: 4333</li> <li><b>Cooling degree days</b>:
-    1562</li> <li><b>City Open Space (acres)</b>: 4118</li> <li><b>Total Taxes (dollars)</b>:
-    90668608</li> <li><b>Retail Sales</b>: 2568515807.36544</li> <li><b>C&I Floor
-    Space (sq. Ft.)</b>: 20655585</li></ul> <b>Notes</b>:<ol> <li>Land area and housing
-    units data from Longmont Census QuickFacts.</li> <li>Resident population from
-    2021 population document, on file. </li> <li>Data on composition of the economy
-    from 2017 Community Profile, Longmont Economic Development Partnership: <a href="http://www.longmont.org/Longmont/media/Longmont/PDF%20Files/profile.pdf">link</a></li>
-    <li>Employment data from Colorado Demographic Profile - 2020 <a href="https://gis.dola.colorado.gov/apps/ProfileDashboard2/">link</a>
-    </li> <li>HDD and CDD data from zip Code 80501, <a href="http://www.weatherdatadepot.com/">link</a></li>
-    <li>Open space acerage from <a href="https://www.longmontcolorado.gov/departments/departments-n-z/parks-open-space-trails/open-space/open-space-properties">link</a></li>
-    <li>Tax data from Community Annual Financial Report: <a href="https://www.longmontcolorado.gov/home/showdocument?id=18581">link</a></li>
-    <li>Retail sales data extrapolated based on 2021 Sales & Use Tax Revenue (<a href="https://www.longmontcolorado.gov/home/showdocument?id=18581">link</a>)
-    and City Tax Rate (3.530%)</li> <li>Commercial and industrial square footage data
-    from Boulder County Assessors Office (assessor@bouldercounty.org) </li></ol>'
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2016, 0], [2021, 0]]
 
 - id: population
   name: Inhabitants
@@ -620,18 +584,6 @@ nodes:
   output_dimensions: [greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]
   historical_values: [[1990, 1], [2021, 1]]
-
-- id: historical_emissions
-  name: Historical emissions
-  description: Historical emissions by subsector. Note! This node contains subsectors
-    from several different hierarchical levels, and therefore many emissions are counted
-    twice or even three times.
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_datasets:
-  - id: longmont/greenhouse_gas_emissions_by_subsector
-  output_dimensions: [emission_scope, emission_sectors]
 
 #
 # STATIONARY
@@ -722,6 +674,7 @@ nodes:
   input_datasets:
   - id: longmont/commercial_square_footage_over_20000_sf
 
+# FIXME Goes to negative after all actions
 - id: building_natural_gas_eui
   name: Energy use intensity EUI for natural gas
   type: simple.UsEuiNode
@@ -755,7 +708,6 @@ nodes:
   input_nodes:
   - id: building_natural_gas_use_intermediate
     from_dimensions:
-#    - id: emission_sectors
     - id: building_energy_class
       flatten: true
 
@@ -780,6 +732,34 @@ nodes:
     metrics: [floor_area]
   - id: building_natural_gas_eui
     tags: [consumption_factor]
+
+- id: building_natural_gas_use_20000_sf
+  name: Building natural gas savings for large commercial buildings
+  description: <p>This node shows the building natural gas use when some, but not
+    all, actions have been implemented on large commercial buildings. the actual natural gas use with all the actions
+    is shown downstream in the node "Building natural gas use". </p><p>Building energy
+    class has a specific use here. "All buildings, baseline" shows the natural gas
+    use that would occur in the building stock if none of the upstream actions are
+    implemented. All other classes show the difference to the baseline; in other words
+    energy saving actions take the natural gas use to the negative side. If the actions
+    do not affect a particular class, the graph of that class seems empty.</p>
+  type: simple.UsEnergyNode
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [building_energy_class, action, emission_sectors]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_nodes:
+  - id: commercial_square_footage_over_20000_sf
+    tags: [floor_area]
+    metrics: [floor_area]
+  - id: building_natural_gas_eui
+    tags: [consumption_factor]
+  output_nodes:
+  - id: building_natural_gas_use
+    from_dimensions:
+    - id: building_energy_class
+      categories: [renovated, compliant]
+      flatten: true
 
 - id: electricity_use
   name: Electricity use
@@ -822,14 +802,6 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_dimensions: [site, greenhouse_gases]
   output_dimensions: [site, greenhouse_gases]
-  output_nodes:
-  - id: equity_share_emissions
-    from_dimensions:
-    - id: site
-      categories: [longmont_power]
-      flatten: true
-    to_dimensions:
-    - id: greenhouse_gases
 
 - id: building_electricity_eui
   name: Energy use intensity EUI for electricity
@@ -1211,28 +1183,6 @@ nodes:
     unit: vehicle/person
     is_customizable: false
 
-- id: vehicle_fuel_efficiency
-  name: Vehicle fuel efficiency
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: miles/gallon
-  input_datasets:
-  - id: longmont/fuel_consumption_by_vehicle_type
-  input_dataset_processors: [LinearInterpolation]
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-
-- id: vehicle_miles_traveled
-  name: Vehicle miles traveled
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mmiles/a
-  input_datasets:
-  - longmont/vehicle_miles_traveled
-  input_dataset_processors: [LinearInterpolation]
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-
 - id: miles_per_gallon
   name: Miles per gallon
   type: simple.AdditiveNode
@@ -1542,49 +1492,6 @@ nodes:
     - id: emission_scope
       categories: [scope3]
 
-# Equity shares (not part of the main emission inventory)
-
-- id: equity_share_electricity_use
-  name: Equity share electricity use
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/a
-  historical_values: [[2016, 1210910586.71672], [2017, 1201888286.76237], [2018, 1215917061.77312],
-    [2019, 1212866104.25016], [2020, 1219903307.18383], [2021, 1226940510.11749]]
-  foreast_values: [[2022, 1233977713.05115], [2030, 1290275336.52046], [2050, 1431019395.19372]]
-
-- id: equity_share_emissions
-  name: Equity share emissions
-  description: <p>Informational only item. These are the emissions that are attributable
-    to Longmont’s ownership of what Platte River Power Authority sells outside of
-    the four owner communities.</p> <p>Platte River Power Authority (PRPA) provided
-    data on Longmont's equity share of emissions, which are based on the resource
-    mix of all power purchased, generated, and supplied by PRPA to it's customers.
-    Longmont's equity share of emissions represents the City's 26.13% ownership in
-    PRPA, and therefore the same share of responsibility for PRPA's emissions generated
-    in 2021. This equity share value is provided here for information only, and is
-    not included in GPC totals. The use of electricity supplied by PRPA in Longmont
-    (i.e., Longmont's load share emissions) is included in the calculation of total
-    PRPA emissions.</p>
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  is_outcome: true
-  output_dimensions: [greenhouse_gases]
-  input_nodes:
-  - equity_share_electricity_use
-
-- id: electricity_per_area
-  name: Electricity consumption per floor area
-  type: simple.AdditiveNode
-  quantity: energy_per_area
-  unit: kWh/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-
 - id: participation_smart_grid
   name: Participation in smart grid projects
   type: simple.AdditiveNode
@@ -1816,16 +1723,6 @@ actions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
 
-- id: renewable_energy_plan
-  name: Develop a comprehensive 100% renewable energy plan
-  description: Develop a comprehensive 100% renewable energy plan for Longmont's just
-    transition to a clean energy economy. Acquire all electricity from renewable energy
-    sources by 2030.
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  forecast_values: [[2023, 0], [2050, 0]]
-
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
   description: Implement a variety of smart grid projects that encourage reductions
@@ -2019,25 +1916,13 @@ actions:
     - id: emission_sectors
       categories: [residential_energy]
 
-- id: longmont_equity_share_platte_river_power_authority
-  name: Longmont equity share emissions from Platte River Power Authority
-  type: simple.CumulativeAdditiveAction
-  quantity: emissions  # FIXME Is this negative emission or what happens here?
-  unit: t/a
-  group: electric_grid
-  forecast_values: [[2022, 0], [2023, 307035]]
-  output_nodes:
-  - id: equity_share_emissions
-    to_dimensions:
-    - id: greenhouse_gases
-      categories: [co2]
-
 # FIXME Francie: would it be possible to have both an option where someone could see the model
 # go to 0 and then also go to 90% renewable? I believe the projection is the exact same,
 # but instead of dropping to 0 in 2030, the emission factor drops to .034. Also as I
 # mentioned in the meeting, this emission factor includes our participation in the
 # renewable power purchase program so that does not need to be listed separately.
 - id: longmont_power_renewables
+  # FIXME Impact goes to negative
   name: 100% renewable electric energy supply by 2030
   description: <p>On January 9th, 2018, City Council passed a <a href="http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000">resolution</a>
     to commit Longmont to 100% renewable electric energy supply by 2030. To model
