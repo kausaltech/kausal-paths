@@ -669,6 +669,7 @@ class UsFloorAreaNode(MultiplicativeNode):
                 df = df.drop(VALUE_COLUMN + '_right')
         else:
             df = self.get_input_dataset_pl(required=True)
+            df = extend_last_historical_value_pl(df, self.get_end_year())
             df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
             df = df.rename({'floor_area': VALUE_COLUMN})
 
