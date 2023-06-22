@@ -19,7 +19,7 @@ dataset_repo:
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
 theme_identifier: us-longmont
-target_year: 2040
+target_year: 2050
 model_end_year: 2050
 reference_year: 2016
 minimum_historical_year: 2016
@@ -506,7 +506,6 @@ emission_sectors:
 
 - id: building_emissions
   name: Building emissions
-  color: '#002F96'
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -524,7 +523,6 @@ emission_sectors:
 - id: avoided_emissions_from_recycling
   name: Avoided emissions from recycling
   category: avoided_waste
-  part_of: waste_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: refridgerant_emissions
@@ -905,6 +903,7 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: t/a
+  color: '#4d9870'
   output_dimensions: [greenhouse_gases, emission_sectors, site]
   input_nodes:
   - id: electricity_use
@@ -948,11 +947,11 @@ nodes:
   name: Emission factor of natural gas
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/thm
+  unit: t/Mthm
   input_datasets:
   - longmont/emission_factor_natural_gas
   input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [energy_carrier, greenhouse_gases]
+  output_dimensions: [greenhouse_gases, energy_carrier]
 
 - id: leakage_from_natural_gas_emissions
   name: Emissions from natural gas leakage
@@ -1749,7 +1748,8 @@ actions:
   unit: '%'
   group: buildings
   historical_values: [[2016, 0.5], [2017, 0.7], [2018, 1.1], [2019, 0.8], [2020, 1.1],
-    [2021, 0.7], [2022, 0.9]]                                                                                     # FIXME do not show on graph
+    [2021, 0.7], [2022, 0.9]]
+    # FIXME do not show on graph
   forecast_values: [[2023, 1.5], [2024, 1.75], [2025, 2], [2026, 2], [2027, 2], [
       2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [2033, 2], [2034, 2],
     [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2], [2040, 2], [2041, 2], [
