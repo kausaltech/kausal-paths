@@ -458,7 +458,7 @@ emission_sectors:
   goals:
   - normalized_by: population
     values:
-    - year: 2040
+    - year: 2050
       value: 6.5
   is_outcome: true
   description: Greenhouse gas emissions
@@ -2156,3 +2156,8 @@ scenarios:
   default: true
   name: Climate Action Recommendations
   all_actions_enabled: true
+  params:
+  - id: replace_natural_gas_residential.enabled
+    value: false
+  - id: replace_natural_gas_commercial.enabled
+    value: false
