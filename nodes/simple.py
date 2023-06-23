@@ -802,7 +802,7 @@ class UsEnergyNode(MultiplicativeNode):
         cf = self.get_input_node(tag='consumption_factor')
         cf = cf.get_output_pl(target_node=self)
 
-        df = floor.paths.join_over_index(cf, how='outer')
+        df = floor.paths.join_over_index(cf, how='left')
         df = df.multiply_cols(['diff', VALUE_COLUMN + '_right'], 'diff')
         df = df.cumulate('diff')
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)

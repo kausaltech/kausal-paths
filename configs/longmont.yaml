@@ -734,7 +734,7 @@ nodes:
     tags: [consumption_factor]
 
 - id: building_natural_gas_use_20000_sf
-  name: Building natural gas savings for large commercial buildings
+  name: Building natural gas use in large commercial buildings
   description: <p>This node shows the building natural gas use when some, but not
     all, actions have been implemented on large commercial buildings. the actual natural gas use with all the actions
     is shown downstream in the node "Building natural gas use". </p><p>Building energy
@@ -756,6 +756,34 @@ nodes:
     tags: [consumption_factor]
   output_nodes:
   - id: building_natural_gas_use
+    from_dimensions:
+    - id: building_energy_class
+      categories: [renovated, compliant]
+      flatten: true
+
+- id: building_electricity_use_20000_sf
+  name: Building electricity use in large commercial buildings
+  description: <p>This node shows the building electricity use when some, but not
+    all, actions have been implemented on large commercial buildings. the actual electricity use with all the actions
+    is shown downstream in the node "Building electricity use". </p><p>Building energy
+    class has a specific use here. "All buildings, baseline" shows the electricity
+    use that would occur in the building stock if none of the upstream actions are
+    implemented. All other classes show the difference to the baseline; in other words
+    energy saving actions take the electricity use to the negative side. If the actions
+    do not affect a particular class, the graph of that class seems empty.</p>
+  type: simple.UsEnergyNode
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [building_energy_class, action, emission_sectors]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_nodes:
+  - id: commercial_square_footage_over_20000_sf
+    tags: [floor_area]
+    metrics: [floor_area]
+  - id: building_electricity_eui
+    tags: [consumption_factor]
+  output_nodes:
+  - id: building_electricity_use
     from_dimensions:
     - id: building_energy_class
       categories: [renovated, compliant]
