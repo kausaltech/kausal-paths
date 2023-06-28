@@ -1,0 +1,62 @@
+framework: gpc
+config: saskatoon  # instance with dimension definitions
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 0f4a82eff514ed174f98ec061bb890ecfc433475
+  dvc_remote: kausal-s3
+# Files also in https://drive.google.com/drive/u/0/folders/12OP5Q9Elxt6hS6pPfVphU5eI9Hf1r0k7
+directories:  # Typically contains a single excel workbook with sheets exported to csv files
+- path: ~/Documents/GHG Inventory - Community - 2018 - GPC/
+  year: 2018
+  files:
+  - id: Emission factors-Table1.csv
+    columns: [skip, activity, emission_factor, greenhouse_gases, GWP, unit1, unit2, unit3,
+      co2, skip, ch4, skip, skip, n2o, skip, skip, cf4, skip, skip, c2f6, skip, skip, hfc_23, skip, skip, hfc_32, skip,
+      skip, hfc_41, skip, skip, hfc_125, skip, skip, hfc_134, skip, skip, hfc_134a, skip, skip, hcf_143, skip, skip,
+      hfc_143a, hfc_152a, skip, skip, hfc227ea, skip, skip, hfc_236fa, skip, skip, hfc_245ca, skip, skip, sf6, skip,
+      skip, nf3, skip, skip, co2_eq, skip, co2_b, year, scale, description, source]
+    dimensions: [activity, emission_factor, greenhouse_gases, GWP]
+    metric_cols: [co2, ch4, n2o, cf4, c2f6, hfc_23, hfc_32, hfc_41, hfc_125, hfc_134, hfc_134a, hcf_143,
+      hfc_143a, hfc_152a, hfc227ea, hfc_236fa, hfc_245ca, sf6, nf3, co2_eq, co2_b]
+    remove_rows_when:
+    - column: GWP
+      value: GWP
+    - column: GWP
+      value: empty
+    combine_cols:
+    - id: unit
+      cols: [unit1, unit2, unit3]
+      drop: true
+    to_dataset: saskatoon/emission_factors
+  - id: I - Stationatry-Table 1.csv
+    columns: [skip, gpc_ref, scope, activity, activity_description, notation, amount, unit,
+      skip, skip, skip, gases, emission_factor, skip, skip, skip, skip, skip, skip, skip,
+      skip, skip, skip, skip, skip, skip, skip, skip, skip, skip, skip, skip,
+      data_quality_activity, data_quality_emission_factor, method_description, source,
+      data_quality_explanation, path_to_calculations]
+    dimensions: [gpc_ref, scope, activity, activity_description]
+    metric_cols: [notation, amount]
+    remove_rows_when:
+    - column: scope
+      value: empty
+    - column: scope
+      value: Scope
+    - column: amount
+      value: empty
+    to_dataset: saskatoon/stationary_energy
+  - id: II - Transport-Table 1.csv
+    columns: [skip, gpc_ref, scope, method, activity, activity_description, notation, amount, unit,
+      skip, skip, skip, gases, emission_factor, skip, skip, skip, skip, skip, skip, skip,
+      skip, skip, skip, skip, skip, skip, skip, skip, skip, skip, skip, skip,
+      data_quality_activity, data_quality_emission_factor, method_description, source,
+      data_quality_explanation]
+    dimensions: [gpc_ref, scope, activity, activity_description]
+    metric_cols: [notation, amount]
+    remove_rows_when:
+    - column: scope
+      value: empty
+    - column: scope
+      value: Scope
+    - column: amount
+      value: empty
+    to_dataset: saskatoon/transport_energy
