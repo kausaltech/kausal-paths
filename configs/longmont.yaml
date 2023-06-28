@@ -1451,13 +1451,13 @@ nodes:
   name: Amount of waste per person
   type: simple.AdditiveNode
   quantity: mass
-  unit: short_ton/inhabitant/a  # FIXME Assumes these to be metric tons!?
+  unit: short_ton/inhabitant/a
   input_datasets:
   - longmont/amount_of_waste
   output_dimensions: [waste]
 
 - id: amount_of_waste
-  name: Amount of waste
+  name: Total amount of waste
   type: simple.MultiplicativeNode
   quantity: mass
   unit: short_ton/a
@@ -1467,7 +1467,6 @@ nodes:
     - id: waste
       flatten: true
   - population
-  - waste_reduction
 
 - id: diversion_rate
   name: Diversion rate
@@ -1477,13 +1476,24 @@ nodes:
   historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [2020,
       31.1], [2021, 35.0]]
 
-- id: waste_reduction
-  name: Waste reduction
+- id: waste_diversion
+  name: Fraction of non-diverted waste
   type: simple.ImprovementNode
   quantity: fraction
   unit: dimensionless
   input_nodes:
   - diversion_rate
+
+- id: amount_of_non_diverted_waste
+  name: Amount of non-diverted waste
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: short_ton/a
+  input_nodes:
+  - id: amount_of_waste
+    tags: [non_additive]
+  - id: waste_diversion
+    tags: [non_additive]
 
 - id: waste_emission_factor
   name: Waste emission factor
@@ -1501,7 +1511,7 @@ nodes:
   input_dimensions: [greenhouse_gases]
   output_dimensions: [greenhouse_gases]
   input_nodes:
-  - id: amount_of_waste
+  - id: amount_of_non_diverted_waste
     tags: [non_additive]
     to_dimensions:
     - id: greenhouse_gases
@@ -1552,7 +1562,7 @@ nodes:
     to_dimensions: []
 
 - id: transmission_loss_change
-  name: Transmission_loss_changes
+  name: Transmission loss changes
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -1895,7 +1905,7 @@ actions:
 
 - id: increase_waste_diversion
   name: Increase waste diversion
-  description: Achieve 85% waste diversion from the landfill by 2035 and 95% by 2050.
+  description: Achieve 85% waste diversion from the landfill by 2050.
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1905,6 +1915,20 @@ actions:
     [2033, 37.3], [2034, 38], [2035, 38.8], [2036, 39.5], [2037, 40.3], [2038, 41],
     [2039, 41.8], [2040, 42.5], [2041, 43.3], [2042, 44], [2043, 44.8], [2044, 45.5],
     [2045, 46.3], [2046, 47], [2047, 47.8], [2048, 48.5], [2049, 49.3], [2050, 50]]
+  output_nodes:
+  - diversion_rate
+
+- id: increase_waste_diversion_additional
+  name: Additional increase in waste diversion
+  description: Achieve additional waste diversion from the landfill from 85% to 95% by 2050.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  group: solid_waste
+  forecast_values: [[2030, 0], [2031, 0.5], [2032, 1],
+    [2033, 1.5], [2034, 2], [2035, 2.5], [2036, 3], [2037, 3.5], [2038, 4],
+    [2039, 4.5], [2040, 5], [2041, 5.5], [2042, 6], [2043, 6.5], [2044, 7],
+    [2045, 7.5], [2046, 8], [2047, 8.5], [2048, 9], [2049, 9.5], [2050, 10]]
   output_nodes:
   - diversion_rate
 
@@ -1944,14 +1968,8 @@ actions:
     - id: emission_sectors
       categories: [residential_energy]
 
-# FIXME Francie: would it be possible to have both an option where someone could see the model
-# go to 0 and then also go to 90% renewable? I believe the projection is the exact same,
-# but instead of dropping to 0 in 2030, the emission factor drops to .034. Also as I
-# mentioned in the meeting, this emission factor includes our participation in the
-# renewable power purchase program so that does not need to be listed separately.
 - id: longmont_power_renewables
-  # FIXME Impact goes to negative
-  name: 100% renewable electric energy supply by 2030
+  name: 90% renewable electric energy supply by 2030
   description: <p>On January 9th, 2018, City Council passed a <a href="http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000">resolution</a>
     to commit Longmont to 100% renewable electric energy supply by 2030. To model
     this impact, the City uses a projection from Platte River Power Authority on the
@@ -1978,9 +1996,9 @@ actions:
           site: longmont_power
       amounts:
       - year: 2023
-        amount: -0.064875
+        amount: -0.058
       - year: 2030
-        amount: -0.064875
+        amount: -0.058
       - year: 2031
         amount: 0
     - target:
@@ -1993,6 +2011,33 @@ actions:
         amount: -0.05875
       - year: 2030
         amount: -0.05875
+      - year: 2031
+        amount: 0
+
+- id: longmont_power_renewables_additional
+  name: Additional 10% renewable electric energy supply by 2030
+  description: This additional action pushes the fraction of renewable electric energy supply from 90% to 100%.
+  type: linear.ReduceAction
+  quantity: emission_factor
+  unit: t/MWh
+  group: electric_grid
+  output_nodes:
+  - electricity_emission_factor
+  params:
+  - id: reduce
+    unit: t/MWh
+    is_customizable: false
+    value:
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: longmont_power
+      amounts:
+      - year: 2023
+        amount: -0.006
+      - year: 2030
+        amount: -0.006
       - year: 2031
         amount: 0
 
