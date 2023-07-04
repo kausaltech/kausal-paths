@@ -446,10 +446,9 @@ emission_sectors:
   input_node_dimension:
     label: Emission sectors
   goals:
-  - normalized_by: population
-    values:
+  - values:
     - year: 2050
-      value: 6.5
+      value: 335869.94
   is_outcome: true
   description: Greenhouse gas emissions
 
@@ -1717,7 +1716,7 @@ actions:
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2021, 0], [2022, 0], [2023, -192.409], [2024, -192.409], [2025,
+  forecast_values: [[2022, 0], [2023, -192.409], [2024, -192.409], [2025,
       -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409],
     [2030, -192.409], [2031, -1243.774], [2032, -1243.774], [2033, -1243.774], [2034,
       -1243.774], [2035, -1243.774], [2036, -1243.774], [2037, -1243.774], [2038,
@@ -1741,7 +1740,7 @@ actions:
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2021, 0], [2022, 0], [2023, -88.707], [2024, -88.707], [2025,
+  forecast_values: [[2022, 0], [2023, -88.707], [2024, -88.707], [2025,
       -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707],
     [2030, -88.707], [2031, -741.592], [2032, -741.592], [2033, -741.592], [2034,
       -741.592], [2035, -741.592], [2036, -741.592], [2037, -741.592], [2038, -741.592],
@@ -1754,6 +1753,79 @@ actions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
   - id: electricity_replacing_natural_gas_commercial
+
+- id: longmont_power_renewables
+  name: 90% renewable electric energy supply by 2030
+  description: <p>On January 9th, 2018, City Council passed a <a href="http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000">resolution</a>
+    to commit Longmont to 100% renewable electric energy supply by 2030. To model
+    this impact, the City uses a projection from Platte River Power Authority on the
+    future emission factors until 2030 and then drops the emission factor to 0 in
+    2030 to reflect achieving the 100% renewable goal.</p><p>According to Platte River
+    Power Authority’s  most recent integrated resource plan, existing technology will
+    only help Platte River reach 90% noncarbon by 2030. Emerging technologies will
+    need to be developed to achieve the 100% noncarbon target.</p>
+  type: linear.ReduceAction
+  quantity: emission_factor
+  unit: t/MWh
+  group: electric_grid
+  output_nodes:
+  - electricity_emission_factor
+  params:
+  - id: reduce
+    unit: t/MWh
+    is_customizable: false
+    value:
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: longmont_power
+      amounts:
+      - year: 2023
+        amount: -0.058
+      - year: 2030
+        amount: -0.058
+      - year: 2031
+        amount: 0
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: various
+      amounts:
+      - year: 2023
+        amount: -0.05875
+      - year: 2030
+        amount: -0.05875
+      - year: 2031
+        amount: 0
+
+- id: longmont_power_renewables_additional
+  name: Additional 10% renewable electric energy supply by 2030
+  description: This additional action pushes the fraction of renewable electric energy supply from 90% to 100%.
+  type: linear.ReduceAction
+  quantity: emission_factor
+  unit: t/MWh
+  group: electric_grid
+  output_nodes:
+  - electricity_emission_factor
+  params:
+  - id: reduce
+    unit: t/MWh
+    is_customizable: false
+    value:
+    - target:
+        node: electricity_emission_factor
+        categories:
+          greenhouse_gases: co2
+          site: longmont_power
+      amounts:
+      - year: 2023
+        amount: -0.006
+      - year: 2030
+        amount: -0.006
+      - year: 2031
+        amount: 0
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
@@ -1857,7 +1929,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transportation
-  forecast_values: [[2021, 0], [2050, 15]]
+  forecast_values: [[2023, 0], [2050, 15]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - modal_share_of_active_transportation
@@ -1904,11 +1976,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: solid_waste
-  forecast_values: [[2022, 3.9], [2023, 7.8], [2024, 11.7], [2025, 15.6], [2026, 19.5],
-    [2027, 23.4], [2028, 27.3], [2029, 31.1], [2030, 35], [2031, 35.8], [2032, 36.5],
-    [2033, 37.3], [2034, 38], [2035, 38.8], [2036, 39.5], [2037, 40.3], [2038, 41],
-    [2039, 41.8], [2040, 42.5], [2041, 43.3], [2042, 44], [2043, 44.8], [2044, 45.5],
-    [2045, 46.3], [2046, 47], [2047, 47.8], [2048, 48.5], [2049, 49.3], [2050, 50]]
+  forecast_values: [[2022, 5.2], [2023, 9.6], [2024, 13.9], [2025, 18.3], [2026, 22.6], [2027, 27], [2028, 31.3], [2029, 35.7], [2030, 40], [2031, 40.5], [2032, 41], [2033, 41.5], [2034, 42], [2035, 42.5], [2036, 43], [2037, 43.5], [2038, 44], [2039, 44.5], [2040, 45], [2041, 45.5], [2042, 46], [2043, 46.5], [2044, 47], [2045, 47.5], [2046, 48], [2047, 48.5], [2048, 49], [2049, 49.5], [2050, 50]]
   output_nodes:
   - diversion_rate
 
@@ -1961,79 +2029,6 @@ actions:
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
-
-- id: longmont_power_renewables
-  name: 90% renewable electric energy supply by 2030
-  description: <p>On January 9th, 2018, City Council passed a <a href="http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000">resolution</a>
-    to commit Longmont to 100% renewable electric energy supply by 2030. To model
-    this impact, the City uses a projection from Platte River Power Authority on the
-    future emission factors until 2030 and then drops the emission factor to 0 in
-    2030 to reflect achieving the 100% renewable goal.</p><p>According to Platte River
-    Power Authority’s  most recent integrated resource plan, existing technology will
-    only help Platte River reach 90% noncarbon by 2030. Emerging technologies will
-    need to be developed to achieve the 100% noncarbon target.</p>
-  type: linear.ReduceAction
-  quantity: emission_factor
-  unit: t/MWh
-  group: electric_grid
-  output_nodes:
-  - electricity_emission_factor
-  params:
-  - id: reduce
-    unit: t/MWh
-    is_customizable: false
-    value:
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-          site: longmont_power
-      amounts:
-      - year: 2023
-        amount: -0.058
-      - year: 2030
-        amount: -0.058
-      - year: 2031
-        amount: 0
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-          site: various
-      amounts:
-      - year: 2023
-        amount: -0.05875
-      - year: 2030
-        amount: -0.05875
-      - year: 2031
-        amount: 0
-
-- id: longmont_power_renewables_additional
-  name: Additional 10% renewable electric energy supply by 2030
-  description: This additional action pushes the fraction of renewable electric energy supply from 90% to 100%.
-  type: linear.ReduceAction
-  quantity: emission_factor
-  unit: t/MWh
-  group: electric_grid
-  output_nodes:
-  - electricity_emission_factor
-  params:
-  - id: reduce
-    unit: t/MWh
-    is_customizable: false
-    value:
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-          site: longmont_power
-      amounts:
-      - year: 2023
-        amount: -0.006
-      - year: 2030
-        amount: -0.006
-      - year: 2031
-        amount: 0
 
 - id: mpg_trend
   name: Miles per gallon increasing trend
@@ -2189,9 +2184,9 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Baseline
+  name: Business as Usual
 
 - id: default
   default: true
-  name: Climate Action Recommendations
+  name: Climate Action Initiatives
   all_actions_enabled: true
