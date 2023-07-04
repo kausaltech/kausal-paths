@@ -29,7 +29,7 @@ normalizations:
   - id: mileage
     unit: miles/cap/a
 features:
-  baseline_visible_in_graphs: false
+  baseline_visible_in_graphs: true
 
 action_groups:
 - id: buildings
