@@ -113,6 +113,9 @@ class HsyNode(Node):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
                 df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+
+        df[FORECAST_COLUMN] = False
+
         return df
 
 

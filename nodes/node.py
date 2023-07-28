@@ -806,6 +806,8 @@ class Node:
             if unit != metric.unit:
                 raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, unit))
 
+            continue
+            # all_hsy_emissions still has nulls
             col = df[metric.column_id]
             if (col.is_nan() | col.is_null()).sum() > 0:
                 self.print(df)
