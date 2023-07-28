@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 12fd36f38ddc556a8f6efa77d7dfa53fcfad10d3
+  commit: 740ed36dcf4b45f656cbfc4815a705978fc1f54a
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -12,8 +12,8 @@ owner_en: City of Zürich
 owner_de: Stadt Zürich
 theme_identifier: zurich
 target_year: 2040
-model_end_year: 2050
-reference_year: 1990
+model_end_year: 2040
+# reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2020
 emission_unit: kt/a
@@ -613,6 +613,7 @@ emission_sectors:
 - id: net_emissions
   name_en: Greenhouse gas emissions
   name_de: Treibhausgasemissionen
+  minimum_year: 2010
   goals:
   - normalized_by: population
     label_de: Direkte + negative Emissionen
@@ -2273,44 +2274,44 @@ actions:
         source_amount: 0
         dest_amounts: [70, 30, 50]
 
-- id: increase_other_negative_emissions
-  name_de: Zusätzliche, zukünftige Massnahmen zur Erhöhung der negativen Emissionen
-  name_en: Increase negative emissions
-  group: other
-  type: linear.ReduceAction
-  quantity: emissions
-  description_de: 'Die Stadt Zürich prüft weitere Massnahmen, die dazu beitragen,
-    die negativen Emissionen zu erhöhen, um damit die verbleibenden unvermeidbaren
-    direkten Emissionen bis 2040 auf netto null auszugleichen.'
-  output_dimensions: [emission_scope]
-  output_nodes:
-  - id: negative_emissions
-  unit: kt/a
-  params:
-  - id: reduce
-    unit: kt/a
-    is_customizable: false
-    value:
-    - target:
-        node:
-        categories:
-          emission_scope: negative_emissions
-      amounts:
-      - year: 2023
-        amount: 0
-      - year: 2030
-        amount: 0
-      - year: 2035
-        amount: -23
-      - year: 2040
-        amount: 0
-  # - id: multiplier
-  #   unit: '%'
-  #   min_value: 0
-  #   max_value: 200
-  #   value: 100
-  #   step: 5
-  #   is_customizable: true
+# - id: increase_other_negative_emissions
+#   name_de: Zusätzliche, zukünftige Massnahmen zur Erhöhung der negativen Emissionen
+#   name_en: Increase negative emissions
+#   group: other
+#   type: linear.ReduceAction
+#   quantity: emissions
+#   description_de: Die Stadt Zürich prüft weitere Massnahmen, die dazu beitragen, die
+#     negativen Emissionen zu erhöhen, um damit die verbleibenden unvermeidbaren direkten
+#     Emissionen bis 2040 auf netto null auszugleichen.
+#   output_dimensions: [emission_scope]
+#   output_nodes:
+#   - id: negative_emissions
+#   unit: kt/a
+#   params:
+#   - id: reduce
+#     unit: kt/a
+#     is_customizable: false
+#     value:
+#     - target:
+#         node:
+#         categories:
+#           emission_scope: negative_emissions
+#       amounts:
+#       - year: 2023
+#         amount: 0
+#       - year: 2030
+#         amount: 0
+#       - year: 2035
+#         amount: -23
+#       - year: 2040
+#         amount: 0
+#   # - id: multiplier
+#   #   unit: '%'
+#   #   min_value: 0
+#   #   max_value: 200
+#   #   value: 100
+#   #   step: 5
+#   #   is_customizable: true
 
 pages:
 - id: home
@@ -2325,8 +2326,8 @@ pages:
     modeling platform for the Net Zero goal. All information on this website is to
     be considered incomplete and experimental.
   lead_paragraph_de: Dies ist eine Testversion der interaktiven Szenariomodellierungsplattform
-    zum Klimaschutzziel Netto-Null 2040. Alle Informationen auf dieser Website sind als
-    unvollständig und provisorisch zu verstehen.
+    zum Klimaschutzziel Netto-Null 2040. Alle Informationen auf dieser Website sind
+    als unvollständig und provisorisch zu verstehen.
 
 scenarios:
 - id: baseline
