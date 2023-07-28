@@ -105,7 +105,7 @@ def instance(context, default_scenario):
     from pages import global_instance
     global_instance.instance = instance
     from nodes import models
-    setattr(models.instance_cache, instance.id, instance)
+    models.instance_cache[instance.id] = instance
     return instance
 
 

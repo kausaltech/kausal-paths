@@ -1,5 +1,5 @@
 import logging
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import Any, Optional
 
 import orjson
@@ -167,7 +167,11 @@ class PathsExecutionContext(ExecutionContext):
         self.context_value.instance = instance
         context = instance.context
 
-        with instance.lock, context.dataset_repo.lock.lock:
+        with ExitStack() as stack:
+            stack.enter_context(instance.lock)
+            if context.dataset_repo is not None:
+                stack.enter_context(context.dataset_repo.lock.lock)
+
             context.perf_context.start()
             context.cache.start_run()
             context.generate_baseline_values()
@@ -183,8 +187,13 @@ class PathsExecutionContext(ExecutionContext):
     def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:
         self.activate_language(operation)
 
-        with self.instance_context(operation):
-            ret = super().execute_operation(operation, root_value)
+        try:
+            with self.instance_context(operation):
+                ret = super().execute_operation(operation, root_value)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            raise
         return ret
 
 

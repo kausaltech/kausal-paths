@@ -276,7 +276,8 @@ class Context:
         pc = PerfCounter('generate baseline values')
         for node in self.nodes.values():
             node.generate_baseline_values()
-        self.instance.logger.info('Baseline values generated in %.1f ms' % pc.measure())
+        if self.instance is not None:
+            self.instance.logger.info('Baseline values generated in %.1f ms' % pc.measure())
         self.activate_scenario(old_scenario)
         self.baseline_values_generated = True
 
