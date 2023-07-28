@@ -659,10 +659,6 @@ class UsBuildingAction(BuildingEnergySavingAction):
             if not self.is_enabled():
                 df = df.with_columns(pl.lit(0.0).alias('improvement'))
             df = df.with_columns(pl.lit(True).alias(FORECAST_COLUMN))
-            self.print(df)
-            print(self.output_metrics)
-            print(df.get_meta())
-
             return df
 
         # FIXME Combine approaches so that parameters can replace parts of the dataset.
