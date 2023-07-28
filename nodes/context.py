@@ -300,8 +300,11 @@ class Context:
         self.dataset_repo.set_target_commit(commit_id)
         self.instance.update_dataset_repo_commit(commit_id)
 
-    def print_graph(self, include_datasets=False):
+    def print_graph(self, include_datasets: bool = False):
         import inspect
+
+        visited_nodes: set[Node] = set()
+        node_class_cache: dict[type, str] = {}
 
         def make_node_tree(node: Node, tree: Tree | None = None) -> Tree:
             node_color = 'yellow'
@@ -311,13 +314,19 @@ class Context:
                 node_color = 'magenta'
 
             node_icon = node.get_icon() or ''
+            if node_icon:
+                node_icon += ' '
 
             node_class = type(node)
-            node_module = node_class.__module__
-            module_file = inspect.getabsfile(node_class)
-            line_nr = inspect.getsourcelines(node_class)[1]
-            link = 'file://%s#%d' % (module_file, line_nr)
-            node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
+            node_class_str = node_class_cache.get(node_class)
+            if node_class_str is None:
+                node_module = node_class.__module__
+                module_file = inspect.getabsfile(node_class)
+                line_nr = inspect.getsourcelines(node_class)[1]
+                link = 'file://%s#%d' % (module_file, line_nr)
+                node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
+                node_class_cache[node_class] = node_class_str
+
             metrics = ', '.join([f"{m.quantity} [#a63fa4]{m.unit}[orchid]" for m in node.output_metrics.values()])
             unit_quantity = f'({metrics})'
             node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} [orchid]{unit_quantity} {node_class_str}'
@@ -334,8 +343,10 @@ class Context:
                 branch = Tree(node_str)
             else:
                 branch = tree.add(node_str)
-            for in_node in node.input_nodes:
-                make_node_tree(in_node, branch)
+            if node not in visited_nodes:
+                for in_node in node.input_nodes:
+                    make_node_tree(in_node, branch)
+                visited_nodes.add(node)
             return branch
 
         tree = Tree('Nodes')
