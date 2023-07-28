@@ -8,6 +8,9 @@ from django.utils.translation import gettext_lazy, gettext, get_language  # noqa
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 
+from pydantic_core import CoreSchema, core_schema
+from pydantic import GetCoreSchemaHandler, TypeAdapter
+
 
 if typing.TYPE_CHECKING:
     from django.db.models import Model
@@ -117,6 +120,28 @@ class TranslatedString:
                     raise ValueError('unsupported language: %s' % lang)
         return cls(**v)
 
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: typing.Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        def validate(v):
+            return cls.validate(v)
+        from_str_schema = core_schema.chain_schema(
+            [
+                core_schema.str_schema(),
+                core_schema.no_info_plain_validator_function(validate),
+            ]
+        )
+        return core_schema.json_or_python_schema(
+            json_schema=from_str_schema,
+            python_schema=core_schema.union_schema([
+                core_schema.is_instance_schema(cls),
+                from_str_schema,
+            ]),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda instance: str(instance),
+            )
+        )
 
 def get_modeltrans_attrs_from_str(
     s: str | TranslatedString, field_name: str, default_lang: str
@@ -158,3 +183,4 @@ def get_translated_string_from_modeltrans(
 
 
 I18nString = typing.Union[TranslatedString, str, 'StrPromise']
+I18nStringInstance = typing.Union[TranslatedString, str]

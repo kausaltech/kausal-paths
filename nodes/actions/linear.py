@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Iterable, Any, List
 
-from pydantic import BaseModel, root_validator, Field, validator
+from pydantic import BaseModel, RootModel, root_validator, Field, validator
 import pandas as pd
 import polars as pl
 
@@ -9,6 +9,7 @@ from nodes.constants import (
     FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
     VALUE_COLUMN, YEAR_COLUMN
 )
+from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.units import Unit
 from params.param import NumberParameter, ValidationError
@@ -24,7 +25,7 @@ class ReduceAmount(BaseModel):
 
 
 class ReduceTarget(BaseModel):
-    node: str | int | None
+    node: str | int | None = None
     # dimension_id -> category_id
     categories: dict[str, str] = Field(default_factory=dict)
 
@@ -70,8 +71,8 @@ class ReduceFlow(BaseModel):
         return index
 
 
-class ReduceParameterValue(BaseModel):
-    __root__: List[ReduceFlow]
+class ReduceParameterValue(RootModel):
+    root: List[ReduceFlow]
 
 
 @dataclass
@@ -112,8 +113,11 @@ class ReduceAction(ActionNode):
         df = pl.DataFrame(data, schema=cols, orient='row')
 
         years = pl.DataFrame(range(amounts[0].year, self.get_end_year() + 1), schema=[YEAR_COLUMN])
-        df = pl.concat([df, years], how='diagonal').sort(YEAR_COLUMN)
-        df = df.groupby(YEAR_COLUMN).agg([pl.sum(col) for col in ('Target',)]).sort(YEAR_COLUMN)
+        df = years.join(df, how='left', on=YEAR_COLUMN)
+        dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
+        if len(dupes):
+            raise NodeError(self, "Duplicate rows")
+        df = df.groupby(YEAR_COLUMN).agg(pl.first('Target')).sort(YEAR_COLUMN)
         df = df.interpolate().fill_null(0)
 
         value_cols = [col for col in df.columns if col != YEAR_COLUMN]
@@ -174,7 +178,7 @@ class ReduceAction(ActionNode):
         assert isinstance(value, ReduceParameterValue)
 
         dfs: list[ppl.PathsDataFrame] = []
-        for idx, entry in enumerate(value.__root__):
+        for idx, entry in enumerate(value.root):
             df = self._compute_one(str(idx), entry, po.get_unit())
             dfs.append(df)
 

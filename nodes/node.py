@@ -21,7 +21,7 @@ from rich import print as pprint
 from common import polars as ppl
 from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
 from common.perf import PerfCounter
-from common.types import Identifier, MixedCaseIdentifier
+from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
 from nodes.constants import (
     BASELINE_VALUE_COLUMN,
@@ -64,7 +64,7 @@ class NodeMetric:
         label: I18nString | None = None, column_id: str | None = None,
     ):
         if id is not None:
-            self.id = MixedCaseIdentifier.validate(id)
+            self.id = validate_identifier(id, mixed=True)
         if isinstance(unit, Unit):
             self.unit = unit
         self.default_unit = unit
@@ -72,7 +72,7 @@ class NodeMetric:
         self.quantity = quantity
         self.label = label
         if column_id is not None:
-            self.column_id = MixedCaseIdentifier.validate(column_id)
+            self.column_id = validate_identifier(column_id, mixed=True)
         else:
             self.column_id = None  # type: ignore
 
@@ -218,7 +218,7 @@ class Node:
         if self.output_metrics:
             for met_id, met in self.output_metrics.items():
                 met.populate_unit(self.context)
-                met.id = MixedCaseIdentifier.validate(met_id)
+                met.id = validate_identifier(met_id, mixed=True)
 
             if len(self.output_metrics) == 1:
                 # Single-metric node
@@ -294,7 +294,7 @@ class Node:
         input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
     ):
-        self.id = Identifier.validate(id)
+        self.id = validate_identifier(id)
         self.context = context
         self._init_metrics(unit, quantity)
         if input_datasets is None:
@@ -788,6 +788,8 @@ class Node:
         if FORECAST_COLUMN in df.columns:
             if df[FORECAST_COLUMN].dtype != pl.Boolean:
                 raise NodeError(self, "Forecast column is not a boolean")
+        else:
+            raise NodeError(self, "Forecast column missing")
 
         for metric in self.output_metrics.values():
             # FIXME

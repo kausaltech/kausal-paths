@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-instance_cache = threading.local()
+instance_cache_lock = threading.Lock()
+instance_cache: dict[str, Instance] = {}
 
 
 def get_instance_identifier_from_wildcard_domain(hostname: str) -> Union[Tuple[str, str], Tuple[None, None]]:
@@ -125,13 +126,13 @@ class InstanceConfig(models.Model):
             logger.info('Updating instance.primary_language to %s' % instance.default_language)
             self.primary_language = instance.default_language
         other_langs = set(instance.supported_languages) - set([self.primary_language])
-        if set(self.other_languages) != other_langs:
+        if set(self.other_languages or []) != other_langs:
             logger.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
     def _get_instance(self) -> Instance:
-        if hasattr(instance_cache, self.identifier):
-            instance: Instance = getattr(instance_cache, self.identifier)
+        if self.identifier in instance_cache:
+            instance: Instance = instance_cache[self.identifier]
             if not self.nodes.exists():
                 return instance
             latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
@@ -145,13 +146,14 @@ class InstanceConfig(models.Model):
         instance = loader.instance
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
-        setattr(instance_cache, self.identifier, instance)
+        instance_cache[self.identifier] = instance
         return instance
 
     def get_instance(self, generate_baseline: bool = False) -> Instance:
-        instance = self._get_instance()
-        if generate_baseline:
-            instance.context.generate_baseline_values()
+        with instance_cache_lock:
+            instance = self._get_instance()
+            if generate_baseline:
+                instance.context.generate_baseline_values()
         return instance
 
     def get_name(self) -> str:

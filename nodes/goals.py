@@ -1,10 +1,10 @@
 import typing
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, PrivateAttr, root_validator
+from pydantic import BaseModel, RootModel, Field, PrivateAttr, model_validator
 import polars as pl
 from common import polars as ppl
-from common.i18n import I18nString, TranslatedString
+from common.i18n import I18nString, I18nStringInstance, TranslatedString
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.dimensions import validate_translated_string
 from nodes.exceptions import NodeError
@@ -35,7 +35,7 @@ class NodeGoalsDimension(BaseModel):
 
 class NodeGoalsEntry(BaseModel):
     values: list[GoalValue]
-    label: I18nString | None = None
+    label: I18nStringInstance | None = None
     normalized_by: str | None = None
     dimensions: dict[str, NodeGoalsDimension] = Field(default_factory=dict)
     linear_interpolation: bool = False
@@ -174,19 +174,19 @@ class NodeGoalsEntry(BaseModel):
         ]
         return out
 
-    @root_validator(pre=True)
+    @model_validator(mode='before')
     @classmethod
     def validate_translated_fields(cls, val: dict):
-        for fn, f in cls.__fields__.items():
-            t = f.type_
+        for fn, f in cls.model_fields.items():
+            t = f.annotation
             if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
                 val[fn] = validate_translated_string(cls, fn, val)
         return val
 
 
 
-class NodeGoals(BaseModel):
-    __root__: typing.List[NodeGoalsEntry]
+class NodeGoals(RootModel):
+    root: typing.List[NodeGoalsEntry]
     _node: 'Node' = PrivateAttr()
 
     def __init__(self, **data) -> None:
@@ -195,31 +195,29 @@ class NodeGoals(BaseModel):
 
     def set_node(self, node: 'Node'):
         self._node = node
-        for ge in self.__root__:
+        for ge in self.root:
             ge.set_node(node)
 
-    @root_validator
-    @classmethod
-    def validate_unique(cls, data: dict):
-        if not data:
-            return data
-        entries: list[NodeGoalsEntry] = data['__root__']
+
+    @model_validator(mode='after')
+    def validate_unique(self):
+        entries: list[NodeGoalsEntry] = self.root
         paths = set()
         for entry in entries:
             path = entry.dim_to_path()
             if path in paths:
                 raise ValueError('Duplicate dimensions in goals')
             paths.add(path)
-        return data
+        return self
 
     def get_dimensionless(self) -> NodeGoalsEntry | None:
-        vals = list(filter(lambda x: not x.dimensions, self.__root__))
+        vals = list(filter(lambda x: not x.dimensions, self.root))
         if not vals:
             return None
         return vals[0]
 
     def get_exact_match(self, dimension_id: str, groups: list[str] = [], categories: list[str] = []) -> NodeGoalsEntry | None:
-        for e in self.__root__:
+        for e in self.root:
             dim = e.dimensions.get(dimension_id)
             if not dim:
                 continue

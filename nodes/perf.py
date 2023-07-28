@@ -8,6 +8,7 @@ import sentry_sdk
 
 if typing.TYPE_CHECKING:
     from .node import Node
+    from .context import Context
 
 
 @dataclass
@@ -54,9 +55,11 @@ class PerfContext:
     stats_by_class: dict[typing.Type, PerfStats]
     node_stack: list[PerfStackEntry]
     enabled: bool = False
+    context: 'Context'
 
-    def __init__(self):
+    def __init__(self, context: 'Context'):
         self.node_stack = []
+        self.context = context
 
     def start(self):
         self.enabled = True
@@ -68,7 +71,8 @@ class PerfContext:
         old_stack = self.node_stack
         self.node_stack = []
         if old_stack:
-            raise Exception("Node stack was not empty")
+            print(old_stack)
+            self.context.instance.logger.error("Node stack was not empty")
 
     def node_start(self, node: 'Node'):
         if not self.enabled:

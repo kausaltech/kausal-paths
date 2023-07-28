@@ -59,6 +59,9 @@ class Metric:
             return None
 
         df = node.get_output_pl()
+        if FORECAST_COLUMN not in df:
+            node.logger.error("Output does not have the Forecast column")
+            return None
 
         if goal_id:
             goal = node.context.instance.get_goals(goal_id)

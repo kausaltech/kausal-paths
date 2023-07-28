@@ -2,7 +2,7 @@ psycopg2-binary
 pandas<2.0
 python-dotenv
 wagtail>=5.0rc1
-django
+django<4.2
 django-environ
 django-cors-headers
 sentry_sdk
@@ -11,7 +11,7 @@ django-extensions
 dvc-pandas
 ipython
 numba>=0.57.0rc1
-pint
+pint<0.21
 pint-pandas
 colored
 factory-boy
@@ -22,11 +22,9 @@ redis
 pint-pandas
 https://github.com/kausaltech/django-modeltrans/archive/27bd15f13f091e9ac388241bfce902da98074a55.zip
 graphene-django>=3.0
-https://github.com/torchbox/wagtail-grapple/archive/7c3212888417d59ec46c47b163da6a141ac20f10.zip
 https://github.com/kausaltech/graphene-django-optimizer/archive/f18d827d0d58c1148288b6b886c167dd2fc1931a.zip
 wagtail-localize
 wagtail-grapple
-#https://github.com/kausaltech/wagtail-grapple/archive/be8e27bee0d7eae6a943ca360d8b4211bfded4c4.zip
 graphql-core>=3.2.0
 graphql-relay>=3.2.0
 rich

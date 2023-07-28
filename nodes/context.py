@@ -13,6 +13,7 @@ from rich.tree import Tree
 from common import polars_ext  # noqa
 from common import polars as pl  # noqa
 from common.cache import Cache
+from common.perf import PerfCounter
 from params import Parameter
 from params.discover import discover_parameter_types
 from params.storage import SettingStorage
@@ -71,7 +72,7 @@ class Context:
         # Avoid circular import
         self.Action = ActionNode
 
-        self.perf_context = PerfContext()
+        self.perf_context = PerfContext(self)
         self.nodes = {}
         self.datasets = {}
         self.dvc_datasets = {}
@@ -272,8 +273,10 @@ class Context:
 
         scenario = self.scenarios['baseline']
         self.activate_scenario(scenario)
+        pc = PerfCounter('generate baseline values')
         for node in self.nodes.values():
             node.generate_baseline_values()
+        self.instance.logger.info('Baseline values generated in %.1f ms' % pc.measure())
         self.activate_scenario(old_scenario)
         self.baseline_values_generated = True
 

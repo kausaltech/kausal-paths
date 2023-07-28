@@ -422,7 +422,7 @@ LOG_GRAPHQL_QUERIES = env('LOG_GRAPHQL_QUERIES')
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     import warnings
-    #from wagtail.utils.deprecation import RemovedInWagtail50Warning
+    from wagtail.utils.deprecation import RemovedInWagtail60Warning
 
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
@@ -431,7 +431,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             level=level,
         )
 
-    #warnings.filterwarnings(action='ignore', category=RemovedInWagtail50Warning)
+    warnings.filterwarnings(action='ignore', category=RemovedInWagtail60Warning)
 
     LOGGING = {
         'version': 1,
@@ -486,6 +486,8 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'matplotlib': level('INFO'),
             'numba': level('INFO'),
             'botocore': level('INFO'),
+            'filelock': level('INFO'),
+            'sentry_sdk.errors': level('INFO'),
             '': level('DEBUG'),
         }
     }

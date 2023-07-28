@@ -82,7 +82,7 @@ class PathsExt:
         df = df.with_columns([
             pl.concat_list([
                 format_col(dim) for dim in dim_ids 
-            ]).arr.join('/').alias('_dims')
+            ]).list.join('/').alias('_dims')
         ])
         mdf = None
         units = {}
@@ -110,6 +110,7 @@ class PathsExt:
                     tdf = tdf.drop(columns=FORECAST_COLUMN)
                 mdf = mdf.join(tdf, on=YEAR_COLUMN)
         assert mdf is not None
+        mdf = mdf.sort(YEAR_COLUMN)
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,
             meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
@@ -147,13 +148,13 @@ class PathsExt:
         tdf = df.melt(id_vars=id_cols).with_columns([
             pl.col('variable').str.split('@').alias('_tmp')
         ]).with_columns([
-            pl.col('_tmp').arr.first().alias('Metric'),
-            pl.col('_tmp').arr.last().str.split('/').alias('_dims'),
+            pl.col('_tmp').list.first().alias('Metric'),
+            pl.col('_tmp').list.last().str.split('/').alias('_dims'),
         ])
         df = ppl.to_ppdf(tdf)
         first = df['_dims'][0]
         dim_ids = [x.split(':')[0] for x in first]
-        dim_cols = [pl.col('_dims').arr.get(idx).str.split(':').arr.get(1).alias(col) for idx, col in enumerate(dim_ids)]
+        dim_cols = [pl.col('_dims').list.get(idx).str.split(':').list.get(1).alias(col) for idx, col in enumerate(dim_ids)]
         df = df.with_columns(dim_cols)
         df = df.pivot(values='value', index=[*id_cols, *dim_ids], columns='Metric')
         df = df.with_columns([pl.col(dim).cast(pl.Categorical) for dim in dim_ids])

@@ -5,6 +5,7 @@ import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import threading
 from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
@@ -61,6 +62,7 @@ class Instance:
 
     modified_at: Optional[datetime] = field(init=False)
     logger: logging.Logger = field(init=False)
+    lock: threading.Lock = field(init=False)
 
     @property
     def target_year(self) -> int:
@@ -73,6 +75,7 @@ class Instance:
     def __post_init__(self):
         self.logger = logging.getLogger('instance.%s' % self.id)
         self.modified_at = None
+        self.lock = threading.Lock()
         if isinstance(self.features, dict):
             self.features = InstanceFeatures(**self.features)
 
@@ -111,7 +114,7 @@ class Instance:
         for node in outcome_nodes:
             if not node.goals:
                 continue
-            for ge in node.goals.__root__:
+            for ge in node.goals.root:
                 if not ge.is_main_goal:
                     continue
                 if goal_id is not None:
@@ -375,7 +378,7 @@ class InstanceLoader:
 
         for dc in self.config.get('dimensions', []):
             try:
-                dim = Dimension.parse_obj(dc)
+                dim = Dimension.model_validate(dc)
             except Exception:
                 print(dc)
                 raise
@@ -516,6 +519,7 @@ class InstanceLoader:
             )
         )
 
+    # deprecated
     def load_datasets(self, datasets):
         for ds in datasets:
             self.context.add_dataset(ds)
@@ -645,7 +649,9 @@ class InstanceLoader:
         self.context.instance = self.instance
         self.instance.yaml_file_path = yaml_file_path
 
-        self.load_datasets(self.config.get('datasets', []))
+        # Deprecated
+        # self.load_datasets(self.config.get('datasets', []))
+
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}
         self._output_nodes = {}

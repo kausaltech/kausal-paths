@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import re
 import hashlib
 import typing
 from typing import Any, List, OrderedDict, Type
 import polars as pl
 
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator, model_validator
 
-from common.i18n import I18nString, TranslatedString, get_default_language
+from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_default_language
 from common.types import Identifier
 
 if typing.TYPE_CHECKING:
@@ -15,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 class DimensionCategoryGroup(BaseModel):
     id: Identifier
-    label: I18nString
+    label: I18nStringInstance
     color: str | None = None
     order: int | None = None
     id_match: str | None = None
@@ -32,7 +34,7 @@ class DimensionCategoryGroup(BaseModel):
 
 class DimensionCategory(BaseModel):
     id: Identifier
-    label: I18nString
+    label: I18nStringInstance
     color: str | None = None
     group: str | None = None
     order: int | None = None
@@ -49,11 +51,11 @@ class DimensionCategory(BaseModel):
             labels.update(self.aliases)
         return labels
 
-    @root_validator(pre=True)
+    @model_validator(mode='before')
     @classmethod
     def validate_translated_fields(cls, val: dict):
-        for fn, f in cls.__fields__.items():
-            t = f.type_
+        for fn, f in cls.model_fields.items():
+            t = f.annotation
             if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
                 val[fn] = validate_translated_string(cls, fn, val)
         return val
@@ -61,7 +63,7 @@ class DimensionCategory(BaseModel):
 
 class Dimension(BaseModel):
     id: Identifier
-    label: I18nString
+    label: I18nStringInstance
     groups: List[DimensionCategoryGroup] = Field(default_factory=list)
     categories: List[DimensionCategory] = Field(default_factory=list)
     is_internal: bool = False
@@ -182,15 +184,15 @@ class Dimension(BaseModel):
     @root_validator(pre=True)
     @classmethod
     def validate_translated_fields(cls, val: dict):
-        for fn, f in cls.__fields__.items():
-            t = f.type_
+        for fn, f in cls.model_fields.items():
+            t = f.annotation
             if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
                 val[fn] = validate_translated_string(cls, fn, val)
         return val
 
 
 def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict) -> TranslatedString | None:
-    f = cls.__fields__[field_name]
+    f = cls.model_fields[field_name]
     field_val = obj.get(field_name)
     langs: dict[str, str] = {}
     default_language = get_default_language()
@@ -225,7 +227,7 @@ def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict)
         langs[lang] = val
 
     if not langs:
-        if not f.required:
+        if not f.is_required():
             return None
         else:
             raise KeyError('%s: Value missing' % field_name)

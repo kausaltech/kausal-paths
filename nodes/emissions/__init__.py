@@ -4,7 +4,7 @@ import polars as pl
 from nodes import Node
 from common import polars as ppl
 from nodes.calc import AR5GWP100
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 
 class GlobalWarmingPotential(Node):
@@ -17,7 +17,10 @@ class GlobalWarmingPotential(Node):
         ghg_dim = list(self.output_dimensions.values())[0]
         idx = pd.MultiIndex.from_product([years, ghg_dim.get_cat_ids()]).to_list()
         df = pl.DataFrame(idx, orient='row', schema=[YEAR_COLUMN, ghg_dim.id])
-        df = df.with_columns(pl.col(ghg_dim.id).map_dict(AR5GWP100).alias(VALUE_COLUMN))
+        df = df.with_columns([
+            pl.col(ghg_dim.id).map_dict(AR5GWP100).alias(VALUE_COLUMN),
+            pl.lit(False).alias(FORECAST_COLUMN)
+        ])
         meta = ppl.DataFrameMeta(
             units={VALUE_COLUMN: self.context.unit_registry.parse_units('dimensionless')},
             primary_keys=[YEAR_COLUMN, ghg_dim.id]

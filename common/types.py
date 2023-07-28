@@ -1,26 +1,27 @@
 from __future__ import annotations
 
-from typing import TypeAlias, Union
-from pydantic import ConstrainedStr, errors
+from typing import Literal, TypeAlias, Union, Annotated, overload
+from pydantic import errors, ValidationError, PositiveInt, Field, TypeAdapter
+from pydantic.types import constr
 
 
-class MixedCaseIdentifier(ConstrainedStr):
-    regex = r'^[A-Za-z0-9_]+$'
-
-    @classmethod
-    def validate(cls, value: str) -> MixedCaseIdentifier:
-        try:
-            return super().validate(value)  # type: ignore
-        except Exception as e:
-            raise ValueError("string is not a valid identifier (only ASCII letters and '_' allowed)")
+MixedCaseIdentifier = Annotated[str, Field(pattern=r'^[A-Za-z0-9_]+$')]
+Identifier = Annotated[str, Field(pattern=r'^[a-z0-9_]+$')]
 
 
-class Identifier(ConstrainedStr):
-    regex = r'^[a-z0-9_]+$'
+MixedCaseIdentifierAdapter = TypeAdapter(MixedCaseIdentifier)
+IdentifierAdapter = TypeAdapter(Identifier)
 
-    @classmethod
-    def validate(cls, value: str) -> Identifier:
-        try:
-            return super().validate(value)  # type: ignore
-        except Exception as e:
-            raise ValueError("string '%s' is not a valid identifier (only lower case and '_' allowed)" % value)
+
+@overload
+def validate_identifier(s: str, mixed: Literal[True]) -> MixedCaseIdentifier: ...
+
+@overload
+def validate_identifier(s: str, mixed: Literal[False] = ...) -> Identifier: ...
+
+
+def validate_identifier(s: str, mixed: bool = False):
+    if mixed:
+        return MixedCaseIdentifierAdapter.validate_python(s)
+    else:
+        return IdentifierAdapter.validate_python(s)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Iterable, Any, List
 
-from pydantic import BaseModel, root_validator, Field, validator
+from pydantic import BaseModel, RootModel, model_validator, Field, validator
 import pandas as pd
 import polars as pl
 
@@ -20,7 +20,7 @@ from .action import ActionNode
 
 
 class ShiftTarget(BaseModel):
-    node: str | int | None
+    node: str | int | None = None
     # dimension_id -> category_id
     categories: dict[str, str] = Field(default_factory=dict)
 
@@ -42,8 +42,8 @@ class ShiftEntry(BaseModel):
             raise ValueError("Must supply values for at least two years")
         return v
 
-    @root_validator
-    def dimensions_must_match(cls, obj: dict):
+    @model_validator(mode='after')
+    def dimensions_must_match(self):
         existing_dims: set = set()
         def validate_target(target: ShiftTarget):
             dims = set(target.categories.keys())
@@ -53,13 +53,10 @@ class ShiftEntry(BaseModel):
             if dims != existing_dims:
                 raise ValueError("Dimensions for yearly values for each target be equal")
 
-        if 'source' not in obj or 'dest' not in obj:
-            return obj
-
-        validate_target(obj['source'])
-        for dest in obj['dests']:
+        validate_target(self.source)
+        for dest in self.dests:
             validate_target(dest)
-        return obj
+        return self
 
     def make_index(
         self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable | None = None,
@@ -96,8 +93,8 @@ class ShiftEntry(BaseModel):
         return index
 
 
-class ShiftParameterValue(BaseModel):
-    __root__: List[ShiftEntry]
+class ShiftParameterValue(RootModel):
+    root: List[ShiftEntry]
 
 
 @dataclass
@@ -115,7 +112,12 @@ class ShiftParameter(ParameterWithUnit, Parameter):
         if not isinstance(value, list):
             raise ValidationError(self, "Input must be a list")
 
-        return ShiftParameterValue.validate(value)
+        try:
+            return ShiftParameterValue.model_validate(value)
+        except:
+            from rich import print
+            print(value)
+            raise
 
 
 class ShiftAction(ActionNode):
@@ -134,8 +136,11 @@ class ShiftAction(ActionNode):
         df = df.with_columns(pl.col(dest_cols) / dest_sum * (pl.col('Source') * -1))
 
         years = pl.DataFrame(range(amounts[0].year, self.get_end_year() + 1), schema=[YEAR_COLUMN])
-        df = pl.concat([df, years], how='diagonal').sort(YEAR_COLUMN)
-        df = df.groupby(YEAR_COLUMN).agg([pl.sum(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
+        df = years.join(df, how='left', on=YEAR_COLUMN)
+        dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
+        if len(dupes):
+            raise NodeError(self, "Duplicate rows")
+        df = df.groupby(YEAR_COLUMN).agg([pl.first(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
         df = df.interpolate().fill_null(0)
 
         value_cols = [col for col in df.columns if col != YEAR_COLUMN]
@@ -213,7 +218,7 @@ class ShiftAction(ActionNode):
         assert isinstance(value, ShiftParameterValue)
 
         dfs = []
-        for idx, entry in enumerate(value.__root__):
+        for idx, entry in enumerate(value.root):
             df = self._compute_one(str(idx), entry, po.get_unit())
             dfs.append(df)
 

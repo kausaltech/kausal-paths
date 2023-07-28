@@ -2,16 +2,15 @@ from __future__ import annotations
 from functools import reduce
 
 import typing
-from typing import Any, Iterable, Sequence
+from typing import Any, Collection, Iterable, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
 from pint_pandas import PintType
 import polars as pl
 from polars.type_aliases import IntoExpr
-from polars.utils._parse_expr_input import expr_to_lit_or_expr, selection_to_pyexpr_list
-from polars import polars
-import polars.internals as pli
+from polars.utils._parse_expr_input import parse_as_list_of_expressions
+from polars.polars import PyExpr, PyDataFrame
 import numpy as np
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 
@@ -52,7 +51,7 @@ class PathsDataFrame(pl.DataFrame):
 
 
     @classmethod
-    def _from_pydf(cls, py_df: polars.PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
+    def _from_pydf(cls, py_df: PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
         df = super()._from_pydf(py_df)
         df._units = {}
         df._primary_keys = []
@@ -85,7 +84,7 @@ class PathsDataFrame(pl.DataFrame):
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta)
 
-    def filter(self, predicate: pli.Expr | str | pli.Series | list[bool] | np.ndarray[Any, Any]) -> PathsDataFrame:
+    def filter(self, predicate: pl.Expr | str | pl.Series | list[bool] | np.ndarray[Any, Any] | bool) -> PathsDataFrame:
         meta = self.get_meta()
         df = super().filter(predicate)
         return to_ppdf(df, meta=meta)
@@ -104,24 +103,22 @@ class PathsDataFrame(pl.DataFrame):
         df = super().rename(mapping)
         return to_ppdf(df, meta=meta)
 
-    def drop(self, columns: str | Sequence[str]) -> PathsDataFrame:
+    def drop(self, columns: str | Collection[str], *more_columns: str) -> PathsDataFrame:
         meta = self.get_meta()
-        df = super().drop(columns)
+        df = super().drop(columns, *more_columns)
         for col in list(meta.units.keys()):
             if col not in df.columns:
                 del meta.units[col]
         for col in list(meta.primary_keys):
             if col not in df.columns:
                 meta.primary_keys.remove(col)
-        df._units = meta.units
-        df._primary_keys = meta.primary_keys
-        return df
+        return to_ppdf(df, meta=meta)
 
-    def _pyexprs_to_meta(self, exprs: list[polars.PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
+    def _pyexprs_to_meta(self, exprs: list[PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
         meta = self.get_meta()
         for expr in exprs:
             output_col = expr.meta_output_name()
-            root_cols = expr.meta_roots()
+            root_cols = expr.meta_root_names()
             if output_col in units:
                 meta.units[output_col] = units[output_col]
                 continue
@@ -132,23 +129,15 @@ class PathsDataFrame(pl.DataFrame):
 
     def select(
         self,
-        exprs: IntoExpr | Iterable[IntoExpr] | None = None,
-        *more_exprs: IntoExpr,
+        *exprs: IntoExpr,
         units: dict[str, Unit] | None = None,
         **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
         structify = False
-        pyexprs = selection_to_pyexpr_list(exprs, structify=structify)
-        if more_exprs:
-            pyexprs.extend(selection_to_pyexpr_list(more_exprs, structify=structify))
-        if named_exprs:
-            pyexprs.extend(
-                expr_to_lit_or_expr(
-                    expr, structify=structify, name=name, str_to_lit=False
-                )._pyexpr
-                for name, expr in named_exprs.items()
-            )
-        df = super().select(exprs, *more_exprs, **named_exprs)
+        pyexprs = parse_as_list_of_expressions(
+            *exprs, **named_exprs, __structify=structify
+        )
+        df = super().select(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
@@ -162,31 +151,22 @@ class PathsDataFrame(pl.DataFrame):
 
     def with_columns(
         self,
-        exprs: IntoExpr | Iterable[IntoExpr] = None,
-        *more_exprs: IntoExpr,
+        *exprs: IntoExpr | Iterable[IntoExpr],
         units: dict[str, Unit] | None = None,
         **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
         structify = False
-        pyexprs = selection_to_pyexpr_list(exprs, structify=structify)
-        if more_exprs:
-            pyexprs.extend(selection_to_pyexpr_list(more_exprs, structify=structify))
-        if named_exprs:
-            pyexprs.extend(
-                expr_to_lit_or_expr(
-                    expr, structify=structify, name=name, str_to_lit=False
-                )._pyexpr
-                for name, expr in named_exprs.items()
-            )
-
-        df = super().with_columns(exprs, *more_exprs, **named_exprs)
+        pyexprs = parse_as_list_of_expressions(
+            *exprs, **named_exprs, __structify=structify
+        )
+        df = super().with_columns(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
-    def with_column(self, column: pli.Series | pli.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
+    def with_column(self, column: pl.Series | pl.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
         raise NotImplementedError("Use with_columns() instead")
 
-    def drop_nulls(self, subset: str | Sequence[str] | None = None) -> PathsDataFrame:
+    def drop_nulls(self, subset: str | Collection[str] | None = None) -> PathsDataFrame:
         df = super().drop_nulls(subset)
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
@@ -217,7 +197,7 @@ class PathsDataFrame(pl.DataFrame):
         meta = self.get_meta()
         if isinstance(unit, str):
             unit = unit_registry.parse_units(unit)
-        meta.units[col] = unit
+        meta.units[col] = unit  # type: ignore
         return PathsDataFrame._from_pydf(self._df, meta=meta)
 
     def clear_unit(self, col: str) -> PathsDataFrame:
@@ -274,7 +254,7 @@ class PathsDataFrame(pl.DataFrame):
         if out_unit:
             df = df.ensure_unit(out_col, out_unit)
         return df
-    
+
     def cumulate(self, col: str) -> PathsDataFrame:
         df = self.paths.to_wide()
         for df_col in df.columns:
