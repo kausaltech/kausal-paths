@@ -153,6 +153,8 @@ class Node:
     default_unit: ClassVar[str]
     # output quantity (like 'energy' or 'emissions')
     quantity: Optional[str]
+    # minimum year for node -- all output before this year is filtered out
+    minimum_year: Optional[int]
 
     # optional tags to differentiate between multiple input/output nodes
     tags: Set[str]
@@ -288,7 +290,7 @@ class Node:
 
     def __init__(
         self, id: str, context: Context, name: I18nString, short_name: I18nString | None = None,
-        unit: Unit | None = None, quantity: str | None = None,
+        unit: Unit | None = None, quantity: str | None = None, minimum_year: int | None = None,
         description: I18nString | None = None, color: str | None = None, order: int | None = None,
         is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
         input_datasets: List[Dataset] | None = None,
@@ -307,6 +309,7 @@ class Node:
         self.color = color
         self.order = order
         self.is_outcome = is_outcome
+        self.minimum_year = minimum_year
         if goals is not None:
             self.goals = NodeGoals.validate(goals)
         else:
@@ -803,6 +806,11 @@ class Node:
             if unit != metric.unit:
                 raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, unit))
 
+            col = df[metric.column_id]
+            if (col.is_nan() | col.is_null()).sum() > 0:
+                self.print(df)
+                raise NodeError(self, "Output column '%s' has NaN or null values" % metric.column_id)
+
         if NODE_COLUMN in meta.primary_keys:
             # FIXME
             return
@@ -869,6 +877,9 @@ class Node:
             self.context.cache.set(node_hash, out.copy())
 
         meta = out.get_meta()
+
+        if self.minimum_year is not None:
+            out = out.filter(pl.col(YEAR_COLUMN) >= self.minimum_year)
 
         # If a node has multiple outputs, we can specify only one series
         # to include.

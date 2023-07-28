@@ -179,6 +179,7 @@ class SectorEmissions(AdditiveNode):
                 raise NodeError(self, "Input dataset has more than 1 metric")
             df = df.rename({df.metric_cols[0]: m.column_id})
             df = extend_last_historical_value_pl(df, self.get_end_year())
+            df = df.drop_nulls()
             return super().add_nodes_pl(df, self.input_nodes)
 
         return super().compute()

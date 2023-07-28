@@ -6,7 +6,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import threading
-from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
+from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Type, overload
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
@@ -259,6 +259,7 @@ class InstanceLoader:
             color=config.get('color'),
             order=config.get('order'),
             is_outcome=config.get('is_outcome', False),
+            minimum_year=config.get('minimum_year', None),
             target_year_goal=config.get('target_year_goal'),
             goals=config.get('goals'),
             input_datasets=datasets,
