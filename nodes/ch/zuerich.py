@@ -91,6 +91,7 @@ class BuildingHeatPerArea(Node):
         edf = e_node.get_output_pl(target_node=self)
         adf = f_node.get_output_pl(target_node=self)
         adf = adf.rename({VALUE_COLUMN: 'Area'})
+        adf = adf.paths.to_wide().drop_nulls().paths.to_narrow()
         edf = edf.paths.sum_over_dims(['heating_system'])
         edf = edf.rename({VALUE_COLUMN: 'Energy'})
 
@@ -150,7 +151,7 @@ class BuildingGeneralElectricityEfficiency(AdditiveNode):
         df = adf.paths.join_over_index(hdf)
         df = df.paths.join_over_index(edf)
 
-        df = df.paths.join_over_index(idf)
+        df = df.paths.join_over_index(idf).drop_nulls()
         df = df.multiply_cols(['Area', 'energy_per_area'], 'EstimatedElectricity', out_unit=df.get_unit('AllElectricity'))
         df = df.with_columns([pl.col('AllElectricity') - pl.col('HeatElectricity')])
         df = df.paths.add_sum_column('EstimatedElectricity', 'SumEstimated')
@@ -906,12 +907,12 @@ class SewageSludgeProcessingEmissions(SimpleNode):
         df = self.get_input_dataset_pl()
         df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
         df = extend_last_historical_value_pl(df, self.get_end_year())
-
         ccs_node = self.get_input_node(tag='ccs_share')
         cdf = ccs_node.get_output_pl(target_node=self)
         cdf = cdf.rename({VALUE_COLUMN: 'CCSShare'})
 
-        df = df.paths.join_over_index(cdf).drop_nulls()
+        df = df.paths.join_over_index(cdf)
+        df = df.with_columns(pl.col('CCSShare').fill_null(0))
         df = df.filter(pl.col('greenhouse_gases') == 'co2_biogen')
         m = self.get_default_output_metric()
         df = df.multiply_cols(['emissions', 'CCSShare'], 'Captured', out_unit=m.unit)
