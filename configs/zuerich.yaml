@@ -837,8 +837,8 @@ nodes:
   input_nodes: [residential_building_area_per_resident, population]
 
 - id: number_of_jobs
-  name_de: Anzahl Arbeitsplätze
-  name_en: Number of jobs
+  name_de: Anzahl Arbeitsplätze (Vollzeitäquivalente)
+  name_en: Number of jobs (full-time equivalents)
   type: simple.AdditiveNode
   unit: cap
   quantity: number
