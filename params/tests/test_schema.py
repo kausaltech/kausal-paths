@@ -37,7 +37,7 @@ def test_parameter_interface(graphql_client_query_data, context, is_global):
     if is_global:
         expected_node = None
     else:
-        expected_node = {'__typename': 'NodeType'}
+        expected_node = {'__typename': 'Node'}
     expected = {
         'parameter': {
             '__typename': 'NumberParameterType',

@@ -143,7 +143,6 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               value
             }
             isAction
-            decisionLevel
             inputNodes {
               __typename
               id
@@ -160,9 +159,11 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
               __typename
               id
             }
-            upstreamActions {
-              __typename
-              id
+            ... on Node {
+              upstreamActions {
+                __typename
+                id
+              }
             }
             metric {
               __typename
@@ -178,6 +179,9 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
             }
             shortDescription
             description
+            ... on ActionNode {
+              decisionLevel
+            }
           }
         }
         ''',
@@ -185,7 +189,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
     )
     expected = {
         'node': {
-            '__typename': 'NodeType',
+            '__typename': 'ActionNode',
             'id': additive_action.id,
             'name': str(additive_action.name),
             'color': additive_action.color,
@@ -201,28 +205,28 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
             'isAction': True,
             'decisionLevel': additive_action.decision_level.name,
             'inputNodes': [{
-                '__typename': 'NodeType',
+                '__typename': 'Node',
                 'id': input_node.id,
             }],
             'outputNodes': [{
-                '__typename': 'NodeType',
+                '__typename': 'Node',
                 'id': output_node.id,
             }],
             'downstreamNodes': [{
-                '__typename': 'NodeType',
+                '__typename': 'Node',
                 'id': output_node.id,
             }],
             'upstreamNodes': [{
-                '__typename': 'NodeType',
+                '__typename': 'Node',
                 'id': input_node.id,
             }, {
-                '__typename': 'NodeType',
+                '__typename': 'ActionNode',
                 'id': upstream_action.id,
             }],
-            'upstreamActions': [{
-                '__typename': 'NodeType',
-                'id': upstream_action.id,
-            }],
+            # 'upstreamActions': [{
+            #     '__typename': 'NodeType',
+            #     'id': upstream_action.id,
+            # }],
             'metric': {
                 '__typename': 'ForecastMetricType',
                 'id': additive_action.id,
