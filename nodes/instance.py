@@ -133,8 +133,9 @@ class InstanceLoader:
     instance: Instance
     default_language: str
     yaml_file_path: Optional[str] = None
-    _input_nodes: dict[str, Sequence[dict | str]]
-    _output_nodes: dict[str, Sequence[dict | str]]
+    _input_nodes: dict[str, list[dict | str]]
+    _output_nodes: dict[str, list[dict | str]]
+    _subactions: dict[str, list[str]]
 
     @overload
     def make_trans_string(
@@ -444,6 +445,7 @@ class InstanceLoader:
             node_class = getattr(mod, node_name)
             node = self.make_node(node_class, nc)
             assert isinstance(node, ActionNode)
+
             decision_level = nc.get('decision_level')
             if decision_level is not None:
                 for name, val in DecisionLevel.__members__.items():
@@ -452,6 +454,7 @@ class InstanceLoader:
                 else:
                     raise Exception('Invalid decision level for action %s: %s' % (nc['id'], decision_level))
                 node.decision_level = val
+
             ag_id = nc.get('group', None)
             if ag_id is not None:
                 assert isinstance(ag_id, str)
@@ -462,9 +465,16 @@ class InstanceLoader:
                     raise Exception("Action group '%s' not found for action %s" % (ag_id, nc['id']))
                 node.group = ag
 
+            parent_id = nc.get('parent', None)
+            if parent_id is not None:
+                subs = self._subactions.setdefault(parent_id, [])
+                subs.append(node.id)
+
             self.context.add_node(node)
 
     def setup_edges(self):
+        from nodes.actions.parent import ParentActionNode
+
         # Setup edges
         ctx = self.context
         for node in ctx.nodes.values():
@@ -481,6 +491,18 @@ class InstanceLoader:
             except Exception:
                 logger.error("Error setting up edges for node %s" % node)
                 raise
+
+        for parent_id, subs in self._subactions.items():
+            parent = ctx.nodes.get(parent_id)
+            if parent is None:
+                raise Exception("Action parent '%s' not found" % parent_id)
+            if not isinstance(parent, ParentActionNode):
+                raise Exception("Action '%s' is marked as a parent but is not a ParentActionNode" % parent_id)
+            for sub_id in subs:
+                node = ctx.get_node(sub_id)
+                assert isinstance(node, ActionNode)
+                parent.add_subaction(node)
+                node.parent_action = parent
 
         ctx.finalize_nodes()
 
@@ -656,6 +678,7 @@ class InstanceLoader:
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}
         self._output_nodes = {}
+        self._subactions = {}
         with set_default_language(self.instance.default_language):
             self.setup_dimensions()
             self.generate_nodes_from_emission_sectors()

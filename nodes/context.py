@@ -148,7 +148,7 @@ class Context:
     def get_action(self, id: str) -> 'ActionNode':
         node = self.nodes[id]
         if not isinstance(node, self.Action):
-            raise Exception("Node %s is not an action node" % id)
+            raise TypeError("Node %s is not an action node" % id)
         return node
 
     def add_global_parameter(self, parameter: Parameter):

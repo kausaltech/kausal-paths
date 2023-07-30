@@ -20,6 +20,7 @@ from params import BoolParameter
 
 if typing.TYPE_CHECKING:
     from nodes.context import Context
+    from .parent import ParentActionNode
 
 
 ENABLED_PARAM_ID = 'enabled'
@@ -35,6 +36,7 @@ class ActionGroup:
 class ActionNode(Node):
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
+    parent_action: 'ParentActionNode' | None = None
 
     # The value to use for "no effect" years.
     # For additive actions, it probably is 0, and for multiplicative

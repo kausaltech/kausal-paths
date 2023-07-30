@@ -23,7 +23,7 @@ class ParameterInterface(graphene.Interface):
     label = graphene.String(required=False)
     description = graphene.String(required=False)
     node_relative_id = graphene.ID(required=False)  # can be null if node is null
-    node = graphene.Field('nodes.schema.NodeType', required=False)  # can be null for global parameters
+    node = graphene.Field('nodes.schema.NodeInterface', required=False)  # can be null for global parameters
     is_customized = graphene.Boolean(required=True)
     is_customizable = graphene.Boolean(required=True)
 

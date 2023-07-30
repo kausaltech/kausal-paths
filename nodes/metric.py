@@ -104,6 +104,11 @@ class Metric:
         if len(df.filter(df[YEAR_COLUMN].is_duplicated())):
             raise NodeError(node, "Metric has duplicated years")
 
+        nulls = (df[VALUE_COLUMN].is_nan() | df[VALUE_COLUMN].is_null()).sum()
+        if nulls:
+            print(df)
+            raise NodeError(node, "Metric has nans or nulls")
+
         return Metric(id=node.id, name=str(node.name), unit=df.get_unit(VALUE_COLUMN), node=node, df=df)
 
     def split_df(self) -> SplitValues | None:

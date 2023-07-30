@@ -4,9 +4,7 @@ import dataclasses
 
 import graphene
 from graphql import GraphQLResolveInfo
-import graphql
 from graphql.error import GraphQLError
-from numpy import require
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
@@ -21,6 +19,7 @@ from paths.graphql_helpers import (
 
 from . import Node
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
+from .actions.parent import ParentActionNode
 from .constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 )
@@ -42,7 +41,7 @@ class ActionGroupType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
     color = graphene.String(required=False)
-    actions = graphene.List(graphene.NonNull('nodes.schema.NodeType'), required=True)
+    actions = graphene.List(graphene.NonNull(lambda: ActionNodeType), required=True)
 
     @staticmethod
     def resolve_actions(root: ActionGroup, info: GQLInstanceInfo):
@@ -279,7 +278,7 @@ class NodeGoal(graphene.ObjectType):
     value = graphene.Float(required=True)
 
 
-class NodeType(graphene.ObjectType):
+class NodeInterface(graphene.Interface):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
     short_name = graphene.String(required=False)
@@ -289,20 +288,18 @@ class NodeType(graphene.ObjectType):
     quantity = graphene.String()
     target_year_goal = graphene.Float(deprecation_reason='Replaced by "goals".')
     goals = graphene.List(graphene.NonNull(NodeGoal), active_goal=graphene.ID(required=False), required=True)
-    is_action = graphene.Boolean(required=True)
-    decision_level = graphene.Field(ActionDecisionLevel)
-    input_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
-    output_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
-    downstream_nodes = graphene.List(graphene.NonNull(lambda: NodeType), required=True)
+    is_action = graphene.Boolean(required=True, deprecation_reason='Use __typeName instead')
+
+    input_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
+    output_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
+    downstream_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
     upstream_nodes = graphene.List(
-        graphene.NonNull(lambda: NodeType),
+        graphene.NonNull(lambda: NodeInterface),
         same_unit=graphene.Boolean(),
         same_quantity=graphene.Boolean(),
         include_actions=graphene.Boolean(),
         required=True
     )
-    upstream_actions = graphene.List(graphene.NonNull(lambda: NodeType, required=True))
-    group = graphene.Field(ActionGroupType, required=False)
 
     # TODO: Many nodes will output multiple time series. Remove metric
     # and handle a single-metric node as a special case in the UI??
@@ -327,6 +324,12 @@ class NodeType(graphene.ObjectType):
     # These are potentially plucked from nodes.models.NodeConfig
     short_description = graphene.String()
     description = graphene.String()
+
+    @classmethod
+    def resolve_type(cls, node: Node, info: GQLInstanceInfo):
+        if isinstance(node, ActionNode):
+            return ActionNodeType
+        return NodeType
 
     @staticmethod
     def resolve_color(root: Node, info):
@@ -367,10 +370,6 @@ class NodeType(graphene.ObjectType):
         return root.get_upstream_nodes(filter=filter_nodes)
 
     @staticmethod
-    def resolve_upstream_actions(root: Node, info: GQLInstanceInfo):
-        return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
-
-    @staticmethod
     def resolve_metric(root: Node, info: GQLInstanceInfo, goal_id: str | None = None):
         return Metric.from_node(root, goal_id=goal_id)
 
@@ -388,73 +387,6 @@ class NodeType(graphene.ObjectType):
             logging.exception("Exception while resolving metric_dim for node %s" % root.id)
             return None
         return ret
-
-    @staticmethod
-    def resolve_impact_metric(root: Node, info: GQLInstanceInfo, target_node_id: str | None = None, goal_id: str | None = None):
-        instance = info.context.instance
-        context = instance.context
-        upstream_node = getattr(info.context, '_upstream_node', None)
-
-        if goal_id is not None:
-            try:
-                goal = instance.get_goals(goal_id=goal_id)
-            except:
-                raise GraphQLError("Goal not found", info.field_nodes)
-        else:
-            goal = None
-
-        target_node: Node
-        if target_node_id is not None:
-            if target_node_id not in context.nodes:
-                raise GraphQLError("Node %s not found" % target_node_id, info.field_nodes)
-            source_node = root
-            target_node = context.get_node(target_node_id)
-        elif upstream_node is not None:
-            source_node = upstream_node
-            target_node = root
-        elif goal is not None:
-            source_node = root
-            target_node = goal.get_node()
-        else:
-            # FIXME: Determine a "default" target node from instance
-            outcome_nodes = context.get_outcome_nodes()
-            if not len(outcome_nodes):
-                raise GraphQLError("No default target node available", info.field_nodes)
-            source_node = root
-            target_node = outcome_nodes[0]
-
-        if not isinstance(source_node, ActionNode):
-            return None
-
-        df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
-        if goal is not None:
-            df = goal.filter_df(df)
-
-        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        if df.dim_ids:
-            # FIXME: Check if can be summed?
-            df = df.paths.sum_over_dims()
-
-        try:
-            m = target_node.get_default_output_metric()
-        except Exception:
-            return None
-
-        df = df.select([*df.primary_keys, FORECAST_COLUMN, m.column_id])
-        if target_node.context.active_normalization:
-            _, df = target_node.context.active_normalization.normalize_output(m, df)
-
-        metric = Metric(
-            id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=df,
-            unit=df.get_unit(m.column_id)
-        )
-        return metric
-
-    @staticmethod
-    def resolve_group(root: Node, info: GQLInstanceInfo):
-        if not isinstance(root, ActionNode):
-            return None
-        return root.group
 
     @staticmethod
     def resolve_parameters(root: Node, info):
@@ -520,6 +452,114 @@ class NodeType(graphene.ObjectType):
             return None
         return val.value
 
+    @staticmethod
+    def resolve_impact_metric(
+        root: Node, info: GQLInstanceInfo,
+        target_node_id: str | None = None, goal_id: str | None = None
+    ):
+        instance = info.context.instance
+        context = instance.context
+        upstream_node = getattr(info.context, '_upstream_node', None)
+
+        if goal_id is not None:
+            try:
+                goal = instance.get_goals(goal_id=goal_id)
+            except Exception:
+                raise GraphQLError("Goal not found", info.field_nodes)
+        else:
+            goal = None
+
+        target_node: Node
+        if target_node_id is not None:
+            if target_node_id not in context.nodes:
+                raise GraphQLError("Node %s not found" % target_node_id, info.field_nodes)
+            source_node = root
+            target_node = context.get_node(target_node_id)
+        elif upstream_node is not None:
+            source_node = upstream_node
+            target_node = root
+        elif goal is not None:
+            source_node = root
+            target_node = goal.get_node()
+        else:
+            # FIXME: Determine a "default" target node from instance
+            outcome_nodes = context.get_outcome_nodes()
+            if not len(outcome_nodes):
+                raise GraphQLError("No default target node available", info.field_nodes)
+            source_node = root
+            target_node = outcome_nodes[0]
+
+        if not isinstance(source_node, ActionNode):
+            return None
+
+        df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
+        if goal is not None:
+            df = goal.filter_df(df)
+
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+        if df.dim_ids:
+            # FIXME: Check if can be summed?
+            df = df.paths.sum_over_dims()
+
+        try:
+            m = target_node.get_default_output_metric()
+        except Exception:
+            return None
+
+        df = df.select([*df.primary_keys, FORECAST_COLUMN, m.column_id])
+        if target_node.context.active_normalization:
+            _, df = target_node.context.active_normalization.normalize_output(m, df)
+
+        metric = Metric(
+            id='%s-%s-impact' % (source_node.id, target_node.id), name='Impact', df=df,
+            unit=df.get_unit(m.column_id)
+        )
+        return metric
+
+
+class NodeType(graphene.ObjectType):
+    class Meta:
+        name = 'Node'
+        interfaces = (NodeInterface,)
+
+    upstream_actions = graphene.List(graphene.NonNull(lambda: ActionNodeType, required=True))
+
+    @staticmethod
+    def resolve_upstream_actions(root: Node, info: GQLInstanceInfo):
+        return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
+
+
+class ActionNodeType(graphene.ObjectType):
+    class Meta:
+        interfaces = (NodeInterface,)
+        name = 'ActionNode'
+
+    parent_action = graphene.Field(lambda: ActionNodeType, required=False)
+    subactions = graphene.List(graphene.NonNull(lambda: ActionNodeType), required=True)
+
+    group = graphene.Field(ActionGroupType, required=False)
+    decision_level = graphene.Field(ActionDecisionLevel)
+
+    is_enabled = graphene.Boolean(required=True)
+
+    @staticmethod
+    def resolve_group(root: ActionNode, info: GQLInstanceInfo):
+        return root.group
+
+    @staticmethod
+    def resolve_parent_action(root: ActionNode, info: GQLInstanceInfo) -> ActionNode | None:
+        return root.parent_action
+
+    @staticmethod
+    def resolve_subactions(root: ActionNode, info: GQLInstanceInfo) -> list[ActionNode]:
+        if not isinstance(root, ParentActionNode):
+            return []
+        return root.subactions
+
+    @staticmethod
+    def resolve_is_enabled(root: ActionNode, info: GQLInstanceInfo) -> bool:
+        return bool(root.is_enabled())
+
 
 class ScenarioType(graphene.ObjectType):
     id = graphene.ID()
@@ -538,7 +578,7 @@ class ScenarioType(graphene.ObjectType):
 
 
 class ActionEfficiency(graphene.ObjectType):
-    action = graphene.Field(NodeType, required=True)
+    action = graphene.Field(ActionNodeType, required=True)
     cost_values = graphene.List(YearlyValue, required=True)
     impact_values = graphene.List(YearlyValue, required=True)
     efficiency_divisor = graphene.Float()
@@ -640,11 +680,16 @@ class Query(graphene.ObjectType):
         graphene.NonNull(InstanceBasicConfiguration), hostname=graphene.String(), required=True
     )
     instance = graphene.Field(InstanceType, required=True)
-    nodes = graphene.List(graphene.NonNull(NodeType), required=True)
+    nodes = graphene.List(graphene.NonNull(NodeInterface), required=True)
     node = graphene.Field(
-        NodeType, id=graphene.ID(required=True)
+        NodeInterface, id=graphene.ID(required=True)
     )
-    actions = graphene.List(graphene.NonNull(NodeType), required=True)
+    actions = graphene.List(
+        graphene.NonNull(ActionNodeType),
+        only_root=graphene.Boolean(required=False, default_value=False),
+        required=True
+    )
+    action = graphene.Field(ActionNodeType, id=graphene.ID(required=True))
     action_efficiency_pairs = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
@@ -689,9 +734,22 @@ class Query(graphene.ObjectType):
         return instance.context.nodes.values()
 
     @pass_context
-    def resolve_actions(root, info: GQLInstanceInfo, context: Context):
+    def resolve_actions(root, info: GQLInstanceInfo, context: Context, only_root: bool):
         instance = info.context.instance
-        return instance.context.get_actions()
+        actions = instance.context.get_actions()
+        if only_root:
+            actions = list(filter(lambda act: act.parent_action is None, actions))
+        return actions
+
+    @ensure_instance
+    def resolve_action(root, info: GQLInstanceInfo, id: str) -> ActionNode | None:
+        instance = info.context.instance
+        try:
+            action = instance.context.get_action(id)
+        except (KeyError, TypeError) as e:
+            print(e)
+            return None
+        return action
 
     @pass_context
     def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo, context: Context):
