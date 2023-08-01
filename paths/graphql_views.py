@@ -191,8 +191,10 @@ class PathsExecutionContext(ExecutionContext):
             with self.instance_context(operation):
                 ret = super().execute_operation(operation, root_value)
         except Exception as e:
-            import traceback
-            print(traceback.format_exc())
+            from rich.traceback import Traceback
+            console = Console()
+            tb = Traceback.from_exception(type(e), e, traceback=e.__traceback__)
+            console.print(tb)
             raise
         return ret
 
@@ -252,7 +254,7 @@ class PathsGraphQLView(GraphQLView):
 
                     def print_error(err: GraphQLError):
                         console.print(err)
-                        oe = err.original_error
+                        oe = getattr(err, 'original_error', err)
                         if oe:
                             tb = Traceback.from_exception(
                                 type(oe), oe, traceback=oe.__traceback__
