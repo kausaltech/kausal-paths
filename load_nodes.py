@@ -112,7 +112,7 @@ else:
 
 
 if args.print_graph:
-    context.print_graph()
+    context.print_graph(include_datasets=True)
 
 if args.skip_cache:
     context.skip_cache = True
@@ -146,28 +146,24 @@ if args.check or args.update_instance or args.update_nodes:
         old_cache_prefix = context.cache.prefix
         context.cache.prefix = old_cache_prefix + '-' + str(time.time())
         for node_id, node in context.nodes.items():
-            df = node.get_output()
-            na_count = df.isna().sum().sum()
-            if na_count:
-                print('Node %s has NaN values:' % node.id)
-                node.print_output()
+            print('Checking %s' % node_id)
+            try:
+                node.check()
+            except Exception as e:
+                print(e)
 
-            if node.baseline_values is not None:
-                bdf = node.baseline_values
-                na_count = bdf.null_count().sum(axis=1).sum()
-                if na_count:
-                    print('Node %s baseline forecast has NaN values:' % node.id)
-                    node.print(node.baseline_values)
         context.cache.prefix = old_cache_prefix
 
     init_django()
     from nodes.models import InstanceConfig
 
-    instance_obj = InstanceConfig.objects.filter(identifier=instance.id).first()
-    if instance_obj is None:
+    ins_obj = InstanceConfig.objects.filter(identifier=instance.id).first()
+    if ins_obj is None:
         print("Creating instance %s" % instance.id)
         instance_obj = InstanceConfig.create_for_instance(instance)
         # TODO: Create InstanceHostname somewhere?
+    else:
+        instance_obj = ins_obj
 
     if args.update_instance:
         instance_obj.update_from_instance(instance, overwrite=True)

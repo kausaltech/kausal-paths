@@ -212,7 +212,6 @@ class Node:
     logger: logging.Logger
     debug: bool = False
 
-
     def __post_init__(self): ...
 
     def _init_metrics(self, unit: Unit | None, quantity: str | None):
@@ -298,6 +297,7 @@ class Node:
     ):
         self.id = validate_identifier(id)
         self.context = context
+
         self._init_metrics(unit, quantity)
         if input_datasets is None:
             input_datasets = []
@@ -311,11 +311,11 @@ class Node:
         self.is_outcome = is_outcome
         self.minimum_year = minimum_year
         if goals is not None:
-            self.goals = NodeGoals.validate(goals)
+            self.goals = NodeGoals.model_validate(goals)
         else:
             if target_year_goal is not None:
                 is_main_goal = self.is_outcome
-                self.goals = NodeGoals.validate(
+                self.goals = NodeGoals.model_validate(
                     [dict(values=[dict(year=context.target_year, value=target_year_goal)], is_main_goal=is_main_goal)]
                 )
             else:
@@ -1264,3 +1264,33 @@ class Node:
 
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
         return df
+
+    def check(self):
+        from nodes.metric import Metric
+        df = self.get_output_pl()
+        for m in self.output_metrics.values():
+            nulls = df.filter(pl.col(m.column_id).is_null() | pl.col(m.column_id).is_nan())
+            if len(nulls):
+                raise NodeError(self, 'Output has nulls or NaNs in column %s' % m.column_id)
+
+        if self.baseline_values is not None:
+            bdf = self.baseline_values
+            for m in self.output_metrics.values():
+                nulls = bdf.filter(pl.col(m.column_id).is_null() | pl.col(m.column_id).is_nan())
+                if len(nulls):
+                    raise NodeError(self, 'Baseline output has nulls or NaNs in column %s' % m.column_id)
+
+        m = Metric.from_node(self)
+        if m is None:
+            raise NodeError(self, "Output did not result in a Metric")
+        else:
+            fail = False
+            for vals in (m.get_forecast_values(), m.get_historical_values()):
+                for v in vals:
+                    if v.value is None or v.value is float('nan'):
+                        fail = True
+                        break
+                if fail:
+                    break
+            if fail:
+                raise NodeError(self, 'Metric had nan or null values')
