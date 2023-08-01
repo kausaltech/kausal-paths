@@ -922,19 +922,23 @@ class SewageSludgeProcessingEmissions(SimpleNode):
         df = extend_last_historical_value_pl(df, self.get_end_year())
         ccs_node = self.get_input_node(tag='ccs_share')
         cdf = ccs_node.get_output_pl(target_node=self)
-        cdf = cdf.rename({VALUE_COLUMN: 'CCSShare'})
+        cdf = cdf.rename({VALUE_COLUMN: 'CCSShare'}).ensure_unit('CCSShare', 'dimensionless')
 
         df = df.paths.join_over_index(cdf)
-        df = df.with_columns(pl.col('CCSShare').fill_null(0))
-        df = df.filter(pl.col('greenhouse_gases') == 'co2_biogen')
+        # df = df.with_columns(pl.lit('scope1').alias('emission_scope')).add_to_index('emission_scope')
+
+        df = df.with_columns([
+            pl.when(
+                pl.col('greenhouse_gases').eq('co2_biogen')
+            ).then(pl.col('emissions') * pl.col('CCSShare')).otherwise(pl.col('emissions')),
+            pl.col('greenhouse_gases').map_dict({'co2_biogen': 'co2'}, default=pl.first()),
+        ]).drop('CCSShare')
+
+        df = df.with_columns([
+            pl.col('greenhouse_gases').map_dict({'co2': 'negative_emissions'}, default='scope1').alias('emission_scope'),
+        ]).add_to_index('emission_scope')
+        df = convert_to_co2e(df, 'greenhouse_gases')
+
         m = self.get_default_output_metric()
-        df = df.multiply_cols(['emissions', 'CCSShare'], 'Captured', out_unit=m.unit)
-        df = df.with_columns(pl.lit('negative_emissions').alias('emission_scope')).add_to_index('emission_scope')
-        df = df.drop('greenhouse_gases').select_metrics(['Captured']).rename({'Captured': m.column_id})
-        df = df.with_columns((pl.lit(0) - pl.col(m.column_id)).alias(m.column_id))
-        df = df.paths.to_wide()
-        ncol = df.metric_cols[0]
-        s1col = ncol.replace('negative_emissions', 'scope1')
-        df = df.with_columns(pl.lit(0.0).alias(s1col)).set_unit(s1col, df.get_unit(ncol))
-        df = df.paths.to_narrow()
+        df = df.rename({'emissions': m.column_id}).ensure_unit(m.column_id, m.unit)
         return df

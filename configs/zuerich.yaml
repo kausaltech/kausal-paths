@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3f11c8f77c10e7dc19ca2947a75bd8bbeed43ba5
+  commit: 92c5cf5955adb71a5ddd9fb41bf04e08569985c8
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -2263,13 +2263,11 @@ actions:
       amounts:
       - year: 2023
         amount: 0
-      - year: 2030
+      - year: 2029
         amount: 0
+      - year: 2030
+        amount: 91
       - year: 2031
-        amount: 20
-      - year: 2034
-        amount: 20
-      - year: 2035
         amount: 0
 
 - id: cleaner_electricity_production
