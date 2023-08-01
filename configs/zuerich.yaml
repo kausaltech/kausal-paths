@@ -42,8 +42,8 @@ features:
 action_groups:
 # Handlungsfeld
 - id: buildings
-  name: Gebäude
-  name_en: Buildings
+  name: Gebäude und Wärmeversorgung
+  name_en: Buildings and Heat Supply
   color: '#002F96'
 - id: mobility
   name: Mobilität
@@ -1648,10 +1648,39 @@ nodes:
 # ------- ACTIONS --------
 #
 actions:
+
+#
+# Massnahmenpaket 1: Heizungsersatz und Ausbau thermische Netze
+#
+- id: heater_replacement_and_district_heat
+  name_en: Replacement of heaters and district heat expansion
+  name_de: Heizungsersatz und Ausbau thermische Netze
+  lead_paragraph_de: 100% der Wärmeenergie stammt aus erneuerbaren Energiequellen, Abfall oder Abwärme bis 2040.
+  description_de: Aktuell gibt es 19'800 Heizungen in der Stadt Zürich, die mit fossiler Energie betrieben
+    werden. Diese liefern Wärme für etwas mehr als die Hälfte (52%) aller rund 55'000 Gebäude
+    in der Stadt und verursachen 610'000 Tonnen CO<sub>2</sub>-Äquivalente pro Jahr bzw. 1.4 Tonnen
+    CO<sub>2</sub>-Äquivalente pro Einwohner*in und Jahr. Für Netto-Null Treibhausgasemissionen
+    müssen diese Heizungen durch solche ersetzt werden, die mit Wärme aus erneuerbarer
+    Energie, Abfall oder Abwärme betrieben werden. Dies entspricht einem Richtwert von 1&#39;100
+    Heizungen pro Jahr, wobei die Summe der Leistungen der Heizungen eine wichtigere Rolle
+    spielt als die Anzahl Heizungen.
+    
+    Da mehr als die Hälfte der Wärmeenergie über thermische Netze zur Verfügung gestellt
+    werden soll, müssen zudem die thermischen Netze ausgebaut und deren Wärmequellen
+    dekarbonisiert werden.
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  group: buildings
+  indicator_nodes:
+    - id: building_heat_mix
+  output_dimensions: [emission_scope]
+
 - id: fossil_fuel_heater_replacement
   name_en: Replacement of fossil fuel heaters
   name_de: Heizungsersatz
   type: shift.ShiftAction
+  parent: heater_replacement_and_district_heat
   group: buildings
   quantity: mix
   description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
@@ -1708,10 +1737,10 @@ actions:
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung thermische Netze
-  description_de: Fossile Energieträger im Energiemix von Energieverbunden und Fernwärme,
-    die zur Spitzenlastabdeckung eingesetzt werden, werden vollständig durch erneuerbare
-    Energieträger ersetzt.
+  description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr 2022 auf 100%
+    im Jahr 2040.
   group: buildings
+  parent: heater_replacement_and_district_heat
   quantity: mix
   unit: '%'
   type: shift.ShiftAction
@@ -1759,6 +1788,7 @@ actions:
   name_de: Dekarbonisierung Gasversorgung
   name_en: Decarbonisation of gas network
   group: buildings
+  parent: heater_replacement_and_district_heat
   description_de: Fossiles Erdgas wird vollständig durch Biogas und andere Gase aus
     erneuerbaren Quellen ersetzt.
   quantity: ratio
@@ -1780,14 +1810,39 @@ actions:
       - year: 2040
         amount: 0
 
+#
+# Massnahmenpaket 2: Reduktion des Wärmeenergiebedarfes
+#
+- id: reduce_building_heat_demand
+  name_en: Replacement of heaters and district heat expansion
+  name_de: Reduktion des Wärmeenergiebedarfes
+  lead_paragraph_de: 100% der Wärmeenergie stammt aus erneuerbaren Energiequellen, Abfall oder Abwärme bis 2040.
+  description_de: 'Der absolute Wärmeverbrauch im Gebäudebereich muss reduziert werden,
+    damit das 2000 Watt-Ziel sowie die Zielsetzung von 100% Wärmeenergie aus erneuerbarer Energie,
+    Abfall oder Abwärme erreicht werden kann. Insgesamt soll eine Reduktion des Wärmeenergieverbrauchs
+    von 20% gegenüber dem Mittelwert 2018-2022 erreicht werden (pro Einwohner*in: Reduktion um xx%).
+
+    Diese Senkung des Energiebedarfes bedarf Massnahmen in den Bereichen der Verbesserung der Gebäudehülle,
+    der Optimierung des Heizbetriebs und der suffizienten Nutzung der Wärme. Alle Massnahmen zusammen haben
+    das Potenzial den Wärmebedarf zu reduzieren. Die Liegenschaftsbesitzer*innen sowie die Nutzer*innen
+    von Liegenschaften haben für die Erreichung dieses Ziels eine Schlüsselfunktion.  
+
+    Aufgrund der Wetterabhängigkeit des Wärmeenergieverbrauches wird jeweils der Fünfjahresdurchschnitt (FJDS) betrachtet.'
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  group: buildings
+  output_dimensions: [emission_scope]
+
 - id: building_energy_retrofit
   name_en: Energetic renovation of buildings
-  name_de: Energetische Sanierung und Anforderungen an Neubauten
+  name_de: Verbesserung der Gebäudehülle
+  parent: reduce_building_heat_demand
   group: buildings
-  description_de: Dieses Massnahmenpaket beschreibt die Massnahmen, die zu einer energieeffizienten
-    Gebäudehülle führen und damit die Wärmeenergie effizienter nutzen. Dies erfolgt
-    einerseits durch die energetische Gebäudesanierung, anderseits sind dies Anforderungen
-    an Neubauten und Ersatzneubauten in Bezug auf Baumaterialien und Energieeffizienz.
+  description_de: Die energetische Sanierung von Bestandesbauten und erhöhte Anforderungen an (Ersatz-)Neubauten
+    führen dazu, dass die Wärme im Gebäude bleibt und die Energie effizient genutzt wird. Während das kantonale
+    Energiegesetz die Anforderungen an Neubauten und Ersatzneubauten festlegt, gibt es aktuell keine regulativen
+    Anforderungen zur Beschleunigung der Sanierung von Bestandesbauten.
   type: linear.ReduceAction
   quantity: energy_per_area
   output_nodes:
@@ -1819,13 +1874,16 @@ actions:
       - year: 2040
         amount: 0
 
-- id: building_optimisation
-  name_en: Operational optimisation of buildings
-  name_de: Effiziente und suffiziente Gebäudenutzung
+- id: more_efficient_building_use
+  name_en: More efficient building use
+  name_de: Suffiziente Nutzung der Wärme
+  parent: reduce_building_heat_demand
   group: buildings
-  description_de: Dieses Massnahmenpaket umfasst alle Massnahmen, welche eine effiziente
-    und suffiziente Nutzung von Gebäuden zum Ziel haben. Dies sind einerseits Effizienzsteigerungen
-    durch Betriebsoptimierungen oder suffizientere Nutzungsformen von Gebäuden.
+  description_de: Die suffiziente Nutzung der Wärme senkt den Wärmebedarf ebenfalls. Dazu gehören
+    Temperatursenkungen während der Heizperiode und ein geringerer Flächenverbrauch pro Person beim
+    Wohnen und Arbeiten. Beim heutigen Gebäudemix kann durch die Senkung der Temperatur um 1°C 6%
+    der Wärmeenergie eingespart wer-den. Neben der Energiespar-Kampagne im Jahr 2022 bestehen aktuell
+    keine Mass-nahmen, zur suffizienten Nutzung der Wärmeenergie.
   type: linear.ReduceAction
   quantity: per_capita
   output_nodes:
