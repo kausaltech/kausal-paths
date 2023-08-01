@@ -178,10 +178,11 @@ class PathsExt:
                 last_hist_year = 2021  # FIXME. This may occur with forecast_values.
         assert isinstance(last_hist_year, int)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
-        df = df.join(years, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
-        df = df.with_columns([
-            pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(True)).otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN)
-        ])
+        if len(years):
+            df = df.join(years, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
+            df = df.with_columns([
+                pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(True)).otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN)
+            ])
         return ppl.to_ppdf(df, meta=meta)
 
     def nafill_pad(self) -> ppl.PathsDataFrame:

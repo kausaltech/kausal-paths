@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d21f44fade01de5914cd5ba1a3d165ad4969b765
+  commit: 3f11c8f77c10e7dc19ca2947a75bd8bbeed43ba5
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -2252,11 +2252,11 @@ actions:
       amounts:
       - year: 2023
         amount: 0
-      - year: 2025
+      - year: 2034
         amount: 0
-      - year: 2030
-        amount: 12
-      - year: 2040
+      - year: 2035
+        amount: 80
+      - year: 2036
         amount: 0
     - target:
         node: sewage_sludge_processing_ccs_share

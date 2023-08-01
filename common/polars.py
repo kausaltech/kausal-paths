@@ -143,7 +143,8 @@ class PathsDataFrame(pl.DataFrame):
 
     def select_metrics(self, metric_cols: list[str]) -> PathsDataFrame:
         for col in metric_cols:
-            assert col in self._units
+            if col not in self._units:
+                raise Exception('No unit for column %s' % col)
         cols = [*self._primary_keys, *metric_cols]
         if FORECAST_COLUMN in self.columns:
             cols.append(FORECAST_COLUMN)
