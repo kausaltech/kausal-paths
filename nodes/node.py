@@ -48,6 +48,9 @@ if typing.TYPE_CHECKING:
     from .processors import Processor
 
 
+class_fname_cache = {}
+
+
 class NodeMetric:
     id: MixedCaseIdentifier  # FIXME: Convert to Identifier
     column_id: str
@@ -636,10 +639,10 @@ class Node:
                 if klass in cache:
                     mod_mtime = cache[klass]
                 else:
-                    fn = getattr(klass, '_paths_fname', None)
+                    fn = class_fname_cache.get(klass)
                     if fn is None:
                         fn = inspect.getfile(klass)
-                        setattr(klass, '_paths_fname', fn)
+                        class_fname_cache[klass] = fn
 
                     try:
                         mod_mtime = os.path.getmtime(fn)
