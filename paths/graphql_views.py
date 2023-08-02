@@ -171,18 +171,13 @@ class PathsExecutionContext(ExecutionContext):
             stack.enter_context(instance.lock)
             if context.dataset_repo is not None:
                 stack.enter_context(context.dataset_repo.lock.lock)
+            stack.enter_context(context.perf_context)
+            stack.enter_context(context.cache)
 
-            context.perf_context.start()
-            context.cache.start_run()
             context.generate_baseline_values()
             self.activate_instance(instance)
 
-            try:
-                yield
-            finally:
-                context.cache.end_run()
-                context.perf_context.stop()
-                assert instance is not None
+            yield
 
     def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:
         self.activate_language(operation)

@@ -1,6 +1,8 @@
 from __future__ import annotations
+from contextlib import AbstractContextManager
+from types import TracebackType
 
-from typing import Any, Dict, Optional, Union, Tuple
+from typing import Any, Dict, Optional, Self, Union, Tuple
 import pickle
 
 import pandas as pd
@@ -69,7 +71,7 @@ class PickledPathsDataFrame:
         return cls(pldf, units, meta.primary_keys)
 
 
-class Cache:
+class Cache(AbstractContextManager):
     client: Optional[redis.Redis]
     prefix: str
 
@@ -88,6 +90,16 @@ class Cache:
         self.ureg = ureg
         self.run_cache = None
         self.run_pipe = None
+
+    def __enter__(self) -> Self:
+        self.start_run()
+        return self
+
+    def __exit__(self, __exc_type: type[BaseException] | None, __exc_value: BaseException | None, __traceback: TracebackType | None) -> bool | None:
+        if __exc_type is not None:
+            self.run_pipe = None
+        self.end_run()
+        return None
 
     def start_run(self):
         self.run_cache = {}

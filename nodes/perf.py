@@ -1,3 +1,5 @@
+import contextlib
+from types import TracebackType
 import typing
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -51,7 +53,7 @@ class PerfStackEntry:
         self.cum_exec_time = (now - self.first_start).total_seconds()
 
 
-class PerfContext:
+class PerfContext(contextlib.AbstractContextManager):
     stats_by_class: dict[typing.Type, PerfStats]
     node_stack: list[PerfStackEntry]
     enabled: bool = False
@@ -61,9 +63,21 @@ class PerfContext:
         self.node_stack = []
         self.context = context
 
+    def __enter__(self) -> 'typing.Self':
+        self.start()
+        return self
+
+    def __exit__(self, __exc_type: type[BaseException] | None, __exc_value: BaseException | None, __traceback: TracebackType | None) -> bool | None:
+        if __exc_type:
+            self.node_stack = []
+        self.stop()
+        return None
+
     def start(self):
         self.enabled = True
-        assert not self.node_stack
+        if self.node_stack:
+            print("Node stack was not empty")
+            self.node_stack = []
         self.stats_by_class = dict()
 
     def stop(self):
