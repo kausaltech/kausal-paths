@@ -930,7 +930,7 @@ class SewageSludgeProcessingEmissions(SimpleNode):
         df = df.with_columns([
             pl.when(
                 pl.col('greenhouse_gases').eq('co2_biogen')
-            ).then(pl.col('emissions') * pl.col('CCSShare')).otherwise(pl.col('emissions')),
+            ).then(pl.col('emissions') * pl.col('CCSShare') * -1).otherwise(pl.col('emissions')),
             pl.col('greenhouse_gases').map_dict({'co2_biogen': 'co2'}, default=pl.first()),
         ]).drop('CCSShare')
 
