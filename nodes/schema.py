@@ -401,10 +401,11 @@ class NodeInterface(graphene.Interface):
         )
         if obj is not None and obj.short_description_i18n:  # type: ignore
             return expand_db_html(obj.short_description_i18n)  # type: ignore
-        desc = str(root.description)
-        if desc:
-            paragraphs = ['<p>%s</p>' % p for p in desc.split('\n\n')]
-            return '\n'.join(paragraphs)
+        if root.description:
+            desc = str(root.description)
+            if desc:
+                paragraphs = ['<p>%s</p>' % p for p in desc.split('\n\n')]
+                return '\n'.join(paragraphs)
         return None
 
     @staticmethod
