@@ -136,10 +136,17 @@ class DVCDataset(Dataset):
 
         if self.filters:
             for d in self.filters:
-                col = d['column']
-                val = d['value']
-                df = df.filter(pl.col(col) == val)
-                df = df.drop(col)
+                if 'column' in d:
+                    col = d['column']
+                    val = d['value']
+                    df = df.filter(pl.col(col) == val)
+                    df = df.drop(col)
+                elif 'dimension' in d:
+                    dim_id = d['dimension']
+                    dim = context.dimensions[dim_id]
+                    grp_ids = d['groups']
+                    grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
+                    df = df.filter(grp_s.is_in(grp_ids))
 
         cols = df.columns
 
@@ -334,7 +341,8 @@ class JSONDataset(Dataset):
 
         if add_uuids:
             for row in d['data']:
-                if 'uuid' not in row:
+                uv = row.get('uuid')
+                if not uv:
                     row['uuid'] = str(uuid.uuid4())
             for f in fields:
                 if f['name'] == 'uuid':
