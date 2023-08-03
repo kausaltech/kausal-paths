@@ -787,37 +787,19 @@ nodes:
   input_nodes:
   - building_electricity_use
 
-- id: change_xcel_electricity_emission_factor
-  name: Expected change in Xcel Energy electricity emission factors
-  description: Although most of Longmont’s electricity is provided by Longmont Power
-    & Communications and Platte River Power Authority, there is a small portion that
-    is from Xcel Energy. Xcel Energy has committed to reducing carbon emissions 80%
-    by 2030 from a 2005 baseline and to being a zero-carbon electric utility by 2050.
-    This target and goal is integrated into Longmont’s future emission projections.
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/MWh
-  historical_values: [[2016, 0], [2021, 0]]
-  forecast_values: [[2030, -0.2759508], [2050, -0.444]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: electricity_emission_factor
-    to_dimensions:
-    - id: greenhouse_gases
-      categories: [co2]
-    - id: site
-      categories: [xcel_energy]
-
 - id: electricity_emission_factor
   name: Emission factor of electricity production
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/MWh
   input_datasets:
-  - longmont/electricity_emission_factor
+  - id: longmont/electricity_emission_factor
+    filters:
+    - column: site
+      value: longmont_power
   input_dataset_processors: [LinearInterpolation]
-  input_dimensions: [site, greenhouse_gases]
-  output_dimensions: [site, greenhouse_gases]
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
 
 - id: building_electricity_eui
   name: Energy use intensity EUI for electricity
@@ -892,22 +874,17 @@ nodes:
   quantity: emissions
   unit: t/a
   color: '#4d9870'
-  output_dimensions: [greenhouse_gases, emission_sectors, site]
+  output_dimensions: [greenhouse_gases, emission_sectors]
   input_nodes:
   - id: electricity_use
     to_dimensions:
     - id: emission_sectors
-    - id: site
-      categories: [longmont_power]
   - id: electricity_emission_factor
     to_dimensions:
     - id: greenhouse_gases
-    - id: site
   output_nodes:
   - id: building_emissions
     from_dimensions:
-    - id: site
-      flatten: true
     - id: greenhouse_gases
       flatten: true
     - id: emission_sectors
@@ -1139,8 +1116,11 @@ nodes:
   quantity: fraction
   unit: '%'
   input_datasets:
-  - longmont/transmission_and_distribution_loss
-  output_dimensions: [energy_carrier, site]
+  - id: longmont/transmission_and_distribution_loss
+    filters:
+    - column: site
+      value: longmont_power
+  output_dimensions: [energy_carrier]
   output_nodes:
   - id: electricity_losses
     from_dimensions:
@@ -1148,21 +1128,20 @@ nodes:
       categories: [electricity]
       flatten: true
     to_dimensions:
-    - id: site
+    - id: emission_sectors
+      categories: [residential_energy]  # FIXME Should apply to commercial, too.
 
 - id: electricity_losses
   name: Electricity losses
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [site, emission_sectors]
-  output_dimensions: [site, emission_sectors]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
   input_nodes:
   - id: electricity_use
     tags: [non_additive]
     to_dimensions:
-    - id: site
-      categories: [longmont_power]
     - id: emission_sectors
 
 - id: electricity_loss_emissions
@@ -1174,16 +1153,13 @@ nodes:
   - id: electricity_losses
     to_dimensions:
     - id: emission_sectors
-    - id: site
   - id: electricity_emission_factor
     to_dimensions:
-    - id: site
     - id: greenhouse_gases
-  output_dimensions: [site, greenhouse_gases, emission_sectors]
+  output_dimensions: [greenhouse_gases, emission_sectors]
   output_nodes:
   - id: electricity_consumption_emissions
     to_dimensions:
-    - id: site
     - id: emission_sectors
     - id: greenhouse_gases
 
@@ -1251,7 +1227,7 @@ nodes:
   - registered_electric_vehicles
 
 - id: total_vehicle_miles_traveled
-  name: Total vehicle miles traveled
+  name: Total combustion engine vehicle miles traveled
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mmiles/a
@@ -1309,10 +1285,6 @@ nodes:
       flatten: true
     to_dimensions: []
   - id: electricity_emission_factor
-    from_dimensions:
-    - id: site
-      categories: [longmont_power]
-      flatten: true
     to_dimensions:
     - id: greenhouse_gases
   output_nodes:
@@ -1417,11 +1389,8 @@ nodes:
 
 - id: public_transportation_trips_per_person
   name: Public transportation trips per person
-  description: Number of public transportation trips per person is assumed to be constant
-    and at the level of 2017. In contrast, in the excel model the total number of
-    transportation trips is higher by the factor of population increase in that year
-    but not accumulating over time; this does not make sense and is probably a thought
-    error in the equation.
+  description: Without further actions, the number of public transportation trips per person is assumed to be constant
+    and at the level of 2017.
   type: simple.FixedMultiplierNode
   quantity: number
   unit: trips/inhabitant/a
@@ -1588,7 +1557,7 @@ actions:
 - id: updated_building_code
   name: Use updated building code and enforce
   description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
-    rather than adopting it on the third year.</p> <p>Existing buildings: Percentage
+    rather than adopting it on the third year.</p> <p>The graph shows the relative improvement of the energy use intensity (EUI) caused by this action.</p> <p>Existing buildings: Percentage
     of square footage triggering code upgrades</p><p>Target reduction: 1%</p><p>Confidence
     ranking: Low</p><p>Assumption. No data resides with the City. They support this
     assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings: Average percent
@@ -1617,10 +1586,10 @@ actions:
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
-  description: Develop building codes that go beyond the IECC and towards net-zero
+  description: <p>Develop building codes that go beyond the IECC and towards net-zero
     energy use, including the Climate Action Recommendations Report strategies to
     add solar ready and electric vehicle ready as part of the 2021 residential code
-    update.
+    update.</p> <p>The graph shows the relative improvement of the energy use intensity (EUI) caused by this action.</p> 
   type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
@@ -1653,10 +1622,10 @@ actions:
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
-  description: Requires commercial and industrial buildings owners whose buildings
+  description: <p>Requires commercial and industrial buildings owners whose buildings
     exceed 20,000 square feet to rate their building's energy use, report energy metrics,
     and encourages buildings owners to implement energy efficiency measures. For updates,
-    see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.
+    see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.</p> <p>The graph shows the relative improvement of the energy use intensity (EUI) caused by this action.</p> 
   type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
@@ -1779,24 +1748,11 @@ actions:
         node: electricity_emission_factor
         categories:
           greenhouse_gases: co2
-          site: longmont_power
       amounts:
       - year: 2023
         amount: -0.058
       - year: 2030
         amount: -0.058
-      - year: 2031
-        amount: 0
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-          site: various
-      amounts:
-      - year: 2023
-        amount: -0.05875
-      - year: 2030
-        amount: -0.05875
       - year: 2031
         amount: 0
 
@@ -1818,7 +1774,6 @@ actions:
         node: electricity_emission_factor
         categories:
           greenhouse_gases: co2
-          site: longmont_power
       amounts:
       - year: 2023
         amount: -0.006
@@ -1977,20 +1932,6 @@ actions:
   unit: '%'
   group: solid_waste
   forecast_values: [[2022, 5.2], [2023, 9.6], [2024, 13.9], [2025, 18.3], [2026, 22.6], [2027, 27], [2028, 31.3], [2029, 35.7], [2030, 40], [2031, 40.5], [2032, 41], [2033, 41.5], [2034, 42], [2035, 42.5], [2036, 43], [2037, 43.5], [2038, 44], [2039, 44.5], [2040, 45], [2041, 45.5], [2042, 46], [2043, 46.5], [2044, 47], [2045, 47.5], [2046, 48], [2047, 48.5], [2048, 49], [2049, 49.5], [2050, 50]]
-  output_nodes:
-  - diversion_rate
-
-- id: increase_waste_diversion_additional
-  name: Additional increase in waste diversion
-  description: Achieve additional waste diversion from the landfill from 85% to 95% by 2050.
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: solid_waste
-  forecast_values: [[2030, 0], [2031, 0.5], [2032, 1],
-    [2033, 1.5], [2034, 2], [2035, 2.5], [2036, 3], [2037, 3.5], [2038, 4],
-    [2039, 4.5], [2040, 5], [2041, 5.5], [2042, 6], [2043, 6.5], [2044, 7],
-    [2045, 7.5], [2046, 8], [2047, 8.5], [2048, 9], [2049, 9.5], [2050, 10]]
   output_nodes:
   - diversion_rate
 
