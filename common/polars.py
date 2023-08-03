@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import reduce
+import re
 
 import typing
 from typing import Any, Collection, Iterable, Sequence
@@ -48,7 +49,6 @@ class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
     _primary_keys: typing.List[str]
     paths: 'PathsExt'
-
 
     @classmethod
     def _from_pydf(cls, py_df: PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
@@ -325,6 +325,69 @@ class PathsDataFrame(pl.DataFrame):
         df = df.paths.to_narrow()
         return to_ppdf(df, meta=meta)
 
+    def __str__(self) -> str:
+        meta = self.get_meta()
+        df = self.copy()
+        renames = {}
+        print_dimensions = []
+        for col, unit in meta.units.items():
+            new_col = col
+            # Wide format
+            if '@' in col:
+                new_col = new_col.replace('@', '\n')
+            if '/' in col:
+                new_col = new_col.replace('/', '\n')
+
+            lines = new_col.splitlines()
+            for idx, line in enumerate(list(lines)):
+                m = re.match(r'^(.*):(.*)$', line)
+                if not m:
+                    continue
+                dim_id, cat = m.groups()
+                if dim_id not in print_dimensions:
+                    print_dimensions.append(dim_id)
+                lines[idx] = cat
+            new_col = '\n'.join(lines)
+
+            new_col = '[%s] %s' % (str(unit), new_col)
+            renames[col] = new_col
+
+        for col in meta.primary_keys:
+            if col not in df:
+                print("WARNING: primary key %s not in columns" % col)
+                continue
+            renames[col] = '[idx] %s' % col
+
+        if renames:
+            df = df.rename(renames)
+
+        out = ''
+        if print_dimensions:
+            out += 'Dimensions:\n%s\n' % '\n'.join(
+                '  %d. %s' % (idx + 1, dim) for idx, dim in enumerate(print_dimensions)
+            )
+        out += df._df.as_str()
+        return out
+
+    def print(self):
+        from rich.console import Console
+        from rich.table import Table
+
+        table = Table()
+        for col in self.columns:
+            col = col.replace('@', '\n').replace(':', ':\n')
+            table.add_column(col)
+        for row in self.iter_rows():
+            vals = []
+            for val in row:
+                if isinstance(val, (float, int)):
+                    vals.append(str(val))
+                else:
+                    vals.append(val)
+            table.add_row(*vals)
+        console = Console()
+        console.print(table)
+
 
 def _validate_ppdf(df: PathsDataFrame):
     units = list(df._units.keys())
@@ -371,6 +434,6 @@ if not pl.using_string_cache():
     pl.enable_string_cache(True)
 
 
-pl.Config.set_fmt_str_lengths(60)
+pl.Config.set_fmt_str_lengths(100)
 pl.Config.set_tbl_rows(100)
 pl.Config.set_tbl_cols(12)

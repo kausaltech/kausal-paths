@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import os
+import re
 import typing
 from time import perf_counter_ns
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Set, Tuple, Union, overload
@@ -988,20 +989,9 @@ class Node:
         if isinstance(obj, (pd.DataFrame, pd.Series)):
             self.print_pint_df(obj)
             return
-        elif isinstance(obj, ppl.PathsDataFrame):
-            df: ppl.PathsDataFrame = obj
-            meta = df.get_meta()
-            for col in meta.units.keys():
-                if '@' in col:
-                    df = df.rename({col: col.replace('@', '\n')})
-            meta = df.get_meta()
-            df = df.rename({col: '[%s] %s' % (str(unit), col) for col, unit in meta.units.items()})
-            for col in meta.primary_keys:
-                if col not in df:
-                    print("WARNING: primary key %s not in columns" % col)
-                    continue
-                df = df.rename({col: '[idx] %s' % col})
-            obj = df
+        #if isinstance(obj, ppl.PathsDataFrame):
+        #    obj.print()
+        #    return
         pprint(obj)
 
     def print_outline(self, df):
