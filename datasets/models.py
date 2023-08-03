@@ -18,6 +18,7 @@ from nodes.constants import YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.dimensions import Dimension as NodeDimension
 from common.i18n import get_modeltrans_attrs_from_str
+from common import polars as ppl
 
 
 class Dataset(ClusterableModel, UserModifiableModel):
@@ -57,7 +58,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
         df = pl.DataFrame(data)
         return list(df[YEAR_COLUMN].unique().sort())
 
-    def generate_empty_table(self) -> dict:
+    def generate_empty_df(self) -> pd.DataFrame:
         dtypes = {}
         metric_cols = []
         for m in self.metrics.all():
@@ -77,6 +78,20 @@ class Dataset(ClusterableModel, UserModifiableModel):
         df = pd.DataFrame(index=index)
         for m in metric_cols:
             df[m] = pd.Series(dtype=dtypes[m])
+        return df
+
+    def generate_empty_table(self) -> dict:
+        df = self.generate_empty_df()
+        data = JSONDataset.serialize_df(df, add_uuids=True)
+        return data
+
+    def generate_missing_years(self) -> dict:
+        df = self.generate_empty_df()
+        existing = self.table
+        if existing:
+            edf = JSONDataset.deserialize_df(self.table)
+            rows = df.index.get_level_values(YEAR_COLUMN).isin(edf.index.levels[0])
+            df = pd.concat([edf, df.loc[~rows]])
         data = JSONDataset.serialize_df(df, add_uuids=True)
         return data
 
