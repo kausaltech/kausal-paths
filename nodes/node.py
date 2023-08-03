@@ -685,7 +685,12 @@ class Node:
             for m_id in edge.metrics:
                 m = self.output_metrics.get(m_id)
                 if m is None:
-                    raise NodeError(self, "Metric '%s' defined at the edge but not present in output_metrics" % m_id)
+                    # FIXME: Remove this fallback
+                    for m in self.output_metrics.values():
+                        if m.column_id == m_id:
+                            break
+                    else:
+                        raise NodeError(self, "Metric '%s' defined at the edge but not present in output_metrics" % m_id)
                 if m.column_id not in drop_cols:
                     raise NodeError(self, "Metric column '%s' defined at the edge but not present in DF" % m)
                 drop_cols.remove(m.column_id)

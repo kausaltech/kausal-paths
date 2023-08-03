@@ -717,7 +717,6 @@ nodes:
   input_nodes:
   - id: building_floor_area
     tags: [floor_area]
-    metrics: [floor_area]
   - id: building_natural_gas_eui
     tags: [consumption_factor]
 
@@ -739,7 +738,7 @@ nodes:
   input_nodes:
   - id: commercial_square_footage_over_20000_sf
     tags: [floor_area]
-    metrics: [floor_area]
+    # metrics: [floor_area]
   - id: building_natural_gas_eui
     tags: [consumption_factor]
   output_nodes:
@@ -767,7 +766,7 @@ nodes:
   input_nodes:
   - id: commercial_square_footage_over_20000_sf
     tags: [floor_area]
-    metrics: [floor_area]
+    # metrics: [floor_area]
   - id: building_electricity_eui
     tags: [consumption_factor]
   output_nodes:
@@ -831,7 +830,7 @@ nodes:
     tags: consumption_factor
   - id: building_floor_area
     tags: floor_area
-    metrics: [floor_area]
+    # metrics: [floor_area]
 
 # Building model, updated building code
 # Floor area increses by B32 every year. categories residential, commercial

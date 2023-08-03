@@ -653,7 +653,7 @@ class UsFloorAreaNode(MultiplicativeNode):
         df = df.paths.to_narrow()
 
         return df
-    
+
     def compute(self):
         nodes: list(Node) = []
         actions: list(UsBuildingAction) = []
@@ -724,6 +724,10 @@ class UsFloorAreaNode(MultiplicativeNode):
         df_out = df_out.with_columns(
             pl.when(pl.col('building_energy_class').eq('all'))
             .then(pl.col(VALUE_COLUMN)).otherwise(pl.lit(0.0)).alias(VALUE_COLUMN))
+
+        m = self.get_default_output_metric()
+        df_out = df_out.select_metrics(['floor_area']).rename({'floor_area': m.column_id})
+
         return df_out
 
 
