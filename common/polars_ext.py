@@ -42,7 +42,7 @@ class PathsExt:
 
         if meta is None:
             meta = df.get_meta()
-        dim_ids = meta.dim_ids
+        dim_ids = list(sorted(meta.dim_ids))
         metric_cols = list(meta.units.keys())
         if not metric_cols:
             raise Exception("No metric columns in DF")
