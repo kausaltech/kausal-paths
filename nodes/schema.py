@@ -8,6 +8,8 @@ from graphql.error import GraphQLError
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
+from markdown_it import MarkdownIt
+
 
 from common import polars as ppl
 from nodes.context import Context
@@ -30,6 +32,7 @@ from .scenario import Scenario
 
 
 logger = logging.getLogger(__name__)
+markdown = MarkdownIt('commonmark', {'html': True})
 
 
 class InstanceHostname(graphene.ObjectType):
@@ -404,8 +407,8 @@ class NodeInterface(graphene.Interface):
         if root.description:
             desc = str(root.description)
             if desc:
-                paragraphs = ['<p>%s</p>' % p for p in desc.split('\n\n')]
-                return '\n'.join(paragraphs)
+                html = markdown.render(desc)
+                return html
         return None
 
     @staticmethod

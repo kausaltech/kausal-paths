@@ -488,6 +488,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'botocore': level('INFO'),
             'filelock': level('INFO'),
             'sentry_sdk.errors': level('INFO'),
+            'markdown_it': level('INFO'),
             '': level('DEBUG'),
         }
     }
