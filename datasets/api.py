@@ -279,10 +279,14 @@ class DatasetSerializer(serializers.ModelSerializer):
             cols_present.update(cols)
             extra = cols - allowed_cols
             if extra:
-                row_errors.append('Unknown columns: %s' % ', '.join(extra))
+                for col in extra:
+                    del row[col]
+                # row_errors.append('Unknown columns: %s' % ', '.join(extra))
             missing = required_cols - cols
             if missing:
-                row_errors.append('Missing columns: %s' % ', '.join(missing))
+                for col in missing:
+                    row[col] = None
+                # row_errors.append('Missing columns: %s' % ', '.join(missing))
 
             for col, val in row.items():
                 if col == YEAR_COLUMN:
