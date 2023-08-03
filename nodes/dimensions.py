@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import hashlib
 import typing
-from typing import Any, List, OrderedDict, Type
+from typing import Any, List, OrderedDict, Type, overload
 import polars as pl
 
 from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator, model_validator
@@ -132,7 +132,13 @@ class Dimension(BaseModel):
             raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
         return cs
 
-    def ids_to_groups(self, expr: pl.Expr) -> pl.Expr:
+    @overload
+    def ids_to_groups(self, expr: pl.Series) -> pl.Series: ...
+
+    @overload
+    def ids_to_groups(self, expr: pl.Expr) -> pl.Expr: ...
+
+    def ids_to_groups(self, expr: pl.Expr | pl.Series) -> pl.Expr | pl.Series:
         id_map = {}
         for cat in self.categories:
             if not cat._group:

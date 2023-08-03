@@ -4,7 +4,7 @@ import common.polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_last_historical_value_pl
 from nodes.node import NodeMetric, NodeError, Node
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
-from nodes.constants import DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
+from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
 
 
 class BuildingEnergy(AdditiveNode):
@@ -640,6 +640,7 @@ class VehicleEngineTypeSplit(MixNode):
         df = df.drop('group')
         df = extend_last_historical_value_pl(df, self.get_end_year())
         df = self.add_nodes_pl(df, nodes)
+
         df = ppl.to_ppdf(df.join(gdf, on='vehicle_type', how='left'), df.get_meta()).sort(YEAR_COLUMN).add_to_index('group')
         df = self.add_mix_normalized(df, [], over_dims=['vehicle_type'])
         df = df.drop('group')
@@ -676,7 +677,8 @@ class VehicleMileage(Node):
 
 class TransportFuelFactor(AdditiveNode):
     output_metrics = {
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='kg/vkm', quantity=EMISSION_FACTOR_QUANTITY)  # FIXME Not really emission but fuel
+        'Fuel': NodeMetric(unit='kg/vkm', quantity=CONSUMPTION_FACTOR_QUANTITY),
+        'Electricity': NodeMetric(unit='kWh/vkm', quantity=CONSUMPTION_FACTOR_QUANTITY),
     }
     output_dimension_ids = [
         'energy_carrier', 'vehicle_type',
@@ -687,13 +689,25 @@ class TransportFuelFactor(AdditiveNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
-        df = df.select_metrics(['fuel']).drop_nulls()
-        if 'vehicle' not in df.get_unit('fuel').dimensionality:
-            df = df.set_unit('fuel', 'kg/vkm', force=True)
-        m = self.get_default_output_metric()
-        df = df.rename(dict(fuel=m.column_id)).ensure_unit(m.column_id, m.unit)
+
+        v_unit = self.context.unit_registry.parse_units('vehicle')
+
+        df = df.select_metrics(['fuel', 'electricity'])
+        e_m = self.output_metrics['Electricity']
+        f_m = self.output_metrics['Fuel']
+
+        exprs = []
+        for col, m in (('electricity', e_m), ('fuel', f_m)):
+            u = df.get_unit(col)
+            if 'vehicle' not in u.dimensionality:
+                df = df.set_unit(col, u / v_unit, force=True)
+            df = df.ensure_unit(col, m.unit).rename({col: m.column_id})
+            df = df.with_columns(pl.col(m.column_id).fill_nan(None))
+            exprs.append(pl.col(m.column_id).is_null() | pl.col(m.column_id).eq(0.0))
+
+        df = df.filter(~pl.all_horizontal(exprs))
+        df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        df = self.add_nodes_pl(df, self.input_nodes)
         return df
 
 

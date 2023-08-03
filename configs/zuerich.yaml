@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 92c5cf5955adb71a5ddd9fb41bf04e08569985c8
+  commit: 10b103b94625d3ea0872282b277eae511b6be2ba
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -1330,6 +1330,18 @@ nodes:
     to_dimensions: []
     tags: [population]
 
+- id: vehicle_engine_type_split_historical
+  name_de: Vehicle engine type split
+  name_en: Vehicle engine type split
+  quantity: mix
+  unit: '%'
+  type: ch.zuerich.VehicleEngineTypeSplit
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: mileage
+
 - id: vehicle_engine_type_split
   name_de: Vehicle engine type split
   name_en: Vehicle engine type split
@@ -1385,10 +1397,24 @@ nodes:
 - id: transport_electricity_consumption_factor
   name_de: Verkehr Stromverbrauch
   name_en: Transport electricity consumption
-  type: ch.zuerich.TransportElectricity
+  type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/vkm
+  input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Electricity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+
+- id: transport_consumption_factor_historical
+  name_de: Verkehr Kraftstofffaktor (historisch)
+  name_en: Transport fuel factors (historical)
+  type: ch.zuerich.TransportFuelFactor
+  unit: kg/vkm
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/fuel_consumption_factor
@@ -1396,12 +1422,14 @@ nodes:
 - id: transport_fuel_factor
   name_de: Verkehr Kraftstofffaktor
   name_en: Transport fuel factors
-  type: ch.zuerich.TransportFuelFactor
-  quantity: fuel_factor
+  type: simple.AdditiveNode
+  quantity: consumption_factor
   unit: kg/vkm
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - zuerich/fuel_consumption_factor
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Fuel]
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
 
 - id: transport_emissions_for_fuel
   name_de: Verkehr Emissionen für den Kraftstoffverbrauch
@@ -1984,247 +2012,128 @@ actions:
         source_amount: -0.2
         dest_amounts: [50, 100]
 
-- id: electrify_vehicle_fleet
+
+#
+# Massnahmenpaket 5: Verträgliche Gestaltung des Verkehrs
+#
+- id: improved_vehicle_fleet
   name_en: Electrify vehicle fleet
-  name_de: Elektrifizierung der Fahrzeugflotte
+  name_de: Verträgliche Gestaltung des Verkehrs
+  description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
+    dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
+    erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung
+    (= Verlangsamung) des Verkehrs spielen dafür eine Schlüsselfunktion.
   group: mobility
-  type: shift.ShiftAction
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+
+- id: electrify_personal_transport
+  name_en: Electrify personal transport
+  name_de: Elektrifizierung des MIV
+  group: mobility
+  parent: improved_vehicle_fleet
+  type: linear.DatasetReduceAction
   quantity: mix
   description_en: Vehicle fleet electrification.
-  description_de: Fahrzeuge mit fossilem Antrieb werden durch batterieelektrische,
-    hybrid-, plug-in hybrid- und Brennstoffzellen-Fahrzeuge ersetzt.
+  description_de: 'Wirkungsziel: Die Personenwagen, die in der Stadt verkehren, werden
+    bis 2040 zu 81% elektrifiziert (Batterie-elektrische Fahrzeuge, Plug-in-Hybrid-Fahrzeuge,
+    Brennstoffzellen-Fahrzeuge).'
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
   output_nodes:
   - id: vehicle_engine_type_split
+  input_datasets:
+  - id: zuerich/vehicle_electrification_goals
+    filters:
+    - dimension: vehicle_type
+      groups: [cars, motorbikes]
   unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          vehicle_type: car_diesel
-      dests:
-      - categories:
-          vehicle_type: car_batteryelectric
-      - categories:
-          vehicle_type: car_plugin_hybrid
-      amounts:
-      - year: 2023
-        source_amount: -0.5
-        dest_amounts: [50, 50]
-      - year: 2030
-        source_amount: -1.2
-        dest_amounts: [70, 30]
-      - year: 2040
-        source_amount: -2.5
-        dest_amounts: [100, 0]
-      - year: 2050
-        source_amount: -2.5
-        dest_amounts: [100, 0]
-    - source:
-        categories:
-          vehicle_type: car_petrol
-      dests:
-      - categories:
-          vehicle_type: car_batteryelectric
-      - categories:
-          vehicle_type: car_plugin_hybrid
-      amounts:
-      - year: 2023
-        source_amount: -0.5
-        dest_amounts: [50, 50]
-      - year: 2030
-        source_amount: -1.2
-        dest_amounts: [70, 30]
-      - year: 2040
-        source_amount: -2.5
-        dest_amounts: [100, 0]
-      - year: 2050
-        source_amount: -2.5
-        dest_amounts: [100, 0]
-    # Vans
-    - source:
-        categories:
-          vehicle_type: van_petrol
-      dests:
-      - categories:
-          vehicle_type: van_battery_electric
-      amounts:
-      - year: 2023
-        source_amount: -0.1
-        dest_amounts: [100]
-      - year: 2030
-        source_amount: -0.2
-        dest_amounts: [100]
-      - year: 2040
-        source_amount: -0.3
-        dest_amounts: [100]
-      - year: 2050
-        source_amount: -0.3
-        dest_amounts: [100]
-    - source:
-        categories:
-          vehicle_type: van_diesel
-      dests:
-      - categories:
-          vehicle_type: van_battery_electric
-      - categories:
-          vehicle_type: van_diesel_plugin_hybrid
-      - categories:
-          vehicle_type: van_natural_gas_biogas
-      - categories:
-          vehicle_type: van_fuel_cell
-      amounts:
-      - year: 2023
-        source_amount: -0.5
-        dest_amounts: [90, 0, 10, 0]
-      - year: 2030
-        source_amount: -1.2
-        dest_amounts: [90, 0, 10, 0]
-      - year: 2040
-        source_amount: -4.5
-        dest_amounts: [80, 8, 8, 4]
-      - year: 2050
-        source_amount: -3.0
-        dest_amounts: [100, 0, 0, 0]
-    # Lorries
-    - source:
-        categories:
-          vehicle_type: lorry_diesel
-      dests:
-      - categories:
-          vehicle_type: lorry_battery_electric
-      - categories:
-          vehicle_type: lorry_diesel_plugin_hybrid
-      - categories:
-          vehicle_type: lorry_natural_gas_biogas
-      - categories:
-          vehicle_type: lorry_fuel_cell
-      amounts:
-      - year: 2023
-        source_amount: -0.5
-        dest_amounts: [25, 25, 25, 25]
-      - year: 2030
-        source_amount: -0.7
-        dest_amounts: [35, 15, 15, 35]
-      - year: 2040
-        source_amount: -2.5
-        dest_amounts: [40, 10, 10, 40]
-      - year: 2050
-        source_amount: -0.3
-        dest_amounts: [40, 10, 10, 40]
-    # Buses
-    - source:
-        categories:
-          vehicle_type: buses_diesel
-      dests:
-      - categories:
-          vehicle_type: buses_batteryelectric
-      - categories:
-          vehicle_type: buses_diesel_plugin_hybrid
-      - categories:
-          vehicle_type: buses_fuel_cell
-      amounts:
-      - year: 2023
-        source_amount: -3.0
-        dest_amounts: [80, 0, 0]
-      - year: 2030
-        source_amount: -4.0
-        dest_amounts: [80, 0, 5]
-      - year: 2040
-        source_amount: -0.7
-        dest_amounts: [70, 10, 20]
-      - year: 2050
-        source_amount: -0.3
-        dest_amounts: [70, 10, 10]
+
+- id: electrify_goods_transport
+  name_en: Electrify goods transport
+  name_de: Elektrifizierung des Gueterverkehr
+  parent: improved_vehicle_fleet
+  group: mobility
+  type: linear.DatasetReduceAction
+  quantity: mix
+  description_en: Vehicle fleet electrification.
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
+  output_nodes:
+  - id: vehicle_engine_type_split
+  input_datasets:
+  - id: zuerich/vehicle_electrification_goals
+    filters:
+    - dimension: vehicle_type
+      groups: [vans, lorries]
+  unit: '%'
+
+- id: electrify_public_transportation
+  name_en: Electrify public transportation
+  name_de: Elektrifizierung des ÖV
+  parent: improved_vehicle_fleet
+  group: mobility
+  type: linear.DatasetReduceAction
+  quantity: mix
+  description_en: Vehicle fleet electrification.
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
+  output_nodes:
+  - id: vehicle_engine_type_split
+  input_datasets:
+  - id: zuerich/vehicle_electrification_goals
+    filters:
+    - dimension: vehicle_type
+      groups: [buses, coaches]
+  unit: '%'
 
 - id: increase_vehicle_efficiency
   name_de: Effizientere Fahrzeuge
   name_en: Increase vehicle efficiency
+  parent: improved_vehicle_fleet
   group: mobility
-  type: linear.ReduceAction
+  type: linear.DatasetReduceAction
   quantity: fuel_consumption
-  description_de: Es werden sparsamere und kleinere Fahrzeuge eingesetzt.
-  unit: g/vkm
-  output_nodes: [transport_fuel_factor]
+  description_de: 'Wirkungsziel: Der Stromverbrauch von Personenwagen sinkt um xx%.
+    Der Treibstoffverbrauch von Personenwagen sinkt um xx%.'
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Electricity, Fuel]
+  output_metrics:
+  - id: Electricity
+    unit: kWh/vkm
+    quantity: consumption_factor
+  - id: Fuel
+    unit: kg/vkm
+    quantity: consumption_factor
+  output_nodes:
+  - id: transport_fuel_factor
+    metrics: [Fuel]
+  - id: transport_electricity_consumption_factor
+    metrics: [Electricity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: zuerich/vehicle_fuel_efficiency_improvement
+    filters:
+    - dimension: vehicle_type
+      groups: [cars]
   params:
-  - id: reduce
-    unit: g/vkm
+  - id: relative_goal
+    value: true
     is_customizable: false
-    value:
-    - target:
-        node:
-        categories:
-          energy_carrier: petrol
-          vehicle_type: car_petrol
-      amounts:
-      - year: 2023
-        amount: -1
-      - year: 2030
-        amount: -0.5
-      - year: 2040
-        amount: -0.5
-    - target:
-        node:
-        categories:
-          energy_carrier: diesel
-          vehicle_type: car_diesel
-      amounts:
-      - year: 2023
-        amount: -1
-      - year: 2030
-        amount: -0.5
-      - year: 2040
-        amount: -0.5
-    - target:
-        node:
-        categories:
-          energy_carrier: petrol
-          vehicle_type: car_plugin_hybrid
-      amounts:
-      - year: 2023
-        amount: -0.5
-      - year: 2030
-        amount: -0.25
-      - year: 2040
-        amount: -0.25
-    - target:
-        node:
-        categories:
-          energy_carrier: diesel
-          vehicle_type: van_diesel
-      amounts:
-      - year: 2023
-        amount: -1.5
-      - year: 2030
-        amount: -0.7
-      - year: 2040
-        amount: -0.7
-    - target:
-        node:
-        categories:
-          energy_carrier: diesel
-          vehicle_type: lorry_diesel
-      amounts:
-      - year: 2023
-        amount: -2.5
-      - year: 2030
-        amount: -2
-      - year: 2040
-        amount: -1
-    - target:
-        node:
-        categories:
-          energy_carrier: diesel
-          vehicle_type: buses_diesel
-      amounts:
-      - year: 2023
-        amount: -3
-      - year: 2030
-        amount: -2
-      - year: 2040
-        amount: -1
 
 # Massnahmenpaket 6: CO2 -Abscheidung und –Speicherung (CCS)
 - id: install_waste_treatment_ccs
@@ -2246,9 +2155,9 @@ actions:
   group: waste
   type: linear.ReduceAction
   quantity: ratio
-  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2
-    beim Kehrichtheizkraftwerk Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente
-    negative Emissionen produziert.
+  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 beim
+    Kehrichtheizkraftwerk Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente negative
+    Emissionen produziert.
   unit: '%'
   output_nodes: [waste_incineration_ccs_share]
   params:
@@ -2275,8 +2184,8 @@ actions:
   type: linear.ReduceAction
   quantity: ratio
   parent: install_waste_treatment_ccs
-  description_de: Ab 2030 werden durch die Abscheidung und Speicherung von CO2
-    bei der Klärschlammverwertungsanlage Werdhölzli jährlich 20'000 Tonnen CO2-Äquivalente
+  description_de: Ab 2030 werden durch die Abscheidung und Speicherung von CO2 bei
+    der Klärschlammverwertungsanlage Werdhölzli jährlich 20'000 Tonnen CO2-Äquivalente
     negative Emissionen produziert.
   unit: '%'
   output_nodes: [sewage_sludge_processing_ccs_share]

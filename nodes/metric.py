@@ -337,12 +337,14 @@ class DimensionalMetric:
 
         jdf = idx_df.join(df, how='left', on=idx_names)
         vals: list[float] = jdf[m.column_id].fill_null(0).to_list()
+        stackable = m.quantity in STACKABLE_QUANTITIES
+        if isinstance(node, ActionNode) and m.quantity in ('mix',):
+            stackable = False
         dm = DimensionalMetric(
             id=node.id, name=str(node.name), dimensions=dims,
             values=vals, years=years, unit=df.get_unit(m.column_id),
             forecast_from=forecast_from, normalized_by=normalizer,
-            stackable=m.quantity in STACKABLE_QUANTITIES,
-            goals=goals,
+            stackable=stackable, goals=goals,
         )
         return dm
 
@@ -352,7 +354,6 @@ class FlowNode:
     id: str
     label: str
     color: str | None = None
-
 
 
 @dataclass
