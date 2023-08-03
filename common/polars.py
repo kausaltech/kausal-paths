@@ -117,6 +117,8 @@ class PathsDataFrame(pl.DataFrame):
     def _pyexprs_to_meta(self, exprs: list[PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
         meta = self.get_meta()
         for expr in exprs:
+            if expr.meta_has_multiple_outputs():
+                continue
             output_col = expr.meta_output_name()
             root_cols = expr.meta_root_names()
             if output_col in units:
