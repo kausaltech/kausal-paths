@@ -20,7 +20,7 @@ from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.goals import NodeGoalsEntry
-from nodes.node import Edge, Node
+from nodes.node import Edge, Node, NodeMetric
 from nodes.normalization import Normalization
 from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
@@ -202,11 +202,15 @@ class InstanceLoader:
             processors.append(p_class(self.context, node, params=params))
         return processors
 
-    def make_node(self, node_class: Type[Node], config) -> Node:
+    def make_node(self, node_class: Type[Node], config: dict) -> Node:
         ds_config = config.get('input_datasets', None)
         datasets: list[Dataset] = []
 
-        metrics = getattr(node_class, 'output_metrics', None)
+        metrics_conf = config.get('output_metrics', None)
+        if metrics_conf is not None:
+            metrics = {m['id']: NodeMetric.from_config(m) for m in metrics_conf}
+        else:
+            metrics = getattr(node_class, 'output_metrics', None)
         unit = config.get('unit')
         if unit is None:
             unit = getattr(node_class, 'default_unit', None)
@@ -266,6 +270,7 @@ class InstanceLoader:
             input_datasets=datasets,
             output_dimension_ids=config.get('output_dimensions'),
             input_dimension_ids=config.get('input_dimensions'),
+            output_metrics=metrics,
         )
 
         if node.id in self._input_nodes or node.id in self._output_nodes:

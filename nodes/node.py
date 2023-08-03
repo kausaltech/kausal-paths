@@ -49,7 +49,7 @@ if typing.TYPE_CHECKING:
     from .processors import Processor
 
 
-class_fname_cache = {}
+class_fname_cache: dict[type, str] = {}
 
 
 class NodeMetric:
@@ -79,6 +79,13 @@ class NodeMetric:
             self.column_id = validate_identifier(column_id, mixed=True)
         else:
             self.column_id = None  # type: ignore
+
+    @classmethod
+    def from_config(cls, config: dict):
+        return cls(
+            unit=config['unit'], quantity=config['quantity'], id=config['id'],
+            label=None, column_id=None
+        )
 
     def copy(self) -> NodeMetric:
         return NodeMetric(unit=self.unit, quantity=self.quantity, id=self.id, label=self.label, column_id=self.column_id)
@@ -218,8 +225,13 @@ class Node:
 
     def __post_init__(self): ...
 
-    def _init_metrics(self, unit: Unit | None, quantity: str | None):
-        self.output_metrics = self.output_metrics.copy()
+    def _init_metrics(
+        self, unit: Unit | None, quantity: str | None, output_metrics: dict[str, NodeMetric] | None = None
+    ):
+        if output_metrics is not None:
+            self.output_metrics = output_metrics.copy()
+        else:
+            self.output_metrics = self.output_metrics.copy()
         if self.output_metrics:
             for met_id, met in self.output_metrics.items():
                 met.populate_unit(self.context)
@@ -298,11 +310,12 @@ class Node:
         is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
         input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
+        output_metrics: dict[str, NodeMetric] | None = None,
     ):
         self.id = validate_identifier(id)
         self.context = context
 
-        self._init_metrics(unit, quantity)
+        self._init_metrics(unit, quantity, output_metrics)
         if input_datasets is None:
             input_datasets = []
 
@@ -668,14 +681,25 @@ class Node:
 
         if edge.metrics:
             drop_cols = list(df.metric_cols)
-            for m in edge.metrics:
-                if m not in drop_cols:
+            remain_cols = []
+            for m_id in edge.metrics:
+                m = self.output_metrics.get(m_id)
+                if m is None:
+                    raise NodeError(self, "Metric '%s' defined at the edge but not present in output_metrics" % m_id)
+                if m.column_id not in drop_cols:
                     raise NodeError(self, "Metric column '%s' defined at the edge but not present in DF" % m)
-                drop_cols.remove(m)
+                drop_cols.remove(m.column_id)
+                remain_cols.append(m.column_id)
             if drop_cols:
                 df = df.drop(drop_cols)
-            if len(edge.metrics) == 1 and edge.metrics[0] != VALUE_COLUMN:
-                df = df.rename({edge.metrics[0]: VALUE_COLUMN})
+            # FIXME: Should we look at target node's input metrics? Maybe define the
+            # edge's metric selection as a mapping instead of a flat list?
+            if len(edge.metrics) == 1:
+                if edge.metrics[0] != VALUE_COLUMN:
+                    df = df.rename({edge.metrics[0]: VALUE_COLUMN})
+                    remain_cols = [VALUE_COLUMN]
+            # Drop rows where all metric cols are null
+            df = df.filter(~pl.all_horizontal(pl.col(col).is_null() for col in remain_cols))
             return df
 
         col_name: Optional[str] = None
@@ -936,8 +960,10 @@ class Node:
 
         return df
 
-    def print_output(self):
+    def print_output(self, only_years: list[int] | None = None):
         df = self._get_output_with_baseline()
+        if only_years:
+            df = df.filter(pl.col(YEAR_COLUMN).is_in(only_years))
         self.print(df)
 
     def plot_output(self):
