@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 
 from rich.table import Table
 from rich.console import Console
-import sentry_sdk
 
 if typing.TYPE_CHECKING:
     from .node import Node
@@ -63,7 +62,7 @@ class PerfContext(contextlib.AbstractContextManager):
         self.node_stack = []
         self.context = context
 
-    def __enter__(self) -> 'typing.Self':
+    def __enter__(self):
         self.start()
         return self
 

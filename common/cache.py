@@ -2,7 +2,7 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from types import TracebackType
 
-from typing import Any, Dict, Optional, Self, Union, Tuple
+from typing import Any, Dict, Optional, Union, Tuple
 import pickle
 
 import pandas as pd
@@ -91,7 +91,7 @@ class Cache(AbstractContextManager):
         self.run_cache = None
         self.run_pipe = None
 
-    def __enter__(self) -> Self:
+    def __enter__(self):
         self.start_run()
         return self
 
