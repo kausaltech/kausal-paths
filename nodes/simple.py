@@ -438,6 +438,12 @@ class MixNode(AdditiveNode):
         if len(df.metric_cols) != 1:
             raise NodeError(self, "Must have exactly one metric column")
 
+        # Fill missing values with zeroes
+        df = df.paths.to_wide()
+        null_fills = [pl.col(col).fill_null(0.0) for col in df.metric_cols]
+        df = df.with_columns(null_fills)
+        df = df.paths.to_narrow()
+
         if over_dims is None:
             over_dims = df.dim_ids
         col = df.metric_cols[0]

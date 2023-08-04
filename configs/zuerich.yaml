@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 10b103b94625d3ea0872282b277eae511b6be2ba
+  commit: 502d280caa6459abca7e753aa06a36d9da7a5063
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -158,45 +158,39 @@ dimensions:
   - id: coaches
     label: Reisebusse
     label_en: Coaches
-    id_match: ^coach_.+
   - id: lorries
     label: Lastwagen
     label_en: Lorries
-    id_match: ^lorry_.+
   - id: vans
     label: Lieferwagen
     label_en: Vans
-    id_match: ^van_.+
   - id: tram
     label: Tram
     label_en: Tram
   - id: small_railways
     label: Kleinbahnen
     label_en: Small railways
-    id_match: ^small_railways$
   - id: rail_passenger
     label: Bahn ÖV
     label_en: Rail (passenger transport)
   - id: rail_goods
     label: Bahn Gueterverkehr
     label_en: Rail (goods transport)
-    id_match: ^rail_goods.*
   - id: liner_ship
     label: Linienschiffe
     label_en: Liner ship
-    id_match: ^liner_ship.*
   - id: private_ship
     label: Private Bootsverkehr
     label_en: Private ships
-    id_match: ^private_ship.*
   - id: mobility_outside_city
     label: Mobilität ausserhalb der Stadt
     label_en: Mobility ourside the city
-    id_match: ^mobility_outside_city
   - id: aviation
     label: Flugverkehr
     label_en: Aviation
-    id_match: ^aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
 
 - id: vehicle_type
   label: Fahrzeugtyp
@@ -262,8 +256,11 @@ dimensions:
     label: Flugverkehr
     label_en: Aviation
     id_match: ^aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
+    id_match: ^bicycle
 
-    # TODO: Add the rest of the groups
   categories:
   - id: car_petrol
     label: Personenwagen / Benzin
@@ -388,6 +385,9 @@ dimensions:
   - id: aviation
     label: Flugverkehr
     label_en: Aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
 
 - id: non_road_machinery
   label: Non-Road Maschinen
@@ -1331,8 +1331,8 @@ nodes:
     tags: [population]
 
 - id: vehicle_engine_type_split_historical
-  name_de: Vehicle engine type split
-  name_en: Vehicle engine type split
+  name_de: Vehicle engine type split (historical)
+  name_en: Vehicle engine type split (historical)
   quantity: mix
   unit: '%'
   type: ch.zuerich.VehicleEngineTypeSplit
@@ -1846,7 +1846,7 @@ actions:
     damit das 2000 Watt-Ziel sowie die Zielsetzung von 100% Wärmeenergie aus erneuerbarer
     Energie, Abfall oder Abwärme erreicht werden kann. Insgesamt soll eine Reduktion
     des Wärmeenergieverbrauchs von 20% gegenüber dem Mittelwert 2018-2022 erreicht
-    werden (pro Einwohner*in: Reduktion um xx%).\nDiese Senkung des Energiebedarfes
+    werden (pro Einwohner\\*in: Reduktion um xx%).\nDiese Senkung des Energiebedarfes
     bedarf Massnahmen in den Bereichen der Verbesserung der Gebäudehülle, der Optimierung
     des Heizbetriebs und der suffizienten Nutzung der Wärme. Alle Massnahmen zusammen
     haben das Potenzial den Wärmebedarf zu reduzieren. Die Liegenschaftsbesitzer*innen
@@ -1947,13 +1947,20 @@ actions:
       - year: 2040
         amount: -0.15
 
+#
+# Massnahmenpaket 3: Vermeidung von Verkehrsaufkommen
+#
 - id: reduce_transportation_demand
   name_en: Reduce transportation demand
   name_de: Vermeidung von Verkehrsaufkommen
-  description_de: Dieses Massnahmenpaket umfasst Massnahmen, welche dazu führen, die
-    zurückgelegten Distanzen insgesamt zu verringern. Dies betrifft alle Wege, unabhängig
-    davon, ob sie mit dem MIV, dem öV, dem Fahrrad oder zu Fuss zurückgelegt werden.
-    Dies kann durch eine Stadt der kurzen Wege erreicht werden.
+  description_de: 'Durch eine Veränderung der räumlichen Nutzungsstrukturen
+    sollen ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die
+    Weglängen und somit die Verkehrsleistung reduziert werden. Die Weglängen
+    umfassen alle Wege, unabhängig davon, ob sie mit dem MIV, dem ÖV, dem Velo
+    oder zu Fuss zurückgelegt werden. Die Verringerung der Wegdistanzen wird
+    durch eine "Stadt der kurzen Wege" und durch vermehrte Arbeit zu Hause oder
+    in der Nähe des Wohnortes erreicht. Die entsprechenden stadtplanerischen
+    Prozesse und Massnahmen werden erst mittel- bis langfristig Wirkung zeigen.'
   group: mobility
   type: linear.ReduceAction
   unit: pkm/cap/a
@@ -1968,23 +1975,43 @@ actions:
     - target: {}
       amounts:
       - year: 2023
-        amount: -5
-      - year: 2030
-        amount: -65
-      - year: 2045
-        amount: -45
+        amount: -53
+      - year: 2039
+        amount: -53
+      - year: 2040
+        amount: 0
+
+#
+# Massnahmenpaket 4: Verlagerung des MIV in Richtung des Umweltverbundes
+#
+- id: shift_to_sustainable_transport_modes
+  name_en: Shift to sustainable transport modes
+  name_de: Verlagerung des MIV in Richtung des Umweltverbundes
+  description_de: 'Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr
+    vom motorisierten Individualverkehr hin zu öffentlichem Verkehr,
+    Velo- oder Fussverkehr (= Umweltverbund) zu verlagern. Es geht dabei insbesondere
+    um Massnahmen auf der Angebotsseite des verträglichen Verkehrs, wie den Ausbau und
+    die stetige Verbesserung des öffentlichen Verkehrs sowie die Bereitstellung von
+    attraktiven und sicheren Velo- und Fussverkehrsinfrastrukturen. Auch wird die
+    Verlagerung durch eine optimale Vernetzung der Verkehrsmittel untereinander unterstützt.\n
+    Die Prozesse und Massnahmen werden über eine längere Zeitdauer umgesetzt und sind
+    entsprechend erst mittel- bis langfristig wirksam.'
+  group: mobility
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
 
 - id: cars_to_transit
   name_en: Shift from cars to public transportation
-  name_de: Verlagerung des MIV in Richtung des Umweltverbundes
+  name_de: Verlagerung vom MIV auf den ÖV
+  parent: shift_to_sustainable_transport_modes
   group: mobility
   type: shift.ShiftAction
   quantity: mix
-  description_de: Dieses Massnahmenpaket umfasst die relevanten Massnahmen, um den
-    Verkehr von motorisiertem Individualverkehr hin zu öffentlichem Verkehr, Velo-
-    oder Fussverkehr zu verlagern. Es geht dabei insbesondere um Massnahmen auf der
-    Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige Verbesserung
-    des öffentlichen Verkehrs, der Velo- und Fusswege.
+  description_de: 'Wirkungsziel:
+      Der Anteil der mit dem ÖV zurückgelegten Distanzen steigt von 37% im Jahr 2022
+      auf 45% im Jahr 2040.'
   output_nodes:
   - id: transport_modal_split
   unit: '%'
@@ -2000,18 +2027,55 @@ actions:
       - categories:
           transport_mode: tram
       - categories:
+          transport_mode: buses
+      - categories:
           transport_mode: rail_passenger
+      - categories:
+          transport_mode: trolleybuses
       amounts:
       - year: 2023
-        source_amount: -0.2
-        dest_amounts: [50, 100]
-      - year: 2030
-        source_amount: -0.6
-        dest_amounts: [50, 100]
+        source_amount: -0.58
+        dest_amounts: [27.3, 7.4, 58.8, 6.5]
+      - year: 2039
+        source_amount: -0.58
+        dest_amounts: [27.3, 7.4, 58.8, 6.5]
       - year: 2040
-        source_amount: -0.2
-        dest_amounts: [50, 100]
+        source_amount: 0
+        dest_amounts: [27.3, 7.4, 58.8, 6.5]
 
+- id: cars_to_bicycling
+  name_en: Shift from cars to public transportation
+  name_de: Verlagerung vom MIV auf den Velo- und Fussverkehr
+  group: mobility
+  parent: shift_to_sustainable_transport_modes
+  type: shift.ShiftAction
+  quantity: mix
+  description_de: 'Der Anteil der mit dem Velo zurückgelegten Distanzen steigt
+    von 10% im Jahr 2022 auf 15% im Jahr 2040.'
+  output_nodes:
+  - id: transport_modal_split
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          transport_mode: cars
+      dests:
+      - categories:
+          transport_mode: bicycle
+      amounts:
+      - year: 2023
+        source_amount: -0.42
+        dest_amounts: [100]
+      - year: 2039
+        source_amount: -0.42
+        dest_amounts: [100]
+      - year: 2040
+        source_amount: 0
+        dest_amounts: [100]
 
 #
 # Massnahmenpaket 5: Verträgliche Gestaltung des Verkehrs
@@ -2021,8 +2085,8 @@ actions:
   name_de: Verträgliche Gestaltung des Verkehrs
   description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
     dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
-    erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung
-    (= Verlangsamung) des Verkehrs spielen dafür eine Schlüsselfunktion.
+    erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung)
+    des Verkehrs spielen dafür eine Schlüsselfunktion.
   group: mobility
   type: parent.ParentActionNode
   unit: kt/a
