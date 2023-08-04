@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0f4a82eff514ed174f98ec061bb890ecfc433475
+  commit: 502d280caa6459abca7e753aa06a36d9da7a5063
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -723,13 +723,14 @@ nodes:
 - id: building_natural_gas_use_20000_sf
   name: Building natural gas use in large commercial buildings
   description: <p>This node shows the building natural gas use when some, but not
-    all, actions have been implemented on large commercial buildings. the actual natural gas use with all the actions
-    is shown downstream in the node "Building natural gas use". </p><p>Building energy
-    class has a specific use here. "All buildings, baseline" shows the natural gas
-    use that would occur in the building stock if none of the upstream actions are
-    implemented. All other classes show the difference to the baseline; in other words
-    energy saving actions take the natural gas use to the negative side. If the actions
-    do not affect a particular class, the graph of that class seems empty.</p>
+    all, actions have been implemented on large commercial buildings. the actual natural
+    gas use with all the actions is shown downstream in the node "Building natural
+    gas use". </p><p>Building energy class has a specific use here. "All buildings,
+    baseline" shows the natural gas use that would occur in the building stock if
+    none of the upstream actions are implemented. All other classes show the difference
+    to the baseline; in other words energy saving actions take the natural gas use
+    to the negative side. If the actions do not affect a particular class, the graph
+    of that class seems empty.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: Mtherm/a
@@ -751,13 +752,14 @@ nodes:
 - id: building_electricity_use_20000_sf
   name: Building electricity use in large commercial buildings
   description: <p>This node shows the building electricity use when some, but not
-    all, actions have been implemented on large commercial buildings. the actual electricity use with all the actions
-    is shown downstream in the node "Building electricity use". </p><p>Building energy
-    class has a specific use here. "All buildings, baseline" shows the electricity
-    use that would occur in the building stock if none of the upstream actions are
-    implemented. All other classes show the difference to the baseline; in other words
-    energy saving actions take the electricity use to the negative side. If the actions
-    do not affect a particular class, the graph of that class seems empty.</p>
+    all, actions have been implemented on large commercial buildings. the actual electricity
+    use with all the actions is shown downstream in the node "Building electricity
+    use". </p><p>Building energy class has a specific use here. "All buildings, baseline"
+    shows the electricity use that would occur in the building stock if none of the
+    upstream actions are implemented. All other classes show the difference to the
+    baseline; in other words energy saving actions take the electricity use to the
+    negative side. If the actions do not affect a particular class, the graph of that
+    class seems empty.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: Mtherm/a
@@ -1388,8 +1390,8 @@ nodes:
 
 - id: public_transportation_trips_per_person
   name: Public transportation trips per person
-  description: Without further actions, the number of public transportation trips per person is assumed to be constant
-    and at the level of 2017.
+  description: Without further actions, the number of public transportation trips
+    per person is assumed to be constant and at the level of 2017.
   type: simple.FixedMultiplierNode
   quantity: number
   unit: trips/inhabitant/a
@@ -1555,16 +1557,11 @@ actions:
 
 - id: updated_building_code
   name: Use updated building code and enforce
-  description: '<p>Adopt and enforce the latest IECC every year a new IECC is released,
-    rather than adopting it on the third year.</p> <p>The graph shows the relative improvement of the energy use intensity (EUI) caused by this action.</p> <p>Existing buildings: Percentage
-    of square footage triggering code upgrades</p><p>Target reduction: 1%</p><p>Confidence
-    ranking: Low</p><p>Assumption. No data resides with the City. They support this
-    assumption.</p><p><b>Source.</b> On file.</p> <p>New buildings: Average percent
-    increase of new buildings Target reduction: 1% Confidence ranking:  Med. Data
-    provided by the Boulder County assessor shows historic trends that may overestimate
-    continued growth. Information from the City of Longmont suggests annual increases
-    of 1%. Potential buildout around 2035. New square footage remains constant after
-    2035. Assume constant increase over time. On file.</p>'
+  description: '<p>Adopting and enforcing the latest International Energy Conservation
+    Code (IECC) every year a new IECC is released will increase efficiency.</p> <p>The
+    graph shows the relative improvement of the energy use intensity (EUI) caused
+    by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
+    Plan Strategy BI-5</a></li></ul></p>'
   type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
@@ -1585,10 +1582,12 @@ actions:
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
-  description: <p>Develop building codes that go beyond the IECC and towards net-zero
+  description: '<p>Develop building codes that go beyond the IECC and towards net-zero
     energy use, including the Climate Action Recommendations Report strategies to
     add solar ready and electric vehicle ready as part of the 2021 residential code
-    update.</p> <p>The graph shows the relative improvement of the energy use intensity (EUI) caused by this action.</p> 
+    update.</p> <p>The graph shows the relative improvement of the energy use intensity
+    (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-6">Sustainability
+    Plan Strategy BI-6</a></li></ul></p>'
   type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
@@ -1621,10 +1620,12 @@ actions:
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
-  description: <p>Requires commercial and industrial buildings owners whose buildings
-    exceed 20,000 square feet to rate their building's energy use, report energy metrics,
-    and encourages buildings owners to implement energy efficiency measures. For updates,
-    see <a href="https://longmont-sca.watch-test.kausal.tech/actions/E-5">action description</a>.</p> <p>The graph shows the relative improvement of the energy use intensity (EUI) caused by this action.</p> 
+  description: '<p>Requires commercial and industrial buildings owners whose buildings
+    exceed 20,000 square feet to rate their building s energy use, report energy metrics,
+    and encourages buildings owners to implement energy efficiency measures.</p> <p>The
+    graph shows the relative improvement of the energy use intensity (EUI) caused
+    by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-5">Sustainability
+    Plan Strategy E-5</a></li></ul>'
   type: energy_saving.UsBuildingAction
   quantity: fraction
   unit: '%'
@@ -1654,9 +1655,14 @@ actions:
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
-  description: Expand the Efficiency Works Program to achieve 2% energy savings by
-    2025 through commercial retro-commissioning, low-income programs, and residential
-    and commercial savings.
+  description: '<p>Expand the Efficiency Works Program to achieve 2% energy savings
+    by 2025 through commercial retro-commissioning, low-income programs, and residential
+    and commercial savings.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-1">Municipal:
+    Sustainability Plan Strategy E-1</a></li> <li>Commercial: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-3">Sustainability
+    Plan Strategy E-3</a></li> <li>Residential: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
+    Plan Strategy E-7 </a></li> <li>Income-Qualified: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-2">Sustainability
+    Plan Strategy E-2</a></li> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-2">Strategy
+    BI-2</a></li></ul>'
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1676,21 +1682,21 @@ actions:
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential
-  description: Converting residential building systems that use fossil fuels (gas,
+  description: '<p>Converting residential building systems that use fossil fuels (gas,
     oil, or propane) to high efficiency electric equipment powered by increasingly
-    clean and renewable electricity. Savings are modeled with projected renewable
-    energy emission factors.
+    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
+    Building Electrification Plan</a></li></ul>'
   type: simple.CumulativeAdditiveAction
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2022, 0], [2023, -192.409], [2024, -192.409], [2025,
-      -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409],
-    [2030, -192.409], [2031, -1243.774], [2032, -1243.774], [2033, -1243.774], [2034,
-      -1243.774], [2035, -1243.774], [2036, -1243.774], [2037, -1243.774], [2038,
-      -1243.774], [2039, -1243.774], [2040, -1243.774], [2041, -1243.774], [2042,
-      -1243.774], [2043, -1243.774], [2044, -1243.774], [2045, -1243.774], [2046,
-      -1243.774], [2047, -1243.774], [2048, 0], [2049, 0], [2050, 0]]
+  forecast_values: [[2022, 0], [2023, -192.409], [2024, -192.409], [2025, -192.409],
+    [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030,
+      -192.409], [2031, -1243.774], [2032, -1243.774], [2033, -1243.774], [2034, -1243.774],
+    [2035, -1243.774], [2036, -1243.774], [2037, -1243.774], [2038, -1243.774], [
+      2039, -1243.774], [2040, -1243.774], [2041, -1243.774], [2042, -1243.774], [
+      2043, -1243.774], [2044, -1243.774], [2045, -1243.774], [2046, -1243.774], [
+      2047, -1243.774], [2048, 0], [2049, 0], [2050, 0]]
   output_nodes:
   - id: building_natural_gas_use
     to_dimensions:
@@ -1700,21 +1706,20 @@ actions:
 
 - id: replace_natural_gas_commercial
   name: Beneficial Building Electrification Commercial
-  description: Converting commercial building systems that use fossil fuels (gas,
+  description: '<p>Converting residential building systems that use fossil fuels (gas,
     oil, or propane) to high efficiency electric equipment powered by increasingly
-    clean and renewable electricity. Savings are modeled with projected renewable
-    energy emission factors.
+    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
+    Building Electrification Plan</a></li></ul>'
   type: simple.CumulativeAdditiveAction
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2022, 0], [2023, -88.707], [2024, -88.707], [2025,
-      -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707],
-    [2030, -88.707], [2031, -741.592], [2032, -741.592], [2033, -741.592], [2034,
-      -741.592], [2035, -741.592], [2036, -741.592], [2037, -741.592], [2038, -741.592],
-    [2039, -741.592], [2040, -741.592], [2041, -741.592], [2042, -741.592], [2043,
-      -741.592], [2044, -741.592], [2045, 0], [2046, 0], [2047, 0],
-    [2048, 0], [2049, 0], [2050, 0]]
+  forecast_values: [[2022, 0], [2023, -88.707], [2024, -88.707], [2025, -88.707],
+    [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707],
+    [2031, -741.592], [2032, -741.592], [2033, -741.592], [2034, -741.592], [2035,
+      -741.592], [2036, -741.592], [2037, -741.592], [2038, -741.592], [2039, -741.592],
+    [2040, -741.592], [2041, -741.592], [2042, -741.592], [2043, -741.592], [2044,
+      -741.592], [2045, 0], [2046, 0], [2047, 0], [2048, 0], [2049, 0], [2050, 0]]
   output_nodes:
   - id: building_natural_gas_use
     to_dimensions:
@@ -1724,14 +1729,16 @@ actions:
 
 - id: longmont_power_renewables
   name: 90% renewable electric energy supply by 2030
-  description: <p>On January 9th, 2018, City Council passed a <a href="http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000">resolution</a>
-    to commit Longmont to 100% renewable electric energy supply by 2030. To model
-    this impact, the City uses a projection from Platte River Power Authority on the
-    future emission factors until 2030 and then drops the emission factor to 0 in
-    2030 to reflect achieving the 100% renewable goal.</p><p>According to Platte River
-    Power Authority’s  most recent integrated resource plan, existing technology will
-    only help Platte River reach 90% noncarbon by 2030. Emerging technologies will
-    need to be developed to achieve the 100% noncarbon target.</p>
+  description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
+    >resolution</a> to commit Longmont to 100% renewable electric energy supply by
+    2030.</p> <p>This action only models to 90% as according to latte River Power
+    Authority's most recent integrated resource plan, existing technology will only
+    help Platte River reach 90% noncarbon by 2030.</p> <p>To model the 100% renewable
+    electric energy supply goal, select this action and <a href=\"https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables_additional\"\
+    >Additional 10% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
+    <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
+    >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
+    >Longmont Renewable Energy</a></li></ul></p>"
   type: linear.ReduceAction
   quantity: emission_factor
   unit: t/MWh
@@ -1757,7 +1764,16 @@ actions:
 
 - id: longmont_power_renewables_additional
   name: Additional 10% renewable electric energy supply by 2030
-  description: This additional action pushes the fraction of renewable electric energy supply from 90% to 100%.
+  description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
+    >resolution</a> to commit Longmont to 100% renewable electric energy supply by
+    2030.</p> <p>This action models the additional 10% renewable energy to meet City
+    Council's goal of 100% renewable electric energy supply by 2030.</p> <p>To model
+    the 100% renewable electric energy supply goal, select this action and <a href=\"\
+    https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables\"\
+    >90% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
+    <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
+    >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
+    >Longmont Renewable Energy</a></li></ul></p>"
   type: linear.ReduceAction
   quantity: emission_factor
   unit: t/MWh
@@ -1783,12 +1799,10 @@ actions:
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
-  description: Implement a variety of smart grid projects that encourage reductions
-    in electricity consumption through real-time feedback, dynamic pricing, etc. LPC
-    is currently working with consultants to develop a Smart Grid Roadmap + CIP that
-    will evaluate the distribution grid relative to increased load, areas for investment/improvement,
-    areas of vulnerability, the best placement for battery energy storage, and smart
-    grid technologies through the development of a CIP plan for the next 5-20 years.
+  description: '<p>Implement a variety of smart grid projects that encourage reductions
+    in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
+    <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
+    Plan Strategy E-7</a></li></ul>'
   type: linear.ReduceAction
   quantity: ratio
   unit: '%'
@@ -1822,8 +1836,10 @@ actions:
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
-  description: Reduce electric grid transmission and distribution losses through grid
-    management such as distributed voltage optimization.
+  description: '<p>Reduce electric grid transmission and distribution losses through
+    grid management such as distributed voltage optimization.</p> <p>Track Implementation:
+    <ul><li><a href="https://longmont-indicators.test.kausal.tech/carr/actions/RE.5">Climate
+    Action Recommendations Report RE.5</a></li></ul></p>'
   type: linear.ReduceAction
   quantity: ratio
   unit: '%'
@@ -1845,8 +1861,11 @@ actions:
 
 - id: vehicle_incentives
   name: Increase electric vehicles through vehicle incentives and improved infrastructure
-  description: Increase the rate of electric vehicle adoption until a majority of
-    vehicles are powered by clean electricity.
+  description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
+    by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
+    GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-4">Sustainability
+    Plan Strategy T-4</a></li> <li><a href="https://longmont-sca.watch-test.kausal.tech/indicators/1771">Electric
+    Vehicle Indicator</a></li></ul></p>'
   type: simple.AdditiveAction
   quantity: number
   unit: vehicle
@@ -1863,8 +1882,15 @@ actions:
 
 - id: increase_access_of_public_transit
   name: Address barriers to increase access and use of public transit
-  description: Address barriers to increase access and use of public transit, especially
-    for underserved communities.
+  description: '<p>Address barriers to increase access and use of public transit,
+    especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
+    href="https://longmont-indicators.test.kausal.tech/transportation">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-1">Sustainability
+    Plan Strategy T-1</a>, <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-5">Strategy
+    T-5</a> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-7">Strategy
+    T-7</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
+    Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+    System</a></li></ul></p>'
   type: simple.AdditiveAction
   quantity: number
   unit: trip/inhabitant/a
@@ -1876,9 +1902,13 @@ actions:
 
 - id: multimodal_transportation_system
   name: Develop multimodal transportation system / bicycle and pedestrian improvements
-  description: Pursue all elements of Longmont's multimodal transportation plan. Actively
-    reduce greenhouse gas emissions through bicycle and pedestrian improvements and
-    first/last mile connections.
+  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
+    This action specifically models from actively reduce greenhouse gas emissions
+    through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
+    href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
+    Carbon-Free Transportation Roadmap</a></li> <li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+    System</a></li></ul></p>"
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1890,8 +1920,13 @@ actions:
 
 - id: last_mile_connections
   name: Improve last mile connections
-  description: Pursue all elements of Longmont's multimodal transportation plan. Actively
-    reduce greenhouse gas emissions through first/last mile connections.
+  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
+    This action specifically models from actively reduce greenhouse gas emissions
+    through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
+    href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
+    Carbon-Free Transportation Roadmap</a></li> <ul><li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+    System</a></li></ul></p>"
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
@@ -1907,11 +1942,11 @@ actions:
 
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
-  description: The original intent of this action was to improve monitoring of oil
+  description: '<p>This action tracks emission reductions from monitoring active oil
     and gas sites by increasing methane leak detection and repair and minimizing leaks
-    in the transmission and distribution system of natural gas. However, there are
-    no longer any active oil and gas facilities within City limits and the City has
-    no legal authority to enforce leaks or repairs associated with oil and gas operations.
+    in the transmission and distribution system of natural gas. Currently the City
+    has no active oil and gas sites.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/aq-air-quality">Sustainability
+    Plan Air Quality Strategies</a></li></ul></p>'
   type: simple.AdditiveAction
   quantity: emissions
   unit: t/a
@@ -1925,12 +1960,19 @@ actions:
 
 - id: increase_waste_diversion
   name: Increase waste diversion
-  description: Achieve 85% waste diversion from the landfill by 2050.
+  description: '<p>Achieve 75% waste diversion from the landfill by 2030 and 95% by
+    2050 established in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/35431/638001469478900000">2022
+    Zero Waste Resolution</a>.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/waste">Sustainability
+    Plan Waste Strategies</a></li></ul></p>'
   type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
   group: solid_waste
-  forecast_values: [[2022, 5.2], [2023, 9.6], [2024, 13.9], [2025, 18.3], [2026, 22.6], [2027, 27], [2028, 31.3], [2029, 35.7], [2030, 40], [2031, 40.5], [2032, 41], [2033, 41.5], [2034, 42], [2035, 42.5], [2036, 43], [2037, 43.5], [2038, 44], [2039, 44.5], [2040, 45], [2041, 45.5], [2042, 46], [2043, 46.5], [2044, 47], [2045, 47.5], [2046, 48], [2047, 48.5], [2048, 49], [2049, 49.5], [2050, 50]]
+  forecast_values: [[2022, 5.2], [2023, 9.6], [2024, 13.9], [2025, 18.3], [2026, 22.6],
+    [2027, 27], [2028, 31.3], [2029, 35.7], [2030, 40], [2031, 40.5], [2032, 41],
+    [2033, 41.5], [2034, 42], [2035, 42.5], [2036, 43], [2037, 43.5], [2038, 44],
+    [2039, 44.5], [2040, 45], [2041, 45.5], [2042, 46], [2043, 46.5], [2044, 47],
+    [2045, 47.5], [2046, 48], [2047, 48.5], [2048, 49], [2049, 49.5], [2050, 50]]
   output_nodes:
   - diversion_rate
 
@@ -1972,6 +2014,9 @@ actions:
 
 - id: mpg_trend
   name: Miles per gallon increasing trend
+  description: The model assumes that internal combustion vehicles that use gasoline
+    and diesel will become more efficient, increase miles traveled per gallon, over
+    time.
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/gallon
@@ -1987,6 +2032,8 @@ actions:
 
 - id: vmt_per_vehicle_trend
   name: Vehicle miles per vehicle trend
+  description: The model assumes that overtime there will be a decrease in the annual
+    miles traveled per vehicle.
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/vehicle/a
@@ -2003,6 +2050,8 @@ actions:
 
 - id: electric_vehicle_efficiency_trend
   name: Electric vehicle efficiency trend
+  description: The model assumes that electric vehicles will become more efficient,
+    increase in miles traveled per kilowatt hour of energy, overtime.
   type: simple.AdditiveAction
   quantity: mileage
   unit: kWh/mile
@@ -2023,23 +2072,20 @@ pages:
   type: emission
   node: direct_emissions
   lead_title_en: Development version
-  lead_paragraph_en: <p>This is a test version of the City of Longmont's interactive
-    scenario modeling platform for the Net Zero goal. All information on this website
-    is to be considered incomplete and experimental.</p> <p>The goal of this tool
-    is to provide a transparent and defensible calculation methodology for estimating
-    the potential of GHG emission reduction strategies and interactive data visualizations
-    to represent the emission reduction potential of those strategies.</p> <p><b>Background</b></p>
-    <p>This spreadsheet compiles strategy information and associated assumptions and
-    data to estimate GHG emission reductions from key building energy, electric grid,
-    renewable energy, mobile, solid waste, and oil and gas strategies. Previous versions
-    of this model based emission reductions  on Longmont's "core" emissions, which
-    include emissions from electricity, natural gas, gasoline, solid waste, and oil
-    wells. These emission sources are the main focus of the GHG reduction strategies
-    and make up approximately 83% of Longmont's total emissions in 2016 as reported
-    in the Final_City of Longmont 2016 GHG Inventory Workbook. This updated version
-    of the model bases emissions reductions on Longmont's total emissions. This update
-    also added emission values from Longmont's 2019 emissions inventory as reported
-    in the FINAL_Longmont_2019_Inventory_060220 workbook.</p>
+  lead_paragraph_en: "<p>The Longmont greenhouse gas inventory models projected emissions
+    for the City of Longmont based on two primary scenarios: 1) Business as Usual
+    scenario based on if no actions are taken by the City and 2) Climate Action Initiatives
+    scenario that models actions from the Cities' guiding plans. These two versions
+    of the model help identify if the City is on track to achieve its greenhouse gas
+    emission targets and what actions the City should prioritize and focus on. The
+    measured data for the model is updated every three years.</p> <p>The greenhouse
+    gas modeling and inventory is based on the Global Protocol for Community-Scale
+    Greenhouse Gas Emissions Inventories' (GPC protocol) Basic+ methodology. All modeled
+    and historic data between 2016 to 2021 was adapted from Lotus Engineering and
+    Sustainability, LLC., 2022, City of Longmont Emissions Reduction Model Update
+    and 2023, 2021 Longmont Greenhouse Gas Inventory. Additional information is included
+    in the 2021 GHG Emissions Summary Memo. Contact sustainability@longmontcolorado.gov
+    if you are interested in learning more.</p>"
 
 - id: updating
   name: Updating Guide
@@ -2048,10 +2094,10 @@ pages:
     and which values can be updated. A general set of directions is provided, followed
     by a table documenting which values on each tab can be updated and when it is
     appropriate to do so.</p> <p><b>Updating the Model</b></p> <p>The purpose of this
-    model is to demonstrate the GHG reduction potential of Longmont´s strategies compared
-    to Business-As-Usual emissions (if no strategies were implemented) based on a
-    2016 or 2018 baseline. Updates to this model should be decided based on the below
-    criteria.</p> <p>The model should NOT be updated for the following reasons.</p>
+    model is to demonstrate the GHG reduction potential of Longmont''s strategies
+    compared to Business-As-Usual emissions (if no strategies were implemented) based
+    on a 2016 or 2018 baseline. Updates to this model should be decided based on the
+    below criteria.</p> <p>The model should NOT be updated for the following reasons.</p>
     <li> <ul>Future GHG emissions inventories. The BAU tab should not be updated with
     actual GHG emissions values in future years. The purpose of the BAU is to show
     emissions if no strategies were to be implemented. Using actual GHG values in
@@ -2065,7 +2111,7 @@ pages:
     emission factor if LPC were to not pursue renewable energy. The renewable energy
     EF is used directly in the modeled strategies and should not be adjusted with
     actual values to preserve the desired progress toward RE modeled in this tool.
-    Actual progress towards the renewable energy goal will be tracked in each of Longmont's
+    Actual progress towards the renewable energy goal will be tracked in each of Longmont''s
     future GHG inventories. Inventory results can be compared to the modeled values
     in the Progress Tracker tab.</ul> <ul>Minor changes in emission calculation methodology.
     Baseline year emissions in the BAU should not be updated when minor methodology
@@ -2078,8 +2124,8 @@ pages:
     assumptions can be made for a strategy compared to current assumption, assumptions
     should be updated in the Model Inputs tab.</ul> <ul>Xcel electricity emission
     factor updates. Xcel provides a small portion of electricity to Longmont and is
-    not a part of LPC's goal for 100% renewable energy which is modeled in this tool.
-    As such, Xcel's emission factors should be updated either each year or whenever
+    not a part of LPC''s goal for 100% renewable energy which is modeled in this tool.
+    As such, Xcel''s emission factors should be updated either each year or whenever
     new GHG inventory data is available for input in the Progress Tracker tab. This
     ensures that factors outside of the modeled strategies control are as accurate
     as possible.</ul> <ul>Updates to model parameter data (e.g., population and registered
@@ -2093,7 +2139,7 @@ pages:
     BAU uses population increase as a major parameter for forecasting.</ul> <ul>Major
     changes to emission calculation methodology. Major changes to emission calculation
     methodology may warrant updates to the baseline years. Changes that would drastically
-    impact emission numbers and make accurate comparison to previous year's inventory
+    impact emission numbers and make accurate comparison to previous year''s inventory
     data inaccurate would require updating the baseline years to ensure alignment
     across years. For example, the 2016 baseline year emissions were updated as new
     Global Warming Potential values were released by the IPCC. If emissions in future
@@ -2115,7 +2161,7 @@ pages:
     factors.</b> Non-electricity emission factors likely will not change often. It
     is recommended to review emission factor values for updates every few years.</ul>
     <ul><b>Population.</b> Update population data as actual data becomes available.</ul>
-    <ul><b>Xcel Energy electricity emission factor.</b> Updated Xcel's emission factor
+    <ul><b>Xcel Energy electricity emission factor.</b> Updated Xcel''s emission factor
     as actual data becomes available.</ul> <ul><b>LPC RE and BAU emission factors.</b>
     Do not update.</ul> <ul><b>Fuel efficiencies.</b> Only update the "Gasoline Passenger
     Vehicle Projected fuel efficiency" row if new fuel efficiency standards are released.</ul>
