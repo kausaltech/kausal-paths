@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 502d280caa6459abca7e753aa06a36d9da7a5063
+  commit: b52a660bf4c1a779d243afc5f3cadbd1dca41838
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -1374,22 +1374,29 @@ nodes:
     tags: [population]
     to_dimensions: []
   output_nodes:
-  - id: car_emissions
+  - id: miv_emissions
     from_dimensions:
     - id: vehicle_type
-      groups: [cars]
+      groups: [cars, motorbikes]
     to_dimensions:
     - id: vehicle_type
-  - id: other_road_transport_emissions
+  - id: public_transport_emissions
     from_dimensions:
     - id: vehicle_type
-      groups: [motorbikes, buses, trolleybuses, coaches, lorries, vans]
+      groups: [buses, trolleybuses, coaches, tram, rail_passenger, small_railways]
+    to_dimensions:
+    - id: vehicle_type
+  - id: goods_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [lorries, vans, rail_goods]
     to_dimensions:
     - id: vehicle_type
   - id: other_transport_emissions
     from_dimensions:
     - id: vehicle_type
-      groups: [cars, motorbikes, buses, trolleybuses, coaches, lorries, vans]
+      groups: [cars, motorbikes, buses, trolleybuses, coaches, tram, rail_passenger,
+        small_railways, lorries, vans, rail_goods]
       exclude: true
     to_dimensions:
     - id: vehicle_type
@@ -1512,11 +1519,11 @@ nodes:
     - id: vehicle_type
   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
 
-- id: other_road_transport_emissions
-  name_de: Treibhausgasemissionen andere Strasseverkehr
-  name_en: Other road transportation emissions
-  short_name_de: Andere Strasseverkehr
-  short_name_en: Other road transportation
+- id: miv_emissions
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
+  name_en: Individual motor transport emissions
+  short_name_de: Motorisierter Individualverkehr (MIV)
+  short_name_en: Individual motor transport
   type: ch.zuerich.TransportEmissions
   input_nodes: [transport_emission_factor]
   output_nodes:
@@ -1525,11 +1532,24 @@ nodes:
     - id: vehicle_type
       flatten: true
 
-- id: car_emissions
-  name_de: Treibhausgasemissionen Personenwagen
-  name_en: Car emissions
-  short_name_de: Personenwagen
-  short_name_en: Cars
+- id: public_transport_emissions
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV)
+  name_en: Public transportation emissions
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: goods_transport_emissions
+  name_de: Treibhausgasemissionen Güterverkehr
+  name_en: Goods transport emissions
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
   type: ch.zuerich.TransportEmissions
   input_nodes: [transport_emission_factor]
   output_nodes:
@@ -1539,9 +1559,9 @@ nodes:
       flatten: true
 
 - id: other_transport_emissions
-  name_de: Treibhausgasemissionen andere Verkehr
+  name_de: Treibhausgasemissionen übriger Verkehr
   name_en: Other transportation emissions
-  short_name_de: Andere Verkehr
+  short_name_de: Übriger Verkehr
   short_name_en: Other transportation
   type: ch.zuerich.TransportEmissions
   input_nodes: [transport_emission_factor]
@@ -1636,8 +1656,10 @@ nodes:
       groups: [negative]
 
 - id: solid_waste_treatment_emissions
-  name_en: Solid waste treatment emissions
-  name_de: Solid waste treatment emissions
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverbrennungsanlagen
+  short_name_de: Kehrichtverbrennungsanlagen
+  short_name_en: Solid waste incineration
   type: ch.zuerich.WasteIncinerationEmissions
   unit: kt/a
   quantity: emissions
@@ -1953,14 +1975,14 @@ actions:
 - id: reduce_transportation_demand
   name_en: Reduce transportation demand
   name_de: Vermeidung von Verkehrsaufkommen
-  description_de: 'Durch eine Veränderung der räumlichen Nutzungsstrukturen
-    sollen ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die
-    Weglängen und somit die Verkehrsleistung reduziert werden. Die Weglängen
-    umfassen alle Wege, unabhängig davon, ob sie mit dem MIV, dem ÖV, dem Velo
-    oder zu Fuss zurückgelegt werden. Die Verringerung der Wegdistanzen wird
-    durch eine "Stadt der kurzen Wege" und durch vermehrte Arbeit zu Hause oder
-    in der Nähe des Wohnortes erreicht. Die entsprechenden stadtplanerischen
-    Prozesse und Massnahmen werden erst mittel- bis langfristig Wirkung zeigen.'
+  description_de: Durch eine Veränderung der räumlichen Nutzungsstrukturen sollen
+    ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die Weglängen und
+    somit die Verkehrsleistung reduziert werden. Die Weglängen umfassen alle Wege,
+    unabhängig davon, ob sie mit dem MIV, dem ÖV, dem Velo oder zu Fuss zurückgelegt
+    werden. Die Verringerung der Wegdistanzen wird durch eine "Stadt der kurzen Wege"
+    und durch vermehrte Arbeit zu Hause oder in der Nähe des Wohnortes erreicht. Die
+    entsprechenden stadtplanerischen Prozesse und Massnahmen werden erst mittel- bis
+    langfristig Wirkung zeigen.
   group: mobility
   type: linear.ReduceAction
   unit: pkm/cap/a
@@ -1987,15 +2009,15 @@ actions:
 - id: shift_to_sustainable_transport_modes
   name_en: Shift to sustainable transport modes
   name_de: Verlagerung des MIV in Richtung des Umweltverbundes
-  description_de: 'Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr
-    vom motorisierten Individualverkehr hin zu öffentlichem Verkehr,
-    Velo- oder Fussverkehr (= Umweltverbund) zu verlagern. Es geht dabei insbesondere
-    um Massnahmen auf der Angebotsseite des verträglichen Verkehrs, wie den Ausbau und
-    die stetige Verbesserung des öffentlichen Verkehrs sowie die Bereitstellung von
-    attraktiven und sicheren Velo- und Fussverkehrsinfrastrukturen. Auch wird die
-    Verlagerung durch eine optimale Vernetzung der Verkehrsmittel untereinander unterstützt.\n
-    Die Prozesse und Massnahmen werden über eine längere Zeitdauer umgesetzt und sind
-    entsprechend erst mittel- bis langfristig wirksam.'
+  description_de: Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr vom
+    motorisierten Individualverkehr hin zu öffentlichem Verkehr, Velo- oder Fussverkehr
+    (= Umweltverbund) zu verlagern. Es geht dabei insbesondere um Massnahmen auf der
+    Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige Verbesserung
+    des öffentlichen Verkehrs sowie die Bereitstellung von attraktiven und sicheren
+    Velo- und Fussverkehrsinfrastrukturen. Auch wird die Verlagerung durch eine optimale
+    Vernetzung der Verkehrsmittel untereinander unterstützt.\n Die Prozesse und Massnahmen
+    werden über eine längere Zeitdauer umgesetzt und sind entsprechend erst mittel-
+    bis langfristig wirksam.
   group: mobility
   type: parent.ParentActionNode
   unit: kt/a
@@ -2009,9 +2031,8 @@ actions:
   group: mobility
   type: shift.ShiftAction
   quantity: mix
-  description_de: 'Wirkungsziel:
-      Der Anteil der mit dem ÖV zurückgelegten Distanzen steigt von 37% im Jahr 2022
-      auf 45% im Jahr 2040.'
+  description_de: 'Wirkungsziel: Der Anteil der mit dem ÖV zurückgelegten Distanzen
+    steigt von 37% im Jahr 2022 auf 45% im Jahr 2040.'
   output_nodes:
   - id: transport_modal_split
   unit: '%'
@@ -2050,8 +2071,8 @@ actions:
   parent: shift_to_sustainable_transport_modes
   type: shift.ShiftAction
   quantity: mix
-  description_de: 'Der Anteil der mit dem Velo zurückgelegten Distanzen steigt
-    von 10% im Jahr 2022 auf 15% im Jahr 2040.'
+  description_de: Der Anteil der mit dem Velo zurückgelegten Distanzen steigt von
+    10% im Jahr 2022 auf 15% im Jahr 2040.
   output_nodes:
   - id: transport_modal_split
   unit: '%'
@@ -2119,7 +2140,7 @@ actions:
 
 - id: electrify_goods_transport
   name_en: Electrify goods transport
-  name_de: Elektrifizierung des Gueterverkehr
+  name_de: Elektrifizierung des Güterverkehr
   parent: improved_vehicle_fleet
   group: mobility
   type: linear.DatasetReduceAction
