@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b52a660bf4c1a779d243afc5f3cadbd1dca41838
+  commit: 4de41f7d6fd6da8c1a22c386f9fac203cea01f9c
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -207,7 +207,7 @@ dimensions:
   - id: buses
     label: Linienbusse
     label_en: Local buses
-    id_match: ^buses_.+
+    id_match: ^(buses_.+)|(trolley.*)
   - id: trolleybuses
     label: Trolleybusse
     label_en: Trolley buses
@@ -467,10 +467,15 @@ dimensions:
     color: '#7EE6E2'
     order: 1
   - id: biogas
-    label: Biogas
-    label_en: biogas
+    label: Biogas CH
+    label_en: Biogas Domestic
     color: '#65CC8B'
     order: 2
+  - id: biogas_import
+    label: Biogas Import
+    label_en: Biogas Import
+    color: '#267342'
+    order: 3
   - id: district_heat
     label: Fernwärme
     label_en: District heating
@@ -869,8 +874,12 @@ nodes:
   input_nodes:
   - id: building_end_energy_consumption
     tags: [consumption]
-  - id: heat_pump_cop
+  - id: heating_system_efficiency
     tags: [heat_pump_cop]
+    from_dimensions:
+    - id: heating_system
+      categories: [heat_pumps]
+      flatten: true
     to_dimensions: []
 
 - id: building_heat_per_area
@@ -932,17 +941,34 @@ nodes:
     to_dimensions:
     - id: heating_system
 
+- id: building_useful_heat_consumption
+  name_de: Nutzwärmebedarf Gebäude
+  name_en: Building useful heat demand
+  type: ch.zuerich.BuildingUsefulHeat
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_consumption
+    tags: [energy]
+  - id: heating_system_efficiency
+    tags: [cop]
+
 - id: biogas_share
   name_de: Biogasanteil im Gasnetz
   name_en: Share of biogas in gas grid
-  type: ch.zuerich.BiogasShare
+  type: simple.MixNode
   unit: '%'
-  quantity: ratio
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes:
   - id: building_end_energy_consumption
-    tags: [consumption]
-    to_dimensions:
+    tags: [activity]
+    from_dimensions:
     - id: energy_carrier
+      categories: [natural_gas, biogas, biogas_import]
 
 - id: building_heat_consumption_by_carrier
   name_de: Wärmebedarf nach Energieträger
@@ -955,11 +981,16 @@ nodes:
   input_nodes:
   - id: biogas_share
     tags: [biogas_share]
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
   - id: building_heat_consumption
     tags: [consumption]
-  - id: heat_pump_cop
+  - id: heating_system_efficiency
     tags: [heat_pump_cop]
+    from_dimensions:
+    - id: heating_system
+      categories: [heat_pumps]
+      flatten: true
     to_dimensions: []
 
 - id: building_general_electricity_efficiency
@@ -1003,14 +1034,14 @@ nodes:
     - id: building_use
       flatten: true
 
-- id: heat_pump_cop
-  name_de: COP von Wärmepumpen
-  name_en: COP of heat pumps
+- id: heating_system_efficiency
+  name_de: Nutzungsgrade Wärmeerzeugung in Gebäuden
+  name_en: COP of building heating systems
   type: simple.AdditiveNode
   quantity: ratio
   unit: dimensionless
-  historical_values: [[1990, 3.4], [2023, 3.4]]
-  forecast_values: [[2030, 3.63], [2040, 3.82]]
+  output_dimensions: [heating_system]
+  input_datasets: [zuerich/heating_system_efficiency]
   input_dataset_processors: [LinearInterpolation]
 
 - id: heat_pump_electricity_consumption
@@ -1724,19 +1755,13 @@ actions:
   - id: building_heat_mix
   output_dimensions: [emission_scope]
 
-- id: fossil_fuel_heater_replacement
-  name_en: Replacement of fossil fuel heaters
-  name_de: Heizungsersatz
+- id: fossil_fuel_heater_to_district_heat
+  name_en: Replacement of fossil fuel heaters with district heat
+  name_de: Heizungsersatz durch thermische Netze
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
   quantity: mix
-  description_en: If all 21 000 oil and gas heatings are replaced by heat pumps or
-    district heat, direct building emissions are reduced by 1.6 tCO<sub>2</sub>eq/(inh.*a).
-  description_de: 'Der Ersatz fossil betriebener Heizungen durch Liegenschaftsbesitzende
-    in der Stadt Zürich wird durch folgende Massnahmen unterstützt: kommunale Energieplanung,
-    Ausbau Energieverbunde und Fernwärme, städtische Energieberatung, Förderprogramm
-    Heizungsersatz, Förderprogramm Restwertentschädigung sowie Stilllegung Gasnetz.'
   output_nodes:
   - building_heat_mix
   unit: '%'
@@ -1751,18 +1776,10 @@ actions:
       dests:
       - categories:
           heating_system: district_heat
-      - categories:
-          heating_system: heat_pumps
       amounts:
       - year: 2023
-        source_amount: -1.1
-        dest_amounts: [40, 80]
-      - year: 2028
-        source_amount: -1.8
-        dest_amounts: [40, 80]
-      - year: 2040
-        source_amount: -1.2
-        dest_amounts: [40, 80]
+        source_amount: -0.45
+        dest_amounts: [1]
 
     - source:
         categories:
@@ -1770,18 +1787,88 @@ actions:
       dests:
       - categories:
           heating_system: district_heat
+      amounts:
+      - year: 2023
+        source_amount: -1.25
+        dest_amounts: [1]
+
+- id: fossil_fuel_heater_to_heat_pumps
+  name_en: Replacement of fossil fuel heaters with heat pumps
+  name_de: Heizungsersatz durch Wärmepumpen
+  type: shift.ShiftAction
+  parent: heater_replacement_and_district_heat
+  group: buildings
+  quantity: mix
+  output_nodes:
+  - building_heat_mix
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          heating_system: fuel_oil
+      dests:
       - categories:
           heating_system: heat_pumps
       amounts:
       - year: 2023
-        source_amount: -1.5
-        dest_amounts: [60, 50]
-      - year: 2028
-        source_amount: -3.1
-        dest_amounts: [60, 50]
-      - year: 2040
-        source_amount: -2.4
-        dest_amounts: [60, 50]
+        source_amount: -0.5
+        dest_amounts: [1]
+
+    - source:
+        categories:
+          heating_system: natural_gas
+      dests:
+      - categories:
+          heating_system: heat_pumps
+      amounts:
+      - year: 2023
+        source_amount: -1.25
+        dest_amounts: [1]
+
+- id: fossil_fuel_heater_to_other
+  name_en: Replacement of fossil fuel heaters with other heaters
+  name_de: Heizungsersatz durch übrige Systeme
+  type: shift.ShiftAction
+  parent: heater_replacement_and_district_heat
+  group: buildings
+  quantity: mix
+  output_nodes:
+  - building_heat_mix
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          heating_system: fuel_oil
+      dests:
+      - categories:
+          heating_system: wood
+      - categories:
+          heating_system: solar_collectors
+      amounts:
+      - year: 2023
+        source_amount: -0.1
+        dest_amounts: [10, 1]
+
+    - source:
+        categories:
+          heating_system: natural_gas
+      dests:
+      - categories:
+          heating_system: wood
+      - categories:
+          heating_system: solar_collectors
+      amounts:
+      - year: 2023
+        source_amount: -0.13
+        dest_amounts: [10, 1]
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung thermische Netze
@@ -1843,18 +1930,22 @@ actions:
   unit: '%'
   type: linear.ReduceAction
   output_nodes: [biogas_share]
+  output_dimensions: [energy_carrier]
   params:
   - id: reduce
     unit: '%'
     is_customizable: false
     value:
     - target:
-        node: biogas_share
+        categories:
+          energy_carrier: natural_gas
       amounts:
       - year: 2023
-        amount: 9
-      - year: 2030
-        amount: 5
+        amount: -9
+      - year: 2033
+        amount: -3.8
+      - year: 2039
+        amount: -0.2
       - year: 2040
         amount: 0
 
@@ -1905,20 +1996,32 @@ actions:
         categories:
           building_use: residential
       amounts:
+      # - year: 2023
+      #   amount: -0.4
+      # - year: 2030
+      #   amount: -0.7
+      # - year: 2040
+      #   amount: 0
       - year: 2023
-        amount: -0.4
-      - year: 2030
-        amount: -0.7
+        amount: -1.8
+      - year: 2039
+        amount: -1.8
       - year: 2040
         amount: 0
     - target:
         categories:
           building_use: nonresidential
       amounts:
+      # - year: 2023
+      #   amount: -2
+      # - year: 2030
+      #   amount: -1
+      # - year: 2040
+      #   amount: 0
       - year: 2023
-        amount: -2
-      - year: 2030
-        amount: -1
+        amount: -1.8
+      - year: 2039
+        amount: -1.8
       - year: 2040
         amount: 0
 
@@ -2051,18 +2154,16 @@ actions:
           transport_mode: buses
       - categories:
           transport_mode: rail_passenger
-      - categories:
-          transport_mode: trolleybuses
       amounts:
       - year: 2023
         source_amount: -0.58
-        dest_amounts: [27.3, 7.4, 58.8, 6.5]
+        dest_amounts: [27.3, 13.9, 58.8]
       - year: 2039
         source_amount: -0.58
-        dest_amounts: [27.3, 7.4, 58.8, 6.5]
+        dest_amounts: [27.3, 13.9, 58.8]
       - year: 2040
         source_amount: 0
-        dest_amounts: [27.3, 7.4, 58.8, 6.5]
+        dest_amounts: [27.3, 13.9, 58.8]
 
 - id: cars_to_bicycling
   name_en: Shift from cars to public transportation
