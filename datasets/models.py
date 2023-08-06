@@ -4,21 +4,27 @@ from datetime import date
 import pandas as pd
 import polars as pl
 import pint_pandas
-from django.db import models
+from django.db.models import QuerySet
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from django.contrib.postgres.fields import ArrayField
 
 from modeltrans.fields import TranslationField
+from modeltrans.manager import MultilingualManager, MultilingualQuerySet
 from modelcluster.models import ClusterableModel, ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel
 
-from paths.utils import IdentifierField, OrderedModel, UUIDIdentifierField, UnitField, UserModifiableModel
+from paths.utils import IdentifierField, IdentifierValidator, OrderedModel, UUIDIdentifierField, UnitField, UserModifiableModel
 from nodes.models import InstanceConfig
 from nodes.constants import YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.dimensions import Dimension as NodeDimension
-from common.i18n import get_modeltrans_attrs_from_str
+from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
 from common import polars as ppl
+
+
+class DatasetQuerySet(QuerySet['Dataset']):
+    pass
 
 
 class Dataset(ClusterableModel, UserModifiableModel):
@@ -26,15 +32,19 @@ class Dataset(ClusterableModel, UserModifiableModel):
         InstanceConfig, on_delete=models.CASCADE, related_name='datasets'
     )
     identifier = IdentifierField(max_length=150)
+    dvc_identifier = IdentifierField(max_length=200, regex=r'[a-z0-9_/]+$', null=True)  # type:ignore
     uuid = UUIDIdentifierField()
     years = ArrayField(models.IntegerField())
     name = models.CharField(max_length=200)
 
     metrics: models.manager.RelatedManager[DatasetMetric]
+    dimension_selections: models.manager.RelatedManager[DatasetDimension]
 
     table = models.JSONField()
 
     i18n = TranslationField(fields=('name',))
+
+    objects = DatasetQuerySet.as_manager()
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -71,6 +81,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
                     for dim_sel in self.dimension_selections.all()]
         today = date.today()
         years = self.years if self.years is not None else range(2000, today.year + 1)
+        index: pd.Index | pd.MultiIndex
         if len(dim_cats):
             index = pd.MultiIndex.from_product([years, *dim_cats], names=[YEAR_COLUMN, *[dim.id for dim in dims]])
         else:
@@ -85,15 +96,25 @@ class Dataset(ClusterableModel, UserModifiableModel):
         data = JSONDataset.serialize_df(df, add_uuids=True)
         return data
 
-    def generate_missing_years(self) -> dict:
+    def generate_rows_for_missing_years(self) -> dict:
         df = self.generate_empty_df()
         existing = self.table
         if existing:
             edf = JSONDataset.deserialize_df(self.table)
-            rows = df.index.get_level_values(YEAR_COLUMN).isin(edf.index.levels[0])
+            if isinstance(edf.index, pd.MultiIndex):
+                levels = edf.index.levels[0]
+            else:
+                levels = edf.index.unique()
+            rows = df.index.get_level_values(YEAR_COLUMN).isin(levels)
             df = pd.concat([edf, df.loc[~rows]])
         data = JSONDataset.serialize_df(df, add_uuids=True)
         return data
+
+    def remove_extra_rows(self) -> dict:
+        table = self.table.copy()
+        years = set(self.years)
+        table['data'] = [row for row in table['data'] if row[YEAR_COLUMN] in years]
+        return table
 
     @classmethod
     def annotate_nr_unresolved_comments(cls, qs: models.QuerySet[Dataset]):
@@ -108,6 +129,10 @@ class Dataset(ClusterableModel, UserModifiableModel):
         return qs
 
 
+class DatasetMetricQuerySet(QuerySet['DatasetMetric']):
+    pass
+
+
 class DatasetMetric(OrderedModel):
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='metrics')
     identifier = IdentifierField()
@@ -116,6 +141,8 @@ class DatasetMetric(OrderedModel):
     unit = UnitField()
 
     i18n = TranslationField(fields=('label',))
+
+    objects = DatasetMetricQuerySet.as_manager()
 
     class Meta:
         unique_together = (('dataset', 'identifier'),)
@@ -188,6 +215,10 @@ class DatasetComment(CellMetadata):
         verbose_name_plural = _('comments')
 
 
+class DimensioniQuerySet(QuerySet['DatasetMetric']):
+    pass
+
+
 class Dimension(ClusterableModel, UserModifiableModel):
     instance = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name='dimensions', editable=True)
     identifier = IdentifierField()
@@ -197,6 +228,8 @@ class Dimension(ClusterableModel, UserModifiableModel):
     i18n = TranslationField(fields=('label',), default_language_field='instance__primary_language')
 
     categories: models.manager.RelatedManager[DimensionCategory]
+
+    objects = DimensioniQuerySet.as_manager()
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -228,14 +261,19 @@ class Dimension(ClusterableModel, UserModifiableModel):
                 print("Creating category %s" % cat.id)
                 cat_obj.save()
             else:
-                found_cats.add(cat_obj.id)
-                if not cat_obj.i18n or cat_obj.label != cat.label.i18n.get(default_lang):
+                found_cats.add(cat_obj.pk)
+                if isinstance(cat.label, TranslatedString):
+                    cat_label = cat.label.i18n.get(default_lang)
+                else:
+                    cat_label = cat.label
+
+                if not cat_obj.i18n or cat_obj.label != cat_label:
                     cat_obj.label, cat_obj.i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 
         for cat_obj in cats.values():
-            if cat_obj.id in found_cats:
+            if cat_obj.pk in found_cats:
                 continue
             print("Deleting stale category %s" % cat_obj)
             cat_obj.delete()
@@ -290,6 +328,20 @@ class DatasetDimension(OrderedModel):
 
     def filter_siblings(self, qs: models.QuerySet['DatasetDimension']):
         return qs.filter(dataset=self.dataset)
+
+    def set_categories(self, cats: list[str]):
+        dim_cats = {cat.identifier: cat for cat in self.dimension.categories.all()}
+        with transaction.atomic():
+            new_sel = [DatasetDimensionSelectedCategory(
+                dataset_dimension=self,
+                category=dim_cats[cat_id],
+                order=idx,
+            ) for idx, cat_id in enumerate(cats)]
+            self.selected_categories.clear()
+            DatasetDimensionSelectedCategory.objects.bulk_create(new_sel)
+
+    def get_categories(self) -> list[str]:
+        return [x.identifier for x in self.selected_categories.all().order_by('order')]
 
 
 class DimensionCategory(UserModifiableModel, OrderedModel):

@@ -19,7 +19,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str)
         parser.add_argument('dataset', metavar='DATASET_ID', type=str)
-        parser.add_argument('dvc_path', metavar='DVC_PATH', type=str)
+        parser.add_argument('dvc_path', metavar='DVC_PATH', nargs='?', type=str)
         parser.add_argument('--repo-url', metavar='URL', type=str)
 
     def list_datasets(self, ic: InstanceConfig):
@@ -35,12 +35,18 @@ class Command(BaseCommand):
         console.print(table)
 
 
-    def store_dataset(self, ic: InstanceConfig, ctx: Context, ds_id: str, dvc_path: str, repo_url: str | None = None):
+    def store_dataset(self, ic: InstanceConfig, ctx: Context, ds_id: str, dvc_path: str | None = None, repo_url: str | None = None):
         ds: Dataset | None = ic.datasets.filter(identifier=ds_id).first()
         if ds is None:
             print("Dataset '%s' not found" % ds_id)
             self.list_datasets(ic)
             exit(1)
+
+        if dvc_path is None:
+            if not ds.dvc_identifier:
+                raise Exception("No DVC path provided but Dataset objects does not have dvc_identifier set")
+            ds_dvc_id: str = ds.dvc_identifier
+            dvc_path = ds_dvc_id
 
         assert ds.table is not None
         df = JSONDataset.deserialize_df(ds.table)
@@ -60,6 +66,10 @@ class Command(BaseCommand):
             df, identifier=dvc_path, modified_at=ds.updated_at, metadata=metadata
         )
         repo.push_dataset(dvc_ds)
+
+        if ds.dvc_identifier != dvc_path:
+            ds.dvc_identifier = dvc_path
+            ds.save(update_fields=['dvc_identifier'])
 
     def handle(self, *args, **options):
         instance_id = options['instance']

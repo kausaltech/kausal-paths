@@ -66,7 +66,7 @@ class Command(BaseCommand):
                 print("Removing existing dataset")
                 obj.delete()
 
-            obj = Dataset(identifier=identifier, instance=ic, table={}, years=[])
+            obj = Dataset(identifier=identifier, dvc_identifier=ds_id, instance=ic, table={}, years=[])
             name = metadata.get('name', None)
             if name is not None:
                 if isinstance(name, dict):
