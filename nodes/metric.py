@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import Counter
 
 import functools
 from dataclasses import dataclass, field
@@ -8,6 +9,8 @@ import numpy as np
 import pandas as pd
 import pint
 import polars as pl
+from colormath.color_objects import sRGBColor, LabColor
+from colormath.color_conversions import convert_color
 
 from common import polars as ppl
 from common.i18n import gettext as _
@@ -200,9 +203,48 @@ class MetricDimension:
     original_id: str
     label: str
     categories: list[MetricCategory]
+    groups: list[MetricCategoryGroup] = field(default_factory=list)
 
     def get_original_cat_ids(self):
         return [cat.original_id for cat in self.categories]
+
+    def ensure_unique_colors(self):
+        color_counts = Counter(cat.color.lower() for cat in self.categories if cat.color is not None)
+        color_map: dict[str, list[str]] = {}
+        LAB_Kn = 18
+        for color, count in color_counts.items():
+            if count == 1:
+                continue
+            rgb = sRGBColor.new_from_rgb_hex(color)
+            lab: LabColor = convert_color(rgb, LabColor)
+            vals = lab.get_value_tuple()
+            start = list(vals)
+            start[0] -= LAB_Kn * 1
+            end = list(vals)
+            if count > 2:
+                end[0] += LAB_Kn * 1
+
+            step = 1.0 / (count - 1)
+            colors_out = []
+            for i in range(count):
+                c = []
+                t = step * i
+                for j in range(3):
+                    c.append(start[j] + t * (end[j] - start[j]))
+                out = LabColor(*c)
+                out_rgb: sRGBColor = convert_color(out, sRGBColor)
+                out_rgb.rgb_r = out_rgb.clamped_rgb_r
+                out_rgb.rgb_g = out_rgb.clamped_rgb_g
+                out_rgb.rgb_b = out_rgb.clamped_rgb_b
+                colors_out.append(out_rgb.get_rgb_hex())
+            color_map[color] = colors_out
+        for cat in self.categories:
+            if not cat.color:
+                continue
+            color = cat.color.lower()
+            if color not in color_map:
+                continue
+            cat.color = color_map[color].pop(0)
 
 
 @dataclass
@@ -256,6 +298,7 @@ class DimensionalMetric:
             mdim = MetricDimension(
                 id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats, original_id=NODE_COLUMN
             )
+            mdim.ensure_unique_colors()
             dims.append(mdim)
         else:
             df = node.get_output_pl()
