@@ -1,4 +1,6 @@
+import pandas as pd
 import polars as pl
+from common import polars as ppl
 
 import common.polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_last_historical_value_pl
@@ -73,15 +75,33 @@ class BuildingHeatHistorical(Node):
         edf = edf.filter(pl.col('energy_carrier') != 'electricity')
         edf = edf.paths.to_wide(only_category_names=True)
         edf = edf.paths.join_over_index(cop_df)
+        gas_cols = [col for col in ('natural_gas', 'biogas', 'biogas_import') if col in edf.columns]
         edf = edf.with_columns([
-            (pl.col('natural_gas') + pl.col('biogas')).alias('natural_gas'),
+            pl.sum_horizontal(gas_cols).alias('natural_gas'),
             (pl.col('environmental_heat') / (1 - 1/pl.col('HeatPumpCOP'))).alias('heat_pumps'),
         ])
         edf = edf.set_unit('heat_pumps', edf.get_unit('environmental_heat'))
-        edf = edf.drop(['HeatPumpCOP', 'biogas', 'environmental_heat'])
+        gas_cols.remove('natural_gas')
+        edf = edf.drop(['HeatPumpCOP', *gas_cols, 'environmental_heat'])
         renames = {col: 'Value@heating_system:%s' % col for col in edf.metric_cols}
         edf = edf.rename(renames).paths.to_narrow()
         return edf
+
+
+class BuildingUsefulHeat(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        en = self.get_input_node(tag='energy')
+        copn = self.get_input_node(tag='cop')
+        df = en.get_output_pl(target_node=self)
+        cdf = copn.get_output_pl(target_node=self)
+        cdf = cdf.rename({VALUE_COLUMN: 'COP'})
+        df = df.paths.join_over_index(cdf)
+        # Heat pump COP is already taken into account, so replace theh multiplier
+        # with 1.0.
+        df = df.with_columns(pl.when(pl.col('heating_system').eq('heat_pumps')).then(1.0).otherwise(pl.col('COP')).alias('COP'))
+        m = self.get_default_output_metric()
+        df = df.multiply_cols([VALUE_COLUMN, 'COP'], VALUE_COLUMN, m.unit).select_metrics([VALUE_COLUMN])
+        return df
 
 
 class BuildingHeatPerArea(Node):
@@ -185,27 +205,23 @@ class BuildingHeatUseMix(MixNode):
         return df
 
 
-class BiogasShare(AdditiveNode):
-    def compute(self):
-        cnode = self.get_input_node(tag='consumption')
-        cdf = cnode.get_output_pl(target_node=self)
-        df = cdf.paths.to_wide(only_category_names=True)
-        df = df.with_columns(
-            (pl.col('natural_gas') + pl.col('biogas')).alias('Total')
-        )
-        df = df.set_unit('Total', df.get_unit('natural_gas'))
-        df = df.divide_cols(['biogas', 'Total'], VALUE_COLUMN)
+# class BiogasShare(AdditiveNode):
+#     def compute(self):
+#         cnode = self.get_input_node(tag='consumption')
+#         df = cnode.get_output_pl(target_node=self)
+#         df = df.filter(pl.col('energy_carrier').is_in(['natural_gas', 'biogas', 'biogas_import']))
+#         df = df.paths.calculate_shares(VALUE_COLUMN, 'Share', over_dims=['energy_carrier'])
 
-        output_unit = self.get_default_output_metric().unit
-        df = df.select_metrics([VALUE_COLUMN]).ensure_unit(VALUE_COLUMN, output_unit)
-        df = extend_last_historical_value_pl(df, self.get_end_year())
-        input_nodes = list(self.input_nodes)
-        input_nodes.remove(cnode)
-        df = self.add_nodes_pl(df, input_nodes)
+#         output_unit = self.get_default_output_metric().unit
+#         df = df.select_metrics(['Share']).ensure_unit('Share', output_unit).rename(dict(Share=VALUE_COLUMN))
+#         df = extend_last_historical_value_pl(df, self.get_end_year())
+#         input_nodes = list(self.input_nodes)
+#         input_nodes.remove(cnode)
+#         df = self.add_nodes_pl(df, input_nodes)
 
-        max_val = (1.0 * self.context.unit_registry.parse_units('dimensionless')).to(output_unit)
-        df = df.with_columns(pl.col(VALUE_COLUMN).clip(0, max_val.m))
-        return df
+#         max_val = (1.0 * self.context.unit_registry.parse_units('dimensionless')).to(output_unit)
+#         df = df.with_columns(pl.col(VALUE_COLUMN).clip(0, max_val.m))
+#         return df
 
 
 class BuildingHeatByCarrier(Node):
@@ -221,16 +237,22 @@ class BuildingHeatByCarrier(Node):
         sdf = sdf.rename({VALUE_COLUMN: 'BioShare'})
 
         edf = edf.paths.to_wide(only_category_names=True)
+        edf = edf.rename({'natural_gas': 'natural_gas_heat'})
+        sdf = sdf.paths.to_wide(only_category_names=True)
+        sdf = sdf.rename({col: 'Share:%s' % col for col in sdf.metric_cols})
         edf = edf.paths.join_over_index(sdf)
         edf = edf.paths.join_over_index(cop_df)
-        edf = edf.multiply_cols(['natural_gas', 'BioShare'], 'biogas', out_unit=edf.get_unit('natural_gas'))
+        drop_cols = []
+        for col in ('natural_gas', 'biogas', 'biogas_import'):
+            edf = edf.multiply_cols(['natural_gas_heat', 'Share:%s' % col], col, edf.get_unit('natural_gas_heat'))
+            drop_cols.append('Share:%s' % col)
+        edf = edf.drop([*drop_cols, 'natural_gas_heat'])
         edf = edf.divide_cols(['heat_pumps', 'HeatPumpCOP'], 'electricity', out_unit=edf.get_unit('heat_pumps'))
         edf = edf.with_columns([
-            (pl.col('natural_gas') - pl.col('biogas')).alias('natural_gas'),
             (pl.col('heat_pumps') - pl.col('electricity')).alias('environmental_heat'),
         ])
         edf = edf.set_unit('environmental_heat', edf.get_unit('heat_pumps'))
-        edf = edf.drop(['BioShare', 'HeatPumpCOP', 'heat_pumps'])
+        edf = edf.drop(['HeatPumpCOP', 'heat_pumps'])
         renames = {col: 'Value@energy_carrier:%s' % col for col in edf.metric_cols}
         edf = edf.rename(renames).paths.to_narrow()
         return edf

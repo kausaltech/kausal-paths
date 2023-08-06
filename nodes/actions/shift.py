@@ -36,11 +36,11 @@ class ShiftEntry(BaseModel):
     dests: list[ShiftTarget]
     amounts: list[ShiftAmount]
 
-    @validator('amounts')
-    def enough_years(cls, v):
-        if len(v) < 2:
-            raise ValueError("Must supply values for at least two years")
-        return v
+    # @validator('amounts')
+    # def enough_years(cls, v):
+    #     if len(v) < 2:
+    #         raise ValueError("Must supply values for at least two years")
+    #     return v
 
     @model_validator(mode='after')
     def dimensions_must_match(self):
@@ -128,6 +128,10 @@ class ShiftAction(ActionNode):
     def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit):
         amounts = sorted(param.amounts, key=lambda x: x.year)
         data = [[a.year, a.source_amount, *a.dest_amounts] for a in param.amounts]
+        if len(data) == 1:
+            row = data[0].copy()
+            row[0] = self.get_end_year()
+            data.append(row)
         dest_cols = ['Dest%d' % idx for idx in range(len(param.dests))]
         cols = [YEAR_COLUMN, 'Source', *dest_cols]
 
