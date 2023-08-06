@@ -102,6 +102,8 @@ colorama==0.4.6
     # via dvc
 colored==2.2.3
     # via -r requirements.in
+colormath==3.0.0
+    # via -r requirements.in
 configobj==5.0.8
     # via dvc
 cryptography==41.0.2
@@ -324,11 +326,14 @@ multidict==6.0.4
 nanotime==0.5.2
     # via dvc-data
 networkx==3.1
-    # via dvc
+    # via
+    #   colormath
+    #   dvc
 numba==0.57.1
     # via -r requirements.in
 numpy==1.24.4
     # via
+    #   colormath
     #   numba
     #   pandas
     #   pyarrow

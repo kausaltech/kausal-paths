@@ -489,6 +489,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'filelock': level('INFO'),
             'sentry_sdk.errors': level('INFO'),
             'markdown_it': level('INFO'),
+            'colormath': level('INFO'),
             '': level('DEBUG'),
         }
     }

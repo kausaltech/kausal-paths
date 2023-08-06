@@ -81,6 +81,7 @@ class InstanceYearlyGoalType(graphene.ObjectType):
 class InstanceGoalDimension(graphene.ObjectType):
     dimension = graphene.String(required=True)
     categories = graphene.List(graphene.NonNull(graphene.String), required=True)
+    groups = graphene.List(graphene.NonNull(graphene.String), required=True)
     category = graphene.String(required=True, deprecation_reason='replaced with categories')
 
     @staticmethod
@@ -159,7 +160,9 @@ class InstanceType(graphene.ObjectType):
 
             dims = []
             for dim_id, path in goal.dimensions.items():
-                dims.append(InstanceGoalDimension(dimension=dim_id, categories=path.groups or path.categories))
+                dims.append(InstanceGoalDimension(
+                    dimension=dim_id, categories=path.categories, groups=path.groups,
+                ))
 
             out = InstanceGoalEntry(
                 id=goal_id,
@@ -217,6 +220,15 @@ class MetricDimensionCategoryType(graphene.ObjectType):
     label = graphene.String(required=True)
     color = graphene.String(required=False)
     order = graphene.Int(required=False)
+    group = graphene.String(required=False)
+
+
+class MetricDimensionCategoryGroupType(graphene.ObjectType):
+    id = graphene.ID(required=True)
+    original_id = graphene.ID(required=True)
+    label = graphene.String(required=True)
+    color = graphene.String(required=False)
+    order = graphene.Int(required=False)
 
 
 class MetricDimensionType(graphene.ObjectType):
@@ -224,6 +236,7 @@ class MetricDimensionType(graphene.ObjectType):
     original_id = graphene.ID(required=False)
     label = graphene.String(required=True)
     categories = graphene.List(graphene.NonNull(MetricDimensionCategoryType), required=True)
+    groups = graphene.List(graphene.NonNull(MetricDimensionCategoryGroupType), required=True)
 
 
 class MetricYearlyGoalType(graphene.ObjectType):
@@ -235,6 +248,7 @@ class MetricYearlyGoalType(graphene.ObjectType):
 class DimensionalMetricGoalEntry(graphene.ObjectType):
     categories = graphene.List(graphene.NonNull(graphene.String), required=True)
     values = graphene.List(graphene.NonNull(MetricYearlyGoalType), required=True)
+    group = graphene.String(required=False)
 
 
 class DimensionalMetricType(graphene.ObjectType):

@@ -24,6 +24,7 @@ from nodes.constants import (
 )
 from nodes.exceptions import NodeError
 from nodes.goals import NodeGoalsEntry
+from nodes.node import NodeMetric
 from nodes.simple import AdditiveNode
 from nodes.units import Unit
 
@@ -195,6 +196,16 @@ class MetricCategory:
     label: str
     color: str | None
     order: int | None
+    group: str | None = None
+
+
+@dataclass
+class MetricCategoryGroup:
+    id: str
+    original_id: str
+    label: str
+    color: str | None
+    order: int | None
 
 
 @dataclass
@@ -257,7 +268,8 @@ class MetricYearlyGoal:
 @dataclass
 class MetricDimensionGoal:
     categories: list[str]
-    values: list[MetricYearlyGoal]
+    group: str | None = None
+    values: list[MetricYearlyGoal] = field(default_factory=list)
 
 
 @dataclass
@@ -274,14 +286,18 @@ class DimensionalMetric:
     normalized_by: Node | None
 
     @classmethod
-    def from_node(cls, node: Node) -> DimensionalMetric | None:
+    def from_node(cls, node: Node, metric: NodeMetric | None = None) -> DimensionalMetric | None:
         def make_id(*args: str):
             return ':'.join([node.id, *args])
 
-        try:
-            m = node.get_default_output_metric()
-        except Exception:
-            return None
+        if metric is None:
+            try:
+                m = node.get_default_output_metric()
+            except Exception:
+                return None
+        else:
+            # FIXME: Get goals only for the chosen metric
+            m = metric
 
         dims: list[MetricDimension] = []
 
@@ -320,49 +336,55 @@ class DimensionalMetric:
                 goals.append(MetricDimensionGoal(categories=[], values=make_goal_values(goal)))
 
         for dim_id, dim in node.output_dimensions.items():
+            df_cats = set(df[dim_id].unique())
+
+            ordered_groups = []
+            group_id_map = {}
             if dim.groups:
                 df = df.with_columns(dim.ids_to_groups(pl.col(dim_id).alias('_Groups')))
-            if dim.groups and df['_Groups'].unique().len() > 1:
-                meta = df.get_meta()
-                df = df.with_columns(pl.col('_Groups').alias(dim.id))
-                gdf = df.groupby(df.primary_keys, maintain_order=True).agg([pl.sum(m.column_id), pl.first(FORECAST_COLUMN)])
-                df = ppl.to_ppdf(gdf, meta=meta)
-                groups = set(df[dim_id].unique())
-                ordered_groups = []
+                df_groups = set(df['_Groups'].unique())
+
                 for grp in dim.groups:
-                    if grp.id not in groups:
+                    if grp.id not in df_groups:
                         continue
-                    cat_id = make_id(dim.id, 'group', grp.id)
-                    ordered_groups.append(MetricCategory(
-                        id=cat_id, label=str(grp.label), color=grp.color, order=grp.order,
+                    grp_id = make_id(dim.id, 'group', grp.id)
+                    group_id_map[grp.id] = grp_id
+                    ordered_groups.append(MetricCategoryGroup(
+                        id=grp_id, label=str(grp.label), color=grp.color, order=grp.order,
                         original_id=grp.id,
                     ))
                     if node.goals:
                         goal = node.goals.get_exact_match(dim.id, groups=[grp.id])
                         if goal:
-                            goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
+                            grp_cats = dim.get_cats_for_group(grp.id)
+                            cat_ids = [make_id(dim.id, 'cat', cat.id) for cat in grp_cats if cat.id in df_cats]
+                            goals.append(MetricDimensionGoal(
+                                categories=cat_ids, values=make_goal_values(goal), group=grp_id)
+                            )
+                assert len(ordered_groups) == len(df_groups)
 
-                assert len(groups) == len(ordered_groups)
-                ordered_cats = ordered_groups
-            else:
-                cats = set(df[dim_id].unique())  # type: ignore
-                ordered_cats = []
-                for cat in dim.categories:
-                    if cat.id not in cats:
-                        continue
-                    cat_id = make_id(dim.id, 'cat', cat.id)
-                    ordered_cats.append(MetricCategory(
-                        id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
-                        original_id=cat.id,
-                    ))
-                    if node.goals:
-                        goal = node.goals.get_exact_match(dim.id, categories=[cat.id])
-                        if goal:
-                            goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
+            ordered_cats = []
+            for cat in dim.categories:
+                if cat.id not in df_cats:
+                    continue
+                cat_id = make_id(dim.id, 'cat', cat.id)
+                ordered_cats.append(MetricCategory(
+                    id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
+                    original_id=cat.id, group=group_id_map[cat.group] if cat.group else None
+                ))
+                if node.goals:
+                    goal = node.goals.get_exact_match(dim.id, categories=[cat.id])
+                    if goal:
+                        goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
 
-                assert len(cats) == len(ordered_cats)
+            assert len(df_cats) == len(ordered_cats)
+
             mdim = MetricDimension(
-                id=make_id('dim', dim.id), label=str(dim.label), categories=ordered_cats, original_id=dim.id,
+                id=make_id('dim', dim.id),
+                label=str(dim.label),
+                categories=ordered_cats,
+                original_id=dim.id,
+                groups=ordered_groups,
             )
             dims.append(mdim)
 

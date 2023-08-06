@@ -11,16 +11,16 @@ from pint.errors import UndefinedUnitError
 
 
 class IdentifierValidator(RegexValidator):
-    def __init__(self, regex=None, **kwargs):
-        if regex is not None:
-            regex = r'^[a-z0-9_]+$'
-        super().__init__(regex, **kwargs)
+    regex = r'^[a-z0-9_]+$'
 
 
 class IdentifierField(models.CharField):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, regex: str | None = None, **kwargs):
+        validator_kwargs = {}
+        if regex is not None:
+            validator_kwargs['regex'] = regex
         if 'validators' not in kwargs:
-            kwargs['validators'] = [IdentifierValidator()]
+            kwargs['validators'] = [IdentifierValidator(**validator_kwargs)]
         if 'max_length' not in kwargs:
             kwargs['max_length'] = 50
         if 'verbose_name' not in kwargs:
@@ -69,6 +69,7 @@ class UnitField(models.CharField):
         defaults = dict(
             validators=[validate_unit],
             verbose_name=_('unit'),
+            blank=True,
             max_length=50,
         )
         for key, val in defaults.items():

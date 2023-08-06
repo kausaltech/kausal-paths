@@ -41,4 +41,4 @@ drf-spectacular
 social-auth-app-django
 django-storages
 tzdata  # needed for pytz
-#boto3
+colormath
