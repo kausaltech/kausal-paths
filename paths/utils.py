@@ -11,14 +11,14 @@ from pint.errors import UndefinedUnitError
 
 
 class IdentifierValidator(RegexValidator):
-    regex = r'^[a-z0-9_]+$'
+    regex = r'^[a-z0-9-_]+$'
 
 
 class IdentifierField(models.CharField):
-    def __init__(self, *args, regex: str | None = None, **kwargs):
+    def __init__(self, *args, **kwargs):
         validator_kwargs = {}
-        if regex is not None:
-            validator_kwargs['regex'] = regex
+        if 'regex' in kwargs:
+            validator_kwargs['regex'] = kwargs.pop('regex')
         if 'validators' not in kwargs:
             kwargs['validators'] = [IdentifierValidator(**validator_kwargs)]
         if 'max_length' not in kwargs:
