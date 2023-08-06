@@ -316,7 +316,7 @@ class JSONDataset(Dataset):
         for f in value['schema']['fields']:
             unit = f.get('unit')
             col = f['name']
-            if unit:
+            if unit is not None:
                 pt = pint_pandas.PintType(unit)
                 df[col] = df[col].astype(float).astype(pt)
                 units[col] = unit
