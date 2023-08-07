@@ -189,7 +189,7 @@ dimensions:
     label: Flugverkehr
     label_en: Aviation
   - id: bicycle
-    label: Veloverkehr
+    label: Velo
     label_en: Cycling
 
 - id: vehicle_type
@@ -636,7 +636,7 @@ emission_sectors:
     is_main_goal: true
   - normalized_by: population
     label_de: Direkte Emissionen
-    label_en: Net direct emissions
+    label_en: Direct emissions
     dimensions:
       emission_scope:
         groups: [direct]
@@ -1081,6 +1081,14 @@ nodes:
   input_datasets:
   - zuerich/district_heat_production_mix
 
+- id: district_heat_ccs_share
+  name_de: Share of CO2 captured with CCS in district heat production
+  name_en: Share of CO2 captured with CCS in district heat production
+  type: simple.AdditiveNode
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: ratio
+
 - id: district_heat_emission_factor
   name_de: Treibhausgasfaktoren Fernwärme
   name_en: District heat emission factor
@@ -1096,6 +1104,9 @@ nodes:
     - id: emission_scope
   - id: district_heat_production_mix
     tags: [mix]
+  - id: district_heat_ccs_share
+    to_dimensions: []
+    tags: [ccs]
   input_datasets:
   - zuerich/district_heat_emission_factor
   input_dimensions: [energy_carrier]
@@ -1876,48 +1887,11 @@ actions:
     2022 auf 100% im Jahr 2040.
   group: buildings
   parent: heater_replacement_and_district_heat
-  quantity: mix
+  quantity: ratio
   unit: '%'
-  type: shift.ShiftAction
-  output_nodes: [district_heat_production_mix]
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          energy_carrier: natural_gas
-      dests:
-      - categories:
-          energy_carrier: biogas
-      amounts:
-      - year: 2023
-        source_amount: -1
-        dest_amounts: [1]
-      - year: 2028
-        source_amount: -3.5
-        dest_amounts: [1]
-      - year: 2040
-        source_amount: -2
-        dest_amounts: [1]
-
-    - source:
-        categories:
-          energy_carrier: fuel_oil
-      dests:
-      - categories:
-          energy_carrier: biogas
-      amounts:
-      - year: 2023
-        source_amount: -0.3
-        dest_amounts: [1]
-      - year: 2028
-        source_amount: -0.3
-        dest_amounts: [1]
-      - year: 2040
-        source_amount: 0
-        dest_amounts: [1]
+  type: simple.CumulativeAdditiveAction
+  output_nodes: [district_heat_ccs_share]
+  forecast_values: [[2023, 0], [2035, 80]]
 
 - id: natural_gas_network_decarbonisation
   name_de: Dekarbonisierung Gasversorgung

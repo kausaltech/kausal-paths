@@ -343,6 +343,12 @@ class EnergyProductionEmissionFactor(AdditiveNode):
         mix_m = mix_node.get_default_output_metric()
         mix_df = mix_df.rename({mix_m.column_id: 'Share'})
 
+        ccs_node = self.get_input_node(tag='ccs', required=False)
+        ccs_df = None
+        if ccs_node is not None:
+            ccs_df = ccs_node.get_output_pl(target_node=self)
+            ccs_df = ccs_df.rename({VALUE_COLUMN: 'CCS'}).ensure_unit('CCS', 'dimensionless')
+
         ef_df = self.get_input_dataset_pl()
         if len(self.input_dimensions) != 1:
             raise NodeError(self, "Must have exactly 1 input dimensions (%d given)" % len(self.input_dimensions))
@@ -358,12 +364,22 @@ class EnergyProductionEmissionFactor(AdditiveNode):
             ef_df = ef_df.paths.join_over_index(node_df)
             ef_df = ef_df.with_columns([pl.col('EF').fill_null(pl.col('NodeEF'))]).drop('NodeEF')
 
-        ef_df = extend_last_historical_value_pl(ef_df, self.get_end_year())
-        df = mix_df.paths.join_over_index(ef_df, index_from='union')
+        df = extend_last_historical_value_pl(ef_df, self.get_end_year())
+
+        if ccs_df is not None:
+            df = df.paths.join_over_index(ccs_df).with_columns(pl.col('CCS').fill_null(0.0))
+            #df = df.multiply_cols(['EF', 'CCS'], 'EFRemaining', out_unit=df.get_unit('EF'))
+            df = df.with_columns(
+                pl.when(pl.col('energy_carrier').eq('natural_gas') & pl.col('emission_scope').eq('scope1'))
+                    .then(pl.col('EF') * (1 - pl.col('CCS'))).otherwise(pl.col('EF')).alias('EF')
+            )
+
+        df = mix_df.paths.join_over_index(df, index_from='union')
         m = self.output_metrics[EMISSION_FACTOR_QUANTITY]
         df = df.multiply_cols(['Share', 'EF'], 'EF', out_unit=m.unit)
         df = df.with_columns([pl.col('EF').fill_null(0).fill_nan(0)])
         df = df.drop_nulls()
+
         meta = df.get_meta()
         other_dims = df.dim_ids
         other_dims.remove(es_dim_id)
