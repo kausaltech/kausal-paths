@@ -248,7 +248,7 @@ class MetricYearlyGoalType(graphene.ObjectType):
 class DimensionalMetricGoalEntry(graphene.ObjectType):
     categories = graphene.List(graphene.NonNull(graphene.String), required=True)
     values = graphene.List(graphene.NonNull(MetricYearlyGoalType), required=True)
-    group = graphene.String(required=False)
+    groups = graphene.List(graphene.NonNull(graphene.String), required=True)
 
 
 class DimensionalMetricType(graphene.ObjectType):

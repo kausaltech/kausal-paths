@@ -268,7 +268,7 @@ class MetricYearlyGoal:
 @dataclass
 class MetricDimensionGoal:
     categories: list[str]
-    group: str | None = None
+    groups: list[str]
     values: list[MetricYearlyGoal] = field(default_factory=list)
 
 
@@ -331,9 +331,19 @@ class DimensionalMetric:
 
         goals: list[MetricDimensionGoal] = []
         if node.goals:
-            goal = node.goals.get_dimensionless()
-            if goal:
-                goals.append(MetricDimensionGoal(categories=[], values=make_goal_values(goal)))
+            for goal in node.goals.root:
+                cat_ids: list[str] = []
+                group_ids = []
+                for dim_id, goal_dim in goal.dimensions.items():
+                    dim = node.output_dimensions[dim_id]
+                    for grp_id in goal_dim.groups:
+                        cat_ids += [make_id(dim.id, 'cat', cat.id) for cat in dim.get_cats_for_group(grp_id)]
+                        group_ids.append(make_id(dim.id, 'group', grp_id))
+                    for cat_id in goal_dim.categories:
+                        cat_ids.append(make_id(dim.id, 'cat', cat_id))
+                goals.append(MetricDimensionGoal(
+                    categories=cat_ids, values=make_goal_values(goal), groups=group_ids
+                ))
 
         for dim_id, dim in node.output_dimensions.items():
             df_cats = set(df[dim_id].unique())
@@ -353,14 +363,6 @@ class DimensionalMetric:
                         id=grp_id, label=str(grp.label), color=grp.color, order=grp.order,
                         original_id=grp.id,
                     ))
-                    if node.goals:
-                        goal = node.goals.get_exact_match(dim.id, groups=[grp.id])
-                        if goal:
-                            grp_cats = dim.get_cats_for_group(grp.id)
-                            cat_ids = [make_id(dim.id, 'cat', cat.id) for cat in grp_cats if cat.id in df_cats]
-                            goals.append(MetricDimensionGoal(
-                                categories=cat_ids, values=make_goal_values(goal), group=grp_id)
-                            )
                 assert len(ordered_groups) == len(df_groups)
 
             ordered_cats = []
