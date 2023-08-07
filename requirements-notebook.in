@@ -1,6 +1,9 @@
+-c requirements.txt
+-c requirements-dev.txt
 jupyterlab
 jupyterlab-lsp
 python-lsp-server[all]
 seaborn[stats]
 pygwalker
 jupyter-dash
+pandas<2.0
