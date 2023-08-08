@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 01b802f07daa2306bcffa20b2cbbc7e56d9ca881
+  commit: c780840fc71d1e60e36be17ba55888a6dd4ffaa8
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -1294,14 +1294,14 @@ nodes:
   - id: zuerich/emissions
     tags: [emissions]
     filters:
-      - dimension: emission_scope
-        categories: [scope1]
-        flatten: true
-      - dimension: emission_sectors
-        categories: [wood_heatings_disperse]
-        flatten: true
-      - dimension: building_other_emission_sources
-        assign_category: disperse_wood_heatings
+    - dimension: emission_scope
+      categories: [scope1]
+      flatten: true
+    - dimension: emission_sectors
+      categories: [wood_heatings_disperse]
+      flatten: true
+    - dimension: building_other_emission_sources
+      assign_category: disperse_wood_heatings
 
   output_dimensions: [building_other_emission_sources]
   input_dataset_processors: [LinearInterpolation]
@@ -2541,6 +2541,37 @@ actions:
       - year: 2035
         source_amount: 0
         dest_amounts: [70, 30, 50]
+
+- id: import_biogas_emission_accounting_agreement
+  group: other
+  name_en: Import biogas emission accounting agreement
+  name_de: Import biogas emission accounting agreement
+  type: linear.ReduceAction
+  quantity: mix
+  description_en: Agreement on how import biogas emissions should be accounted to
+    avoid double counting.
+  description_de: Agreement on how import biogas emissions should be accounted to
+    avoid double counting.
+  output_nodes:
+  - id: building_energy_consumption_emission_factor
+  output_dimensions: [energy_carrier, emission_scope]
+  unit: g/kWh
+  params:
+  - id: reduce
+    unit: g/kWh
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          energy_carrier: biogas_import
+          emission_scope: scope1
+      amounts:
+      - year: 2027
+        amount: 0
+      - year: 2028
+        amount: -182.18
+      - year: 2029
+        amount: 0
 
 # - id: increase_other_negative_emissions
 #   name_de: Zusätzliche, zukünftige Massnahmen zur Erhöhung der negativen Emissionen

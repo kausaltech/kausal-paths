@@ -416,20 +416,21 @@ class EmissionFactor(Node):
             meta.primary_keys.append(dim.id)
         if YEAR_COLUMN not in meta.primary_keys:
             meta.primary_keys.append(YEAR_COLUMN)
-        df = df.paths.cast_index_to_str()
 
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        if self.id == 'building_energy_consumption_emission_factor':
+            self.print(df.filter(pl.col('energy_carrier').eq('biogas_import')))
         for node in self.input_nodes:
-            ndf = node.get_output_pl(self)
-            ndf = ndf.ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
-            ndf = ndf.select(df.columns).drop_nulls()
-            ndf = ndf.paths.cast_index_to_str()
-            df = ppl.to_ppdf(pl.concat([df, ndf], how='vertical'), meta=meta)
+            ndf = node.get_output_pl(self).ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
+            ndf = ndf.rename({VALUE_COLUMN: '_Right'})
+            df = df.paths.join_over_index(ndf, how='outer')
+            df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(0) + pl.col('_Right').fill_null(0)).drop('_Right')
 
         if df.paths.index_has_duplicates():
             dupes = df.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1)
             self.print(dupes)
             raise NodeError(self, "Duplicate rows detected")
-        df = extend_last_historical_value_pl(df, self.get_end_year())
         return df
 
 
