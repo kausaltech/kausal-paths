@@ -29,6 +29,7 @@ from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
+    STACKABLE_QUANTITIES,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
@@ -499,17 +500,17 @@ class Node:
         return [df.to_pandas() for df in dfs]
 
     @overload
-    def get_input_dataset_pl(self, required: Literal[False]) -> Optional[ppl.PathsDataFrame]: ...
+    def get_input_dataset_pl(self, tag: str | None = None, *, required: Literal[False]) -> Optional[ppl.PathsDataFrame]: ...
 
     @overload
-    def get_input_dataset_pl(self, required: Literal[True] = True) -> ppl.PathsDataFrame: ...
+    def get_input_dataset_pl(self, tag: str | None = None, required: Literal[True] = True) -> ppl.PathsDataFrame: ...
 
     @overload
-    def get_input_dataset_pl(self, required: bool) -> Optional[ppl.PathsDataFrame]: ...
+    def get_input_dataset_pl(self, tag: str | None = None, required: bool = ...) -> ppl.PathsDataFrame | None: ...
 
-    def get_input_dataset_pl(self, required: bool = True) -> ppl.PathsDataFrame | None:
+    def get_input_dataset_pl(self, tag: str | None = None, required: bool = True) -> ppl.PathsDataFrame | None:
         """Gets the first (and only) dataset if it exists."""
-        datasets = self.get_input_datasets_pl()
+        datasets = self.get_input_datasets_pl(tag=tag)
         if not datasets:
             if required:
                 raise NodeError(self, 'No input datasets, but node requires one')
@@ -968,7 +969,10 @@ class Node:
             norm = None
 
         if meta.dim_ids:
-            return df.paths.to_wide()
+            df = df.paths.to_wide()
+            if self.quantity in STACKABLE_QUANTITIES:
+                df = df.with_columns(pl.sum(df.metric_cols).alias('Total'))
+            return df
 
         if self.baseline_values is not None:
             m = self.output_metrics[DEFAULT_METRIC]

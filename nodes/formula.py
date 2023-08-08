@@ -1,0 +1,193 @@
+import operator
+import ast
+from typing import Any, Callable, Dict, TypeAlias, TypeVar, NamedTuple
+import pandas as pd
+
+import polars as pl
+
+from common import polars as ppl
+from nodes.calc import extend_last_historical_value_pl
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.units import Quantity
+from params.param import BoolParameter, StringParameter
+from .node import Node
+
+
+PDF: TypeAlias = ppl.PathsDataFrame
+EvalConst: TypeAlias = float
+EvalOutput: TypeAlias = PDF | Quantity
+
+
+class EvalVars(NamedTuple):
+    nodes: dict[str, Node]
+    datasets: dict[str, PDF]
+
+
+ASTType = TypeVar('ASTType', bound=ast.expr)
+
+BinomBothDF: TypeAlias = Callable[[PDF, PDF], PDF]
+BinomLeftDF: TypeAlias = Callable[[PDF, Quantity], PDF]
+BinomBothQuantity: TypeAlias = Callable[[Quantity, Quantity], Quantity]
+BinomRightDF: TypeAlias = Callable[[Quantity, PDF], PDF]
+
+
+class FormulaNode(Node):
+    allowed_parameters = [
+        StringParameter(local_id='formula'),
+        BoolParameter(local_id='extend_last_historical_value')
+    ]
+
+    def eval_expression(self, expr: ast.Expression, vars: EvalVars) -> EvalOutput:
+        return self.eval_tree(expr.body, vars)
+
+    def eval_constant(self, node: ast.Constant, vars: EvalVars) -> Quantity:
+        q = Quantity(node.value)
+        return q
+
+    def eval_name(self, name: ast.Name, vars: EvalVars) -> PDF:
+        if name.id in vars.nodes:
+            node = vars.nodes[name.id]
+            df = node.get_output_pl(target_node=self)
+        else:
+            df = vars.datasets[name.id]
+            if FORECAST_COLUMN not in df.columns:
+                df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+            assert len(df.metric_cols) == 1
+            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+        return df
+
+    def apply_binom(
+        self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, left_df: BinomLeftDF,
+        right_df: BinomRightDF, both_quantity: BinomBothQuantity
+    ) -> EvalOutput:
+        if isinstance(left, PDF) and isinstance(right, PDF):
+            return both_df(left, right)
+
+        if isinstance(left, PDF):
+            assert isinstance(right, Quantity)
+            return left_df(left, right)
+        elif isinstance(right, PDF):
+            assert isinstance(left, Quantity)
+            return right_df(left, right)
+        else:
+            return both_quantity(right, left)
+
+    def apply_binom_commutative(
+            self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, one_df: BinomLeftDF,
+            both_quantity: BinomBothQuantity
+    ) -> EvalOutput:
+        def right_df(val: Quantity, df: PDF):
+            return one_df(df, val)
+        return self.apply_binom(left, right, both_df, one_df, right_df, both_quantity)
+
+    def apply_add(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        def both_df(df1: PDF, df2: PDF):
+            r = df2.copy().rename({VALUE_COLUMN: '_Right'}).ensure_unit('_Right', df1.get_unit(VALUE_COLUMN))
+            df = df1.paths.join_over_index(r)
+            df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(0) + pl.col('_Right').fill_null(0)).drop('_Right')
+            return df
+        def one_df(df: PDF, val: Quantity):
+            val = val.to(df.get_unit(VALUE_COLUMN))
+            df = df.with_columns(pl.col(VALUE_COLUMN) + val)
+            return df
+        def both_quantity(val1: Quantity, val2: Quantity):
+            out = left + right
+            assert isinstance(out, Quantity)
+            return out
+        return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
+
+    def apply_mul(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        def both_df(df1: PDF, df2: PDF):
+            r = df2.copy().rename({VALUE_COLUMN: '_Right'})
+            df = df1.paths.join_over_index(r)
+            df = df.multiply_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
+            return df
+        def one_df(df: PDF, val: Quantity):
+            df_unit = df.get_unit(VALUE_COLUMN)
+            df = df.with_columns(pl.col(VALUE_COLUMN) * val)
+            df = df.set_unit(VALUE_COLUMN, df_unit * val.units)
+            return df
+        def both_quantity(val1: Quantity, val2: Quantity):
+            out = val1 + val2
+            assert isinstance(out, Quantity)
+            return out
+        return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
+
+    def apply_div(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        def both_df(df1: PDF, df2: PDF):
+            r = df2.copy().rename({VALUE_COLUMN: '_Right'})
+            df = df1.paths.join_over_index(r)
+            df = df.divide_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
+            return df
+        def left_df(df: PDF, val: Quantity):
+            df_unit = df.get_unit(VALUE_COLUMN)
+            df = df.with_columns(pl.col(VALUE_COLUMN) / val)
+            df = df.set_unit(VALUE_COLUMN, df_unit / val.units)
+            return df
+        def right_df(val: Quantity, df: PDF):
+            df_unit = df.get_unit(VALUE_COLUMN)
+            df = df.with_columns(val / pl.col(VALUE_COLUMN))
+            df = df.set_unit(VALUE_COLUMN, val.units / df_unit)
+            return df
+        def both_quantity(val1: Quantity, val2: Quantity):
+            out = val1 / val2
+            assert isinstance(out, Quantity)
+            return out
+        return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
+
+    def eval_binop(self, node: ast.BinOp, vars: EvalVars) -> EvalOutput:
+        OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
+            ast.Add: self.apply_add,
+            #ast.Sub: operator.sub,
+            ast.Mult: self.apply_mul,
+            ast.Div: self.apply_div,
+        }
+
+        left_value = self.eval_tree(node.left, vars)
+        right_value = self.eval_tree(node.right, vars)
+        apply = OPERATIONS[type(node.op)]
+        return apply(left_value, right_value)
+
+    def eval_tree(self, tree: ast.AST, vars: EvalVars) -> EvalOutput:
+        EVALUATORS: dict[type, Callable[[Any, EvalVars], EvalOutput]] = {
+            ast.Expression: self.eval_expression,
+            ast.Constant: self.eval_constant,
+            ast.Name: self.eval_name,
+            ast.BinOp: self.eval_binop,
+            #ast.UnaryOp: self.eval_unaryop,
+        }
+
+        for ast_type, evaluator in EVALUATORS.items():
+            if isinstance(tree, ast_type):
+                return evaluator(tree, vars)
+
+        raise KeyError(tree)
+
+    def evaluate_formula(self, formula: str, vars: EvalVars) -> PDF:
+        tree = ast.parse(formula, "<string>", mode="eval")
+        ret = self.eval_tree(tree, vars)
+        assert isinstance(ret, PDF)
+        return ret
+
+    def compute(self) -> PDF:
+        nodes = {}
+        for edge in self.edges:
+            if edge.output_node != self:
+                continue
+            n = edge.input_node
+            nodes[n.id] = n
+            for tag in edge.tags:
+                nodes[tag] = n
+
+        datasets = {}
+        for ds in self.input_dataset_instances:
+            for tag in ds.tags:
+                datasets[tag] = self.get_input_dataset_pl(tag=tag)
+
+        formula = self.get_parameter_value('formula')
+        df = self.evaluate_formula(formula, EvalVars(nodes, datasets))
+        df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
+        extend = self.get_parameter_value('extend_last_historical_value', required=False)
+        if extend:
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+        return df
