@@ -467,9 +467,20 @@ class Node:
             raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
         self.parameters[local_id].set(value)
 
-    def get_input_datasets_pl(self) -> List[ppl.PathsDataFrame]:
+    def get_input_datasets_pl(self, tag: str | None = None, exclude_tags: list[str] | None = None) -> List[ppl.PathsDataFrame]:
         dfs: List[ppl.PathsDataFrame] = []
         for ds in self.input_dataset_instances:
+            if tag is not None:
+                if tag not in ds.tags:
+                    continue
+            if exclude_tags is not None:
+                exclude = False
+                for etag in exclude_tags:
+                    if etag in ds.tags:
+                        exclude = True
+                        break
+                if exclude:
+                    continue
             df = ds.get_copy(self.context)
             if df.paths.index_has_duplicates():
                 raise NodeError(self, "Input dataset has duplicate index rows")
@@ -1197,7 +1208,7 @@ class Node:
             # FIXME: Make this more robust
             unit = self.unit  # type: ignore
         self.input_dataset_instances[0] = JSONDataset(
-            id=old_ds.id, data=d, unit=unit
+            id=old_ds.id, data=d, unit=unit, tags=[],
         )
 
         self._last_historical_year = None

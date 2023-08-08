@@ -5,15 +5,13 @@ from dataclasses import dataclass, field
 import io
 import json
 import uuid
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, overload
 import orjson
 
 import pandas as pd
 import polars as pl
-import pint
 import pint_pandas
 from dvc_pandas import Dataset as DVCPandasDataset
-from pint_pandas.pint_array import PintType
 
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import Unit
@@ -29,6 +27,7 @@ pd.set_option('io.parquet.engine', 'pyarrow')
 @dataclass
 class Dataset:
     id: str
+    tags: list[str]
     df: Optional[ppl.PathsDataFrame] = field(init=False)
     hash: Optional[bytes] = field(init=False)
 
@@ -144,9 +143,21 @@ class DVCDataset(Dataset):
                 elif 'dimension' in d:
                     dim_id = d['dimension']
                     dim = context.dimensions[dim_id]
-                    grp_ids = d['groups']
-                    grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
-                    df = df.filter(grp_s.is_in(grp_ids))
+                    if 'groups' in d:
+                        grp_ids = d['groups']
+                        grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
+                        df = df.filter(grp_s.is_in(grp_ids))
+                    elif 'categories' in d:
+                        cat_ids = d['categories']
+                        df = df.filter(pl.col(dim_id).is_in(cat_ids))
+                    elif 'assign_category' in d:
+                        cat_id = d['assign_category']
+                        assert dim_id not in df.dim_ids
+                        assert cat_id in dim.cat_map
+                        df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
+                    flatten = d.get('flatten', False)
+                    if flatten:
+                        df = df.paths.sum_over_dims(dim_id)
 
         cols = df.columns
 
@@ -273,6 +284,7 @@ class FixedDataset(Dataset):
         return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
     def get_unit(self, context: Context) -> Unit:
+        assert self.unit is not None
         return self.unit
 
 

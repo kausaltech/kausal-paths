@@ -340,12 +340,12 @@ class EmissionFactorActivity(MultiplicativeNode):
     ]
 
     def _get_dataset_emissions(self):
-        ds_list = self.get_input_datasets_pl()
+        edfs = self.get_input_datasets_pl(tag='emissions')
+        ds_list = self.get_input_datasets_pl(exclude_tags=['emissions'])
         if not ds_list:
             return None
         efdf = None  # emission factors
         adf = None   # activity
-        edf = []     # emissions
         for ds in list(ds_list):
             if 'emission_factor' in ds.metric_cols:
                 assert efdf is None
@@ -373,6 +373,12 @@ class EmissionFactorActivity(MultiplicativeNode):
 
         m = self.get_default_output_metric()
         df = df.rename({'Emissions': m.column_id}).ensure_unit(m.column_id, m.unit)
+
+        for edf in edfs:
+            edf = edf.rename({edf.metric_cols[0]: '_Right'}).ensure_unit('_Right', m.unit)
+            df = df.paths.join_over_index(edf, how='outer', index_from='union')
+            df = df.with_columns((pl.col(m.column_id).fill_null(0.0) + pl.col('_Right').fill_null(0.0)).alias(m.column_id)).drop('_Right')
+
         return df
 
     def compute(self) -> ppl.PathsDataFrame:

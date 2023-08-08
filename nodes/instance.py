@@ -207,6 +207,7 @@ class InstanceLoader:
         datasets: list[Dataset] = []
 
         metrics_conf = config.get('output_metrics', None)
+        metrics: dict[str, NodeMetric] | None
         if metrics_conf is not None:
             metrics = {m['id']: NodeMetric.from_config(m) for m in metrics_conf}
         else:
@@ -243,12 +244,14 @@ class InstanceLoader:
             if ds_unit is not None and not isinstance(ds_unit, pint.Unit):
                 ds_unit = self.context.unit_registry.parse_units(ds_unit)
                 assert isinstance(ds_unit, pint.Unit)
-            o = DVCDataset(id=ds_id, unit=ds_unit, **dc)
+            tags = dc.pop('tags', [])
+            o = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
             datasets.append(o)
 
         if 'historical_values' in config or 'forecast_values' in config:
             datasets.append(FixedDataset(
                 id=config['id'], unit=unit,  # type: ignore
+                tags=config.get('tags', []),
                 historical=config.get('historical_values'),
                 forecast=config.get('forecast_values'),
             ))
