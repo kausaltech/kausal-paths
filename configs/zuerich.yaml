@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dde3ccf634145b1f580c128cf42298dec2d01b77
+  commit: 01b802f07daa2306bcffa20b2cbbc7e56d9ca881
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -138,6 +138,18 @@ dimensions:
   - id: other_consumption
     label_de: Übriger Konsum
     label_en: Other consumption
+  - id: wood_heatings_disperse
+    label_de: Cheminées
+    label_en: Disperse wood heatings
+  - id: biowaste_digestion_plant
+    label_de: Vergärwerk
+    label_en: Biowaste digestion plant
+  - id: agricultural_land
+    label_de: Landwirtschaftliche Nutzflächen
+    label_en: Agricultural land
+  - id: livestock_farming
+    label_de: Nutztierhaltung
+    label_en: Livestock farming
 
 - id: building_other_emission_sources
   label_de: Übrige Emissionsquellen Gebäude
@@ -730,15 +742,6 @@ emission_sectors:
 #   color: '#8DAFBC'
 #   input_dataset_processors: [LinearInterpolation]
 
-- id: afolu_emissions
-  name_en: Agriculture and forestry emissions
-  short_name_de: Land- und Forstwirtschaft
-  short_name_en: Agriculture and forestry
-  name_de: Treibhausgasemissionen Land- und Forstwirtschaft
-  category: afolu
-  part_of: net_emissions
-  input_dataset_processors: [LinearInterpolation]
-
 # - id: indirect_emissions
 #   name_en: Indirect emissions
 #   name_de: Indirekte Emissionen
@@ -1288,6 +1291,18 @@ nodes:
   input_datasets:
   - zuerich/other_building_emission_source_emission_factors
   - zuerich/other_building_emission_source_fuel_use
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+      - dimension: emission_scope
+        categories: [scope1]
+        flatten: true
+      - dimension: emission_sectors
+        categories: [wood_heatings_disperse]
+        flatten: true
+      - dimension: building_other_emission_sources
+        assign_category: disperse_wood_heatings
+
   output_dimensions: [building_other_emission_sources]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
@@ -1696,22 +1711,22 @@ nodes:
   input_dimensions: [energy_carrier, non_road_machinery]
   output_dimensions: [non_road_machinery]
   input_nodes:
-    - id: non_road_machinery_fuel_consumption
-      tags: [fuel]
-    - id: non_road_machinery_emission_factors
-      tags: [emission_factor]
-      to_dimensions:
-        - id: energy_carrier
-        - id: non_road_machinery
-        - id: greenhouse_gases
+  - id: non_road_machinery_fuel_consumption
+    tags: [fuel]
+  - id: non_road_machinery_emission_factors
+    tags: [emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+    - id: greenhouse_gases
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
-      - id: non_road_machinery
-        flatten: true
+    - id: non_road_machinery
+      flatten: true
     to_dimensions:
-      - id: emission_scope
-        categories: [scope1]
+    - id: emission_scope
+      categories: [scope1]
 
 - id: waste_incineration_amount
   name_de: Amount of incinerated waste
@@ -1810,6 +1825,27 @@ nodes:
   output_nodes: [net_emissions]
   type: simple.SectorEmissions
   color: '#F18830'
+
+- id: afolu_emissions
+  name_de: Treibhausgasemissionen Land- und Forstwirtschaft
+  type: simple.SectorEmissions
+  short_name_de: Land- und Forstwirtschaft
+  unit: kt/a
+  name_en: Agriculture and forestry emissions
+  short_name_en: Agriculture and forestry
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_datasets:
+  - id: zuerich/emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [agricultural_land, livestock_farming]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
 
 #
 # ------- ACTIONS --------
