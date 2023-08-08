@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4de41f7d6fd6da8c1a22c386f9fac203cea01f9c
+  commit: dde3ccf634145b1f580c128cf42298dec2d01b77
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -138,6 +138,23 @@ dimensions:
   - id: other_consumption
     label_de: Übriger Konsum
     label_en: Other consumption
+
+- id: building_other_emission_sources
+  label_de: Übrige Emissionsquellen Gebäude
+  label_en: Other buildings emission sources
+  categories:
+  - id: emergency_power_stations
+    label_de: Notstromanlagen
+    label_en: Emergency power stations
+  - id: process_energy
+    label_de: Prozessenergie
+    label_en: Process energy
+  - id: cogeneration_plants
+    label_de: Blockheizkraftwerke
+    label_en: Co-generation plans (CHP)
+  - id: disperse_wood_heatings
+    label_de: Cheminées
+    label_en: Disperse wood heatings
 
 - id: transport_mode
   label: Verkehrsmittelwahl
@@ -483,6 +500,14 @@ dimensions:
   - id: wood
     label: Holz
     label_en: Wood
+    color: '#CBB910'
+  - id: wood_chips
+    label: Grünschnitzel
+    label_en: Wood chips
+    color: '#CBB910'
+  - id: wood_pellets
+    label: Pellets Holz
+    label_en: Wood pellets
     color: '#CBB910'
   - id: environmental_heat
     label: Umweltwärme
@@ -1253,6 +1278,29 @@ nodes:
     - id: energy_carrier
       flatten: true
 
+- id: building_other_emissions
+  name_en: Other building emissions
+  name_de: Treibhausgasemissionen Übrige Emissionsquellen (Gebäude)
+  type: simple.EmissionFactorActivity
+  short_name_en: Other sources
+  short_name_de: Übrige Emissionsquellen
+  unit: kt/a
+  input_datasets:
+  - zuerich/other_building_emission_source_emission_factors
+  - zuerich/other_building_emission_source_fuel_use
+  output_dimensions: [building_other_emission_sources]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  params:
+    extend_rows: true
+
 - id: building_emissions
   name_en: Building emissions
   name_de: Treibhausgasemissionen Gebäude
@@ -1618,11 +1666,23 @@ nodes:
   name_en: Fuel consumption of non-road machinery
   type: simple.AdditiveNode
   quantity: fuel_consumption
-  unit: kt/a
+  unit: kg/a
   input_dimensions: [energy_carrier, non_road_machinery]
   output_dimensions: [energy_carrier, non_road_machinery]
   input_datasets:
   - id: zuerich/non_road_machinery_fuel_consumption
+  input_dataset_processors: [LinearInterpolation]
+
+- id: non_road_machinery_emission_factors
+  name_de: Treibhausgasfaktoren Non-Road Maschinen
+  name_en: Emission factors of non-road machinery
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/kg
+  input_dimensions: [energy_carrier, non_road_machinery, greenhouse_gases]
+  output_dimensions: [energy_carrier, non_road_machinery, greenhouse_gases]
+  input_datasets:
+  - id: zuerich/non_road_machinery_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
 - id: non_road_machinery_emissions
@@ -1634,9 +1694,24 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, non_road_machinery]
-  output_dimensions: [emission_scope]
-  input_nodes: [non_road_machinery_fuel_consumption]
-  output_nodes: [transportation_emissions]
+  output_dimensions: [non_road_machinery]
+  input_nodes:
+    - id: non_road_machinery_fuel_consumption
+      tags: [fuel]
+    - id: non_road_machinery_emission_factors
+      tags: [emission_factor]
+      to_dimensions:
+        - id: energy_carrier
+        - id: non_road_machinery
+        - id: greenhouse_gases
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+      - id: non_road_machinery
+        flatten: true
+    to_dimensions:
+      - id: emission_scope
+        categories: [scope1]
 
 - id: waste_incineration_amount
   name_de: Amount of incinerated waste
@@ -2221,6 +2296,7 @@ actions:
   type: linear.DatasetReduceAction
   quantity: mix
   description_en: Vehicle fleet electrification.
+  description_de: Vehicle fleet electrification.
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
@@ -2242,6 +2318,7 @@ actions:
   type: linear.DatasetReduceAction
   quantity: mix
   description_en: Vehicle fleet electrification.
+  description_de: Vehicle fleet electrification.
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:

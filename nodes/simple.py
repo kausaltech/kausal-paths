@@ -1,6 +1,6 @@
 import functools
 from common.perf import PerfCounter
-from nodes.calc import extend_last_historical_value_pl, nafill_all_forecast_years
+from nodes.calc import convert_to_co2e, extend_last_historical_value_pl, nafill_all_forecast_years
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
 from typing import List, ClassVar, Tuple
 import polars as pl
@@ -233,7 +233,7 @@ class MultiplicativeNode(SimpleNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
-    def compute(self) -> ppl.PathsDataFrame:
+    def _compute(self, input_df: ppl.PathsDataFrame | None = None):
         additive_nodes: list[Node] = []
         operation_nodes: list[Node] = []
         assert self.unit is not None
@@ -248,7 +248,7 @@ class MultiplicativeNode(SimpleNode):
             else:
                 operation_nodes.append(node)
 
-        if len(operation_nodes) < 2:
+        if len(operation_nodes) < 2 and input_df is None:
             raise NodeError(self, "Must receive at least two inputs to operate %s on" % self.operation_label)
 
         outputs = [n.get_output_pl(target_node=self) for n in operation_nodes]
@@ -257,10 +257,20 @@ class MultiplicativeNode(SimpleNode):
             for idx, (n, df) in enumerate(zip(operation_nodes, outputs)):
                 print('%s: %s input from node %d (%s):' % (self.operation_label, self.id, idx, n.id))
 
+        if outputs:
+            df = self.perform_operation(operation_nodes, outputs)
+            if input_df is not None:
+                input_df = input_df.rename({VALUE_COLUMN: '_InputSum'})
+                assert input_df.dim_ids == df.dim_ids
+                df = df.paths.join_over_index(input_df)
+                df = df.ensure_unit('_InputSum', df.get_unit(VALUE_COLUMN))
+                df = df.with_columns((pl.col(VALUE_COLUMN) + pl.col('_InputSum')).alias(VALUE_COLUMN)).drop('_InputSum')
+        else:
+            assert input_df is not None
+            df = input_df
+
         if self.get_parameter_value('only_historical', required=False):
             outputs = [df.filter(~pl.col(FORECAST_COLUMN)) for df in outputs]
-
-        df = self.perform_operation(operation_nodes, outputs)
 
         if self.get_parameter_value('extend_rows', required=False):
             df = extend_last_historical_value_pl(df, self.get_end_year())
@@ -277,6 +287,10 @@ class MultiplicativeNode(SimpleNode):
             self.print(df)
 
         return df
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return self._compute()
+
 
 
 class DivisiveNode(MultiplicativeNode):
@@ -325,9 +339,46 @@ class EmissionFactorActivity(MultiplicativeNode):
         BoolParameter(local_id='convert_missing_values_to_zero')
     ]
 
+    def _get_dataset_emissions(self):
+        ds_list = self.get_input_datasets_pl()
+        if not ds_list:
+            return None
+        efdf = None  # emission factors
+        adf = None   # activity
+        edf = []     # emissions
+        for ds in list(ds_list):
+            if 'emission_factor' in ds.metric_cols:
+                assert efdf is None
+                efdf = ds
+            else:
+                assert adf is None
+                adf = ds
+
+        if efdf is None or adf is None:
+            raise NodeError(self, "Missing either emission factor or activity datasets")
+
+        a_metric = adf.metric_cols[0]
+
+        df = adf.paths.join_over_index(efdf, how='outer', index_from='union')
+        df = df.multiply_cols([a_metric, 'emission_factor'], 'Emissions').with_columns(pl.col('Emissions').fill_null(0.0))
+        df = df.select_metrics(['Emissions'])
+
+        if 'greenhouse_gases' in df.dim_ids:
+            df = convert_to_co2e(df, 'greenhouse_gases')
+        output_dims = set(self.output_dimensions.keys())
+        df_dims = set(df.dim_ids)
+        sum_dims = df_dims - output_dims
+        if sum_dims:
+            df = df.paths.sum_over_dims(list(sum_dims))
+
+        m = self.get_default_output_metric()
+        df = df.rename({'Emissions': m.column_id}).ensure_unit(m.column_id, m.unit)
+        return df
+
     def compute(self) -> ppl.PathsDataFrame:
+        input_df = self._get_dataset_emissions()
         convert = self.get_parameter_value('convert_missing_values_to_zero', required=False)
-        df = super().compute()
+        df = super()._compute(input_df)
         if convert:
             df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(pl.lit(0)))
             df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(pl.lit(0)))
