@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import date
+import logging
 
 import pandas as pd
 import polars as pl
@@ -115,6 +116,37 @@ class Dataset(ClusterableModel, UserModifiableModel):
         years = set(self.years)
         table['data'] = [row for row in table['data'] if row[YEAR_COLUMN] in years]
         return table
+
+    def get_dimensions(self) -> list[str]:
+        return [d.dimension.identifier for d in self.dimension_selections.order_by('order')]
+
+    def set_dimensions(self, dim_ids: list[str]):
+        old_dim_ids = set(self.get_dimensions())
+        all_dims = {dim.identifier: dim for dim in self.instance.dimensions.all()}
+        old_dims = {dim.dimension.identifier: dim for dim in self.dimension_selections.all()}
+        instance = self.instance.get_instance()
+        with transaction.atomic():
+            for idx, dim_id in enumerate(dim_ids):
+                dim = old_dims.get(dim_id)
+                if dim is None:
+                    dim = DatasetDimension(
+                        dimension=all_dims[dim_id], dataset=self, order=idx
+                    )
+                    dim.save()
+                    dim.set_categories(instance.context.dimensions[dim_id].get_cat_ids_ordered())
+                    dim.save()
+                else:
+                    dim.order = idx
+                    dim.save()
+                    del old_dims[dim_id]
+
+            for dim in old_dims.values():
+                dim.delete()
+
+        if set(dim_ids) != set(old_dim_ids):
+            instance = self.instance.get_instance()
+            instance.logger.warn("New dimensions do not match the old ones, generating empty dataset")
+            self.table = self.generate_empty_table()
 
     @classmethod
     def annotate_nr_unresolved_comments(cls, qs: models.QuerySet[Dataset]):
