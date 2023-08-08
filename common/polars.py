@@ -143,7 +143,9 @@ class PathsDataFrame(pl.DataFrame):
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
-    def select_metrics(self, metric_cols: list[str]) -> PathsDataFrame:
+    def select_metrics(self, metric_cols: list[str] | str) -> PathsDataFrame:
+        if isinstance(metric_cols, str):
+            metric_cols = [metric_cols]
         for col in metric_cols:
             if col not in self._units:
                 raise Exception('No unit for column %s' % col)
@@ -436,4 +438,4 @@ if not pl.using_string_cache():
 
 pl.Config.set_fmt_str_lengths(100)
 pl.Config.set_tbl_rows(100)
-pl.Config.set_tbl_cols(12)
+pl.Config.set_tbl_cols(20)

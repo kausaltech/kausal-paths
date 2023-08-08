@@ -200,7 +200,7 @@ class PathsExt:
         df = df.fill_null(strategy='forward')
         return ppl.to_ppdf(df, meta=meta)
 
-    def sum_over_dims(self, dims: list[str] | None = None) -> ppl.PathsDataFrame:
+    def sum_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df
         meta = df.get_meta()
         if FORECAST_COLUMN in df.columns:
@@ -210,6 +210,8 @@ class PathsExt:
 
         if dims is None:
             dims = meta.dim_ids
+        elif isinstance(dims, str):
+            dims =  [dims]
         remaining_keys = list(meta.primary_keys)
         for dim in dims:
             remaining_keys.remove(dim)
