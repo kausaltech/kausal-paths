@@ -973,3 +973,24 @@ class SewageSludgeProcessingEmissions(SimpleNode):
         m = self.get_default_output_metric()
         df = df.rename({'emissions': m.column_id}).ensure_unit(m.column_id, m.unit)
         return df
+
+
+class WastewaterTreatmentEmissions(Node):
+    def compute(self) -> ppl.PathsDataFrame:
+        pop_df = self.get_input_node(quantity='population').get_output_pl(self)
+        cpop_df = self.get_input_datasets_pl(tag='population')[0]
+        cpop_df = cpop_df.rename({cpop_df.metric_cols[0]: 'CatchmentPop'})
+        efdf = self.get_input_datasets_pl(tag='emission_factor')[0]
+        efdf = efdf.rename({efdf.metric_cols[0]: 'EF'})
+        df = pop_df.paths.join_over_index(cpop_df)
+        df = df.divide_cols(['CatchmentPop', VALUE_COLUMN], 'CPerPop')
+        df = df.with_columns(pl.col('CPerPop').fill_null(strategy='forward'))
+        df = df.multiply_cols(['CPerPop', VALUE_COLUMN], 'Pop').select_metrics('Pop')
+
+        efdf = extend_last_historical_value_pl(efdf, self.get_end_year())
+        df = efdf.paths.join_over_index(df, how='left', index_from='union')
+        df = df.multiply_cols(['Pop', 'EF'], 'Emissions', out_unit=self.get_default_output_metric().unit)
+        df = df.select_metrics('Emissions').rename({'Emissions': VALUE_COLUMN})
+        df = convert_to_co2e(df, 'greenhouse_gases')
+        df = df.with_columns(pl.lit('scope1').alias('emission_scope')).add_to_index('emission_scope')
+        return df

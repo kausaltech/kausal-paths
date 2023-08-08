@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c780840fc71d1e60e36be17ba55888a6dd4ffaa8
+  commit: cff2bab6e194ab9e7a91b7fec491adc36002b2eb
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -1813,6 +1813,26 @@ nodes:
     from_dimensions:
     - id: emission_scope
       groups: [negative]
+
+- id: wastewater_treatment_emissions
+  name_en: Wastewater treatment emissions
+  short_name_en: Wastewater treatment
+  name_de: Treibhausgasemissionen Abwasserreinigung
+  short_name_de: Abwasserreinigung
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+  output_nodes: [waste_treatment_emissions]
+  type: ch.zuerich.WastewaterTreatmentEmissions
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  input_datasets:
+  - id: zuerich/wastewater_treatment_emission_factors
+    tags: [emission_factor]
+  - id: zuerich/wastewater_treatment_catchment_population
+    tags: [population]
+
 
 - id: waste_treatment_emissions
   name_en: Waste disposal emissions
