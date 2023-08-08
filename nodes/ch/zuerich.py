@@ -796,7 +796,7 @@ class TransportEmissionsForFuel(AdditiveNode):
         ffdf = ff_node.get_output_pl(target_node=self)
         ffdf = ffdf.rename({VALUE_COLUMN: 'fuel'})
 
-        efdf = self.get_input_dataset_pl()
+        efdf = self.get_input_dataset_pl(tag='emission_factor')
         eunit = efdf.get_unit('emission_factor')
         if 'vehicle' not in eunit.dimensionality:
             efdf = efdf.set_unit('emission_factor', 'kg/vkm', force=True)
@@ -807,6 +807,16 @@ class TransportEmissionsForFuel(AdditiveNode):
         m = self.get_default_output_metric()
         df = df.filter(pl.col('EFFuel').gt(0)).select_metrics(['EFFuel']).rename(dict(EFFuel=m.column_id))
         df = df.paths.sum_over_dims(['energy_carrier'])
+        tr_node = self.get_input_node(tag='tank_respiration', required=False)
+        if tr_node is not None:
+            trdf = (
+                tr_node.get_output_pl(target_node=self)
+                .rename({VALUE_COLUMN: 'TR'})
+                .ensure_unit('TR', df.get_unit(m.column_id))
+            )
+            df = df.paths.join_over_index(trdf, how='outer')
+            df = df.with_columns(pl.col(m.column_id).fill_null(0) + pl.col('TR').fill_null(0)).drop('TR')
+
         df = extend_last_historical_value_pl(df, self.get_end_year())
         return df
 

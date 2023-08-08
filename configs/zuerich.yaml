@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cff2bab6e194ab9e7a91b7fec491adc36002b2eb
+  commit: 6da5266fdc1a46066678fd6301b05ca8ef7bd33d
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -1543,6 +1543,28 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
 
+- id: transport_tank_respiration_for_fuel
+  output_dimensions: [vehicle_type]
+  type: formula.FormulaNode
+  unit: kg/kg
+  quantity: emissions
+  params:
+    formula: tank_respiration / (vehicle_mileage_historical * transport_fuel_factor)
+    extend_last_historical_value: true
+  input_nodes:
+  - id: vehicle_mileage_historical
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+  input_datasets:
+  - id: zuerich/vehicle_tank_respiration_emissions
+    tags: [tank_respiration]
+
 - id: transport_emissions_for_fuel
   name_de: Verkehr Emissionen für den Kraftstoffverbrauch
   name_en: Transport emissions for fuel consumption
@@ -1556,9 +1578,20 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
+  - id: transport_tank_respiration_for_fuel
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope1]
+    tags: [tank_respiration]
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - zuerich/transport_emission_factors
+  - id: zuerich/transport_emission_factors
+    tags: [emission_factor]
+  #- id: zuerich/vehicle_tank_respiration_emissions
+  #  tags: [tank_respiration]
 
 - id: transport_electricity_consumption
   name_de: Stromverbrauch im Verkehr
@@ -1602,6 +1635,10 @@ nodes:
     - id: greenhouse_gases
     - id: vehicle_type
   output_dimensions: [emission_scope, vehicle_type]
+
+#- id: transport_fuel_consumption
+#  name_de: Transport fuel consumption
+#  name_en: Transport fuel consumption
 
 - id: transport_fuel_emission_factor
   name_de: Verkehr Emissionsfaktor des Kraftstoffs
