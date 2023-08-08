@@ -538,8 +538,16 @@ class Node:
             matching_nodes.append(node)
         return matching_nodes
 
-    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None) -> Node:
+    @overload
+    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None, *, required: Literal[False]) -> Node | None: ...
+
+    @overload
+    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None, required: Literal[True] = True) -> Node: ...
+
+    def get_input_node(self, tag: Optional[str] = None, quantity: str | None = None, required: bool = True) -> Node | None:
         matching_nodes = self.get_input_nodes(tag=tag, quantity=quantity)
+        if len(matching_nodes) == 0 and not required:
+            return None
         if len(matching_nodes) != 1:
             tag_str = (' with tag %s' % tag) if tag is not None else ''
             raise NodeError(self, 'Found %d input nodes%s' % (len(matching_nodes), tag_str))
@@ -608,7 +616,6 @@ class Node:
                 if debug:
                     print('\t%s: "%s"' % (part, base64.b64encode(val).decode('ascii')))
             h.update(val)
-
 
         hash_part('id', self.id.encode('ascii'))
         if self.metrics_hash is None:
