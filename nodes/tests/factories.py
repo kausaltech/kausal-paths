@@ -78,6 +78,7 @@ class NodeFactory(Factory):
         unit='kWh',
         historical=[(2020, 1.23)],
         forecast=[(2021, 2.34)],
+        tags=[],
     )]
 
 
