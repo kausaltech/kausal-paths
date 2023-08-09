@@ -1544,6 +1544,8 @@ nodes:
   output_dimensions: [energy_carrier, vehicle_type]
 
 - id: transport_tank_respiration_for_fuel
+  name_en: Transport tank respiration for fuel
+  name_de: Transport tank respiration for fuel
   output_dimensions: [vehicle_type]
   type: formula.FormulaNode
   unit: kg/kg
