@@ -2244,9 +2244,9 @@ actions:
     - target: {}
       amounts:
       - year: 2023
-        amount: -53
+        amount: -45
       - year: 2039
-        amount: -53
+        amount: -45
       - year: 2040
         amount: 0
 
