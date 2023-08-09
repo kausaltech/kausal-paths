@@ -15,7 +15,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c27d868fd446114f104d6d598a888eed96240d04
+  commit: 6da5266fdc1a46066678fd6301b05ca8ef7bd33d
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -29,7 +29,7 @@ model_end_year: 2035
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
-maximum_historical_year: 2021
+maximum_historical_year: 2022
 action_groups:
 - id: transportation
   name: Liikenne
@@ -243,7 +243,8 @@ nodes:
     laskennassa kehittyvän Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon
     mukaisesti ja olevan 362690 vuonna 2035. Tässä työkalussa käytetään Tilastokeskuksen
     väestöennustetta, joka on 345000 vuodelle 2035. Toteutunut väestönkehitys (1990,
-    2000-2022) on saatu Tilastokeskuksen tilastoista. <a href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
+    2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
+    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
 
 #
 # TRANSPORT
@@ -439,15 +440,15 @@ nodes:
   description_en: In the pessimistic scenario, changes in the floor area of the building
     stock will not affect the expected emissions development; instead, the calculation
     is based on the development of per capita emissions and the trend realised in
-    2017–2021 as well as the development of the population. The Finland 2035 and 
-    Carbon-neutral Espoo 2030 scenarios assume that the old building stock will be preserved
-    in 2021–2035 and new buildings will correspond to the increase in the building stock.
+    2017–2021 as well as the development of the population. The Finland 2035 and Carbon-neutral
+    Espoo 2030 scenarios assume that the old building stock will be preserved in 2021–2035
+    and new buildings will correspond to the increase in the building stock.
   description_sv: I det pessimistiska scenariot påverkar förändringarna i byggnadsbeståndets
-    våningsyta inte den antagna utsläppsutvecklingen, utan beräkningen grundar sig på
-    utvecklingen av utsläppen per invånare och den realiserade trenden under perioden
+    våningsyta inte den antagna utsläppsutvecklingen, utan beräkningen grundar sig
+    på utvecklingen av utsläppen per invånare och den realiserade trenden under perioden
     2017–2021 samt befolkningsutvecklingen. I scenarierna Finland 2035 och HNE2030
-    antas att det gamla byggnadsbeståndet bevaras under perioden 2021–2035 och
-    nybyggnaderna motsvarar ökningen av byggnadsbeståndet.
+    antas att det gamla byggnadsbeståndet bevaras under perioden 2021–2035 och nybyggnaderna
+    motsvarar ökningen av byggnadsbeståndet.
 
 - id: building_heat_per_floor_area_new
   name: Ominaislämmönkulutus uudessa rakennuskannassa
@@ -483,17 +484,18 @@ nodes:
   description: Pessimistissä skenaariossa pääastökehitys perustuu asukaskohtaisten
     päästöjen kehitykseen ja toteutuneeseen trendiin aikavälillä 2017-2021 sekä väkiluvun
     kehitykseen. Nämä muutokset on huomioitu ominaislämmönkulutuksessa ja uusi rakennusala
-    on sama kuin muissa skenaarioissa. Suomi 2035 - ja HNE 2035 -skenaarioissa asumisväljyyden oletetaan
-    pysyvän muuttumattomana. Muiden kuin asuinrakennusten osalta kerrosalan arvioidaan
-    kehittyvän Uudenmaan kasvun vaihtoehdot -selvityksen oletusten mukaisesti.
+    on sama kuin muissa skenaarioissa. Suomi 2035 - ja HNE 2035 -skenaarioissa asumisväljyyden
+    oletetaan pysyvän muuttumattomana. Muiden kuin asuinrakennusten osalta kerrosalan
+    arvioidaan kehittyvän Uudenmaan kasvun vaihtoehdot -selvityksen oletusten mukaisesti.
     Uusia öljylämmitteiiä rakennuksia ei oleteta rakennettavan missään skenaariossa.
-  description_en: The housing density is expected to remain
-    unchanged. For non-residential buildings, the floor area is estimated to develop
-    according to the assumptions of the “Uudenmaan kasvun vaihtoehdot” (“Uusimaa growth
-    options”) survey. New oil-heated buildings are not expected to be built in any scenario.
-  description_sv: Antas boenderymligheten förbli oförändrad. I fråga om andra än bostadshus beräknas
-    våningsytan utvecklas enligt enligt antagandena i utredningen Alternativ för tillväxten
-    i Nyland. Nya oljeuppvärmda byggnader antas inte byggas i något scenario.
+  description_en: The housing density is expected to remain unchanged. For non-residential
+    buildings, the floor area is estimated to develop according to the assumptions
+    of the “Uudenmaan kasvun vaihtoehdot” (“Uusimaa growth options”) survey. New oil-heated
+    buildings are not expected to be built in any scenario.
+  description_sv: Antas boenderymligheten förbli oförändrad. I fråga om andra än bostadshus
+    beräknas våningsytan utvecklas enligt enligt antagandena i utredningen Alternativ
+    för tillväxten i Nyland. Nya oljeuppvärmda byggnader antas inte byggas i något
+    scenario.
 
 - id: building_heat_consumption_new
   name: Uuden rakennuskannan lämmönkulutus
@@ -505,8 +507,8 @@ nodes:
   input_nodes:
   - id: building_floor_area_new
     to_dimensions:
-    -id: building_use
-    -id: building_heat_source
+    - id: building_use
+    - id: building_heat_source
 
 - id: industry_fuel_emissions_adjusted
   name: Teollisuuden polttoaineiden päästöjen korjaus
@@ -556,13 +558,14 @@ nodes:
   name: Korjaus lämmityssähkön päästökertoimeen
   name_en: Electric heating emission factor adjustment
   name_sv: Korrigering av prognosen för emissionskoefficient för värmeel
-  description: Tämän verran lämmityssähkön päästökertoimen oletetaan laskevan myös pessimistisessä
-    skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta 2021.
+  description: Tämän verran lämmityssähkön päästökertoimen oletetaan laskevan myös
+    pessimistisessä skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta
+    2022.
   description_en: This is how much the emission factor of heating electricity is expected
     to increase also in the pessimistic scenario compared to the latest value of HSY
     statistics for 2021.
-  description_sv: Så här mycket förväntas emissionskoefficient för värmeel minska även i
-    det pessimistiska scenariot, jämfört med det senaste värdet i HRM-statistiken
+  description_sv: Så här mycket förväntas emissionskoefficient för värmeel minska
+    även i det pessimistiska scenariot, jämfört med det senaste värdet i HRM-statistiken
     för 2021.
   type: simple.AdditiveNode
   quantity: energy
@@ -742,7 +745,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: electricity
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - consumer_electricity_residence_energy
   params:
@@ -765,10 +768,10 @@ actions:
     asuinrakennuksille keskimäärin oletetaan puolet kerrostaloja ja lopuista puolet
     rivitaloja ja puolet pientaloja, eli 89 kWh/m<sup>2</sup>/a ja 59.25 kWh/m<sup>2</sup>/a.
     Kaikille rakennustyypeille oletetaan ominaislämmönkulutuksen pieneneminen 30 kWh/m<sup>2</sup>/a.
-  description_en: The specific heat consumption of new buildings
-    is estimated in accordance with the energy efficiency goals. Single-family houses, 
-    115 kWh/m<sup>2</sup>/a. Terraced houses, 109 kWh/m<sup>2</sup>/a. Blocks of flats.
-    66 kWh/m<sup>2</sup>/a. Other buildings, 82 kWh/m<sup>2</sup>/a.
+  description_en: The specific heat consumption of new buildings is estimated in accordance
+    with the energy efficiency goals. Single-family houses, 115 kWh/m<sup>2</sup>/a.
+    Terraced houses, 109 kWh/m<sup>2</sup>/a. Blocks of flats. 66 kWh/m<sup>2</sup>/a.
+    Other buildings, 82 kWh/m<sup>2</sup>/a.
   description_sv: Den specifika värmeförbrukningen i nybyggen bedöms i enlighet med
     energieffektivitetsmålen. Småhus 115 kWh/m<sup>2</sup>/a. Radhus 109 kWh/m<sup>2</sup>/a.
     Flervåningsbostadshus 66 kWh/m<sup>2</sup>/a. Övriga byggnader 82 kWh/m<sup>2</sup>/a.
@@ -794,32 +797,29 @@ actions:
     tapahtuu rakennusten energiatehokkuutta parantamalla. Kulutus on 2100 ja 2420
     GWh vuosina 2024 ja 2035, joten tämän jälkeen ominaislämmönkulutuksen oletetaan
     laskevan 388 kWh/m<sup>2</sup>/a * (1 - 2100/2420) = 51.3 kWh/m<sup>2</sup>/a
-    vuoteen 2035 mennessä.</p>
-    <p>Suomi 2035 -skenaarioissa rakennusten ominaislämmönkulutuksen oletetaan kehittyvän
-    asuinrakennuksissa niin, että lämmönkulutus laskee 7,5 prosenttia vuoden 2021 tasosta vuoteen
-    2030 mennessä ja muissa rakennuksissa 11 prosenttia. Kehitys jatkuu samankaltaisena aikavälillä 2030-2035.</p>
-    <p>Pessimistisessä skenaariossa rakennusten lämmityksen energiankulutuksen
-    oletetaan kaikkien lämmitysmuotojen osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti.</p>
-  description_en: <p>The production and consumption
-    of district heating is expected, in accordance with Fortum’s estimate, to remain
-    at its current level of around 2,100 GWh per year. This is achieved by improving energy
-    efficiency of existing building stock.</p>
-    <p>In the pessimistic scenario, the energy consumption for heating buildings is expected
-    to develop according to the trend realised in 2017–2021 for all forms of heating.
-    In the Finland 2035 scenario, the specific heat consumption of buildings is
-    expected to develop in residential buildings such that heat consumption will
-    decrease by 7.5% from the 2021 level by by 2030 and by 11% in other buildings.
+    vuoteen 2035 mennessä.</p> <p>Suomi 2035 -skenaarioissa rakennusten ominaislämmönkulutuksen
+    oletetaan kehittyvän asuinrakennuksissa niin, että lämmönkulutus laskee 7,5 prosenttia
+    vuoden 2021 tasosta vuoteen 2030 mennessä ja muissa rakennuksissa 11 prosenttia.
+    Kehitys jatkuu samankaltaisena aikavälillä 2030-2035.</p> <p>Pessimistisessä skenaariossa
+    rakennusten lämmityksen energiankulutuksen oletetaan kaikkien lämmitysmuotojen
+    osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti.</p>
+  description_en: <p>The production and consumption of district heating is expected,
+    in accordance with Fortum’s estimate, to remain at its current level of around
+    2,100 GWh per year. This is achieved by improving energy efficiency of existing
+    building stock.</p> <p>In the pessimistic scenario, the energy consumption for
+    heating buildings is expected to develop according to the trend realised in 2017–2021
+    for all forms of heating. In the Finland 2035 scenario, the specific heat consumption
+    of buildings is expected to develop in residential buildings such that heat consumption
+    will decrease by 7.5% from the 2021 level by by 2030 and by 11% in other buildings.
     This trend will continue in 2030–2035.</p>
-  description_sv: <p>Produktionen och förbrukningen av fjärrvärme antas
-    enligt Fortums bedömning hållas på nuvarande nivå, dvs. cirka 2100 GWh per år.
-    </p>
-    <p>I det pessimistiska scenariot
-    antas energiförbrukningen för uppvärmning av byggnader för alla uppvärmningsformers
-    del utvecklas enligt den realiserade trenden 2017–2021. I scenariot Finland
-    2035 antas byggnadernas specifika värmeförbrukning utvecklas i bostadshus så
-    att värmeförbrukningen sjunker med 7,5 procent från nivån 2021 fram till 2030
-    och i övriga byggnader med 11 procent. Utvecklingen fortsätter på samma sätt
-    under perioden 2030–2035.</p>
+  description_sv: <p>Produktionen och förbrukningen av fjärrvärme antas enligt Fortums
+    bedömning hållas på nuvarande nivå, dvs. cirka 2100 GWh per år. </p> <p>I det
+    pessimistiska scenariot antas energiförbrukningen för uppvärmning av byggnader
+    för alla uppvärmningsformers del utvecklas enligt den realiserade trenden 2017–2021.
+    I scenariot Finland 2035 antas byggnadernas specifika värmeförbrukning utvecklas
+    i bostadshus så att värmeförbrukningen sjunker med 7,5 procent från nivån 2021
+    fram till 2030 och i övriga byggnader med 11 procent. Utvecklingen fortsätter
+    på samma sätt under perioden 2030–2035.</p>
   type: simple.LinearCumulativeAdditiveAction
   quantity: consumption_factor
   unit: kWh/m**2/a
@@ -860,7 +860,7 @@ actions:
   output_nodes:
   - oil_heating_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2022, 0], [2028, -31.9]]
+  forecast_values: [[2023, 0], [2028, -31.9]]
   unit: g/kWh
   group: buildings
 
@@ -873,30 +873,28 @@ actions:
     kokonaan vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta
     oletetaan, että öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien
     tavoitteiden mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion
-    mukainen kehitys.</p>
-    <p>Lämmitystapamuutoksissa öljylämmitteisistä rakennuksista oletetaan siirryttävän muihin
-    lämmitysmuotoihin seuraavasti.</p>
-    <ul><li>Pien- ja rvitalot 100 % lämpöpumppuihin.</li
-    <li>Kerrostaloissa, palvelurakennuksissa ja teollisuusrakennuksissa 50 % lämpöpumppuhin
-    ja 50 % kaukolämpöön.</li></ul>
+    mukainen kehitys.</p> <p>Lämmitystapamuutoksissa öljylämmitteisistä rakennuksista
+    oletetaan siirryttävän muihin lämmitysmuotoihin seuraavasti.</p> <ul><li>Pien-
+    ja rvitalot 100 % lämpöpumppuihin.</li <li>Kerrostaloissa, palvelurakennuksissa
+    ja teollisuusrakennuksissa 50 % lämpöpumppuhin ja 50 % kaukolämpöön.</li></ul>
   description_en: The Finland 2035 scenario assumes that oil heating will be given
     up in residential and service buildings 95% by 2030 and completely by 2035. With
     regard to service buildings, the Carbon-neutral Espoo 2030 scenario assumes that
     oil heating will be given up 100% in accordance with the city’s climate action
     targets. Other buildings are expected to develop according to the Finland 2035
-    scenario. As regards changes in heating methods, it is expected that oil-heated buildings
-    will switch to other forms of heating of follows. Single-family and terraced
-    houses, 100% to heat pumps. Blocks of flats, service buildings and industrial
+    scenario. As regards changes in heating methods, it is expected that oil-heated
+    buildings will switch to other forms of heating of follows. Single-family and
+    terraced houses, 100% to heat pumps. Blocks of flats, service buildings and industrial
     buildings, 50% to heat pumps and 50% to district heating.
   description_sv: I scenariot Finland2035 antas man avstå från oljeuppvärmning i boende-
     Och servicebyggnaderna till 95 procent fram till 2030 och avstå helt fram till
     2035. I scenariot HNE2030 antas för servicebyggnaders del att man avstår från
     oljeuppvärmning till 100 procent i enlighet med målen för stadens klimatåtgärder.
-    För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035.
-    Vid ändringar i uppvärmningssättet antas man övergå från oljeuppvärmda byggnader
-    till andra uppvärmningsformer enligt följande. Småhus och radhus till 100 procent
-    värmepumpar. I höghus, servicebyggnader och industribyggnader 50 procent till
-    värmepumpar och 50 procent till fjärrvärme.
+    För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035. Vid
+    ändringar i uppvärmningssättet antas man övergå från oljeuppvärmda byggnader till
+    andra uppvärmningsformer enligt följande. Småhus och radhus till 100 procent värmepumpar.
+    I höghus, servicebyggnader och industribyggnader 50 procent till värmepumpar och
+    50 procent till fjärrvärme.
   type: shift.ShiftAction
   quantity: floor_area
   unit: m**2
@@ -1131,7 +1129,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: waste_agriculture
-  forecast_values: [[2022, 0], [2023, 0]]
+  forecast_values: [[2023, 0], [2024, 0]]
   output_nodes:
   - waste_treatment_emissions
   params:
@@ -1161,7 +1159,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: waste_agriculture
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - agricultural_field_emissions
   params:
@@ -1198,7 +1196,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: industry
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - industry_fuel_emissions
   params:
@@ -1232,7 +1230,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: industry
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - machinery_emissions
   params:
@@ -1361,7 +1359,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - bus_energy
 
@@ -1432,7 +1430,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
   params:
@@ -1460,7 +1458,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
   params:
@@ -1488,7 +1486,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - van_traffic_emission_factor
   params:
@@ -1516,7 +1514,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
   params:
@@ -1541,7 +1539,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -1566,7 +1564,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -1591,7 +1589,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -1616,7 +1614,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -1641,7 +1639,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2022, 0], [2035, 0]]
+  forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
