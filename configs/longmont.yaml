@@ -449,6 +449,8 @@ emission_sectors:
   - values:
     - year: 2050
       value: 335869.94
+    default: true
+    is_main_goal: true
   is_outcome: true
   description: Greenhouse gas emissions
 
@@ -1194,7 +1196,7 @@ nodes:
 - id: miles_per_gallon
   name: Miles per gallon
   type: simple.AdditiveNode
-  quantity: mileage
+  quantity: fuel_consumption
   unit: miles/gallon
   input_datasets:
   - longmont/miles_per_gallon
@@ -1300,7 +1302,7 @@ nodes:
 - id: electric_vehicle_efficiency
   name: Electric vehicle efficiency
   type: simple.AdditiveNode
-  quantity: mileage
+  quantity: fuel_consumption
   unit: kWh/mile
   input_datasets:
   - longmont/electric_vehicle_efficiency
@@ -1382,6 +1384,7 @@ nodes:
 
 - id: public_transportation_change
   name: Public transportation change by last-mile actions
+  description: This is an intermediate node converting the action into a relative amount of trips (business-as-usual = 1).
   type: simple.ImprovementNode2
   quantity: ratio
   unit: dimensionless
@@ -1982,6 +1985,7 @@ actions:
   quantity: energy
   unit: kWh/a
   forecast_values: [[2022, 0], [2023, -3544251]]
+  group: electric_grid
   output_nodes:
   - id: electricity_use
     to_dimensions:
@@ -1994,6 +1998,7 @@ actions:
   quantity: energy
   unit: kWh/a
   forecast_values: [[2022, 0], [2023, -3550001]]
+  group: electric_grid
   output_nodes:
   - id: electricity_use
     to_dimensions:
@@ -2006,6 +2011,7 @@ actions:
   quantity: energy
   unit: kWh/a
   forecast_values: [[2022, 0], [2023, -5080497]]
+  group: electric_grid
   output_nodes:
   - id: electricity_use
     to_dimensions:
@@ -2018,7 +2024,7 @@ actions:
     and diesel will become more efficient, increase miles traveled per gallon, over
     time.
   type: simple.AdditiveAction
-  quantity: mileage
+  quantity: fuel_consumption
   unit: miles/gallon
   group: trend
   forecast_values: [[2022, 0.479], [2023, 1.007], [2024, 1.569], [2025, 2.178], [
@@ -2053,7 +2059,7 @@ actions:
   description: The model assumes that electric vehicles will become more efficient,
     increase in miles traveled per kilowatt hour of energy, overtime.
   type: simple.AdditiveAction
-  quantity: mileage
+  quantity: fuel_consumption
   unit: kWh/mile
   group: trend
   forecast_values: [[2022, -0.005], [2023, -0.011], [2024, -0.016], [2025, -0.022],
