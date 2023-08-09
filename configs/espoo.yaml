@@ -296,7 +296,7 @@ nodes:
   unit: GWh/a
   input_nodes:
   - car_energy_hsy
-  forecast_values: [[2022, 115.123177633333], [2023, 121.246355266667], [2024, 127.3695329],
+  forecast_values: [[2023, 121.246355266667], [2024, 127.3695329],
     [2025, 133.492710533333], [2026, 139.615888166667], [2027, 145.7390658], [2028,
       151.862243433333], [2029, 157.985421066667], [2030, 164.1085987], [2031, 184.9763880744],
     [2032, 205.8441774488], [2033, 226.7119668232], [2034, 247.5797561976], [2035,
@@ -310,7 +310,7 @@ nodes:
   unit: GWh/a
   input_nodes:
   - van_energy_hsy
-  forecast_values: [[2022, 2.48397539], [2023, 4.96795078], [2024, 7.45192617], [
+  forecast_values: [[2023, 4.96795078], [2024, 7.45192617], [
       2025, 9.93590156], [2026, 12.41987695], [2027, 14.90385234], [2028, 17.38782773],
     [2029, 19.87180312], [2030, 22.35577851], [2031, 25.107258942], [2032, 27.858739374],
     [2033, 30.610219806], [2034, 33.361700238], [2035, 36.11318067]]
@@ -323,7 +323,7 @@ nodes:
   unit: GWh/a
   input_nodes:
   - truck_energy_hsy
-  forecast_values: [[2022, 15.5343347866667], [2023, 31.0686695733333], [2024, 46.60300436],
+  forecast_values: [[2023, 31.0686695733333], [2024, 46.60300436],
     [2025, 62.1373391466667], [2026, 77.6716739333333], [2027, 93.20600872], [2028,
       108.740343506667], [2029, 124.274678293333], [2030, 139.80901308], [2031, 141.9696978276],
     [2032, 144.1303825752], [2033, 146.2910673228], [2034, 148.4517520704], [2035,
@@ -337,7 +337,7 @@ nodes:
   unit: GWh/a
   input_nodes:
   - bus_energy_hsy
-  forecast_values: [[2022, 0.0784498966666667], [2023, 0.156899793333333], [2024,
+  forecast_values: [[2023, 0.156899793333333], [2024,
       0.23534969], [2025, 0.313799586666667], [2026, 0.392249483333333], [2027, 0.47069938],
     [2028, 0.549149276666667], [2029, 0.627599173333333], [2030, 0.70604907], [2031,
       0.70604907], [2032, 0.70604907], [2033, 0.70604907], [2034, 0.70604907], [2035,
@@ -510,25 +510,6 @@ nodes:
     - id: building_use
     - id: building_heat_source
 
-- id: industry_fuel_emissions_adjusted
-  name: Teollisuuden polttoaineiden päästöjen korjaus
-  name_en: Adjustment of industry fuel emissions
-  name_sv: Reparation av industribränslens utsläpp
-  description: Jostain syystä teollisuuden polttoaineiden päästöt HSY-datassa on 0
-    kt/a vuodelle 2021. Tämä ei ole uskottavaa, ja siksi käytetään vuoden 2020 arvoa
-    tulevaisuuden trendiarviona.
-  description_en: For some reason, industry fuel emissions in HSY data are 0 kilotonnes
-    per year for 2021. This is not credible and, therefore, the value for 2020 is
-    used as a trend estimate for the future.
-  description_sv: Av någon anledning är utsläppen från industribränslen i HRM-data
-    0 kt/a för 2021. Detta är inte trovärdigt och därför används värdet för 2020 som
-    en framtida trendbedömning.
-  output_nodes: [industry_fuel_emissions]
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  forecast_values: [[2022, 5.62], [2035, 5.62]]  # 5.62 is the average 2016-2020 value, 
-
 - id: consumer_electricity_residence_energy_adjustment
   name: Korjaus kulutusähkön kulutuksen perusskenaarion ennusteeseen
   name_en: Adjustment of the baseline scenario forecast for household electricity
@@ -545,8 +526,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  historical_values: [[2010, 0], [2021, 0]]
-  forecast_values: [[2022, 6.40698155857763], [2023, 34.8156449901301], [2024, 55.3398489194226],
+  forecast_values: [[2023, 46.8156449901301], [2024, 55.3398489194226],
     [2025, 75.7353948766418], [2026, 95.9182666625295], [2027, 115.850619274135],
     [2028, 135.46164499662], [2029, 154.731750817255], [2030, 173.619465695491], [
       2031, 192.11713717284], [2032, 210.250300046423], [2033, 228.038646400391],
@@ -576,6 +556,18 @@ nodes:
     [2031, -43.08], [2032, -47.388], [2033, -51.696], [2034, -56.004], [2035, -60.312]]
   output_nodes:
   - electric_heating_emission_factor
+
+- id: consumer_electricity_energy
+  name: Kulutussähkön kulutus yhteensä
+  name_en: consumer electricity, total
+  name_sv: Förbrukning elförbrukning, total
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - consumer_electricity_residence_energy
+  - consumer_electricity_industry_energy
+  - consumer_electricity_services_energy
 
 pages:
 - id: home
@@ -708,7 +700,8 @@ actions:
   - electricity_production_emission_factor
   - electric_heating_emission_factor
   type: simple.CumulativeAdditiveAction
-  forecast_values: [[2021, 0], [2022, -4.93989059255608], [2023, -4.93989059255608],
+  # Adjust 2023 value so that it keeps the trajectory intact after new data point 2022.
+  forecast_values: [[2023, -6.30989059255608],
     [2024, -4.93989059255608], [2025, -4.93989059255608], [2026, -4.93989059255608],
     [2027, -4.93989059255608], [2028, -4.93989059255608], [2029, -4.93989059255608],
     [2030, -4.93989059255608], [2031, -4.93989059255608], [2032, -4.93989059255608],
@@ -1067,7 +1060,7 @@ actions:
   group: buildings
   output_nodes:
   - district_heating_emission_factor
-  forecast_values: [[2021, 0.0], [2025, -82.0], [2030, -122.5]]
+  forecast_values: [[2023, 0.0], [2025, -82.0], [2030, -122.5]]
   unit: g/kWh
   params:
   - id: multiplier
@@ -1253,7 +1246,8 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2022, -9.10308062222222], [2023, -9.10308062222222], [2024, -9.10308062222222],
+  # No change in 2021->2022 in any vehicle emission factor; therefore, expected 2022 change moved to 2023.
+  forecast_values: [[2023, -18.20308062222222], [2024, -9.10308062222222],
     [2025, -9.10308062222222], [2026, -9.10308062222222], [2027, -9.10308062222222],
     [2028, -9.10308062222222], [2029, -9.10308062222222], [2030, -9.10308062222222],
     [2031, -6.086059616], [2032, -6.086059616], [2033, -6.086059616], [2034, -6.086059616],
@@ -1270,7 +1264,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2022, -12.2539168533333], [2023, -12.2539168533333], [2024, -12.2539168533333],
+  forecast_values: [[2023, -24.5039168533333], [2024, -12.2539168533333],
     [2025, -12.2539168533333], [2026, -12.2539168533333], [2027, -12.2539168533333],
     [2028, -12.2539168533333], [2029, -12.2539168533333], [2030, -12.2539168533333],
     [2031, -3.676175056], [2032, -3.676175056], [2033, -3.676175056], [2034, -3.676175056],
@@ -1287,7 +1281,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2022, -9.72260146], [2023, -9.72260146], [2024, -9.72260146],
+  forecast_values: [[2023, -19.42260146], [2024, -9.72260146],
     [2025, -9.72260146], [2026, -9.72260146], [2027, -9.72260146], [2028, -9.72260146],
     [2029, -9.72260146], [2030, -9.72260146], [2031, -2.692412712], [2032, -2.692412712],
     [2033, -2.692412712], [2034, -2.692412712], [2035, -2.692412712]]
@@ -1303,7 +1297,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2022, -5.66301907075556], [2023, -5.66301907075556], [2024, -5.66301907075556],
+  forecast_values: [[2023, -11.36301907075556], [2024, -5.66301907075556],
     [2025, -5.66301907075556], [2026, -5.66301907075556], [2027, -5.66301907075556],
     [2028, -5.66301907075556], [2029, -5.66301907075556], [2030, -5.66301907075556],
     [2031, -0.70770494112], [2032, -0.70770494112], [2033, -0.70770494112], [2034,
@@ -1333,7 +1327,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2022, 0], [2023, -16.518], [2024, -16.518], [2025, -16.518], 
+  forecast_values: [[2023, -16.518], [2024, -16.518], [2025, -16.518], 
     [2026, -16.518], [2027, -16.518], [2028, -16.518], [2029, -16.518], [2030, -16.518],
     [2031, -34.599], [2032, -34.599], [2033, -34.599], [2034, -34.599], [2035, -34.599]]
   output_nodes:
@@ -1383,7 +1377,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2022, 0], [2030, -6.886607633], [2035, -11.12452002]]
+  forecast_values: [[2023, 0], [2030, -6.886607633], [2035, -11.12452002]]
   output_nodes:
   - van_energy
 
@@ -1407,7 +1401,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2022, 0], [2030, 4.403433483], [2035, 4.743698797]]
+  forecast_values: [[2023, 0], [2030, 4.403433483], [2035, 4.743698797]]
   output_nodes:
   - truck_energy
 
