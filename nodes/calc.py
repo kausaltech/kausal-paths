@@ -19,9 +19,11 @@ def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
 
 
 def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.PathsDataFrame:
-    df = df.paths.to_wide()
     if FORECAST_COLUMN not in df.columns:
         df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+    if all(df[FORECAST_COLUMN]):  # Nothing to extend if there are no historical values
+        return df
+    df = df.paths.to_wide()
     df = df.paths.make_forecast_rows(end_year)
     last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
     df = df.paths.nafill_pad()
