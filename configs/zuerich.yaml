@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2f367656bc5f551e03a49be94d0a422bdd8d1b83
+  commit: bbad4d403768ffaba16c12a2f8f592316a2434fd
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
