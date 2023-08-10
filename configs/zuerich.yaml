@@ -4,8 +4,9 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bbad4d403768ffaba16c12a2f8f592316a2434fd
+  commit: 89853e13a512f1724b4edaf6f73c257f8fdd73fd
   dvc_remote: kausal-s3-private
+  default_path: zuerich
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
 owner_en: City of Zürich
@@ -150,6 +151,12 @@ dimensions:
   - id: livestock_farming
     label_de: Nutztierhaltung
     label_en: Livestock farming
+  - id: fgases_buildings
+    label_de: F-Gase (Gebäude)
+    label_en: F-Gase (Gebäude)
+  - id: fgases_transportation
+    label_de: F-Gase (Mobilität)
+    label_en: F-Gase (Mobilität)
 
 - id: building_other_emission_sources
   label_de: Übrige Emissionsquellen Gebäude
@@ -1321,7 +1328,6 @@ nodes:
       flatten: true
     - dimension: building_other_emission_sources
       assign_category: disperse_wood_heatings
-
   output_dimensions: [building_other_emission_sources]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
@@ -1925,6 +1931,43 @@ nodes:
       flatten: true
   input_dataset_processors: [LinearInterpolation]
 
+- id: building_fgas_emissions
+  name_en: F-gas emissions from buildings
+  name_de: Treibhausgasemissionen F-Gase Gebäude
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [building_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_fgas_emissions
+  name_en: F-gas emissions from mobility
+  name_de: Treibhausgasemissionen F-Gase Mobilität
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [transportation_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_transportation]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+
+
 #
 # ------- ACTIONS --------
 #
@@ -1978,7 +2021,7 @@ actions:
           heating_system: district_heat
       amounts:
       - year: 2023
-        source_amount: -0.45
+        source_amount: -0.5
         dest_amounts: [1]
 
     - source:
@@ -2076,11 +2119,43 @@ actions:
     2022 auf 100% im Jahr 2040.
   group: buildings
   parent: heater_replacement_and_district_heat
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  indicator_nodes:
+  - id: building_heat_mix
+  output_dimensions: [emission_scope]
+
+- id: district_heat_ccs_installation
+  name_en: CCS installation district heat
+  name_de: CCS Thermische Netze
+  description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr
+    2022 auf 100% im Jahr 2040.
+  group: buildings
+  parent: district_heat_decarbonisation
   quantity: ratio
   unit: '%'
   type: simple.CumulativeAdditiveAction
   output_nodes: [district_heat_ccs_share]
   forecast_values: [[2023, 0], [2035, 80]]
+
+- id: district_heat_production_mix_change
+  name_en: District heat production mix change
+  name_de: District heat production mix change
+  group: buildings
+  parent: district_heat_decarbonisation
+  type: linear.DatasetReduceAction
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/district_heat_production_mix
+    tags: [historical]
+  - id: zuerich/district_heat_production_mix_goals
+    tags: [goal]
+  output_nodes:
+  - id: district_heat_production_mix
+  unit: '%'
 
 - id: natural_gas_network_decarbonisation
   name_de: Dekarbonisierung Gasversorgung
@@ -2319,10 +2394,10 @@ actions:
           transport_mode: rail_passenger
       amounts:
       - year: 2023
-        source_amount: -0.58
+        source_amount: -0.27
         dest_amounts: [27.3, 13.9, 58.8]
       - year: 2039
-        source_amount: -0.58
+        source_amount: -0.27
         dest_amounts: [27.3, 13.9, 58.8]
       - year: 2040
         source_amount: 0
@@ -2353,10 +2428,10 @@ actions:
           transport_mode: bicycle
       amounts:
       - year: 2023
-        source_amount: -0.42
+        source_amount: -0.73
         dest_amounts: [100]
       - year: 2039
-        source_amount: -0.42
+        source_amount: -0.73
         dest_amounts: [100]
       - year: 2040
         source_amount: 0
