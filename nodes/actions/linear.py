@@ -218,14 +218,23 @@ class DatasetReduceAction(ActionNode):
     ]
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node()
-        df = n.get_output_pl(target_node=self)
-        df = df.filter(~pl.col(FORECAST_COLUMN))
+        n = self.get_input_node(required=False)
+        if n is None:
+            df = self.get_input_dataset_pl(tag='historical')
+            if FORECAST_COLUMN not in df.columns:
+                df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+            assert len(df.metric_cols) == 1
+            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+            goal_tag = 'goal'
+        else:
+            df = n.get_output_pl(target_node=self)
+            df = df.filter(~pl.col(FORECAST_COLUMN))
+            goal_tag = None
 
         max_year = df[YEAR_COLUMN].max()
         df = df.filter(pl.col(YEAR_COLUMN) == max_year)
 
-        gdf = self.get_input_dataset_pl(required=True)
+        gdf = self.get_input_dataset_pl(tag=goal_tag)
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
             raise NodeError(self, "Dimension mismatch to input nodes")
 
