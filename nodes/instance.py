@@ -636,6 +636,7 @@ class InstanceLoader:
 
         static_datasets = self.config.get('static_datasets')
         instance_id = config['id']
+        dataset_repo_default_path = None
         if static_datasets is not None:
             if self.config.get('dataset_repo') is not None:
                 raise Exception('static_datasets and dataset_repo may not be specified at the same time')
@@ -649,9 +650,12 @@ class InstanceLoader:
                 cache_prefix=instance_id,
             )
             dataset_repo.set_target_commit(commit)
+            dataset_repo_default_path = dataset_repo_config.get('default_path')
         target_year = self.config['target_year']
         model_end_year = self.config.get('model_end_year', target_year)
-        self.context = Context(dataset_repo, target_year, model_end_year=model_end_year)
+        self.context = Context(
+            dataset_repo, target_year, model_end_year=model_end_year, dataset_repo_default_path=dataset_repo_default_path
+        )
 
         instance_attrs = [
             'reference_year', 'minimum_historical_year', 'maximum_historical_year',

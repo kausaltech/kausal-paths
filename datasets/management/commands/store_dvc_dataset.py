@@ -44,7 +44,10 @@ class Command(BaseCommand):
 
         if dvc_path is None:
             if not ds.dvc_identifier:
-                raise Exception("No DVC path provided but Dataset objects does not have dvc_identifier set")
+                if ctx.dataset_repo_default_path:
+                    ds.dvc_identifier = '%s/%s' % (ctx.dataset_repo_default_path, ds.identifier)
+                else:
+                    raise Exception("No DVC path provided but Dataset objects does not have dvc_identifier set")
             ds_dvc_id: str = ds.dvc_identifier
             dvc_path = ds_dvc_id
 

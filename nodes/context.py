@@ -35,6 +35,7 @@ class Context:
     nodes: dict[str, Node]
     datasets: Dict[str, Dataset]
     dvc_datasets: Dict[str, dvc_pandas.Dataset]
+
     # global_parameters contains parameters that are not specific to a node.
     # Node-specific parameters are managed by the node.
     global_parameters: dict[str, Parameter]
@@ -48,8 +49,10 @@ class Context:
 
     target_year: int
     model_end_year: int
-    unit_registry: CachingUnitRegistry
     dataset_repo: dvc_pandas.Repository
+    dataset_repo_default_path: str | None
+
+    unit_registry: CachingUnitRegistry
     active_scenario: Scenario
     active_normalization: Normalization | None
     supported_parameter_types: dict[str, type]
@@ -65,7 +68,7 @@ class Context:
 
     def __init__(
         self, dataset_repo: dvc_pandas.Repository, target_year: int,
-        model_end_year: int | None = None,
+        model_end_year: int | None = None, dataset_repo_default_path: str | None = None
     ):
         from nodes.actions import ActionNode
 
@@ -82,6 +85,7 @@ class Context:
         self.model_end_year = model_end_year or target_year
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
+        self.dataset_repo_default_path = dataset_repo_default_path
         self.supported_parameter_types = discover_parameter_types()
         self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
         # will be set later
