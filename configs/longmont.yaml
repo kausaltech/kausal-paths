@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e269e7efdd2f1ac5722389e8d8dd4da6e44f4279
+  commit: 3fbe1baa8e888420703e720c7c47f534123a8212
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -678,6 +678,7 @@ nodes:
 
 - id: building_electricity_use
   name: Building electricity use
+  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
   type: simple.MultiplyLastNode
   quantity: energy
   unit: GWh/a
@@ -691,6 +692,7 @@ nodes:
 
 - id: building_natural_gas_use
   name: Building natural gas use
+  description: <b>Unit:</b> Mthm/yr. = million therms per year.
   type: simple.MultiplyLastNode
   quantity: energy
   unit: Mtherm/a
@@ -733,7 +735,7 @@ nodes:
     none of the upstream actions are implemented. All other classes show the difference
     to the baseline; in other words energy saving actions take the natural gas use
     to the negative side. If the actions do not affect a particular class, the graph
-    of that class seems empty.</p>
+    of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
   type: simple.UsEnergyNode
   quantity: energy
   unit: Mtherm/a
@@ -783,6 +785,7 @@ nodes:
 
 - id: electricity_use
   name: Electricity use
+  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
   type: simple.MultiplyLastNode2
   quantity: energy
   unit: GWh/a
@@ -1204,9 +1207,10 @@ nodes:
 
 - id: vehicle_miles_per_vehicle
   name: Vehicle miles per vehicle
-  description: 'The model has two different estimates for VMT: <ul><li>Row 50: Average
+  description: '<p>The model has two different estimates for VMT: <ul><li>Row 50: Average
     annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li> <li>Row
-    76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul>'
+    76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
+    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
   type: simple.AdditiveNode
   quantity: mileage
   unit: miles/vehicle/a
@@ -1232,6 +1236,7 @@ nodes:
 
 - id: total_vehicle_miles_traveled
   name: Total combustion engine vehicle miles traveled
+  description: '<p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per capita)</p>'
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mmiles/a
@@ -1310,6 +1315,7 @@ nodes:
 
 - id: vehicle_electricity_use
   name: Vehicle electricity use
+  description: <b>Unit:</b> kWh/yr. = kilowatt-hours per year.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: kWh/a
@@ -1430,6 +1436,7 @@ nodes:
   unit: short_ton/inhabitant/a
   input_datasets:
   - longmont/amount_of_waste
+  input_dataset_processors: [LinearInterpolation]
   output_dimensions: [waste]
 
 - id: amount_of_waste
@@ -1437,12 +1444,12 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: mass
   unit: short_ton/a
+  input_dimensions: [waste]
+  output_dimensions: [waste]
   input_nodes:
   - id: amount_of_waste_per_person
-    from_dimensions:
-    - id: waste
-      flatten: true
-  - population
+  - id: population
+    to_dimensions: []
 
 - id: diversion_rate
   name: Diversion rate
@@ -1468,6 +1475,10 @@ nodes:
   input_nodes:
   - id: amount_of_waste
     tags: [non_additive]
+    from_dimensions:
+    - id: waste
+      categories: [landfilled]
+      flatten: true
   - id: waste_diversion
     tags: [non_additive]
 
@@ -1981,45 +1992,6 @@ actions:
   output_nodes:
   - diversion_rate
 
-- id: commercial_power_purchase_program
-  name: Commercial power purchase program
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2022, 0], [2023, -3544251]]
-  group: electric_grid
-  output_nodes:
-  - id: electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-- id: residential_power_purchase_program
-  name: Residential power purchase program
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2022, 0], [2023, -3550001]]
-  group: electric_grid
-  output_nodes:
-  - id: electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
-- id: residential_rooftop_solar
-  name: Residential rooftop solar
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: kWh/a
-  forecast_values: [[2022, 0], [2023, -5080497]]
-  group: electric_grid
-  output_nodes:
-  - id: electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
 - id: mpg_trend
   name: Miles per gallon increasing trend
   description: The model assumes that internal combustion vehicles that use gasoline
@@ -2040,8 +2012,9 @@ actions:
 
 - id: vmt_per_vehicle_trend
   name: Vehicle miles per vehicle trend
-  description: The model assumes that overtime there will be a decrease in the annual
-    miles traveled per vehicle.
+  description: '<p>The model assumes that overtime there will be a decrease in the annual
+    miles traveled per vehicle.</p>
+    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/vehicle/a
