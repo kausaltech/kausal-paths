@@ -391,7 +391,8 @@ class DimensionalMetric:
             dims.append(mdim)
 
         forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min()
-        assert isinstance(forecast_from, int)
+        if forecast_from is not None:
+            assert isinstance(forecast_from, int)
 
         if df.paths.index_has_duplicates():
             raise NodeError(node, "DataFrame index has duplicates")
