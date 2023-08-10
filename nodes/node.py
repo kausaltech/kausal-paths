@@ -976,10 +976,11 @@ class Node:
 
         if self.baseline_values is not None:
             m = self.output_metrics[DEFAULT_METRIC]
-            df = df.with_columns(
-                self.baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN),
-                units={BASELINE_VALUE_COLUMN: self.baseline_values.get_unit(m.column_id)}
+            df = (
+                df.with_columns(self.baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN))
+                .set_unit(BASELINE_VALUE_COLUMN, self.baseline_values.get_unit(m.column_id))
             )
+
             if norm:
                 bm = m.copy()
                 bm.column_id = BASELINE_VALUE_COLUMN

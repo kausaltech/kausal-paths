@@ -21,7 +21,7 @@ class BuildingEnergy(AdditiveNode):
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.get_input_dataset_pl(tag='energy')
         meta = df.get_meta()
         metric_ids = meta.metric_cols
         if len(metric_ids) == 1:
@@ -39,13 +39,18 @@ class BuildingEnergy(AdditiveNode):
             pl.lit(False).alias(FORECAST_COLUMN)
         ])
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
-        # df = df.set_unit(VALUE_COLUMN, output_unit)
 
-        #df = extend_last_historical_value_pl(df, self.get_end_year())
-        #for node in self.input_nodes:
-        #    ndf = node.get_output_pl(self)
-        #    df = df.paths.add_with_dims(ndf)
+        odf = self.get_input_dataset_pl('other_fuel_use')
+        assert len(odf.metric_cols) == 1
+        odf = odf.with_columns(pl.col(odf.metric_cols[0]) * -1)
 
+        df = df.paths.add_df(odf, how='left')
+
+        tedf = (
+            self.get_input_node(tag='transport_electricity').get_output_pl(target_node=self)
+        )
+        tedf = tedf.with_columns(pl.col(tedf.metric_cols[0]) * -1)
+        df = df.paths.add_df(tedf, how='left')
         return df
 
 

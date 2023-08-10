@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6da5266fdc1a46066678fd6301b05ca8ef7bd33d
+  commit: 2f367656bc5f551e03a49be94d0a422bdd8d1b83
   dvc_remote: kausal-s3-private
 name_en: Net Zero 2040
 name_de: Netto-Null 2040
@@ -1095,8 +1095,27 @@ nodes:
   type: ch.zuerich.BuildingEnergy
   quantity: energy
   unit: GWh/a
+  input_nodes:
+  - id: transport_electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, vans]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    tags: [transport_electricity]
   input_datasets:
-  - zuerich/building_energy
+  - id: zuerich/building_energy
+    tags: [energy]
+  - id: zuerich/other_building_emission_source_fuel_use
+    tags: [other_fuel_use]
+    filters:
+    - dimension: building_other_emission_sources
+      flatten: true
+    - dimension: energy_carrier
+      categories: [natural_gas]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: district_heat_production_mix
   type: ch.zuerich.DistrictHeatProductionMix

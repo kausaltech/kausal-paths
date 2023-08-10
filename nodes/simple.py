@@ -37,9 +37,10 @@ class SimpleNode(Node):
         # calculated data.
         df = df.drop_nulls()
 
-        data_df = self.get_input_dataset_pl(required=False)
-        if data_df is None:
+        input_df = self.get_input_dataset_pl(required=False)
+        if input_df is None:
             return df
+        data_df = input_df
 
         data_latest_year: int = data_df[YEAR_COLUMN].max()  # type: ignore
         df_latest_year: int = df[YEAR_COLUMN].max()  # type: ignore
@@ -423,7 +424,10 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
         meta = df.get_meta()
         exprs = [pl.col(col) * multiplier for col in meta.metric_cols]
         units = {col: meta.units[col] * m_unit for col in meta.metric_cols}
-        df = df.with_columns(exprs, units=units)
+        df = df.with_columns(exprs)
+        for col, unit in units.items():
+            df = df.set_unit(col, unit)
+
         for metric in self.output_metrics.values():
             df = df.ensure_unit(metric.column_id, metric.unit)
 
