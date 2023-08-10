@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 502d280caa6459abca7e753aa06a36d9da7a5063
+  commit: e269e7efdd2f1ac5722389e8d8dd4da6e44f4279
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -452,7 +452,8 @@ emission_sectors:
     default: true
     is_main_goal: true
   is_outcome: true
-  description: Greenhouse gas emissions
+  description: <p>Greenhouse gas emissions</p><p><b>Unit:</b> t/yr. = metric tons
+    per year</b></p>
 
 # Sector emissions
 
@@ -1384,7 +1385,8 @@ nodes:
 
 - id: public_transportation_change
   name: Public transportation change by last-mile actions
-  description: This is an intermediate node converting the action into a relative amount of trips (business-as-usual = 1).
+  description: This is an intermediate node converting the action into a relative
+    amount of trips (business-as-usual = 1).
   type: simple.ImprovementNode2
   quantity: ratio
   unit: dimensionless
@@ -1868,7 +1870,7 @@ actions:
     by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
     GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-4">Sustainability
     Plan Strategy T-4</a></li> <li><a href="https://longmont-sca.watch-test.kausal.tech/indicators/1771">Electric
-    Vehicle Indicator</a></li></ul></p>'
+    Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
   type: simple.AdditiveAction
   quantity: number
   unit: vehicle
