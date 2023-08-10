@@ -2166,9 +2166,9 @@ actions:
       # - year: 2040
       #   amount: 0
       - year: 2023
-        amount: -1.8
+        amount: -1.62
       - year: 2039
-        amount: -1.8
+        amount: -1.62
       - year: 2040
         amount: 0
     - target:
@@ -2182,9 +2182,9 @@ actions:
       # - year: 2040
       #   amount: 0
       - year: 2023
-        amount: -1.8
+        amount: -1.65
       - year: 2039
-        amount: -1.8
+        amount: -1.65
       - year: 2040
         amount: 0
 
