@@ -426,7 +426,7 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
         units = {col: meta.units[col] * m_unit for col in meta.metric_cols}
         df = df.with_columns(exprs)
         for col, unit in units.items():
-            df = df.set_unit(col, unit)
+            df = df.set_unit(col, unit, force=True)
 
         for metric in self.output_metrics.values():
             df = df.ensure_unit(metric.column_id, metric.unit)
