@@ -424,8 +424,6 @@ class EmissionFactor(Node):
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        if self.id == 'building_energy_consumption_emission_factor':
-            self.print(df.filter(pl.col('energy_carrier').eq('biogas_import')))
         for node in self.input_nodes:
             ndf = node.get_output_pl(self).ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
             ndf = ndf.rename({VALUE_COLUMN: '_Right'})
