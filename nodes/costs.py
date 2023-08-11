@@ -158,9 +158,9 @@ class DiscountedNode(AdditiveNode):
         discount_rate = self.get_global_parameter_value('discount_rate', units=True)
         exp = compute_exponential(current_year, current_year, model_end_year, 1.0, discount_rate, decreasing_rate=True)
         df = df.join(exp.rename({VALUE_COLUMN: 'exp'}), on=YEAR_COLUMN, how='left')
-        df = df.select([YEAR_COLUMN, pl.col(VALUE_COLUMN) * pl.col('exp'), FORECAST_COLUMN])
+        df = df.select([YEAR_COLUMN, (pl.col(VALUE_COLUMN) * pl.col('exp')).fill_null(pl.col(VALUE_COLUMN)), FORECAST_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
-        return df.paths.to_pandas()
+        return df
 
 
 class Co2PriceNode(ExponentialNode):
