@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 89853e13a512f1724b4edaf6f73c257f8fdd73fd
+  commit: 06cc21b95ed2c3320306f9a8337d28070cdc9427
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -112,12 +112,12 @@ dimensions:
   label_de: Erneuerbar
   label_en: Renewable
   categories:
-    - id: nonrenewable
-      label_de: Nicht erneuerbar
-      label_en: Non-renewable
-    - id: renewable
-      label_de: Erneuerbar
-      label_en: Renewable
+  - id: nonrenewable
+    label_de: Nicht erneuerbar
+    label_en: Non-renewable
+  - id: renewable
+    label_de: Erneuerbar
+    label_en: Renewable
 
 - id: emission_sectors
   label_de: Emissionssektoren
