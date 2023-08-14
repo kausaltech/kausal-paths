@@ -108,6 +108,17 @@ dimensions:
     order: -1
     group: negative
 
+- id: renewable_energy
+  label_de: Erneuerbar
+  label_en: Renewable
+  categories:
+    - id: nonrenewable
+      label_de: Nicht erneuerbar
+      label_en: Non-renewable
+    - id: renewable
+      label_de: Erneuerbar
+      label_en: Renewable
+
 - id: emission_sectors
   label_de: Emissionssektoren
   label_en: Emission sectors
