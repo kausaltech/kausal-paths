@@ -2045,6 +2045,13 @@ nodes:
   quantity: energy_factor
   input_dimensions: [electricity_source, renewable_energy]
   output_dimensions: [electricity_source, renewable_energy]
+  input_nodes:
+  - id: electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: electricity_production_energy_factor
+    tags: [non_additive]
   output_nodes:
   - id: building_primary_energy_factor
     from_dimensions:
@@ -2054,13 +2061,31 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
     - id: renewable_energy
+
+- id: district_heating_primary_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme
+  name_en: District heating primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
   input_nodes:
-  - id: electricity_production_mix
+  - id: district_heat_production_mix
     tags: [non_additive]
     to_dimensions:
-    - id: electricity_source
-  - id: electricity_production_energy_factor
+    - id: energy_carrier
+  - id: district_heating_production_energy_factor
     tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: renewable_energy
 
 - id: electricity_production_energy_factor
   name_de: Primärenergiefaktoren Stromerzeugung
@@ -2072,6 +2097,17 @@ nodes:
   input_dimensions: [electricity_source, renewable_energy]
   input_datasets:
   - id: zuerich/electricity_primary_energy_factors
+
+- id: district_heating_production_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme je Energieträger
+  name_en: District heating primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/district_heating_primary_energy_factors
 
 # - id: net_emissions_2kw
 #   name_de: Treibhausgasemissionen (2000-Watt)
