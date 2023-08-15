@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 102b470eb4d1b0dc50997427d8f028e363d1340b
+  commit: ac17fcb26500d75255579b3e36e1d1bf3357a216
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -1978,6 +1978,108 @@ nodes:
       flatten: true
   input_dataset_processors: [LinearInterpolation]
 
+#
+# 2000-watt Society indicators
+#
+- id: primary_energy_power_per_inhabitant
+  name_de: Primärenergiebedarf nach Einwohner*in
+  name_en: Primary energy demand per inhabitant
+  type: formula.FormulaNode
+  quantity: energy
+  unit: W/cap
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  params:
+    formula: net_primary_energy_demand / population
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: renewable_energy
+      flatten: true
+
+- id: net_primary_energy_demand
+  name_de: Primärenergiebedarf
+  name_en: Primary energy demand
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+
+- id: building_primary_energy_demand
+  name_de: Primärenergiebedarf Gebäude
+  name_en: Building primary energy demand
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_primary_energy_demand
+
+- id: building_primary_energy_factor
+  name_de: Primärenergiefaktoren Gebäude
+  name_en: Building primary energy factor
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/buildings_primary_energy_factors
+
+- id: building_electricity_primary_energy_factor
+  name_de: Primärenergiefaktoren Gebäude Strom
+  name_en: Building electricity primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [electricity_source, renewable_energy]
+  output_dimensions: [electricity_source, renewable_energy]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+  input_nodes:
+  - id: electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: electricity_production_energy_factor
+    tags: [non_additive]
+
+- id: electricity_production_energy_factor
+  name_de: Primärenergiefaktoren Stromerzeugung
+  name_en: Electricity production primary energy factor
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [electricity_source, renewable_energy]
+  input_dimensions: [electricity_source, renewable_energy]
+  input_datasets:
+  - id: zuerich/electricity_primary_energy_factors
+
+# - id: net_emissions_2kw
+#   name_de: Treibhausgasemissionen (2000-Watt)
+#   name_en: Greenhouse gas emissions (2000-watt)
+#   type: simple.SectorEmissions
+#   unit: kt/a
+#   output_dimensions: [energy_carrier, emission_scope]
+#   input_nodes: [building_emissions, transportation_emissions]
 
 #
 # ------- ACTIONS --------

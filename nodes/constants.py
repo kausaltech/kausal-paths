@@ -35,6 +35,7 @@ MILEAGE_QUANTITY = 'mileage'
 VEHICLE_MILEAGE_QUANTITY = 'vehicle_mileage'
 PASSENGER_MILEAGE_QUANTITY = 'passenger_mileage'
 EMISSION_FACTOR_QUANTITY = 'emission_factor'
+ENERGY_FACTOR_QUANTITY = 'energy_factor'
 CONSUMPTION_FACTOR_QUANTITY = 'consumption_factor'
 CURRENCY_QUANTITY = 'currency'
 UNIT_PRICE_QUANTITY = 'unit_price'
@@ -60,6 +61,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
+    'energy_factor',
 ])
 
 DEFAULT_METRIC = 'default'
@@ -83,7 +85,7 @@ def get_quantity_icon(quantity: str) -> str | None:
         return '⚡'
     elif quantity == MILEAGE_QUANTITY:
         return '🚗'
-    elif quantity == EMISSION_FACTOR_QUANTITY:
+    elif quantity in (EMISSION_FACTOR_QUANTITY, 'energy_factor'):
         return '✖'
     elif quantity == POPULATION_QUANTITY:
         return '👪'

@@ -1,7 +1,5 @@
-import operator
 import ast
-from typing import Any, Callable, Dict, TypeAlias, TypeVar, NamedTuple
-import pandas as pd
+from typing import Any, Callable, TypeAlias, TypeVar, NamedTuple
 
 import polars as pl
 
@@ -121,8 +119,8 @@ class FormulaNode(Node):
             return df
         def left_df(df: PDF, val: Quantity):
             df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(pl.col(VALUE_COLUMN) / val)
-            df = df.set_unit(VALUE_COLUMN, df_unit / val.units)
+            df = df.with_columns(pl.col(VALUE_COLUMN) / val.m)
+            df = df.set_unit(VALUE_COLUMN, df_unit / val.units, force=True)
             return df
         def right_df(val: Quantity, df: PDF):
             df_unit = df.get_unit(VALUE_COLUMN)
