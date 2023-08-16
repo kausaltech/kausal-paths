@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ac17fcb26500d75255579b3e36e1d1bf3357a216
+  commit: 63fbed4b5dc91499cb693643bcffce0d2e7a2676
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -1206,17 +1206,22 @@ nodes:
       flatten: true
     to_dimensions: []
 
-# - id: transport_electricity_production_mix
-#   type: ch.zuerich.ElectricityProductionMix
-#   quantity: mix
-#   unit: '%'
-#   output_dimensions: [electricity_source]
-#   input_datasets:
-#   - zuerich/transport_electricity_production_mix
-#   - zuerich/subsidized_transport_electricity_production_mix
-#   input_nodes:
-#   - id: transport_electricity_consumption
-#     tags: [consumption]
+- id: transport_electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  quantity: mix
+  unit: '%'
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/transport_electricity_production_mix
+  - zuerich/subsidized_transport_electricity_production_mix
+  - zuerich/transport_externally_supplied_electricity
+  input_nodes:
+  - id: transport_electricity_consumption
+    tags: [consumption]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions: []
 
 - id: electricity_emission_factor
   name_de: Treibhausgasfaktoren Strom
@@ -2008,9 +2013,11 @@ nodes:
   input_dimensions: [energy_carrier, renewable_energy]
   output_dimensions: [energy_carrier, renewable_energy]
 
-- id: building_primary_energy_demand
+
+
+- id: building_primary_energy_consumption
   name_de: Primärenergiebedarf Gebäude
-  name_en: Building primary energy demand
+  name_en: Building primary energy consumption
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2025,6 +2032,34 @@ nodes:
     - id: energy_carrier
   output_nodes:
   - id: net_primary_energy_demand
+
+- id: public_transport_electricity_primary_energy_consumption
+  name_de: x
+  name_en: Public transport electricity primary energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy]
+  output_dimensions: [vehicle_type, renewable_energy]
+  input_nodes:
+  - id: transport_electricity_primary_energy_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: renewable_energy
+  - id: transport_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, coaches, tram, rail_passenger, small_railways]
+    to_dimensions:
+    - id: vehicle_type
+#  output_nodes:
+#  - id: net_primary_energy_demand
+
+
 
 - id: building_primary_energy_factor
   name_de: Primärenergiefaktoren Gebäude
@@ -2062,7 +2097,7 @@ nodes:
       categories: [electricity]
     - id: renewable_energy
 
-- id: district_heating_primary_energy_factor
+- id: district_heat_primary_energy_factor
   name_de: Primärenergiefaktoren Fernwärme
   name_en: District heating primary energy factor
   type: simple.MultiplicativeNode
@@ -2075,7 +2110,7 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: energy_carrier
-  - id: district_heating_production_energy_factor
+  - id: district_heat_production_energy_factor
     tags: [non_additive]
   output_nodes:
   - id: building_primary_energy_factor
@@ -2087,9 +2122,27 @@ nodes:
       categories: [district_heat]
     - id: renewable_energy
 
+- id: transport_electricity_primary_energy_factor
+  name_de: x
+  name_en: Transport electricity primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [electricity_source, renewable_energy]
+  output_dimensions: [electricity_source, renewable_energy]
+  input_nodes:
+  - id: transport_electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: transport_electricity_production_energy_factor
+    tags: [non_additive]
+
+
+
 - id: electricity_production_energy_factor
   name_de: Primärenergiefaktoren Stromerzeugung
-  name_en: Electricity production primary energy factor
+  name_en: Electricity primary energy factor by carrier
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: kWh/kWh
@@ -2098,7 +2151,7 @@ nodes:
   input_datasets:
   - id: zuerich/electricity_primary_energy_factors
 
-- id: district_heating_production_energy_factor
+- id: district_heat_production_energy_factor
   name_de: Primärenergiefaktoren Fernwärme je Energieträger
   name_en: District heating primary energy factor by carrier
   type: simple.AdditiveNode
@@ -2108,6 +2161,41 @@ nodes:
   output_dimensions: [energy_carrier, renewable_energy]
   input_datasets:
   - id: zuerich/district_heating_primary_energy_factors
+
+- id: transport_electricity_production_energy_factor
+  name_de: x
+  name_en: Transport electricity primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [electricity_source, renewable_energy]
+  input_dimensions: [electricity_source, renewable_energy]
+  input_datasets:
+  - id: zuerich/transport_electricity_production_energy_factor
+
+
+
+- id: transport_fuel_consumption
+  name_de: x
+  name_en: Transport fuel consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: kg/a
+  input_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_factor
+#  output_nodes:
+#  - id: electricity_consumption
+#    from_dimensions:
+#    - id: vehicle_type
+#      flatten: true
+
 
 # - id: net_emissions_2kw
 #   name_de: Treibhausgasemissionen (2000-Watt)
