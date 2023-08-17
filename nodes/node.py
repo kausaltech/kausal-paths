@@ -322,6 +322,8 @@ class Node:
 
         self.database_id = None
         self.name = name
+        if self.name is None:
+            raise NodeError(self, "Node has no name")
         self.short_name = short_name
         self.description = description
         self.color = color

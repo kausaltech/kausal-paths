@@ -1210,6 +1210,8 @@ nodes:
   type: ch.zuerich.ElectricityProductionMix
   quantity: mix
   unit: '%'
+  name_en: Transport electricity production mix
+  name_de: Transport electricity production mix
   output_dimensions: [electricity_source]
   input_datasets:
   - zuerich/transport_electricity_production_mix
