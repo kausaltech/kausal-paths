@@ -313,6 +313,8 @@ class ElectricityProductionMix(MixNode):
         dim_id = list(self.output_dimensions.keys())[0]
         df = gdf.select([YEAR_COLUMN, pl.col(es_dim).alias(dim_id), m.column_id])
 
+        df = df.filter(pl.col(m.column_id).is_not_null() & pl.col(m.column_id).is_not_nan())
+
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
         input_nodes = list(self.input_nodes)
