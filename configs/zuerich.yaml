@@ -1994,6 +1994,7 @@ nodes:
   unit: W/cap
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
+  is_outcome: true
   params:
     formula: net_primary_energy_demand / population
   input_nodes:
@@ -3111,7 +3112,7 @@ pages:
   name_de: Netto-Null 2040
   path: /
   type: emission
-  node: direct_emissions
+  outcome_node: direct_emissions
   lead_title_en: Development version
   lead_title_de: Entwicklungsversion
   lead_paragraph_en: This is a test version of the City of Zürich's interactive scenario
@@ -3120,6 +3121,17 @@ pages:
   lead_paragraph_de: Dies ist eine Testversion der interaktiven Szenariomodellierungsplattform
     zum Klimaschutzziel Netto-Null 2040. Alle Informationen auf dieser Website sind
     als unvollständig und provisorisch zu verstehen.
+
+- id: 2000watt
+  name_en: 2000-Watt
+  name_de: 2000-Watt
+  path: /2000watt
+  type: outcome
+  outcome_node: primary_energy_power_per_inhabitant
+  lead_title_en: 2000-Watt indicators
+  lead_title_de: 2000-watt indicators
+  show_in_menus: true
+  show_in_footer: true
 
 scenarios:
 - id: baseline

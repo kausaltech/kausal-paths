@@ -8,7 +8,7 @@ import polars as pl
 
 from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator, model_validator
 
-from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_default_language
+from common.i18n import I18nBaseModel, I18nString, I18nStringInstance, TranslatedString, get_default_language
 from common.types import Identifier
 
 if typing.TYPE_CHECKING:
@@ -32,7 +32,7 @@ class DimensionCategoryGroup(BaseModel):
         re.match(v, '')
         return v
 
-class DimensionCategory(BaseModel):
+class DimensionCategory(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
     color: str | None = None
@@ -51,17 +51,8 @@ class DimensionCategory(BaseModel):
             labels.update(self.aliases)
         return labels
 
-    @model_validator(mode='before')
-    @classmethod
-    def validate_translated_fields(cls, val: dict):
-        for fn, f in cls.model_fields.items():
-            t = f.annotation
-            if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
-                val[fn] = validate_translated_string(cls, fn, val)
-        return val
 
-
-class Dimension(BaseModel):
+class Dimension(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
     groups: List[DimensionCategoryGroup] = Field(default_factory=list)
@@ -187,55 +178,3 @@ class Dimension(BaseModel):
                 raise KeyError('group %s not found' % v.group)
         return v
 
-    @root_validator(pre=True)
-    @classmethod
-    def validate_translated_fields(cls, val: dict):
-        for fn, f in cls.model_fields.items():
-            t = f.annotation
-            if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
-                val[fn] = validate_translated_string(cls, fn, val)
-        return val
-
-
-def validate_translated_string(cls: Type[BaseModel], field_name: str, obj: dict) -> TranslatedString | None:
-    f = cls.model_fields[field_name]
-    field_val = obj.get(field_name)
-    langs: dict[str, str] = {}
-    default_language = get_default_language()
-    if isinstance(field_val, TranslatedString):
-        return field_val
-    elif isinstance(field_val, str):
-        assert default_language is not None
-        langs[default_language] = field_val
-    elif isinstance(field_val, dict):
-        return TranslatedString(**field_val)
-    else:
-        assert default_language is not None
-        if field_val != None:
-            raise TypeError('%s: Invalid type: %s' % (field_name, type(field_val)))
-
-    base_default = default_language.split('-')[0]
-
-    # FIXME: how to get default language?
-    for key, val in list(obj.items()):
-        if '_' not in key or not key.startswith(field_name):
-            continue
-        parts = key.split('_')
-        lang = parts.pop(-1)
-        fn = '_'.join(parts)
-        if fn != field_name:
-            continue
-        if not isinstance(val, str):
-            raise TypeError('%s: Expecting str, got %s' % (key, type(val)))
-        obj.pop(key)
-        if lang == base_default:
-            lang = default_language
-        langs[lang] = val
-
-    if not langs:
-        if not f.is_required():
-            return None
-        else:
-            raise KeyError('%s: Value missing' % field_name)
-    ts = TranslatedString(default_language=default_language, **langs)
-    return ts

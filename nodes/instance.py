@@ -25,6 +25,7 @@ from nodes.normalization import Normalization
 from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
 from nodes.units import Unit
+from pages.config import OutcomePage, pages_from_config
 from params.param import ReferenceParameter
 
 from . import Context, Dataset, DVCDataset, FixedDataset
@@ -59,6 +60,7 @@ class Instance:
     theme_identifier: Optional[str] = None
     features: InstanceFeatures = field(default_factory=InstanceFeatures)
     action_groups: list[ActionGroup] = field(default_factory=list)
+    pages: list[OutcomePage] = field(default_factory=list)
 
     modified_at: Optional[datetime] = field(init=False)
     logger: logging.Logger = field(init=False)
@@ -631,9 +633,14 @@ class InstanceLoader:
         return cls(data, yaml_file_path=filename)
 
     def __init__(self, config: dict, yaml_file_path: str | None = None):
+        self.yaml_file_path = yaml_file_path
         self.config = config
         self.default_language = config['default_language']
+        with set_default_language(self.default_language):
+            self._init_instance()
 
+    def _init_instance(self):
+        config = self.config
         static_datasets = self.config.get('static_datasets')
         instance_id = config['id']
         dataset_repo_default_path = None
@@ -676,13 +683,14 @@ class InstanceLoader:
             context=self.context,
             action_groups=agcs,
             features=self.config.get('features', {}),
+            pages=pages_from_config(self.config.get('pages', [])),
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
             **self._build_instance_args_from_home_page(),
         )
         self.context.instance = self.instance
-        self.instance.yaml_file_path = yaml_file_path
+        self.instance.yaml_file_path = self.yaml_file_path
 
         # Deprecated
         # self.load_datasets(self.config.get('datasets', []))
@@ -691,12 +699,12 @@ class InstanceLoader:
         self._input_nodes = {}
         self._output_nodes = {}
         self._subactions = {}
-        with set_default_language(self.instance.default_language):
-            self.setup_dimensions()
-            self.generate_nodes_from_emission_sectors()
-            self.setup_global_parameters()
-            self.setup_nodes()
-            self.setup_actions()
+
+        self.setup_dimensions()
+        self.generate_nodes_from_emission_sectors()
+        self.setup_global_parameters()
+        self.setup_nodes()
+        self.setup_actions()
         self.setup_edges()
         self.setup_action_efficiency_pairs()
         self.setup_scenarios()

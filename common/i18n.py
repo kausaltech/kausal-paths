@@ -1,7 +1,7 @@
 from __future__ import annotations
+import abc
 import typing
 import threading
-import re
 from contextlib import contextmanager
 
 from django.utils.translation import gettext_lazy, gettext, get_language  # noqa
@@ -9,7 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 
 from pydantic_core import CoreSchema, core_schema
-from pydantic import GetCoreSchemaHandler, TypeAdapter
+from pydantic import GetCoreSchemaHandler, BaseModel, model_validator, root_validator
 
 
 if typing.TYPE_CHECKING:
@@ -113,7 +113,7 @@ class TranslatedString:
             raise ValueError('TranslatedString expects a dict or str, not %s' % type(v))
         languages = list(v.keys())
         if 'default_language' in languages:
-            languages.pop('default_language')
+            languages.remove('default_language')
         if SUPPORTED_LANGUAGES:
             for lang in languages:
                 if lang not in SUPPORTED_LANGUAGES:
@@ -184,3 +184,60 @@ def get_translated_string_from_modeltrans(
 
 I18nString = typing.Union[TranslatedString, str, 'StrPromise']
 I18nStringInstance = typing.Union[TranslatedString, str]
+
+
+def validate_translated_string(cls: typing.Type[BaseModel], field_name: str, obj: dict) -> TranslatedString | None:
+    f = cls.model_fields[field_name]
+    field_val = obj.get(field_name)
+    langs: dict[str, str] = {}
+    default_language = get_default_language()
+    if isinstance(field_val, TranslatedString):
+        return field_val
+    elif isinstance(field_val, str):
+        assert default_language is not None
+        langs[default_language] = field_val
+    elif isinstance(field_val, dict):
+        return TranslatedString(**field_val)
+    else:
+        if default_language is None:
+            raise Exception("default_language is None")
+        assert default_language is not None
+        if field_val != None:
+            raise TypeError('%s: Invalid type: %s' % (field_name, type(field_val)))
+
+    base_default = default_language.split('-')[0]
+
+    # FIXME: how to get default language?
+    for key, val in list(obj.items()):
+        if '_' not in key or not key.startswith(field_name):
+            continue
+        parts = key.split('_')
+        lang = parts.pop(-1)
+        fn = '_'.join(parts)
+        if fn != field_name:
+            continue
+        if not isinstance(val, str):
+            raise TypeError('%s: Expecting str, got %s' % (key, type(val)))
+        obj.pop(key)
+        if lang == base_default:
+            lang = default_language
+        langs[lang] = val
+
+    if not langs:
+        if not f.is_required():
+            return None
+        else:
+            raise KeyError('%s: Value missing' % field_name)
+    ts = TranslatedString(default_language=default_language, **langs)
+    return ts
+
+
+class I18nBaseModel(BaseModel, abc.ABC):
+    @model_validator(mode='before')
+    def validate_translated_fields(cls, val: dict):
+        val = val.copy()
+        for fn, f in cls.model_fields.items():
+            t = f.annotation
+            if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
+                val[fn] = validate_translated_string(cls, fn, val)  # type: ignore
+        return val

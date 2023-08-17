@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
 import threading
-import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 from urllib.parse import urlparse
@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import get_language, gettext_lazy as _, override
+from django.utils.translation import get_language, override
+from django.utils.translation import gettext_lazy as _, gettext
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from wagtail.fields import RichTextField
@@ -224,33 +225,64 @@ class InstanceConfig(models.Model):
 
     def _create_default_pages(self) -> Page:
         from pages.models import ActionListPage, OutcomePage
+        from pages.config import OutcomePage as OutcomePageConfig
 
         root_pages: models.QuerySet['Page'] = Page.get_first_root_node().get_children()
+
+        instance = self.get_instance()
+        outcome_nodes = {node.identifier: node for node in self.get_outcome_nodes()}
         # Create default pages only in default language for now
         # TODO: Also create translations to other supported languages
+
+        home_page: OutcomePageConfig | None = None
+        for page in instance.pages:
+            if page.id == 'home':
+                home_page = page
+                break
+        assert home_page is not None
+
         with override(self.default_language):
+            locale, locale_created = Locale.objects.get_or_create(language_code=self.default_language)
             try:
                 root_page = root_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
-                outcome_nodes = self.get_outcome_nodes()
-                locale, locale_created = Locale.objects.get_or_create(language_code=self.default_language)
                 root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
                     locale=locale,
                     title=self.get_name(),
                     slug=self.identifier,
                     url_path='',
-                    outcome_node=outcome_nodes[0],
+                    outcome_node=outcome_nodes[home_page.outcome_node],
                 ))
             action_list_pages = root_page.get_children().type(ActionListPage)
             if not action_list_pages.exists():
                 root_page.add_child(instance=ActionListPage(
-                    title=_("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
+                    title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
                 ))
+
+            for page_config in instance.pages:
+                id = page_config.id
+                if id == 'home':
+                    continue
+
+                page = root_page.get_children().filter(slug=id).first()
+                if page is not None:
+                    continue
+
+                root_page.add_child(instance=OutcomePage(
+                    locale=locale,
+                    title=str(page_config.name),
+                    slug=id,
+                    url_path=page_config.path,
+                    outcome_node=outcome_nodes[page_config.outcome_node],
+                    show_in_menus=page_config.show_in_menus,
+                    show_in_footer=page_config.show_in_footer,
+                ))
+
         return root_page
 
     def create_default_content(self):
+        root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:
-            root_page = self._create_default_pages()
             o = urlparse(self.site_url)
             site = Site(site_name=self.get_name(), hostname=o.hostname, root_page=root_page)
             site.save()

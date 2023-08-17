@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel, RootModel, Field, PrivateAttr, model_validator
 import polars as pl
 from common import polars as ppl
-from common.i18n import I18nString, I18nStringInstance, TranslatedString
+from common.i18n import I18nBaseModel, I18nString, I18nStringInstance, TranslatedString
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.dimensions import validate_translated_string
 from nodes.exceptions import NodeError
 
 if typing.TYPE_CHECKING:
@@ -33,7 +32,7 @@ class NodeGoalsDimension(BaseModel):
     categories: list[str] = Field(default_factory=list)
 
 
-class NodeGoalsEntry(BaseModel):
+class NodeGoalsEntry(I18nBaseModel):
     values: list[GoalValue]
     label: I18nStringInstance | None = None
     normalized_by: str | None = None
@@ -173,16 +172,6 @@ class NodeGoalsEntry(BaseModel):
             ) for row in df.to_dicts()
         ]
         return out
-
-    @model_validator(mode='before')
-    @classmethod
-    def validate_translated_fields(cls, val: dict):
-        for fn, f in cls.model_fields.items():
-            t = f.annotation
-            if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
-                val[fn] = validate_translated_string(cls, fn, val)
-        return val
-
 
 
 class NodeGoals(RootModel):
