@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9fe58860167af4e9d44264d644352ee45302766c
+  commit: ccff9b4b25f152cbe5c446695ac059f6410e148d
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -2056,8 +2056,74 @@ nodes:
       groups: [buses, trolleybuses, coaches, tram, rail_passenger, small_railways]
     to_dimensions:
     - id: vehicle_type
-#  output_nodes:
-#  - id: net_primary_energy_demand
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+
+- id: other_transport_electricity_primary_energy_consumption
+  name_de: Other transport electricity primary energy consumption
+  name_en: Other transport electricity primary energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy]
+  output_dimensions: [vehicle_type, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    to_dimensions:
+    - id: renewable_energy
+  - id: transport_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes, lorries, vans, rail_goods, liner_ship, private_ship]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+
+- id: transport_fuel_primary_energy_consumption
+  name_de: Transport fuel primary energy consumption
+  name_en: Transport fuel primary energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  input_nodes:
+  - id: transport_fuel_energy_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: transport_fuel_end_energy_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 
 
@@ -2172,6 +2238,17 @@ nodes:
   input_dimensions: [electricity_source, renewable_energy]
   input_datasets:
   - id: zuerich/transport_electricity_production_energy_factor
+
+- id: transport_fuel_energy_factor
+  name_de: Transport fuel primary energy factor by carrier
+  name_en: Transport fuel primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/transport_fuel_primary_energy_factors
 
 - id: fuel_energy_density
   name_de: Fuel energy density
