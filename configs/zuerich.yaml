@@ -2641,7 +2641,7 @@ actions:
         dest_amounts: [27.3, 13.9, 58.8]
 
 - id: cars_to_bicycling
-  name_en: Shift from cars to public transportation
+  name_en: Shift from cars to cycling
   name_de: Verlagerung vom MIV auf den Velo- und Fussverkehr
   group: mobility
   parent: shift_to_sustainable_transport_modes
