@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 63fbed4b5dc91499cb693643bcffce0d2e7a2676
+  commit: 9fe58860167af4e9d44264d644352ee45302766c
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -2034,7 +2034,7 @@ nodes:
   - id: net_primary_energy_demand
 
 - id: public_transport_electricity_primary_energy_consumption
-  name_de: x
+  name_de: Public transport electricity primary energy consumption
   name_en: Public transport electricity primary energy consumption
   type: simple.MultiplicativeNode
   quantity: energy
@@ -2123,7 +2123,7 @@ nodes:
     - id: renewable_energy
 
 - id: transport_electricity_primary_energy_factor
-  name_de: x
+  name_de: Transport electricity primary energy factor
   name_en: Transport electricity primary energy factor
   type: simple.MultiplicativeNode
   unit: kWh/kWh
@@ -2163,7 +2163,7 @@ nodes:
   - id: zuerich/district_heating_primary_energy_factors
 
 - id: transport_electricity_production_energy_factor
-  name_de: x
+  name_de: Transport electricity primary energy factor by carrier
   name_en: Transport electricity primary energy factor by carrier
   type: simple.AdditiveNode
   quantity: energy_factor
@@ -2173,10 +2173,21 @@ nodes:
   input_datasets:
   - id: zuerich/transport_electricity_production_energy_factor
 
+- id: fuel_energy_density
+  name_de: Fuel energy density
+  name_en: Fuel energy density
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: MJ/kg
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: zuerich/fuel_energy_density
+
 
 
 - id: transport_fuel_consumption
-  name_de: x
+  name_de: Transport fuel consumption
   name_en: Transport fuel consumption
   short_name_en: Transport
   short_name_de: Verkehr
@@ -2190,11 +2201,26 @@ nodes:
     to_dimensions:
     - id: vehicle_type
   - id: transport_fuel_factor
+
+- id: transport_fuel_end_energy_consumption
+  name_de: Transport fuel end energy consumption
+  name_en: Transport fuel end energy consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: MJ/a
+  input_nodes:
+  - id: transport_fuel_consumption
+  - id: fuel_energy_density
 #  output_nodes:
 #  - id: electricity_consumption
 #    from_dimensions:
 #    - id: vehicle_type
 #      flatten: true
+
 
 
 # - id: net_emissions_2kw
