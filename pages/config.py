@@ -12,7 +12,7 @@ class Page(I18nBaseModel):
 
 
 class OutcomePage(Page):
-    outcome_node: str
+    outcome_node: str | None = None
     lead_title: I18nStringInstance | None = None
     lead_paragraph: I18nStringInstance | None = None
 
