@@ -1,23 +1,24 @@
-id: longmont
+id: saskatoon
 default_language: en
-supported_languages: [es]
-site_url: https://longmont.paths-test.kausal.tech
+supported_languages: []
+site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3fbe1baa8e888420703e720c7c47f534123a8212
+  commit: 7c38edfcbadc7824e8c97fabc2fef1d96c91fc92
   dvc_remote: kausal-s3
-name: Longmont Greenhouse gas inventory
-owner_en: City of Longmont
-theme_identifier: us-longmont
+  default_path: saskatoon
+name: Saskatoon Greenhouse Gas Inventory
+owner_en: City of Saskatoon
+theme_identifier: ca-saskatoon
 target_year: 2050
-model_end_year: 2050
+model_end_year: 2025
 reference_year: 2016
-minimum_historical_year: 2016
+minimum_historical_year: 2014
 maximum_historical_year: 2021
 emission_unit: t/a
 emission_forecast_from: 2022
 emission_dimensions: [emission_scope]
-emission_dataset: longmont/greenhouse_gas_emissions_by_subsector
+emission_dataset: saskatoon/greenhouse_gas_emissions_by_subsector
 emission_sector_dimension: emission_sectors
 normalizations:
 - normalizer_node: population
@@ -67,62 +68,50 @@ dimensions:
     order: -1
 
 - id: emission_sectors
-  label: Emission sectors
+  label: Emission Sectors
   categories:
   - id: stationary_energy
-    label: Stationary energy
-  - id: buildings
-    label: Building energy
-  - id: residential_energy
-    label: Residential energy
-  - id: commercial_industrial_energy
-    label: Commercial and industrial energy
-  - id: streetlights
-    label: Streetlights
-  - id: stationary_electricity
-    label: Total electricity
-  - id: stationary_natural_gas
-    label: Total natural gas
-  - id: stationary_diesel
-    label: Total diesel
-  - id: fugitive_emissions
-    label: Fugitive emissions
-  - id: leakage_from_natural_gas
-    label: Leakage from natural gas
-  - id: leakage_from_oil_and_gas_wells
-    label: Total oil and gas wells
-  - id: transmission_losses
-    label: Transmission and distribution losses
+    label: I Stationary Energy
+  - id: residential
+    label: I.1 Residential Buildings
+  - id: commercial_institutional
+    label: I.2 Commercial & Institutional Buildings
+  - id: manufacturing_construction
+    label: I.3 Manufacturing & Construction
+  - id: energy_industries
+    label: I.4 Energy Industries
+  - id: streetlighting
+    label: I.6 Streetlighting & Traffic Signals
+
   - id: transport
-    label: Transportation
-  - id: on_road_transportation
-    label: Total on-road
-  - id: aviation
-    label: Aviation
+    label: II Transportation
+  - id: on_road_transport
+    label: II.1 On-Road Transportation
   - id: railways
-    label: Total railways
-  - id: off_road
-    label: Total off-road
+    label: II.2 Railways
+  - id: waterborne
+    label: II.3 Waterborne Navigation
+  - id: aviation
+    label: II.4 Aviation
+
   - id: waste
-    label: Waste
-  - id: waste_disposal
-    label: Waste disposal
-  - id: waste_water_treatment
-    label: Waste water treatment
-  - id: avoided_waste
-    label: Total avoided emissions from recycling
+    label: III Waste
+  - id: solid_waste
+    label: III.1 Solid Waste Disposal
+  - id: biological_waste
+    label: III.2 Biological Treatment of Waste
+  - id: wastewater_treatment
+    label: III.4 Wastewater Treatment & Discharge
+
   - id: ippu
-    label: Industrial processes and product use
-  - id: refridgerant
-    label: Refridgerant emissions
+    label: IV Industrial Processes & Product Use
+  - id: industrial_processes
+    label: IV.1 Industrial Processes
+
   - id: afolu
-    label: Agriculture, forestry, and other land use
-  - id: food_consumption
-    label: Food
-  - id: textile_consumption
-    label: Textiles
-  - id: other_consumption
-    label: Other consumption
+    label: V Agriculture, Forestry, & Other Land Use
+  - id: livestock
+    label: V.1 Livestock
 
 - id: vehicle_type
   label: Vehicle type
@@ -351,17 +340,13 @@ dimensions:
   - id: subsidized
     label: Subsidized electricity
 
-- id: site
-  label: Production or consumption site
+- id: utility
+  label: Electric Utility
   categories:
-  - id: longmont_power
-    label: Longmont Power
-  - id: xcel_energy
-    label: Xcel Energy
-  - id: various
-    label: Various
-  - id: home
-    label: Home
+  - id: saskpower
+    label: SaskPower
+  - id: slp
+    label: SL&P
 
 - id: waste
   label: Waste type
@@ -568,1576 +553,1596 @@ nodes:
     [2030, 111072], [2035, 117045], [2040, 120006], [2045, 123042], [2050, 126156]]
   input_dataset_processors: [LinearInterpolation]
 
-- id: global_warming_potential_100a
-  name: Global warming potential 100 a
-  type: emissions.GlobalWarmingPotential
-  quantity: emission_factor
-  unit: dimensionless
-  output_dimensions: [greenhouse_gases]
-  input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1], [2021, 1]]
-
-#
-# STATIONARY
-#
-- id: floor_increase_residential
-  name: Relative residential floor area to current situation
-  type: costs.ExponentialNode
-  quantity: ratio
-  unit: '%'
-  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
-    [2021, 100]]
-  params:
-  - id: current_value
-    value: 100.0
-    unit: '%'
-  - id: annual_change
-    value: 1.0
-    unit: '%'
-  - id: replace_output_using_input_dataset
-    value: true
-
-- id: floor_increase_commercial
-  name: Relative commercial floor area to current situation
-  type: costs.ExponentialNode
-  quantity: ratio
-  unit: '%'
-  historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
-    [2021, 100]]
-  params:
-  - id: current_value
-    value: 100.0
-    unit: '%'
-  - id: annual_change
-    value: 1.0
-    unit: '%'
-  - id: replace_output_using_input_dataset
-    value: true
-
-- id: floor_increase
-  name: Relative floor area
-  description: In the excel model, 1 % increase is assumed until 2035 and then 0 %.
-    Here, the increase continues.
+- id: transmission_distribution_loss_factor
+  name: Transmission & Distribution Loss Factor by Utility
   type: simple.AdditiveNode
-  quantity: ratio
-  unit: '%'
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: floor_increase_residential
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-  - id: floor_increase_commercial
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-- id: building_floor_area_historical
-  name: Building floor area, historical
-  type: simple.AdditiveNode
-  quantity: floor_area
-  unit: ft**2
+  quantity: fraction
+  unit: kWh/kWh
+  output_dimensions: [utility]
+  input_dimensions: [utility]
   input_datasets:
-  - longmont/building_floor_area
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+  - id: saskatoon/transmission_distribution_loss_factor
 
-- id: building_floor_area
-  name: Building floor area
-  type: simple.UsFloorAreaNode
-  quantity: floor_area
-  unit: ft**2
-  input_nodes:
-  - id: floor_increase
-    to_dimensions:
-    - id: emission_sectors
-  - id: building_floor_area_historical
-    tags: [non_additive]
-    to_dimensions:
-    - id: emission_sectors
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors, building_energy_class, action]
-
-- id: commercial_square_footage_over_20000_sf
-  name: Commercial square footage over 20,000 square feet
-  type: simple.UsFloorAreaNode
-  quantity: floor_area
-  unit: ft**2
-  input_datasets:
-  - id: longmont/commercial_square_footage_over_20000_sf
-
-- id: building_natural_gas_eui
-  name: Energy use intensity EUI for natural gas
-  type: simple.UsEuiNode
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: natural_gas
-  input_dimensions: [emission_sectors]
-
-- id: building_electricity_use
-  name: Building electricity use
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
-  type: simple.MultiplyLastNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: building_electricity_use_intermediate
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-
-- id: building_natural_gas_use
-  name: Building natural gas use
-  description: <b>Unit:</b> Mthm/yr. = million therms per year.
-  type: simple.MultiplyLastNode
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: building_natural_gas_use_intermediate
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-
-- id: building_natural_gas_use_intermediate
-  name: Building natural gas use (intermediate)
-  description: <p>This node shows the building natural gas use when some, but not
-    all, actions have been implemented. the actual natural gas use with all the actions
-    is shown downstream in the node "Building natural gas use". </p><p>Building energy
-    class has a specific use here. "All buildings, baseline" shows the natural gas
-    use that would occur in the building stock if none of the upstream actions are
-    implemented. All other classes show the difference to the baseline; in other words
-    energy saving actions take the natural gas use to the negative side. If the actions
-    do not affect a particular class, the graph of that class seems empty.</p>
-  type: simple.UsEnergyNode
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
-  input_nodes:
-  - id: building_floor_area
-    tags: [floor_area]
-  - id: building_natural_gas_eui
-    tags: [consumption_factor]
-
-- id: building_natural_gas_use_20000_sf
-  name: Building natural gas use in large commercial buildings
-  description: <p>This node shows the building natural gas use when some, but not
-    all, actions have been implemented on large commercial buildings. the actual natural
-    gas use with all the actions is shown downstream in the node "Building natural
-    gas use". </p><p>Building energy class has a specific use here. "All buildings,
-    baseline" shows the natural gas use that would occur in the building stock if
-    none of the upstream actions are implemented. All other classes show the difference
-    to the baseline; in other words energy saving actions take the natural gas use
-    to the negative side. If the actions do not affect a particular class, the graph
-    of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
-  type: simple.UsEnergyNode
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
-  input_nodes:
-  - id: commercial_square_footage_over_20000_sf
-    tags: [floor_area]
-    # metrics: [floor_area]
-  - id: building_natural_gas_eui
-    tags: [consumption_factor]
-  output_nodes:
-  - id: building_natural_gas_use
-    from_dimensions:
-    - id: building_energy_class
-      categories: [renovated, compliant]
-      flatten: true
-
-- id: building_electricity_use_20000_sf
-  name: Building electricity use in large commercial buildings
-  description: <p>This node shows the building electricity use when some, but not
-    all, actions have been implemented on large commercial buildings. the actual electricity
-    use with all the actions is shown downstream in the node "Building electricity
-    use". </p><p>Building energy class has a specific use here. "All buildings, baseline"
-    shows the electricity use that would occur in the building stock if none of the
-    upstream actions are implemented. All other classes show the difference to the
-    baseline; in other words energy saving actions take the electricity use to the
-    negative side. If the actions do not affect a particular class, the graph of that
-    class seems empty.</p>
-  type: simple.UsEnergyNode
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
-  input_nodes:
-  - id: commercial_square_footage_over_20000_sf
-    tags: [floor_area]
-    # metrics: [floor_area]
-  - id: building_electricity_eui
-    tags: [consumption_factor]
-  output_nodes:
-  - id: building_electricity_use
-    from_dimensions:
-    - id: building_energy_class
-      categories: [renovated, compliant]
-      flatten: true
-
-- id: electricity_use
-  name: Electricity use
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
-  type: simple.MultiplyLastNode2
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - building_electricity_use
-
-- id: electricity_emission_factor
-  name: Emission factor of electricity production
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_datasets:
-  - id: longmont/electricity_emission_factor
-    filters:
-    - column: site
-      value: longmont_power
-  input_dataset_processors: [LinearInterpolation]
-  input_dimensions: [greenhouse_gases]
-  output_dimensions: [greenhouse_gases]
-
-- id: building_electricity_eui
-  name: Energy use intensity EUI for electricity
-  type: simple.UsEuiNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-  input_dimensions: [emission_sectors]
-
-- id: building_electricity_use_intermediate
-  name: Building electricity use (intermediate)
-  description: <p>This node shows the building electricity use when some, but not
-    all, actions have been implemented. the actual electricity use with all the actions
-    is shown downstream in the node "Building electricity use". </p><p>Building energy
-    class has a specific use here. "All buildings, baseline" shows the electricity
-    use that would occur in the building stock if none of the upstream actions are
-    implemented. All other classes show the difference to the baseline; in other words
-    energy saving actions take the electricity use to the negative side. If the actions
-    do not affect a particular class, the graph of that class seems empty.</p>
-  type: simple.UsEnergyNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [emission_sectors, action, building_energy_class]
-  output_dimensions: [emission_sectors, building_energy_class]
-  input_nodes:
-  - id: building_electricity_eui
-    tags: consumption_factor
-  - id: building_floor_area
-    tags: floor_area
-    # metrics: [floor_area]
-
-# Building model, updated building code
-# Floor area increses by B32 every year. categories residential, commercial
-# Energy use intensity EUI improves every three years to the most recent IECC(?)
-# Most recent IECC improves by C34 annually
-# Existing building go through energy improvement 1 %
-# New buildings: 90 % are compliant and have X % lower energy consumption
-# Electricity and gas separately, for residential and commercial
-# Energy saving = affected area * saved energy factor * compliant fraction; cumulatively
-# Savings separately for new and existing buildings
-# Emissions = energy * emission factors for electricity or natural gas (per ghg gas)
-
-# Develop beyond bulding code
-# New buildings only
-# Estimated savings beyond IECC: goes from 0 to 100 % between 2017 and 2030
-# energy efficiency = EUI with most recent IECC * (1-savings)
-# Natural gas savings: subtract the impacts of electrification of heating
-# Emissions = as above
-
-# Report benchmark energy use
-# Commercial area over 20000 sqft (increases by B33 every year)
-# Percent participation: goes non-linearly fom 88 to 99 % between 2023 and  2029
-# Percent saving: goes non-linearly from 2.4 to 0 % between 2023 and 2029; cumulatively
-# Emissions = as above
-
-# Expand the Efficiency Works Program
-# Percent savings: after gradual increase 2016-2025, is constant C55.
-# Energy = savings * total electricity consumption BAU!M44 (residence, commercial + losses)
-# Emissions = as above
-
-# Electrify buildings
-# If time > electrification start year 2023, then use model input values for saving estimates
-# Emission reduction is estimated to come from reduced natural gas, and the respective
-# amount of additional electricity consumption is then added (with a factor conversion,
-# but we want to rather use floor area changes)
-
-- id: electricity_consumption_emissions
-  name: Electricity consumption emissions
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  color: '#4d9870'
-  output_dimensions: [greenhouse_gases, emission_sectors]
-  input_nodes:
-  - id: electricity_use
-    to_dimensions:
-    - id: emission_sectors
-  - id: electricity_emission_factor
-    to_dimensions:
-    - id: greenhouse_gases
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope2]
-
-- id: electricity_replacing_natural_gas_residential
-  name: Electricity that replaces natural gas in residential buildings
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: kWh/a
-  params:
-  - id: multiplier
-    value: -0.33
-  output_nodes:
-  - id: building_electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-
-- id: electricity_replacing_natural_gas_commercial
-  name: Electricity that replaces natural gas in commercial buildings
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: kWh/a
-  params:
-  - id: multiplier
-    value: -0.39
-  output_nodes:
-  - id: building_electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-# Natural gas
-
-- id: emission_factor_natural_gas
-  name: Emission factor of natural gas
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/Mthm
-  input_datasets:
-  - longmont/emission_factor_natural_gas
-  input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [greenhouse_gases, energy_carrier]
-
-- id: leakage_from_natural_gas_emissions
-  name: Emissions from natural gas leakage
-  category: leakage_from_natural_gas
-  type: simple.FixedMultiplierNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - building_natural_gas_use
-  output_nodes:
-  - id: fugitive_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-  params:
-  - id: multiplier
-    value: 0.18409014  # =(D47*100000/1028*0.02832*0.8*0.934/1000*0.003*'Emission Factors and Constants'!$C$21)+(D47*100000/1028*0.02832*0.8*0.01/1000*0.003) = D47 * 0.00018409014
-    unit: kg/therm
-
-- id: natural_gas_consumption_emissions
-  name: Natural gas consumption emissions
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  output_dimensions: [emission_sectors, greenhouse_gases, energy_carrier]
-  input_nodes:
-  - id: building_natural_gas_use
-    to_dimensions:
-    - id: emission_sectors
-    - id: energy_carrier
-      categories: [natural_gas]
-  - id: emission_factor_natural_gas
-    to_dimensions:
-    - id: greenhouse_gases
-    - id: energy_carrier
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-# Other fuels
-
-- id: stationary_fuel_consumption
-  name: Other stationary fuel consumption
+- id: stationary_electricity_consumption
+  name: Stationary Electricity Consumption by Sector & Utility
   type: simple.AdditiveNode
   quantity: energy
-  unit: gal/a
+  unit: kWh
+  output_dimensions: [emission_sectors, utility]
+  input_dimensions: [emission_sectors, utility]
   input_datasets:
-  - longmont/stationary_fuel_use
-  input_dimensions: [emission_sectors, energy_carrier]
-  output_dimensions: [emission_sectors, energy_carrier]
-
-- id: emission_factor_fuel
-  name: Emission factor of stationary fuels
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/gal
-  input_datasets:
-  - longmont/emission_factor_fuels
-  input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [energy_carrier, greenhouse_gases]
-
-- id: stationary_fuel_consumption_emissions
-  name: Stationary fuel consumption emissions
-  description: <p>1) Stationary Diesel Use data was provided by CDPHE. Spreadsheet
-    on file.</p> <p>2) Xcel Energy emission factor, electricity and natural gas usage
-    data, and renewable energy data is from Xcel's 2021 Community Energy Report for
-    Longmont, on file.</p> <p>3) Longmont Power & Communications data provided. PDF
-    on file. The commercial buildings in Longmont's Weld County portion consumed 31,000,000
-    kWh in 2021.</p> <p>4) T&D losses are calculated for Xcel and Longmont based on
-    the EIA 861 (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically
-    the Utility Operational Data_2021. Spreadsheet on file.</p> <p>5) Propane data
-    provided by FerrellGas. Spreadsheet on file.</p> <p>6) Houses heated with wood
-    were pulled from the US Census Bureau, data on file. It was assumed that all of
-    the houses heated by wood in Longmont fell within the Boulder County portion of
-    Longmont.</p> <p>7) Longmont Power and Communications data was provided by Longmont
-    Power & Communications. PDF on file.</p> <p>8) Longmont Power & Communications
-    and Lyons Municipal rooftop solar data was provided in kW of capacity rather than
-    kWh generated. NREL's PVWatts was used to estimate kWh generated by rooftop solar
-    systems. PDF of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due
-    to Xcel's 15/15 rule, with less than 15 customers in the commercial and residential
-    data sets they cannot provide usage for those customers to avoid violating privacy
-    concerns. Therefore Lotus applied the average residential and commercial kWh use
-    from LPC to the 7 residential and commercial customers (respectively) in Xcel
-    territory to estimate use.</p> <p>11) PRPA emission factor and transmission and
-    distribution loss rate for 2021 was provided. Email on file. Emissions factor
-    value represents Longmont's load share emissions rate without unbundled RECs.</p>
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
-  input_nodes:
-  - id: stationary_fuel_consumption
-    to_dimensions:
-    - id: emission_sectors
-    - id: energy_carrier
-  - id: emission_factor_fuel
-    to_dimensions:
-    - id: greenhouse_gases
-    - id: energy_carrier
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-# Wood
-
-- id: stationary_wood_consumption
-  name: Stationary wood consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: MMBtu/a
-  input_datasets:
-  - longmont/stationary_wood_consumption
-  input_dimensions: [emission_sectors]
-  output_dimensions: [energy_carrier, emission_sectors]
-
-- id: emission_factor_wood
-  name: Emission factor of wood
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/MMBtu
-  input_datasets:
-  - longmont/emission_factor_wood
-  output_dimensions: [energy_carrier, greenhouse_gases]
-
-- id: wood_consumption_emissions
-  name: Wood consumption emissions
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
-  input_nodes:
-  - id: stationary_wood_consumption
-    to_dimensions:
-    - id: emission_sectors
-    - id: energy_carrier
-      categories: [wood]
-  - id: emission_factor_wood
-    to_dimensions:
-    - id: greenhouse_gases
-    - id: energy_carrier
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-# Losses
-
-- id: electricity_loss_fraction
-  name: Electricity loss fraction
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_datasets:
-  - id: longmont/transmission_and_distribution_loss
-    filters:
-    - column: site
-      value: longmont_power
-  output_dimensions: [energy_carrier]
-  output_nodes:
-  - id: electricity_losses
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]  # FIXME Should apply to commercial, too.
-
-- id: electricity_losses
-  name: Electricity losses
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: electricity_use
-    tags: [non_additive]
-    to_dimensions:
-    - id: emission_sectors
-
-- id: electricity_loss_emissions
-  name: Emissions due to electricity losses
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: t/a
-  input_nodes:
-  - id: electricity_losses
-    to_dimensions:
-    - id: emission_sectors
-  - id: electricity_emission_factor
-    to_dimensions:
-    - id: greenhouse_gases
-  output_dimensions: [greenhouse_gases, emission_sectors]
-  output_nodes:
-  - id: electricity_consumption_emissions
-    to_dimensions:
-    - id: emission_sectors
-    - id: greenhouse_gases
-
-#
-# TRANSPORTATION
-#
-
-- id: emission_factor_fuels
-  name: Fuel emission factors for CO2
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/gal
-  input_datasets:
-  - longmont/emission_factor_fuels
-  input_dimensions: [energy_carrier, greenhouse_gases]
-  output_dimensions: [energy_carrier, greenhouse_gases]
-
-- id: registered_vehicles
-  name: Registered vehicles
-  type: simple.FixedMultiplierNode
-  quantity: number
-  unit: vehicle
-  input_nodes:
-  - population
-  params:
-  - id: multiplier
-    value: 0.8140
-    unit: vehicle/person
-    is_customizable: false
-
-- id: miles_per_gallon
-  name: Miles per gallon
-  type: simple.AdditiveNode
-  quantity: fuel_consumption
-  unit: miles/gallon
-  input_datasets:
-  - longmont/miles_per_gallon
-
-- id: vehicle_miles_per_vehicle
-  name: Vehicle miles per vehicle
-  description: '<p>The model has two different estimates for VMT: <ul><li>Row 50: Average
-    annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li> <li>Row
-    76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
-    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: miles/vehicle/a
-  input_datasets:
-  - longmont/annual_vehicle_miles_per_vehicle
-
-- id: registered_electric_vehicles
-  name: Registered electric vehicles
-  type: simple.AdditiveNode
-  quantity: number
-  unit: vehicle
-  input_datasets:
-  - longmont/registered_electric_vehicles
-
-- id: registered_non_electric_vehicles
-  name: Registered non-electric vehicles
-  type: simple.SubtractiveNode
-  quantity: number
-  unit: vehicle
-  input_nodes:
-  - registered_vehicles
-  - registered_electric_vehicles
-
-- id: total_vehicle_miles_traveled
-  name: Total combustion engine vehicle miles traveled
-  description: '<p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per capita)</p>'
-  type: simple.MultiplicativeNode
-  quantity: mileage
-  unit: Mmiles/a
-  input_nodes:
-  - vehicle_miles_per_vehicle
-  - registered_non_electric_vehicles
-
-- id: non_electric_vehicle_fuel_use
-  name: Non-electric vehicle fuel use
-  type: simple.DivisiveNode
-  quantity: energy
-  unit: gallons/a
-  input_nodes:
-  - total_vehicle_miles_traveled
-  - miles_per_gallon
-
-- id: vehicle_fuel_emissions
-  name: Vehicle fuel emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, greenhouse_gases]
-  output_dimensions: [energy_carrier, greenhouse_gases]
-  input_nodes:
-  - id: non_electric_vehicle_fuel_use
-    to_dimensions:
-    - id: energy_carrier
-      categories: [petrol]
-  - id: emission_factor_fuels
-    to_dimensions:
-    - id: energy_carrier
-    - id: greenhouse_gases
-  output_nodes:
-  - id: on_road_transportation_emissions
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-- id: vehicle_electricity_emissions
-  name: Vehicle electricity emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [greenhouse_gases]
-  output_dimensions: [greenhouse_gases]
-  input_nodes:
-  - id: vehicle_electricity_use
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    to_dimensions: []
-  - id: electricity_emission_factor
-    to_dimensions:
-    - id: greenhouse_gases
-  output_nodes:
-  - id: on_road_transportation_emissions
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-- id: electric_vehicle_efficiency
-  name: Electric vehicle efficiency
-  type: simple.AdditiveNode
-  quantity: fuel_consumption
-  unit: kWh/mile
-  input_datasets:
-  - longmont/electric_vehicle_efficiency
-
-- id: vehicle_electricity_use
-  name: Vehicle electricity use
-  description: <b>Unit:</b> kWh/yr. = kilowatt-hours per year.
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: registered_electric_vehicles
-    to_dimensions: []
-  - id: vehicle_miles_per_vehicle
-    to_dimensions: []
-  - id: electric_vehicle_efficiency
-    to_dimensions: []
-  - vehicle_charging_shares
-
-- id: vehicle_charging_shares
-  name: Vehicle charging shares
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_datasets:
-  - longmont/vehicle_charging_shares
-  output_dimensions: [emission_sectors]
-
-- id: free_rides_per_person
-  name: Rides per person from Ride Free program
-  type: simple.AdditiveNode
-  quantity: number
-  unit: trip/inhabitant/a
-  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019,
-      1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
-
-- id: ridership_program
-  name: Ridership from Ride Free program
-  type: simple.MultiplicativeNode
-  quantity: number
-  unit: trip/a
-  input_nodes:
-  - free_rides_per_person
-  - population
-
-- id: vmt_change_due_to_public_transportation
-  name: Change in vehicle miles traveled due to public transportation
-  type: simple.FixedMultiplierNode
-  quantity: mileage
-  unit: miles/a
-  input_nodes:
-  - public_transportation_trips
-  params:
-  - id: multiplier
-    value: -8.8
-    unit: miles/trip
-  output_nodes:
-  - total_vehicle_miles_traveled
-
-- id: modal_share_of_active_transportation
-  name: Modal share of active transportation
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10],
-    [2021, 10]]
-
-- id: vmt_change_from_active_transportation
-  name: Change in vehicle miles traveled due to active transportation
-  type: simple.ImprovementNode
-  quantity: mileage
-  unit: dimensionless
-  input_nodes:
-  - modal_share_of_active_transportation
-  output_nodes:
-  - id: total_vehicle_miles_traveled
-    tags: [non_additive]
-
-- id: public_transportation_change
-  name: Public transportation change by last-mile actions
-  description: This is an intermediate node converting the action into a relative
-    amount of trips (business-as-usual = 1).
-  type: simple.ImprovementNode2
-  quantity: ratio
-  unit: dimensionless
-  historical_values: [[2016, 1.0], [2021, 1.9]]
-  input_dataset_processsors: [LinearInterpolation]
-
-- id: public_transportation_trips_per_person
-  name: Public transportation trips per person
-  description: Without further actions, the number of public transportation trips
-    per person is assumed to be constant and at the level of 2017.
-  type: simple.FixedMultiplierNode
-  quantity: number
-  unit: trips/inhabitant/a
-  historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 5.906333777],
-    [2019, 5.922192747], [2020, 5.938051718], [2021, 5.953910689]]
-  input_nodes:
-  - public_transportation_change
-  params:
-  - id: multiplier
-    value: 5.890474806
-    unit: trip/inhabitant/a
-  - id: replace_output_using_input_dataset
-    value: true
-
-- id: public_transportation_trips
-  name: Public transportation trips
-  type: simple.MultiplicativeNode
-  quantity: number
-  unit: trip/a
-  input_nodes:
-  - population
-  - public_transportation_trips_per_person
-  - ridership_program
-
-### WASTE
-
-- id: amount_of_waste_per_person
-  name: Amount of waste per person
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: short_ton/inhabitant/a
-  input_datasets:
-  - longmont/amount_of_waste
-  input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [waste]
-
-- id: amount_of_waste
-  name: Total amount of waste
-  type: simple.MultiplicativeNode
-  quantity: mass
-  unit: short_ton/a
-  input_dimensions: [waste]
-  output_dimensions: [waste]
-  input_nodes:
-  - id: amount_of_waste_per_person
-  - id: population
-    to_dimensions: []
-
-- id: diversion_rate
-  name: Diversion rate
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [2020,
-      31.1], [2021, 35.0]]
-
-- id: waste_diversion
-  name: Fraction of non-diverted waste
-  type: simple.ImprovementNode
-  quantity: fraction
-  unit: dimensionless
-  input_nodes:
-  - diversion_rate
-
-- id: amount_of_non_diverted_waste
-  name: Amount of non-diverted waste
-  type: simple.MultiplicativeNode
-  quantity: mass
-  unit: short_ton/a
-  input_nodes:
-  - id: amount_of_waste
-    tags: [non_additive]
-    from_dimensions:
-    - id: waste
-      categories: [landfilled]
-      flatten: true
-  - id: waste_diversion
-    tags: [non_additive]
-
-- id: waste_emission_factor
-  name: Waste emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/short_ton
-  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 6], [2020, 6],
-    [2021, 6]]
-
-- id: landfill_emissions
-  name: Landfill emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: metric_ton/a
-  input_dimensions: [greenhouse_gases]
-  output_dimensions: [greenhouse_gases]
-  input_nodes:
-  - id: amount_of_non_diverted_waste
-    tags: [non_additive]
-    to_dimensions:
-    - id: greenhouse_gases
-      categories: [ch4]
-  - id: waste_emission_factor
-    to_dimensions:
-    - id: greenhouse_gases
-      categories: [ch4]
-  - id: global_warming_potential_100a
-  output_nodes:
-  - id: waste_disposal_emissions
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope3]
-
-- id: participation_smart_grid
-  name: Participation in smart grid projects
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [2021,
-      9]]
-
-- id: smart_grid_improvement
-  name: Relative improvement due to smart grid implementation
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
-      0]]
-
-- id: smart_grid_benefits
-  name: Smart grid action benefits
-  type: simple.ImprovementNode
-  quantity: fraction
-  unit: dimensionless
-  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
-  input_nodes:
-  - id: participation_smart_grid
-    tags: [non_additive]
-  - id: smart_grid_improvement
-    tags: [non_additive]
-  output_nodes:
-  - id: electricity_use
-    to_dimensions: []
-
-- id: transmission_loss_change
-  name: Transmission loss changes
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
-      0], [2022, 0]]
-
-- id: transmission_loss_work_benefits
-  name: Improvements due to transmission loss work
-  description: Relative change of electricity use compared with the business as usual (baseline = 1).
-  type: simple.ImprovementNode
-  quantity: fraction
-  unit: dimensionless
-  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [2021,
-      1], [2022, 1]]
-  input_nodes:
-  - id: transmission_loss_change
-    tags: [non_additive]
-  output_nodes:
-  - id: electricity_use
-
-actions:
-
-- id: updated_building_code
-  name: Use updated building code and enforce
-  description: '<p>Adopting and enforcing the latest International Energy Conservation
-    Code (IECC) every year a new IECC is released will increase efficiency.</p> <p>The
-    graph shows the relative improvement of the energy use intensity (EUI) caused
-    by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
-    Plan Strategy BI-5</a></li></ul></p>'
-  type: energy_saving.UsBuildingAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_datasets:
-  - id: longmont/energy_use_intensity_with_building_actions
-    filters:
-    - column: action
-      value: updated_building_code
-  output_dimensions: [emission_sectors]
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-  - id: building_electricity_eui
-    metrics: [improvement]
-  - id: building_floor_area
-    metrics: [triggered, compliant]
-
-- id: develop_beyond_building_code
-  name: Develop beyond building code
-  description: '<p>Develop building codes that go beyond the IECC and towards net-zero
-    energy use, including the Climate Action Recommendations Report strategies to
-    add solar ready and electric vehicle ready as part of the 2021 residential code
-    update.</p> <p>The graph shows the relative improvement of the energy use intensity
-    (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-6">Sustainability
-    Plan Strategy BI-6</a></li></ul></p>'
-  type: energy_saving.UsBuildingAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_datasets:
-  - id: longmont/energy_use_intensity_with_building_actions
-    filters:
-    - column: action
-      value: develop_beyond_building_code
-  output_dimensions: [emission_sectors]
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: building_energy_class
-      categories: [compliant]
-    - id: emission_sectors
-  - id: building_electricity_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: building_energy_class
-      categories: [compliant]
-    - id: emission_sectors
-  - id: building_floor_area
-    metrics: [triggered, compliant]
-    to_dimensions:
-    - id: building_energy_class
-      categories: [compliant]
-    - id: emission_sectors
-
-- id: benchmark_energy_use
-  name: Report and benchmark energy use in commercial buildings
-  description: '<p>Requires commercial and industrial buildings owners whose buildings
-    exceed 20,000 square feet to rate their building s energy use, report energy metrics,
-    and encourages buildings owners to implement energy efficiency measures.</p> <p>The
-    graph shows the relative improvement of the energy use intensity (EUI) caused
-    by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-5">Sustainability
-    Plan Strategy E-5</a></li></ul>'
-  type: energy_saving.UsBuildingAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_datasets:
-  - id: longmont/energy_use_intensity_with_building_actions
-    filters:
-    - column: action
-      value: benchmark_energy_use
-  output_dimensions: [emission_sectors]
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-  - id: building_electricity_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-  - id: commercial_square_footage_over_20000_sf
-    metrics: [triggered, compliant]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-
-- id: efficiency_works_program
-  name: Expand the Efficiency Works Program
-  description: '<p>Expand the Efficiency Works Program to achieve 2% energy savings
-    by 2025 through commercial retro-commissioning, low-income programs, and residential
-    and commercial savings.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-1">Municipal:
-    Sustainability Plan Strategy E-1</a></li> <li>Commercial: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-3">Sustainability
-    Plan Strategy E-3</a></li> <li>Residential: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
-    Plan Strategy E-7 </a></li> <li>Income-Qualified: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-2">Sustainability
-    Plan Strategy E-2</a></li> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-2">Strategy
-    BI-2</a></li></ul>'
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  historical_values: [[2016, 0.5], [2017, 0.7], [2018, 1.1], [2019, 0.8], [2020, 1.1],
-    [2021, 0.7], [2022, 0.9]]
-  forecast_values: [[2023, 1.5], [2024, 1.75], [2025, 2], [2026, 2], [2027, 2], [
-      2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [2033, 2], [2034, 2],
-    [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2], [2040, 2], [2041, 2], [
-      2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [2047, 2], [2048, 2],
-    [2049, 2], [2050, 2]]
-  output_nodes:
-  - id: building_electricity_use
-    tags: [non_additive]
-  - id: building_natural_gas_use
-    tags: [non_additive]
-
-- id: replace_natural_gas_residential
-  name: Beneficial Building Electrification Residential
-  description: '<p>Converting residential building systems that use fossil fuels (gas,
-    oil, or propane) to high efficiency electric equipment powered by increasingly
-    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
-    Building Electrification Plan</a></li></ul>'
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: ktherm/a
-  group: buildings
-  forecast_values: [[2023, -192.409], [2024, -192.409], [2025, -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030, -192.409], [2031, -999.708], [2032, -999.708], [2033, -999.708], [2034, -999.708], [2035, -999.708], [2036, -999.708], [2037, -999.708], [2038, -999.708], [2039, -999.708], [2040, -999.708], [2041, -999.708], [2042, -999.708], [2043, -999.708], [2044, -999.708], [2045, -999.708], [2046, -999.708], [2047, -999.708], [2048, -999.708], [2049, -999.708], [2050, -999.708]]
-  output_nodes:
-  - id: building_natural_gas_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-  - id: electricity_replacing_natural_gas_residential
-
-- id: replace_natural_gas_commercial
-  name: Beneficial Building Electrification Commercial
-  description: '<p>Converting residential building systems that use fossil fuels (gas,
-    oil, or propane) to high efficiency electric equipment powered by increasingly
-    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
-    Building Electrification Plan</a></li></ul>'
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: ktherm/a
-  group: buildings
-  forecast_values: [[2023, -88.707], [2024, -88.707], [2025, -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707], [2031, -572.853], [2032, -572.853], [2033, -572.853], [2034, -572.853], [2035, -572.853], [2036, -572.853], [2037, -572.853], [2038, -572.853], [2039, -572.853], [2040, -572.853], [2041, -572.853], [2042, -572.853], [2043, -572.853], [2044, -572.853], [2045, -572.853], [2046, -572.853], [2047, -572.853], [2048, -572.853], [2049, -572.853], [2050, -572.853]]
-  output_nodes:
-  - id: building_natural_gas_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-  - id: electricity_replacing_natural_gas_commercial
-
-- id: longmont_power_renewables
-  name: 90% renewable electric energy supply by 2030
-  description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
-    >resolution</a> to commit Longmont to 100% renewable electric energy supply by
-    2030.</p> <p>This action only models to 90% as according to latte River Power
-    Authority's most recent integrated resource plan, existing technology will only
-    help Platte River reach 90% noncarbon by 2030.</p> <p>To model the 100% renewable
-    electric energy supply goal, select this action and <a href=\"https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables_additional\"\
-    >Additional 10% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
-    <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
-    >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
-    >Longmont Renewable Energy</a></li></ul></p>"
-  type: linear.ReduceAction
-  quantity: emission_factor
-  unit: t/MWh
-  group: electric_grid
-  output_nodes:
-  - electricity_emission_factor
-  params:
-  - id: reduce
-    unit: t/MWh
-    is_customizable: false
-    value:
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-      amounts:
-      - year: 2023
-        amount: -0.058
-      - year: 2030
-        amount: -0.058
-      - year: 2031
-        amount: 0
-
-- id: longmont_power_renewables_additional
-  name: Additional 10% renewable electric energy supply by 2030
-  description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
-    >resolution</a> to commit Longmont to 100% renewable electric energy supply by
-    2030.</p> <p>This action models the additional 10% renewable energy to meet City
-    Council's goal of 100% renewable electric energy supply by 2030.</p> <p>To model
-    the 100% renewable electric energy supply goal, select this action and <a href=\"\
-    https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables\"\
-    >90% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
-    <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
-    >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
-    >Longmont Renewable Energy</a></li></ul></p>"
-  type: linear.ReduceAction
-  quantity: emission_factor
-  unit: t/MWh
-  group: electric_grid
-  output_nodes:
-  - electricity_emission_factor
-  params:
-  - id: reduce
-    unit: t/MWh
-    is_customizable: false
-    value:
-    - target:
-        node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
-      amounts:
-      - year: 2023
-        amount: -0.006
-      - year: 2030
-        amount: -0.006
-      - year: 2031
-        amount: 0
-
-- id: smart_grid_projects
-  name: Accelerate and implement smart grid projects
-  description: '<p>Implement a variety of smart grid projects that encourage reductions
-    in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
-    <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
-    Plan Strategy E-7</a></li></ul>'
-  type: linear.ReduceAction
-  quantity: ratio
-  unit: '%'
-  group: electric_grid
-  output_nodes:
-  - id: participation_smart_grid
-  - id: smart_grid_improvement
-  params:
-  - id: reduce
-    unit: '%'
-    is_customizable: false
-    value:
-    - target:
-        node: participation_smart_grid
-      amounts:
-      - year: 2022
-        amount: 2.675  # (30-9)/8
-      - year: 2029
-        amount: 2.675
-      - year: 2030
-        amount: 0
-    - target:
-        node: smart_grid_improvement
-      amounts:
-      - year: 2022
-        amount: 3.3
-      - year: 2024
-        amount: 3.3
-      - year: 2025
-        amount: 0
-
-- id: reduce_transmission_distribution_losses
-  name: Encourage practices that reduce transmission and distribution losses
-  description: '<p>Reduce electric grid transmission and distribution losses through
-    grid management such as distributed voltage optimization.</p> <p>Track Implementation:
-    <ul><li><a href="https://longmont-indicators.test.kausal.tech/carr/actions/RE.5">Climate
-    Action Recommendations Report RE.5</a></li></ul></p>'
-  type: linear.ReduceAction
-  quantity: ratio
-  unit: '%'
-  group: electric_grid
-  output_nodes:
-  - id: transmission_loss_change
-  params:
-  - id: reduce
-    unit: '%'
-    is_customizable: false
-    value:
-    - target:
-        node: transmission_loss_change
-      amounts:
-      - year: 2023
-        amount: 1.5
-      - year: 2024
-        amount: 0.0
-
-- id: vehicle_incentives
-  name: Increase electric vehicles through vehicle incentives and improved infrastructure
-  description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
-    by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
-    GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-4">Sustainability
-    Plan Strategy T-4</a></li> <li><a href="https://longmont-sca.watch-test.kausal.tech/indicators/1771">Electric
-    Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
-  type: simple.AdditiveAction
-  quantity: number
-  unit: vehicle
-  group: transportation
-  forecast_values: [[2022, 1996.731], [2023, 4038.337], [2024, 6124.817], [2025, 8256.17],
-    [2026, 10432.398], [2027, 12653.501], [2028, 14919.477], [2029, 17230.327], [
-      2030, 19586.052], [2031, 23076.258], [2032, 26634.523], [2033, 30260.847], [
-      2034, 33955.23], [2035, 37717.673], [2036, 41295.753], [2037, 44908.55], [2038,
-      48556.321], [2039, 52239.327], [2040, 55957.828], [2041, 59712.089], [2042,
-      63502.373], [2043, 67328.948], [2044, 71192.082], [2045, 75092.045], [2046,
-      79029.11], [2047, 83003.551], [2048, 87015.642], [2049, 91065.662], [2050, 92000]]
-  output_nodes:
-  - registered_electric_vehicles
-
-- id: increase_access_of_public_transit
-  name: Address barriers to increase access and use of public transit
-  description: '<p>Address barriers to increase access and use of public transit,
-    especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
-    href="https://longmont-indicators.test.kausal.tech/transportation">Equitable Carbon-Free
-    Transportation Roadmap</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-1">Sustainability
-    Plan Strategy T-1</a>, <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-5">Strategy
-    T-5</a> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-7">Strategy
-    T-7</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
-    Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
-    System</a></li></ul></p>'
-  type: simple.AdditiveAction
-  quantity: number
-  unit: trip/inhabitant/a
-  group: transportation
-  forecast_values: [[2023, 1.101064], [2050, 1.101064]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - free_rides_per_person
-
-- id: multimodal_transportation_system
-  name: Develop multimodal transportation system / bicycle and pedestrian improvements
-  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
-    This action specifically models from actively reduce greenhouse gas emissions
-    through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
-    Carbon-Free Transportation Roadmap</a></li> <li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
-    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
-    System</a></li></ul></p>"
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  forecast_values: [[2023, 0], [2050, 15]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - modal_share_of_active_transportation
-
-- id: last_mile_connections
-  name: Improve last mile connections
-  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
-    This action specifically models from actively reduce greenhouse gas emissions
-    through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
-    Carbon-Free Transportation Roadmap</a></li> <ul><li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
-    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
-    System</a></li></ul></p>"
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  forecast_values: [[2022, 1.346], [2023, 1.615], [2024, 1.885], [2025, 2.154], [
-      2026, 2.423], [2027, 2.692], [2028, 2.962], [2029, 3.231], [2030, 3.5], [2031,
-      3.5], [2032, 3.5], [2033, 3.5], [2034, 3.5], [2035, 3.5], [2036, 3.5], [2037,
-      3.5], [2038, 3.5], [2039, 3.5], [2040, 3.5], [2041, 3.5], [2042, 3.5], [2043,
-      3.5], [2044, 3.5], [2045, 3.5], [2046, 3.5], [2047, 3.5], [2048, 3.5], [2049,
-      3.5], [2050, 3.5]]
-  output_nodes:
-  - public_transportation_change
-
-- id: leak_detection
-  name: Adopt and enforce leak detection and repair
-  description: '<p>This action tracks emission reductions from monitoring active oil
-    and gas sites by increasing methane leak detection and repair and minimizing leaks
-    in the transmission and distribution system of natural gas. Currently the City
-    has no active oil and gas sites.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/aq-air-quality">Sustainability
-    Plan Air Quality Strategies</a></li></ul></p>'
-  type: simple.AdditiveAction
-  quantity: emissions
-  unit: t/a
-  group: oil_and_gas
-  forecast_values: [[2023, 0], [2050, 0]]
-  output_nodes:
-  - id: leakage_from_oil_and_gas_wells_emissions
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-- id: increase_waste_diversion
-  name: Increase waste diversion
-  description: '<p>Achieve 75% waste diversion from the landfill by 2030 and 95% by
-    2050 established in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/35431/638001469478900000">2022
-    Zero Waste Resolution</a>.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/waste">Sustainability
-    Plan Waste Strategies</a></li></ul></p>'
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: solid_waste
-  forecast_values: [[2022, 5.2], [2023, 9.6], [2024, 13.9], [2025, 18.3], [2026, 22.6],
-    [2027, 27], [2028, 31.3], [2029, 35.7], [2030, 40], [2031, 40.5], [2032, 41],
-    [2033, 41.5], [2034, 42], [2035, 42.5], [2036, 43], [2037, 43.5], [2038, 44],
-    [2039, 44.5], [2040, 45], [2041, 45.5], [2042, 46], [2043, 46.5], [2044, 47],
-    [2045, 47.5], [2046, 48], [2047, 48.5], [2048, 49], [2049, 49.5], [2050, 50]]
-  output_nodes:
-  - diversion_rate
-
-- id: mpg_trend
-  name: Miles per gallon increasing trend
-  description: The model assumes that internal combustion vehicles that use gasoline
-    and diesel will become more efficient, increase miles traveled per gallon, over
-    time.
-  type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: miles/gallon
-  group: trend
-  forecast_values: [[2022, 0.479], [2023, 1.007], [2024, 1.569], [2025, 2.178], [
-      2026, 2.778], [2027, 3.371], [2028, 3.945], [2029, 4.493], [2030, 5.017], [
-      2031, 5.513], [2032, 5.979], [2033, 6.416], [2034, 6.825], [2035, 7.2], [2036,
-      7.543], [2037, 7.853], [2038, 8.131], [2039, 8.378], [2040, 8.598], [2041, 8.919],
-    [2042, 9.244], [2043, 9.573], [2044, 9.906], [2045, 10.243], [2046, 10.584], [
-      2047, 10.929], [2048, 11.278], [2049, 11.632], [2050, 11.989]]
-  output_nodes:
-  - miles_per_gallon
-
-- id: vmt_per_vehicle_trend
-  name: Vehicle miles per vehicle trend
-  description: '<p>The model assumes that overtime there will be a decrease in the annual
-    miles traveled per vehicle.</p>
-    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
-  type: simple.AdditiveAction
-  quantity: mileage
-  unit: miles/vehicle/a
-  group: trend
-  forecast_values: [[2022, -10.805], [2023, -21.611], [2024, -32.416], [2025, -43.222],
-    [2026, -54.027], [2027, -64.833], [2028, -75.638], [2029, -86.444], [2030, -97.249],
-    [2031, -108.055], [2032, -118.86], [2033, -129.666], [2034, -140.471], [2035,
-      -151.277], [2036, -162.082], [2037, -172.888], [2038, -183.693], [2039, -194.499],
-    [2040, -205.304], [2041, -216.109], [2042, -226.915], [2043, -237.72], [2044,
-      -248.526], [2045, -259.331], [2046, -270.137], [2047, -280.942], [2048, -291.748],
-    [2049, -302.553], [2050, -313.359]]
-  output_nodes:
-  - vehicle_miles_per_vehicle
-
-- id: electric_vehicle_efficiency_trend
-  name: Electric vehicle efficiency trend
-  description: The model assumes that electric vehicles will become more efficient,
-    increase in miles traveled per kilowatt hour of energy, overtime.
-  type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: kWh/mile
-  group: trend
-  forecast_values: [[2022, -0.005], [2023, -0.011], [2024, -0.016], [2025, -0.022],
-    [2026, -0.027], [2027, -0.032], [2028, -0.038], [2029, -0.043], [2030, -0.048],
-    [2031, -0.05], [2032, -0.052], [2033, -0.054], [2034, -0.056], [2035, -0.058],
-    [2036, -0.06], [2037, -0.062], [2038, -0.064], [2039, -0.066], [2040, -0.068],
-    [2041, -0.069], [2042, -0.07], [2043, -0.071], [2044, -0.072], [2045, -0.073],
-    [2046, -0.074], [2047, -0.075], [2048, -0.076], [2049, -0.077], [2050, -0.078]]
-  output_nodes:
-  - electric_vehicle_efficiency
-
-pages:
-- id: home
-  name: Longmont Greenhouse Gas Inventory
-  path: /
-  type: emission
-  node: direct_emissions
-  lead_title_en: Development version
-  lead_paragraph_en: "<p>The Longmont greenhouse gas inventory models projected emissions
-    for the City of Longmont based on two primary scenarios: 1) Business as Usual
-    scenario based on if no actions are taken by the City and 2) Climate Action Initiatives
-    scenario that models actions from the Cities' guiding plans. These two versions
-    of the model help identify if the City is on track to achieve its greenhouse gas
-    emission targets and what actions the City should prioritize and focus on. The
-    measured data for the model is updated every three years.</p> <p>The greenhouse
-    gas modeling and inventory is based on the Global Protocol for Community-Scale
-    Greenhouse Gas Emissions Inventories' (GPC protocol) Basic+ methodology. All modeled
-    and historic data between 2016 to 2021 was adapted from Lotus Engineering and
-    Sustainability, LLC., 2022, City of Longmont Emissions Reduction Model Update
-    and 2023, 2021 Longmont Greenhouse Gas Inventory. Additional information is included
-    in the 2021 GHG Emissions Summary Memo. Contact sustainability@longmontcolorado.gov
-    if you are interested in learning more.</p>"
-
-- id: updating
-  name: Updating Guide
-  path: /updating
-  lead_paragraph_en: <p>This page provides instructions on how to update this tool
-    and which values can be updated. A general set of directions is provided, followed
-    by a table documenting which values on each tab can be updated and when it is
-    appropriate to do so.</p> <p><b>Updating the Model</b></p> <p>The purpose of this
-    model is to demonstrate the GHG reduction potential of Longmont''s strategies
-    compared to Business-As-Usual emissions (if no strategies were implemented) based
-    on a 2016 or 2018 baseline. Updates to this model should be decided based on the
-    below criteria.</p> <p>The model should NOT be updated for the following reasons.</p>
-    <li> <ul>Future GHG emissions inventories. The BAU tab should not be updated with
-    actual GHG emissions values in future years. The purpose of the BAU is to show
-    emissions if no strategies were to be implemented. Using actual GHG values in
-    future years when several strategies have been implemented would misrepresent
-    BAU emissions and may double count savings. Actual emissions from future GHG inventories
-    can be entered into the Progress Tracker tab so Longmont can monitor if actual
-    GHG emissions align with expected reductions due to strategy implementation.</ul>
-    <ul>LPC electricity emission factor updates. Future emission factors from LPC
-    should not be added to this tool as the emission factors will reflect the renewable
-    energy strategy modeled in this tool. The BAU LPC emission factor represents the
-    emission factor if LPC were to not pursue renewable energy. The renewable energy
-    EF is used directly in the modeled strategies and should not be adjusted with
-    actual values to preserve the desired progress toward RE modeled in this tool.
-    Actual progress towards the renewable energy goal will be tracked in each of Longmont''s
-    future GHG inventories. Inventory results can be compared to the modeled values
-    in the Progress Tracker tab.</ul> <ul>Minor changes in emission calculation methodology.
-    Baseline year emissions in the BAU should not be updated when minor methodology
-    changes in calculation occur. If methodology changes would not impact total emissions
-    in the baseline by greater than 5% then emissions should not be updated for the
-    baseline year.</ul></li> The model should be updated for the following reasons
-    <li> <ul>Changes to strategy targets or assumptions. If the target for a strategy
-    is updated, the target should be updated in the Model Inputs tab and any calculation
-    adjustments be made in the corresponding model tab. If more accurate and defensible
-    assumptions can be made for a strategy compared to current assumption, assumptions
-    should be updated in the Model Inputs tab.</ul> <ul>Xcel electricity emission
-    factor updates. Xcel provides a small portion of electricity to Longmont and is
-    not a part of LPC''s goal for 100% renewable energy which is modeled in this tool.
-    As such, Xcel''s emission factors should be updated either each year or whenever
-    new GHG inventory data is available for input in the Progress Tracker tab. This
-    ensures that factors outside of the modeled strategies control are as accurate
-    as possible.</ul> <ul>Updates to model parameter data (e.g., population and registered
-    vehicles). Model parameter data includes model inputs that are NOT impacted by
-    strategies. This includes population and registered vehicle data. As no strategies
-    currently modeled have an impact on these parameters, they should be updated when
-    possible to ensure modeling is using the most up to date external information
-    for calculating emissions and emissions reductions. For example, if population
-    were to increase more than is currently forecasted in a future year and this number
-    were to not be updated, then emissions in the BAU would be nderestimated as the
-    BAU uses population increase as a major parameter for forecasting.</ul> <ul>Major
-    changes to emission calculation methodology. Major changes to emission calculation
-    methodology may warrant updates to the baseline years. Changes that would drastically
-    impact emission numbers and make accurate comparison to previous year''s inventory
-    data inaccurate would require updating the baseline years to ensure alignment
-    across years. For example, the 2016 baseline year emissions were updated as new
-    Global Warming Potential values were released by the IPCC. If emissions in future
-    years in the BAU or in modeled strategies were calculated with the updated GWPs
-    while the baseline year used old GWPs, emissions calculations would not have an
-    accurate baseline comparison. Major changes like GWP updates will likely be infrequent.</ul>
-    </li> <h2>When to Update Data</h2> <li> <ul><b>Strategy targets.</b> Update if
-    strategy targets are adjusted or if new strategies are added.</ul> <ul><b>Actual
-    emissions.</b> Update when new GHG emissions inventory data is available.</ul>
-    <ul><b>Strategy Selector.</b> Only update if new strategies are added.</ul> <ul><b>Model
-    Input Values.</b> Update to reflect any changes in assumptions or strategy targets.</ul>
-    <ul><b>Target reduction.</b> Update to reflect any changes in assumptions or strategy
-    targets.</ul> <ul><b>Target year.</b> Update to reflect any changes in strategy
-    target years.</ul> <ul><b>Business As Usual Baseline emissions.</b> Baseline emissions
-    (2016 or 2018) should only be updated if there are major changes to emission calculation
-    methodology in future years that would detrimentally impact the models ability
-    to compare future emissions to the baseline. Actual GHG emission data for future
-    years should NOT be entered into this tab.</ul> <ul><b>Non-electricity emission
-    factors.</b> Non-electricity emission factors likely will not change often. It
-    is recommended to review emission factor values for updates every few years.</ul>
-    <ul><b>Population.</b> Update population data as actual data becomes available.</ul>
-    <ul><b>Xcel Energy electricity emission factor.</b> Updated Xcel''s emission factor
-    as actual data becomes available.</ul> <ul><b>LPC RE and BAU emission factors.</b>
-    Do not update.</ul> <ul><b>Fuel efficiencies.</b> Only update the "Gasoline Passenger
-    Vehicle Projected fuel efficiency" row if new fuel efficiency standards are released.</ul>
-    <ul><b>Registered vehicles.</b> Update registered vehicle data as actual data
-    becomes available.</ul> </li>
+  - id: saskatoon/stationary_electricity_consumption
+
+# - id: global_warming_potential_100a
+#   name: Global warming potential 100 a
+#   type: emissions.GlobalWarmingPotential
+#   quantity: emission_factor
+#   unit: dimensionless
+#   output_dimensions: [greenhouse_gases]
+#   input_dataset_processors: [LinearInterpolation]
+#   historical_values: [[1990, 1], [2021, 1]]
+
+# #
+# # STATIONARY
+# #
+# - id: floor_increase_residential
+#   name: Relative residential floor area to current situation
+#   type: costs.ExponentialNode
+#   quantity: ratio
+#   unit: '%'
+#   historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
+#     [2021, 100]]
+#   params:
+#   - id: current_value
+#     value: 100.0
+#     unit: '%'
+#   - id: annual_change
+#     value: 1.0
+#     unit: '%'
+#   - id: replace_output_using_input_dataset
+#     value: true
+
+# - id: floor_increase_commercial
+#   name: Relative commercial floor area to current situation
+#   type: costs.ExponentialNode
+#   quantity: ratio
+#   unit: '%'
+#   historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
+#     [2021, 100]]
+#   params:
+#   - id: current_value
+#     value: 100.0
+#     unit: '%'
+#   - id: annual_change
+#     value: 1.0
+#     unit: '%'
+#   - id: replace_output_using_input_dataset
+#     value: true
+
+# - id: floor_increase
+#   name: Relative floor area
+#   description: In the excel model, 1 % increase is assumed until 2035 and then 0 %.
+#     Here, the increase continues.
+#   type: simple.AdditiveNode
+#   quantity: ratio
+#   unit: '%'
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - id: floor_increase_residential
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [residential_energy]
+#   - id: floor_increase_commercial
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [commercial_industrial_energy]
+
+# - id: building_floor_area_historical
+#   name: Building floor area, historical
+#   type: simple.AdditiveNode
+#   quantity: floor_area
+#   unit: ft**2
+#   input_datasets:
+#   - longmont/building_floor_area
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+
+# - id: building_floor_area
+#   name: Building floor area
+#   type: simple.UsFloorAreaNode
+#   quantity: floor_area
+#   unit: ft**2
+#   input_nodes:
+#   - id: floor_increase
+#     to_dimensions:
+#     - id: emission_sectors
+#   - id: building_floor_area_historical
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: emission_sectors
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors, building_energy_class, action]
+
+# - id: commercial_square_footage_over_20000_sf
+#   name: Commercial square footage over 20,000 square feet
+#   type: simple.UsFloorAreaNode
+#   quantity: floor_area
+#   unit: ft**2
+#   input_datasets:
+#   - id: longmont/commercial_square_footage_over_20000_sf
+
+# - id: building_natural_gas_eui
+#   name: Energy use intensity EUI for natural gas
+#   type: simple.UsEuiNode
+#   quantity: consumption_factor
+#   unit: therm/ft**2/a
+#   input_datasets:
+#   - id: longmont/building_energy_use_intensity_eui
+#     column: natural_gas
+#   input_dimensions: [emission_sectors]
+
+# - id: building_electricity_use
+#   name: Building electricity use
+#   description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
+#   type: simple.MultiplyLastNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - id: building_electricity_use_intermediate
+#     from_dimensions:
+#     - id: building_energy_class
+#       flatten: true
+
+# - id: building_natural_gas_use
+#   name: Building natural gas use
+#   description: <b>Unit:</b> Mthm/yr. = million therms per year.
+#   type: simple.MultiplyLastNode
+#   quantity: energy
+#   unit: Mtherm/a
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - id: building_natural_gas_use_intermediate
+#     from_dimensions:
+#     - id: building_energy_class
+#       flatten: true
+
+# - id: building_natural_gas_use_intermediate
+#   name: Building natural gas use (intermediate)
+#   description: <p>This node shows the building natural gas use when some, but not
+#     all, actions have been implemented. the actual natural gas use with all the actions
+#     is shown downstream in the node "Building natural gas use". </p><p>Building energy
+#     class has a specific use here. "All buildings, baseline" shows the natural gas
+#     use that would occur in the building stock if none of the upstream actions are
+#     implemented. All other classes show the difference to the baseline; in other words
+#     energy saving actions take the natural gas use to the negative side. If the actions
+#     do not affect a particular class, the graph of that class seems empty.</p>
+#   type: simple.UsEnergyNode
+#   quantity: energy
+#   unit: Mtherm/a
+#   input_dimensions: [building_energy_class, action, emission_sectors]
+#   output_dimensions: [building_energy_class, emission_sectors]
+#   input_nodes:
+#   - id: building_floor_area
+#     tags: [floor_area]
+#   - id: building_natural_gas_eui
+#     tags: [consumption_factor]
+
+# - id: building_natural_gas_use_20000_sf
+#   name: Building natural gas use in large commercial buildings
+#   description: <p>This node shows the building natural gas use when some, but not
+#     all, actions have been implemented on large commercial buildings. the actual natural
+#     gas use with all the actions is shown downstream in the node "Building natural
+#     gas use". </p><p>Building energy class has a specific use here. "All buildings,
+#     baseline" shows the natural gas use that would occur in the building stock if
+#     none of the upstream actions are implemented. All other classes show the difference
+#     to the baseline; in other words energy saving actions take the natural gas use
+#     to the negative side. If the actions do not affect a particular class, the graph
+#     of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
+#   type: simple.UsEnergyNode
+#   quantity: energy
+#   unit: Mtherm/a
+#   input_dimensions: [building_energy_class, action, emission_sectors]
+#   output_dimensions: [building_energy_class, emission_sectors]
+#   input_nodes:
+#   - id: commercial_square_footage_over_20000_sf
+#     tags: [floor_area]
+#     # metrics: [floor_area]
+#   - id: building_natural_gas_eui
+#     tags: [consumption_factor]
+#   output_nodes:
+#   - id: building_natural_gas_use
+#     from_dimensions:
+#     - id: building_energy_class
+#       categories: [renovated, compliant]
+#       flatten: true
+
+# - id: building_electricity_use_20000_sf
+#   name: Building electricity use in large commercial buildings
+#   description: <p>This node shows the building electricity use when some, but not
+#     all, actions have been implemented on large commercial buildings. the actual electricity
+#     use with all the actions is shown downstream in the node "Building electricity
+#     use". </p><p>Building energy class has a specific use here. "All buildings, baseline"
+#     shows the electricity use that would occur in the building stock if none of the
+#     upstream actions are implemented. All other classes show the difference to the
+#     baseline; in other words energy saving actions take the electricity use to the
+#     negative side. If the actions do not affect a particular class, the graph of that
+#     class seems empty.</p>
+#   type: simple.UsEnergyNode
+#   quantity: energy
+#   unit: Mtherm/a
+#   input_dimensions: [building_energy_class, action, emission_sectors]
+#   output_dimensions: [building_energy_class, emission_sectors]
+#   input_nodes:
+#   - id: commercial_square_footage_over_20000_sf
+#     tags: [floor_area]
+#     # metrics: [floor_area]
+#   - id: building_electricity_eui
+#     tags: [consumption_factor]
+#   output_nodes:
+#   - id: building_electricity_use
+#     from_dimensions:
+#     - id: building_energy_class
+#       categories: [renovated, compliant]
+#       flatten: true
+
+# - id: electricity_use
+#   name: Electricity use
+#   description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
+#   type: simple.MultiplyLastNode2
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - building_electricity_use
+
+# - id: electricity_emission_factor
+#   name: Emission factor of electricity production
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: t/MWh
+#   input_datasets:
+#   - id: longmont/electricity_emission_factor
+#     filters:
+#     - column: site
+#       value: longmont_power
+#   input_dataset_processors: [LinearInterpolation]
+#   input_dimensions: [greenhouse_gases]
+#   output_dimensions: [greenhouse_gases]
+
+# - id: building_electricity_eui
+#   name: Energy use intensity EUI for electricity
+#   type: simple.UsEuiNode
+#   quantity: consumption_factor
+#   unit: kWh/ft**2/a
+#   input_datasets:
+#   - id: longmont/building_energy_use_intensity_eui
+#     column: electricity
+#   input_dimensions: [emission_sectors]
+
+# - id: building_electricity_use_intermediate
+#   name: Building electricity use (intermediate)
+#   description: <p>This node shows the building electricity use when some, but not
+#     all, actions have been implemented. the actual electricity use with all the actions
+#     is shown downstream in the node "Building electricity use". </p><p>Building energy
+#     class has a specific use here. "All buildings, baseline" shows the electricity
+#     use that would occur in the building stock if none of the upstream actions are
+#     implemented. All other classes show the difference to the baseline; in other words
+#     energy saving actions take the electricity use to the negative side. If the actions
+#     do not affect a particular class, the graph of that class seems empty.</p>
+#   type: simple.UsEnergyNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [emission_sectors, action, building_energy_class]
+#   output_dimensions: [emission_sectors, building_energy_class]
+#   input_nodes:
+#   - id: building_electricity_eui
+#     tags: consumption_factor
+#   - id: building_floor_area
+#     tags: floor_area
+#     # metrics: [floor_area]
+
+# # Building model, updated building code
+# # Floor area increses by B32 every year. categories residential, commercial
+# # Energy use intensity EUI improves every three years to the most recent IECC(?)
+# # Most recent IECC improves by C34 annually
+# # Existing building go through energy improvement 1 %
+# # New buildings: 90 % are compliant and have X % lower energy consumption
+# # Electricity and gas separately, for residential and commercial
+# # Energy saving = affected area * saved energy factor * compliant fraction; cumulatively
+# # Savings separately for new and existing buildings
+# # Emissions = energy * emission factors for electricity or natural gas (per ghg gas)
+
+# # Develop beyond bulding code
+# # New buildings only
+# # Estimated savings beyond IECC: goes from 0 to 100 % between 2017 and 2030
+# # energy efficiency = EUI with most recent IECC * (1-savings)
+# # Natural gas savings: subtract the impacts of electrification of heating
+# # Emissions = as above
+
+# # Report benchmark energy use
+# # Commercial area over 20000 sqft (increases by B33 every year)
+# # Percent participation: goes non-linearly fom 88 to 99 % between 2023 and  2029
+# # Percent saving: goes non-linearly from 2.4 to 0 % between 2023 and 2029; cumulatively
+# # Emissions = as above
+
+# # Expand the Efficiency Works Program
+# # Percent savings: after gradual increase 2016-2025, is constant C55.
+# # Energy = savings * total electricity consumption BAU!M44 (residence, commercial + losses)
+# # Emissions = as above
+
+# # Electrify buildings
+# # If time > electrification start year 2023, then use model input values for saving estimates
+# # Emission reduction is estimated to come from reduced natural gas, and the respective
+# # amount of additional electricity consumption is then added (with a factor conversion,
+# # but we want to rather use floor area changes)
+
+# - id: electricity_consumption_emissions
+#   name: Electricity consumption emissions
+#   type: simple.EmissionFactorActivity
+#   quantity: emissions
+#   unit: t/a
+#   color: '#4d9870'
+#   output_dimensions: [greenhouse_gases, emission_sectors]
+#   input_nodes:
+#   - id: electricity_use
+#     to_dimensions:
+#     - id: emission_sectors
+#   - id: electricity_emission_factor
+#     to_dimensions:
+#     - id: greenhouse_gases
+#   output_nodes:
+#   - id: building_emissions
+#     from_dimensions:
+#     - id: greenhouse_gases
+#       flatten: true
+#     - id: emission_sectors
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope2]
+
+# - id: electricity_replacing_natural_gas_residential
+#   name: Electricity that replaces natural gas in residential buildings
+#   type: simple.FixedMultiplierNode
+#   quantity: energy
+#   unit: kWh/a
+#   params:
+#   - id: multiplier
+#     value: -0.33
+#   output_nodes:
+#   - id: building_electricity_use
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [residential_energy]
+
+# - id: electricity_replacing_natural_gas_commercial
+#   name: Electricity that replaces natural gas in commercial buildings
+#   type: simple.FixedMultiplierNode
+#   quantity: energy
+#   unit: kWh/a
+#   params:
+#   - id: multiplier
+#     value: -0.39
+#   output_nodes:
+#   - id: building_electricity_use
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [commercial_industrial_energy]
+
+# # Natural gas
+
+# - id: emission_factor_natural_gas
+#   name: Emission factor of natural gas
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: t/Mthm
+#   input_datasets:
+#   - longmont/emission_factor_natural_gas
+#   input_dataset_processors: [LinearInterpolation]
+#   output_dimensions: [greenhouse_gases, energy_carrier]
+
+# - id: leakage_from_natural_gas_emissions
+#   name: Emissions from natural gas leakage
+#   category: leakage_from_natural_gas
+#   type: simple.FixedMultiplierNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - building_natural_gas_use
+#   output_nodes:
+#   - id: fugitive_emissions
+#     from_dimensions:
+#     - id: emission_sectors
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+#   params:
+#   - id: multiplier
+#     value: 0.18409014  # =(D47*100000/1028*0.02832*0.8*0.934/1000*0.003*'Emission Factors and Constants'!$C$21)+(D47*100000/1028*0.02832*0.8*0.01/1000*0.003) = D47 * 0.00018409014
+#     unit: kg/therm
+
+# - id: natural_gas_consumption_emissions
+#   name: Natural gas consumption emissions
+#   type: simple.EmissionFactorActivity
+#   quantity: emissions
+#   unit: t/a
+#   output_dimensions: [emission_sectors, greenhouse_gases, energy_carrier]
+#   input_nodes:
+#   - id: building_natural_gas_use
+#     to_dimensions:
+#     - id: emission_sectors
+#     - id: energy_carrier
+#       categories: [natural_gas]
+#   - id: emission_factor_natural_gas
+#     to_dimensions:
+#     - id: greenhouse_gases
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: building_emissions
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     - id: greenhouse_gases
+#       flatten: true
+#     - id: emission_sectors
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+
+# # Other fuels
+
+# - id: stationary_fuel_consumption
+#   name: Other stationary fuel consumption
+#   type: simple.AdditiveNode
+#   quantity: energy
+#   unit: gal/a
+#   input_datasets:
+#   - longmont/stationary_fuel_use
+#   input_dimensions: [emission_sectors, energy_carrier]
+#   output_dimensions: [emission_sectors, energy_carrier]
+
+# - id: emission_factor_fuel
+#   name: Emission factor of stationary fuels
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: t/gal
+#   input_datasets:
+#   - longmont/emission_factor_fuels
+#   input_dataset_processors: [LinearInterpolation]
+#   output_dimensions: [energy_carrier, greenhouse_gases]
+
+# - id: stationary_fuel_consumption_emissions
+#   name: Stationary fuel consumption emissions
+#   description: <p>1) Stationary Diesel Use data was provided by CDPHE. Spreadsheet
+#     on file.</p> <p>2) Xcel Energy emission factor, electricity and natural gas usage
+#     data, and renewable energy data is from Xcel's 2021 Community Energy Report for
+#     Longmont, on file.</p> <p>3) Longmont Power & Communications data provided. PDF
+#     on file. The commercial buildings in Longmont's Weld County portion consumed 31,000,000
+#     kWh in 2021.</p> <p>4) T&D losses are calculated for Xcel and Longmont based on
+#     the EIA 861 (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically
+#     the Utility Operational Data_2021. Spreadsheet on file.</p> <p>5) Propane data
+#     provided by FerrellGas. Spreadsheet on file.</p> <p>6) Houses heated with wood
+#     were pulled from the US Census Bureau, data on file. It was assumed that all of
+#     the houses heated by wood in Longmont fell within the Boulder County portion of
+#     Longmont.</p> <p>7) Longmont Power and Communications data was provided by Longmont
+#     Power & Communications. PDF on file.</p> <p>8) Longmont Power & Communications
+#     and Lyons Municipal rooftop solar data was provided in kW of capacity rather than
+#     kWh generated. NREL's PVWatts was used to estimate kWh generated by rooftop solar
+#     systems. PDF of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due
+#     to Xcel's 15/15 rule, with less than 15 customers in the commercial and residential
+#     data sets they cannot provide usage for those customers to avoid violating privacy
+#     concerns. Therefore Lotus applied the average residential and commercial kWh use
+#     from LPC to the 7 residential and commercial customers (respectively) in Xcel
+#     territory to estimate use.</p> <p>11) PRPA emission factor and transmission and
+#     distribution loss rate for 2021 was provided. Email on file. Emissions factor
+#     value represents Longmont's load share emissions rate without unbundled RECs.</p>
+#   type: simple.EmissionFactorActivity
+#   quantity: emissions
+#   unit: t/a
+#   output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
+#   input_nodes:
+#   - id: stationary_fuel_consumption
+#     to_dimensions:
+#     - id: emission_sectors
+#     - id: energy_carrier
+#   - id: emission_factor_fuel
+#     to_dimensions:
+#     - id: greenhouse_gases
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: building_emissions
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     - id: greenhouse_gases
+#       flatten: true
+#     - id: emission_sectors
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+
+# # Wood
+
+# - id: stationary_wood_consumption
+#   name: Stationary wood consumption
+#   type: simple.AdditiveNode
+#   quantity: energy
+#   unit: MMBtu/a
+#   input_datasets:
+#   - longmont/stationary_wood_consumption
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [energy_carrier, emission_sectors]
+
+# - id: emission_factor_wood
+#   name: Emission factor of wood
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: kg/MMBtu
+#   input_datasets:
+#   - longmont/emission_factor_wood
+#   output_dimensions: [energy_carrier, greenhouse_gases]
+
+# - id: wood_consumption_emissions
+#   name: Wood consumption emissions
+#   type: simple.EmissionFactorActivity
+#   quantity: emissions
+#   unit: t/a
+#   output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
+#   input_nodes:
+#   - id: stationary_wood_consumption
+#     to_dimensions:
+#     - id: emission_sectors
+#     - id: energy_carrier
+#       categories: [wood]
+#   - id: emission_factor_wood
+#     to_dimensions:
+#     - id: greenhouse_gases
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: building_emissions
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     - id: greenhouse_gases
+#       flatten: true
+#     - id: emission_sectors
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+
+# # Losses
+
+# - id: electricity_loss_fraction
+#   name: Electricity loss fraction
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   input_datasets:
+#   - id: longmont/transmission_and_distribution_loss
+#     filters:
+#     - column: site
+#       value: longmont_power
+#   output_dimensions: [energy_carrier]
+#   output_nodes:
+#   - id: electricity_losses
+#     from_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [residential_energy]  # FIXME Should apply to commercial, too.
+
+# - id: electricity_losses
+#   name: Electricity losses
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - id: electricity_use
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: emission_sectors
+
+# - id: electricity_loss_emissions
+#   name: Emissions due to electricity losses
+#   type: simple.EmissionFactorActivity
+#   quantity: emissions
+#   unit: t/a
+#   input_nodes:
+#   - id: electricity_losses
+#     to_dimensions:
+#     - id: emission_sectors
+#   - id: electricity_emission_factor
+#     to_dimensions:
+#     - id: greenhouse_gases
+#   output_dimensions: [greenhouse_gases, emission_sectors]
+#   output_nodes:
+#   - id: electricity_consumption_emissions
+#     to_dimensions:
+#     - id: emission_sectors
+#     - id: greenhouse_gases
+
+# #
+# # TRANSPORTATION
+# #
+
+# - id: emission_factor_fuels
+#   name: Fuel emission factors for CO2
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: kg/gal
+#   input_datasets:
+#   - longmont/emission_factor_fuels
+#   input_dimensions: [energy_carrier, greenhouse_gases]
+#   output_dimensions: [energy_carrier, greenhouse_gases]
+
+# - id: registered_vehicles
+#   name: Registered vehicles
+#   type: simple.FixedMultiplierNode
+#   quantity: number
+#   unit: vehicle
+#   input_nodes:
+#   - population
+#   params:
+#   - id: multiplier
+#     value: 0.8140
+#     unit: vehicle/person
+#     is_customizable: false
+
+# - id: miles_per_gallon
+#   name: Miles per gallon
+#   type: simple.AdditiveNode
+#   quantity: fuel_consumption
+#   unit: miles/gallon
+#   input_datasets:
+#   - longmont/miles_per_gallon
+
+# - id: vehicle_miles_per_vehicle
+#   name: Vehicle miles per vehicle
+#   description: '<p>The model has two different estimates for VMT: <ul><li>Row 50: Average
+#     annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li> <li>Row
+#     76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
+#     <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
+#   type: simple.AdditiveNode
+#   quantity: mileage
+#   unit: miles/vehicle/a
+#   input_datasets:
+#   - longmont/annual_vehicle_miles_per_vehicle
+
+# - id: registered_electric_vehicles
+#   name: Registered electric vehicles
+#   type: simple.AdditiveNode
+#   quantity: number
+#   unit: vehicle
+#   input_datasets:
+#   - longmont/registered_electric_vehicles
+
+# - id: registered_non_electric_vehicles
+#   name: Registered non-electric vehicles
+#   type: simple.SubtractiveNode
+#   quantity: number
+#   unit: vehicle
+#   input_nodes:
+#   - registered_vehicles
+#   - registered_electric_vehicles
+
+# - id: total_vehicle_miles_traveled
+#   name: Total combustion engine vehicle miles traveled
+#   description: '<p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per capita)</p>'
+#   type: simple.MultiplicativeNode
+#   quantity: mileage
+#   unit: Mmiles/a
+#   input_nodes:
+#   - vehicle_miles_per_vehicle
+#   - registered_non_electric_vehicles
+
+# - id: non_electric_vehicle_fuel_use
+#   name: Non-electric vehicle fuel use
+#   type: simple.DivisiveNode
+#   quantity: energy
+#   unit: gallons/a
+#   input_nodes:
+#   - total_vehicle_miles_traveled
+#   - miles_per_gallon
+
+# - id: vehicle_fuel_emissions
+#   name: Vehicle fuel emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [energy_carrier, greenhouse_gases]
+#   output_dimensions: [energy_carrier, greenhouse_gases]
+#   input_nodes:
+#   - id: non_electric_vehicle_fuel_use
+#     to_dimensions:
+#     - id: energy_carrier
+#       categories: [petrol]
+#   - id: emission_factor_fuels
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: greenhouse_gases
+#   output_nodes:
+#   - id: on_road_transportation_emissions
+#     from_dimensions:
+#     - id: greenhouse_gases
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+
+# - id: vehicle_electricity_emissions
+#   name: Vehicle electricity emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [greenhouse_gases]
+#   output_dimensions: [greenhouse_gases]
+#   input_nodes:
+#   - id: vehicle_electricity_use
+#     from_dimensions:
+#     - id: emission_sectors
+#       flatten: true
+#     to_dimensions: []
+#   - id: electricity_emission_factor
+#     to_dimensions:
+#     - id: greenhouse_gases
+#   output_nodes:
+#   - id: on_road_transportation_emissions
+#     from_dimensions:
+#     - id: greenhouse_gases
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+
+# - id: electric_vehicle_efficiency
+#   name: Electric vehicle efficiency
+#   type: simple.AdditiveNode
+#   quantity: fuel_consumption
+#   unit: kWh/mile
+#   input_datasets:
+#   - longmont/electric_vehicle_efficiency
+
+# - id: vehicle_electricity_use
+#   name: Vehicle electricity use
+#   description: <b>Unit:</b> kWh/yr. = kilowatt-hours per year.
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   unit: kWh/a
+#   input_dimensions: [emission_sectors]
+#   output_dimensions: [emission_sectors]
+#   input_nodes:
+#   - id: registered_electric_vehicles
+#     to_dimensions: []
+#   - id: vehicle_miles_per_vehicle
+#     to_dimensions: []
+#   - id: electric_vehicle_efficiency
+#     to_dimensions: []
+#   - vehicle_charging_shares
+
+# - id: vehicle_charging_shares
+#   name: Vehicle charging shares
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   input_datasets:
+#   - longmont/vehicle_charging_shares
+#   output_dimensions: [emission_sectors]
+
+# - id: free_rides_per_person
+#   name: Rides per person from Ride Free program
+#   type: simple.AdditiveNode
+#   quantity: number
+#   unit: trip/inhabitant/a
+#   historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019,
+#       1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
+
+# - id: ridership_program
+#   name: Ridership from Ride Free program
+#   type: simple.MultiplicativeNode
+#   quantity: number
+#   unit: trip/a
+#   input_nodes:
+#   - free_rides_per_person
+#   - population
+
+# - id: vmt_change_due_to_public_transportation
+#   name: Change in vehicle miles traveled due to public transportation
+#   type: simple.FixedMultiplierNode
+#   quantity: mileage
+#   unit: miles/a
+#   input_nodes:
+#   - public_transportation_trips
+#   params:
+#   - id: multiplier
+#     value: -8.8
+#     unit: miles/trip
+#   output_nodes:
+#   - total_vehicle_miles_traveled
+
+# - id: modal_share_of_active_transportation
+#   name: Modal share of active transportation
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10],
+#     [2021, 10]]
+
+# - id: vmt_change_from_active_transportation
+#   name: Change in vehicle miles traveled due to active transportation
+#   type: simple.ImprovementNode
+#   quantity: mileage
+#   unit: dimensionless
+#   input_nodes:
+#   - modal_share_of_active_transportation
+#   output_nodes:
+#   - id: total_vehicle_miles_traveled
+#     tags: [non_additive]
+
+# - id: public_transportation_change
+#   name: Public transportation change by last-mile actions
+#   description: This is an intermediate node converting the action into a relative
+#     amount of trips (business-as-usual = 1).
+#   type: simple.ImprovementNode2
+#   quantity: ratio
+#   unit: dimensionless
+#   historical_values: [[2016, 1.0], [2021, 1.9]]
+#   input_dataset_processsors: [LinearInterpolation]
+
+# - id: public_transportation_trips_per_person
+#   name: Public transportation trips per person
+#   description: Without further actions, the number of public transportation trips
+#     per person is assumed to be constant and at the level of 2017.
+#   type: simple.FixedMultiplierNode
+#   quantity: number
+#   unit: trips/inhabitant/a
+#   historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 5.906333777],
+#     [2019, 5.922192747], [2020, 5.938051718], [2021, 5.953910689]]
+#   input_nodes:
+#   - public_transportation_change
+#   params:
+#   - id: multiplier
+#     value: 5.890474806
+#     unit: trip/inhabitant/a
+#   - id: replace_output_using_input_dataset
+#     value: true
+
+# - id: public_transportation_trips
+#   name: Public transportation trips
+#   type: simple.MultiplicativeNode
+#   quantity: number
+#   unit: trip/a
+#   input_nodes:
+#   - population
+#   - public_transportation_trips_per_person
+#   - ridership_program
+
+# ### WASTE
+
+# - id: amount_of_waste_per_person
+#   name: Amount of waste per person
+#   type: simple.AdditiveNode
+#   quantity: mass
+#   unit: short_ton/inhabitant/a
+#   input_datasets:
+#   - longmont/amount_of_waste
+#   input_dataset_processors: [LinearInterpolation]
+#   output_dimensions: [waste]
+
+# - id: amount_of_waste
+#   name: Total amount of waste
+#   type: simple.MultiplicativeNode
+#   quantity: mass
+#   unit: short_ton/a
+#   input_dimensions: [waste]
+#   output_dimensions: [waste]
+#   input_nodes:
+#   - id: amount_of_waste_per_person
+#   - id: population
+#     to_dimensions: []
+
+# - id: diversion_rate
+#   name: Diversion rate
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [2020,
+#       31.1], [2021, 35.0]]
+
+# - id: waste_diversion
+#   name: Fraction of non-diverted waste
+#   type: simple.ImprovementNode
+#   quantity: fraction
+#   unit: dimensionless
+#   input_nodes:
+#   - diversion_rate
+
+# - id: amount_of_non_diverted_waste
+#   name: Amount of non-diverted waste
+#   type: simple.MultiplicativeNode
+#   quantity: mass
+#   unit: short_ton/a
+#   input_nodes:
+#   - id: amount_of_waste
+#     tags: [non_additive]
+#     from_dimensions:
+#     - id: waste
+#       categories: [landfilled]
+#       flatten: true
+#   - id: waste_diversion
+#     tags: [non_additive]
+
+# - id: waste_emission_factor
+#   name: Waste emission factor
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: kg/short_ton
+#   historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 6], [2020, 6],
+#     [2021, 6]]
+
+# - id: landfill_emissions
+#   name: Landfill emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: metric_ton/a
+#   input_dimensions: [greenhouse_gases]
+#   output_dimensions: [greenhouse_gases]
+#   input_nodes:
+#   - id: amount_of_non_diverted_waste
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: greenhouse_gases
+#       categories: [ch4]
+#   - id: waste_emission_factor
+#     to_dimensions:
+#     - id: greenhouse_gases
+#       categories: [ch4]
+#   - id: global_warming_potential_100a
+#   output_nodes:
+#   - id: waste_disposal_emissions
+#     from_dimensions:
+#     - id: greenhouse_gases
+#       flatten: true
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope3]
+
+# - id: participation_smart_grid
+#   name: Participation in smart grid projects
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [2021,
+#       9]]
+
+# - id: smart_grid_improvement
+#   name: Relative improvement due to smart grid implementation
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
+#       0]]
+
+# - id: smart_grid_benefits
+#   name: Smart grid action benefits
+#   type: simple.ImprovementNode
+#   quantity: fraction
+#   unit: dimensionless
+#   historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
+#   input_nodes:
+#   - id: participation_smart_grid
+#     tags: [non_additive]
+#   - id: smart_grid_improvement
+#     tags: [non_additive]
+#   output_nodes:
+#   - id: electricity_use
+#     to_dimensions: []
+
+# - id: transmission_loss_change
+#   name: Transmission loss changes
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
+#       0], [2022, 0]]
+
+# - id: transmission_loss_work_benefits
+#   name: Improvements due to transmission loss work
+#   description: Relative change of electricity use compared with the business as usual (baseline = 1).
+#   type: simple.ImprovementNode
+#   quantity: fraction
+#   unit: dimensionless
+#   historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [2021,
+#       1], [2022, 1]]
+#   input_nodes:
+#   - id: transmission_loss_change
+#     tags: [non_additive]
+#   output_nodes:
+#   - id: electricity_use
+
+# actions:
+
+# - id: updated_building_code
+#   name: Use updated building code and enforce
+#   description: '<p>Adopting and enforcing the latest International Energy Conservation
+#     Code (IECC) every year a new IECC is released will increase efficiency.</p> <p>The
+#     graph shows the relative improvement of the energy use intensity (EUI) caused
+#     by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
+#     Plan Strategy BI-5</a></li></ul></p>'
+#   type: energy_saving.UsBuildingAction
+#   quantity: fraction
+#   unit: '%'
+#   group: buildings
+#   input_datasets:
+#   - id: longmont/energy_use_intensity_with_building_actions
+#     filters:
+#     - column: action
+#       value: updated_building_code
+#   output_dimensions: [emission_sectors]
+#   output_nodes:
+#   - id: building_natural_gas_eui
+#     metrics: [improvement]
+#   - id: building_electricity_eui
+#     metrics: [improvement]
+#   - id: building_floor_area
+#     metrics: [triggered, compliant]
+
+# - id: develop_beyond_building_code
+#   name: Develop beyond building code
+#   description: '<p>Develop building codes that go beyond the IECC and towards net-zero
+#     energy use, including the Climate Action Recommendations Report strategies to
+#     add solar ready and electric vehicle ready as part of the 2021 residential code
+#     update.</p> <p>The graph shows the relative improvement of the energy use intensity
+#     (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-6">Sustainability
+#     Plan Strategy BI-6</a></li></ul></p>'
+#   type: energy_saving.UsBuildingAction
+#   quantity: fraction
+#   unit: '%'
+#   group: buildings
+#   input_datasets:
+#   - id: longmont/energy_use_intensity_with_building_actions
+#     filters:
+#     - column: action
+#       value: develop_beyond_building_code
+#   output_dimensions: [emission_sectors]
+#   output_nodes:
+#   - id: building_natural_gas_eui
+#     metrics: [improvement]
+#     to_dimensions:
+#     - id: building_energy_class
+#       categories: [compliant]
+#     - id: emission_sectors
+#   - id: building_electricity_eui
+#     metrics: [improvement]
+#     to_dimensions:
+#     - id: building_energy_class
+#       categories: [compliant]
+#     - id: emission_sectors
+#   - id: building_floor_area
+#     metrics: [triggered, compliant]
+#     to_dimensions:
+#     - id: building_energy_class
+#       categories: [compliant]
+#     - id: emission_sectors
+
+# - id: benchmark_energy_use
+#   name: Report and benchmark energy use in commercial buildings
+#   description: '<p>Requires commercial and industrial buildings owners whose buildings
+#     exceed 20,000 square feet to rate their building s energy use, report energy metrics,
+#     and encourages buildings owners to implement energy efficiency measures.</p> <p>The
+#     graph shows the relative improvement of the energy use intensity (EUI) caused
+#     by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-5">Sustainability
+#     Plan Strategy E-5</a></li></ul>'
+#   type: energy_saving.UsBuildingAction
+#   quantity: fraction
+#   unit: '%'
+#   group: buildings
+#   input_datasets:
+#   - id: longmont/energy_use_intensity_with_building_actions
+#     filters:
+#     - column: action
+#       value: benchmark_energy_use
+#   output_dimensions: [emission_sectors]
+#   output_nodes:
+#   - id: building_natural_gas_eui
+#     metrics: [improvement]
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [commercial_industrial_energy]
+#   - id: building_electricity_eui
+#     metrics: [improvement]
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [commercial_industrial_energy]
+#   - id: commercial_square_footage_over_20000_sf
+#     metrics: [triggered, compliant]
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [commercial_industrial_energy]
+
+# - id: efficiency_works_program
+#   name: Expand the Efficiency Works Program
+#   description: '<p>Expand the Efficiency Works Program to achieve 2% energy savings
+#     by 2025 through commercial retro-commissioning, low-income programs, and residential
+#     and commercial savings.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-1">Municipal:
+#     Sustainability Plan Strategy E-1</a></li> <li>Commercial: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-3">Sustainability
+#     Plan Strategy E-3</a></li> <li>Residential: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
+#     Plan Strategy E-7 </a></li> <li>Income-Qualified: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-2">Sustainability
+#     Plan Strategy E-2</a></li> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-2">Strategy
+#     BI-2</a></li></ul>'
+#   type: simple.AdditiveAction
+#   quantity: fraction
+#   unit: '%'
+#   group: buildings
+#   historical_values: [[2016, 0.5], [2017, 0.7], [2018, 1.1], [2019, 0.8], [2020, 1.1],
+#     [2021, 0.7], [2022, 0.9]]
+#   forecast_values: [[2023, 1.5], [2024, 1.75], [2025, 2], [2026, 2], [2027, 2], [
+#       2028, 2], [2029, 2], [2030, 2], [2031, 2], [2032, 2], [2033, 2], [2034, 2],
+#     [2035, 2], [2036, 2], [2037, 2], [2038, 2], [2039, 2], [2040, 2], [2041, 2], [
+#       2042, 2], [2043, 2], [2044, 2], [2045, 2], [2046, 2], [2047, 2], [2048, 2],
+#     [2049, 2], [2050, 2]]
+#   output_nodes:
+#   - id: building_electricity_use
+#     tags: [non_additive]
+#   - id: building_natural_gas_use
+#     tags: [non_additive]
+
+# - id: replace_natural_gas_residential
+#   name: Beneficial Building Electrification Residential
+#   description: '<p>Converting residential building systems that use fossil fuels (gas,
+#     oil, or propane) to high efficiency electric equipment powered by increasingly
+#     clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
+#     Building Electrification Plan</a></li></ul>'
+#   type: simple.CumulativeAdditiveAction
+#   quantity: energy
+#   unit: ktherm/a
+#   group: buildings
+#   forecast_values: [[2023, -192.409], [2024, -192.409], [2025, -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030, -192.409], [2031, -999.708], [2032, -999.708], [2033, -999.708], [2034, -999.708], [2035, -999.708], [2036, -999.708], [2037, -999.708], [2038, -999.708], [2039, -999.708], [2040, -999.708], [2041, -999.708], [2042, -999.708], [2043, -999.708], [2044, -999.708], [2045, -999.708], [2046, -999.708], [2047, -999.708], [2048, -999.708], [2049, -999.708], [2050, -999.708]]
+#   output_nodes:
+#   - id: building_natural_gas_use
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [residential_energy]
+#   - id: electricity_replacing_natural_gas_residential
+
+# - id: replace_natural_gas_commercial
+#   name: Beneficial Building Electrification Commercial
+#   description: '<p>Converting residential building systems that use fossil fuels (gas,
+#     oil, or propane) to high efficiency electric equipment powered by increasingly
+#     clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
+#     Building Electrification Plan</a></li></ul>'
+#   type: simple.CumulativeAdditiveAction
+#   quantity: energy
+#   unit: ktherm/a
+#   group: buildings
+#   forecast_values: [[2023, -88.707], [2024, -88.707], [2025, -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707], [2031, -572.853], [2032, -572.853], [2033, -572.853], [2034, -572.853], [2035, -572.853], [2036, -572.853], [2037, -572.853], [2038, -572.853], [2039, -572.853], [2040, -572.853], [2041, -572.853], [2042, -572.853], [2043, -572.853], [2044, -572.853], [2045, -572.853], [2046, -572.853], [2047, -572.853], [2048, -572.853], [2049, -572.853], [2050, -572.853]]
+#   output_nodes:
+#   - id: building_natural_gas_use
+#     to_dimensions:
+#     - id: emission_sectors
+#       categories: [commercial_industrial_energy]
+#   - id: electricity_replacing_natural_gas_commercial
+
+# - id: longmont_power_renewables
+#   name: 90% renewable electric energy supply by 2030
+#   description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
+#     >resolution</a> to commit Longmont to 100% renewable electric energy supply by
+#     2030.</p> <p>This action only models to 90% as according to latte River Power
+#     Authority's most recent integrated resource plan, existing technology will only
+#     help Platte River reach 90% noncarbon by 2030.</p> <p>To model the 100% renewable
+#     electric energy supply goal, select this action and <a href=\"https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables_additional\"\
+#     >Additional 10% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
+#     <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
+#     >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
+#     >Longmont Renewable Energy</a></li></ul></p>"
+#   type: linear.ReduceAction
+#   quantity: emission_factor
+#   unit: t/MWh
+#   group: electric_grid
+#   output_nodes:
+#   - electricity_emission_factor
+#   params:
+#   - id: reduce
+#     unit: t/MWh
+#     is_customizable: false
+#     value:
+#     - target:
+#         node: electricity_emission_factor
+#         categories:
+#           greenhouse_gases: co2
+#       amounts:
+#       - year: 2023
+#         amount: -0.058
+#       - year: 2030
+#         amount: -0.058
+#       - year: 2031
+#         amount: 0
+
+# - id: longmont_power_renewables_additional
+#   name: Additional 10% renewable electric energy supply by 2030
+#   description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
+#     >resolution</a> to commit Longmont to 100% renewable electric energy supply by
+#     2030.</p> <p>This action models the additional 10% renewable energy to meet City
+#     Council's goal of 100% renewable electric energy supply by 2030.</p> <p>To model
+#     the 100% renewable electric energy supply goal, select this action and <a href=\"\
+#     https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables\"\
+#     >90% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
+#     <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
+#     >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
+#     >Longmont Renewable Energy</a></li></ul></p>"
+#   type: linear.ReduceAction
+#   quantity: emission_factor
+#   unit: t/MWh
+#   group: electric_grid
+#   output_nodes:
+#   - electricity_emission_factor
+#   params:
+#   - id: reduce
+#     unit: t/MWh
+#     is_customizable: false
+#     value:
+#     - target:
+#         node: electricity_emission_factor
+#         categories:
+#           greenhouse_gases: co2
+#       amounts:
+#       - year: 2023
+#         amount: -0.006
+#       - year: 2030
+#         amount: -0.006
+#       - year: 2031
+#         amount: 0
+
+# - id: smart_grid_projects
+#   name: Accelerate and implement smart grid projects
+#   description: '<p>Implement a variety of smart grid projects that encourage reductions
+#     in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
+#     <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
+#     Plan Strategy E-7</a></li></ul>'
+#   type: linear.ReduceAction
+#   quantity: ratio
+#   unit: '%'
+#   group: electric_grid
+#   output_nodes:
+#   - id: participation_smart_grid
+#   - id: smart_grid_improvement
+#   params:
+#   - id: reduce
+#     unit: '%'
+#     is_customizable: false
+#     value:
+#     - target:
+#         node: participation_smart_grid
+#       amounts:
+#       - year: 2022
+#         amount: 2.675  # (30-9)/8
+#       - year: 2029
+#         amount: 2.675
+#       - year: 2030
+#         amount: 0
+#     - target:
+#         node: smart_grid_improvement
+#       amounts:
+#       - year: 2022
+#         amount: 3.3
+#       - year: 2024
+#         amount: 3.3
+#       - year: 2025
+#         amount: 0
+
+# - id: reduce_transmission_distribution_losses
+#   name: Encourage practices that reduce transmission and distribution losses
+#   description: '<p>Reduce electric grid transmission and distribution losses through
+#     grid management such as distributed voltage optimization.</p> <p>Track Implementation:
+#     <ul><li><a href="https://longmont-indicators.test.kausal.tech/carr/actions/RE.5">Climate
+#     Action Recommendations Report RE.5</a></li></ul></p>'
+#   type: linear.ReduceAction
+#   quantity: ratio
+#   unit: '%'
+#   group: electric_grid
+#   output_nodes:
+#   - id: transmission_loss_change
+#   params:
+#   - id: reduce
+#     unit: '%'
+#     is_customizable: false
+#     value:
+#     - target:
+#         node: transmission_loss_change
+#       amounts:
+#       - year: 2023
+#         amount: 1.5
+#       - year: 2024
+#         amount: 0.0
+
+# - id: vehicle_incentives
+#   name: Increase electric vehicles through vehicle incentives and improved infrastructure
+#   description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
+#     by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
+#     GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-4">Sustainability
+#     Plan Strategy T-4</a></li> <li><a href="https://longmont-sca.watch-test.kausal.tech/indicators/1771">Electric
+#     Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
+#   type: simple.AdditiveAction
+#   quantity: number
+#   unit: vehicle
+#   group: transportation
+#   forecast_values: [[2022, 1996.731], [2023, 4038.337], [2024, 6124.817], [2025, 8256.17],
+#     [2026, 10432.398], [2027, 12653.501], [2028, 14919.477], [2029, 17230.327], [
+#       2030, 19586.052], [2031, 23076.258], [2032, 26634.523], [2033, 30260.847], [
+#       2034, 33955.23], [2035, 37717.673], [2036, 41295.753], [2037, 44908.55], [2038,
+#       48556.321], [2039, 52239.327], [2040, 55957.828], [2041, 59712.089], [2042,
+#       63502.373], [2043, 67328.948], [2044, 71192.082], [2045, 75092.045], [2046,
+#       79029.11], [2047, 83003.551], [2048, 87015.642], [2049, 91065.662], [2050, 92000]]
+#   output_nodes:
+#   - registered_electric_vehicles
+
+# - id: increase_access_of_public_transit
+#   name: Address barriers to increase access and use of public transit
+#   description: '<p>Address barriers to increase access and use of public transit,
+#     especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
+#     href="https://longmont-indicators.test.kausal.tech/transportation">Equitable Carbon-Free
+#     Transportation Roadmap</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-1">Sustainability
+#     Plan Strategy T-1</a>, <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-5">Strategy
+#     T-5</a> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-7">Strategy
+#     T-7</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
+#     Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+#     System</a></li></ul></p>'
+#   type: simple.AdditiveAction
+#   quantity: number
+#   unit: trip/inhabitant/a
+#   group: transportation
+#   forecast_values: [[2023, 1.101064], [2050, 1.101064]]
+#   input_dataset_processors: [LinearInterpolation]
+#   output_nodes:
+#   - free_rides_per_person
+
+# - id: multimodal_transportation_system
+#   name: Develop multimodal transportation system / bicycle and pedestrian improvements
+#   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
+#     This action specifically models from actively reduce greenhouse gas emissions
+#     through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
+#     href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
+#     Carbon-Free Transportation Roadmap</a></li> <li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+#     >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+#     System</a></li></ul></p>"
+#   type: simple.AdditiveAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   forecast_values: [[2023, 0], [2050, 15]]
+#   input_dataset_processors: [LinearInterpolation]
+#   output_nodes:
+#   - modal_share_of_active_transportation
+
+# - id: last_mile_connections
+#   name: Improve last mile connections
+#   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
+#     This action specifically models from actively reduce greenhouse gas emissions
+#     through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
+#     href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
+#     Carbon-Free Transportation Roadmap</a></li> <ul><li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+#     >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+#     System</a></li></ul></p>"
+#   type: simple.AdditiveAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   forecast_values: [[2022, 1.346], [2023, 1.615], [2024, 1.885], [2025, 2.154], [
+#       2026, 2.423], [2027, 2.692], [2028, 2.962], [2029, 3.231], [2030, 3.5], [2031,
+#       3.5], [2032, 3.5], [2033, 3.5], [2034, 3.5], [2035, 3.5], [2036, 3.5], [2037,
+#       3.5], [2038, 3.5], [2039, 3.5], [2040, 3.5], [2041, 3.5], [2042, 3.5], [2043,
+#       3.5], [2044, 3.5], [2045, 3.5], [2046, 3.5], [2047, 3.5], [2048, 3.5], [2049,
+#       3.5], [2050, 3.5]]
+#   output_nodes:
+#   - public_transportation_change
+
+# - id: leak_detection
+#   name: Adopt and enforce leak detection and repair
+#   description: '<p>This action tracks emission reductions from monitoring active oil
+#     and gas sites by increasing methane leak detection and repair and minimizing leaks
+#     in the transmission and distribution system of natural gas. Currently the City
+#     has no active oil and gas sites.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/aq-air-quality">Sustainability
+#     Plan Air Quality Strategies</a></li></ul></p>'
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: t/a
+#   group: oil_and_gas
+#   forecast_values: [[2023, 0], [2050, 0]]
+#   output_nodes:
+#   - id: leakage_from_oil_and_gas_wells_emissions
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+
+# - id: increase_waste_diversion
+#   name: Increase waste diversion
+#   description: '<p>Achieve 75% waste diversion from the landfill by 2030 and 95% by
+#     2050 established in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/35431/638001469478900000">2022
+#     Zero Waste Resolution</a>.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/waste">Sustainability
+#     Plan Waste Strategies</a></li></ul></p>'
+#   type: simple.AdditiveAction
+#   quantity: fraction
+#   unit: '%'
+#   group: solid_waste
+#   forecast_values: [[2022, 5.2], [2023, 9.6], [2024, 13.9], [2025, 18.3], [2026, 22.6],
+#     [2027, 27], [2028, 31.3], [2029, 35.7], [2030, 40], [2031, 40.5], [2032, 41],
+#     [2033, 41.5], [2034, 42], [2035, 42.5], [2036, 43], [2037, 43.5], [2038, 44],
+#     [2039, 44.5], [2040, 45], [2041, 45.5], [2042, 46], [2043, 46.5], [2044, 47],
+#     [2045, 47.5], [2046, 48], [2047, 48.5], [2048, 49], [2049, 49.5], [2050, 50]]
+#   output_nodes:
+#   - diversion_rate
+
+# - id: mpg_trend
+#   name: Miles per gallon increasing trend
+#   description: The model assumes that internal combustion vehicles that use gasoline
+#     and diesel will become more efficient, increase miles traveled per gallon, over
+#     time.
+#   type: simple.AdditiveAction
+#   quantity: fuel_consumption
+#   unit: miles/gallon
+#   group: trend
+#   forecast_values: [[2022, 0.479], [2023, 1.007], [2024, 1.569], [2025, 2.178], [
+#       2026, 2.778], [2027, 3.371], [2028, 3.945], [2029, 4.493], [2030, 5.017], [
+#       2031, 5.513], [2032, 5.979], [2033, 6.416], [2034, 6.825], [2035, 7.2], [2036,
+#       7.543], [2037, 7.853], [2038, 8.131], [2039, 8.378], [2040, 8.598], [2041, 8.919],
+#     [2042, 9.244], [2043, 9.573], [2044, 9.906], [2045, 10.243], [2046, 10.584], [
+#       2047, 10.929], [2048, 11.278], [2049, 11.632], [2050, 11.989]]
+#   output_nodes:
+#   - miles_per_gallon
+
+# - id: vmt_per_vehicle_trend
+#   name: Vehicle miles per vehicle trend
+#   description: '<p>The model assumes that overtime there will be a decrease in the annual
+#     miles traveled per vehicle.</p>
+#     <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
+#   type: simple.AdditiveAction
+#   quantity: mileage
+#   unit: miles/vehicle/a
+#   group: trend
+#   forecast_values: [[2022, -10.805], [2023, -21.611], [2024, -32.416], [2025, -43.222],
+#     [2026, -54.027], [2027, -64.833], [2028, -75.638], [2029, -86.444], [2030, -97.249],
+#     [2031, -108.055], [2032, -118.86], [2033, -129.666], [2034, -140.471], [2035,
+#       -151.277], [2036, -162.082], [2037, -172.888], [2038, -183.693], [2039, -194.499],
+#     [2040, -205.304], [2041, -216.109], [2042, -226.915], [2043, -237.72], [2044,
+#       -248.526], [2045, -259.331], [2046, -270.137], [2047, -280.942], [2048, -291.748],
+#     [2049, -302.553], [2050, -313.359]]
+#   output_nodes:
+#   - vehicle_miles_per_vehicle
+
+# - id: electric_vehicle_efficiency_trend
+#   name: Electric vehicle efficiency trend
+#   description: The model assumes that electric vehicles will become more efficient,
+#     increase in miles traveled per kilowatt hour of energy, overtime.
+#   type: simple.AdditiveAction
+#   quantity: fuel_consumption
+#   unit: kWh/mile
+#   group: trend
+#   forecast_values: [[2022, -0.005], [2023, -0.011], [2024, -0.016], [2025, -0.022],
+#     [2026, -0.027], [2027, -0.032], [2028, -0.038], [2029, -0.043], [2030, -0.048],
+#     [2031, -0.05], [2032, -0.052], [2033, -0.054], [2034, -0.056], [2035, -0.058],
+#     [2036, -0.06], [2037, -0.062], [2038, -0.064], [2039, -0.066], [2040, -0.068],
+#     [2041, -0.069], [2042, -0.07], [2043, -0.071], [2044, -0.072], [2045, -0.073],
+#     [2046, -0.074], [2047, -0.075], [2048, -0.076], [2049, -0.077], [2050, -0.078]]
+#   output_nodes:
+#   - electric_vehicle_efficiency
+
+# pages:
+# - id: home
+#   name: Longmont Greenhouse Gas Inventory
+#   path: /
+#   type: emission
+#   node: direct_emissions
+#   lead_title_en: Development version
+#   lead_paragraph_en: "<p>The Longmont greenhouse gas inventory models projected emissions
+#     for the City of Longmont based on two primary scenarios: 1) Business as Usual
+#     scenario based on if no actions are taken by the City and 2) Climate Action Initiatives
+#     scenario that models actions from the Cities' guiding plans. These two versions
+#     of the model help identify if the City is on track to achieve its greenhouse gas
+#     emission targets and what actions the City should prioritize and focus on. The
+#     measured data for the model is updated every three years.</p> <p>The greenhouse
+#     gas modeling and inventory is based on the Global Protocol for Community-Scale
+#     Greenhouse Gas Emissions Inventories' (GPC protocol) Basic+ methodology. All modeled
+#     and historic data between 2016 to 2021 was adapted from Lotus Engineering and
+#     Sustainability, LLC., 2022, City of Longmont Emissions Reduction Model Update
+#     and 2023, 2021 Longmont Greenhouse Gas Inventory. Additional information is included
+#     in the 2021 GHG Emissions Summary Memo. Contact sustainability@longmontcolorado.gov
+#     if you are interested in learning more.</p>"
+
+# - id: updating
+#   name: Updating Guide
+#   path: /updating
+#   lead_paragraph_en: <p>This page provides instructions on how to update this tool
+#     and which values can be updated. A general set of directions is provided, followed
+#     by a table documenting which values on each tab can be updated and when it is
+#     appropriate to do so.</p> <p><b>Updating the Model</b></p> <p>The purpose of this
+#     model is to demonstrate the GHG reduction potential of Longmont''s strategies
+#     compared to Business-As-Usual emissions (if no strategies were implemented) based
+#     on a 2016 or 2018 baseline. Updates to this model should be decided based on the
+#     below criteria.</p> <p>The model should NOT be updated for the following reasons.</p>
+#     <li> <ul>Future GHG emissions inventories. The BAU tab should not be updated with
+#     actual GHG emissions values in future years. The purpose of the BAU is to show
+#     emissions if no strategies were to be implemented. Using actual GHG values in
+#     future years when several strategies have been implemented would misrepresent
+#     BAU emissions and may double count savings. Actual emissions from future GHG inventories
+#     can be entered into the Progress Tracker tab so Longmont can monitor if actual
+#     GHG emissions align with expected reductions due to strategy implementation.</ul>
+#     <ul>LPC electricity emission factor updates. Future emission factors from LPC
+#     should not be added to this tool as the emission factors will reflect the renewable
+#     energy strategy modeled in this tool. The BAU LPC emission factor represents the
+#     emission factor if LPC were to not pursue renewable energy. The renewable energy
+#     EF is used directly in the modeled strategies and should not be adjusted with
+#     actual values to preserve the desired progress toward RE modeled in this tool.
+#     Actual progress towards the renewable energy goal will be tracked in each of Longmont''s
+#     future GHG inventories. Inventory results can be compared to the modeled values
+#     in the Progress Tracker tab.</ul> <ul>Minor changes in emission calculation methodology.
+#     Baseline year emissions in the BAU should not be updated when minor methodology
+#     changes in calculation occur. If methodology changes would not impact total emissions
+#     in the baseline by greater than 5% then emissions should not be updated for the
+#     baseline year.</ul></li> The model should be updated for the following reasons
+#     <li> <ul>Changes to strategy targets or assumptions. If the target for a strategy
+#     is updated, the target should be updated in the Model Inputs tab and any calculation
+#     adjustments be made in the corresponding model tab. If more accurate and defensible
+#     assumptions can be made for a strategy compared to current assumption, assumptions
+#     should be updated in the Model Inputs tab.</ul> <ul>Xcel electricity emission
+#     factor updates. Xcel provides a small portion of electricity to Longmont and is
+#     not a part of LPC''s goal for 100% renewable energy which is modeled in this tool.
+#     As such, Xcel''s emission factors should be updated either each year or whenever
+#     new GHG inventory data is available for input in the Progress Tracker tab. This
+#     ensures that factors outside of the modeled strategies control are as accurate
+#     as possible.</ul> <ul>Updates to model parameter data (e.g., population and registered
+#     vehicles). Model parameter data includes model inputs that are NOT impacted by
+#     strategies. This includes population and registered vehicle data. As no strategies
+#     currently modeled have an impact on these parameters, they should be updated when
+#     possible to ensure modeling is using the most up to date external information
+#     for calculating emissions and emissions reductions. For example, if population
+#     were to increase more than is currently forecasted in a future year and this number
+#     were to not be updated, then emissions in the BAU would be nderestimated as the
+#     BAU uses population increase as a major parameter for forecasting.</ul> <ul>Major
+#     changes to emission calculation methodology. Major changes to emission calculation
+#     methodology may warrant updates to the baseline years. Changes that would drastically
+#     impact emission numbers and make accurate comparison to previous year''s inventory
+#     data inaccurate would require updating the baseline years to ensure alignment
+#     across years. For example, the 2016 baseline year emissions were updated as new
+#     Global Warming Potential values were released by the IPCC. If emissions in future
+#     years in the BAU or in modeled strategies were calculated with the updated GWPs
+#     while the baseline year used old GWPs, emissions calculations would not have an
+#     accurate baseline comparison. Major changes like GWP updates will likely be infrequent.</ul>
+#     </li> <h2>When to Update Data</h2> <li> <ul><b>Strategy targets.</b> Update if
+#     strategy targets are adjusted or if new strategies are added.</ul> <ul><b>Actual
+#     emissions.</b> Update when new GHG emissions inventory data is available.</ul>
+#     <ul><b>Strategy Selector.</b> Only update if new strategies are added.</ul> <ul><b>Model
+#     Input Values.</b> Update to reflect any changes in assumptions or strategy targets.</ul>
+#     <ul><b>Target reduction.</b> Update to reflect any changes in assumptions or strategy
+#     targets.</ul> <ul><b>Target year.</b> Update to reflect any changes in strategy
+#     target years.</ul> <ul><b>Business As Usual Baseline emissions.</b> Baseline emissions
+#     (2016 or 2018) should only be updated if there are major changes to emission calculation
+#     methodology in future years that would detrimentally impact the models ability
+#     to compare future emissions to the baseline. Actual GHG emission data for future
+#     years should NOT be entered into this tab.</ul> <ul><b>Non-electricity emission
+#     factors.</b> Non-electricity emission factors likely will not change often. It
+#     is recommended to review emission factor values for updates every few years.</ul>
+#     <ul><b>Population.</b> Update population data as actual data becomes available.</ul>
+#     <ul><b>Xcel Energy electricity emission factor.</b> Updated Xcel''s emission factor
+#     as actual data becomes available.</ul> <ul><b>LPC RE and BAU emission factors.</b>
+#     Do not update.</ul> <ul><b>Fuel efficiencies.</b> Only update the "Gasoline Passenger
+#     Vehicle Projected fuel efficiency" row if new fuel efficiency standards are released.</ul>
+#     <ul><b>Registered vehicles.</b> Update registered vehicle data as actual data
+#     becomes available.</ul> </li>
 
 scenarios:
 - id: baseline
