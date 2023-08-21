@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7c38edfcbadc7824e8c97fabc2fef1d96c91fc92
+  commit: 22e2502b9f7e63357fd9969866a0b8bf4309e0cb
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon Greenhouse Gas Inventory
@@ -572,6 +572,31 @@ nodes:
   input_dimensions: [emission_sectors, utility]
   input_datasets:
   - id: saskatoon/stationary_electricity_consumption
+
+- id: stationary_electricity_loss
+  name: Stationary Electricity Loss by Sector & Utility
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh
+  input_dimensions: [emission_sectors, utility]
+  output_dimensions: [emission_sectors, utility]
+  input_nodes:
+  - id: stationary_electricity_consumption
+    tags: [non_additive]
+  - id: transmission_distribution_loss_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+
+- id: electricity_emission_factor
+  name: Electricity Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/kWh
+  output_dimensions: [greenhouse_gases]
+  input_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: saskatoon/electricity_emission_factor
 
 # - id: global_warming_potential_100a
 #   name: Global warming potential 100 a
