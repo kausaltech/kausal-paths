@@ -15,9 +15,9 @@ model_end_year: 2025
 reference_year: 2016
 minimum_historical_year: 2014
 maximum_historical_year: 2021
-emission_unit: t/a
+emission_unit: t
 emission_forecast_from: 2022
-emission_dimensions: [emission_scope]
+emission_dimensions: [emission_sectors]
 emission_dataset: longmont/greenhouse_gas_emissions_by_subsector
 emission_sector_dimension: emission_sectors
 normalizations:
@@ -426,7 +426,7 @@ params:
 
 emission_sectors:
 - id: net_emissions
-  name: Greenhouse gas emissions
+  name: Greenhouse Gas Emissions
   color: '#273E60'
   input_node_dimension:
     label: Emission sectors
@@ -443,43 +443,43 @@ emission_sectors:
 # Sector emissions
 
 - id: stationary_energy_emissions
-  name: Stationary energy emissions
+  name: Stationary Energy Emissions
   part_of: net_emissions
   color: '#73C1B7'
   input_dataset_processors: [LinearInterpolation]
 
-- id: transportation_emissions
-  name: Transportation emissions
-  part_of: net_emissions
-  color: '#F4BD7B'
-  input_dataset_processors: [LinearInterpolation]
+# - id: transportation_emissions
+#   name: Transportation emissions
+#   part_of: net_emissions
+#   color: '#F4BD7B'
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: waste_emissions
-  name: Waste emissions
-  part_of: net_emissions
-  color: '#D3805E'
-  input_dataset_processors: [LinearInterpolation]
+# - id: waste_emissions
+#   name: Waste emissions
+#   part_of: net_emissions
+#   color: '#D3805E'
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: ippu_emissions
-  name: Industrial processes and product use emissions
-  part_of: net_emissions
-  color: '#6686B9'
-  input_dataset_processors: [LinearInterpolation]
+# - id: ippu_emissions
+#   name: Industrial processes and product use emissions
+#   part_of: net_emissions
+#   color: '#6686B9'
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: afolu_emissions
-  name: Agriculture, forestry, and other land use emissions
-  category: afolu
-  part_of: net_emissions
-  color: '#5D9C6F'
-  input_dataset_processors: [LinearInterpolation]
+# - id: afolu_emissions
+#   name: Agriculture, forestry, and other land use emissions
+#   category: afolu
+#   part_of: net_emissions
+#   color: '#5D9C6F'
+#   input_dataset_processors: [LinearInterpolation]
 
 # Subsector emissions
 
-- id: fugitive_emissions
-  name: Fugitive emissions
-  color: '#8DAFBC'
-  part_of: stationary_energy_emissions
-  input_dataset_processors: [LinearInterpolation]
+#- id: fugitive_emissions
+#  name: Fugitive emissions
+#  color: '#8DAFBC'
+#  part_of: stationary_energy_emissions
+#  input_dataset_processors: [LinearInterpolation]
 
 #- id: building_emissions  # FIXME Remove temporarily
 #  name: Building emissions
@@ -491,46 +491,46 @@ emission_sectors:
 #  part_of: waste_emissions
 #  input_dataset_processors: [LinearInterpolation]
 
-- id: waste_water_treatment_emissions
-  name: Waste water treatment emissions
-  category: waste_water_treatment
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: waste_water_treatment_emissions
+#   name: Waste water treatment emissions
+#   category: waste_water_treatment
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: refridgerant_emissions
-  name: Refridgerant emissions
-  category: refridgerant
-  part_of: ippu_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: refridgerant_emissions
+#   name: Refridgerant emissions
+#   category: refridgerant
+#   part_of: ippu_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 #- id: on_road_transportation_emissions  # FIXME Remove temporarily
 #  name: On-road transportation
 #  part_of: transportation_emissions
 #  input_dataset_processors: [LinearInterpolation]
 
-- id: aviation_emissions
-  name: Aviation emissions
-  category: aviation
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: aviation_emissions
+#   name: Aviation emissions
+#   category: aviation
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: railways_emissions
-  name: Railways emissions
-  category: railways
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: railways_emissions
+#   name: Railways emissions
+#   category: railways
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: off_road_transportation
-  name: Off-road transportation
-  category: off_road
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: off_road_transportation
+#   name: Off-road transportation
+#   category: off_road
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: leakage_from_oil_and_gas_wells_emissions
-  name: Emissions from leakages from oil and gas wells
-  category: leakage_from_oil_and_gas_wells
-  part_of: fugitive_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: leakage_from_oil_and_gas_wells_emissions
+#   name: Emissions from leakages from oil and gas wells
+#   category: leakage_from_oil_and_gas_wells
+#   part_of: fugitive_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 nodes:
 
@@ -597,6 +597,51 @@ nodes:
   input_dimensions: [greenhouse_gases]
   input_datasets:
   - id: saskatoon/electricity_emission_factor
+
+- id: stationary_electricity_loss_emissions
+  name: Stationary Electricity Loss Emissions by Sector
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t
+  input_dimensions: [emission_sectors, greenhouse_gases]
+  output_dimensions: [emission_sectors, greenhouse_gases]
+  input_nodes:
+  - id: stationary_electricity_loss
+    tags: [non_additive]
+    from_dimensions:
+    - id: utility
+    flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: electricity_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+    flatten: true
+
+- id: stationary_electricity_consumption_emissions
+  name: Stationary Electricity Consumption Emissions by Sector
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t
+  input_dimensions: [emission_sectors, greenhouse_gases]
+  output_dimensions: [emission_sectors, greenhouse_gases]
+  input_nodes:
+  - id: stationary_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: utility
+    flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: electricity_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
 
 # - id: global_warming_potential_100a
 #   name: Global warming potential 100 a
