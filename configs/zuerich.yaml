@@ -1114,10 +1114,9 @@ nodes:
   quantity: energy
   unit: GWh/a
   input_nodes:
-  - id: transport_electricity_consumption
+  - id: other_transport_electricity_consumption
     from_dimensions:
     - id: vehicle_type
-      groups: [cars, vans]
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -1206,19 +1205,19 @@ nodes:
       flatten: true
     to_dimensions: []
 
-- id: transport_electricity_production_mix
+- id: public_transport_electricity_production_mix
   type: ch.zuerich.ElectricityProductionMix
   quantity: mix
   unit: '%'
-  name_en: Transport electricity production mix
-  name_de: Transport electricity production mix
+  name_en: Public transport electricity production mix
+  name_de: Public transport electricity production mix
   output_dimensions: [electricity_source]
   input_datasets:
   - zuerich/transport_electricity_production_mix
   - zuerich/subsidized_transport_electricity_production_mix
   - zuerich/transport_externally_supplied_electricity
   input_nodes:
-  - id: transport_electricity_consumption
+  - id: public_transport_electricity_consumption
     tags: [consumption]
     from_dimensions:
     - id: vehicle_type
@@ -1233,6 +1232,20 @@ nodes:
   unit: g/kWh
   input_nodes:
   - id: electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+- id: public_transport_electricity_emission_factor
+  name_de: Treibhausgasfaktoren Strom Öffentlicher Verkehr
+  name_en: Emission factor of public transport electricity
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: public_transport_electricity_production_mix
     tags: mix
   input_datasets:
   - zuerich/electricity_consumption_emission_factor
@@ -1638,11 +1651,11 @@ nodes:
   #- id: zuerich/vehicle_tank_respiration_emissions
   #  tags: [tank_respiration]
 
-- id: transport_electricity_consumption
-  name_de: Stromverbrauch im Verkehr
-  name_en: Transport electricity consumption
-  short_name_en: Transport
-  short_name_de: Verkehr
+- id: public_transport_electricity_consumption
+  name_de: Stromverbrauch im Öffentlicher Verkehr
+  name_en: Public transport electricity consumption
+  short_name_en: Public transport
+  short_name_de: Öffentlicher Verkehr
   type: simple.MultiplicativeNode
   quantity: energy
   input_dimensions: [vehicle_type]
@@ -1650,6 +1663,32 @@ nodes:
   unit: GWh/a
   input_nodes:
   - id: vehicle_mileage
+    from_dimensions:
+      - id: vehicle_type
+        groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: other_transport_electricity_consumption
+  name_de: Stromverbrauch im Ubriger Verkehr
+  name_en: Other transportation electricity consumption
+  short_name_en: Other transportation
+  short_name_de: Ubriger Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+      - id: vehicle_type
+        groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+        exclude: true
   - id: transport_electricity_consumption_factor
   output_nodes:
   - id: electricity_consumption
@@ -1667,6 +1706,10 @@ nodes:
   input_nodes:
   - id: electricity_emission_factor
     tags: [general_electricity]
+    to_dimensions:
+    - id: emission_scope
+  - id: public_transport_electricity_emission_factor
+    tags: [public_transport]
     to_dimensions:
     - id: emission_scope
   - id: transport_electricity_consumption_factor
@@ -2017,10 +2060,11 @@ nodes:
   output_dimensions: [energy_carrier, renewable_energy]
 
 
-
-- id: building_primary_energy_consumption
-  name_de: Primärenergiebedarf Gebäude
+- id: building_heating_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Heizung
   name_en: Building primary energy consumption
+  short_name_de: Gebäude Heizung
+  short_name_en: Building heating
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2036,9 +2080,35 @@ nodes:
   output_nodes:
   - id: net_primary_energy_demand
 
+- id: building_general_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Strom
+  name_en: Building electricity primary energy consumption
+  short_name_de: Gebäude Strom
+  short_name_en: Building electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+  - id: building_general_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  output_nodes:
+  - id: net_primary_energy_demand
+
 - id: public_transport_electricity_primary_energy_consumption
-  name_de: Public transport electricity primary energy consumption
+  name_de: Primärenergiebedarf Öffentlicher Verkehr (ÖV) Strom
   name_en: Public transport electricity primary energy consumption
+  short_name_de: Öffentlicher Verkehr (ÖV) Strom
+  short_name_en: Public transport electricity
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2052,26 +2122,23 @@ nodes:
       flatten: true
     to_dimensions:
     - id: renewable_energy
-  - id: transport_electricity_consumption
+  - id: public_transport_electricity_consumption
     tags: [non_additive]
-    from_dimensions:
-    - id: vehicle_type
-      groups: [buses, trolleybuses, coaches, tram, rail_passenger, small_railways]
     to_dimensions:
     - id: vehicle_type
   output_nodes:
-  - id: net_primary_energy_demand
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+  - id: transport_primary_energy_demand
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
     - id: renewable_energy
+    - id: vehicle_type
 
 - id: other_transport_electricity_primary_energy_consumption
-  name_de: Other transport electricity primary energy consumption
+  name_de: Primärenergiebedarf Ubriger Verkehr Strom
   name_en: Other transport electricity primary energy consumption
+  short_name_de: Ubriger Verkehr Strom
+  short_name_en: Other electric transport
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2086,22 +2153,33 @@ nodes:
       flatten: true
     to_dimensions:
     - id: renewable_energy
-  - id: transport_electricity_consumption
+  - id: other_transport_electricity_consumption
     tags: [non_additive]
-    from_dimensions:
-    - id: vehicle_type
-      groups: [cars, motorbikes, lorries, vans, rail_goods, liner_ship, private_ship]
     to_dimensions:
     - id: vehicle_type
   output_nodes:
-  - id: net_primary_energy_demand
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+  - id: transport_primary_energy_demand
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
     - id: renewable_energy
+    - id: vehicle_type
+
+- id: transport_primary_energy_demand
+  name_de: Primärenergiebedarf Verkehr
+  name_en: Transportation primary energy consumption
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy, energy_carrier]
+  output_dimensions: [vehicle_type, renewable_energy, energy_carrier]
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+      - id: vehicle_type
+        flatten: true
 
 - id: transport_fuel_primary_energy_consumption
   name_de: Transport fuel primary energy consumption
@@ -2123,11 +2201,7 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
   output_nodes:
-  - id: net_primary_energy_demand
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-
+  - id: transport_primary_energy_demand
 
 
 - id: building_primary_energy_factor
@@ -2200,14 +2274,12 @@ nodes:
   input_dimensions: [electricity_source, renewable_energy]
   output_dimensions: [electricity_source, renewable_energy]
   input_nodes:
-  - id: transport_electricity_production_mix
+  - id: public_transport_electricity_production_mix
     tags: [non_additive]
     to_dimensions:
     - id: electricity_source
   - id: transport_electricity_production_energy_factor
     tags: [non_additive]
-
-
 
 - id: electricity_production_energy_factor
   name_de: Primärenergiefaktoren Stromerzeugung
