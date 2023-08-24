@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3fbe1baa8e888420703e720c7c47f534123a8212
+  commit: d38d46f52a8f9ee494f928c154add24292e69064
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -15,7 +15,7 @@ reference_year: 2016
 minimum_historical_year: 2016
 maximum_historical_year: 2021
 emission_unit: t/a
-emission_forecast_from: 2022
+emission_forecast_from: 2023
 emission_dimensions: [emission_scope]
 emission_dataset: longmont/greenhouse_gas_emissions_by_subsector
 emission_sector_dimension: emission_sectors
@@ -388,6 +388,10 @@ dimensions:
     label: New code-compliant buildings
   - id: non_compliant
     label: New buildings not compliant with code
+  - id: existing
+    label: Existing building stock
+  - id: new
+    label: Building stock to be built
 
 - id: action
   label: Actions affecting nodes
@@ -580,6 +584,84 @@ nodes:
 #
 # STATIONARY
 #
+- id: building_square_footage
+  name: Building square footage
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: ft^2
+  input_datasets:
+  - id: longmont/building_square_footage
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+  output_dimensions: [emission_sectors]
+
+- id: affected_square_footage
+  name: Building square footage affected by actions
+  description: Building square footeage affected by actions on each year. Fraction
+    of compliant buildings is already taken into account here. Note that these values
+    are not additive, as several actions may affect the same buildings. Those buildings
+    that are not affected are not shown here.
+  type: simple.UsFloorAreaNode2
+  quantity: floor_area
+  unit: ft^2
+  input_nodes:
+  - id: building_square_footage
+  - id: updated_building_code
+    metrics: [triggered, compliant]
+    from_dimensions:  # FIXME Remove this to get the no-change for new buildings after 2029.
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: develop_beyond_building_code
+    metrics: [triggered, compliant]
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors, action, building_energy_class]
+
+- id: building_natural_gas_eui2
+  name: Energy use intensity EUI for natural gas
+  type: simple.UsEuiNode2
+  quantity: consumption_factor
+  unit: therm/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors, action]
+  input_nodes:
+  - id: updated_building_code
+    metrics: [improvement]
+    from_dimensions:  # FIXME Remove this to get the no-change for new buildings after 2029.
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: develop_beyond_building_code
+    metrics: [improvement]
+  - id: benchmark_energy_use
+    metrics: [improvement]
+
+- id: natural_gas_saved
+  name: Natural gas saved
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: Mthm/a
+  input_dimensions: [action, emission_sectors]
+  output_dimensions: [action, emission_sectors]
+  input_nodes:
+  - id: affected_square_footage
+    from_dimensions:
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: emission_sectors
+  - id: building_natural_gas_eui2
+#    to_dimensions:
+#    - id: building_energy_class
+#      categories: [existing]
+
 - id: floor_increase_residential
   name: Relative residential floor area to current situation
   type: costs.ExponentialNode
@@ -678,7 +760,8 @@ nodes:
 
 - id: building_electricity_use
   name: Building electricity use
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
+  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours
+    per year.
   type: simple.MultiplyLastNode
   quantity: energy
   unit: GWh/a
@@ -785,7 +868,8 @@ nodes:
 
 - id: electricity_use
   name: Electricity use
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
+  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours
+    per year.
   type: simple.MultiplyLastNode2
   quantity: energy
   unit: GWh/a
@@ -1207,9 +1291,9 @@ nodes:
 
 - id: vehicle_miles_per_vehicle
   name: Vehicle miles per vehicle
-  description: '<p>The model has two different estimates for VMT: <ul><li>Row 50: Average
-    annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li> <li>Row
-    76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
+  description: '<p>The model has two different estimates for VMT: <ul><li>Row 50:
+    Average annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li>
+    <li>Row 76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
     <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
   type: simple.AdditiveNode
   quantity: mileage
@@ -1236,7 +1320,8 @@ nodes:
 
 - id: total_vehicle_miles_traveled
   name: Total combustion engine vehicle miles traveled
-  description: '<p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per capita)</p>'
+  description: <p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per
+    capita)</p>
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mmiles/a
@@ -1558,7 +1643,8 @@ nodes:
 
 - id: transmission_loss_work_benefits
   name: Improvements due to transmission loss work
-  description: Relative change of electricity use compared with the business as usual (baseline = 1).
+  description: Relative change of electricity use compared with the business as usual
+    (baseline = 1).
   type: simple.ImprovementNode
   quantity: fraction
   unit: dimensionless
@@ -1588,14 +1674,26 @@ actions:
     filters:
     - column: action
       value: updated_building_code
-  output_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors, building_energy_class]
   output_nodes:
   - id: building_natural_gas_eui
     metrics: [improvement]
+    from_dimensions:  # FIXME Proper handling of the dimension needed
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
   - id: building_electricity_eui
     metrics: [improvement]
+    from_dimensions:  # FIXME Proper handling of the dimension needed
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
   - id: building_floor_area
     metrics: [triggered, compliant]
+    from_dimensions:  # FIXME Proper handling of the dimension needed
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -1614,6 +1712,8 @@ actions:
     filters:
     - column: action
       value: develop_beyond_building_code
+    - column: building_energy_class  # FIXME Proper handling of the dimension needed
+      value: existing
   output_dimensions: [emission_sectors]
   output_nodes:
   - id: building_natural_gas_eui
@@ -1652,6 +1752,8 @@ actions:
     filters:
     - column: action
       value: benchmark_energy_use
+    - column: building_energy_class
+      value: existing
   output_dimensions: [emission_sectors]
   output_nodes:
   - id: building_natural_gas_eui
@@ -1707,7 +1809,13 @@ actions:
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2023, -192.409], [2024, -192.409], [2025, -192.409], [2026, -192.409], [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030, -192.409], [2031, -999.708], [2032, -999.708], [2033, -999.708], [2034, -999.708], [2035, -999.708], [2036, -999.708], [2037, -999.708], [2038, -999.708], [2039, -999.708], [2040, -999.708], [2041, -999.708], [2042, -999.708], [2043, -999.708], [2044, -999.708], [2045, -999.708], [2046, -999.708], [2047, -999.708], [2048, -999.708], [2049, -999.708], [2050, -999.708]]
+  forecast_values: [[2023, -192.409], [2024, -192.409], [2025, -192.409], [2026, -192.409],
+    [2027, -192.409], [2028, -192.409], [2029, -192.409], [2030, -192.409], [2031,
+      -999.708], [2032, -999.708], [2033, -999.708], [2034, -999.708], [2035, -999.708],
+    [2036, -999.708], [2037, -999.708], [2038, -999.708], [2039, -999.708], [2040,
+      -999.708], [2041, -999.708], [2042, -999.708], [2043, -999.708], [2044, -999.708],
+    [2045, -999.708], [2046, -999.708], [2047, -999.708], [2048, -999.708], [2049,
+      -999.708], [2050, -999.708]]
   output_nodes:
   - id: building_natural_gas_use
     to_dimensions:
@@ -1717,7 +1825,7 @@ actions:
 
 - id: replace_natural_gas_commercial
   name: Beneficial Building Electrification Commercial
-  description: '<p>Converting residential building systems that use fossil fuels (gas,
+  description: '<p>Converting commercial building systems that use fossil fuels (gas,
     oil, or propane) to high efficiency electric equipment powered by increasingly
     clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
     Building Electrification Plan</a></li></ul>'
@@ -1725,7 +1833,13 @@ actions:
   quantity: energy
   unit: ktherm/a
   group: buildings
-  forecast_values: [[2023, -88.707], [2024, -88.707], [2025, -88.707], [2026, -88.707], [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707], [2031, -572.853], [2032, -572.853], [2033, -572.853], [2034, -572.853], [2035, -572.853], [2036, -572.853], [2037, -572.853], [2038, -572.853], [2039, -572.853], [2040, -572.853], [2041, -572.853], [2042, -572.853], [2043, -572.853], [2044, -572.853], [2045, -572.853], [2046, -572.853], [2047, -572.853], [2048, -572.853], [2049, -572.853], [2050, -572.853]]
+  forecast_values: [[2023, -88.707], [2024, -88.707], [2025, -88.707], [2026, -88.707],
+    [2027, -88.707], [2028, -88.707], [2029, -88.707], [2030, -88.707], [2031, -572.853],
+    [2032, -572.853], [2033, -572.853], [2034, -572.853], [2035, -572.853], [2036,
+      -572.853], [2037, -572.853], [2038, -572.853], [2039, -572.853], [2040, -572.853],
+    [2041, -572.853], [2042, -572.853], [2043, -572.853], [2044, -572.853], [2045,
+      -572.853], [2046, -572.853], [2047, -572.853], [2048, -572.853], [2049, -572.853],
+    [2050, -572.853]]
   output_nodes:
   - id: building_natural_gas_use
     to_dimensions:
@@ -2002,9 +2116,9 @@ actions:
 
 - id: vmt_per_vehicle_trend
   name: Vehicle miles per vehicle trend
-  description: '<p>The model assumes that overtime there will be a decrease in the annual
-    miles traveled per vehicle.</p>
-    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
+  description: <p>The model assumes that overtime there will be a decrease in the
+    annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = miles per
+    year per vehicle</p>
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/vehicle/a
