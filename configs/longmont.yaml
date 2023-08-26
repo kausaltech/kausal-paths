@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d38d46f52a8f9ee494f928c154add24292e69064
+  commit: 622815d3dd8f013f5a19ad99bf9410a9b7249bf1
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -601,41 +601,31 @@ nodes:
     of compliant buildings is already taken into account here. Note that these values
     are not additive, as several actions may affect the same buildings. Those buildings
     that are not affected are not shown here.
-  type: simple.UsFloorAreaNode2
+  type: buildings.FloorAreaNode
   quantity: floor_area
   unit: ft^2
   input_nodes:
   - id: building_square_footage
+    to_dimensions:
+    - id: emission_sectors
   - id: updated_building_code
     metrics: [triggered, compliant]
-    from_dimensions:  # FIXME Remove this to get the no-change for new buildings after 2029.
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
   - id: develop_beyond_building_code
     metrics: [triggered, compliant]
   - id: benchmark_energy_use
     metrics: [triggered, compliant]
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors, action, building_energy_class]
 
-- id: building_natural_gas_eui2
-  name: Energy use intensity EUI for natural gas
-  type: simple.UsEuiNode2
+- id: natural_gas_eui_improvement
+  name: Energy use intensity EUI improvement for natural gas
+  type: buildings.EuiNode
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors, action]
   input_nodes:
   - id: updated_building_code
     metrics: [improvement]
-    from_dimensions:  # FIXME Remove this to get the no-change for new buildings after 2029.
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
   - id: develop_beyond_building_code
     metrics: [improvement]
   - id: benchmark_energy_use
@@ -643,24 +633,83 @@ nodes:
 
 - id: natural_gas_saved
   name: Natural gas saved
-  type: simple.MultiplicativeNode
+  type: buildings.EnergyNode
   quantity: energy
   unit: Mthm/a
-  input_dimensions: [action, emission_sectors]
-  output_dimensions: [action, emission_sectors]
+  params:
+  - id: not_cumulated
+    value: develop_deyond_building_code
   input_nodes:
   - id: affected_square_footage
+  - id: natural_gas_eui_improvement
+
+- id: natural_gas_temp1  # FIXME Replace this node with FormulaNode
+  name: Natural gas (temporary)
+  type: simple.FixedMultiplierNode
+  quantity: energy
+  unit: Mthm/a
+  params:
+  - id: multiplier
+    value: -1
+  input_nodes:
+  - natural_gas_saved
+  input_dimensions: [building_energy_class, action, emission_sectors]
+  output_dimensions: [building_energy_class, action, emission_sectors]
+  output_nodes:
+  - id: building_natural_gas_use
     from_dimensions:
     - id: building_energy_class
-      categories: [existing]
       flatten: true
-    to_dimensions:
     - id: action
-    - id: emission_sectors
-  - id: building_natural_gas_eui2
-#    to_dimensions:
-#    - id: building_energy_class
-#      categories: [existing]
+      flatten: true
+
+- id: electricity_eui_improvement
+  name: Energy use intensity EUI improvement for electricity
+  type: buildings.EuiNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+  input_nodes:
+  - id: updated_building_code
+    metrics: [improvement]
+  - id: develop_beyond_building_code
+    metrics: [improvement]
+  - id: benchmark_energy_use
+    metrics: [improvement]
+
+- id: electricity_saved
+  name: Electricity saved
+  type: buildings.EnergyNode
+  quantity: energy
+  unit: GWh/a
+  params:
+  - id: not_cumulated
+    value: develop_deyond_building_code
+  input_nodes:
+  - id: affected_square_footage
+  - id: natural_gas_eui_improvement
+
+- id: electricity_temp1  # FIXME Replace this node with FormulaNode
+  name: Electricity (temporary)
+  type: simple.FixedMultiplierNode
+  quantity: energy
+  unit: GWh/a
+  params:
+  - id: multiplier
+    value: -1
+  input_nodes:
+  - electricity_saved
+  input_dimensions: [building_energy_class, action, emission_sectors]
+  output_dimensions: [building_energy_class, action, emission_sectors]
+  output_nodes:
+  - id: building_electricity_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: action
+      flatten: true
 
 - id: floor_increase_residential
   name: Relative residential floor area to current situation
@@ -740,16 +789,16 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors, building_energy_class, action]
 
-- id: commercial_square_footage_over_20000_sf
-  name: Commercial square footage over 20,000 square feet
-  type: simple.UsFloorAreaNode
-  quantity: floor_area
-  unit: ft**2
-  input_datasets:
-  - id: longmont/commercial_square_footage_over_20000_sf
+#- id: commercial_square_footage_over_20000_sf
+#  name: Commercial square footage over 20,000 square feet
+#  type: simple.UsFloorAreaNode
+#  quantity: floor_area
+#  unit: ft**2
+#  input_datasets:
+#  - id: longmont/commercial_square_footage_over_20000_sf
 
 - id: building_natural_gas_eui
-  name: Energy use intensity EUI for natural gas
+  name: Energy use intensity EUI baseline for natural gas
   type: simple.UsEuiNode
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -768,10 +817,10 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_electricity_use_intermediate
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
+  - id: building_electricity_use_bau
+#    from_dimensions:
+#    - id: building_energy_class
+#      flatten: true
 
 - id: building_natural_gas_use
   name: Building natural gas use
@@ -782,13 +831,34 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_natural_gas_use_intermediate
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
+  - id: building_natural_gas_use_bau
+#    from_dimensions:
+#    - id: building_energy_class
+#      flatten: true
 
-- id: building_natural_gas_use_intermediate
-  name: Building natural gas use (intermediate)
+#- id: building_natural_gas_use_intermediate
+#  name: Building natural gas use (intermediate)
+#  description: <p>This node shows the building natural gas use when some, but not
+#    all, actions have been implemented. the actual natural gas use with all the actions
+#    is shown downstream in the node "Building natural gas use". </p><p>Building energy
+#    class has a specific use here. "All buildings, baseline" shows the natural gas
+#    use that would occur in the building stock if none of the upstream actions are
+#    implemented. All other classes show the difference to the baseline; in other words
+#    energy saving actions take the natural gas use to the negative side. If the actions
+#    do not affect a particular class, the graph of that class seems empty.</p>
+#  type: simple.UsEnergyNode
+#  quantity: energy
+#  unit: Mtherm/a
+#  input_dimensions: [building_energy_class, action, emission_sectors]
+#  output_dimensions: [building_energy_class, emission_sectors]
+#  input_nodes:
+#  - id: building_floor_area
+#    tags: [floor_area]
+#  - id: building_natural_gas_eui
+#    tags: [consumption_factor]
+
+- id: building_natural_gas_use_bau
+  name: Building natural gas use baseline
   description: <p>This node shows the building natural gas use when some, but not
     all, actions have been implemented. the actual natural gas use with all the actions
     is shown downstream in the node "Building natural gas use". </p><p>Building energy
@@ -797,74 +867,120 @@ nodes:
     implemented. All other classes show the difference to the baseline; in other words
     energy saving actions take the natural gas use to the negative side. If the actions
     do not affect a particular class, the graph of that class seems empty.</p>
-  type: simple.UsEnergyNode
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: Mtherm/a
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_floor_area
-    tags: [floor_area]
+  - id: building_square_footage
+    to_dimensions:
+    - id: emission_sectors
   - id: building_natural_gas_eui
-    tags: [consumption_factor]
-
-- id: building_natural_gas_use_20000_sf
-  name: Building natural gas use in large commercial buildings
-  description: <p>This node shows the building natural gas use when some, but not
-    all, actions have been implemented on large commercial buildings. the actual natural
-    gas use with all the actions is shown downstream in the node "Building natural
-    gas use". </p><p>Building energy class has a specific use here. "All buildings,
-    baseline" shows the natural gas use that would occur in the building stock if
-    none of the upstream actions are implemented. All other classes show the difference
-    to the baseline; in other words energy saving actions take the natural gas use
-    to the negative side. If the actions do not affect a particular class, the graph
-    of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
-  type: simple.UsEnergyNode
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
-  input_nodes:
-  - id: commercial_square_footage_over_20000_sf
-    tags: [floor_area]
-    # metrics: [floor_area]
-  - id: building_natural_gas_eui
-    tags: [consumption_factor]
-  output_nodes:
-  - id: building_natural_gas_use
     from_dimensions:
+    - id: action
+      categories: [none]
+      flatten: true
     - id: building_energy_class
-      categories: [renovated, compliant]
+      categories: [all]
       flatten: true
 
-- id: building_electricity_use_20000_sf
-  name: Building electricity use in large commercial buildings
+- id: building_electricity_use_bau
+  name: Building electricity use baseline
   description: <p>This node shows the building electricity use when some, but not
-    all, actions have been implemented on large commercial buildings. the actual electricity
-    use with all the actions is shown downstream in the node "Building electricity
-    use". </p><p>Building energy class has a specific use here. "All buildings, baseline"
-    shows the electricity use that would occur in the building stock if none of the
-    upstream actions are implemented. All other classes show the difference to the
-    baseline; in other words energy saving actions take the electricity use to the
-    negative side. If the actions do not affect a particular class, the graph of that
-    class seems empty.</p>
-  type: simple.UsEnergyNode
+    all, actions have been implemented.</p>
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: Mtherm/a
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
   input_nodes:
-  - id: commercial_square_footage_over_20000_sf
-    tags: [floor_area]
-    # metrics: [floor_area]
+  - id: building_square_footage
+    to_dimensions:
+    - id: emission_sectors
   - id: building_electricity_eui
-    tags: [consumption_factor]
-  output_nodes:
-  - id: building_electricity_use
     from_dimensions:
-    - id: building_energy_class
-      categories: [renovated, compliant]
+    - id: action
+      categories: [none]
       flatten: true
+    - id: building_energy_class
+      categories: [all]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+
+#  - id: natural_gas_saved
+#    from_dimensions:
+#    - id: action
+#      flatten: true
+#    - id: building_energy_class
+#      flatten: true
+#  - id: building_natural_gas_use_intermediate
+#    from_dimensions:
+#    - id: building_energy_class
+#      categories: [all]
+#      flatten: true
+#  params:
+#  - id: formula
+#    value: building_natural_gas_use_intermediate - natural_gas_saved
+
+#- id: building_natural_gas_use_20000_sf
+#  name: Building natural gas use in large commercial buildings
+#  description: <p>This node shows the building natural gas use when some, but not
+#    all, actions have been implemented on large commercial buildings. the actual natural
+#    gas use with all the actions is shown downstream in the node "Building natural
+#    gas use". </p><p>Building energy class has a specific use here. "All buildings,
+#    baseline" shows the natural gas use that would occur in the building stock if
+#    none of the upstream actions are implemented. All other classes show the difference
+#    to the baseline; in other words energy saving actions take the natural gas use
+#    to the negative side. If the actions do not affect a particular class, the graph
+#    of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
+#  type: simple.UsEnergyNode
+#  quantity: energy
+#  unit: Mtherm/a
+#  input_dimensions: [building_energy_class, action, emission_sectors]
+#  output_dimensions: [building_energy_class, emission_sectors]
+#  input_nodes:
+#  - id: commercial_square_footage_over_20000_sf
+#    tags: [floor_area]
+#    # metrics: [floor_area]
+#  - id: building_natural_gas_eui
+#    tags: [consumption_factor]
+#  output_nodes:
+#  - id: building_natural_gas_use
+#    from_dimensions:
+#    - id: building_energy_class
+#      categories: [renovated, compliant]
+#      flatten: true
+
+#- id: building_electricity_use_20000_sf
+#  name: Building electricity use in large commercial buildings
+#  description: <p>This node shows the building electricity use when some, but not
+#    all, actions have been implemented on large commercial buildings. the actual electricity
+#    use with all the actions is shown downstream in the node "Building electricity
+#    use". </p><p>Building energy class has a specific use here. "All buildings, baseline"
+#    shows the electricity use that would occur in the building stock if none of the
+#    upstream actions are implemented. All other classes show the difference to the
+#    baseline; in other words energy saving actions take the electricity use to the
+#    negative side. If the actions do not affect a particular class, the graph of that
+#    class seems empty.</p>
+#  type: simple.UsEnergyNode
+#  quantity: energy
+#  unit: Mtherm/a
+#  input_dimensions: [building_energy_class, action, emission_sectors]
+#  output_dimensions: [building_energy_class, emission_sectors]
+#  input_nodes:
+#  - id: commercial_square_footage_over_20000_sf
+#    tags: [floor_area]
+#    # metrics: [floor_area]
+#  - id: building_electricity_eui
+#    tags: [consumption_factor]
+#  output_nodes:
+#  - id: building_electricity_use
+#    from_dimensions:
+#    - id: building_energy_class
+#      categories: [renovated, compliant]
+#      flatten: true
 
 - id: electricity_use
   name: Electricity use
@@ -893,30 +1009,45 @@ nodes:
   output_dimensions: [greenhouse_gases]
 
 - id: building_electricity_eui
-  name: Energy use intensity EUI for electricity
+  name: Energy use intensity EUI baseline for electricity
   type: simple.UsEuiNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
-  input_dimensions: [emission_sectors]
 
-- id: building_electricity_use_intermediate
-  name: Building electricity use (intermediate)
-  description: <p>This node shows the building electricity use when some, but not
-    all, actions have been implemented. the actual electricity use with all the actions
-    is shown downstream in the node "Building electricity use". </p><p>Building energy
-    class has a specific use here. "All buildings, baseline" shows the electricity
-    use that would occur in the building stock if none of the upstream actions are
-    implemented. All other classes show the difference to the baseline; in other words
-    energy saving actions take the electricity use to the negative side. If the actions
-    do not affect a particular class, the graph of that class seems empty.</p>
-  type: simple.UsEnergyNode
+#- id: building_electricity_use_intermediate
+#  name: Building electricity use (intermediate)
+#  description: <p>This node shows the building electricity use when some, but not
+#    all, actions have been implemented. the actual electricity use with all the actions
+#    is shown downstream in the node "Building electricity use". </p><p>Building energy
+#    class has a specific use here. "All buildings, baseline" shows the electricity
+#    use that would occur in the building stock if none of the upstream actions are
+#    implemented. All other classes show the difference to the baseline; in other words
+#    energy saving actions take the electricity use to the negative side. If the actions
+#    do not affect a particular class, the graph of that class seems empty.</p>
+#  type: simple.UsEnergyNode
+#  quantity: energy
+#  unit: GWh/a
+#  input_dimensions: [emission_sectors, action, building_energy_class]
+#  output_dimensions: [emission_sectors, building_energy_class]
+#  input_nodes:
+#  - id: building_electricity_eui
+#    tags: consumption_factor
+#  - id: building_floor_area
+#    tags: floor_area
+#    # metrics: [floor_area]
+
+- id: building_electricity_saved
+  name: Building electricity saved
+  description: <p>This node shows the building electricity savings when some, but not
+    all, actions have been implemented.</p>
+  type: buildings.EnergyNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [emission_sectors, action, building_energy_class]
-  output_dimensions: [emission_sectors, building_energy_class]
+#  input_dimensions: [emission_sectors, action, building_energy_class]
+#  output_dimensions: [emission_sectors, building_energy_class]
   input_nodes:
   - id: building_electricity_eui
     tags: consumption_factor
@@ -1675,25 +1806,25 @@ actions:
     - column: action
       value: updated_building_code
   output_dimensions: [emission_sectors, building_energy_class]
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-    from_dimensions:  # FIXME Proper handling of the dimension needed
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
-  - id: building_electricity_eui
-    metrics: [improvement]
-    from_dimensions:  # FIXME Proper handling of the dimension needed
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
-  - id: building_floor_area
-    metrics: [triggered, compliant]
-    from_dimensions:  # FIXME Proper handling of the dimension needed
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
+#  output_nodes:
+#  - id: building_natural_gas_eui
+#    metrics: [improvement]
+#    from_dimensions:  # FIXME Proper handling of the dimension needed
+#    - id: building_energy_class
+#      categories: [existing]
+#      flatten: true
+#  - id: building_electricity_eui
+#    metrics: [improvement]
+#    from_dimensions:  # FIXME Proper handling of the dimension needed
+#    - id: building_energy_class
+#      categories: [existing]
+#      flatten: true
+#  - id: building_floor_area
+#    metrics: [triggered, compliant]
+#    from_dimensions:  # FIXME Proper handling of the dimension needed
+#    - id: building_energy_class
+#      categories: [existing]
+#      flatten: true
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -1712,28 +1843,28 @@ actions:
     filters:
     - column: action
       value: develop_beyond_building_code
-    - column: building_energy_class  # FIXME Proper handling of the dimension needed
-      value: existing
-  output_dimensions: [emission_sectors]
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: building_energy_class
-      categories: [compliant]
-    - id: emission_sectors
-  - id: building_electricity_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: building_energy_class
-      categories: [compliant]
-    - id: emission_sectors
-  - id: building_floor_area
-    metrics: [triggered, compliant]
-    to_dimensions:
-    - id: building_energy_class
-      categories: [compliant]
-    - id: emission_sectors
+#    - column: building_energy_class  # FIXME Proper handling of the dimension needed
+#      value: existing
+  output_dimensions: [building_energy_class, emission_sectors]
+#  output_nodes:
+#  - id: building_natural_gas_eui
+#    metrics: [improvement]
+#    to_dimensions:
+#    - id: building_energy_class
+#      categories: [compliant]
+#    - id: emission_sectors
+#  - id: building_electricity_eui
+#    metrics: [improvement]
+#    to_dimensions:
+#    - id: building_energy_class
+#      categories: [compliant]
+#    - id: emission_sectors
+#  - id: building_floor_area
+#    metrics: [triggered, compliant]
+#    to_dimensions:
+#    - id: building_energy_class
+#      categories: [compliant]
+#    - id: emission_sectors
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -1752,25 +1883,25 @@ actions:
     filters:
     - column: action
       value: benchmark_energy_use
-    - column: building_energy_class
-      value: existing
-  output_dimensions: [emission_sectors]
-  output_nodes:
-  - id: building_natural_gas_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-  - id: building_electricity_eui
-    metrics: [improvement]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-  - id: commercial_square_footage_over_20000_sf
-    metrics: [triggered, compliant]
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
+#    - column: building_energy_class
+#      value: existing
+  output_dimensions: [building_energy_class, emission_sectors]
+#  output_nodes:
+#  - id: building_natural_gas_eui
+#    metrics: [improvement]
+#    to_dimensions:
+#    - id: emission_sectors
+#      categories: [commercial_industrial_energy]
+#  - id: building_electricity_eui
+#    metrics: [improvement]
+#    to_dimensions:
+#    - id: emission_sectors
+#      categories: [commercial_industrial_energy]
+#  - id: commercial_square_footage_over_20000_sf
+#    metrics: [triggered, compliant]
+#    to_dimensions:
+#    - id: emission_sectors
+#      categories: [commercial_industrial_energy]
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
