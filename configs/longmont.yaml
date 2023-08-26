@@ -689,7 +689,7 @@ nodes:
     value: develop_deyond_building_code
   input_nodes:
   - id: affected_square_footage
-  - id: natural_gas_eui_improvement
+  - id: electricity_eui_improvement
 
 - id: electricity_temp1  # FIXME Replace this node with FormulaNode
   name: Electricity (temporary)
