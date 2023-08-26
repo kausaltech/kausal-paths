@@ -290,7 +290,10 @@ class Node:
 
         if arg_dims and class_dim_ids:
             if set(arg_dims) != set(class_dim_ids):
-                raise NodeError(self, "Invalid dimensions supplied: %s" % ', '.join(arg_dims))
+                raise NodeError(
+                    self,
+                    "Invalid dimensions supplied: %s; expecting: %s" %
+                     (', '.join(arg_dims), ', '.join(class_dim_ids)))
         elif class_dim_ids:
             arg_dims = class_dim_ids
 

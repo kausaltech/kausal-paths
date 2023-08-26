@@ -29,7 +29,7 @@ BinomBothQuantity: TypeAlias = Callable[[Quantity, Quantity], Quantity]
 BinomRightDF: TypeAlias = Callable[[Quantity, PDF], PDF]
 
 
-class FormulaNode(Node):
+class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != b * a with some dimensions
     allowed_parameters = [
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value')
