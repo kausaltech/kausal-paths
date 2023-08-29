@@ -58,6 +58,10 @@ action_groups:
   name: Andere
   name_en: Other
   color: '#cccccc'
+- id: optional
+  name: Options
+  name_en: Options
+  color: '#cccccc'
 
 dimensions:
 - id: emission_scope
@@ -3141,44 +3145,106 @@ actions:
       - year: 2029
         amount: 0
 
-# - id: increase_other_negative_emissions
-#   name_de: Zusätzliche, zukünftige Massnahmen zur Erhöhung der negativen Emissionen
-#   name_en: Increase negative emissions
-#   group: other
+- id: increased_district_heat_ccs_efficiency
+  name_en: Increased district heating CCS efficiency
+  name_de: Increased district heating CCS efficiency
+  type: simple.CumulativeAdditiveAction
+  quantity: ratio
+  unit: '%'
+  forecast_values: [[2023, 0], [2035, 10]]
+  output_nodes: [district_heat_ccs_share]
+  group: optional
+
+- id: district_heat_to_biogas
+  name_en: District heat uses biogas
+  name_de: District heat uses biogas
+  type: shift.ShiftAction
+  group: optional
+  output_nodes:
+  - id: district_heat_production_mix
+  unit: '%'
+  quantity: mix
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          energy_carrier: natural_gas
+      dests:
+      - categories:
+          energy_carrier: biogas
+      amounts:
+      - year: 2039
+        source_amount: -0
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: -4.4
+        dest_amounts: [1]
+
+- id: increased_car_electrification
+  name_en: Increased car electrification
+  name_de: Increased car electrification
+  type: shift.ShiftAction
+  group: optional
+  output_nodes:
+  - id: vehicle_engine_type_split
+  unit: '%'
+  quantity: mix
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          vehicle_type: car_diesel
+      dests:
+      - categories:
+          vehicle_type: car_batteryelectric
+      amounts:
+      - year: 2039
+        source_amount: -0
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: -4.5
+        dest_amounts: [1]
+    - source:
+        categories:
+          vehicle_type: car_petrol
+      dests:
+      - categories:
+          vehicle_type: car_batteryelectric
+      amounts:
+      - year: 2039
+        source_amount: -0
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: -5.5
+        dest_amounts: [1]
+
+# - id: electric_non_road_machinery_1
+#   name_en: Non-road machinery electric 50 %
+#   name_de: Non-road machinery electric 50 %
+#   group: optional
 #   type: linear.ReduceAction
 #   quantity: emissions
-#   description_de: Die Stadt Zürich prüft weitere Massnahmen, die dazu beitragen, die
-#     negativen Emissionen zu erhöhen, um damit die verbleibenden unvermeidbaren direkten
-#     Emissionen bis 2040 auf netto null auszugleichen.
-#   output_dimensions: [emission_scope]
-#   output_nodes:
-#   - id: negative_emissions
-#   unit: kt/a
+#   unit: '%'
+#   output_nodes: [non_road_machinery_fuel_consumption]
 #   params:
 #   - id: reduce
-#     unit: kt/a
+#     unit: '%'
 #     is_customizable: false
 #     value:
 #     - target:
-#         node:
 #         categories:
-#           emission_scope: negative_emissions
+#           non_road_machinery: civil_construction_machinery
 #       amounts:
-#       - year: 2023
+#       - year: 2039
 #         amount: 0
-#       - year: 2030
-#         amount: 0
-#       - year: 2035
-#         amount: -23
 #       - year: 2040
-#         amount: 0
-#   # - id: multiplier
-#   #   unit: '%'
-#   #   min_value: 0
-#   #   max_value: 200
-#   #   value: 100
-#   #   step: 5
-#   #   is_customizable: true
+#         amount: -5.43
 
 pages:
 - id: home
@@ -3217,46 +3283,10 @@ scenarios:
   name_en: Net Zero 2040
   name_de: Netto-Null 2040
   all_actions_enabled: true
-
-########################
-# DESCRIPTIONS OF DATA AND CALCULATIONS
-#
-# R_E (Result end energy): copy right only
-# Typically E_HH_WS + W_Verk but exceptions:
-# Different electricity sources are calculated differently: total is multiplied by fractions of shares.
-# Collection category is a sum of subcategories: wood, environmental heat, biogas, solar
-#
-# R_CO2 (Result of CO2 emissions): copy right only
-# Typically F_CO2 * (either E_HH_WS ot E_HH_Verk), with unit correction
-# 
-# R_GPC NOT DONE AT THIS STAGE; contains w.g. climate-corrected values
-#
-# R_PE1 (Result primary energy with electricity mix): copy down and right
-# E_HH_WS * F_PE_THG_HH_WS / M_HH_WS, with unit scaling, i.e.
-# Households: end energy * primary energy factor divided by population size
-# Electriity: Same, but multiplied by E_St_Mix shares separately for E_H_WS and E_Verk
-# District heating: Same, but multiplied by E_FWMix shares.
-# Traffic: Same, but for traffic
-# Primary energy balance: collection of the tables on this sheet (listed above)
-#
-# R PE2 (Result end energy by household/industry/traffic): copy down and right
-# Households: E_HH_WS_haushalte * F_PE_THG_HH_WS / population size
-# Industry: E_HH_WS_wirtschaft * F_PE_THG_HH_WS / population size
-# Traffic: E_Verk * F_PE_THG_Verk / population size
-#
-# R PE3 (Result primary energy, renewables): copy down and right
-# Households & industry: E_HH_WS * F_PE_THG_HH_WS_neuerbart / population size
-# Electricity: (E_HH_WS * E_STMix * F_PE_THG_St_erneuertbar + E_Verk * E_StMix_Verkehr * F_PE_THG_St_Verkehr) / population size
-# NOTE! TWO OF THE SHEETS MENTIONED ABOVE ARE HIDDEN?!?
-# Traffic: E_Verk * F_PE_THG_Verk / population size
-# Renewable primary energy balance: a summary of the tables above on this sheet
-#
-# R_THG1 (Result GHG emissions by household+industry, traffic): copy down and right
-# Households: E_HH_WS * F_PE_THG_HH_WS_ghg / population size
-# Traffic: E_Verk * F_PE_THG_Verk / population size
-# Zuerich: Summary table of the tables above on this sheet.
-#
-# R_THG2 (Result GHG emissions household, industry, traffic): copy down and right
-# Households: EE_HH_WS_haushalte * F_PE_THG_HH_WS_ghg / population size
-# Industry: E_HH_WS_wirtschaft * F_PR_THG_HH_WS_ghg / population size
-# Traffic: Same as in R_THG1
+  params:
+    - id: increased_district_heat_ccs_efficiency.enabled
+      value: false
+    - id: district_heat_to_biogas.enabled
+      value: false
+    - id: increased_car_electrification.enabled
+      value: false
