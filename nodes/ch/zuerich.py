@@ -861,8 +861,13 @@ class TransportEmissions(MultiplicativeNode):
 
 class NonroadMachineryEmissions(Node):
     def compute(self) -> ppl.PathsDataFrame:
-        efdf = self.get_input_node(tag='emission_factor').get_output_pl(target_node=self)
-        fdf = self.get_input_node(tag='fuel').get_output_pl(target_node=self)
+        nodes = list(self.input_nodes)
+        efn = self.get_input_node(tag='emission_factor')
+        efdf = efn.get_output_pl(target_node=self)
+        fn = self.get_input_node(tag='fuel')
+        fdf = fn.get_output_pl(target_node=self)
+        nodes.remove(efn)
+        nodes.remove(fn)
         efdf = efdf.rename({VALUE_COLUMN: 'EF'})
         fdf = fdf.rename({VALUE_COLUMN: 'Fuel'})
 
@@ -871,6 +876,9 @@ class NonroadMachineryEmissions(Node):
         df = convert_to_co2e(df, 'greenhouse_gases')
         df = df.paths.sum_over_dims('energy_carrier')
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
+
+        df = self.add_nodes_pl(df, nodes)
+
         return df
 
 

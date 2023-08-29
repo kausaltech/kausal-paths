@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ccff9b4b25f152cbe5c446695ac059f6410e148d
+  commit: 1e11aa406259892ce03ab30e8c7a90ca2738c85e
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -1342,16 +1342,49 @@ nodes:
     - id: energy_carrier
       flatten: true
 
+- id: building_other_fuel_use
+  name_en: Other building fuel use
+  name_de: Other building fuel use
+  type: simple.AdditiveNode
+  unit: MJ/a
+  quantity: fuel_consumption
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier]
+  input_datasets:
+  - zuerich/other_building_emission_source_fuel_use
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_other_fuel_emission_factor
+  name_en: Other building fuel use emission factor
+  name_de: Other building fuel use emission factor
+  type: simple.AdditiveNode
+  unit: g/kWh
+  quantity: emission_factor
+  input_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
+  output_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
+  input_datasets:
+  - zuerich/other_building_emission_source_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+
 - id: building_other_emissions
   name_en: Other building emissions
   name_de: Treibhausgasemissionen Übrige Emissionsquellen (Gebäude)
-  type: simple.EmissionFactorActivity
+  type: formula.FormulaNode
   short_name_en: Other sources
   short_name_de: Übrige Emissionsquellen
+  quantity: emissions
   unit: kt/a
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources]
+  input_nodes:
+  - id: building_other_fuel_use
+  - id: building_other_fuel_emission_factor
+    to_dimensions:
+    - id: building_other_emission_sources
+    - id: energy_carrier
+    - id: greenhouse_gases
   input_datasets:
-  - zuerich/other_building_emission_source_emission_factors
-  - zuerich/other_building_emission_source_fuel_use
   - id: zuerich/emissions
     tags: [emissions]
     filters:
@@ -1363,7 +1396,6 @@ nodes:
       flatten: true
     - dimension: building_other_emission_sources
       assign_category: disperse_wood_heatings
-  output_dimensions: [building_other_emission_sources]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: building_emissions
@@ -1374,7 +1406,8 @@ nodes:
     - id: emission_scope
       categories: [scope1]
   params:
-    extend_rows: true
+    formula: sum_dim(convert_gwp(building_other_fuel_use * building_other_fuel_emission_factor),
+      "energy_carrier") + emissions
 
 - id: building_emissions
   name_en: Building emissions
@@ -1668,8 +1701,8 @@ nodes:
   input_nodes:
   - id: vehicle_mileage
     from_dimensions:
-      - id: vehicle_type
-        groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
   - id: transport_electricity_consumption_factor
   output_nodes:
   - id: electricity_consumption
@@ -1690,9 +1723,9 @@ nodes:
   input_nodes:
   - id: vehicle_mileage
     from_dimensions:
-      - id: vehicle_type
-        groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
-        exclude: true
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+      exclude: true
   - id: transport_electricity_consumption_factor
   output_nodes:
   - id: electricity_consumption
@@ -1962,6 +1995,22 @@ nodes:
   - id: zuerich/wastewater_treatment_catchment_population
     tags: [population]
 
+- id: biogas_processing_emissions
+  name_en: Biogas processing emissions
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage
+  short_name_de: Biogasaufbereitungsanlage
+  short_name_en: Biogas processing
+  unit: kt/a
+  type: simple.AdditiveNode
+  quantity: emissions
+  historical_values: [[2010, 0], [2022, 0]]
+  forecast_values: [[2023, 0], [2040, 0]]
+  output_nodes:
+  - id: negative_emissions
+    to_dimensions:
+    - id: emission_scope
+      categories: [negative_emissions]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: waste_treatment_emissions
   name_en: Waste disposal emissions
@@ -2182,8 +2231,8 @@ nodes:
   output_nodes:
   - id: net_primary_energy_demand
     from_dimensions:
-      - id: vehicle_type
-        flatten: true
+    - id: vehicle_type
+      flatten: true
 
 - id: transport_fuel_primary_energy_consumption
   name_de: Transport fuel primary energy consumption
@@ -3177,7 +3226,7 @@ actions:
           energy_carrier: biogas
       amounts:
       - year: 2039
-        source_amount: -0
+        source_amount: 0
         dest_amounts: [1]
       - year: 2040
         source_amount: -4.4
@@ -3205,7 +3254,7 @@ actions:
           vehicle_type: car_batteryelectric
       amounts:
       - year: 2039
-        source_amount: -0
+        source_amount: 0
         dest_amounts: [1]
       - year: 2040
         source_amount: -4.5
@@ -3218,33 +3267,208 @@ actions:
           vehicle_type: car_batteryelectric
       amounts:
       - year: 2039
-        source_amount: -0
+        source_amount: 0
         dest_amounts: [1]
       - year: 2040
         source_amount: -5.5
         dest_amounts: [1]
 
-# - id: electric_non_road_machinery_1
-#   name_en: Non-road machinery electric 50 %
-#   name_de: Non-road machinery electric 50 %
-#   group: optional
-#   type: linear.ReduceAction
-#   quantity: emissions
-#   unit: '%'
-#   output_nodes: [non_road_machinery_fuel_consumption]
-#   params:
-#   - id: reduce
-#     unit: '%'
-#     is_customizable: false
-#     value:
-#     - target:
-#         categories:
-#           non_road_machinery: civil_construction_machinery
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -5.43
+- id: electric_non_road_machinery_1
+  name_en: Non-road machinery electric +50 %
+  name_de: Non-road machinery electric +50 %
+  group: optional
+  type: linear.ReduceAction
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: non_road_machinery_emissions
+    to_dimensions:
+    - id: non_road_machinery
+  output_dimensions: [non_road_machinery]
+  params:
+  - id: reduce
+    unit: kt/a
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          non_road_machinery: civil_construction_machinery
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -2.71
+    - target:
+        categories:
+          non_road_machinery: industrial_vehicles
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.9845
+    - target:
+        categories:
+          non_road_machinery: building_construction_machinery
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -4.84
+    - target:
+        categories:
+          non_road_machinery: forestry_vehicles
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.112
+    - target:
+        categories:
+          non_road_machinery: agricultural_vehicles
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.25
+
+- id: electric_non_road_machinery_2
+  name_en: Non-road machinery electric +50 %
+  name_de: Non-road machinery electric +50 %
+  group: optional
+  type: linear.ReduceAction
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: non_road_machinery_emissions
+    to_dimensions:
+    - id: non_road_machinery
+  output_dimensions: [non_road_machinery]
+  params:
+  - id: reduce
+    unit: kt/a
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          non_road_machinery: civil_construction_machinery
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -2.71
+    - target:
+        categories:
+          non_road_machinery: industrial_vehicles
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.9845
+    - target:
+        categories:
+          non_road_machinery: building_construction_machinery
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -4.84
+    - target:
+        categories:
+          non_road_machinery: forestry_vehicles
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.112
+    - target:
+        categories:
+          non_road_machinery: agricultural_vehicles
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.25
+
+- id: increased_efficiency_hagenholz
+  name_en: Hagenholz CCS increased efficiency
+  name_de: CCS KVA Hagenholz (waste incineration plant) 90% Effizienz statt 80%
+  group: optional
+  type: linear.ReduceAction
+  quantity: ratio
+  unit: '%'
+  output_nodes: [waste_incineration_ccs_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node: waste_incineration_ccs_share
+      amounts:
+      - year: 2034
+        amount: 0
+      - year: 2035
+        amount: 10
+      - year: 2036
+        amount: 0
+
+- id: ccs_biogas_processing
+  name_en: CCS in biogas processing
+  name_de: Zusätzlich CCS Biogasaufbereitungsanlage Werdhölzli
+  group: optional
+  type: simple.CumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  output_nodes: [biogas_processing_emissions]
+  forecast_values: [[2035, -5]]
+
+- id: other_building_fuel_to_biogas
+  name_en: Other building fuel use to biogas
+  name_de: Prozessenergie und Blockheizkraftwerke mit Biogas statt Erdgas
+  type: shift.ShiftAction
+  group: optional
+  output_dimensions: [energy_carrier, building_other_emission_sources]
+  output_nodes:
+  - id: building_other_fuel_use
+  unit: MJ/a
+  quantity: fuel_consumption
+  params:
+  - id: shift
+    unit: MJ/a
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          building_other_emission_sources: process_energy
+          energy_carrier: natural_gas
+      dests:
+      - categories:
+          building_other_emission_sources: process_energy
+          energy_carrier: biogas
+      amounts:
+      - year: 2039
+        source_amount: 0
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: -1.304e8
+        dest_amounts: [1]
+
+    - source:
+        categories:
+          building_other_emission_sources: cogeneration_plants
+          energy_carrier: natural_gas
+      dests:
+      - categories:
+          building_other_emission_sources: cogeneration_plants
+          energy_carrier: biogas
+      amounts:
+      - year: 2039
+        source_amount: 0
+        dest_amounts: [1]
+      - year: 2040
+        source_amount: -6.431e7
+        dest_amounts: [1]
+
 
 pages:
 - id: home
@@ -3284,9 +3508,19 @@ scenarios:
   name_de: Netto-Null 2040
   all_actions_enabled: true
   params:
-    - id: increased_district_heat_ccs_efficiency.enabled
-      value: false
-    - id: district_heat_to_biogas.enabled
-      value: false
-    - id: increased_car_electrification.enabled
-      value: false
+  - id: increased_district_heat_ccs_efficiency.enabled
+    value: false
+  - id: district_heat_to_biogas.enabled
+    value: false
+  - id: increased_car_electrification.enabled
+    value: false
+  - id: electric_non_road_machinery_1.enabled
+    value: false
+  - id: electric_non_road_machinery_2.enabled
+    value: false
+  - id: increased_efficiency_hagenholz.enabled
+    value: false
+  - id: ccs_biogas_processing.enabled
+    value: false
+  - id: other_building_fuel_to_biogas.enabled
+    value: false
