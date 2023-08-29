@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1e11aa406259892ce03ab30e8c7a90ca2738c85e
+  commit: 2e6e4f9aa0055b6dc762582536e9c3b4d416d52c
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -3389,9 +3389,9 @@ actions:
       - year: 2040
         amount: -0.25
 
-- id: increased_efficiency_hagenholz
+- id: increased_efficiency_hagenholz_1
   name_en: Hagenholz CCS increased efficiency
-  name_de: CCS KVA Hagenholz (waste incineration plant) 90% Effizienz statt 80%
+  name_de: CCS KVA Hagenholz Effizienz +5 %-Punkt
   group: optional
   type: linear.ReduceAction
   quantity: ratio
@@ -3408,7 +3408,30 @@ actions:
       - year: 2034
         amount: 0
       - year: 2035
-        amount: 10
+        amount: 5
+      - year: 2036
+        amount: 0
+
+- id: increased_efficiency_hagenholz_2
+  name_en: Hagenholz CCS increased efficiency
+  name_de: CCS KVA Hagenholz Effizienz +5 %-Punkt
+  group: optional
+  type: linear.ReduceAction
+  quantity: ratio
+  unit: '%'
+  output_nodes: [waste_incineration_ccs_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node: waste_incineration_ccs_share
+      amounts:
+      - year: 2034
+        amount: 0
+      - year: 2035
+        amount: 5
       - year: 2036
         amount: 0
 
@@ -3518,7 +3541,9 @@ scenarios:
     value: false
   - id: electric_non_road_machinery_2.enabled
     value: false
-  - id: increased_efficiency_hagenholz.enabled
+  - id: increased_efficiency_hagenholz_1.enabled
+    value: false
+  - id: increased_efficiency_hagenholz_2.enabled
     value: false
   - id: ccs_biogas_processing.enabled
     value: false
