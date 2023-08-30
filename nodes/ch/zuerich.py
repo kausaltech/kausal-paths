@@ -757,11 +757,11 @@ class TransportFuelFactor(AdditiveNode):
 
 class TransportEmissionFactor(Node):
     output_dimension_ids = [
-        'emission_scope', 'vehicle_type',
+        'emission_scope', 'vehicle_type', 'energy_carrier'
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        ef_node = self.get_input_node(tag='general_electricity')
+        ef_node = self.get_input_node(tag='general_electricity_ef')
         efdf = ef_node.get_output_pl(self)
         efdf = efdf.rename({efdf.metric_cols[0]: 'EEF'})
 
@@ -773,8 +773,10 @@ class TransportEmissionFactor(Node):
         edf = ecdf.paths.join_over_index(efdf, index_from='union')
         edf = edf.multiply_cols(['EC', 'EEF'], 'EF', m.unit)
         # We only have CO2e for electricity, so pretend that it's just CO2 for now
-        edf = edf.with_columns([pl.lit('co2').alias('greenhouse_gases')]).add_to_index('greenhouse_gases')
-        edf = edf.select([YEAR_COLUMN, 'vehicle_type', 'emission_scope', 'greenhouse_gases', 'EF', FORECAST_COLUMN])
+        edf = edf.with_columns([
+            pl.lit('co2').alias('greenhouse_gases'), pl.lit('electricity').alias('energy_carrier'),
+        ]).add_to_index(['greenhouse_gases', 'energy_carrier'])
+        edf = edf.select_metrics(['EF'])
 
         fef_node = self.get_input_node(tag='fuel_emission_factor')
         fdf = fef_node.get_output_pl(target_node=self)
@@ -784,7 +786,7 @@ class TransportEmissionFactor(Node):
         fdf = fdf.with_columns([ef_expr]).filter(~pl.col('EF').is_null())
         fdf = fdf.ensure_unit('EF', m.unit)
         fdf = extend_last_historical_value_pl(fdf, self.get_end_year())
-        fdf = fdf.select([YEAR_COLUMN, 'vehicle_type', 'emission_scope', 'greenhouse_gases', 'EF', FORECAST_COLUMN])
+        fdf = fdf.select_metrics(['EF'])
 
         df = edf.paths.add_with_dims(fdf, how='outer')
         meta = df.get_meta()
@@ -845,10 +847,10 @@ class TransportElectricity(AdditiveNode):
 
 class TransportEmissions(MultiplicativeNode):
     input_dimension_ids = [
-        'emission_scope', 'vehicle_type',
+        'emission_scope', 'vehicle_type', 'energy_carrier',
     ]
     output_dimension_ids = [
-        'emission_scope', 'vehicle_type'
+        'emission_scope', 'vehicle_type', 'energy_carrier',
     ]
     default_unit = 'kt/a'
     quantity = 'emissions'
@@ -861,16 +863,23 @@ class TransportEmissions(MultiplicativeNode):
 
 class NonroadMachineryEmissions(Node):
     def compute(self) -> ppl.PathsDataFrame:
-        efdf = self.get_input_node(tag='emission_factor').get_output_pl(target_node=self)
-        fdf = self.get_input_node(tag='fuel').get_output_pl(target_node=self)
+        nodes = list(self.input_nodes)
+        efn = self.get_input_node(tag='emission_factor')
+        efdf = efn.get_output_pl(target_node=self)
+        fn = self.get_input_node(tag='fuel')
+        fdf = fn.get_output_pl(target_node=self)
+        nodes.remove(efn)
+        nodes.remove(fn)
         efdf = efdf.rename({VALUE_COLUMN: 'EF'})
         fdf = fdf.rename({VALUE_COLUMN: 'Fuel'})
 
         df = fdf.paths.join_over_index(efdf, how='outer', index_from='union')
         df = df.multiply_cols(['Fuel', 'EF'], VALUE_COLUMN).drop_nulls().select_metrics(VALUE_COLUMN)
         df = convert_to_co2e(df, 'greenhouse_gases')
-        df = df.paths.sum_over_dims('energy_carrier')
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
+
+        df = self.add_nodes_pl(df, nodes)
+
         return df
 
 
