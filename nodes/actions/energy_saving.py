@@ -13,7 +13,7 @@ from common.i18n import gettext_lazy as _
 from nodes import NodeMetric
 from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN, DEFAULT_METRIC
 from nodes.calc import nafill_all_forecast_years
-from params import Parameter, NumberParameter
+from params import Parameter, NumberParameter, StringParameter
 from params.utils import sep_unit_pt
 from common import polars as ppl
 
@@ -679,5 +679,67 @@ class UsBuildingAction(BuildingEnergySavingAction):
         }, index=years)
 
         df.index.name = YEAR_COLUMN  # FIXME Make improvement the default metric
+
+        return df
+
+
+class CfFloorAreaAction(BuildingEnergySavingAction):
+    """
+    BuildingEnergySavingAction with cumulative energy savings.
+    # fraction of existing buildings triggering code updates
+    # compliance of new buildings to the more active regulations
+    # improvement in energy consumption factor
+    """
+
+    output_metrics = {
+        'triggered': NodeMetric('%', 'fraction', column_id='triggered'),
+        'compliant': NodeMetric('%', 'fraction', column_id='compliant'),
+        'consumption_factor': NodeMetric('kWh/m**2/a', 'consumption_factor', column_id='consumption_factor')
+    }
+    allowed_parameters = BuildingEnergySavingAction.allowed_parameters + [
+        StringParameter(
+            local_id='improvement_unit',
+            label='Improvement unit',
+            is_customizable=False
+            ),
+        StringParameter(
+            local_id='energy_carrier',
+            label='Energy carrier',
+            is_customizable=False
+        )
+    ]
+    
+    def compute_effect(self) -> pd.DataFrame:
+
+        df = self.get_input_dataset_pl(tag='floor', required=True)
+        assert 'action_change' in df.primary_keys
+        triggered = df.filter(pl.col('action_change').eq('triggered'))
+        triggered = triggered.rename({'fraction': 'triggered'}).drop('action_change')
+        compliant = df.filter(pl.col('action_change').eq('compliant'))
+        compliant = compliant.rename({'fraction': 'compliant'}).drop('action_change')
+        df = triggered.paths.join_over_index(compliant)
+
+        df2 = self.get_input_dataset_pl(tag='improvement', required=True)
+
+        # FIXME This stupid approach is beacuse electricity and natural gas are different metrics.
+        carr = self.get_parameter_value('energy_carrier', units=False, required=True)
+        assert carr in ['electricity', 'natural_gas']
+        if carr == 'electricity':
+            drop = 'natural_gas'
+        else:
+            drop = 'electricity'
+        df2 = df2.drop(drop)
+
+        df2 = df2.rename({carr: VALUE_COLUMN})
+        unit = self.get_parameter_value('improvement_unit', units=False, required=False)
+        self.output_metrics['consumption_factor'].default_unit = unit
+        self.output_metrics['consumption_factor'].populate_unit(context=self.context)
+
+        df = df2.paths.join_over_index(df, index_from='union')
+
+        if not self.is_enabled():
+            df = df.with_columns(pl.lit(0.0).alias(VALUE_COLUMN))
+        df = df.with_columns(pl.lit(True).alias(FORECAST_COLUMN))
+        df = df.rename({VALUE_COLUMN: 'consumption_factor'})
 
         return df

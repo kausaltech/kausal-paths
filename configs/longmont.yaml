@@ -1,10 +1,33 @@
+# Floor area approximately correct, but building model assumes no increase after 2035, while BAU assumes constant increase up to 2050. The former is used.
+# Use updated building code and enforce
+## excel residential electricity EUI change 0.164..0.103 kWh/ft**2 between 2023..2050. KP 0.336..1.49
+## EUI electricity/natural gas for residential/commercial excel .. KP
+## 2050
+# 0.103 .. 1.49
+# 0.583 .. 12.4
+# 0.009 .. 0.123
+# 0.020 .. 0.415
+## 2030
+# 0.14776 .. 0.639
+# 1.32840 .. 6.39
+# 0.01224 .. 0.053
+# 0.04456 .. 0.214
+# Conclusion: current approach is all over the place and needs to be fixed.
+# Let's use absolute CF changes as forecast values for the action. THis requires than two datasets are used.
+# How can this be done? With get_input_dataset_pl() with tags.
+# Then, floor_area and improvement are in different units and different dimensions (latter has also metric electricity/natural gas)
+# How to deal with that? Two metrics but then only one can be shown.
+# Or two actions tied together? How to use subactions?
+# Or just two actions? That will make three more actions. And the baseline trend action
+# What about historical improvement? Those are ignored in excel also, only BAU used.
+
 id: longmont
 default_language: en
 supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 622815d3dd8f013f5a19ad99bf9410a9b7249bf1
+  commit: c6b975ee5fcc57a112efa6fac3db737e95d08832
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -601,7 +624,7 @@ nodes:
     of compliant buildings is already taken into account here. Note that these values
     are not additive, as several actions may affect the same buildings. Those buildings
     that are not affected are not shown here.
-  type: buildings.FloorAreaNode
+  type: buildings.FloorAreaNode2
   quantity: floor_area
   unit: ft^2
   input_nodes:
@@ -617,7 +640,7 @@ nodes:
 
 - id: natural_gas_eui_improvement
   name: Energy use intensity EUI improvement for natural gas
-  type: buildings.EuiNode
+  type: buildings.EuiNode2
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
@@ -625,11 +648,11 @@ nodes:
     column: natural_gas
   input_nodes:
   - id: updated_building_code
-    metrics: [improvement]
+    metrics: [consumption_factor]
   - id: develop_beyond_building_code
-    metrics: [improvement]
+    metrics: [consumption_factor]
   - id: benchmark_energy_use
-    metrics: [improvement]
+    metrics: [consumption_factor]
 
 - id: natural_gas_saved
   name: Natural gas saved
@@ -665,7 +688,7 @@ nodes:
 
 - id: electricity_eui_improvement
   name: Energy use intensity EUI improvement for electricity
-  type: buildings.EuiNode
+  type: buildings.EuiNode2
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
@@ -673,11 +696,11 @@ nodes:
     column: electricity
   input_nodes:
   - id: updated_building_code
-    metrics: [improvement]
+    metrics: [consumption_factor]
   - id: develop_beyond_building_code
-    metrics: [improvement]
+    metrics: [consumption_factor]
   - id: benchmark_energy_use
-    metrics: [improvement]
+    metrics: [consumption_factor]
 
 - id: electricity_saved
   name: Electricity saved
@@ -778,7 +801,7 @@ nodes:
     all, actions have been implemented.</p>
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: Mtherm/a
+  unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
@@ -1570,16 +1593,26 @@ actions:
     graph shows the relative improvement of the energy use intensity (EUI) caused
     by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
     Plan Strategy BI-5</a></li></ul></p>'
-  type: energy_saving.UsBuildingAction
-  quantity: fraction
-  unit: '%'
+  type: energy_saving.CfFloorAreaAction
+  quantity: consumption_factor
   group: buildings
   input_datasets:
   - id: longmont/energy_use_intensity_with_building_actions
+    tags: [floor]
+    filters:
+    - column: action
+      value: updated_building_code
+  - id: longmont/energy_use_intensity_improvements
+    tags: [improvement]
     filters:
     - column: action
       value: updated_building_code
   output_dimensions: [emission_sectors, building_energy_class]
+  params:
+  - id: improvement_unit
+    value: thm/ft**2/a
+  - id: energy_carrier
+    value: natural_gas
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -1589,16 +1622,26 @@ actions:
     update.</p> <p>The graph shows the relative improvement of the energy use intensity
     (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-6">Sustainability
     Plan Strategy BI-6</a></li></ul></p>'
-  type: energy_saving.UsBuildingAction
-  quantity: fraction
-  unit: '%'
+  type: energy_saving.CfFloorAreaAction
+  quantity: consumption_factor
   group: buildings
   input_datasets:
   - id: longmont/energy_use_intensity_with_building_actions
+    tags: [floor]
+    filters:
+    - column: action
+      value: develop_beyond_building_code
+  - id: longmont/energy_use_intensity_improvements
+    tags: [improvement]
     filters:
     - column: action
       value: develop_beyond_building_code
   output_dimensions: [building_energy_class, emission_sectors]
+  params:
+  - id: improvement_unit
+    value: thm/ft**2/a
+  - id: energy_carrier
+    value: natural_gas
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -1608,16 +1651,26 @@ actions:
     graph shows the relative improvement of the energy use intensity (EUI) caused
     by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-5">Sustainability
     Plan Strategy E-5</a></li></ul>'
-  type: energy_saving.UsBuildingAction
-  quantity: fraction
-  unit: '%'
+  type: energy_saving.CfFloorAreaAction
+  quantity: consumption_factor
   group: buildings
   input_datasets:
   - id: longmont/energy_use_intensity_with_building_actions
+    tags: [floor]
+    filters:
+    - column: action
+      value: benchmark_energy_use
+  - id: longmont/energy_use_intensity_improvements
+    tags: [improvement]
     filters:
     - column: action
       value: benchmark_energy_use
   output_dimensions: [building_energy_class, emission_sectors]
+  params:
+  - id: improvement_unit
+    value: thm/ft**2/a
+  - id: energy_carrier
+    value: natural_gas
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
