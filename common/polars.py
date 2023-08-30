@@ -278,11 +278,17 @@ class PathsDataFrame(pl.DataFrame):
                 continue
         return df.paths.to_narrow()
 
-    def add_to_index(self, col: str) -> PathsDataFrame:
-        assert col in self.columns
-        assert col not in self._primary_keys
+    def add_to_index(self, cols: str | list[str]) -> PathsDataFrame:
+        if isinstance(cols, str):
+            cols = [cols]
+
         df = self.copy()
-        df._primary_keys.append(col)
+
+        for col in cols:
+            assert col in self.columns
+            assert col not in self._primary_keys
+            df._primary_keys.append(col)
+
         return df
 
     def ensure_unit(self, col: str, unit: Unit | str) -> PathsDataFrame:

@@ -744,18 +744,6 @@ emission_sectors:
 #   color: '#0F05A0'
 #   order: 10
 
-#
-# Transportation
-#
-- id: transportation_emissions
-  name_en: Transportation emissions
-  name_de: Treibhausgasemissionen Mobilität
-  short_name_de: Mobilität
-  short_name_en: Transportation
-  part_of: net_emissions
-  color: '#E22D53'
-  input_dataset_processors: [LinearInterpolation]
-
 # - id: ippu_emissions
 #   name_en: Industrial and commercial process emissions
 #   name_de: Industrie- und Gewerbeprozesse
@@ -1256,22 +1244,6 @@ nodes:
   input_dimensions: [electricity_source]
   output_dimensions: [emission_scope]
 
-# - id: electricity_consumption_emissions
-#   name_de: Treibhausgasemissionen Strom
-#   name_en: Electricity consumption emissions
-#   short_name_de: Strom
-#   short_name_en: Electricity
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: kt/a
-#   output_dimensions: [emission_scope]
-#   input_nodes:
-#   - electricity_consumption
-#   - id: electricity_emission_factor
-#     to_dimensions:
-#     - id: emission_scope
-#   output_nodes: [building_emissions]
-
 - id: building_energy_consumption_emission_factor
   name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte
   name_en: Emission factor of housing and commerce energy consumption
@@ -1314,6 +1286,7 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
+  - id: building_emissions_2kw
 
 - id: building_general_electricity_emissions
   name_de: Treibhausgasemissionen allgemeiner Stromverbrauch des Gebäudes
@@ -1341,6 +1314,7 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
+  - id: building_emissions_2kw
 
 - id: building_other_fuel_use
   name_en: Other building fuel use
@@ -1376,7 +1350,7 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_dimensions: [building_other_emission_sources, energy_carrier]
-  output_dimensions: [building_other_emission_sources]
+  output_dimensions: [building_other_emission_sources, energy_carrier]
   input_nodes:
   - id: building_other_fuel_use
   - id: building_other_fuel_emission_factor
@@ -1396,18 +1370,29 @@ nodes:
       flatten: true
     - dimension: building_other_emission_sources
       assign_category: disperse_wood_heatings
+    - dimension: energy_carrier
+      assign_category: wood
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: building_emissions
     from_dimensions:
     - id: building_other_emission_sources
       flatten: true
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: emission_scope
       categories: [scope1]
+  - id: building_emissions_2kw
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
   params:
-    formula: sum_dim(convert_gwp(building_other_fuel_use * building_other_fuel_emission_factor),
-      "energy_carrier") + emissions
+    formula: convert_gwp(building_other_fuel_use * building_other_fuel_emission_factor) + emissions
 
 - id: building_emissions
   name_en: Building emissions
@@ -1425,6 +1410,20 @@ nodes:
 #
 # TRANSPORT (MULTIDIMENSIONAL)
 #
+
+- id: transportation_emissions
+  name_en: Transportation emissions
+  name_de: Treibhausgasemissionen Mobilität
+  short_name_de: Mobilität
+  short_name_en: Transportation
+  quantity: emissions
+  unit: kt/a
+  type: simple.SectorEmissions
+  color: '#E22D53'
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: vehicle_mileage_historical
   name_de: Verkehr Fahrleistung (historisch)
@@ -1742,7 +1741,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: electricity_emission_factor
-    tags: [general_electricity]
+    tags: [general_electricity_ef]
     to_dimensions:
     - id: emission_scope
   - id: public_transport_electricity_emission_factor
@@ -1759,7 +1758,8 @@ nodes:
     - id: emission_scope
     - id: greenhouse_gases
     - id: vehicle_type
-  output_dimensions: [emission_scope, vehicle_type]
+    - id: energy_carrier
+  output_dimensions: [emission_scope, vehicle_type, energy_carrier]
 
 #- id: transport_fuel_consumption
 #  name_de: Transport fuel consumption
@@ -1771,20 +1771,17 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [vehicle_type]
+  input_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: transport_fuel_factor
     tags: [fuel_factor, non_additive]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
   - id: transport_emissions_for_fuel
     tags: [emissions_for_fuel, non_additive]
     to_dimensions:
     - id: emission_scope
     - id: greenhouse_gases
     - id: vehicle_type
-  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
 
 - id: miv_emissions
   name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
@@ -1797,6 +1794,8 @@ nodes:
   - id: transportation_emissions
     from_dimensions:
     - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
       flatten: true
 
 - id: public_transport_emissions
@@ -1811,6 +1810,8 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: goods_transport_emissions
   name_de: Treibhausgasemissionen Güterverkehr
@@ -1824,6 +1825,8 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: other_transport_emissions
   name_de: Treibhausgasemissionen übriger Verkehr
@@ -1836,6 +1839,8 @@ nodes:
   - id: transportation_emissions
     from_dimensions:
     - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
       flatten: true
 
 - id: non_road_machinery_fuel_consumption
@@ -1870,8 +1875,8 @@ nodes:
   type: ch.zuerich.NonroadMachineryEmissions
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier, non_road_machinery]
-  output_dimensions: [non_road_machinery]
+  input_dimensions: [non_road_machinery, energy_carrier]
+  output_dimensions: [non_road_machinery, energy_carrier]
   input_nodes:
   - id: non_road_machinery_fuel_consumption
     tags: [fuel]
@@ -1885,6 +1890,8 @@ nodes:
   - id: transportation_emissions
     from_dimensions:
     - id: non_road_machinery
+      flatten: true
+    - id: energy_carrier
       flatten: true
     to_dimensions:
     - id: emission_scope
@@ -2157,6 +2164,30 @@ nodes:
   output_nodes:
   - id: net_primary_energy_demand
 
+- id: other_building_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Ubrige
+  name_en: Other building primary energy consumption
+  short_name_de: Gebäude Ubrige
+  short_name_en: Building other
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: building_other_fuel_use
+    tags: [non_additive]
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+
 - id: public_transport_electricity_primary_energy_consumption
   name_de: Primärenergiebedarf Öffentlicher Verkehr (ÖV) Strom
   name_en: Public transport electricity primary energy consumption
@@ -2389,8 +2420,6 @@ nodes:
   input_datasets:
   - id: zuerich/fuel_energy_density
 
-
-
 - id: transport_fuel_consumption
   name_de: Transport fuel consumption
   name_en: Transport fuel consumption
@@ -2420,21 +2449,63 @@ nodes:
   input_nodes:
   - id: transport_fuel_consumption
   - id: fuel_energy_density
-#  output_nodes:
-#  - id: electricity_consumption
-#    from_dimensions:
-#    - id: vehicle_type
-#      flatten: true
 
+- id: net_emissions_2kw
+  name_de: Treibhausgasemissionen (2000-Watt)
+  name_en: Greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  is_outcome: true
 
+- id: building_emissions_2kw
+  name_de: Treibhausgasemissionen Gebäude (2000-Watt)
+  name_en: Building greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Gebäude
+  short_name_en: Buildings
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
 
-# - id: net_emissions_2kw
-#   name_de: Treibhausgasemissionen (2000-Watt)
-#   name_en: Greenhouse gas emissions (2000-watt)
-#   type: simple.SectorEmissions
-#   unit: kt/a
-#   output_dimensions: [energy_carrier, emission_scope]
-#   input_nodes: [building_emissions, transportation_emissions]
+- id: transportation_emissions_2kw
+  name_de: Treibhausgasemissionen Verkehr (2000-Watt)
+  name_en: Transportation greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+  input_nodes:
+  - id: miv_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: public_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: goods_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: other_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: non_road_machinery_emissions
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+
 
 #
 # ------- ACTIONS --------
@@ -3282,9 +3353,7 @@ actions:
   unit: kt/a
   output_nodes:
   - id: non_road_machinery_emissions
-    to_dimensions:
-    - id: non_road_machinery
-  output_dimensions: [non_road_machinery]
+  output_dimensions: [non_road_machinery, energy_carrier]
   params:
   - id: reduce
     unit: kt/a
@@ -3293,22 +3362,36 @@ actions:
     - target:
         categories:
           non_road_machinery: civil_construction_machinery
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
         amount: -2.71
+
     - target:
         categories:
           non_road_machinery: industrial_vehicles
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
-        amount: -0.9845
+        amount: -0.817
+    - target:
+        categories:
+          non_road_machinery: industrial_vehicles
+          energy_carrier: petrol
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.167
+
     - target:
         categories:
           non_road_machinery: building_construction_machinery
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
@@ -3317,19 +3400,21 @@ actions:
     - target:
         categories:
           non_road_machinery: forestry_vehicles
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
-        amount: -0.112
+        amount: -0.091
     - target:
         categories:
           non_road_machinery: agricultural_vehicles
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
-        amount: -0.25
+        amount: -0.23
 
 - id: electric_non_road_machinery_2
   name_en: Non-road machinery electric +50 %
@@ -3340,9 +3425,7 @@ actions:
   unit: kt/a
   output_nodes:
   - id: non_road_machinery_emissions
-    to_dimensions:
-    - id: non_road_machinery
-  output_dimensions: [non_road_machinery]
+  output_dimensions: [non_road_machinery, energy_carrier]
   params:
   - id: reduce
     unit: kt/a
@@ -3351,22 +3434,36 @@ actions:
     - target:
         categories:
           non_road_machinery: civil_construction_machinery
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
         amount: -2.71
+
     - target:
         categories:
           non_road_machinery: industrial_vehicles
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
-        amount: -0.9845
+        amount: -0.817
+    - target:
+        categories:
+          non_road_machinery: industrial_vehicles
+          energy_carrier: petrol
+      amounts:
+      - year: 2039
+        amount: 0
+      - year: 2040
+        amount: -0.167
+
     - target:
         categories:
           non_road_machinery: building_construction_machinery
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
@@ -3375,19 +3472,21 @@ actions:
     - target:
         categories:
           non_road_machinery: forestry_vehicles
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
-        amount: -0.112
+        amount: -0.091
     - target:
         categories:
           non_road_machinery: agricultural_vehicles
+          energy_carrier: diesel
       amounts:
       - year: 2039
         amount: 0
       - year: 2040
-        amount: -0.25
+        amount: -0.23
 
 - id: increased_efficiency_hagenholz_1
   name_en: Hagenholz CCS increased efficiency
