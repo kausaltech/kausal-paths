@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 330e9aef0495ff8f6036c8a0d15ec6402613831c
+  commit: b30e3668b479216c4b6397591e30284b9efca63a
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon Greenhouse Gas Inventory
@@ -15,7 +15,7 @@ model_end_year: 2025
 reference_year: 2016
 minimum_historical_year: 2014
 maximum_historical_year: 2021
-emission_unit: t
+emission_unit: t/a
 emission_forecast_from: 2022
 emission_dimensions: []
 emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
@@ -113,29 +113,53 @@ dimensions:
   - id: livestock
     label: V.1 Livestock
 
+# - id: vehicle_type
+#   label: Vehicle Type
+#   categories:
+#   - id: retail_diesel
+#     label: Retail (Diesel)
+#   - id: retail_gasoline
+#     label: Retail (Gasoline)
+#   - id: cardlock_diesel
+#     label: Cardlock (Diesel)
+#   - id: cardlock_gasoline
+#     label: Cardlock (Gasoline)
+#   - id: fleet_diesel
+#     label: City Fleet (Diesel)
+#   - id: fleet_gasoline
+#     label: City Fleet (Gasoline)
+#   - id: public_transit
+#     label: Public Transit
+#   - id: access_transit
+#     label: Access Transit
+#   - id: other_diesel
+#     label: Other Distributors (Diesel)
+#   - id: other_gasoline
+#     label: Other Distributors (Gasoline)
+#   - id: stc
+#     label: Saskatchewan Transportation Company
+#   - id: prairie_lily
+#     label: Prairie Lily
+#   - id: aviation_local
+#     label: Aviation (Local)
+#   - id: aviation_other
+#     label: Aviation (Domestic & International)
+
 - id: vehicle_type
   label: Vehicle Type
   categories:
-  - id: retail_diesel
-    label: Retail (Diesel)
-  - id: retail_gasoline
-    label: Retail (Gasoline)
-  - id: cardlock_diesel
-    label: Cardlock (Diesel)
-  - id: cardlock_gasoline
-    label: Cardlock (Gasoline)
-  - id: fleet_diesel
-    label: City Fleet (Diesel)
-  - id: fleet_gasoline
-    label: City Fleet (Gasoline)
+  - id: retail
+    label: Retail
+  - id: cardlock
+    label: Cardlock
+  - id: fleet
+    label: City Fleet
   - id: public_transit
     label: Public Transit
   - id: access_transit
     label: Access Transit
-  - id: other_diesel
-    label: Other Distributors (Diesel)
-  - id: other_gasoline
-    label: Other Distributors (Gasoline)
+  - id: other
+    label: Other Distributors
   - id: stc
     label: Saskatchewan Transportation Company
   - id: prairie_lily
@@ -144,143 +168,6 @@ dimensions:
     label: Aviation (Local)
   - id: aviation_other
     label: Aviation (Domestic & International)
-
-# - id: vehicle_type
-#   label: Vehicle type
-#   groups:
-#   - id: cars
-#     label: Cars
-#     id_match: ^car_.+
-#   - id: motorcycles
-#     label: Motorcycles
-#     id_match: ^motorbike_.+
-#   - id: buses
-#     label: Local buses
-#     id_match: ^buses_.+
-#   - id: trolleybuses
-#     label: Trolley buses
-#     id_match: ^trolley.*
-#   - id: coaches
-#     label: Coaches
-#     id_match: ^coach_.+
-#   - id: lorries
-#     label: Lorries
-#     id_match: ^lorry_.+
-#   - id: vans
-#     label: Vans
-#     id_match: ^van_.+
-#   - id: rail
-#     label: Rail transport
-#     id_match: ^(tram|small_railways|rail).*
-#   - id: maritime
-#     label: Maritime transport
-#     id_match: ^.*_ship_.*
-#   - id: mobility_outside_city
-#     label: Mobility ourside the city
-#     id_match: ^mobility_outside_city
-#   - id: aviation
-#     label: Aviation
-#     id_match: ^aviation
-
-#   categories:
-#   - id: motorcycle
-#     label: Motorcycle
-#   - id: car
-#     label: Passenger Car
-#   - id: light_duty
-#     label: Light Duty
-#   - id: bus
-#     label: Bus
-#   - id: single_unit_truck
-#     label: Single Unit Truck
-#   - id: combination_unit_truck
-#     label: Combination Unit Truck
-#   - id: car_petrol
-#     label: Passenger cars / Petrol
-#   - id: car_diesel
-#     label: Passenger cars / Diesel
-#   - id: car_natural_gas_biogas
-#     label: Passenger cars / Natural gas / biogas
-#   - id: car_ethanol
-#     label: Passenger cars / Ethanol
-#   - id: car_e85
-#     label: Passenger cars / E85
-#   - id: car_plugin_hybrid
-#     label: Passenger cars / Plug-in hybrid
-#   - id: car_batteryelectric
-#     label: Passenger cars / Battery-Electric
-#   - id: car_fuel_cell
-#     label: Passenger cars / Fuel cell
-#   - id: motorbike_petrol_4stroke
-#     label: Motorbikes / Petrol 4-stroke engine
-#   - id: motorbike_petrol_2stroke
-#     label: Motorbikes / Petrol 2-stroke engine
-#   - id: motorbike_batteryelectric
-#     label: Motorbikes / Battery-Electric
-#   - id: buses_diesel
-#     label: Regular buses / Diesel
-#   - id: buses_diesel_hybrid
-#     label: Regular buses / Diesel hybrid
-#   - id: buses_diesel_plugin_hybrid
-#     label: Regular buses / Diesel plug-in hybrid
-#   - id: buses_batteryelectric
-#     label: Regular buses / Battery-Electric
-#   - id: buses_fuel_cell
-#     label: Regular buses / Fuel cell
-#   - id: trolley
-#     label: Trolley buses
-#   - id: coach_diesel
-#     label: Coaches / Diesel
-#   - id: coach_natural_gas_biogas
-#     label: Coaches / Natural gas/Biogas
-#   - id: coach_battery_electric
-#     label: Coaches / Battery-Electric
-#   - id: coach_fuel_cell
-#     label: Coaches / Fuel cell
-#   - id: lorry_diesel
-#     label: Lorries / Diesel
-#   - id: lorry_natural_gas_biogas
-#     label: Lorries / Natural gas/Biogas
-#   - id: lorry_diesel_plugin_hybrid
-#     label: Lorries / Diesel plug-in hybrid
-#   - id: lorry_battery_electric
-#     label: Lorries / Battery-Electric
-#   - id: lorry_fuel_cell
-#     label: Lorries / Fuel cell
-#   - id: van_petrol
-#     label: Vans / Petrol
-#   - id: van_diesel
-#     label: Van / Diesel
-#   - id: van_natural_gas_biogas
-#     label: Van / Natural gas/Biogas
-#   - id: van_diesel_plugin_hybrid
-#     label: Van / Plug-in hybrid
-#   - id: van_battery_electric
-#     label: Van / Battery-Electric
-#   - id: van_fuel_cell
-#     label: Van / Fuel cell
-#   - id: tram
-#     label: Tram
-#   - id: small_railways
-#     label: Small railways
-#   - id: rail_passenger
-#     label: Rail (passenger transport)
-#   - id: rail_goods
-#     label: Rail (goods transport)
-#   - id: liner_ship_diesel
-#     label: Liner ship / Diesel
-#   - id: liner_ship_battery_electric
-#     label: Liner ship / Battery-Electric
-#   - id: private_ship_petrol
-#     label: Private ships / Petrol
-#   - id: private_ship_diesel
-#     label: Private ships / Diesel
-#   - id: private_ship_battery_electric
-#     label: Private ships / Battery-Electric
-#   - id: mobility_outside_city
-#     label: Mobility ourside the city (excl. aviation)
-#   - id: aviation
-#     label: Aviation
 
 - id: greenhouse_gases
   label: Greenhouse gases
@@ -360,6 +247,32 @@ dimensions:
     - Nicht deklariert (UCTE-Mix)
   - id: subsidized
     label: Subsidized electricity
+
+- id: livestock
+  label: Livestock
+  categories:
+  - id: buffalo
+    label: Buffalo
+  - id: calves
+    label: Calves
+  - id: cattle_dairy
+    label: Cattle (Dairy)
+  - id: cattle_nondairy
+    label: Cattle (Non-Dairy)
+  - id: deer
+    label: Deer
+  - id: goats
+    label: Goats
+  - id: horses
+    label: Horses
+  - id: llamas
+    label: Llamas
+  - id: poultry
+    label: Poultry
+  - id: sheep
+    label: Sheep
+  - id: swine
+    label: Swine
 
 - id: utility
   label: Electric Utility
@@ -481,23 +394,28 @@ emission_sectors:
   color: '#D3805E'
   input_dataset_processors: [LinearInterpolation]
 
-# - id: ippu_emissions
-#   name: Industrial processes and product use emissions
-#   part_of: net_emissions
-#   color: '#6686B9'
-#   input_dataset_processors: [LinearInterpolation]
+- id: ippu_emissions
+  name: Industrial Processes & Product Use Emissions
+  part_of: net_emissions
+  color: '#6686B9'
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: afolu_emissions
-#   name: Agriculture, forestry, and other land use emissions
-#   category: afolu
-#   part_of: net_emissions
-#   color: '#5D9C6F'
-#   input_dataset_processors: [LinearInterpolation]
+- id: afolu_emissions
+  name: Agriculture, Forestry, & Other Land Use Emissions
+  part_of: net_emissions
+  color: '#5D9C6F'
+  input_dataset_processors: [LinearInterpolation]
 
 # ----- Subsector Emissions -----
 
 - id: electricity_emissions
   name: Electricity Emissions
+  part_of: stationary_energy_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: generation_emissions
+  name: Landfill Gas Combustion Emissions
+  category: energy_industries
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -519,16 +437,27 @@ emission_sectors:
   part_of: waste_emissions
   input_dataset_processors: [LinearInterpolation]
 
-# - id: refridgerant_emissions
-#   name: Refridgerant emissions
-#   category: refridgerant
-#   part_of: ippu_emissions
-#   input_dataset_processors: [LinearInterpolation]
+- id: industrial_emissions
+  name: Industrial Process Emissions
+  category: industrial_processes
+  part_of: ippu_emissions
+  input_dataset_processors: [LinearInterpolation]
 
-#- id: on_road_transportation_emissions  # FIXME Remove temporarily
-#  name: On-road transportation
-#  part_of: transportation_emissions
-#  input_dataset_processors: [LinearInterpolation]
+- id: onroad_emissions
+  name: On-Road Transportation Emissions
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: railway_emissions
+  name: Railway Emissions
+  category: railways
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waterborne_emissions
+  name: Waterborne Navigation Emissions
+  part_of: transportation_emissions
+  input_dataset_processors: [LinearInterpolation]
 
 - id: aviation_emissions
   name: Aviation Emissions
@@ -536,23 +465,11 @@ emission_sectors:
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
-# - id: railways_emissions
-#   name: Railways emissions
-#   category: railways
-#   part_of: transportation_emissions
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: off_road_transportation
-#   name: Off-road transportation
-#   category: off_road
-#   part_of: transportation_emissions
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: leakage_from_oil_and_gas_wells_emissions
-#   name: Emissions from leakages from oil and gas wells
-#   category: leakage_from_oil_and_gas_wells
-#   part_of: fugitive_emissions
-#   input_dataset_processors: [LinearInterpolation]
+- id: us_emissions
+  name: U of S Livestock & Fertilizer Emissions
+  category: livestock
+  part_of: afolu_emissions
+  input_dataset_processors: [LinearInterpolation]
 
 nodes:
 
@@ -590,7 +507,7 @@ nodes:
   name: Stationary Electricity Consumption by Sector & Utility
   type: simple.AdditiveNode
   quantity: energy
-  unit: kWh
+  unit: kWh/a
   output_dimensions: [emission_sectors, utility]
   input_dimensions: [emission_sectors, utility]
   input_dataset_processors: [LinearInterpolation]
@@ -601,7 +518,7 @@ nodes:
   name: Stationary Natural Gas Consumption by Sector
   type: simple.AdditiveNode
   quantity: energy
-  unit: m³
+  unit: m³/a
   output_dimensions: [emission_sectors]
   input_dimensions: [emission_sectors]
   input_dataset_processors: [LinearInterpolation]
@@ -612,18 +529,85 @@ nodes:
   name: Stationary Propane Consumption by Sector
   type: simple.AdditiveNode
   quantity: energy
-  unit: L
+  unit: L/a
   output_dimensions: [emission_sectors, energy_carrier]
   input_dimensions: [emission_sectors, energy_carrier]
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_propane_consumption
 
+- id: transport_fuel_consumption
+  name: Transport Fuel Consumption by Sector, Vehicle Type, & Fuel
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: L/a
+  output_dimensions: [emission_sectors, vehicle_type, energy_carrier]
+  input_dimensions: [emission_sectors, vehicle_type, energy_carrier]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/transport_fuel_consumption
+
+- id: transport_fuel_consumption_emissions
+  name: Transport Emissions by Sector, Vehicle Type, & Fuel
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, vehicle_type, energy_carrier, greenhouse_gases]
+  output_dimensions: [emission_sectors, vehicle_type, energy_carrier, greenhouse_gases]
+  input_nodes:
+  - id: transport_fuel_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: emission_sectors
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: fuel_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: greenhouse_gases
+  output_nodes:
+  - id: onroad_emissions
+    from_dimensions:
+    - id: emission_sectors
+      categories: [on_road_transport]
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+
+  - id: waterborne_emissions
+    from_dimensions:
+    - id: emission_sectors
+      categories: [waterborne]
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+
+  - id: aviation_emissions
+    from_dimensions:
+    - id: emission_sectors
+      categories: [aviation]
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+
 - id: stationary_electricity_loss
   name: Stationary Electricity Loss by Sector & Utility
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: kWh
+  unit: kWh/a
   input_dimensions: [emission_sectors, utility]
   output_dimensions: [emission_sectors, utility]
   input_nodes:
@@ -671,7 +655,7 @@ nodes:
   name: Electricity Loss Emissions # by Sector
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t
+  unit: t/a
   input_dimensions: [emission_sectors, greenhouse_gases]
   output_dimensions: [emission_sectors, greenhouse_gases]
   input_nodes:
@@ -698,7 +682,7 @@ nodes:
   name: Electricity Consumption Emissions # by Sector
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t
+  unit: t/a
   input_dimensions: [emission_sectors, greenhouse_gases]
   output_dimensions: [emission_sectors, greenhouse_gases]
   input_nodes:
@@ -725,7 +709,7 @@ nodes:
   name: Natural Gas Emissions # by Sector
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t
+  unit: t/a
   input_dimensions: [emission_sectors, greenhouse_gases]
   output_dimensions: [emission_sectors, greenhouse_gases]
   input_nodes:
@@ -749,7 +733,7 @@ nodes:
   name: Propane Emissions # by Sector
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t
+  unit: t/a
   input_dimensions: [emission_sectors, energy_carrier, greenhouse_gases]
   output_dimensions: [emission_sectors, energy_carrier, greenhouse_gases]
   input_nodes:
@@ -773,6 +757,49 @@ nodes:
     - id: greenhouse_gases
       flatten: true
 
+- id: livestock_count
+  name: Livestock Count
+  type: simple.AdditiveNode
+  quantity: number
+  unit: cap/a
+  output_dimensions: [livestock]
+  input_dimensions: [livestock]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/livestock_count
+
+- id: livestock_emission_factor
+  name: Livestock Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/cap
+  output_dimensions: [livestock, greenhouse_gases]
+  input_dimensions: [livestock, greenhouse_gases]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/livestock_emission_factor
+
+- id: livestock_emissions
+  name: Other Livestock Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [livestock, greenhouse_gases]
+  output_dimensions: [livestock, greenhouse_gases]
+  input_nodes:
+  - id: livestock_count
+    tags: [non_additive]
+    to_dimensions:
+    - id: livestock
+  - id: livestock_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: afolu_emissions
+    from_dimensions:
+    - id: livestock
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
 
 # - id: global_warming_potential_100a
 #   name: Global warming potential 100 a
