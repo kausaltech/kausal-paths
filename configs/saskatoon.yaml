@@ -877,7 +877,7 @@ nodes:
 
 # - id: building_floor_area
 #   name: Building floor area
-#   type: simple.UsFloorAreaNode
+#   type: buildings.FloorAreaNode
 #   quantity: floor_area
 #   unit: ft**2
 #   input_nodes:
@@ -893,7 +893,7 @@ nodes:
 
 # - id: commercial_square_footage_over_20000_sf
 #   name: Commercial square footage over 20,000 square feet
-#   type: simple.UsFloorAreaNode
+#   type: buildings.FloorAreaNode
 #   quantity: floor_area
 #   unit: ft**2
 #   input_datasets:
@@ -901,7 +901,7 @@ nodes:
 
 # - id: building_natural_gas_eui
 #   name: Energy use intensity EUI for natural gas
-#   type: simple.UsEuiNode
+#   type: buildings.CfNode
 #   quantity: consumption_factor
 #   unit: therm/ft**2/a
 #   input_datasets:
@@ -947,7 +947,7 @@ nodes:
 #     implemented. All other classes show the difference to the baseline; in other words
 #     energy saving actions take the natural gas use to the negative side. If the actions
 #     do not affect a particular class, the graph of that class seems empty.</p>
-#   type: simple.UsEnergyNode
+#   type: buildings.EnergyNode
 #   quantity: energy
 #   unit: Mtherm/a
 #   input_dimensions: [building_energy_class, action, emission_sectors]
@@ -969,7 +969,7 @@ nodes:
 #     to the baseline; in other words energy saving actions take the natural gas use
 #     to the negative side. If the actions do not affect a particular class, the graph
 #     of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
-#   type: simple.UsEnergyNode
+#   type: buildings.EnergyNode
 #   quantity: energy
 #   unit: Mtherm/a
 #   input_dimensions: [building_energy_class, action, emission_sectors]
@@ -998,7 +998,7 @@ nodes:
 #     baseline; in other words energy saving actions take the electricity use to the
 #     negative side. If the actions do not affect a particular class, the graph of that
 #     class seems empty.</p>
-#   type: simple.UsEnergyNode
+#   type: buildings.EnergyNode
 #   quantity: energy
 #   unit: Mtherm/a
 #   input_dimensions: [building_energy_class, action, emission_sectors]
@@ -1043,7 +1043,7 @@ nodes:
 
 # - id: building_electricity_eui
 #   name: Energy use intensity EUI for electricity
-#   type: simple.UsEuiNode
+#   type: buildings.CfNode
 #   quantity: consumption_factor
 #   unit: kWh/ft**2/a
 #   input_datasets:
@@ -1061,7 +1061,7 @@ nodes:
 #     implemented. All other classes show the difference to the baseline; in other words
 #     energy saving actions take the electricity use to the negative side. If the actions
 #     do not affect a particular class, the graph of that class seems empty.</p>
-#   type: simple.UsEnergyNode
+#   type: buildings.EnergyNode
 #   quantity: energy
 #   unit: GWh/a
 #   input_dimensions: [emission_sectors, action, building_energy_class]
