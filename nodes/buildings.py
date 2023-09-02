@@ -12,7 +12,7 @@ from common import polars as ppl
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN, DEFAULT_METRIC
 from .node import Node, NodeMetric
 from .exceptions import NodeError
-from nodes.actions.energy_saving import UsBuildingAction, CfFloorAreaAction
+from nodes.actions.energy_saving import UsBuildingAction, CfFloorAreaAction, CfFloorAreaAction2
 from nodes.simple import MultiplicativeNode
 
 
@@ -194,9 +194,9 @@ class FloorAreaNode2(MultiplicativeNode):
 
     def compute(self):
         nodes: list(Node) = []
-        actions: list(CfFloorAreaAction) = []
+        actions: list(CfFloorAreaAction2) = []
         for node in self.get_input_nodes():
-            if isinstance(node, CfFloorAreaAction):
+            if isinstance(node, CfFloorAreaAction2):
                 actions += [node]
             else:
                 nodes += [node]
@@ -268,46 +268,51 @@ class FloorAreaNode2(MultiplicativeNode):
 
 class EuiNode2(FloorAreaNode):
     '''
-    Consumption factor has 2 + 3 * i combined categories for action * building_energy class:
-    # none * all: the BAU CF
-    # none * regular: the difference between BAU CF and CF for regular old buildings (0 by definition)
-    # action_i * renovated: the difference between BAU CF and CF of action_i
-    # action_i * compliant: same as action_i * renovated
-    # action_i * non_compliant: same as none * regular
+    Consumption factor is the energy saving caused by the action.
+    There must be at least one action of type energy_saving.CfFloorAreaAction2.
     '''
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
     def compute(self):
         nodes: list(Node) = []
-        actions: list(CfFloorAreaAction) = []
+        actions: list(CfFloorAreaAction2) = []
         for node in self.get_input_nodes():
-            if isinstance(node, CfFloorAreaAction):
+            if isinstance(node, CfFloorAreaAction2):
                 actions += [node]
             else:
                 nodes += [node]
 
-        assert len(nodes) == 0
+        assert len(actions) > 0
 
         df = None
         for action in actions:
             df_a = action.get_output_pl(target_node=self)
-            df_a = df_a.rename({VALUE_COLUMN: 'improvement'})
-            df_a = df_a.ensure_unit('improvement', self.unit)
 
             if df is None:
                 df = df_a
             else:
                 df = df_a.paths.join_over_index(df, index_from='union')
-                df = df.with_columns(pl.col('improvement').fill_null(pl.lit(0)))
+                df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(pl.lit(0)))
 
-            col = 'consumption_factor@action:' + action.id
-            df = df.with_columns(pl.col('improvement').alias(col))
-            df = df.drop('improvement')
+            col = VALUE_COLUMN + '@action:' + action.id
+            df = df.with_columns(pl.col(VALUE_COLUMN).alias(col))
+            df = df.drop(VALUE_COLUMN)
 
         df = self.include_custom_dimension(df)
 
-        df = df.rename({'consumption_factor': VALUE_COLUMN})
+        # Inputs nodes are baseline but not required.
+        # If actions are not in the same units as the baseline, they are assumed to be relative values.
+        if len(nodes) > 0:
+            df_bau = self.add_nodes_pl(None, nodes=nodes)
+            df = df.paths.join_over_index(df_bau)
+            sub = self.is_compatible_unit(df.get_unit(VALUE_COLUMN), df.get_unit(VALUE_COLUMN + '_right'))
+            if sub:
+                df = df.subtract_cols([VALUE_COLUMN + '_right', VALUE_COLUMN], VALUE_COLUMN)
+            else:
+                df = df.multiply_cols([VALUE_COLUMN + '_right', VALUE_COLUMN], VALUE_COLUMN)
+            df = df.drop(VALUE_COLUMN + '_right')
+
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
@@ -349,5 +354,3 @@ class EnergyNode(MultiplicativeNode):
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
-
-

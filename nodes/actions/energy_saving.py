@@ -723,12 +723,14 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
 
         # FIXME This stupid approach is beacuse electricity and natural gas are different metrics.
         carr = self.get_parameter_value('energy_carrier', units=False, required=True)
-        assert carr in ['electricity', 'natural_gas']
+        assert carr in ['electricity', 'natural_gas', 'all']
+        drop = None
         if carr == 'electricity':
             drop = 'natural_gas'
         else:
             drop = 'electricity'
-        df2 = df2.drop(drop)
+        if drop is not None:
+            df2 = df2.drop(drop)
 
         df2 = df2.rename({carr: VALUE_COLUMN})
         unit = self.get_parameter_value('improvement_unit', units=False, required=False)
@@ -741,5 +743,92 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
             df = df.with_columns(pl.lit(0.0).alias(VALUE_COLUMN))
         df = df.with_columns(pl.lit(True).alias(FORECAST_COLUMN))
         df = df.rename({VALUE_COLUMN: 'consumption_factor'})
+
+        return df
+
+
+class CfFloorAreaAction2(BuildingEnergySavingAction):
+    """
+    BuildingEnergySavingAction with cumulative energy savings.
+    # fraction of existing buildings triggering code updates
+    # compliance of new buildings to the more active regulations
+    # improvement in energy consumption factor
+    """
+
+    output_metrics = {
+        'triggered': NodeMetric('%', 'fraction', column_id='triggered'),
+        'compliant': NodeMetric('%', 'fraction', column_id='compliant'),
+        'improvement': NodeMetric('%', 'fraction', column_id='improvement'),
+#        'electricity': NodeMetric('kWh/m**2/a', 'consumption_factor', column_id='electricity'),
+#        'natural_gas': NodeMetric('thm/m**2/a', 'consumption_factor', column_id='natural_gas')
+    }
+    allowed_parameters = BuildingEnergySavingAction.allowed_parameters + [
+        StringParameter(
+            local_id='electricity_unit',
+            label='Electricity unit',
+            is_customizable=False
+            ),
+        StringParameter(
+            local_id='natural_gas_unit',
+            label='Natural gas unit',
+            is_customizable=False
+        )
+    ]
+    
+    def compute_effect(self) -> pd.DataFrame:
+
+        df = self.get_input_dataset_pl(tag='floor', required=True)
+        assert 'action_change' in df.primary_keys
+        triggered = df.filter(pl.col('action_change').eq('triggered'))
+        triggered = triggered.rename({'fraction': 'triggered'}).drop('action_change')
+        compliant = df.filter(pl.col('action_change').eq('compliant'))
+        compliant = compliant.rename({'fraction': 'compliant'}).drop('action_change')
+        df = triggered.paths.join_over_index(compliant)
+
+        df2 = self.get_input_dataset_pl(tag='improvement', required=True)
+        df2 = df2.rename({'fraction': 'improvement'})
+
+        unit_el = self.get_parameter_value('electricity_unit', units=False, required=False)
+        if unit_el is not None:
+            self.output_metrics['electricity'].default_unit = unit_el
+            self.output_metrics['electricity'].populate_unit(context=self.context)
+
+        unit_gas = self.get_parameter_value('natural_gas_unit', units=False, required=False)
+        if unit_gas is not None:
+            self.output_metrics['natural_gas'].default_unit = unit_gas
+            self.output_metrics['natural_gas'].populate_unit(context=self.context)
+
+        df = df2.paths.join_over_index(df, index_from='union')
+
+        if not self.is_enabled():
+            df = df.with_columns(pl.lit(0.0).alias('compliant'))
+            if 'electricity' in df.columns:  # If absolute units
+                df = df.with_columns(pl.lit(0.0).alias('electricity'))
+                df = df.with_columns(pl.lit(0.0).alias('natural_gas'))
+            else:
+                df = df.with_columns(pl.lit(0.0).alias('improvement'))
+
+        return df
+
+
+class EnergyAction(ActionNode):
+    """Simple action with several energy metrics."""
+
+    output_metrics = {
+        'electricity': NodeMetric('kWh/ft**2/a', 'fraction', column_id='electricity'),
+        'natural_gas': NodeMetric('thm/ft**2/a', 'fraction', column_id='natural_gas'),
+    }
+
+    def compute_effect(self):
+        df = self.get_input_dataset_pl(required=True)
+        df = df.with_columns([
+            (pl.lit(-1) * pl.col('electricity')).alias('electricity'),
+            (pl.lit(-1) * pl.col('natural_gas')).alias('natural_gas')
+        ])
+        if not self.is_enabled():
+            df = df.with_columns([
+                pl.lit(0.0).alias('electricity'),
+                pl.lit(0.0).alias('natural_gas')
+            ])
 
         return df
