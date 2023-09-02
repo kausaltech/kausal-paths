@@ -21,13 +21,15 @@
 # Or just two actions? That will make three more actions. And the baseline trend action
 # What about historical improvement? Those are ignored in excel also, only BAU used.
 
+# Develop beyond building code percentage needs to be recalculated from the EUI before updated building code, so that together they give right amount of saving.
+
 id: longmont
 default_language: en
 supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c6b975ee5fcc57a112efa6fac3db737e95d08832
+  commit: 887fe69d30df400ace7dec87883db970017cc3d0
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -633,26 +635,35 @@ nodes:
     - id: emission_sectors
   - id: updated_building_code
     metrics: [triggered, compliant]
-  - id: develop_beyond_building_code
-    metrics: [triggered, compliant]
-  - id: benchmark_energy_use
-    metrics: [triggered, compliant]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]  # Any category, all are identical
+      flatten: true
+#  - id: develop_beyond_building_code
+#    metrics: [triggered, compliant]
+#  - id: benchmark_energy_use
+#    metrics: [triggered, compliant]
 
 - id: natural_gas_eui_improvement
   name: Energy use intensity EUI improvement for natural gas
   type: buildings.EuiNode2
   quantity: consumption_factor
   unit: therm/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: natural_gas
   input_nodes:
+  - id: building_natural_gas_eui
+    to_dimensions:
+    - id: emission_sectors
   - id: updated_building_code
-    metrics: [consumption_factor]
-  - id: develop_beyond_building_code
-    metrics: [consumption_factor]
-  - id: benchmark_energy_use
-    metrics: [consumption_factor]
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+#    metrics: [natural_gas]
+#  - id: develop_beyond_building_code
+#    metrics: [consumption_factor]
+#  - id: benchmark_energy_use
+#    metrics: [consumption_factor]
 
 - id: natural_gas_saved
   name: Natural gas saved
@@ -691,16 +702,21 @@ nodes:
   type: buildings.EuiNode2
   quantity: consumption_factor
   unit: kWh/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
   input_nodes:
+  - id: building_electricity_eui
+    to_dimensions:
+    - id: emission_sectors
   - id: updated_building_code
-    metrics: [consumption_factor]
-  - id: develop_beyond_building_code
-    metrics: [consumption_factor]
-  - id: benchmark_energy_use
-    metrics: [consumption_factor]
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+#    metrics: [natural_gas]
+#  - id: develop_beyond_building_code
+#    metrics: [consumption_factor]
+#  - id: benchmark_energy_use
+#    metrics: [consumption_factor]
 
 - id: electricity_saved
   name: Electricity saved
@@ -736,13 +752,17 @@ nodes:
 
 - id: building_natural_gas_eui
   name: Energy use intensity EUI baseline for natural gas
-  type: simple.UsEuiNode
+  type: simple.AdditiveNode
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
+  input_nodes:
+  - id: energy_use_intensity_trend
+    metrics: [natural_gas]
   input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
 
 - id: building_electricity_use
   name: Building electricity use
@@ -787,13 +807,6 @@ nodes:
     to_dimensions:
     - id: emission_sectors
   - id: building_natural_gas_eui
-    from_dimensions:
-    - id: action
-      categories: [none]
-      flatten: true
-    - id: building_energy_class
-      categories: [all]
-      flatten: true
 
 - id: building_electricity_use_bau
   name: Building electricity use baseline
@@ -809,15 +822,6 @@ nodes:
     to_dimensions:
     - id: emission_sectors
   - id: building_electricity_eui
-    from_dimensions:
-    - id: action
-      categories: [none]
-      flatten: true
-    - id: building_energy_class
-      categories: [all]
-      flatten: true
-    to_dimensions:
-    - id: emission_sectors
 
 - id: electricity_use
   name: Electricity use
@@ -847,12 +851,17 @@ nodes:
 
 - id: building_electricity_eui
   name: Energy use intensity EUI baseline for electricity
-  type: simple.UsEuiNode
+  type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
+  input_nodes:
+  - id: energy_use_intensity_trend
+    metrics: [electricity]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
 
 # Building model, updated building code
 # Floor area increses by B32 every year. categories residential, commercial
@@ -1593,26 +1602,29 @@ actions:
     graph shows the relative improvement of the energy use intensity (EUI) caused
     by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
     Plan Strategy BI-5</a></li></ul></p>'
-  type: energy_saving.CfFloorAreaAction
+  type: energy_saving.CfFloorAreaAction2
   quantity: consumption_factor
   group: buildings
   input_datasets:
   - id: longmont/energy_use_intensity_with_building_actions
     tags: [floor]
+    forecast_from: 2023
     filters:
     - column: action
       value: updated_building_code
-  - id: longmont/energy_use_intensity_improvements
+#  - id: longmont/energy_use_intensity_improvements  # Alternative, absolute data
+  - id: longmont/energy_use_intensity_relative
     tags: [improvement]
+    forecast_from: 2023
     filters:
     - column: action
       value: updated_building_code
-  output_dimensions: [emission_sectors, building_energy_class]
-  params:
-  - id: improvement_unit
-    value: thm/ft**2/a
-  - id: energy_carrier
-    value: natural_gas
+  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
+#  params:  # For absolute data
+#  - id: natural_gas_unit
+#    value: thm/ft**2/a
+#  - id: electricity_unit
+#    value: kWh/ft**2/a
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -2050,6 +2062,22 @@ actions:
   output_nodes:
   - electric_vehicle_efficiency
 
+- id: energy_use_intensity_trend
+  name: Energy use intensity trend
+  description: This action describes the assumed improvement in the energy use intensity
+    for the baseline scenario, i.e. changes that will occur anyway without any activity
+    from the city.
+  type: energy_saving.EnergyAction
+  quantity: consumption_factor
+  group: trend
+  input_datasets:
+  - id: longmont/energy_use_intensity_improvements
+    filters:
+    - column: action
+      value: none
+    forecast_from: 2023
+  output_dimensions: [emission_sectors]
+
 pages:
 - id: home
   name: Longmont Greenhouse Gas Inventory
@@ -2156,6 +2184,15 @@ pages:
 scenarios:
 - id: baseline
   name: Business as Usual
+  params:
+  - id: energy_use_intensity_trend.enabled
+    value: true
+  - id: mpg_trend.enabled
+    value: true
+  - id: vmt_per_vehicle_trend.enabled
+    value: true
+  - id: electric_vehicle_efficiency_trend.enabled
+    value: true
 
 - id: default
   default: true
