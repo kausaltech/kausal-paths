@@ -852,9 +852,8 @@ class Node:
             raise NodeError(self, "Forecast column missing")
 
         for metric in self.output_metrics.values():
-            # FIXME
-            # if metric.column_id not in df.columns:
-            #   raise NodeError(self, "Output does not have a column '%s'" % metric.column_id)
+            if metric.column_id not in df.columns:
+                raise NodeError(self, "Output does not have a column '%s'" % metric.column_id)
             if metric.column_id not in df.columns:
                 continue
             if not df.has_unit(metric.column_id):
