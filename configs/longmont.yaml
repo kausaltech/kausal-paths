@@ -626,7 +626,7 @@ nodes:
     of compliant buildings is already taken into account here. Note that these values
     are not additive, as several actions may affect the same buildings. Those buildings
     that are not affected are not shown here.
-  type: buildings.FloorAreaNode2
+  type: buildings.FloorAreaNode
   quantity: floor_area
   unit: ft^2
   input_nodes:
@@ -639,14 +639,22 @@ nodes:
     - id: energy_carrier
       categories: [electricity]  # Any category, all are identical
       flatten: true
-#  - id: develop_beyond_building_code
-#    metrics: [triggered, compliant]
-#  - id: benchmark_energy_use
-#    metrics: [triggered, compliant]
+  - id: develop_beyond_building_code
+    metrics: [triggered, compliant]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
 
 - id: natural_gas_eui_improvement
   name: Energy use intensity EUI improvement for natural gas
-  type: buildings.EuiNode2
+  type: buildings.CfNode
   quantity: consumption_factor
   unit: therm/ft**2/a
   input_nodes:
@@ -659,11 +667,18 @@ nodes:
     - id: energy_carrier
       categories: [natural_gas]
       flatten: true
-#    metrics: [natural_gas]
-#  - id: develop_beyond_building_code
-#    metrics: [consumption_factor]
-#  - id: benchmark_energy_use
-#    metrics: [consumption_factor]
+  - id: develop_beyond_building_code
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: benchmark_energy_use
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
 
 - id: natural_gas_saved
   name: Natural gas saved
@@ -699,7 +714,7 @@ nodes:
 
 - id: electricity_eui_improvement
   name: Energy use intensity EUI improvement for electricity
-  type: buildings.EuiNode2
+  type: buildings.CfNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
   input_nodes:
@@ -712,11 +727,18 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
       flatten: true
-#    metrics: [natural_gas]
-#  - id: develop_beyond_building_code
-#    metrics: [consumption_factor]
-#  - id: benchmark_energy_use
-#    metrics: [consumption_factor]
+  - id: develop_beyond_building_code
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: benchmark_energy_use
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
 
 - id: electricity_saved
   name: Electricity saved
@@ -1602,7 +1624,7 @@ actions:
     graph shows the relative improvement of the energy use intensity (EUI) caused
     by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
     Plan Strategy BI-5</a></li></ul></p>'
-  type: energy_saving.CfFloorAreaAction2
+  type: energy_saving.CfFloorAreaAction
   quantity: consumption_factor
   group: buildings
   input_datasets:
@@ -1643,17 +1665,13 @@ actions:
     filters:
     - column: action
       value: develop_beyond_building_code
-  - id: longmont/energy_use_intensity_improvements
+  - id: longmont/energy_use_intensity_relative
     tags: [improvement]
+    forecast_from: 2023
     filters:
     - column: action
       value: develop_beyond_building_code
-  output_dimensions: [building_energy_class, emission_sectors]
-  params:
-  - id: improvement_unit
-    value: thm/ft**2/a
-  - id: energy_carrier
-    value: natural_gas
+  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -1672,17 +1690,13 @@ actions:
     filters:
     - column: action
       value: benchmark_energy_use
-  - id: longmont/energy_use_intensity_improvements
+  - id: longmont/energy_use_intensity_relative
     tags: [improvement]
+    forecast_from: 2023
     filters:
     - column: action
       value: benchmark_energy_use
-  output_dimensions: [building_energy_class, emission_sectors]
-  params:
-  - id: improvement_unit
-    value: thm/ft**2/a
-  - id: energy_carrier
-    value: natural_gas
+  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
