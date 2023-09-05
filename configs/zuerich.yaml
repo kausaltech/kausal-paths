@@ -2450,6 +2450,68 @@ nodes:
   - id: transport_fuel_consumption
   - id: fuel_energy_density
 
+- id: transport_end_energy_consumption
+  name_de: Transportation total end energy consumption
+  name_en: Transportation total end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: transport_fuel_end_energy_consumption
+  - id: public_transport_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: other_transport_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: stationary_end_energy_consumption
+  name_de: Stationary total end energy consumption
+  name_en: Stationary total end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: building_other_fuel_use
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: end_energy_consumption
+  name_de: Total end energy consumption
+  name_en: Total end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: stationary_end_energy_consumption
+  - id: transport_end_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
 - id: net_emissions_2kw
   name_de: Treibhausgasemissionen (2000-Watt)
   name_en: Greenhouse gas emissions (2000-watt)
