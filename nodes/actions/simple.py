@@ -27,7 +27,7 @@ class AdditiveAction(ActionNode):
         return df
 
 
-class CumulativeAdditiveAction(ActionNode):
+class CumulativeAdditiveAction(ActionNode):  # FIXME Update to deal with old-fashioned multi-metric nodes such as Tampere/private_building_energy_renovation
     """Additive action where the effect is cumulative and remains in the future."""
 
     allowed_parameters: ClassVar[list[Parameter]] = [
