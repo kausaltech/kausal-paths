@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b30e3668b479216c4b6397591e30284b9efca63a
+  commit: f8850299a714248a80a5b708101049c8cee19c96
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon Greenhouse Gas Inventory
