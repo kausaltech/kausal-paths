@@ -13,7 +13,7 @@ from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN,
 from .node import Node, NodeMetric
 from .exceptions import NodeError
 from nodes.actions.energy_saving import CfFloorAreaAction
-from nodes.simple import MultiplicativeNode
+from nodes.simple import MultiplicativeNode, AdditiveNode
 
 
 class FloorAreaNode(MultiplicativeNode):
@@ -151,6 +151,7 @@ class CfNode(FloorAreaNode):
             df = df.paths.join_over_index(df_bau)
             sub = self.is_compatible_unit(df.get_unit(VALUE_COLUMN), df.get_unit(VALUE_COLUMN + '_right'))
             if sub:
+                assert sub is False  # Because the use case is unclear
                 df = df.subtract_cols([VALUE_COLUMN + '_right', VALUE_COLUMN], VALUE_COLUMN)
             else:
                 df = df.multiply_cols([VALUE_COLUMN + '_right', VALUE_COLUMN], VALUE_COLUMN)
@@ -196,4 +197,11 @@ class EnergyNode(MultiplicativeNode):
         df = df.drop(['cumulated'])
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class HistoricalNode(AdditiveNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        df = super().compute()
+        df = df.filter(pl.col(FORECAST_COLUMN) == False)
         return df

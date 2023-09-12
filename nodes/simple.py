@@ -331,7 +331,7 @@ class DivisiveNode(MultiplicativeNode):
         return df
 
 
-class EmissionFactorActivity(MultiplicativeNode):
+class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Tampere/other_electricity_consumption_emisisons
     """Multiply an activity by an emission factor."""
     quantity = 'emissions'
     default_unit = '%s/a' % EMISSION_UNIT

@@ -238,6 +238,23 @@ class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
         df[VALUE_COLUMN] = self.ensure_output_unit(df[ENERGY_QUANTITY])
         df = df.reset_index()
         df = df.set_index([YEAR_COLUMN, 'building_use', 'building_heat_source'])[[VALUE_COLUMN, FORECAST_COLUMN]]
+
+        # There was a change in HSY statistics logic for geothermal energy between 2018-2019.
+        # Fix geothermal values before 2019, if they are heat rather than electricity.
+        df = ppl.from_pandas(df)
+        geo = pl.col('building_heat_source')==pl.lit('geothermal')
+        tst = df.filter(geo)
+        tst = tst.groupby(pl.col(YEAR_COLUMN)).sum()
+        tst1 = tst.filter(pl.col(YEAR_COLUMN) == 2018)[VALUE_COLUMN][0]
+        tst = tst.filter(pl.col(YEAR_COLUMN) == 2019)[VALUE_COLUMN][0]
+        if tst1 > tst * 2:
+            cop = 3  # Ratio of heat energy produced per electricity consumed
+            df = df.with_columns(
+                pl.when((geo) & (pl.col(YEAR_COLUMN) < 2019))
+                .then(pl.col(VALUE_COLUMN) / cop)
+                .otherwise(pl.col(VALUE_COLUMN).alias(VALUE_COLUMN))
+            )
+        df = df.to_pandas()
         return df
 
 
