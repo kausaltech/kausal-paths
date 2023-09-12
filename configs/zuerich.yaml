@@ -1340,7 +1340,6 @@ nodes:
   - zuerich/other_building_emission_source_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
-
 - id: building_other_emissions
   name_en: Other building emissions
   name_de: Treibhausgasemissionen Übrige Emissionsquellen (Gebäude)
@@ -2287,7 +2286,6 @@ nodes:
   output_nodes:
   - id: transport_primary_energy_demand
 
-
 - id: building_primary_energy_factor
   name_de: Primärenergiefaktoren Gebäude
   name_en: Building primary energy factor
@@ -2568,7 +2566,231 @@ nodes:
       categories: [scope1]
     - id: energy_carrier
 
+- id: european_electricity_renewable
+  name_en: Renewable European-import component of electricity production mix
+  name_de: Renewable European-import component of electricity production mix
+  type: simple.FixedMultiplierNode
+  quantity: fraction
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: '%'
+  params:
+  - id: multiplier
+    value: 0.247
+  input_nodes:
+  - id: electricity_production_mix
 
+- id: electricity_mix_renewable
+  name_de: Renewable component of electricity production mix
+  name_en: Renewable component of electricity production mix
+  type: simple.AdditiveNode
+  quantity: fraction
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: '%'
+  input_nodes:
+  - id: electricity_production_mix
+    from_dimensions:
+    - id: electricity_source
+      categories: [hydro, solar, biogas, wind, wood]
+  - id: european_electricity_renewable
+    from_dimensions:
+    - id: electricity_source
+      categories: [import]
+
+- id: public_transport_renewable_electricity_consumption
+  name_de: Renewable component of public transport electricity consumption
+  name_en: Renewable component of public transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source, vehicle_type]
+  output_dimensions: [electricity_source, vehicle_type]
+  unit: 'GWh/a'
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_source
+      categories: [hydro, solar, wind, wood]
+    to_dimensions:
+    - id: electricity_source
+  - id: public_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: other_transport_renewable_electricity_consumption
+  name_de: Renewable component of other transport electricity consumption
+  name_en: Renewable component of other transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source, vehicle_type]
+  output_dimensions: [electricity_source, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: electricity_mix_renewable
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: other_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: transport_end_renewable_energy_consumption
+  name_de: Renewable component of transport end energy consumption
+  name_en: Renewable component of transport end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: public_transport_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: other_transport_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: building_electricity_consumption
+  name_de: Building total electricity consumption
+  name_en: Building total electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: 'GWh/a'
+  input_nodes:
+  - id: heat_pump_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: building_renewable_electricity_consumption
+  name_de: Renewable component of building electricity consumption
+  name_en: Renewable component of building electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: GWh/a
+  input_nodes:
+  - id: electricity_mix_renewable
+    tags: [non_additive]
+  - id: building_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions: []
+
+- id: building_renewable_district_heat_consumption
+  name_de: Renewable component of district heat energy consumption
+  name_en: Renewable component of district heat energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: district_heat_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat, wood, biogas]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+      flatten: true
+    to_dimensions: []
+
+- id: building_renewable_nonelectric_energy_consumption
+  name_de: Building total renewable non-electric energy consumption
+  name_en: Building total renewable non-electric energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: 'GWh/a'
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+    from_dimensions:
+    - id: energy_carrier
+      categories: [solar_collectors, environmental_heat, wood, biogas, biogas_import]
+  - id: building_other_fuel_use
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biogas, wood_chips, wood_pellets]
+    - id: building_other_emission_sources
+      flatten: true
+  - id: building_renewable_district_heat_consumption
+
+- id: stationary_end_renewable_energy_consumption
+  name_de: Renewable component of stationary end energy consumption
+  name_en: Renewable component of stationary end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: building_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: building_renewable_nonelectric_energy_consumption
+
+- id: percent_renewable_end_energy_consumption
+  name_en: Renewable component of total end energy consumption
+  name_de: Renewable component of total end energy consumption
+  short_name_en: Renewable
+  short_name_de: Renewable
+  input_dimensions: []
+  output_dimensions: []
+  type: formula.FormulaNode
+  unit: '%'
+  quantity: fraction
+  params:
+    formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption) / end_energy_consumption
+#    extend_last_historical_value: true
+  input_nodes:
+  - id: stationary_end_renewable_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: transport_end_renewable_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+  - id: end_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 #
 # ------- ACTIONS --------
 #
@@ -3652,7 +3874,6 @@ actions:
       - year: 2040
         source_amount: -6.431e7
         dest_amounts: [1]
-
 
 pages:
 - id: home
