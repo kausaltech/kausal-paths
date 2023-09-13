@@ -29,7 +29,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 22b514db5a604074ee90eb1c90855ff0a060933d
+  commit: 5076b171445c7f568612718d354322b91031b86c
   dvc_remote: kausal-s3
 name: Longmont Greenhouse gas inventory
 owner_en: City of Longmont
@@ -1860,9 +1860,9 @@ actions:
           greenhouse_gases: co2
       amounts:
       - year: 2023
-        amount: -0.006
+        amount: -0.0107  # 0.867 / 8
       - year: 2030
-        amount: -0.006
+        amount: -0.0107
       - year: 2031
         amount: 0
 
