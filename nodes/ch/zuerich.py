@@ -7,6 +7,7 @@ from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_las
 from nodes.node import NodeMetric, NodeError, Node
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
 from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
+from params.param import BoolParameter
 
 
 class BuildingEnergy(AdditiveNode):
@@ -324,7 +325,56 @@ class ElectricityProductionMix(MixNode):
         return df
 
 
-class DistrictHeatProductionMix(MixNode):
+class GasGridMixin(Node):
+    def use_gas_grid(self, df: ppl.PathsDataFrame):
+        df = df.paths.to_wide(only_category_names=True)
+        df = df.with_columns([pl.col(col).fill_nan(0.0) for col in df.metric_cols])
+        df = df.sum_cols(['natural_gas', 'biogas', 'biogas_import'], out_col='all_gas', skip_missing=True)
+
+        snode = self.get_input_node(tag='grid_share')
+        sdf = snode.get_output_pl(target_node=self)
+        sdf = sdf.select_metrics(sdf.metric_cols[0], rename='GridShare').ensure_unit('GridShare', '')
+
+        mnode = self.get_input_node(tag='gas_mix')
+        mdf = mnode.get_output_pl(target_node=self)
+        mdf = mdf.ensure_unit(mdf.metric_cols[0], '')
+        mdf = mdf.paths.to_wide(only_category_names=True)
+
+        zdf = df.select(YEAR_COLUMN).join(mdf, on=YEAR_COLUMN, how='left').join(sdf, on=YEAR_COLUMN, how='left')
+        zdf = zdf.with_columns(pl.col('GridShare').fill_null(0.0))
+
+        def fc_only(col: str):
+            own_supply = (1 - zdf['GridShare']) * pl.col(col)
+            grid_supply = zdf['GridShare'] * zdf[col] * pl.col('all_gas')
+            return (
+                pl.when(pl.col(FORECAST_COLUMN))
+                .then(own_supply + grid_supply)
+                .otherwise(pl.col(col))
+                .fill_nan(0.0).alias(col)
+            )
+
+        cols = ('natural_gas', 'biogas', 'biogas_import')
+        for col in cols:
+            if col not in df.columns:
+                df = df.with_columns(pl.lit(0.0).alias(col)).set_unit(col, df.get_unit('all_gas'))
+
+        df = df.with_columns([
+            fc_only('natural_gas'),
+            fc_only('biogas'),
+            fc_only('biogas_import'),
+        ])
+        df = df.drop('all_gas')
+
+        m = self.get_default_output_metric()
+        df = df.paths.to_narrow(assign_dimension='energy_carrier', assign_metric=m.column_id)
+        return df
+
+
+class DistrictHeatProductionMix(MixNode, GasGridMixin):
+    allowed_parameters = MixNode.allowed_parameters + [
+        BoolParameter('use_gas_network', label='District heat uses gas grid mix')
+    ]
+
     def compute(self) -> ppl.PathsDataFrame:
         mix_df = self.get_input_dataset_pl()
         assert len(mix_df.metric_cols) == 1
@@ -334,7 +384,40 @@ class DistrictHeatProductionMix(MixNode):
         ec_s = ec_dim.series_to_ids_pl(mix_df[mix_df.dim_ids[0]])
         df = mix_df.select([pl.col(YEAR_COLUMN), ec_s.alias(ec_dim_id), pl.col(mix_df.metric_cols[0]).alias(m.column_id)])
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        df = self.add_mix_normalized(df, self.input_nodes)
+
+        add_nodes = list(self.input_nodes)
+        snode = self.get_input_node(tag='grid_share', required=False)
+        if snode is not None:
+            add_nodes.remove(snode)
+        mnode = self.get_input_node(tag='gas_mix', required=False)
+        if mnode is not None:
+            add_nodes.remove(mnode)
+
+        df = self.add_mix_normalized(df, add_nodes)
+
+        use_grid = self.get_parameter_value('use_gas_network', required=False)
+        if use_grid:
+            df = self.use_gas_grid(df)
+ 
+        return df
+
+
+class GasGridNode(AdditiveNode, GasGridMixin):
+    def compute(self) -> ppl.PathsDataFrame:
+        df = super().compute()
+        meta = df.get_meta()
+        other_dims = df.dim_ids
+        other_dims.remove('energy_carrier')
+        other_dim_cats = df.select(other_dims).unique()
+        dfs = []
+        for row in other_dim_cats.iter_rows():
+            filters = [pl.col(dim).eq(cat) for dim, cat in zip(other_dims, row)]
+            fdf = df.filter(pl.all_horizontal(filters)).drop(other_dims)
+            fdf = self.use_gas_grid(fdf).with_columns([
+                pl.lit(cat).alias(dim) for dim, cat in zip(other_dims, row)
+            ])
+            dfs.append(fdf)
+        df = ppl.to_ppdf(pl.concat(dfs), meta=meta)
         return df
 
 
@@ -368,7 +451,7 @@ class EnergyProductionEmissionFactor(AdditiveNode):
             node_df = node.get_output_pl(target_node=self)
             node_df = node_df.select([YEAR_COLUMN, *node_df.dim_ids, pl.col(node_df.metric_cols[0]).alias('NodeEF')])
             assert set(ef_df.dim_ids) == set(node_df.dim_ids)
-            ef_df = ef_df.paths.join_over_index(node_df)
+            ef_df = ef_df.paths.join_over_index(node_df, how='outer')
             ef_df = ef_df.with_columns([pl.col('EF').fill_null(pl.col('NodeEF'))]).drop('NodeEF')
 
         df = extend_last_historical_value_pl(ef_df, self.get_end_year())
@@ -899,9 +982,6 @@ class WasteIncinerationEmissions(SimpleNode):
         if efdf is None:
             raise NodeError(self, "Dataset with emission factors not found")
 
-        ccs_node = self.get_input_node(tag='ccs_share')
-        ccs_df = ccs_node.get_output_pl(target_node=self)
-
         amount_node = self.get_input_node(tag='amount')
         adf = amount_node.get_output_pl(target_node=self)
 
@@ -917,56 +997,24 @@ class WasteIncinerationEmissions(SimpleNode):
         )
 
         fdf = extend_last_historical_value_pl(fdf, self.get_end_year())
-        cdf = df.filter(pl.col('greenhouse_gases').eq('co2'))
-        cdf = cdf.paths.join_over_index(fdf.select_metrics(['share_of_fossil_co2']))
-        cdf = cdf.multiply_cols(['Emissions', 'share_of_fossil_co2'], 'FossilEmissions').ensure_unit('FossilEmissions', df.get_unit('Emissions'))
-        cdf = (
-            cdf.with_columns((pl.col('Emissions') - pl.col('FossilEmissions')).alias('BioEmissions'))
-            .set_unit('BioEmissions', df.get_unit('Emissions'))
+        df = df.paths.join_over_index(fdf.select_metrics(['share_of_fossil_co2']))
+
+        zdf = (
+            df.filter(pl.col('greenhouse_gases').eq('co2'))
+            .multiply_cols(['Emissions', 'share_of_fossil_co2'], 'fossil', df.get_unit('Emissions'))
+            .with_columns((pl.col('Emissions') - pl.col('fossil')).alias('biogen'))
+            .set_unit('biogen', df.get_unit('Emissions'))
         )
 
-        ccs_df = (
-            ccs_df.rename({VALUE_COLUMN: 'CCSShare'})
-                .ensure_unit('CCSShare', self.context.unit_registry.parse_units('dimensionless'))
-        )
-        cdf = cdf.paths.join_over_index(ccs_df)
-        cdf = (
-            cdf.with_columns([
-                (pl.col('FossilEmissions') * (1 - pl.col('CCSShare'))).alias('FossilLeft'),
-                (pl.lit(0) - pl.col('BioEmissions') * pl.col('CCSShare')).alias('BioCaptured'),
-             ])
-            .set_unit('BioCaptured', cdf.get_unit('BioEmissions'))
-            .set_unit('FossilLeft', cdf.get_unit('BioEmissions'))
-            .select_metrics(['FossilLeft', 'BioCaptured'])
-            .paths.sum_over_dims(['waste_incineration_plants'])
+        fossil = zdf.select_metrics(['fossil']).rename({'fossil': 'Emissions'})
+        biogen = (
+            zdf.select_metrics(['biogen']).rename({'biogen': 'Emissions'})
+            .with_columns(pl.lit('co2_biogen', dtype=pl.Categorical).alias('greenhouse_gases'))
         )
 
-        scope_dim = self.context.dimensions['emission_scope']
-        s1df = (cdf
-            .select_metrics(['FossilLeft'])
-            .rename({'FossilLeft': VALUE_COLUMN})
-            .with_columns(pl.lit('scope1').alias(scope_dim.id))
-            .add_to_index(scope_dim.id)
-        )
-
-        ndf = (cdf
-            .select_metrics(['BioCaptured'])
-            .rename({'BioCaptured': VALUE_COLUMN})
-            .with_columns(pl.lit('negative_emissions').alias(scope_dim.id))
-            .add_to_index(scope_dim.id)
-        )
-
-        df = (
-            df.filter(pl.col('greenhouse_gases').ne('co2'))
-            .paths.sum_over_dims(['waste_incineration_plants'])
-            .with_columns(pl.lit('scope1').alias(scope_dim.id))
-            .rename(dict(Emissions=VALUE_COLUMN))
-            .add_to_index(scope_dim.id)
-        )
-
-        df = ppl.to_ppdf(pl.concat([df, s1df, ndf]), df.get_meta())
-        df = convert_to_co2e(df, 'greenhouse_gases')
-        df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
+        df = df.select_metrics('Emissions').filter(~pl.col('greenhouse_gases').eq('co2'))
+        meta = df.get_meta()
+        df = ppl.to_ppdf(pl.concat([df, fossil, biogen]), meta=meta).rename({'Emissions': VALUE_COLUMN})
         return df
 
 
