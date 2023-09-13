@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 21f9302904ba558948c49c85b71a7d653bcafa30
+  commit: e0b0e567aa426fa1485cc24f0aae4cb15ac6b319
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -3608,9 +3608,9 @@ actions:
       - year: 2029
         amount: 0
       - year: 2030
-        amount: -0.484
+        amount: -0.407
       - year: 2039
-        amount: -0.484
+        amount: -0.407
       - year: 2040
         amount: 0
     - target:
@@ -3868,78 +3868,6 @@ actions:
 #         source_amount: -5.5
 #         dest_amounts: [1]
 
-
-# - id: electric_non_road_machinery_2
-#   name_en: Non-road machinery electric +50 %
-#   name_de: Non-road machinery electric +50 %
-#   group: optional
-#   type: linear.ReduceAction
-#   quantity: emissions
-#   unit: kt/a
-#   output_nodes:
-#   - id: non_road_machinery_emissions
-#   output_dimensions: [non_road_machinery, energy_carrier]
-#   params:
-#   - id: reduce
-#     unit: kt/a
-#     is_customizable: false
-#     value:
-#     - target:
-#         categories:
-#           non_road_machinery: civil_construction_machinery
-#           energy_carrier: diesel
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -2.71
-
-#     - target:
-#         categories:
-#           non_road_machinery: industrial_vehicles
-#           energy_carrier: diesel
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -0.817
-#     - target:
-#         categories:
-#           non_road_machinery: industrial_vehicles
-#           energy_carrier: petrol
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -0.167
-
-#     - target:
-#         categories:
-#           non_road_machinery: building_construction_machinery
-#           energy_carrier: diesel
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -4.84
-#     - target:
-#         categories:
-#           non_road_machinery: forestry_vehicles
-#           energy_carrier: diesel
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -0.091
-#     - target:
-#         categories:
-#           non_road_machinery: agricultural_vehicles
-#           energy_carrier: diesel
-#       amounts:
-#       - year: 2039
-#         amount: 0
-#       - year: 2040
-#         amount: -0.23
 
 pages:
 - id: home
