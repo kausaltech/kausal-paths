@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e0b0e567aa426fa1485cc24f0aae4cb15ac6b319
+  commit: e08d0a65ad5aa01318245c11c9e187e8bbc83467
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -2911,6 +2911,34 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
+
+- id: aviation_fuel_consumption_per_inhabitant
+  name_de: Aviation fuel consumption per inhabitant
+  name_en: Aviation fuel consumption per inhabitant
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/cap/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/aviation_fuel_consumption
+
+- id: aviation_fuel_consumption
+  name_de: Aviation fuel consumption
+  name_en: Aviation fuel consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
+  - id: aviation_fuel_consumption_per_inhabitant
+    tags: [non_additive]
+
+
 #
 # ------- ACTIONS --------
 #
