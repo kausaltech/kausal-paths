@@ -143,16 +143,22 @@ class PathsDataFrame(pl.DataFrame):
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
-    def select_metrics(self, metric_cols: list[str] | str) -> PathsDataFrame:
+    def select_metrics(self, metric_cols: list[str] | str, rename: list[str] | str | None = None) -> PathsDataFrame:
         if isinstance(metric_cols, str):
             metric_cols = [metric_cols]
+        if rename is not None:
+            if isinstance(rename, str):
+                rename = [rename]
         for col in metric_cols:
             if col not in self._units:
                 raise Exception('No unit for column %s' % col)
         cols = [*self._primary_keys, *metric_cols]
         if FORECAST_COLUMN in self.columns:
             cols.append(FORECAST_COLUMN)
-        return self.select(cols)
+        df = self.select(cols)
+        if rename is not None:
+            df = df.rename({src: dest for src, dest in zip(metric_cols, rename)})
+        return df
 
     def with_columns(
         self,
@@ -230,15 +236,19 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(out_col, out_unit)
         return df
 
-    def sum_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
+    def sum_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None, skip_missing: bool = False) -> PathsDataFrame:
         res_unit = None
+        s = None
         for col in cols:
+            if col not in self.columns and skip_missing:
+                continue
             if res_unit is None:
                 res_unit = self._units[col]
                 s = self[col]
             else:
                 s = s + self.ensure_unit(col, res_unit)[col]
 
+        assert s is not None and res_unit is not None
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
         if out_unit:
