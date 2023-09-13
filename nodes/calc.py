@@ -70,6 +70,7 @@ def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
 
     df = df.paths.join_over_index(gdf, how='left', index_from='left')
     if df['gwp_factor'].null_count():
+        print(df)
         raise Exception("Some greenhouse gases failed to convert")
     df = df.multiply_cols([metric_col, 'gwp_factor'], metric_col)
     df = df.drop(columns='gwp_factor')

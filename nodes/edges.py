@@ -82,6 +82,7 @@ class Edge:
                 raise NodeError(node, "node id not given in edge definition")
             assert isinstance(s, str)
             other_id = s
+        assert isinstance(other_id, str)
         other = context.nodes.get(other_id)
         if other is None:
             raise NodeError(node, "node %s not found" % other_id)
