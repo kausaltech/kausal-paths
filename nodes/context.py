@@ -334,7 +334,12 @@ class Context:
 
             metrics = ', '.join([f"{m.quantity} [#a63fa4]{m.unit}[orchid]" for m in node.output_metrics.values()])
             unit_quantity = f'({metrics})'
-            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node.name} [orchid]{unit_quantity} {node_class_str}'
+            if node.yaml_lc is not None:
+                url = 'file://%s#%d' % (node.yaml_fn, node.yaml_lc[0])
+                node_name = f'[link={url}]{node.name}[/link]'
+            else:
+                node_name = node.name
+            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node_name} [orchid]{unit_quantity} {node_class_str}'
             if include_datasets:
                 for ds in node.input_dataset_instances:
                     if isinstance(ds, FixedDataset):

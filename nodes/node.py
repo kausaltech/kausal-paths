@@ -223,6 +223,10 @@ class Node:
 
     logger: logging.Logger
     debug: bool = False
+    yaml_fn: str | None
+    """YAML filename"""
+    yaml_lc: Tuple[int, int] | None
+    """YAML line and column information"""
 
     def __post_init__(self): ...
 
@@ -315,6 +319,7 @@ class Node:
         input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
+        yaml_fn: str | None = None, yaml_lc: Tuple[int, int] | None = None,
     ):
         self.id = validate_identifier(id)
         self.context = context
@@ -325,6 +330,8 @@ class Node:
 
         self.database_id = None
         self.name = name
+        self.yaml_fn = yaml_fn
+        self.yaml_lc = yaml_lc
         if self.name is None:
             raise NodeError(self, "Node has no name")
         self.short_name = short_name
