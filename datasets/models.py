@@ -148,6 +148,19 @@ class Dataset(ClusterableModel, UserModifiableModel):
             instance.logger.warn("New dimensions do not match the old ones, generating empty dataset")
             self.table = self.generate_empty_table()
 
+    def get_dimension_categories(self) -> dict[str, list[str]]:
+        out = {}
+        for ds in self.dimension_selections.order_by('order'):
+            out[ds.dimension.identifier] = ds.get_categories()
+        return out
+
+    def set_dimension_categories(self, val: dict[str, list[str]]):
+        with transaction.atomic():
+            self.set_dimensions(list(val.keys()))
+            for dim_id, cats in val.items():
+                ds = self.dimension_selections.get(dimension__identifier=dim_id)
+                ds.set_categories(cats)
+
     @classmethod
     def annotate_nr_unresolved_comments(cls, qs: models.QuerySet[Dataset]):
         unresolved = models.Count(
