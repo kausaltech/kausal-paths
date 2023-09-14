@@ -3826,7 +3826,7 @@ actions:
   parent: install_waste_treatment_ccs
   unit: '%'
   output_nodes: [biogas_processing_ccs_share]
-  forecast_values: [[2035, 100]]
+  forecast_values: [[2030, 100]]
 
 - id: cleaner_electricity_production
   group: other
