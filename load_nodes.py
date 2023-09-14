@@ -64,6 +64,7 @@ parser.add_argument('--debug-nodes', type=str, nargs='+', help='enable debug mes
 parser.add_argument('--check', action='store_true', help='perform sanity checking')
 parser.add_argument('--skip-cache', action='store_true', help='skip caching')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
+parser.add_argument('--filter', type=str, nargs='+', help='filter node output')
 parser.add_argument('--normalize', type=str, metavar='NODE', help='normalize by other node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
 parser.add_argument('--print-graph', action='store_true', help='print the graph')
@@ -180,10 +181,15 @@ if args.normalize:
     norm = context.normalizations[args.normalize]
     context.active_normalization = norm
 
+all_filters = []
+for line in args.filter or []:
+    for f in line.split(','):
+        all_filters.append(f)
+
 for node_id in (args.node or []):
     node = context.get_node(node_id)
-    node.print_output()
-    node.plot_output()
+    node.print_output(filters=all_filters or None)
+    node.plot_output(filters=all_filters or None)
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
         for n in output_nodes:

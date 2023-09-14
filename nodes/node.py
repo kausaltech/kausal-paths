@@ -974,71 +974,13 @@ class Node:
         self.context.perf_context.node_end(self)
         return out
 
-    def _get_output_with_baseline(self):
-        df = self.get_output_pl()
-        meta = df.get_meta()
+    def print_output(self, only_years: list[int] | None = None, filters: list[str] | None = None):
+        from .debug import print_node_output
+        print_node_output(self, only_years=only_years, filters=filters)
 
-        if self.context.active_normalization:
-            norm = self.context.active_normalization
-            for m in self.output_metrics.values():
-                _, df = norm.normalize_output(m, df)
-        else:
-            norm = None
-
-        if meta.dim_ids:
-            df = df.paths.to_wide()
-            if self.quantity in STACKABLE_QUANTITIES:
-                df = df.with_columns(pl.sum(df.metric_cols).alias('Total'))
-            return df
-
-        if self.baseline_values is not None:
-            m = self.output_metrics[DEFAULT_METRIC]
-            df = (
-                df.with_columns(self.baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN))
-                .set_unit(BASELINE_VALUE_COLUMN, self.baseline_values.get_unit(m.column_id))
-            )
-
-            if norm:
-                bm = m.copy()
-                bm.column_id = BASELINE_VALUE_COLUMN
-                _, df = norm.normalize_output(m, df)
-
-        return df
-
-    def print_output(self, only_years: list[int] | None = None):
-        df = self._get_output_with_baseline()
-        if only_years:
-            df = df.filter(pl.col(YEAR_COLUMN).is_in(only_years))
-        self.print(df)
-
-    def plot_output(self):
-        df = self._get_output_with_baseline()
-        self.plot(df)
-
-    def plot(self, df: ppl.PathsDataFrame):
-        try:
-            import plotext as plt
-        except ImportError:
-            return
-        meta = df.get_meta()
-        if meta.dim_ids:
-            return
-        df = df.paths.to_wide()
-        x = df[YEAR_COLUMN]
-        unique_units = set(meta.units.values())
-        plt.title(self.name)
-        plt.subplots(1, len(unique_units))
-        for idx, unit in enumerate(unique_units):
-            plt.subplot(1, idx + 1)
-            plt.xlabel('Year')
-            plt.ylabel(unit)
-            for col, unit in meta.units.items():
-                if unit != unit:
-                    continue
-                y = df[col]
-                plt.plot(x, y, label=col)
-        plt.theme('dark')
-        plt.show()
+    def plot_output(self, filters: list[str] | None = None):
+        from .debug import plot_node_output
+        plot_node_output(self, filters=filters)
 
     def print_pint_df(self, df: Union[pd.DataFrame, pd.Series]):
         if isinstance(df, pd.Series):
