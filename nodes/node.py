@@ -223,6 +223,10 @@ class Node:
 
     logger: logging.Logger
     debug: bool = False
+    yaml_fn: str | None
+    """YAML filename"""
+    yaml_lc: Tuple[int, int] | None
+    """YAML line and column information"""
 
     def __post_init__(self): ...
 
@@ -315,6 +319,7 @@ class Node:
         input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
+        yaml_fn: str | None = None, yaml_lc: Tuple[int, int] | None = None,
     ):
         self.id = validate_identifier(id)
         self.context = context
@@ -325,6 +330,8 @@ class Node:
 
         self.database_id = None
         self.name = name
+        self.yaml_fn = yaml_fn
+        self.yaml_lc = yaml_lc
         if self.name is None:
             raise NodeError(self, "Node has no name")
         self.short_name = short_name
@@ -792,7 +799,8 @@ class Node:
                     continue
                 if nr_cats > 1:
                     raise NodeError(self, "to_dimensions can have only one category for now")
-
+                if dim_id in df.columns:
+                    raise NodeError(self, "attempting to assign a category to an existing dimension")
                 cat = edge_dim.categories[0]
                 new_cols.append((dim_id, cat.id))
 
@@ -804,7 +812,11 @@ class Node:
                 df = ppl.to_ppdf(df=df, meta=meta)
 
             if set(df.dim_ids) != output_dimensions:
-                raise NodeError(self, "Dimensions do not match in output for %s (%s vs. %s)" % (target_node, set(meta.dim_ids), output_dimensions))
+                raise NodeError(
+                    self, "Dimensions (%s) do not match in output for %s (expecting %s)" % (
+                        set(df.dim_ids), target_node, output_dimensions
+                    )
+                )
         else:
             output_dimensions = set(target_node.input_dimensions.keys())
 
@@ -843,6 +855,7 @@ class Node:
         has_dupes = bool(len(dupe_rows.limit(1).collect()))
         if has_dupes:
             self.print(dupe_rows.collect())
+            print(df)
             raise NodeError(self, "Node output has duplicate index rows")
 
         if FORECAST_COLUMN in df.columns:
@@ -1256,7 +1269,8 @@ class Node:
         node_multipliers: List[float] | None = None,
     ) -> ppl.PathsDataFrame:
         if len(nodes) == 0:
-            assert df is not None
+            if df is None:
+                raise NodeError(self, "No input dataset and no input nodes")
             return df
         if self.debug:
             print('%s: input dataset:' % self.id)
@@ -1268,6 +1282,8 @@ class Node:
         node_outputs: List[Tuple[Node, ppl.PathsDataFrame]] = []
         for node in nodes:
             node_df = node.get_output_pl(self, metric=metric)
+            if node_df.paths.index_has_duplicates():
+                raise NodeError(self, "Input from node '%s' has duplicate index rows" % node.id)
             if keep_nodes:
                 node_df = node_df.with_columns(pl.lit(node.id).alias(NODE_COLUMN)).add_to_index(NODE_COLUMN)
             node_outputs.append((node, node_df))

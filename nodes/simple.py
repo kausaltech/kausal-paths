@@ -1,8 +1,9 @@
 import functools
 from common.perf import PerfCounter
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl, nafill_all_forecast_years
+from nodes.units import Unit
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
-from typing import List, ClassVar, Tuple
+from typing import List, ClassVar, Sequence, Tuple, Union
 import polars as pl
 import pandas as pd
 import pint
@@ -125,11 +126,14 @@ class AdditiveNode(SimpleNode):
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
             df = extend_last_historical_value_pl(df, self.get_end_year())
 
+        na_nodes = self.get_input_nodes(tag='non_additive')
+        input_nodes = [node for node in self.input_nodes if node not in na_nodes]
+
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes_pl(None, self.input_nodes, metric)
+            df = self.add_nodes_pl(None, input_nodes, metric)
             df = self.fill_gaps_using_input_dataset_pl(df)
         else:
-            df = self.add_nodes_pl(df, self.input_nodes, metric)
+            df = self.add_nodes_pl(df, input_nodes, metric)
 
         return df
 
@@ -205,29 +209,43 @@ class MultiplicativeNode(SimpleNode):
     ]
     operation_label = 'multiplication'
 
-    def perform_operation(self, nodes: list[Node], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
+    def operate_pairwise(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = df.multiply_cols(['_Left', '_Right'], '_Left').drop('_Right')
+        return df
+
+    def perform_operation(self, nodes: Sequence[Node | None], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
         for n in nodes:
+            if n is None:
+                continue
             assert n.unit is not None
         assert self.unit is not None
 
-        output_unit = functools.reduce(lambda x, y: x * y, [n.unit for n in nodes])  # type: ignore
-        assert output_unit is not None
-        if not self.is_compatible_unit(output_unit, self.unit):
-            raise NodeError(
-                self,
-                "Multiplying inputs must in a unit compatible with '%s' (got '%s')" % (self.unit, output_unit)
-            )
-
-        node = nodes.pop(0)
-        df = outputs.pop(0)
-        m = node.get_default_output_metric()
-        df = df.rename({m.column_id: '_Left'})
+        df = None
         for n, ndf in zip(nodes, outputs):
-            m = n.get_default_output_metric()
-            ndf = ndf.rename({m.column_id: '_Right'})
-            df = df.paths.join_over_index(ndf, how='left', index_from='union')
-            df = df.multiply_cols(['_Left', '_Right'], '_Left').drop('_Right')
+            if df is None:
+                # First output in the list
+                df = ndf
+                if n is not None:
+                    m = n.get_default_output_metric()
+                    col = m.column_id
+                else:
+                    assert len(df.metric_cols) == 1
+                    col = df.metric_cols[0]
+                df = df.rename({col: '_Left'})
+                continue
 
+            if n is not None:
+                m = n.get_default_output_metric()
+                col = m.column_id
+            else:
+                assert len(ndf.metric_cols) == 1
+                col = df.metric_cols[0]
+
+            ndf = ndf.rename({col: '_Right'})
+            df = df.paths.join_over_index(ndf, how='left', index_from='union')
+            df = self.operate_pairwise(df)
+
+        assert df is not None
         df = df.rename({'_Left': VALUE_COLUMN})
         df = df.drop_nulls(VALUE_COLUMN)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
@@ -301,33 +319,8 @@ class DivisiveNode(MultiplicativeNode):
 
     operation_label = 'division'
 
-    # FIXME The roles of nominator and denumerator are determined based on the node appearance, not explicitly.
-    def perform_operation(self, nodes: list[Node], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
-        for n in nodes:
-            assert n.unit is not None
-        assert self.unit is not None
-
-        output_unit = functools.reduce(lambda x, y: x / y, [n.unit for n in nodes])  # type: ignore
-        assert output_unit is not None
-        if not self.is_compatible_unit(output_unit, self.unit):
-            raise NodeError(
-                self,
-                "Divising inputs must in a unit compatible with '%s' (got '%s')" % (self.unit, output_unit)
-            )
-
-        node = nodes.pop(0)
-        df = outputs.pop(0)
-        m = node.get_default_output_metric()
-        df = df.rename({m.column_id: '_Left'})
-        for n, ndf in zip(nodes, outputs):
-            m = n.get_default_output_metric()
-            ndf = ndf.rename({m.column_id: '_Right'})
-            df = df.paths.join_over_index(ndf, how='left', index_from='union')
-            df = df.divide_cols(['_Left', '_Right'], '_Left').drop('_Right')
-
-        df = df.rename({'_Left': VALUE_COLUMN})
-        df = df.drop_nulls(VALUE_COLUMN)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+    def operate_pairwise(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = df.divide_cols(['_Left', '_Right'], '_Left').drop('_Right')
         return df
 
 
@@ -466,27 +459,6 @@ class YearlyPercentageChangeNode(SimpleNode):
         return df
 
 
-class CurrentTrendNode(MultiplicativeNode):  # FIXME Exploratory, not necessarily needed
-    """Continue the situation in node1 based on the trend in node2.
-    """
-
-    operation_label = 'current_trend'
-
-    def perform_operation(self, n1: Node, n2: Node, df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        assert n1.unit is not None and self.unit is not None
-        output_unit = n1.unit
-        if not self.is_compatible_unit(output_unit, self.unit):
-            raise NodeError(
-                self,
-                "The input must in a unit compatible with '%s' (%s [%s])" % (self.unit, n1.id, n1.unit))
-
-        df = df1.paths.join_over_index(df2, how='left')
-        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit).drop([VALUE_COLUMN + '_right'])
-
-        return df
-
-
 class MixNode(AdditiveNode):
     output_metrics = {
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
@@ -547,7 +519,7 @@ class AdditiveRelativeNode(SimpleNode):
         out = self.add_nodes_pl(df, nodes, metric)
         return out.to_pandas()
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         additive_nodes: list[Node] = []
         relative_nodes: list[Node] = []
         assert self.unit is not None
@@ -624,24 +596,6 @@ class MultiplicativeRelativeNode(MultiplicativeNode):
         )
     ]
     operation_label = 'multiplication'
-
-    def compute_old(self):
-        all_nodes = self.get_input_nodes()
-        input_nodes: list[Node] = []
-        relative_nodes: list[Node] = []
-
-        for node in all_nodes:
-            if node.quantity == 'fraction':
-                relative_nodes.append(node)
-            else:
-                input_nodes.append(node)
-        print(all_nodes, input_nodes, relative_nodes)
-        stripped_node = self
-#        stripped_node.input_nodes = input_nodes
-
-        df = super(MultiplicativeRelativeNode, stripped_node).compute()
-
-        return df
 
     # Fork the whole compute() function because I don't know how to super() it with relative_nodes stripped.
     def compute(self) -> ppl.PathsDataFrame:

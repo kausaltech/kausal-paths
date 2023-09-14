@@ -116,15 +116,33 @@ class PathsExt:
             meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
         )
 
-    def to_narrow(self) -> ppl.PathsDataFrame:
+    def to_narrow(self, assign_dimension: str | None = None, assign_metric: str | None = None) -> ppl.PathsDataFrame:
         df: ppl.PathsDataFrame | pl.DataFrame = self._df
         assert isinstance(df, ppl.PathsDataFrame)
-        widened_cols = [col for col in df.columns if '@' in col]
         id_cols = [YEAR_COLUMN]
         if FORECAST_COLUMN in df.columns:
             id_cols.append(FORECAST_COLUMN)
+
+        widened_cols = []
+        renames = {}
+        for col in df.columns:
+            if col in id_cols:
+                continue
+            new_col = col
+            if assign_dimension:
+                new_col = '%s:%s' % (assign_dimension, new_col)
+            if assign_metric:
+                new_col = '%s@%s' % (assign_metric, new_col)
+            if '@' in new_col:
+                widened_cols.append(new_col)
+            if col != new_col:
+                renames[col] = new_col
+
         if not len(widened_cols):
             return df  # type: ignore
+
+        if renames:
+            df = df.copy().rename(renames)
 
         meta = df.get_meta()
         units: dict[str, Unit] = {}
@@ -269,8 +287,21 @@ class PathsExt:
 
         out = ppl.to_ppdf(df, meta=meta)
         if out.paths.index_has_duplicates():
+            print(out)
             raise ValueError("Resulting DF has duplicated rows")
         return out
+
+    def duplicated_index_rows(self) -> pl.DataFrame:
+        df = self._df
+        assert df._primary_keys
+        ldf = df.lazy()
+        dupes = (
+            ldf.groupby(df._primary_keys)
+            .agg(pl.count())
+            .filter(pl.col('count') > 1)
+            .collect()
+        )
+        return dupes
 
     def index_has_duplicates(self) -> bool:
         df = self._df
@@ -383,3 +414,9 @@ class PathsExt:
         df = df.divide_cols([metric_col, '_Sum'], output_col)
         df = df.drop('_Sum')
         return df
+
+    def print_year(self, year: int | list[int]):
+        if not isinstance(year, (list, tuple)):
+            year = [year]
+        df = self._df.filter(pl.col(YEAR_COLUMN).is_in(year))
+        print(df)

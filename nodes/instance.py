@@ -6,13 +6,13 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import threading
-from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Type, overload
+from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
 import pint
-from ruamel.yaml import YAML as RuamelYAML
-import yaml
+from ruamel.yaml import YAML as RuamelYAML, CommentedMap
+from ruamel.yaml.comments import LineCol
 from rich import print
 
 from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
@@ -26,12 +26,14 @@ from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
 from nodes.units import Unit
 from pages.config import OutcomePage, pages_from_config
-from params.param import ReferenceParameter
+from params.param import ReferenceParameter, Parameter
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
 
 logger = logging.getLogger(__name__)
+
+yaml = RuamelYAML()
 
 
 @pydantic_dataclass
@@ -89,16 +91,15 @@ class Instance:
 
     def update_dataset_repo_commit(self, commit_id: str):
         assert self.yaml_file_path
-        yaml_obj = RuamelYAML()
         with open(self.yaml_file_path, 'r', encoding='utf8') as f:
-            data = yaml_obj.load(f)
+            data = yaml.load(f)
         if 'instance' in data:
             instance_data = data['instance']
         else:
             instance_data = data
         instance_data['dataset_repo']['commit'] = commit_id
         with open(self.yaml_file_path, 'w', encoding='utf8') as f:
-            yaml_obj.dump(data, f)
+            yaml.dump(data, f)
 
     def warning(self, msg: Any, *args):
         self.logger.warning(msg, *args)
@@ -135,6 +136,7 @@ class InstanceLoader:
     instance: Instance
     default_language: str
     yaml_file_path: Optional[str] = None
+    config: CommentedMap
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
@@ -204,7 +206,7 @@ class InstanceLoader:
             processors.append(p_class(self.context, node, params=params))
         return processors
 
-    def make_node(self, node_class: Type[Node], config: dict) -> Node:
+    def make_node(self, node_class: Type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:
         ds_config = config.get('input_datasets', None)
         datasets: list[Dataset] = []
 
@@ -258,6 +260,7 @@ class InstanceLoader:
                 forecast=config.get('forecast_values'),
             ))
 
+        yaml_lct: Tuple[int, int] | None = (yaml_lc.line + 1, yaml_lc.col) if yaml_lc else None  # type: ignore
         node: Node = node_class(
             id=config['id'],
             context=self.context,
@@ -276,8 +279,9 @@ class InstanceLoader:
             output_dimension_ids=config.get('output_dimensions'),
             input_dimension_ids=config.get('input_dimensions'),
             output_metrics=metrics,
+            yaml_lc=yaml_lct,
+            yaml_fn=self.yaml_file_path,
         )
-
         if node.id in self._input_nodes or node.id in self._output_nodes:
             raise Exception('Node %s is already configured' % node.id)
         assert node.id not in self._input_nodes
@@ -334,6 +338,7 @@ class InstanceLoader:
 
                 value = fields.pop('value', None)
                 param = param_class(**fields)
+                assert isinstance(param, Parameter)
                 node.add_parameter(param)
 
                 try:
@@ -408,7 +413,10 @@ class InstanceLoader:
                 logger.error('Unable to import node class for %s' % nc.get('id'))
                 raise
 
-            node = self.make_node(node_class, nc)
+            try:
+                node = self.make_node(node_class, nc, yaml_lc=nc.lc)
+            except NodeError as err:
+                raise
             self.context.add_node(node)
 
     def generate_nodes_from_emission_sectors(self):
@@ -440,7 +448,7 @@ class InstanceLoader:
                 params=dict(category=data_category) if data_category else [],
                 **ec
             )
-            node = self.make_node(node_class, nc)
+            node = self.make_node(node_class, nc, yaml_lc=ec.lc)
             self.context.add_node(node)
 
     def setup_actions(self):
@@ -616,7 +624,7 @@ class InstanceLoader:
 
     @classmethod
     def from_yaml(cls, filename):
-        data = yaml.load(open(filename, 'r', encoding='utf8'), Loader=yaml.Loader)
+        data = yaml.load(open(filename, 'r', encoding='utf8'))
         if 'instance' in data:
             data = data['instance']
 
@@ -626,14 +634,14 @@ class InstanceLoader:
             framework_fn = os.path.join(base_dir, 'frameworks', framework + '.yaml')
             if not os.path.exists(framework_fn):
                 raise Exception("Config expects framework but %s does not exist" % framework_fn)
-            fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'), Loader=yaml.Loader)
+            fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
             cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
             cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
 
         return cls(data, yaml_file_path=filename)
 
     def __init__(self, config: dict, yaml_file_path: str | None = None):
-        self.yaml_file_path = yaml_file_path
+        self.yaml_file_path = os.path.abspath(yaml_file_path) if yaml_file_path else None
         self.config = config
         self.default_language = config['default_language']
         with set_default_language(self.default_language):

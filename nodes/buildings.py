@@ -1,19 +1,13 @@
-import functools
-from common.perf import PerfCounter
-from nodes.calc import convert_to_co2e, extend_last_historical_value_pl, nafill_all_forecast_years
-from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
-from typing import List, ClassVar, Tuple
+from nodes.calc import convert_to_co2e
+from params.param import NumberParameter, StringParameter
 import polars as pl
-import pandas as pd
-import pint
 
-from common.i18n import TranslatedString
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN, DEFAULT_METRIC
-from .node import Node, NodeMetric
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .node import Node
 from .exceptions import NodeError
 from nodes.actions.energy_saving import CfFloorAreaAction
-from nodes.simple import MultiplicativeNode, AdditiveNode
+from nodes.simple import MultiplicativeNode, AdditiveNode, SimpleNode
 
 
 class FloorAreaNode(MultiplicativeNode):
@@ -204,4 +198,61 @@ class HistoricalNode(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         df = super().compute()
         df = df.filter(pl.col(FORECAST_COLUMN) == False)
+        return df
+
+
+class CCSNode(SimpleNode):
+    allowed_parameters = [
+        NumberParameter('capture_efficiency', unit_str='%', is_customizable=True),
+        NumberParameter('storage_efficiency', unit_str='%', is_customizable=True),
+    ]
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_input_node(tag='emissions').get_output_pl(target_node=self)
+        df = df.rename({VALUE_COLUMN: 'Emissions'})
+
+        sdf = self.get_input_node(tag='ccs_share').get_output_pl(target_node=self)
+        sdf = sdf.rename({VALUE_COLUMN: 'CCSShare'}).ensure_unit('CCSShare', 'dimensionless')
+
+        df = df.paths.join_over_index(sdf)
+        df = df.with_columns(pl.col('CCSShare').fill_null(0.0))
+
+        capt_eff = self.get_parameter_value('capture_efficiency', units=True).to('dimensionless').m
+        df = df.multiply_cols(['Emissions', 'CCSShare'], 'Captured')
+        df = df.with_columns(
+            pl.when(pl.col('greenhouse_gases').is_in(('co2', 'co2_biogen')))
+                .then(pl.col('Captured') * capt_eff).otherwise(0.0)
+        )
+
+        storage_eff = self.get_parameter_value('storage_efficiency', units=True).to('dimensionless').m
+        u = df.get_unit('Captured')
+        df = df.with_columns([
+            (pl.col('Captured') * storage_eff).alias('Stored'),
+            (pl.col('Emissions') - pl.col('Captured')).alias('Remaining'),
+        ]).with_columns([
+            (pl.col('Captured') - pl.col('Stored')).alias('StorageLoss')
+        ]).set_unit('Remaining', u).set_unit('StorageLoss', u)
+
+        m = self.get_default_output_metric()
+        rdf = (
+            df.select_metrics('Remaining', rename=m.column_id)
+            .with_columns(pl.lit('scope1').alias('emission_scope'))
+        )
+        sdf = (
+            df.select_metrics('Stored', rename=m.column_id).filter(
+                pl.col('greenhouse_gases').eq('co2_biogen')
+            ).with_columns([
+                pl.lit('negative_emissions').alias('emission_scope'),
+                # use co2 to be able to convert to GWP
+                pl.lit('co2', dtype=pl.Categorical).alias('greenhouse_gases'),
+                (-pl.col(m.column_id)).alias(m.column_id)
+            ])
+        )
+        ldf = (
+            df.select_metrics('StorageLoss', rename=m.column_id)
+            .with_columns(pl.lit('scope3').alias('emission_scope'))
+        )
+
+        df = ppl.to_ppdf(pl.concat([rdf, sdf, ldf]), rdf.get_meta()).add_to_index('emission_scope')
+        df = convert_to_co2e(df, 'greenhouse_gases')
+        df = df.ensure_unit(m.column_id, m.unit)
         return df
