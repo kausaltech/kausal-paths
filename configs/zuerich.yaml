@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e08d0a65ad5aa01318245c11c9e187e8bbc83467
+  commit: 0d799e14c6e384e24d903b7d4c4f9b7020c55f55
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -759,15 +759,15 @@ emission_sectors:
 #   color: '#6496FF'
 #   order: 11
 
-- id: aviation_emissions
-  name_en: Aviation
-  name_de: Treibhausgasemissionen Flugverkehr
-  short_name_de: Flugverkehr
-  short_name_en: Aviation
-  part_of: net_emissions
-  category: aviation
-  color: '#A174DE'
-  input_dataset_processors: [LinearInterpolation]
+# - id: aviation_emissions
+#   name_en: Aviation
+#   name_de: Treibhausgasemissionen Flugverkehr
+#   short_name_de: Flugverkehr
+#   short_name_en: Aviation
+#   part_of: net_emissions
+#   category: aviation
+#   color: '#A174DE'
+#   input_dataset_processors: [LinearInterpolation]
 
 - id: food_consumption_emissions
   name_en: Food consumption emissions
@@ -2392,7 +2392,8 @@ nodes:
   unit: GWh/a
   quantity: energy
   params:
-    formula: (transport_fuel_end_energy_consumption + aviation_fuel_consumption) * transport_fuel_energy_factor
+    formula: (transport_fuel_end_energy_consumption + aviation_fuel_consumption) *
+      transport_fuel_energy_factor
   input_nodes:
   - id: transport_fuel_energy_factor
     to_dimensions:
@@ -2965,6 +2966,50 @@ nodes:
     to_dimensions: []
   - id: aviation_fuel_consumption_per_inhabitant
     tags: [non_additive]
+
+- id: aviation_emission_factor
+  name_de: Aviation fuel emission factor
+  name_en: Aviation fuel emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [greenhouse_gases, emission_scope]
+  output_dimensions: [greenhouse_gases, emission_scope]
+  input_datasets:
+  - id: zuerich/aviation_emission_factor
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name_de: Treibhausgasemissionen Flugverkehr
+  name_en: Aviation Emissions
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [greenhouse_gases, energy_carrier, emission_scope]
+  output_dimensions: [greenhouse_gases, energy_carrier, emission_scope]
+  unit: t/a
+  input_nodes:
+  - id: aviation_fuel_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: aviation_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: emission_scope
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: transportation_emissions_2kw
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
 
 #
 # ------- ACTIONS --------
