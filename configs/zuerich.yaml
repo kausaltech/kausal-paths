@@ -2384,26 +2384,53 @@ nodes:
       flatten: true
 
 - id: transport_fuel_primary_energy_consumption
-  name_de: Transport fuel primary energy consumption
   name_en: Transport fuel primary energy consumption
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
+  name_de: Transport fuel primary energy consumption
   input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
   output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  type: formula.FormulaNode
+  unit: GWh/a
+  quantity: energy
+  params:
+    formula: (transport_fuel_end_energy_consumption + aviation_fuel_consumption) * transport_fuel_energy_factor
   input_nodes:
   - id: transport_fuel_energy_factor
-    tags: [non_additive]
     to_dimensions:
     - id: energy_carrier
     - id: renewable_energy
   - id: transport_fuel_end_energy_consumption
-    tags: [non_additive]
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
+    - id: energy_carrier
   output_nodes:
   - id: transport_primary_energy_demand
+
+# - id: transport_fuel_primary_energy_consumption
+#   name_de: Transport fuel primary energy consumption
+#   name_en: Transport fuel primary energy consumption
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+#   output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+#   input_nodes:
+#   - id: transport_fuel_energy_factor
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: renewable_energy
+#   - id: transport_fuel_end_energy_consumption
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: transport_primary_energy_demand
 
 - id: building_primary_energy_factor
   name_de: Primärenergiefaktoren Gebäude
@@ -2922,6 +2949,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: zuerich/aviation_fuel_consumption
+  input_dataset_processors: [LinearInterpolation]
 
 - id: aviation_fuel_consumption
   name_de: Aviation fuel consumption
@@ -2937,7 +2965,6 @@ nodes:
     to_dimensions: []
   - id: aviation_fuel_consumption_per_inhabitant
     tags: [non_additive]
-
 
 #
 # ------- ACTIONS --------
