@@ -214,10 +214,16 @@ class NumberParameter(ParameterWithUnit, Parameter):
             value = float(value)
         except ValueError:
             raise ValidationError(self)
-        if self.min_value is not None and value < self.min_value:
-            raise ValidationError(self, 'Below min_value')
-        if self.max_value is not None and value > self.max_value:
-            raise ValidationError(self, 'Above max_value')
+
+        if self.min_value is not None:
+            self.min_value = float(self.min_value)
+            if value < self.min_value:
+                raise ValidationError(self, 'Below min_value')
+        if self.max_value is not None:
+            self.max_value = float(self.max_value)
+            if value > self.max_value:
+                raise ValidationError(self, 'Above max_value')
+
         return value
 
     def set(self, value: float | Quantity):
