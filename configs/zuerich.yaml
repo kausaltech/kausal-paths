@@ -1730,6 +1730,7 @@ nodes:
   quantity: emission_factor
   unit: kg/kg
   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
   input_nodes:
   - id: transport_fuel_factor
     tags: [fuel_factor]
@@ -1835,10 +1836,12 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: transport_fuel_factor
     tags: [fuel_factor, non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
   - id: transport_emissions_for_fuel
     tags: [emissions_for_fuel, non_additive]
     to_dimensions:
@@ -1846,6 +1849,7 @@ nodes:
     - id: greenhouse_gases
     - id: vehicle_type
   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+  input_dimensions:  [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
 
 - id: miv_emissions
   name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
@@ -3917,6 +3921,44 @@ actions:
         amount: -182.18
       - year: 2029
         amount: 0
+
+- id: buses_use_synthetic_diesel
+  name_en: Buses use synthetic diesel
+  name_de: Buses use synthetic diesel
+  type: shift.ShiftAction
+  #parent: heater_replacement_and_district_heat
+  group: mobility
+  output_nodes:
+  - id: transport_emissions_for_fuel
+    tags: [additive]
+  unit: 'kg/kg'
+  quantity: emission_factor
+  params:
+  - id: shift
+    unit: 'kg/kg'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          vehicle_type: buses_batteryelectric
+          emission_scope: scope1
+          greenhouse_gases: co2
+      dests:
+      - categories:
+          vehicle_type: buses_batteryelectric
+          emission_scope: scope1
+          greenhouse_gases: co2_biogen
+      amounts:
+      - year: 2034
+        source_amount: 0
+        dest_amounts: [1]
+      - year: 2035
+        source_amount: -2.980769
+        dest_amounts: [1]
+      - year: 2036
+        source_amount: 0
+        dest_amounts: [1]
+
 
 # - id: increased_district_heat_ccs_efficiency
 #   name_en: Increased district heating CCS efficiency
