@@ -908,6 +908,11 @@ class TransportEmissionsForFuel(AdditiveNode):
             df = df.with_columns(pl.col(m.column_id).fill_null(0) + pl.col('TR').fill_null(0)).drop('TR')
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        anodes = self.get_input_nodes(tag='additive')
+        if anodes:
+            df = self.add_nodes_pl(df, anodes)
+
         return df
 
 
