@@ -1,0 +1,279 @@
+id: surrey
+default_language: en
+supported_languages: []
+site_url: https://surrey.paths-test.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: f8850299a714248a80a5b708101049c8cee19c96
+  dvc_remote: kausal-s3
+  default_path: surrey
+name: Surrey Greenhouse Gas Inventory
+owner_en: City of Surrey
+theme_identifier: ca-surrey
+
+target_year: 2020
+model_end_year: 2020
+reference_year: 2007
+minimum_historical_year: 2007
+maximum_historical_year: 2020
+emission_unit: t/a
+emission_forecast_from: 2021
+emission_dimensions: []
+emission_dataset: surrey/greenhouse_gas_emissions
+emission_sector_dimension: emission_sectors
+
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t/cap/a
+  - id: energy
+    unit: kWh/cap/a
+
+features:
+  baseline_visible_in_graphs: true
+
+
+action_groups:
+- id: buildings
+  name: Buildings
+- id: transportation
+  name: Transportation
+- id: electric_grid
+  name: Electric Grid
+- id: solid_waste
+  name: Solid Waste
+
+
+dimensions:
+- id: emission_sector
+  label: Emission Sector
+  categories:
+  - id: residential
+    label: Residential Buildings
+  - id: ici_buildings
+    label: ICI Buildings
+
+  - id: ici_equipment
+    label: ICI Equipment
+  - id: construction
+    label: Construction Equipment
+  - id: industrial
+    label: Industrial Equipment
+  - id: agricultural
+    label: Agricultural Equipment
+  - id: lawn_garden
+    label: Lawn & Garden Equipment
+  - id: recreation
+    label: Recreation Equipment
+
+  - id: waste
+    label: Waste
+  - id: fugitive
+    label: Fugitive
+  - id: waste_water
+    label: Waste Water Treatment
+  - id: district
+    label: District Energy
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: ldv
+    label: Light-Duty Vehicles
+  - id: hdv
+    label: Heavy-Duty Vehicles
+  - id: rail
+    label: Rail Locomotives
+
+- id: greenhouse_gas
+  label: Greenhouse Gas
+  categories:
+  - id: co2_eq
+    label: CO2 Equivalent
+  - id: co2
+    label: CO2
+  - id: ch4
+    label: CH4
+  - id: n2o
+    label: N2O
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: electricity
+    label: Electricity
+  - id: natural_gas
+    label: Natural Gas
+  - id: combined_fuels
+    label: Combined Fuels
+
+
+params:
+- id: municipality_name
+  value: surrey
+
+
+emission_sectors:
+- id: net_emissions
+  name: Greenhouse Gas Emissions
+  is_outcome: true
+  description: <p>Greenhouse Gas Emissions</p><p><b>Unit:</b> t/yr. = metric tons CO2e per year</b></p>
+
+- id: waste_emissions
+  name: Waste Emissions
+  category: waste
+  part_of: net_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: other_emissions
+  name: Other Emissions
+  part_of: net_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: fugitive_emissions
+  name: Fugitive Emissions
+  category: fugitive
+  part_of: other_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_water_emissions
+  name: Waste Water Treatment Emissions
+  category: waste_water
+  part_of: other_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: district_emissions
+  name: District Energy Emissions
+  category: district
+  part_of: other_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+
+nodes:
+- id: population
+  name: Population
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: surrey/population
+  input_dataset_processors: [LinearInterpolation]
+
+- id: stationary_energy_consumption
+  name: Stationary Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [emission_sector, energy_carrier]
+  output_dimensions: [emission_sector, energy_carrier]
+  input_datasets:
+  - id: surrey/stationary_energy_consumption
+  input_dataset_processors: [LinearInterpolation]
+
+- id: energy_emission_factors
+  name: Electricity & Natural Gas Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: surrey/energy_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: stationary_emissions
+  name: Stationary Emissions (Buildings)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector, energy_carrier]
+  output_dimensions: [emission_sector, energy_carrier]
+  input_nodes:
+  - id: stationary_energy_consumption
+    tags: [non_additive]
+  - id: energy_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sector
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: stationary_plus_emissions
+  name: Stationary+ Emissions (Engines & Equipment)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector, energy_carrier]
+  output_dimensions: [emission_sector, energy_carrier]
+  input_datasets:
+  - id: surrey/stationary_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_emissions
+  name: Transportation Emissions (On-Road)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    filters:
+    - dimension: vehicle_type
+      categories: [ldv, hdv]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: transportation_plus_emissions
+  name: Transportation+ Emissions (Rail)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    filters:
+    - dimension: vehicle_type
+      categories: [rail]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+
+actions:
+
+
+pages:
+- id: home
+  name: Surrey Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title_en: Development Version
+  lead_paragraph_en: <p>The City of Surrey's greenhouse gas inventory (2007-2018)</p>
+
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Initiatives
+  all_actions_enabled: true
