@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://surrey.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f8850299a714248a80a5b708101049c8cee19c96
+  commit: 9ef71cfe78c1b590e6c4840b4a0182aa0332f846
   dvc_remote: kausal-s3
   default_path: surrey
 name: Surrey Greenhouse Gas Inventory
@@ -118,7 +118,8 @@ emission_sectors:
 - id: net_emissions
   name: Greenhouse Gas Emissions
   is_outcome: true
-  description: <p>Greenhouse Gas Emissions</p><p><b>Unit:</b> t/yr. = metric tons CO2e per year</b></p>
+  description: <p>Greenhouse Gas Emissions</p><p><b>Unit:</b> t/yr. = metric tons
+    CO2e per year</b></p>
 
 - id: waste_emissions
   name: Waste Emissions
@@ -216,6 +217,7 @@ nodes:
   input_datasets:
   - id: surrey/stationary_emissions
   input_dataset_processors: [LinearInterpolation]
+  minimum_year: 2007
 
 - id: transportation_emissions
   name: Transportation Emissions (On-Road)
@@ -254,9 +256,6 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
-
-
-actions:
 
 
 pages:
