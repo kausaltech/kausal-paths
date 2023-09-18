@@ -12,7 +12,7 @@ owner_en: City of Surrey
 theme_identifier: ca-surrey
 target_year: 2018
 model_end_year: 2018
-reference_year: 2007
+# reference_year: 2007
 minimum_historical_year: 2007
 maximum_historical_year: 2018
 emission_unit: t/a
@@ -121,12 +121,14 @@ emission_sectors:
 
 - id: waste_emissions
   name: Waste Emissions
+  color: '#C4D652'
   category: waste
   part_of: net_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: other_emissions
   name: Other Emissions
+  color: '#D6E287'
   part_of: net_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -184,6 +186,7 @@ nodes:
 - id: stationary_emissions
   name: Stationary (Buildings)
   type: simple.MultiplicativeNode
+  color: '#6EC0C7'
   quantity: emissions
   unit: t/a
   input_dimensions: [emission_sector, energy_carrier]
@@ -232,6 +235,7 @@ nodes:
 - id: stationary_plus_emissions
   name: Stationary+ (Engines & Equipment)
   type: simple.AdditiveNode
+  color: '#A7D6DB'
   quantity: emissions
   unit: t/a
   input_dimensions: [emission_sector, energy_carrier]
@@ -252,6 +256,7 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+  minimum_year: 2007
 
 # ----- Transportation Emissions
 
@@ -265,6 +270,7 @@ nodes:
   input_datasets:
   - id: surrey/transportation_emission_factors
   input_dataset_processors: [LinearInterpolation]
+  minimum_year: 2016
 
 - id: transportation_emissions_pc
   name: Per Capita Transportation(+) Emissions
@@ -282,6 +288,7 @@ nodes:
 - id: transportation_emissions
   name: Transportation (On-Road)
   type: simple.AdditiveNode
+  color: '#B93F40'
   quantity: emissions
   unit: t/a
   input_dimensions: [vehicle_type]
@@ -302,10 +309,12 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+  minimum_year: 2007
 
 - id: transportation_plus_emissions
   name: Transportation+ (Rail)
   type: simple.AdditiveNode
+  color: '#E06565'
   quantity: emissions
   unit: t/a
   input_dimensions: [vehicle_type]
@@ -326,6 +335,7 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+  minimum_year: 2007
 
 
 pages:
@@ -344,5 +354,5 @@ scenarios:
 
 - id: default
   default: true
-  name: Climate Action Initiatives
+  name: Climate Change Action Strategy
   all_actions_enabled: true
