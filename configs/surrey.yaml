@@ -4,24 +4,22 @@ supported_languages: []
 site_url: https://surrey.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9ef71cfe78c1b590e6c4840b4a0182aa0332f846
+  commit: a66ed46fef746e41c3cc838c2defea6c0cf27ace
   dvc_remote: kausal-s3
   default_path: surrey
 name: Surrey Greenhouse Gas Inventory
 owner_en: City of Surrey
 theme_identifier: ca-surrey
-
-target_year: 2020
-model_end_year: 2020
+target_year: 2018
+model_end_year: 2018
 reference_year: 2007
 minimum_historical_year: 2007
-maximum_historical_year: 2020
+maximum_historical_year: 2018
 emission_unit: t/a
-emission_forecast_from: 2021
+emission_forecast_from: 2019
 emission_dimensions: []
 emission_dataset: surrey/greenhouse_gas_emissions
 emission_sector_dimension: emission_sectors
-
 normalizations:
 - normalizer_node: population
   quantities:
@@ -29,9 +27,8 @@ normalizations:
     unit: t/cap/a
   - id: energy
     unit: kWh/cap/a
-
 features:
-  baseline_visible_in_graphs: true
+  baseline_visible_in_graphs: false
 
 
 action_groups:
@@ -117,6 +114,7 @@ params:
 emission_sectors:
 - id: net_emissions
   name: Greenhouse Gas Emissions
+  minimum_year: 2007
   is_outcome: true
   description: <p>Greenhouse Gas Emissions</p><p><b>Unit:</b> t/yr. = metric tons
     CO2e per year</b></p>
@@ -132,26 +130,22 @@ emission_sectors:
   part_of: net_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: fugitive_emissions
-  name: Fugitive Emissions
-  category: fugitive
-  part_of: other_emissions
-  input_dataset_processors: [LinearInterpolation]
-
 - id: waste_water_emissions
-  name: Waste Water Treatment Emissions
+  name: Waste Water Treatment
   category: waste_water
   part_of: other_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: district_emissions
-  name: District Energy Emissions
+  name: District Energy
   category: district
   part_of: other_emissions
   input_dataset_processors: [LinearInterpolation]
 
 
 nodes:
+# ----- Population -----
+
 - id: population
   name: Population
   type: simple.AdditiveNode
@@ -162,6 +156,8 @@ nodes:
   input_datasets:
   - id: surrey/population
   input_dataset_processors: [LinearInterpolation]
+
+# ----- Building Emissions -----
 
 - id: stationary_energy_consumption
   name: Stationary Energy Consumption
@@ -178,7 +174,7 @@ nodes:
   name: Electricity & Natural Gas Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/kWh
+  unit: kg/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -186,7 +182,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: stationary_emissions
-  name: Stationary Emissions (Buildings)
+  name: Stationary (Buildings)
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -207,8 +203,34 @@ nodes:
     - id: energy_carrier
       flatten: true
 
+# ----- Other Stationary Emissions -----
+
+- id: stationary_emission_factors
+  name: Per Capita Stationary+ Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/cap/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+  minimum_year: 2016
+
+- id: stationary_plus_emissions_pc
+  name: Per Capita Stationary+ Emissions (Engines & Equipment)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: stationary_emission_factors
+
 - id: stationary_plus_emissions
-  name: Stationary+ Emissions (Engines & Equipment)
+  name: Stationary+ (Engines & Equipment)
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -217,10 +239,48 @@ nodes:
   input_datasets:
   - id: surrey/stationary_emissions
   input_dataset_processors: [LinearInterpolation]
-  minimum_year: 2007
+  input_nodes:
+  - id: stationary_plus_emissions_pc
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sector
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+# ----- Transportation Emissions
+
+- id: transportation_emission_factors
+  name: Per Capita Transportation(+) Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/cap/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_emissions_pc
+  name: Per Capita Transportation(+) Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: transportation_emission_factors
+  minimum_year: 2016
 
 - id: transportation_emissions
-  name: Transportation Emissions (On-Road)
+  name: Transportation (On-Road)
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -232,6 +292,11 @@ nodes:
     - dimension: vehicle_type
       categories: [ldv, hdv]
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: transportation_emissions_pc
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -239,7 +304,7 @@ nodes:
       flatten: true
 
 - id: transportation_plus_emissions
-  name: Transportation+ Emissions (Rail)
+  name: Transportation+ (Rail)
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -251,6 +316,11 @@ nodes:
     - dimension: vehicle_type
       categories: [rail]
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: transportation_emissions_pc
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
   output_nodes:
   - id: net_emissions
     from_dimensions:
