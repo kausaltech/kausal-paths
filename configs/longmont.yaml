@@ -2093,7 +2093,7 @@ actions:
     from the city.
   type: energy_saving.EnergyAction
   quantity: consumption_factor
-#  group: trend
+  group: trend
   input_datasets:
   - id: longmont/energy_use_intensity_improvements
     filters:
@@ -2107,23 +2107,7 @@ pages:
   name: Longmont Greenhouse Gas Inventory
   path: /
   type: emission
-  node: direct_emissions
-  lead_title_en: Development version
-  lead_paragraph_en: "<p>The Longmont greenhouse gas inventory models projected emissions
-    for the City of Longmont based on two primary scenarios: 1) Business as Usual
-    scenario based on if no actions are taken by the City and 2) Climate Action Initiatives
-    scenario that models actions from the Cities' guiding plans. These two versions
-    of the model help identify if the City is on track to achieve its greenhouse gas
-    emission targets and what actions the City should prioritize and focus on. The
-    measured data for the model is updated every three years. The modeling is an iterative
-    process that may have inaccuracies that the City anticipates improving over time.</p>
-    <p>The greenhouse gas modeling and inventory is based on the Global Protocol for
-    Community-Scale Greenhouse Gas Emissions Inventories' (GPC protocol) Basic+ methodology.
-    All modeled and historic data between 2016 to 2021 was adapted from <a href='https://gcc02.safelinks.protection.outlook.com/?url=https://www.lotussustainability.com/&data=05%7C01%7CFrancie.jaffe@longmontcolorado.gov%7Cc0a4f2eaafe049bd4f3708db733e4bc3%7C26952f4d266a4031ab078b4264ccec55%7C0%7C0%7C638230483646851674%7CUnknown%7CTWFpbGZsb3d8eyJWIjoiMC4wLjAwMDAiLCJQIjoiV2luMzIiLCJBTiI6Ik1haWwiLCJXVCI6Mn0=%7C3000%7C%7C%7C&sdata=dtk7TdRePUGacDVGWt80I9v9rf8H8/Q+4NTaXzB0wFQ=&reserved=0'>Lotus
-    Engineering and Sustainability, LLC.</a>, 2022, City of Longmont Emissions Reduction
-    Model Update and 2023, 2021 Longmont Greenhouse Gas Inventory. Additional information
-    is included in the 2021 GHG Emissions Summary Memo. Contact sustainability@longmontcolorado.gov
-    if you are interested in learning more.</p>"
+  outcome_node: net_emissions
 
 - id: updating
   name: Updating Guide
