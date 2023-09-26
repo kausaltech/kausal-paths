@@ -31,7 +31,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 5076b171445c7f568612718d354322b91031b86c
   dvc_remote: kausal-s3
-name: Longmont Greenhouse gas inventory
+name: Longmont Greenhouse Gas Inventory
 owner_en: City of Longmont
 theme_identifier: us-longmont
 target_year: 2050
