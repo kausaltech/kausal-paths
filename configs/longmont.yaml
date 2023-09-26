@@ -1663,7 +1663,7 @@ actions:
   description: '<p>Adopting and enforcing the latest International Energy Conservation
     Code (IECC) every year a new IECC is released will increase efficiency.</p> <p>The
     graph shows the relative improvement of the energy use intensity (EUI) caused
-    by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-5">Sustainability
+    by this action.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/actions/BI-5">Sustainability
     Plan Strategy BI-5</a></li></ul></p>'
   type: energy_saving.CfFloorAreaAction
   quantity: consumption_factor
@@ -1695,7 +1695,7 @@ actions:
     energy use, including the Climate Action Recommendations Report strategies to
     add solar ready and electric vehicle ready as part of the 2021 residential code
     update.</p> <p>The graph shows the relative improvement of the energy use intensity
-    (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-6">Sustainability
+    (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/actions/BI-6">Sustainability
     Plan Strategy BI-6</a></li></ul></p>'
   type: energy_saving.CfFloorAreaAction
   quantity: consumption_factor
@@ -1720,7 +1720,7 @@ actions:
     exceed 20,000 square feet to rate their building s energy use, report energy metrics,
     and encourages buildings owners to implement energy efficiency measures.</p> <p>The
     graph shows the relative improvement of the energy use intensity (EUI) caused
-    by this action.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-5">Sustainability
+    by this action.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/actions/E-5">Sustainability
     Plan Strategy E-5</a></li></ul>'
   type: energy_saving.CfFloorAreaAction
   quantity: consumption_factor
@@ -1743,11 +1743,11 @@ actions:
   name: Expand the Efficiency Works Program
   description: '<p>Expand the Efficiency Works Program to achieve 2% energy savings
     by 2025 through commercial retro-commissioning, low-income programs, and residential
-    and commercial savings.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-1">Municipal:
-    Sustainability Plan Strategy E-1</a></li> <li>Commercial: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-3">Sustainability
-    Plan Strategy E-3</a></li> <li>Residential: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
-    Plan Strategy E-7 </a></li> <li>Income-Qualified: <a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-2">Sustainability
-    Plan Strategy E-2</a></li> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/BI-2">Strategy
+    and commercial savings.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/actions/E-1">Municipal:
+    Sustainability Plan Strategy E-1</a></li> <li>Commercial: <a href="https://indicators.longmontcolorado.gov/sca/actions/E-3">Sustainability
+    Plan Strategy E-3</a></li> <li>Residential: <a href="https://indicators.longmontcolorado.gov/sca/actions/E-7">Sustainability
+    Plan Strategy E-7 </a></li> <li>Income-Qualified: <a href="https://indicators.longmontcolorado.gov/sca/actions/E-2">Sustainability
+    Plan Strategy E-2</a></li> and <a href="https://indicators.longmontcolorado.gov/sca/actions/BI-2">Strategy
     BI-2</a></li></ul>'
   type: simple.AdditiveAction
   quantity: fraction
@@ -1767,7 +1767,7 @@ actions:
   name: Beneficial Building Electrification Residential
   description: '<p>Converting residential building systems that use fossil fuels (gas,
     oil, or propane) to high efficiency electric equipment powered by increasingly
-    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
+    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Beneficial
     Building Electrification Plan</a></li></ul>'
   type: simple.AdditiveAction
   quantity: energy
@@ -1788,7 +1788,7 @@ actions:
   name: Beneficial Building Electrification Commercial
   description: '<p>Converting commercial building systems that use fossil fuels (gas,
     oil, or propane) to high efficiency electric equipment powered by increasingly
-    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/bbe">Beneficial
+    clean and renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Beneficial
     Building Electrification Plan</a></li></ul>'
   type: simple.AdditiveAction
   quantity: energy
@@ -1870,7 +1870,7 @@ actions:
   name: Accelerate and implement smart grid projects
   description: '<p>Implement a variety of smart grid projects that encourage reductions
     in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
-    <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/E-7">Sustainability
+    <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/actions/E-7">Sustainability
     Plan Strategy E-7</a></li></ul>'
   type: linear.ReduceAction
   quantity: ratio
@@ -1907,7 +1907,7 @@ actions:
   name: Encourage practices that reduce transmission and distribution losses
   description: '<p>Reduce electric grid transmission and distribution losses through
     grid management such as distributed voltage optimization.</p> <p>Track Implementation:
-    <ul><li><a href="https://longmont-indicators.test.kausal.tech/carr/actions/RE.5">Climate
+    <ul><li><a href="https://indicators.longmontcolorado.gov/carr/actions/RE.5">Climate
     Action Recommendations Report RE.5</a></li></ul></p>'
   type: linear.ReduceAction
   quantity: ratio
@@ -1932,7 +1932,7 @@ actions:
   name: Increase electric vehicles through vehicle incentives and improved infrastructure
   description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
     by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
-    GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-4">Sustainability
+    GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/actions/T-4">Sustainability
     Plan Strategy T-4</a></li> <li><a href="https://longmont-sca.watch-test.kausal.tech/indicators/1771">Electric
     Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
   type: simple.AdditiveAction
@@ -1950,11 +1950,11 @@ actions:
   name: Address barriers to increase access and use of public transit
   description: '<p>Address barriers to increase access and use of public transit,
     especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
-    href="https://longmont-indicators.test.kausal.tech/transportation">Equitable Carbon-Free
-    Transportation Roadmap</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-1">Sustainability
-    Plan Strategy T-1</a>, <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-5">Strategy
-    T-5</a> and <a href="https://longmont-indicators.test.kausal.tech/sca/actions/T-7">Strategy
-    T-7</a></li> <li><a href="https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
+    href="https://indicators.longmontcolorado.gov/transportation">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <li><a href="https://indicators.longmontcolorado.gov/sca/actions/T-1">Sustainability
+    Plan Strategy T-1</a>, <a href="https://indicators.longmontcolorado.gov/sca/actions/T-5">Strategy
+    T-5</a> and <a href="https://indicators.longmontcolorado.gov/sca/actions/T-7">Strategy
+    T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
     Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
     System</a></li></ul></p>'
   type: simple.AdditiveAction
@@ -1971,8 +1971,8 @@ actions:
   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
     This action specifically models from actively reduce greenhouse gas emissions
     through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
-    Carbon-Free Transportation Roadmap</a></li> <li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable
+    Carbon-Free Transportation Roadmap</a></li> <li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
     >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
     System</a></li></ul></p>"
   type: simple.AdditiveAction
@@ -1989,8 +1989,8 @@ actions:
   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
     This action specifically models from actively reduce greenhouse gas emissions
     through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://longmont-indicators.test.kausal.tech/transportation\">Equitable
-    Carbon-Free Transportation Roadmap</a></li> <ul><li><a href=\"https://longmont-indicators.test.kausal.tech/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable
+    Carbon-Free Transportation Roadmap</a></li> <ul><li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
     >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
     System</a></li></ul></p>"
   type: simple.AdditiveAction
@@ -2009,7 +2009,7 @@ actions:
   description: '<p>This action tracks emission reductions from monitoring active oil
     and gas sites by increasing methane leak detection and repair and minimizing leaks
     in the transmission and distribution system of natural gas. Currently the City
-    has no active oil and gas sites.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/aq-air-quality">Sustainability
+    has no active oil and gas sites.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/topic-area/aq-air-quality">Sustainability
     Plan Air Quality Strategies</a></li></ul></p>'
   type: simple.AdditiveAction
   quantity: emissions
@@ -2026,7 +2026,7 @@ actions:
   name: Increase waste diversion
   description: '<p>Achieve 75% waste diversion from the landfill by 2030 and 95% by
     2050 established in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/35431/638001469478900000">2022
-    Zero Waste Resolution</a>.</p> <p>Track Implementation: <ul><li><a href="https://longmont-indicators.test.kausal.tech/sca/topic-area/waste">Sustainability
+    Zero Waste Resolution</a>.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sca/topic-area/waste">Sustainability
     Plan Waste Strategies</a></li></ul></p>'
   type: simple.AdditiveAction
   quantity: fraction
