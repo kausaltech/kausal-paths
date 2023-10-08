@@ -436,10 +436,8 @@ nodes:
   name: Ytarea i småhus
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 313000000.0]]
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_single_family
@@ -659,10 +657,8 @@ nodes:
   name: Ytarea flerbostadshus
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 211000000.0]]
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_apartment
@@ -881,10 +877,8 @@ nodes:
   name: Ytarea kontor
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 33200000.0]]    # Energimyndigheten
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_office
@@ -1103,10 +1097,8 @@ nodes:
   name: Ytarea i skolor
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 42900000.0]]
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_school

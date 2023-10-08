@@ -429,36 +429,6 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
         return df
 
 
-class YearlyPercentageChangeNode(SimpleNode):
-    allowed_parameters = [
-        NumberParameter(local_id='yearly_change', unit_str='%'),
-    ] + SimpleNode.allowed_parameters
-
-    def compute(self):
-        df = self.get_input_dataset()
-        if len(self.input_nodes) != 0:
-            raise NodeError(self, "YearlyPercentageChange can't have input nodes")
-        df = nafill_all_forecast_years(df, self.get_end_year())
-        mult = self.get_parameter_value('yearly_change') / 100 + 1
-        df['Multiplier'] = 1
-        df.loc[df[FORECAST_COLUMN], 'Multiplier'] = mult
-        df['Multiplier'] = df['Multiplier'].cumprod()
-        for col in df.columns:
-            if col in (FORECAST_COLUMN, 'Multiplier'):
-                continue
-            dt = df.dtypes[col]
-            df[col] = df[col].pint.m.fillna(method='pad').astype(dt)
-            df.loc[df[FORECAST_COLUMN], col] *= df['Multiplier']
-
-        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-        if replace_output:
-            df = self.replace_output_using_input_dataset(df)
-
-        df = df.drop(columns=['Multiplier'])
-
-        return df
-
-
 class MixNode(AdditiveNode):
     output_metrics = {
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
