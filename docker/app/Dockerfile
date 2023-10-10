@@ -1,8 +1,10 @@
-FROM ubuntu:22.10
+# syntax=docker/dockerfile:1
+FROM ubuntu:23.04 AS base
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Helsinki"
+ENV PYTHON_VERSION=3.11
 
 RUN mkdir /code
 
@@ -10,31 +12,35 @@ RUN apt-get update
 RUN apt-get install -y wget
 
 # Add the postgres repo
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt kinetic-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt lunar-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc > /etc/apt/trusted.gpg.d/pgdg.asc
 
-RUN apt-get update
-RUN apt-get install -y python3.11 libpython3.11-dev python3-pip \
+# Set up APT package caching
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt-get update && apt-get install -y \
+    python${PYTHON_VERSION} libpython${PYTHON_VERSION}-dev python${PYTHON_VERSION}-venv python3-pip \
 	postgresql-client-common postgresql-client libpq-dev \
-	gettext git
-RUN apt-get install -y libsnappy-dev
+	gettext git libsnappy-dev
 
-RUN ln -fs /usr/bin/python3.11 /usr/bin/python3
-RUN ln -fs /usr/bin/python3 /usr/bin/python
-RUN ln -fs /usr/bin/pip3 /usr/bin/pip
-RUN pip install --upgrade pip
+RUN /usr/bin/python${PYTHON_VERSION} -m venv /venv
+ENV PATH="/venv/bin:${PATH}"
+ENV XDG_CACHE_HOME=/cache
+
+# Install also ipython for convenience
+RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
+    python -m pip install --upgrade pip ipython
+
+COPY requirements.txt requirements-prod.txt /code/
+RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
+    pip install -r /code/requirements-prod.txt -r /code/requirements.txt
 
 ARG EXTRA_PYPI_INDEX
 
-# Install ipython for convenience
-RUN pip install ipython
-
-COPY requirements.txt requirements-prod.txt /code/
-RUN pip install -r /code/requirements-prod.txt -r /code/requirements.txt
-
 # Install extra dependencies
 COPY requirements-kausal.txt /code/
-RUN \
+RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
     if [ ! -z "$EXTRA_PYPI_INDEX" ] ; then \
         pip install --extra-index-url "${EXTRA_PYPI_INDEX}" -r /code/requirements-kausal.txt ; \
     fi
