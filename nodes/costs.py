@@ -55,28 +55,6 @@ class SelectiveNode(AdditiveNode):
         return out
 
 
-def compute_exponential(
-    start_year: int, current_year: int, model_end_year: int, current_value: Quantity | float, annual_change: Quantity,
-    decreasing_rate: bool
-):
-    base_value = 1 + annual_change.to('dimensionless').m
-    if decreasing_rate:
-        base_value = 1 / base_value
-
-    values = range(start_year - current_year, model_end_year - current_year + 1)
-    years = range(start_year, model_end_year + 1)
-    df = pl.DataFrame({YEAR_COLUMN: years, 'nr': values})
-    df = df.with_columns([
-        (pl.lit(base_value) ** pl.col('nr')).alias('mult')
-    ])
-    val = current_value.m if isinstance(current_value, Quantity) else current_value
-    df = df.with_columns([
-        (pl.lit(val) * pl.col('mult')).alias(VALUE_COLUMN),
-        (pl.col(YEAR_COLUMN) > current_year).alias(FORECAST_COLUMN)
-    ])
-    return df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
-
-
 class ExponentialNode(AdditiveNode):
     '''
     Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
