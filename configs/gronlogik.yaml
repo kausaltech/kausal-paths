@@ -277,7 +277,7 @@ nodes:
   name: Elpris utan skatt
   quantity: unit_price
   unit: SEK/kWh
-  type: costs.ElectricityPriceNode
+  type: costs.ExponentialNode
   historical_values: [[2019, 1.330], [2021, 2.5365]]
   params:
   - id: current_value
@@ -312,7 +312,7 @@ nodes:
   name: Värmepris utan skatt
   quantity: unit_price
   unit: SEK/kWh
-  type: costs.HeatPriceNode
+  type: costs.ExponentialNode
   historical_values: [[2019, 0.940], [2021, 0.868]]
   params:
   - id: current_value

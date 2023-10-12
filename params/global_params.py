@@ -20,11 +20,6 @@ class MunicipalityName(StringParameter):
     id = 'municipality_name'
 
 
-class DiscountNodeName(StringParameter):
-    name = _('Discount node name')
-    id = 'discount_node_name'
-
-
 class DiscountRate(NumberParameter):
     name = _('Discount rate')
     id = 'discount_rate'

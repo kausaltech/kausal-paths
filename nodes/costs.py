@@ -138,11 +138,6 @@ class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for e
         return df
 
 
-
-class DiscountNode(ExponentialNode):
-    global_parameters = ['discount_rate']
-
-
 class DiscountedNode(AdditiveNode):
     global_parameters = ['discount_rate']
 
@@ -161,18 +156,6 @@ class DiscountedNode(AdditiveNode):
         df = df.select([YEAR_COLUMN, (pl.col(VALUE_COLUMN) * pl.col('exp')).fill_null(pl.col(VALUE_COLUMN)), FORECAST_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
         return df
-
-
-class Co2PriceNode(ExponentialNode):
-    global_parameters = ['price_of_co2', 'price_of_co2_annual_change']
-
-
-class HeatPriceNode(ExponentialNode):
-    global_parameters = ['price_of_heat', 'price_of_heat_annual_change']
-
-
-class ElectricityPriceNode(ExponentialNode):
-    global_parameters = ['price_of_electricity', 'price_of_electricity_annual_change']
 
 
 class EnergyCostNode(AdditiveNode):
