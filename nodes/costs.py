@@ -138,6 +138,85 @@ class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for e
         return df
 
 
+class ExponentialNode2(AdditiveNode):
+    '''
+    Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
+    Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.
+    Optionally, touches also historical values.
+    Parameter is_decreasing_rate is used to give discount rates instead.
+    '''
+    allowed_parameters = AdditiveNode.allowed_parameters + [
+        NumberParameter(
+            local_id='current_value',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='annual_change',
+            is_customizable=True,
+        ),
+        BoolParameter(
+            local_id='is_decreasing_rate',
+            is_customizable=True,
+            value=False
+        ),
+        BoolParameter(
+            local_id='touch_historical_values',
+            is_customizable=True,
+            value=False
+        )
+    ]
+
+    def compute(self):
+        current_value = self.get_parameter_value('current_value', required=False, units=True)
+
+        if current_value is not None:
+            if len(self.input_nodes) > 0:
+                raise Exception('You must give either input node(s) or parameter current_value but not both.')
+
+            unit = current_value.units
+            current_value = current_value.m
+            start_year = self.context.instance.minimum_historical_year
+            current_year = self.context.instance.maximum_historical_year
+            end_year = self.context.instance.model_end_year
+
+            df = pl.DataFrame({
+                YEAR_COLUMN: range(start_year, end_year)
+            })
+            df = df.with_columns([
+                pl.when(pl.col(YEAR_COLUMN) > pl.lit(current_year))
+                .then(pl.lit(True)).otherwise(pl.lit(False)).alias(FORECAST_COLUMN),
+                pl.lit(current_value).alias(VALUE_COLUMN)
+            ])
+            meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN])
+            df = ppl.to_ppdf(df, meta=meta)
+
+        else:
+            df = super().compute()
+            current_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+            print(current_year)
+
+        annual_change = self.get_parameter_value('annual_change', required=True, units=True)
+        base_value = 1 + annual_change.to('dimensionless').m
+
+        if self.get_parameter_value('is_decreasing_rate', required=False):
+            base_value = 1 / base_value
+        
+        df = df.with_columns(
+            (pl.col(YEAR_COLUMN) - pl.lit(current_year)).alias('power')
+        )
+        if not self.get_parameter_value('touch_historical_values', required=False):
+            df = df.with_columns(
+                pl.when(pl.col('power') < pl.lit(0)).then(pl.lit(0))
+                .otherwise(pl.col('power')).alias('power')
+            )
+
+        df = df.with_columns(
+            (pl.lit(base_value) ** pl.col('power') * pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
+        ).drop('power')
+
+        return df
+
+
 class DiscountedNode(AdditiveNode):
     global_parameters = ['discount_rate']
 
