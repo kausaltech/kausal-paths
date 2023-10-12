@@ -77,68 +77,7 @@ def compute_exponential(
     return df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
 
 
-class ExponentialNode(SimpleNode):  # FIXME add functionality for increase for each category
-    allowed_parameters = SimpleNode.allowed_parameters + [
-        NumberParameter(
-            local_id='current_value',
-            is_customizable=True,
-        ),
-        NumberParameter(
-            local_id='annual_change',
-            is_customizable=True,
-        ),
-        StringParameter(
-            local_id='current_value_name',
-            is_customizable=True,
-        ),
-        StringParameter(
-            local_id='annual_change_name',
-            is_customizable=True,
-        ),
-        BoolParameter(
-            local_id='decreasing_rate',
-            is_customizable=True
-        )
-    ]
-
-    def compute_exponential(self):
-        current_value = self.get_parameter('current_value', required=False)
-        if not current_value:  # If the local parameter is not given, use a global parameter
-            # FIXME: Remove this
-            current_value_name = self.get_parameter_value('current_value_name', required=True)
-            current_value = self.context.get_parameter(current_value_name, required=True)
-        annual_change = self.get_parameter('annual_change', required=False)
-        if not annual_change:
-            # FIXME: Remove this
-            annual_change_name = self.get_parameter_value('annual_change_name', required=True)
-            annual_change = self.context.get_parameter(annual_change_name, required=True)
-
-        assert current_value is not None
-        assert annual_change is not None
-
-        cv = current_value.value * current_value.get_unit()
-        ac = annual_change.value * annual_change.get_unit()
-        decreasing_rate = self.get_parameter_value('decreasing_rate', required=False) or False
-        start_year = self.context.instance.minimum_historical_year
-        model_end_year = self.get_end_year()
-        current_year = self.context.instance.maximum_historical_year
-
-        ldf = compute_exponential(start_year, current_year, model_end_year, cv, ac, decreasing_rate)
-        ndf = ldf.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN]).to_pandas().set_index(YEAR_COLUMN)
-        pt = pint_pandas.PintType(cv.units)
-        ndf[VALUE_COLUMN] = ndf[VALUE_COLUMN].astype(pt)
-        return ndf
-
-    def compute(self):
-        df = self.compute_exponential()
-        replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
-        
-        if replace_output:
-            df = self.replace_output_using_input_dataset(df)
-        return df
-
-
-class ExponentialNode2(AdditiveNode):
+class ExponentialNode(AdditiveNode):
     '''
     Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
     Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.
@@ -193,7 +132,6 @@ class ExponentialNode2(AdditiveNode):
         else:
             df = super().compute()
             current_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
-            print(current_year)
 
         annual_change = self.get_parameter_value('annual_change', required=True, units=True)
         base_value = 1 + annual_change.to('dimensionless').m
@@ -214,26 +152,6 @@ class ExponentialNode2(AdditiveNode):
             (pl.lit(base_value) ** pl.col('power') * pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
         ).drop('power')
 
-        return df
-
-
-class DiscountedNode(AdditiveNode):
-    global_parameters = ['discount_rate']
-
-    def compute(self):
-        df = super().compute()
-
-        meta = df.get_meta()
-        fc = df.filter(pl.col(FORECAST_COLUMN))
-        current_year = fc[YEAR_COLUMN].min()
-        assert isinstance(current_year, int)
-        model_end_year = fc[YEAR_COLUMN].max()
-        assert isinstance(model_end_year, int)
-        discount_rate = self.get_global_parameter_value('discount_rate', units=True)
-        exp = compute_exponential(current_year, current_year, model_end_year, 1.0, discount_rate, decreasing_rate=True)
-        df = df.join(exp.rename({VALUE_COLUMN: 'exp'}), on=YEAR_COLUMN, how='left')
-        df = df.select([YEAR_COLUMN, (pl.col(VALUE_COLUMN) * pl.col('exp')).fill_null(pl.col(VALUE_COLUMN)), FORECAST_COLUMN])
-        df = ppl.to_ppdf(df, meta=meta)
         return df
 
 

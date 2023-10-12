@@ -358,10 +358,15 @@ nodes:
   name: Diskonterade nettokostnader
   name_fi: Diskontatut nettokustannukset
   name_en: Discounted net cost
-  type: costs.DiscountedNode
+  type: costs.ExponentialNode
   quantity: currency
   unit: MSEK/a
   input_nodes: [total_net_cost]
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
 
 - id: emissions_reduction
   name_fi: Päästövähennys

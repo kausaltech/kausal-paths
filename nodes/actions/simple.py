@@ -126,7 +126,7 @@ class EmissionReductionAction(ActionNode):
         return df
 
 
-class ExponentialAction(ActionNode):
+class ExponentialAction(ActionNode):  # FIXME Not used, remove?
     allowed_parameters = [
         NumberParameter(
             local_id='current_value',

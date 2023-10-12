@@ -537,7 +537,7 @@ class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
         return df
 
 
-class EnergyCostAction(ExponentialAction):
+class EnergyCostAction(ExponentialAction):  # FIXME Not used, remove?
     output_metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
         'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
