@@ -31,6 +31,38 @@ class PriorityNode(AdditiveAction):
     ]
 
 
+class Hypothesis(AdditiveAction):
+    '''
+    A hypothesis is an action-like node that allows users to define their own belief
+    about a node. A hypothesis is defined in a dataset that contains deviations
+    from the default value (managed by the admin user). A user can build their
+    own beliefs into a user-specific scenario (with the help of admin user).
+    '''
+#    group = 'hypothesis'
+    allowed_parameters: ClassVar[List[Parameter]] = [
+        NumberParameter(
+            local_id='hypothesis_number',
+            label=TranslatedString(en='Number of hypothesis'),
+            is_customizable=True
+        )
+    ]
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+        assert 'hypothesis' in df.primary_keys
+
+        hp = self.get_parameter_value('hypothesis_number', required=True, units=False)
+        hp = str(int(hp))
+        if hp == 0:
+            # FIXME Add here the code for calculating the average column across hypotheses
+            # Put the average to hypothesis 0
+            df = df.filter(pl.col('hypothesis').eq(pl.lit('hypothesis_1')))
+        else:
+            df = df.filter(pl.col('hypothesis').eq(pl.lit('hypothesis_' + hp)))
+
+        return df
+
+
 class MultiAttributeUtilityAction(AdditiveAction):
     allowed_parameters: ClassVar[List[Parameter]] = [
         NumberParameter(
