@@ -186,6 +186,8 @@ dimensions:
     label: Hypothesis 9
   - id: hypothesis_10
     label: Hypothesis 10
+  - id: equal_weight
+    label: Equal weight
 
 emission_sectors:
 - id: net_emissions
@@ -635,11 +637,11 @@ actions:
   type: values.Hypothesis
   quantity: number
   unit: pcs
+  group: hypothesis
   input_datasets:
   - id: greentransition/hp_consumer_electricity_emissions
     forecast_from: 2020
     column: amount
-#  group: hypothesis
   output_dimensions: [hypothesis]
   output_nodes:
   - id: consumer_electricity_emissions
@@ -649,6 +651,8 @@ actions:
   params:
   - id: hypothesis_number
     value: 1
+    min_value: 0
+    max_value: 10
 
 #
 # VALUE PROFILES

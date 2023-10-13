@@ -37,8 +37,9 @@ class Hypothesis(AdditiveAction):
     about a node. A hypothesis is defined in a dataset that contains deviations
     from the default value (managed by the admin user). A user can build their
     own beliefs into a user-specific scenario (with the help of admin user).
+    Hypothesis 0 is the equal-weight average of all hypotheses.
+    If the hypothesis is disabled, the admin user's default values are used.
     '''
-#    group = 'hypothesis'
     allowed_parameters: ClassVar[List[Parameter]] = [
         NumberParameter(
             local_id='hypothesis_number',
@@ -49,17 +50,30 @@ class Hypothesis(AdditiveAction):
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
+        meta = df.get_meta()
+        hp = self.get_parameter('hypothesis_number', required=True)
+
         assert 'hypothesis' in df.primary_keys
+        assert hp.min_value is not None
+        assert hp.max_value is not None
+        hp = int(hp.value)
 
-        hp = self.get_parameter_value('hypothesis_number', required=True, units=False)
-        hp = str(int(hp))
         if hp == 0:
-            # FIXME Add here the code for calculating the average column across hypotheses
-            # Put the average to hypothesis 0
-            df = df.filter(pl.col('hypothesis').eq(pl.lit('hypothesis_1')))
-        else:
-            df = df.filter(pl.col('hypothesis').eq(pl.lit('hypothesis_' + hp)))
+            n = df['hypothesis'].unique().len()
 
+            df = df.paths.sum_over_dims('hypothesis')
+            df = df.with_columns([
+                (pl.col(VALUE_COLUMN) / pl.lit(n)).alias(VALUE_COLUMN),
+                pl.lit('equal_weight').alias('hypothesis')
+            ])
+
+        else:
+            df = df.filter(pl.col('hypothesis').eq(pl.lit('hypothesis_' + str(hp))))
+
+        if not self.is_enabled():
+            df = df.with_columns((pl.col(VALUE_COLUMN) * pl.lit(0)).alias(VALUE_COLUMN))
+
+        df = ppl.to_ppdf(df, meta=meta)
         return df
 
 

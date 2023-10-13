@@ -4,7 +4,7 @@ import pandas as pd
 import polars as pl
 import pint_pandas
 
-from nodes import NodeMetric, Node
+from nodes import NodeMetric, Node, NodeError
 from nodes.units import Quantity
 import common.polars as ppl
 from params.param import NumberParameter, StringParameter, BoolParameter
@@ -88,7 +88,7 @@ class ExponentialNode(AdditiveNode):
 
         if current_value is not None:
             if len(self.input_nodes) > 0:
-                raise Exception('You must give either input node(s) or parameter current_value but not both.')
+                raise NodeError(self, 'You must give either input node(s) or parameter current_value but not both.')
 
             unit = current_value.units
             current_value = current_value.m
