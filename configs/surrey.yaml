@@ -4,19 +4,19 @@ supported_languages: []
 site_url: https://surrey.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a66ed46fef746e41c3cc838c2defea6c0cf27ace
+  commit: 89642dc29d106bda6f1ea44cbc6be1803d544f1b
   dvc_remote: kausal-s3
   default_path: surrey
 name: Surrey Greenhouse Gas Inventory
 owner_en: City of Surrey
 theme_identifier: ca-surrey
-target_year: 2018
-model_end_year: 2018
+target_year: 2020
+model_end_year: 2020
 # reference_year: 2007
 minimum_historical_year: 2007
-maximum_historical_year: 2018
+maximum_historical_year: 2020
 emission_unit: t/a
-emission_forecast_from: 2019
+# emission_forecast_from: 2021
 emission_dimensions: []
 emission_dataset: surrey/greenhouse_gas_emissions
 emission_sector_dimension: emission_sectors
@@ -82,6 +82,8 @@ dimensions:
     label: Heavy-Duty Vehicles
   - id: rail
     label: Rail Locomotives
+  - id: transit
+    label: Transit
 
 - id: greenhouse_gas
   label: Greenhouse Gas
@@ -158,6 +160,7 @@ nodes:
   input_datasets:
   - id: surrey/population
   input_dataset_processors: [LinearInterpolation]
+  minimum_year: 2005
 
 # ----- Building Emissions -----
 
@@ -218,37 +221,41 @@ nodes:
   input_datasets:
   - id: surrey/stationary_emission_factors
   input_dataset_processors: [LinearInterpolation]
-  minimum_year: 2016
 
-- id: stationary_plus_emissions_pc
-  name: Per Capita Stationary+ Emissions (Engines & Equipment)
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_sector]
-  output_dimensions: [emission_sector]
-  input_nodes:
-  - id: population
-    to_dimensions: []
-  - id: stationary_emission_factors
+# - id: stationary_plus_emissions_pc
+#   name: Per Capita Stationary+ Emissions (Engines & Equipment)
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [emission_sector]
+#   output_dimensions: [emission_sector]
+#   input_nodes:
+#   - id: population
+#     to_dimensions: []
+#   - id: stationary_emission_factors
 
 - id: stationary_plus_emissions
   name: Stationary+ (Engines & Equipment)
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   color: '#A7D6DB'
   quantity: emissions
   unit: t/a
   input_dimensions: [emission_sector, energy_carrier]
   output_dimensions: [emission_sector, energy_carrier]
+  params:
+    formula: zero_fill((population * stationary_emission_factors) + stationary_emissions_fuels)
   input_datasets:
   - id: surrey/stationary_emissions
+    tags: [stationary_emissions_fuels]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
-  - id: stationary_plus_emissions_pc
+  - id: stationary_emission_factors
     to_dimensions:
     - id: emission_sector
     - id: energy_carrier
       categories: [combined_fuels]
+  - id: population
+    to_dimensions: []
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -270,40 +277,43 @@ nodes:
   input_datasets:
   - id: surrey/transportation_emission_factors
   input_dataset_processors: [LinearInterpolation]
-  minimum_year: 2016
 
-- id: transportation_emissions_pc
-  name: Per Capita Transportation(+) Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: population
-    to_dimensions: []
-  - id: transportation_emission_factors
-  minimum_year: 2016
+# - id: transportation_emissions_pc
+#   name: Per Capita Transportation(+) Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [vehicle_type]
+#   output_dimensions: [vehicle_type]
+#   input_nodes:
+#   - id: population
+#     to_dimensions: []
+#   - id: transportation_emission_factors
 
 - id: transportation_emissions
   name: Transportation (On-Road)
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   color: '#B93F40'
   quantity: emissions
   unit: t/a
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
+  params:
+    formula: zero_fill((population * transportation_emission_factors) + transportation_emissions_onroad)
   input_datasets:
   - id: surrey/transportation_emissions
+    tags: [transportation_emissions_onroad]
     filters:
     - dimension: vehicle_type
-      categories: [ldv, hdv]
+      categories: [ldv, hdv, transit]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
-  - id: transportation_emissions_pc
+  - id: transportation_emission_factors
     from_dimensions:
     - id: vehicle_type
       categories: [ldv, hdv]
+  - id: population
+    to_dimensions: []
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -313,23 +323,28 @@ nodes:
 
 - id: transportation_plus_emissions
   name: Transportation+ (Rail)
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   color: '#E06565'
   quantity: emissions
   unit: t/a
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
+  params:
+    formula: zero_fill((population * transportation_emission_factors) + transportation_emissions_rail)
   input_datasets:
   - id: surrey/transportation_emissions
+    tags: [transportation_emissions_rail]
     filters:
     - dimension: vehicle_type
       categories: [rail]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
-  - id: transportation_emissions_pc
+  - id: transportation_emission_factors
     from_dimensions:
     - id: vehicle_type
       categories: [rail]
+  - id: population
+    to_dimensions: []
   output_nodes:
   - id: net_emissions
     from_dimensions:

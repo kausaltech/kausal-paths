@@ -28,12 +28,10 @@ services:
         - STATIC_ROOT=/srv/static
         - MEDIA_ROOT=/srv/media
         - EXTRA_PYPI_INDEX
-        - EXTRA_INSTALLED_APPS_VERSIONS
-        - EXTRA_INSTALLED_APPS
     restart: always
     volumes:
       - paths_media:/srv/media
-      - paths_build_cache:/root/.cache
+      - paths_dataset_cache:/cache/dvc-pandas
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgres://paths:defaultpass@db/paths}
       - ENV_FILE
@@ -57,4 +55,4 @@ services:
 volumes:
   db_data:
   paths_media:
-  paths_build_cache:
+  paths_dataset_cache:
