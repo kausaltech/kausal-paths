@@ -18,7 +18,6 @@ from params.utils import sep_unit_pt
 from common import polars as ppl
 
 from .action import ActionNode
-from .simple import ExponentialAction
 
 
 @njit(cache=True)
@@ -534,77 +533,6 @@ class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
         }
         df = pd.DataFrame(cols, index=ret.year)
         df.index.name = YEAR_COLUMN
-        return df
-
-
-class EnergyCostAction(ExponentialAction):  # FIXME Not used, remove?
-    output_metrics = {
-        VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),
-        'EnergyPrice': NodeMetric('SEK/kWh', 'currency'),
-        'AddedValueTax': NodeMetric('SEK/kWh', 'currency'),
-        'NetworkPrice': NodeMetric('SEK/kWh', 'currency'),
-        'HandlingFee': NodeMetric('SEK/kWh', 'currency'),
-        'Certificate': NodeMetric('SEK/kWh', 'currency'),
-        'EnergyTax': NodeMetric('SEK/kWh', 'currency')
-    }
-    global_parameters: list[str] = ['include_energy_taxes']
-    allowed_parameters = ExponentialAction.allowed_parameters + [
-        NumberParameter(
-            local_id='added_value_tax',
-            label='Added value tax (%)',
-            unit_str='%',
-            is_customizable=False
-        ),
-        NumberParameter(
-            local_id='network_price',
-            label='Network price (SEK/kWh)',
-            unit_str='SEK/kWh',
-            is_customizable=False
-        ),
-        NumberParameter(
-            local_id='handling_fee',
-            label='Handling fee (SEK/kWh)',
-            unit_str='SEK/kWh',
-            is_customizable=False
-        ),
-        NumberParameter(
-            local_id='certificate',
-            label='Certificate (SEK/kWh)',
-            unit_str='SEK/kWh',
-            is_customizable=False
-        ),
-        NumberParameter(
-            local_id='energy_tax',
-            label='Energy tax (SEK/kWh)',
-            unit_str='SEK/kWh',
-            is_customizable=False
-        )
-    ]
-
-    def compute_effect(self):
-        added_value_tax = self.get_parameter_value('added_value_tax', units=True)
-        network_price, net_pt = sep_unit_pt(self.get_parameter_value('network_price', units=True))
-        handling_fee, han_pt = sep_unit_pt(self.get_parameter_value('handling_fee', units=True))
-        certificate, cer_pt = sep_unit_pt(self.get_parameter_value('certificate', units=True))
-        energy_tax, ene_pt = sep_unit_pt(self.get_parameter_value('energy_tax', units=True))
-        include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
-
-        df = self.compute_exponential()
-        df['EnergyPrice'] = df[VALUE_COLUMN]
-        added_value_tax = added_value_tax.to('dimensionless').m
-        df['AddedValueTax'] = df['EnergyPrice'] * added_value_tax
-        df['NetworkPrice'] = pd.Series(network_price, index=df.index, dtype=net_pt)
-        df['HandlingFee'] = pd.Series(handling_fee, index=df.index, dtype=han_pt)
-        df['Certificate'] = pd.Series(certificate, index=df.index, dtype=cer_pt)
-        df['EnergyTax'] = pd.Series(energy_tax, index=df.index, dtype=ene_pt)
-
-        if include_energy_taxes:
-            cols = ['AddedValueTax', 'NetworkPrice', 'HandlingFee', 'Certificate', 'EnergyTax']
-        else:
-            cols = ['NetworkPrice']
-        for col in cols:
-            df[VALUE_COLUMN] += df[col]
-
         return df
 
 
