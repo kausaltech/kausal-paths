@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 from pint_pandas import PintType
+from nodes.units import Quantity
 import polars as pl
 from polars.type_aliases import IntoExpr
 from polars.utils._parse_expr_input import parse_as_list_of_expressions
@@ -225,6 +226,14 @@ class PathsDataFrame(pl.DataFrame):
         df._units[out_col] = res_unit
         if out_unit:
             df = df.ensure_unit(out_col, out_unit)
+        return df
+
+    def multiply_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
+        res_unit = self._units[col] * quantity.units
+        df = self.with_columns([pl.col(col) * pl.lit(quantity.m)])
+        df._units[col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(col, out_unit)
         return df
 
     def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
