@@ -3164,6 +3164,20 @@ pages:
     and how different actions reduce it and thus climate emissions.
   lead_paragraph: Grön logik projektet undersöker byggnaders energiförbrukning och
     hur olika åtgärder minskar det och därmed klimatutsläppen.
+- id: about
+  name: About calculations
+  path: /about
+  lead_title_en: About calculations
+  lead_paragraph_en: 'https://data-88e.github.io/textbook/content/12-environmental/textbook1.html
+    https://www.nepp.se/pdf/Det_kr%C3%A4vs_stora_investeringar.pdf
+    https://www.energiforetagen.se/energifakta/miljo-och-klimat/elens-miljopaverkan/vaxthuseffekten/
+    https://smed.se/luft-och-klimat/4708?fbclid=IwAR1mhwqqEHH4h2NuRr8P7KlENuPxWRLmYAMeQ3r1fTmgPOhTRw0Cdh2UJJ0
+    https://www.energiforetagen.se/energifakta/miljo-och-klimat/
+    NPV Kostnads-besparing: I×(1−(1÷(1+Q$41))^Q$44)÷(1−(1÷(1+Q$41)))
+    Proof: If you denote a = 1/(1+r) where r is discount rate, you can solve
+    sum a^n, n=0 to k = (a^(k+1)-1)/(a-1)
+    https://www.wolframalpha.com/input?i=sum+a%5En%2C+n%3D0+to+k
+    (You can check the formula by polynomial division, and you get a^k+a^(k-1)+...+a+1).'
 
 scenarios:
 - id: baseline
