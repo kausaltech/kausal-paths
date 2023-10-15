@@ -13,9 +13,9 @@ owner_en: Kausal Ltd
 theme_identifier: default
 emission_unit: pcs
 model_end_year: 2035
-target_year: 2027
+target_year: 2035
 reference_year: 2010
-minimum_historical_year: 2000
+minimum_historical_year: 2010
 maximum_historical_year: 2022
 action_groups:
 - id: green_transition
@@ -240,13 +240,30 @@ nodes:
   description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
     vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman
     asiaa.
-  type: simple.AdditiveNode
+  type: simple.FixedMultiplierNode
   quantity: number
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
   output_nodes:
   - carbon_sinks_in_state_forests
   - net_profit_from_state_forests
+  params:
+  - id: multiplier
+    value: 1
+    unit: pcs*a/m**3
+
+- id: logging_intensity_in_state_forests2
+  name: Hakkumäärä valtion metsissä
+  description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
+    vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman
+    asiaa.
+  type: simple.AdditiveNode
+  quantity: consumption
+  unit: m**3/a
+  historical_values: [[2010, 69000000], [2015, 70000000], [2022, 80000000]]
+  output_nodes:
+  - carbon_sinks_in_state_forests2
+  - net_profit_from_state_forests2
 
 - id: carbon_sinks_in_state_forests
   name: Hiilinielut valtion metsissä
@@ -258,6 +275,20 @@ nodes:
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
 
+- id: carbon_sinks_in_state_forests2
+  name: Hiilinielut valtion metsissä
+  description: Hiilnielut kuvastavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
+    yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä
+    vapautuva metaani.
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: kt/a
+  historical_values: [[2010, 10000], [2022, 4000]]
+  params:
+  - id: multiplier
+    value: -1
+    unit: t/m**3
+
 - id: net_profit_from_state_forests
   name: Puukaupan nettotulo valtion metsissä
   description: Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
@@ -267,6 +298,20 @@ nodes:
   quantity: number
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
+
+- id: net_profit_from_state_forests2
+  name: Puukaupan nettotulo valtion metsissä
+  description: Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
+    ja hiilipäästöistä johtuvilla kustannuksilla.
+  is_outcome: true
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: MEUR/a
+  historical_values: [[2015, 50], [2022, 40]]
+  params:
+  - id: multiplier
+    value: 1
+    unit: kEUR/m**3
 
 - id: hypothesis_net_profit_from_state_forests
   name: Backnäsin hypoteesi puukaupan nettotulosta valtion metsissä
@@ -293,12 +338,16 @@ nodes:
   name: Luonnon monimuotoisuus valtion metsissä
   description: Tämä solmu tarkastelee nimenomaan valtion metsien monimuotoisuutta
     esimerkiksi uhanalaisten lajien osuutena.
-  type: simple.AdditiveNode
+  type: simple.FixedMultiplierNode
   quantity: number
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
   output_nodes:
   - biodiversity_in_finland
+  params:
+  - id: multiplier
+    value: -1
+    unit: pcs*a/m**3
 
 - id: value_profile_greens
   name: Vihreiden arvoprofiili
@@ -325,6 +374,34 @@ nodes:
     value: 0.8
   - id: state_budget_weight
     value: 1.0
+
+#
+### VALUE PROFILES
+#
+
+- id: value_profile
+  name: Value profile
+  description: 'Hypothesis 1: Reduce logging in state forests. Hypothesis 2: Add loggind in state forests'
+  type: costs.ValueProfile
+  quantity: ratio
+  unit: 1/a
+  input_nodes:
+  - reduce_logging_in_state_forests
+  - add_logging_in_state_forests
+  - carbon_sinks_in_state_forests2
+  - net_profit_from_state_forests2
+  output_dimensions: [hypothesis]
+  params:
+  - id: emissions_weight
+    value: 6
+    min_value: 0
+    max_value: 10
+    unit: 1/kt
+  - id: cost_weight
+    value: 2
+    min_value: 0
+    max_value: 10
+    unit: 1/MEUR
 
 pages:
 - id: home
@@ -416,13 +493,24 @@ actions:
     ennakkotiedot vahvistavat, maankäyttösektori päästölähde vuonna 2021, metsät pysyivät
     edelleen nettonieluna</a>
   group: hs_voting_aid
-  type: simple.AdditiveAction
-  quantity: number
-  unit: pcs
-  forecast_values: [[2023, 0], [2035, 0]]
+  type: simple.CumulativeAdditiveAction
+  quantity: consumption
+  unit: m**3/a
+  forecast_values: [[2023, -10], [2030, -5]]
   output_nodes:
   - biodiversity_in_state_forests
   - logging_intensity_in_state_forests
+  - logging_intensity_in_state_forests2
+
+- id: add_logging_in_state_forests
+  name: Lisää hakkuita metsissä
+  group: hs_voting_aid
+  type: simple.CumulativeAdditiveAction
+  quantity: consumption
+  unit: m**3/a
+  forecast_values: [[2023, 5], [2027, 5]]
+  output_nodes:
+  - logging_intensity_in_state_forests2
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
