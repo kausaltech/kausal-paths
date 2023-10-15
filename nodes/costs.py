@@ -142,6 +142,10 @@ class ValueProfile(AdditiveNode):
     '''
     allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
+            local_id='threshold',
+            is_customizable=True,
+        ),
+        NumberParameter(
             local_id='emissions_weight',
             is_customizable=True,
         ),
@@ -213,6 +217,14 @@ class ValueProfile(AdditiveNode):
             else:
                 df_out = pl.concat([df_out, df])
             df_out = ppl.to_ppdf(df_out, meta=meta)
+
+        th = self.get_parameter_value('threshold', required=True, units=True)
+        df_out = df_out.cumulate(VALUE_COLUMN)
+        df_out = df_out.multiply_quantity(VALUE_COLUMN, Quantity('1 a'))
+        df_out = df_out.with_columns([
+            pl.when(pl.col(VALUE_COLUMN).gt(pl.lit(th.m))).then(pl.lit(1))
+            .otherwise(pl.lit(0)).alias(VALUE_COLUMN)
+        ])
 
         return df_out
 

@@ -384,7 +384,7 @@ nodes:
   description: 'Hypothesis 1: Reduce logging in state forests. Hypothesis 2: Add loggind in state forests'
   type: costs.ValueProfile
   quantity: ratio
-  unit: 1/a
+  unit: dimensionless
   input_nodes:
   - reduce_logging_in_state_forests
   - add_logging_in_state_forests
@@ -392,6 +392,11 @@ nodes:
   - net_profit_from_state_forests2
   output_dimensions: [hypothesis]
   params:
+  - id: threshold
+    value: 0.2
+    min_value: 0
+    max_value: 1000
+    unit: dimensionless
   - id: emissions_weight
     value: 6
     min_value: 0
