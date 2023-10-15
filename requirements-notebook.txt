@@ -4,11 +4,7 @@
 #
 #    pip-compile requirements-notebook.in
 #
-aiofiles==22.1.0
-    # via ypy-websocket
-aiosqlite==0.19.0
-    # via ypy-websocket
-annotated-types==0.5.0
+annotated-types==0.6.0
     # via
     #   -c requirements.txt
     #   pydantic
@@ -16,36 +12,37 @@ ansi2html==1.8.0
     # via
     #   dash
     #   jupyter-dash
-anyio==3.7.1
+anyio==4.0.0
     # via
     #   -c requirements.txt
     #   jupyter-server
-argon2-cffi==21.3.0
-    # via
-    #   jupyter-server
-    #   nbclassic
-    #   notebook
+argon2-cffi==23.1.0
+    # via jupyter-server
 argon2-cffi-bindings==21.2.0
     # via argon2-cffi
-arrow==1.2.3
-    # via isoduration
+arrow==1.3.0
+    # via
+    #   isoduration
+    #   pygwalker
 astor==0.8.1
     # via pygwalker
-astroid==2.15.6
+astroid==2.15.8
     # via pylint
-asttokens==2.2.1
+asttokens==2.4.0
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   stack-data
+async-lru==2.0.4
+    # via jupyterlab
 attrs==23.1.0
     # via
     #   -c requirements.txt
     #   jsonschema
     #   referencing
-autopep8==2.0.2
+autopep8==2.0.4
     # via python-lsp-server
-babel==2.12.1
+babel==2.13.0
     # via
     #   -c requirements.txt
     #   jupyterlab-server
@@ -58,23 +55,23 @@ beautifulsoup4==4.11.2
     # via
     #   -c requirements.txt
     #   nbconvert
-bleach==6.0.0
+bleach==6.1.0
     # via nbconvert
 certifi==2023.7.22
     # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   requests
-cffi==1.15.1
+cffi==1.16.0
     # via
     #   -c requirements.txt
     #   argon2-cffi-bindings
-charset-normalizer==3.2.0
+charset-normalizer==3.3.0
     # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   requests
-click==8.1.6
+click==8.1.7
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
@@ -83,11 +80,11 @@ comm==0.1.4
     # via
     #   ipykernel
     #   ipywidgets
-contourpy==1.1.0
+contourpy==1.1.1
     # via matplotlib
-cycler==0.11.0
+cycler==0.12.1
     # via matplotlib
-dash==2.11.1
+dash==2.14.0
     # via jupyter-dash
 dash-core-components==2.0.0
     # via dash
@@ -95,69 +92,68 @@ dash-html-components==2.0.0
     # via dash
 dash-table==5.0.0
     # via dash
-debugpy==1.6.7
+debugpy==1.8.0
     # via ipykernel
 decorator==5.1.1
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   ipython
-defusedxml==0.7.1
+defusedxml==0.8.0rc2
     # via
     #   -c requirements.txt
     #   nbconvert
 dill==0.3.7
     # via pylint
-docstring-to-markdown==0.12
+docstring-to-markdown==0.13
     # via python-lsp-server
-entrypoints==0.4
-    # via jupyter-client
-executing==1.2.0
+duckdb==0.9.1
+    # via pygwalker
+executing==2.0.0
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   stack-data
-fastjsonschema==2.18.0
+fastjsonschema==2.18.1
     # via nbformat
-flake8==6.0.0
+flake8==6.1.0
     # via python-lsp-server
 flask==2.2.5
     # via
     #   dash
     #   jupyter-dash
-fonttools==4.42.0
+fonttools==4.43.1
     # via matplotlib
 fqdn==1.5.1
     # via jsonschema
+greenlet==3.0.0
+    # via sqlalchemy
+gw-dsl-parser==0.1.6a1
+    # via pygwalker
 idna==3.4
     # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   anyio
     #   jsonschema
     #   requests
 importlib-metadata==6.8.0
-    # via yapf
-ipykernel==6.25.0
+    # via
+    #   dash
+    #   yapf
+ipykernel==6.25.2
     # via
     #   jupyter-dash
     #   jupyterlab
-    #   nbclassic
-    #   notebook
-ipython==8.14.0
+ipython==8.16.1
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   ipykernel
     #   ipywidgets
     #   jupyter-dash
-    #   jupyterlab
     #   pygwalker
-ipython-genutils==0.2.0
-    # via
-    #   nbclassic
-    #   notebook
-ipywidgets==8.1.0
+ipywidgets==8.1.1
     # via pygwalker
 isoduration==20.11.0
     # via jsonschema
@@ -165,7 +161,7 @@ isort==5.12.0
     # via pylint
 itsdangerous==2.1.2
     # via flask
-jedi==0.18.2
+jedi==0.19.1
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
@@ -177,15 +173,13 @@ jinja2==3.1.2
     #   jupyter-server
     #   jupyterlab
     #   jupyterlab-server
-    #   nbclassic
     #   nbconvert
-    #   notebook
     #   pygwalker
 json5==0.9.14
     # via jupyterlab-server
 jsonpointer==2.4
     # via jsonschema
-jsonschema[format-nongpl]==4.18.4
+jsonschema[format-nongpl]==4.19.1
     # via
     #   -c requirements.txt
     #   jupyter-events
@@ -195,65 +189,49 @@ jsonschema-specifications==2023.7.1
     # via
     #   -c requirements.txt
     #   jsonschema
-jupyter-client==7.4.9
+jupyter-client==8.4.0
     # via
     #   ipykernel
     #   jupyter-server
-    #   nbclassic
     #   nbclient
-    #   notebook
-jupyter-core==5.3.1
+jupyter-core==5.4.0
     # via
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
     #   jupyterlab
-    #   nbclassic
     #   nbclient
     #   nbconvert
     #   nbformat
-    #   notebook
 jupyter-dash==0.4.2
     # via -r requirements-notebook.in
 jupyter-events==0.7.0
-    # via
-    #   jupyter-server
-    #   jupyter-server-fileid
+    # via jupyter-server
 jupyter-lsp==2.2.0
     # via
     #   jupyterlab
     #   jupyterlab-lsp
-jupyter-server==2.7.0
+jupyter-server==2.7.3
     # via
     #   jupyter-lsp
-    #   jupyter-server-fileid
     #   jupyterlab
     #   jupyterlab-server
-    #   nbclassic
     #   notebook-shim
-jupyter-server-fileid==0.9.0
-    # via jupyter-server-ydoc
 jupyter-server-terminals==0.4.4
     # via jupyter-server
-jupyter-server-ydoc==0.8.0
-    # via jupyterlab
-jupyter-ydoc==0.2.5
-    # via
-    #   jupyter-server-ydoc
-    #   jupyterlab
-jupyterlab==3.6.5
+jupyterlab==4.0.7
     # via
     #   -r requirements-notebook.in
     #   jupyterlab-lsp
-jupyterlab-lsp==4.2.0
+jupyterlab-lsp==5.0.0
     # via -r requirements-notebook.in
 jupyterlab-pygments==0.2.2
     # via nbconvert
-jupyterlab-server==2.24.0
+jupyterlab-server==2.25.0
     # via jupyterlab
-jupyterlab-widgets==3.0.8
+jupyterlab-widgets==3.0.9
     # via ipywidgets
-kiwisolver==1.4.4
+kiwisolver==1.4.5
     # via matplotlib
 lazy-object-proxy==1.9.0
     # via astroid
@@ -262,7 +240,7 @@ markupsafe==2.1.3
     #   jinja2
     #   nbconvert
     #   werkzeug
-matplotlib==3.7.1
+matplotlib==3.8.0
     # via seaborn
 matplotlib-inline==0.1.6
     # via
@@ -275,54 +253,39 @@ mccabe==0.7.0
     #   flake8
     #   pylint
     #   python-lsp-server
-mistune==3.0.1
+mistune==3.0.2
     # via nbconvert
-nbclassic==1.0.0
-    # via
-    #   jupyterlab
-    #   notebook
 nbclient==0.8.0
     # via nbconvert
-nbconvert==7.7.3
-    # via
-    #   jupyter-server
-    #   nbclassic
-    #   notebook
+nbconvert==7.9.2
+    # via jupyter-server
 nbformat==5.9.2
     # via
     #   jupyter-server
-    #   nbclassic
     #   nbclient
     #   nbconvert
-    #   notebook
-nest-asyncio==1.5.7
+nest-asyncio==1.5.8
     # via
     #   dash
     #   ipykernel
-    #   jupyter-client
     #   jupyter-dash
-    #   nbclassic
-    #   notebook
-notebook==6.5.5
-    # via jupyterlab
 notebook-shim==0.2.3
+    # via jupyterlab
+numpy==1.25.2
     # via
-    #   jupyterlab
-    #   nbclassic
-numpy==1.24.4
-    # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   contourpy
     #   matplotlib
     #   pandas
     #   patsy
+    #   pyarrow
     #   scipy
     #   seaborn
     #   statsmodels
 overrides==7.4.0
     # via jupyter-server
-packaging==23.1
+packaging==23.2
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
@@ -360,34 +323,31 @@ pickleshare==0.7.5
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   ipython
-pillow==10.0.0
+pillow==10.1.0
     # via
     #   -c requirements.txt
     #   matplotlib
-platformdirs==3.9.1
+platformdirs==3.11.0
     # via
     #   -c requirements.txt
     #   jupyter-core
     #   pylint
     #   pytoolconfig
     #   yapf
-plotly==5.15.0
+plotly==5.17.0
     # via dash
-pluggy==1.2.0
+pluggy==1.3.0
     # via
     #   -c requirements.txt
     #   python-lsp-server
 prometheus-client==0.17.1
-    # via
-    #   jupyter-server
-    #   nbclassic
-    #   notebook
+    # via jupyter-server
 prompt-toolkit==3.0.39
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   ipython
-psutil==5.9.5
+psutil==5.9.6
     # via
     #   -c requirements.txt
     #   ipykernel
@@ -403,7 +363,11 @@ pure-eval==0.2.2
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   stack-data
-pycodestyle==2.10.0
+pyarrow==13.0.0
+    # via
+    #   -c requirements.txt
+    #   pygwalker
+pycodestyle==2.11.1
     # via
     #   autopep8
     #   flake8
@@ -412,31 +376,31 @@ pycparser==2.21
     # via
     #   -c requirements.txt
     #   cffi
-pydantic==2.1.1
+pydantic==2.4.2
     # via
     #   -c requirements.txt
     #   pygwalker
-pydantic-core==2.4.0
+pydantic-core==2.10.1
     # via
     #   -c requirements.txt
     #   pydantic
 pydocstyle==6.3.0
     # via python-lsp-server
-pyflakes==3.0.1
+pyflakes==3.1.0
     # via
     #   flake8
     #   python-lsp-server
-pygments==2.15.1
+pygments==2.16.1
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   ipython
     #   nbconvert
-pygwalker==0.2.2
+pygwalker==0.3.7
     # via -r requirements-notebook.in
-pylint==2.17.5
+pylint==2.17.7
     # via python-lsp-server
-pyparsing==3.1.0
+pyparsing==3.1.1
     # via
     #   -c requirements.txt
     #   matplotlib
@@ -449,13 +413,13 @@ python-dateutil==2.8.2
     #   pandas
 python-json-logger==2.0.7
     # via jupyter-events
-python-lsp-jsonrpc==1.0.0
+python-lsp-jsonrpc==1.1.2
     # via python-lsp-server
-python-lsp-server[all]==1.7.4
+python-lsp-server[all]==1.8.2
     # via -r requirements-notebook.in
-pytoolconfig[global]==1.2.5
+pytoolconfig[global]==1.2.6
     # via rope
-pytz==2023.3
+pytz==2023.3.post1
     # via
     #   -c requirements.txt
     #   pandas
@@ -463,14 +427,12 @@ pyyaml==6.0.1
     # via
     #   -c requirements.txt
     #   jupyter-events
-pyzmq==24.0.1
+pyzmq==25.1.1
     # via
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
-    #   nbclassic
-    #   notebook
-referencing==0.30.0
+referencing==0.30.2
     # via
     #   -c requirements.txt
     #   jsonschema
@@ -478,11 +440,12 @@ referencing==0.30.0
     #   jupyter-events
 requests==2.31.0
     # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   dash
     #   jupyter-dash
     #   jupyterlab-server
+    #   pygwalker
 retrying==1.3.4
     # via
     #   dash
@@ -495,24 +458,21 @@ rfc3986-validator==0.1.1
     # via
     #   jsonschema
     #   jupyter-events
-rope==1.9.0
+rope==1.10.0
     # via python-lsp-server
-rpds-py==0.9.2
+rpds-py==0.10.6
     # via
     #   -c requirements.txt
     #   jsonschema
     #   referencing
-scipy==1.11.1
+scipy==1.11.3
     # via
     #   seaborn
     #   statsmodels
-seaborn[stats]==0.12.2
+seaborn[stats]==0.13.0
     # via -r requirements-notebook.in
 send2trash==1.8.2
-    # via
-    #   jupyter-server
-    #   nbclassic
-    #   notebook
+    # via jupyter-server
 six==1.16.0
     # via
     #   -c requirements-dev.txt
@@ -529,43 +489,43 @@ sniffio==1.3.0
     #   anyio
 snowballstemmer==2.2.0
     # via pydocstyle
-soupsieve==2.4.1
+soupsieve==2.5
     # via
     #   -c requirements.txt
     #   beautifulsoup4
-stack-data==0.6.2
+sqlalchemy==2.0.22
+    # via pygwalker
+sqlglot==18.13.0
+    # via pygwalker
+stack-data==0.6.3
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
     #   ipython
 statsmodels==0.14.0
     # via seaborn
-tenacity==8.2.2
+tenacity==8.2.3
     # via plotly
 terminado==0.17.1
     # via
     #   jupyter-server
     #   jupyter-server-terminals
-    #   nbclassic
-    #   notebook
 tinycss2==1.2.1
     # via nbconvert
 tomli==2.0.1
     # via yapf
-tomlkit==0.12.0
+tomlkit==0.12.1
     # via
     #   -c requirements.txt
     #   pylint
-tornado==6.3.2
+tornado==6.3.3
     # via
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
     #   jupyterlab
-    #   nbclassic
-    #   notebook
     #   terminado
-traitlets==5.9.0
+traitlets==5.11.2
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
@@ -579,31 +539,34 @@ traitlets==5.9.0
     #   jupyter-server
     #   jupyterlab
     #   matplotlib-inline
-    #   nbclassic
     #   nbclient
     #   nbconvert
     #   nbformat
-    #   notebook
-typing-extensions==4.7.1
+types-python-dateutil==2.8.19.14
+    # via arrow
+typing-extensions==4.8.0
     # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   dash
     #   pydantic
     #   pydantic-core
     #   pygwalker
+    #   sqlalchemy
 ujson==5.8.0
     # via
     #   python-lsp-jsonrpc
     #   python-lsp-server
 uri-template==1.3.0
     # via jsonschema
-urllib3==1.26.16
+urllib3==1.26.17
     # via
-    #   -c requirements-dev.txt
+    #   -c requirements-lint.txt
     #   -c requirements.txt
     #   requests
-wcwidth==0.2.6
+wasmtime==12.0.0
+    # via gw-dsl-parser
+wcwidth==0.2.8
     # via
     #   -c requirements-dev.txt
     #   -c requirements.txt
@@ -615,7 +578,7 @@ webencodings==0.5.1
     #   -c requirements.txt
     #   bleach
     #   tinycss2
-websocket-client==1.6.1
+websocket-client==1.6.4
     # via jupyter-server
 werkzeug==2.2.3
     # via
@@ -623,21 +586,15 @@ werkzeug==2.2.3
     #   flask
 whatthepatch==1.0.5
     # via python-lsp-server
-widgetsnbextension==4.0.8
+widgetsnbextension==4.0.9
     # via ipywidgets
 wrapt==1.15.0
     # via
     #   -c requirements.txt
     #   astroid
-y-py==0.6.0
-    # via
-    #   jupyter-ydoc
-    #   ypy-websocket
-yapf==0.40.1
+yapf==0.40.2
     # via python-lsp-server
-ypy-websocket==0.8.4
-    # via jupyter-server-ydoc
-zipp==3.16.2
+zipp==3.17.0
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:

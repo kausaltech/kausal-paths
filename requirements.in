@@ -20,9 +20,9 @@ pytest-factoryboy
 orjson
 redis
 pint-pandas
-https://github.com/kausaltech/django-modeltrans/archive/27bd15f13f091e9ac388241bfce902da98074a55.zip
+https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip
 graphene-django>=3.0
-https://github.com/kausaltech/graphene-django-optimizer/archive/f18d827d0d58c1148288b6b886c167dd2fc1931a.zip
+graphene-django-optimizer
 wagtail-localize
 wagtail-grapple
 graphql-core>=3.2.0
