@@ -830,7 +830,7 @@ nodes:
 
 - id: residential_building_area
   name_de: Geschossfläche Wohnen
-  name_en: Building floor area residential
+  name_en: Building floor area Residential
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: Msqm
