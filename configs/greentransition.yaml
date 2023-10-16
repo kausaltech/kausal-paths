@@ -369,8 +369,8 @@ nodes:
 
 - id: value_profile
   name: Value profile
-  description: 'Hypothesis 1: Reduce logging in state forests. Hypothesis 2: Add loggind in state forests'
-  type: costs.ValueProfile
+  description: '<ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>'
+  type: values.ValueProfile
   quantity: ratio
   unit: dimensionless
   input_nodes:
