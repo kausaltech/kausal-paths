@@ -660,7 +660,7 @@ dimensions:
 
 - id: waste_incineration_plants
   label_en: Waste incineration plants
-  label_de: Kehrichtheizkraftwerke
+  label_de: Kehrichtverwertungsanlage
   categories:
   - id: hagenholz
     label: Hagenholz
@@ -1168,7 +1168,7 @@ nodes:
     to_dimensions: []
 
 - id: district_heat_ccs_share
-  name_de: Share of CO2 captured with CCS in district heat production
+  name_de: Anteil abgeschiedenes CO2 bei der Fernwärmeerzeugung
   name_en: Share of CO2 captured with CCS in district heat production
   type: simple.AdditiveNode
   input_dataset_processors: [LinearInterpolation]
@@ -1992,7 +1992,7 @@ nodes:
   quantity: ratio
 
 - id: sewage_sludge_processing_ccs_share
-  name_de: Share of CO2 captured with CCS in sewage sludge processing
+  name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
   name_en: Share of CO2 captured with CCS in sewage sludge processing
   type: simple.AdditiveNode
   historical_values: [[2015, 0], [2022, 0]]
@@ -2001,9 +2001,9 @@ nodes:
   quantity: ratio
 
 - id: sewage_sludge_processing_emissions
-  name_de: Treibhausgasemissionen Klaerschlammverwertung
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
   name_en: Sewage sludge processing emissions
-  short_name_de: Klaerschlammverwertung
+  short_name_de: Klärschlammverwertungsanlage
   type: ch.zuerich.SewageSludgeProcessingEmissions
   unit: kt/a
   quantity: emissions
@@ -2026,7 +2026,7 @@ nodes:
 
 - id: solid_waste_treatment_emissions_pre_ccs
   name_en: Solid waste incineration emissions (pre-CCS)
-  name_de: Treibhausgasemissionen Kehrichtverbrennungsanlagen ohne CCS
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage ohne CCS
   type: ch.zuerich.WasteIncinerationEmissions
   unit: t/a
   quantity: emissions
@@ -2079,8 +2079,8 @@ nodes:
 - id: wastewater_treatment_emissions
   name_en: Wastewater treatment emissions
   short_name_en: Wastewater treatment
-  name_de: Treibhausgasemissionen Abwasserreinigung
-  short_name_de: Abwasserreinigung
+  name_de: Treibhausgasemissionen Abwasserreinigungsanlage
+  short_name_de: Abwasserreinigungsanlage
   unit: kt/a
   quantity: emissions
   output_dimensions: [emission_scope]
@@ -2108,7 +2108,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: biogas_processing_ccs_share
-  name_de: Share of CO2 captured with CCS in biogas processing
+  name_de: Anteil abgeschiedenes CO2 bei der Biogasaufbereitungsanlage
   name_en: Share of CO2 captured with CCS in biogas processing
   type: simple.AdditiveNode
   input_dataset_processors: [LinearInterpolation]
@@ -3752,7 +3752,7 @@ actions:
   name_de: CO2-Entnahme und -Speicherung (CCS)
   description_de: Dieses Massnahmenpaket beinhaltet die Anstrengungen zur CO<sub>2</sub>-Entnahme
     und -Speicherung (CCS) bei der Klärschlammverwertungsanlage Werdhölzli und beim
-    Kehrichtheizkraftwerk (KHKW) Hagenholz.
+    Kehrichtverwertungsanlage (KVA) Hagenholz.
   type: parent.ParentActionNode
   unit: kt/a
   quantity: emissions
@@ -3761,13 +3761,13 @@ actions:
 
 - id: waste_incineration_ccs_installation
   name_en: Install CCS in solid waste incineration
-  name_de: CCS beim Kehrichtheizkraftwerk Hagenholz
+  name_de: CCS bei der Kehrichtverwertungsanlage Hagenholz
   parent: install_waste_treatment_ccs
   group: waste
   type: linear.ReduceAction
   quantity: ratio
-  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 beim
-    Kehrichtheizkraftwerk Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente negative
+  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 bei der
+    Kehrichtverwertungsanlage Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente negative
     Emissionen produziert.
   unit: '%'
   output_nodes: [waste_incineration_ccs_share]
