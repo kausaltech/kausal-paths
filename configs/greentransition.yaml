@@ -357,7 +357,7 @@ nodes:
     <li>luonnon monimuotoisuus, 0.5</li> <li>hiilinielut valtion metsissä, 0.8</li>
     <li>valtion budjetti, 1.0.</li></ul> Tämä on vasta harjoitusarviointi, joten luvut
     eivät tarkoita mitään, eikä niillä ole yksiköitä.
-  type: values.MultiAttributeUtilityNode
+  type: values.AdditiveNode
   quantity: number
   unit: pcs
   input_nodes:
@@ -367,13 +367,6 @@ nodes:
     tags: [climate_emissions]
   - id: net_profit_from_state_forests
     tags: [state_budget]
-  params:
-  - id: biodiversity_weight
-    value: 0.50
-  - id: climate_emissions_weight
-    value: 0.8
-  - id: state_budget_weight
-    value: 1.0
 
 #
 ### VALUE PROFILES
@@ -746,33 +739,6 @@ actions:
     value: 1
     min_value: 0
     max_value: 10
-
-#
-# VALUE PROFILES
-#
-#- id: value_profile_greens2
-#  name: Vihreiden arvoprofiili
-#  type: values.MultiAttributeUtilityAction
-#  quantity: number
-#  unit: pcs
-#  historical_values: [[2015, 50], [2022, 40]]
-#  input_nodes:
-#  - id: biodiversity_in_finland
-#    tags: [biodiversity]
-#  - id: carbon_sinks_in_state_forests
-#    tags: [climate_emissions]
-#  - id: net_profit_from_state_forests
-#    tags: [state_budget]
-#  params:
-#  - id: biodiversity_weight
-#    value: 0.50
-#    is_customizable: true
-#    min_value: 0.0
-#    max_value: 1.0
-#  - id: climate_emissions_weight
-#    value: 0.8
-#  - id: state_budget_weight
-#    value: 1.0
 
 scenarios:
 - id: baseline

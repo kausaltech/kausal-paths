@@ -145,7 +145,7 @@ class ValueProfile(SimpleNode):
     where cost-effective scenarios show value > 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
     The value profile results in 0 if the criterion is not fulfilled and
-    1 for years when the cumulative critetion is fulfilled.
+    1 for years when the cumulative criterion is fulfilled.
     '''
     allowed_parameters = SimpleNode.allowed_parameters + [
         NumberParameter(
@@ -216,14 +216,14 @@ class ValueProfile(SimpleNode):
             df = weighted_sum(action, 'cost_weight', df, quantity='currency')
             df = weighted_sum(action, 'health_weight', df, quantity='disease_burden')
             df = weighted_sum(action, 'equity_weight', df, tag='equity')
-            df = df.with_columns(pl.lit('hypothesis_' + str(round)).alias('hypothesis'))
-            meta = df.get_meta()
-            meta.primary_keys += ['hypothesis']
+            df = df.with_columns(pl.lit('hypothesis_' + str(round)).alias('hypothesis')).add_to_index('hypothesis')
+
             if df_out is None:
                 df_out = df
             else:
+                meta = df.get_meta()
                 df_out = pl.concat([df_out, df])
-            df_out = ppl.to_ppdf(df_out, meta=meta)
+                df_out = ppl.to_ppdf(df_out, meta=meta)
 
         th = self.get_parameter_value('threshold', required=True, units=True)
         df_out = df_out.cumulate(VALUE_COLUMN)
