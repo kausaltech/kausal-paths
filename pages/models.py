@@ -1,20 +1,24 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+import graphene
 from modelcluster.fields import ParentalKey
+from wagtail import blocks
 from wagtail.admin.panels import (
-    FieldPanel, MultiFieldPanel,
+    FieldPanel, MultiFieldPanel, Panel,
 )
-from wagtail.fields import RichTextField
+from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Page, Site
 
+from graphene_django.converter import convert_choices_to_named_enum_with_descriptions
 from grapple.models import (
     GraphQLBoolean, GraphQLField, GraphQLForeignKey, GraphQLImage, GraphQLStreamfield,
     GraphQLString
 )
+from nodes.blocks import OutcomeBlock
 
 from nodes.node import Node
 from nodes.models import InstanceConfig, NodeConfig
@@ -40,10 +44,12 @@ class PathsPage(Page):
             *common_settings_panels
         ], _('Common page configuration')),
     ]
-    promote_panels = []
+    promote_panels: list[Panel] = []
 
     graphql_fields = [
-        GraphQLBoolean('show_in_footer'),
+        GraphQLBoolean('show_in_menus', required=True),
+        GraphQLBoolean('show_in_footer', required=True),
+        GraphQLString('title', required=True)
     ]
 
     class Meta:
@@ -67,6 +73,34 @@ class PathsPage(Page):
         return (site.id, instance.site_url, self.url_path)
 
 
+class InstanceRootPage(PathsPage):
+    body = StreamField([
+        ('outcome', OutcomeBlock()),
+    ], block_counts={
+        'outcome': {'min_num': 1, 'max_num': 1},
+    }, use_json_field=True)
+
+    content_panels = PathsPage.content_panels + [
+        FieldPanel('body')
+    ]
+
+    parent_page_types: Sequence[type[Page] | str] = []
+
+
+class StaticPage(PathsPage):
+    body = StreamField([
+        ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
+        ('outcome', OutcomeBlock()),
+    ], blank=True, null=True, use_json_field=True)
+
+    content_panels = PathsPage.content_panels + [
+        FieldPanel('body')
+    ]
+
+    graphql_fields = PathsPage.graphql_fields + [
+        GraphQLStreamfield('body')
+    ]
+
 class OutcomePage(PathsPage):
     outcome_node = ParentalKey(NodeConfig, on_delete=models.PROTECT, related_name='pages')
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
@@ -77,9 +111,9 @@ class OutcomePage(PathsPage):
         FieldPanel('lead_title'),
         FieldPanel('lead_paragraph'),
     ]
+
     graphql_fields = PathsPage.graphql_fields + [
-        # FIXME how to resolve
-        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),
+        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),  #type: ignore
         GraphQLString('lead_title'),
         GraphQLString('lead_paragraph'),
     ]
@@ -90,17 +124,33 @@ class OutcomePage(PathsPage):
 
 
 class ActionListPage(PathsPage):
+    class ActionSortOrder(models.TextChoices):
+        STANDARD = "standard", _("Standard")
+        IMPACT = "impact", _("Impact")
+        CUM_IMPACT = "cum_impact", _("Cumulative impact")
+
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
+    # standard, impact, cumulative impact??
+    default_sort_order = models.CharField(max_length=40, choices=ActionSortOrder.choices, default=ActionSortOrder.STANDARD)
+    show_cumulative_impact = models.BooleanField(default=True, verbose_name=_('Show cumulative impact'))
 
     content_panels = PathsPage.content_panels + [
         FieldPanel('lead_title'),
         FieldPanel('lead_paragraph'),
+        FieldPanel('default_sort_order'),
+        FieldPanel('show_cumulative_impact'),
     ]
+
+    ActionSortOrderEnum = convert_choices_to_named_enum_with_descriptions('ActionSortOrder', choices=ActionSortOrder.choices)
+
     graphql_fields = PathsPage.graphql_fields + [
         GraphQLString('lead_title'),
         GraphQLString('lead_paragraph'),
+        GraphQLField('default_sort_order', ActionSortOrderEnum, required=True),
     ]
+
+    parent_page_type = [InstanceRootPage]
 
     class Meta:
         verbose_name = _('Action list page')

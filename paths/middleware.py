@@ -1,12 +1,12 @@
 import re
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 from django.conf import settings
 from django.db import transaction
 from django.utils import translation
 from wagtail.users.models import UserProfile
 from nodes.models import InstanceConfig
 from paths.admin_context import set_admin_instance
-from paths.types import PathsRequest
+from paths.types import PathsAdminRequest, PathsRequest
 from users.models import User
 
 
@@ -14,7 +14,7 @@ class AdminMiddleware:
     def __init__(self, get_response: Callable) -> None:
         self.get_response = get_response
 
-    def get_admin_instance(self, request: PathsRequest):
+    def get_admin_instance(self, request: PathsAdminRequest):
         if not re.match(r'^/admin/', request.path):
             return
 
@@ -51,30 +51,26 @@ class AdminMiddleware:
                 lang = settings.LANGUAGES[0][0]
         translation.activate(lang)
 
-    def __call__(self, request: PathsRequest):
+    def __call__(self, request: PathsAdminRequest):
         ic = self.get_admin_instance(request)
         if ic is None:
             return self.get_response(request)
 
         user = request.user
+        assert isinstance(user, User)
         self.activate_language(ic, user)
         assert ic is not None
-        instance = ic.get_instance()
-        context = instance.context
-        context.activate_scenario(context.get_default_scenario())
-        request.admin_instance = ic
-        set_admin_instance(ic)
+        set_admin_instance(ic, request=request)
 
-        # FIXME: Create instance-specific Site objects
-        if True or not ic.site_id:
-            return self.get_response(request)
+        assert ic.site is not None
+        request._wagtail_site = ic.site
 
-
-        request._wagtail_site = instance.site
-
+        return self.get_response(request)
+        """
         # If it's an admin method that changes something, invalidate Plan-related
         # GraphQL cache.
         if request.method in ('POST', 'PUT', 'DELETE'):
             def invalidate_cache():
                 instance.invalidate_cache()
             transaction.on_commit(invalidate_cache)
+        """

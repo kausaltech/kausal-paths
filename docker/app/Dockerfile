@@ -27,6 +27,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 RUN /usr/bin/python${PYTHON_VERSION} -m venv /venv
 ENV PATH="/venv/bin:${PATH}"
 ENV XDG_CACHE_HOME=/cache
+RUN mkdir /cache
 
 # Install also ipython for convenience
 RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \

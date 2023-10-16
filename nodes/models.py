@@ -1,11 +1,13 @@
 from __future__ import annotations
+from functools import cached_property
 
 import logging
 import os
 import threading
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Tuple, Union, cast
 from urllib.parse import urlparse
+import uuid
 
 from django.conf import settings
 from django.db import models
@@ -15,12 +17,14 @@ from django.utils.translation import gettext_lazy as _, gettext
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from wagtail.fields import RichTextField
-from wagtail.models import Locale, Page
+from wagtail.models import DraftStateMixin, Locale, Page, PreviewableMixin, RevisionMixin
 from wagtail.models.sites import Site
+from wagtail_color_panel.fields import ColorField
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
 from nodes.dimensions import Dimension
+from paths.types import UserOrAnon
 from paths.utils import (
     IdentifierField, get_supported_languages, get_default_language, ChoiceArrayField,
     UserModifiableModel, UUIDIdentifierField
@@ -65,7 +69,8 @@ class InstanceConfigManager(models.Manager['InstanceConfig']):
 
 
 class InstanceConfig(models.Model):
-    identifier = IdentifierField(max_length=100)
+    identifier = IdentifierField(max_length=100, unique=True)
+    uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
@@ -83,7 +88,7 @@ class InstanceConfig(models.Model):
         models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language),
         default=list, null=True, blank=True
     )
-    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
+    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))  # pyright: ignore
 
     objects: InstanceConfigManager = InstanceConfigQuerySet.as_manager()  # type: ignore
 
@@ -167,18 +172,18 @@ class InstanceConfig(models.Model):
     def default_language(self) -> str:
         return self.get_instance().default_language
 
-    @property
+    @cached_property
     def root_page(self) -> Page:
         assert self.site is not None
         return self.site.root_page
 
-    def get_translated_root_page(self):
+    def get_translated_root_page(self) -> Page:
         """Return root page in activated language, fall back to default language."""
-        root = self.root_page
+        root: Page = self.root_page
         language = get_language()
         try:
             locale = Locale.objects.get(language_code=language)
-            root = root.get_translation(locale)
+            root = root.get_translation(locale)  # type: ignore
         except (Locale.DoesNotExist, Page.DoesNotExist):
             pass
         return root
@@ -224,38 +229,42 @@ class InstanceConfig(models.Model):
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_default_pages(self) -> Page:
-        from pages.models import ActionListPage, OutcomePage
+        from pages.models import ActionListPage, InstanceRootPage
         from pages.config import OutcomePage as OutcomePageConfig
 
-        root_pages: models.QuerySet['Page'] = Page.get_first_root_node().get_children()
+        home_pages: models.QuerySet['Page'] = Page.get_first_root_node().get_children()
 
         instance = self.get_instance()
         outcome_nodes = {node.identifier: node for node in self.get_outcome_nodes()}
         # Create default pages only in default language for now
         # TODO: Also create translations to other supported languages
 
-        home_page: OutcomePageConfig | None = None
+        home_page_conf: OutcomePageConfig | None = None
         for page in instance.pages:
             if page.id == 'home':
-                home_page = page
+                home_page_conf = page
                 break
-        assert home_page is not None
+        assert home_page_conf is not None
 
+        root_node: Page = cast(Page, Page.get_first_root_node())
         with override(self.default_language):
-            locale, locale_created = Locale.objects.get_or_create(language_code=self.default_language)
+            locale, _ = Locale.objects.get_or_create(language_code=self.default_language)
             try:
-                root_page = root_pages.get(slug=self.identifier)
+                home_page = home_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
-                root_page = Page.get_first_root_node().add_child(instance=OutcomePage(
+                home_page = root_node.add_child(instance=InstanceRootPage(
                     locale=locale,
                     title=self.get_name(),
                     slug=self.identifier,
                     url_path='',
-                    outcome_node=outcome_nodes[home_page.outcome_node],
                 ))
-            action_list_pages = root_page.get_children().type(ActionListPage)
+
+
+            outcome_node=outcome_nodes[home_page_conf.outcome_node],
+
+            action_list_pages = home_page_conf.get_children().type(ActionListPage)
             if not action_list_pages.exists():
-                root_page.add_child(instance=ActionListPage(
+                home_page_conf.add_child(instance=ActionListPage(
                     title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
                 ))
 
@@ -264,11 +273,11 @@ class InstanceConfig(models.Model):
                 if id == 'home':
                     continue
 
-                page = root_page.get_children().filter(slug=id).first()
+                page = home_page_conf.get_children().filter(slug=id).first()
                 if page is not None:
                     continue
 
-                root_page.add_child(instance=OutcomePage(
+                home_page_conf.add_child(instance=OutcomePage(
                     locale=locale,
                     title=str(page_config.name),
                     slug=id,
@@ -278,7 +287,7 @@ class InstanceConfig(models.Model):
                     show_in_footer=page_config.show_in_footer,
                 ))
 
-        return root_page
+        return home_page_conf
 
     def create_default_content(self):
         root_page = self._create_default_pages()
@@ -301,6 +310,9 @@ class InstanceConfig(models.Model):
         super().delete(**kwargs)
 
     def save(self, *args, **kwargs):
+        if self.uuid is None:
+            self.uuid = uuid.uuid4()
+
         if self.site is not None:
             # TODO: Update Site and root page attributes
             pass
@@ -371,11 +383,12 @@ class DataSource(UserModifiableModel):
         verbose_name_plural = _('Data sources')
 
 
-class NodeConfig(ClusterableModel):
+class NodeConfig(RevisionMixin, ClusterableModel):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
     )
     identifier = IdentifierField(max_length=200)
+    uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')
@@ -387,22 +400,26 @@ class NodeConfig(ClusterableModel):
         null=True, blank=True, verbose_name=_('Description')
     )
 
-    color = models.CharField(max_length=20, null=True, blank=True)
+    color = ColorField(max_length=20, null=True, blank=True)
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
-    i18n = TranslationField(fields=('name', 'short_description', 'description'))
+    i18n = TranslationField(
+        fields=('name', 'short_description', 'description'),
+        default_language_field='instance__primary_language',
+    )  # pyright: ignore
 
     class Meta:
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
 
-    def get_node(self) -> Optional[Node]:
+    def get_node(self, visible_for_user: UserOrAnon | None = None) -> Optional[Node]:
         instance = self.instance.get_instance()
+        # FIXME: Node visibility restrictions
         return instance.context.nodes.get(self.identifier)
 
     def update_node_from_config(self, node: Node):
@@ -418,9 +435,18 @@ class NodeConfig(ClusterableModel):
 
     def update_from_node(self, node: Node, overwrite=False):
         """Sets attributes of this instance from revelant fields of the given node but does not save."""
+
+        conf = node.as_node_config_attributes()
+        i18n = conf.pop('i18n', None)
         for k, v in node.as_node_config_attributes().items():
             if overwrite or getattr(self, k, None) is None:
                 setattr(self, k, v)
+
+        if i18n is not None:
+            if not self.i18n:
+                self.i18n = {}
+            assert isinstance(self.i18n, dict)
+            self.i18n |= cast(dict, i18n)
 
     def can_edit_data(self):
         node = self.get_node()
@@ -445,3 +471,8 @@ class NodeConfig(ClusterableModel):
         if self.name:
             name = self.name
         return f'{prefix}{name}'
+
+    def save(self, **kwargs):
+        if self.uuid is None:
+            self.uuid = uuid.uuid4()
+        return super().save(**kwargs)

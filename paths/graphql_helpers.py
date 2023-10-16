@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import functools
-from typing import Any, Callable, Concatenate, ParamSpec, TypeAlias, TypeVar, TYPE_CHECKING
+from typing import Any, Callable, Concatenate, ParamSpec, TypeAlias, TypeVar, TYPE_CHECKING, cast
 
 from django.core.handlers.wsgi import WSGIRequest
 from graphql.type import GraphQLResolveInfo
@@ -40,8 +42,9 @@ def _instance_or_bust(info: GQLInstanceInfo):
     return info.context.instance
 
 
+C = TypeVar('C', bound=Callable[Concatenate[Any, GQLInstanceInfo, ...], Any])
 
-def ensure_instance(method):
+def ensure_instance(method: C) -> C:
     """Wrap a class method to ensure instance is specified when the method is called."""
 
     @functools.wraps(method)
@@ -49,19 +52,20 @@ def ensure_instance(method):
         _instance_or_bust(info)
         return method(self, info, *args, **kwargs)
 
-    return method_wrapper
+    return cast(C, method_wrapper)
+
 
 P = ParamSpec('P')
 R = TypeVar('R')
 
 def pass_context(
-    method: Callable[Concatenate[Any, GQLInstanceInfo, P], R]
+    method: Callable[Concatenate[Any, GQLInstanceInfo, Context, P], R]
 ) -> Callable[Concatenate[Any, GQLInstanceInfo, P], R]:
     """Wrap a resolver function to provide Context as an argument."""
 
     @functools.wraps(method)
     def method_wrapper(root, info: GQLInstanceInfo, *args: P.args, **kwargs: P.kwargs) -> R:
         instance = _instance_or_bust(info)
-        return method(root, info, instance.context, *args, **kwargs) # type: ignore
+        return method(root, info, instance.context, *args, **kwargs)
 
     return method_wrapper

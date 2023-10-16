@@ -1,20 +1,32 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 import typing
 
 from django.http import HttpRequest
-from nodes.models import InstanceConfig
+from django.contrib.auth.models import AnonymousUser
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from users.models import User
+    from nodes.models import InstanceConfig
+    from wagtail.models import Site
+
+
+UserOrAnon: typing.TypeAlias = 'User | AnonymousUser'
 
 
 class PathsRequest(HttpRequest):
-    admin_instance: InstanceConfig
-    user: 'User'
+    user: UserOrAnon
 
 
 class PathsAuthenticatedRequest(HttpRequest):
     user: 'User'
 
 
-class APIRequest(PathsAuthenticatedRequest):
+class PathsAdminRequest(PathsAuthenticatedRequest):
+    admin_instance: InstanceConfig
+    _wagtail_site: Site
+
+
+class PathsAPIRequest(PathsAuthenticatedRequest):
     pass

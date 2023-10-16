@@ -62,11 +62,19 @@ plugins = [
     "numpy.typing.mypy_plugin",
     "pydantic.mypy",
 ]
+mypy_path = "typings"
+exclude = [
+    '^Attic/',
+    '^typings/',
+    '^local_settings\.py',
+]
+check_untyped_defs = true
+
 
 [[tool.mypy.overrides]]
 module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
-    "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*"
+    "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*"
 ]
 ignore_missing_imports = true
 

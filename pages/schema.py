@@ -1,49 +1,18 @@
-import graphene
-import re
-from grapple.types.pages import Page as GrapplePageType, PageInterface
-from grapple.utils import resolve_queryset
+from __future__ import annotations
 
-from wagtail.models import Page as WagtailPage
+import graphene
+from grapple.types.pages import Page as GrapplePageType
 
 from nodes.models import InstanceConfig
 from nodes.schema import NodeType
+from pages.page_interface import PageInterface
 from paths.graphql_helpers import GQLInstanceInfo, ensure_instance
 
+from .perms import PagePermissionPolicy
 from .models import OutcomePage, PathsPage
 
 
-def resolve_parent(self, info: GQLInstanceInfo, **kwargs):
-    if self.depth <= 2:
-        return None
-    parent = self.get_parent()
-    if parent is None:
-        return None
-    return parent.specific
-
-
-def resolve_ancestors(self, info: GQLInstanceInfo, **kwargs):
-    return resolve_queryset(
-        self.get_ancestors().live().public().specific().filter(depth__gte=2), info, **kwargs
-    )
-
-
-def resolve_siblings(self, info: GQLInstanceInfo, **kwargs):
-    return resolve_queryset(
-        self.get_siblings().exclude(pk=self.pk).filter(depth__gte=3).live().public().specific(),
-        info,
-        **kwargs,
-    )
-
-
-def resolve_url_path(self, info: GQLInstanceInfo, **kwargs):
-    url_path = self.url_path
-    # FIXME: This is a dirty way to work around the issue of the slug having the form <instance>-1 or so for translated
-    # pages.
-    # Replace instance ID, optionally followed by a `-` and a number, if it is surrounded by slashes, by a single slash
-    url_path = re.sub('^/%s(-[0-9]+)?/' % re.escape(info.context.instance.id), '/', self.url_path)
-    if len(url_path) > 1:
-        url_path = url_path.rstrip('/')
-    return url_path
+policy = PagePermissionPolicy()
 
 
 class PathsPageType(GrapplePageType):
@@ -58,6 +27,7 @@ class PathsPageType(GrapplePageType):
 class OutcomePageType(PathsPageType):
     outcome_node = graphene.Field(NodeType, required=True)
 
+    @staticmethod
     @ensure_instance
     def resolve_outcome_node(root: OutcomePage, info: GQLInstanceInfo):
         return info.context.instance.context.get_node(root.outcome_node.identifier)
@@ -99,10 +69,6 @@ def monkeypatch_grapple():
     from grapple.registry import registry
     # Monkeypatch resolvers to ensure we don't traverse outside
     # of site pages.
-    PageInterface.resolve_parent = resolve_parent
-    PageInterface.resolve_ancestors = resolve_ancestors
-    PageInterface.resolve_siblings = resolve_siblings
-    PageInterface.resolve_url_path = resolve_url_path
     # Replace Grapple-generated PageTypes with our own
     registry.pages[OutcomePage] = OutcomePageType
     #registry.pages[ActionListPage] = ActionListPageType

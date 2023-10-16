@@ -3,7 +3,7 @@ from rest_framework import viewsets, serializers, settings, permissions, respons
 from rest_framework_nested import routers, relations
 
 from paths.api_router import router
-from paths.types import APIRequest
+from paths.types import PathsAPIRequest
 from .models import InstanceConfig
 
 
@@ -44,12 +44,12 @@ class InstanceViewSet(viewsets.ViewSet, generics.GenericAPIView):
     def get_queryset(self):
         return InstanceConfig.objects.all()
 
-    def list(self, request: APIRequest):
+    def list(self, request: PathsAPIRequest):
         qs = self.get_queryset()
         serializer = self.get_serializer(qs, many=True)
         return response.Response(serializer.data)
 
-    def retrieve(self, request: APIRequest, pk: str | None = None):
+    def retrieve(self, request: PathsAPIRequest, pk: str | None = None):
         qs = self.get_queryset()
         obj = get_object_or_404(qs, pk=pk)
         serializer = self.get_serializer(obj)

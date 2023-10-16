@@ -148,7 +148,7 @@ def get_modeltrans_attrs_from_str(
 ) -> typing.Tuple[str, dict[str, str]]:
     i18n = {}
     if isinstance(s, TranslatedString):
-        i18n.update({f'{field_name}_{lang}': v for lang, v in s.i18n.items()})
+        i18n.update({f'{field_name}_{lang}': v for lang, v in s.i18n.items() if lang != default_lang})
         if default_lang not in s.i18n:
             fallbacks = settings.MODELTRANS_FALLBACK.get(default_lang, ())
             for lang in fallbacks:
@@ -160,7 +160,6 @@ def get_modeltrans_attrs_from_str(
         field_val = s.i18n[default_lang]
     else:
         field_val = s
-        i18n[f'{field_name}_{default_lang}'] = s
 
     return field_val, i18n
 

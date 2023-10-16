@@ -42,3 +42,6 @@ social-auth-app-django
 django-storages
 tzdata  # needed for pytz
 colormath
+wagtail-font-awesome-svg
+wagtail-generic-chooser
+wagtail-color-panel
