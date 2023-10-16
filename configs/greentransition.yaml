@@ -322,17 +322,12 @@ nodes:
     suuremman arvon, joka tässä harjoitusmallissa on merkitty välille 200-290 yksikköä
     (luvuilla ei ole toistaiseksi mitään vastinetta reaalimaailmassa.)</p>
   references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
-  type: values.HypothesisNode
+  type: simple.AdditiveNode
   group: hypothesis
   quantity: number
   unit: pcs
   input_nodes:
   - net_profit_from_state_forests
-  params:
-  - id: min_value
-    value: 200
-  - id: max_value
-    value: 290
 
 - id: biodiversity_in_state_forests
   name: Luonnon monimuotoisuus valtion metsissä
