@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 959c8ae71be5e47bdb839535db99e8129400e444
+  commit: 08ed46dcd97172e4d2f6561499ed3ea40596fe9e
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero 2040
@@ -948,9 +948,9 @@ nodes:
   input_dimensions: [building_use]
   input_nodes: [building_floor_area, building_heat_per_area]
 
-- id: building_heat_mix
-  name_de: Wärmemix
-  name_en: Building heat mix
+- id: building_heat_mix_historical
+  name_de: Wärmemix (historisch)
+  name_en: Building heat mix (historical)
   type: ch.zuerich.BuildingHeatUseMix
   unit: '%'
   quantity: mix
@@ -959,6 +959,18 @@ nodes:
   input_nodes:
   - id: building_heat_consumption_historical
     tags: [consumption]
+
+- id: building_heat_mix
+  name_de: Wärmemix
+  name_en: Building heat mix
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_mix_historical
+    tags: [activity]
 
 - id: building_heat_consumption
   name_de: Wärmebedarf Gebäude nach Heizungssystem
@@ -1849,7 +1861,7 @@ nodes:
     - id: greenhouse_gases
     - id: vehicle_type
   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
-  input_dimensions:  [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
 
 - id: miv_emissions
   name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
@@ -3046,120 +3058,25 @@ actions:
   - id: building_heat_mix
   output_dimensions: [emission_scope]
 
-- id: fossil_fuel_heater_to_district_heat
-  name_en: Replacement of fossil fuel heaters with district heat
-  name_de: Heizungsersatz durch thermische Netze
-  type: shift.ShiftAction
-  parent: heater_replacement_and_district_heat
+- id: building_heat_mix_change
+  name_en: Building heating system mix change
+  name_de: District heating system mix change
   group: buildings
-  quantity: mix
-  output_nodes:
-  - building_heat_mix
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          heating_system: fuel_oil
-      dests:
-      - categories:
-          heating_system: district_heat
-      amounts:
-      - year: 2023
-        source_amount: -0.5
-        dest_amounts: [1]
-
-    - source:
-        categories:
-          heating_system: natural_gas
-      dests:
-      - categories:
-          heating_system: district_heat
-      amounts:
-      - year: 2023
-        source_amount: -1.25
-        dest_amounts: [1]
-
-- id: fossil_fuel_heater_to_heat_pumps
-  name_en: Replacement of fossil fuel heaters with heat pumps
-  name_de: Heizungsersatz durch Wärmepumpen
-  type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
-  group: buildings
+  type: linear.DatasetReduceAction
   quantity: mix
-  output_nodes:
-  - building_heat_mix
   unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          heating_system: fuel_oil
-      dests:
-      - categories:
-          heating_system: heat_pumps
-      amounts:
-      - year: 2023
-        source_amount: -0.5
-        dest_amounts: [1]
-
-    - source:
-        categories:
-          heating_system: natural_gas
-      dests:
-      - categories:
-          heating_system: heat_pumps
-      amounts:
-      - year: 2023
-        source_amount: -1.25
-        dest_amounts: [1]
-
-- id: fossil_fuel_heater_to_other
-  name_en: Replacement of fossil fuel heaters with other heaters
-  name_de: Heizungsersatz durch übrige Systeme
-  type: shift.ShiftAction
-  parent: heater_replacement_and_district_heat
-  group: buildings
-  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_datasets:
+  # - id: zuerich/district_heat_production_mix
+  #   tags: [historical]
+  - id: zuerich/building_heat_mix_goals
+    tags: [goal]
+  input_nodes:
+  - id: building_heat_mix_historical
   output_nodes:
-  - building_heat_mix
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          heating_system: fuel_oil
-      dests:
-      - categories:
-          heating_system: wood
-      - categories:
-          heating_system: solar_collectors
-      amounts:
-      - year: 2023
-        source_amount: -0.1
-        dest_amounts: [10, 1]
-
-    - source:
-        categories:
-          heating_system: natural_gas
-      dests:
-      - categories:
-          heating_system: wood
-      - categories:
-          heating_system: solar_collectors
-      amounts:
-      - year: 2023
-        source_amount: -0.13
-        dest_amounts: [10, 1]
+  - id: building_heat_mix
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung thermische Netze
@@ -3766,9 +3683,9 @@ actions:
   group: waste
   type: linear.ReduceAction
   quantity: ratio
-  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 bei der
-    Kehrichtverwertungsanlage Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente negative
-    Emissionen produziert.
+  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 bei
+    der Kehrichtverwertungsanlage Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente
+    negative Emissionen produziert.
   unit: '%'
   output_nodes: [waste_incineration_ccs_share]
   params:
@@ -3931,11 +3848,11 @@ actions:
   output_nodes:
   - id: transport_emissions_for_fuel
     tags: [additive]
-  unit: 'kg/kg'
+  unit: kg/kg
   quantity: emission_factor
   params:
   - id: shift
-    unit: 'kg/kg'
+    unit: kg/kg
     is_customizable: false
     value:
     - source:
