@@ -73,7 +73,8 @@ class Role:
             group.permissions.set(new_perms)
 
     def _update_page_perms(self, group: Group, instance: InstanceConfig):
-        assert instance.site is not None
+        if instance.site is None:
+            return
 
         filt = dict(
             content_type__app_label='wagtailcore',
