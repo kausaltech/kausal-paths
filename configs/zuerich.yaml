@@ -536,11 +536,11 @@ dimensions:
     label_en: Wood
     color: '#CBB910'
   - id: wood_chips
-    label: Grünschnitzel
+    label: Holzschnitzel
     label_en: Wood chips
     color: '#CBB910'
   - id: wood_pellets
-    label: Pellets Holz
+    label: Holzpellets
     label_en: Wood pellets
     color: '#CBB910'
   - id: environmental_heat
@@ -552,7 +552,7 @@ dimensions:
     label_en: Solar thermal collectors
     color: '#F0D800'
   - id: waste
-    label: Abfall
+    label: Abfälle
     label_en: Waste
     color: '#007C78'
 
@@ -590,34 +590,34 @@ dimensions:
   label_de: Electricity generation method
   categories:
   - id: hydro
-    label: Wasser
+    label: Wasserkraft
     label_en: Hydropower
   - id: nuclear
-    label: Atomkraft
+    label: Kernenergie
     label_en: Nuclear power
   - id: natural_gas
     label: Erdgas
     label_en: Natural gas
   - id: solar
-    label: Sonne
+    label: Sonnenenergie
     label_en: Solar
   - id: biogas
     label: Biogas
     label_en: Biogas
   - id: waste
-    label: Abfall
+    label: Abfälle
     label_en: Waste incineration
   - id: wind
-    label: Wind
+    label: Windenergie
     label_en: Wind
   - id: wood
-    label: Holz
+    label: Biomasse
     label_en: Wood
   - id: fuel_oil
     label: Heizöl
     label_en: Heating oil
   - id: import
-    label: Strommix Europa
+    label: Unbekannte Qualität (Strommix Europa)
     label_en: European import
     aliases:
     - UCTE-Mix / ENTSO-E Mix
@@ -660,7 +660,7 @@ dimensions:
 
 - id: waste_incineration_plants
   label_en: Waste incineration plants
-  label_de: Kehrichtheizkraftwerke
+  label_de: Kehrichtverwertungsanlage
   categories:
   - id: hagenholz
     label: Hagenholz
@@ -805,7 +805,7 @@ nodes:
   quantity: population
   unit: cap
   name_en: Inhabitants
-  name_de: Einwohnerin und Einwohner
+  name_de: Bevölkerungsentwicklung
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/population
@@ -815,7 +815,7 @@ nodes:
   type: simple.DivisiveNode
   quantity: per_capita
   unit: m**2/cap
-  name_de: Wohnflächen pro EinwohnerIn
+  name_de: Geschossfläche Wohnen pro Einwohner*in
   name_en: Residential building area per resident
   input_nodes:
   - id: building_floor_area_historical
@@ -829,7 +829,7 @@ nodes:
     extend_rows: true
 
 - id: residential_building_area
-  name_de: Energiebezugsflächen Wohnen
+  name_de: Geschossfläche Wohnen
   name_en: Building floor area Residential
   type: simple.MultiplicativeNode
   quantity: floor_area
@@ -837,8 +837,8 @@ nodes:
   input_nodes: [residential_building_area_per_resident, population]
 
 - id: number_of_jobs
-  name_de: Anzahl Arbeitsplätze
-  name_en: Number of jobs
+  name_de: Beschäftigungsentwicklung (Vollzeitäquivalente)
+  name_en: Number of jobs (full-time equivalents)
   type: simple.AdditiveNode
   unit: cap
   quantity: number
@@ -851,8 +851,8 @@ nodes:
   type: simple.DivisiveNode
   quantity: per_capita
   unit: m**2/cap
-  name_de: Nicht-wohnflächen pro Arbeitzplatz
-  name_en: Non-residential building area per job
+  name_de: Geschossfläche Nicht-Wohnen pro Vollzeitäquivalent
+  name_en: Non-residential building area per full-time equivalent
   input_nodes:
   - id: building_floor_area_historical
     from_dimensions:
@@ -865,7 +865,7 @@ nodes:
     extend_rows: true
 
 - id: nonresidential_building_area
-  name_de: Energiebezugsflächen Nicht-Wohnen
+  name_de: Geschossfläche Nicht-Wohnen
   name_en: Non-residential building floor area
   type: simple.MultiplicativeNode
   quantity: floor_area
@@ -873,7 +873,7 @@ nodes:
   input_nodes: [nonresidential_building_area_per_job, number_of_jobs]
 
 - id: building_floor_area_historical
-  name_de: Energiebezugsflächen (historisch)
+  name_de: Geschossfläche (historisch)
   name_en: Building floor area (historical)
   type: ch.zuerich.BuildingFloorAreaHistorical
   quantity: floor_area
@@ -884,7 +884,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: building_floor_area
-  name_de: Energiebezugsflächen
+  name_de: Geschossfläche
   name_en: Building floor area
   type: simple.AdditiveNode
   quantity: floor_area
@@ -921,8 +921,8 @@ nodes:
     to_dimensions: []
 
 - id: building_heat_per_area
-  name_de: Spezifischer Wärmebedarf Gebäude auf Stadtgebiet
-  name_en: Heat energy need of buildings
+  name_de: Spezifischer Wärmebedarf Gebäude pro m2 Geschossfläche
+  name_en: Heat energy demand of buildings per area
   type: ch.zuerich.BuildingHeatPerArea
   quantity: energy_per_area
   unit: kWh/m**2/a
@@ -939,7 +939,7 @@ nodes:
     - id: building_use
 
 - id: building_heat_demand
-  name_de: Total Wärmebedarf Gebäude
+  name_de: Wärmebedarf Gebäude
   name_en: Building heat demand
   type: simple.MultiplicativeNode
   quantity: energy
@@ -961,7 +961,7 @@ nodes:
     tags: [consumption]
 
 - id: building_heat_consumption
-  name_de: Total Wärmebedarf Gebäude nach Heizungssystem
+  name_de: Wärmebedarf Gebäude nach Heizungssystem
   name_en: Building heat use
   type: simple.MultiplicativeNode
   unit: GWh/a
@@ -994,8 +994,8 @@ nodes:
     tags: [cop]
 
 - id: gas_network_mix_historical
-  name_de: Biogasanteil im Gasnetz (historisch)
-  name_en: Share of biogas in gas grid (historical)
+  name_de: Anteil erneuerbares Gas (historisch)
+  name_en: Share of renewable gas (historical)
   type: simple.MixNode
   unit: '%'
   quantity: mix
@@ -1151,7 +1151,7 @@ nodes:
 - id: district_heat_production_mix
   type: ch.zuerich.DistrictHeatProductionMix
   name_en: District heat production mix
-  name_de: District heat production mix
+  name_de: Fernwärmemix
   quantity: mix
   unit: '%'
   input_dimensions: [energy_carrier]
@@ -1168,7 +1168,7 @@ nodes:
     to_dimensions: []
 
 - id: district_heat_ccs_share
-  name_de: Share of CO2 captured with CCS in district heat production
+  name_de: Anteil abgeschiedenes CO2 bei der Fernwärmeerzeugung
   name_en: Share of CO2 captured with CCS in district heat production
   type: simple.AdditiveNode
   input_dataset_processors: [LinearInterpolation]
@@ -1217,7 +1217,7 @@ nodes:
 
 - id: electricity_production_mix
   type: ch.zuerich.ElectricityProductionMix
-  name_de: Electricity consumer mix
+  name_de: Strommix (Verbrauchermix)
   name_en: Electricity consumer mix
   quantity: mix
   unit: '%'
@@ -1966,7 +1966,7 @@ nodes:
       categories: [scope1]
 
 - id: waste_incineration_amount
-  name_de: Amount of incinerated waste
+  name_de: Verbrannte Abfallmenge
   name_en: Amount of incinerated waste
   type: simple.AdditiveNode
   input_datasets:
@@ -1978,7 +1978,7 @@ nodes:
   output_dimensions: [waste_incineration_plants]
 
 - id: waste_incineration_ccs_share
-  name_de: Share of CO2 captured with CCS in waste incineration
+  name_de: Anteil abgeschiedenes CO2 bei der Kehrichtverwertungsanlage
   name_en: Share of CO2 captured with CCS in waste incineration
   type: simple.AdditiveNode
   input_datasets:
@@ -1992,7 +1992,7 @@ nodes:
   quantity: ratio
 
 - id: sewage_sludge_processing_ccs_share
-  name_de: Share of CO2 captured with CCS in sewage sludge processing
+  name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
   name_en: Share of CO2 captured with CCS in sewage sludge processing
   type: simple.AdditiveNode
   historical_values: [[2015, 0], [2022, 0]]
@@ -2001,9 +2001,9 @@ nodes:
   quantity: ratio
 
 - id: sewage_sludge_processing_emissions
-  name_de: Treibhausgasemissionen Klaerschlammverwertung
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
   name_en: Sewage sludge processing emissions
-  short_name_de: Klaerschlammverwertung
+  short_name_de: Klärschlammverwertungsanlage
   type: ch.zuerich.SewageSludgeProcessingEmissions
   unit: kt/a
   quantity: emissions
@@ -2026,7 +2026,7 @@ nodes:
 
 - id: solid_waste_treatment_emissions_pre_ccs
   name_en: Solid waste incineration emissions (pre-CCS)
-  name_de: Treibhausgasemissionen Kehrichtverbrennungsanlagen ohne CCS
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage ohne CCS
   type: ch.zuerich.WasteIncinerationEmissions
   unit: t/a
   quantity: emissions
@@ -2040,8 +2040,8 @@ nodes:
 
 - id: solid_waste_treatment_emissions
   name_en: Solid waste incineration emissions
-  name_de: Treibhausgasemissionen Kehrichtverbrennungsanlagen
-  short_name_de: Kehrichtverbrennungsanlagen
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
   short_name_en: Solid waste incineration
   type: buildings.CCSNode
   unit: kt/a
@@ -2079,8 +2079,8 @@ nodes:
 - id: wastewater_treatment_emissions
   name_en: Wastewater treatment emissions
   short_name_en: Wastewater treatment
-  name_de: Treibhausgasemissionen Abwasserreinigung
-  short_name_de: Abwasserreinigung
+  name_de: Treibhausgasemissionen Abwasserreinigungsanlage
+  short_name_de: Abwasserreinigungsanlage
   unit: kt/a
   quantity: emissions
   output_dimensions: [emission_scope]
@@ -2108,7 +2108,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: biogas_processing_ccs_share
-  name_de: Share of CO2 captured with CCS in biogas processing
+  name_de: Anteil abgeschiedenes CO2 bei der Biogasaufbereitungsanlage
   name_en: Share of CO2 captured with CCS in biogas processing
   type: simple.AdditiveNode
   input_dataset_processors: [LinearInterpolation]
@@ -3746,13 +3746,13 @@ actions:
         amount: 0
 
 
-# Massnahmenpaket 6: CO2 -Abscheidung und –Speicherung (CCS)
+# Massnahmenpaket 6: CO2-Entnahme und -Speicherung (CCS)
 - id: install_waste_treatment_ccs
   name_en: Install CCS in waste treatment
-  name_de: CO2-Abscheidung und -Speicherung (CCS)
-  description_de: Dieses Massnahmenpaket beinhaltet die Anstrengungen zur CO<sub>2</sub>-Abscheidung
+  name_de: CO2-Entnahme und -Speicherung (CCS)
+  description_de: Dieses Massnahmenpaket beinhaltet die Anstrengungen zur CO<sub>2</sub>-Entnahme
     und -Speicherung (CCS) bei der Klärschlammverwertungsanlage Werdhölzli und beim
-    Kehrichtheizkraftwerk (KHKW) Hagenholz.
+    Kehrichtverwertungsanlage (KVA) Hagenholz.
   type: parent.ParentActionNode
   unit: kt/a
   quantity: emissions
@@ -3761,13 +3761,13 @@ actions:
 
 - id: waste_incineration_ccs_installation
   name_en: Install CCS in solid waste incineration
-  name_de: CCS beim Kehrichtheizkraftwerk Hagenholz
+  name_de: CCS bei der Kehrichtverwertungsanlage Hagenholz
   parent: install_waste_treatment_ccs
   group: waste
   type: linear.ReduceAction
   quantity: ratio
-  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 beim
-    Kehrichtheizkraftwerk Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente negative
+  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 bei der
+    Kehrichtverwertungsanlage Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente negative
     Emissionen produziert.
   unit: '%'
   output_nodes: [waste_incineration_ccs_share]
