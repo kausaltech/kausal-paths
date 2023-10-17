@@ -1,30 +1,32 @@
 from __future__ import annotations
 from functools import cached_property
 
-import logging
 import os
 import threading
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union, cast
 from urllib.parse import urlparse
 import uuid
 
+from loguru import logger
 from django.conf import settings
 from django.db import models
+from django.contrib.auth.models import Group
 from django.utils import timezone
 from django.utils.translation import get_language, override
 from django.utils.translation import gettext_lazy as _, gettext
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from wagtail.fields import RichTextField
-from wagtail.models import DraftStateMixin, Locale, Page, PreviewableMixin, RevisionMixin
+from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
+from wagtail.search import index
 from wagtail_color_panel.fields import ColorField
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
-from nodes.dimensions import Dimension
-from paths.types import UserOrAnon
+from paths.permissions import PathsPermissionPolicy
+from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
     IdentifierField, get_supported_languages, get_default_language, ChoiceArrayField,
     UserModifiableModel, UUIDIdentifierField
@@ -34,9 +36,9 @@ from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
     from datasets.models import Dimension as DimensionModel, Dataset as DatasetModel
+    from loguru import Logger
+    from users.models import User
 
-
-logger = logging.getLogger(__name__)
 
 instance_cache_lock = threading.Lock()
 instance_cache: dict[str, Instance] = {}
@@ -64,11 +66,22 @@ class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
         return self.filter(lookup)
 
 
+class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
+    def __init__(self):
+        super().__init__(InstanceConfig, auth_model=None)
+
+    def instances_user_has_any_permission_for(self, user: User, actions: Sequence[str]) -> InstanceConfigQuerySet:
+        qs = super().instances_user_has_any_permission_for(user, actions)
+        if not user.is_superuser:
+            qs = qs.filter(admin_group__in=user.groups.all())
+        return qs
+
+
 class InstanceConfigManager(models.Manager['InstanceConfig']):
     def for_hostname(self, hostname: str) -> InstanceConfigQuerySet: ...  # type: ignore
 
 
-class InstanceConfig(models.Model):
+class InstanceConfig(PathsModel):
     identifier = IdentifierField(max_length=100, unique=True)
     uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
@@ -88,6 +101,12 @@ class InstanceConfig(models.Model):
         models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language),
         default=list, null=True, blank=True
     )
+
+    admin_group = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
+        null=True
+    )
+
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))  # pyright: ignore
 
     objects: InstanceConfigManager = InstanceConfigQuerySet.as_manager()  # type: ignore
@@ -97,6 +116,11 @@ class InstanceConfig(models.Model):
     hostnames: models.manager.RelatedManager[InstanceHostname]
     dimensions: models.manager.RelatedManager['DimensionModel']
     datasets: models.manager.RelatedManager['DatasetModel']
+
+    search_fields = [
+        index.SearchField('identifier'),
+        index.SearchField('name_i18n'),
+    ]
 
     class Meta:
         verbose_name = _('Instance')
@@ -129,11 +153,11 @@ class InstanceConfig(models.Model):
                 self.i18n.update(i18n)
 
         if self.primary_language != instance.default_language:
-            logger.info('Updating instance.primary_language to %s' % instance.default_language)
+            self.log.info('Updating instance.primary_language to %s' % instance.default_language)
             self.primary_language = instance.default_language
         other_langs = set(instance.supported_languages) - set([self.primary_language])
         if set(self.other_languages or []) != other_langs:
-            logger.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
+            self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
     def _get_instance(self) -> Instance:
@@ -196,7 +220,7 @@ class InstanceConfig(models.Model):
             node_config = node_configs.get(node.id)
             if node_config is None:
                 node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
-                print("Creating node config for node %s" % node.id)
+                self.log.info("Creating node config for node %s" % node.id)
                 node_config.save()
             else:
                 found_nodes.add(node.id)
@@ -208,7 +232,7 @@ class InstanceConfig(models.Model):
             if node.identifier in found_nodes:
                 continue
 
-            print("Node %s exists in database, but it's not found in node graph" % node.identifier)
+            self.log.info("Node %s exists in database, but it's not found in node graph" % node.identifier)
             if delete_stale:
                 node.delete()
 
@@ -229,7 +253,7 @@ class InstanceConfig(models.Model):
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_default_pages(self) -> Page:
-        from pages.models import ActionListPage, InstanceRootPage
+        from pages.models import ActionListPage, OutcomePage
         from pages.config import OutcomePage as OutcomePageConfig
 
         home_pages: models.QuerySet['Page'] = Page.get_first_root_node().get_children()
@@ -252,19 +276,18 @@ class InstanceConfig(models.Model):
             try:
                 home_page = home_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
-                home_page = root_node.add_child(instance=InstanceRootPage(
+                assert home_page_conf.outcome_node is not None
+                home_page = root_node.add_child(instance=OutcomePage(
                     locale=locale,
                     title=self.get_name(),
                     slug=self.identifier,
                     url_path='',
+                    outcome_node=outcome_nodes[home_page_conf.outcome_node]
                 ))
 
-
-            outcome_node=outcome_nodes[home_page_conf.outcome_node],
-
-            action_list_pages = home_page_conf.get_children().type(ActionListPage)
+            action_list_pages = home_page.get_children().type(ActionListPage)
             if not action_list_pages.exists():
-                home_page_conf.add_child(instance=ActionListPage(
+                home_page.add_child(instance=ActionListPage(
                     title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
                 ))
 
@@ -273,11 +296,11 @@ class InstanceConfig(models.Model):
                 if id == 'home':
                     continue
 
-                page = home_page_conf.get_children().filter(slug=id).first()
+                page = home_page.get_children().filter(slug=id).first()
                 if page is not None:
                     continue
 
-                home_page_conf.add_child(instance=OutcomePage(
+                home_page.add_child(instance=OutcomePage(
                     locale=locale,
                     title=str(page_config.name),
                     slug=id,
@@ -287,7 +310,7 @@ class InstanceConfig(models.Model):
                     show_in_footer=page_config.show_in_footer,
                 ))
 
-        return home_page_conf
+        return home_page
 
     def create_default_content(self):
         root_page = self._create_default_pages()
@@ -317,7 +340,16 @@ class InstanceConfig(models.Model):
             # TODO: Update Site and root page attributes
             pass
 
+        if self.admin_group is None:
+            from admin_site.perms import AdminRole
+            role = AdminRole()
+            role.update_instance(self)
+
         super().save(*args, **kwargs)
+
+    @cached_property
+    def log(self) -> Logger:
+        return logger.bind(instance=self.identifier)
 
     def __str__(self) -> str:
         return self.get_name()
@@ -383,7 +415,7 @@ class DataSource(UserModifiableModel):
         verbose_name_plural = _('Data sources')
 
 
-class NodeConfig(RevisionMixin, ClusterableModel):
+class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
     )
@@ -411,6 +443,12 @@ class NodeConfig(RevisionMixin, ClusterableModel):
         fields=('name', 'short_description', 'description'),
         default_language_field='instance__primary_language',
     )  # pyright: ignore
+
+    search_fields = [
+        index.AutocompleteField('identifier'),
+        index.AutocompleteField('name'),
+        index.FilterField('instance'),
+    ]
 
     class Meta:
         verbose_name = _('Node')
@@ -476,3 +514,6 @@ class NodeConfig(RevisionMixin, ClusterableModel):
         if self.uuid is None:
             self.uuid = uuid.uuid4()
         return super().save(**kwargs)
+
+
+InstanceConfig.permission_policy = InstancePermissionPolicy()

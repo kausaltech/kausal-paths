@@ -14,28 +14,33 @@ class AdminMiddleware:
     def __init__(self, get_response: Callable) -> None:
         self.get_response = get_response
 
-    def get_admin_instance(self, request: PathsAdminRequest):
+    def get_admin_instance(self, request: PathsAdminRequest) -> None | InstanceConfig:
         if not re.match(r'^/admin/', request.path):
-            return
+            return None
 
         user = request.user
         if not isinstance(user, User):
             return
         if not user.is_active or not user.is_authenticated or not user.is_staff:
-            return
+            return None
 
         instance_config: Optional[InstanceConfig] = None
         admin_instance_id = request.session.get('admin_instance')
         if admin_instance_id:
             instance_config = InstanceConfig.objects.filter(id=admin_instance_id).first()
 
+        # FIXME
+        adminable_instances = InstanceConfig.permission_policy.instances_user_has_any_permission_for(user, ['change'])
+
         if instance_config is not None:
-            # FIXME: Check perms
-            pass
+            if instance_config not in adminable_instances:
+                instance_config = None
 
         if instance_config is None:
-            # FIXME: Find the most recent instance the user has admission permissions to
-            instance_config = InstanceConfig.objects.first()
+            instance_config = adminable_instances.last()
+            if instance_config is not None:
+                request.session['admin_instance'] = instance_config.pk
+
         return instance_config
 
     def activate_language(self, ic: InstanceConfig, user: User):

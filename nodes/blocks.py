@@ -2,8 +2,6 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from wagtail.blocks import StructBlock, ChooserBlock
 
-from .models import NodeConfig
-
 
 class NodeChooserBlock(ChooserBlock):
     class Meta:
@@ -11,6 +9,7 @@ class NodeChooserBlock(ChooserBlock):
 
     @cached_property
     def target_model(self):
+        from .models import NodeConfig
         return NodeConfig
 
     @cached_property

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
 import graphene
 from grapple.types.pages import Page as GrapplePageType
@@ -9,7 +10,7 @@ from pages.page_interface import PageInterface
 from paths.graphql_helpers import GQLInstanceInfo, ensure_instance
 
 from .perms import PagePermissionPolicy
-from .models import OutcomePage, PathsPage
+from .models import OutcomePage, PathsPage, Page
 
 
 policy = PagePermissionPolicy()
@@ -53,7 +54,7 @@ class Query:
         return qs
 
     @ensure_instance
-    def resolve_page(query, info: GQLInstanceInfo, path: str, **kwargs):
+    def resolve_page(query: Query, info: GQLInstanceInfo, path: str, **kwargs) -> Page | None:
         qs = Query.resolve_pages(query, info, **kwargs)
         if not path.endswith('/'):
             path = path + '/'

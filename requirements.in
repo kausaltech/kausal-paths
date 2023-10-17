@@ -45,3 +45,5 @@ colormath
 wagtail-font-awesome-svg
 wagtail-generic-chooser
 wagtail-color-panel
+loguru
+gql[requests]

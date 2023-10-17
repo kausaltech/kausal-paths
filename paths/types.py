@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 import typing
 
+from django.db import models
 from django.http import HttpRequest
 from django.contrib.auth.models import AnonymousUser
+
+from paths.permissions import PathsPermissionPolicy
 
 if TYPE_CHECKING:
     from users.models import User
@@ -30,3 +33,10 @@ class PathsAdminRequest(PathsAuthenticatedRequest):
 
 class PathsAPIRequest(PathsAuthenticatedRequest):
     pass
+
+
+class PathsModel(models.Model):
+    permission_policy: ClassVar[PathsPermissionPolicy]
+
+    class Meta:
+        abstract = True

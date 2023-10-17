@@ -54,6 +54,7 @@ env = environ.FileAwareEnv(
     MEDIA_FILES_S3_ACCESS_KEY_ID=(str, ''),
     MEDIA_FILES_S3_SECRET_ACCESS_KEY=(str, ''),
     MEDIA_FILES_S3_CUSTOM_DOMAIN=(str, ''),
+    WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech')
 )
 
 BASE_DIR = root()
@@ -378,6 +379,7 @@ WAGTAILADMIN_PERMITTED_LANGUAGES = list(LANGUAGES)
 BASE_URL = env('ADMIN_BASE_URL')
 WAGTAILADMIN_BASE_URL = BASE_URL
 
+WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
 
 INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
@@ -445,6 +447,10 @@ ENABLE_DEBUG_TOOLBAR = env('ENABLE_DEBUG_TOOLBAR')
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     import warnings
     from wagtail.utils.deprecation import RemovedInWagtail60Warning
+    from loguru import logger
+    from .log_handler import LogHandler
+
+    logger.configure(handlers=[dict(sink=LogHandler(), format="{message}")])
 
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
