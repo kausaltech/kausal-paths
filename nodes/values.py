@@ -4,10 +4,11 @@ from typing import List, ClassVar, Tuple
 import polars as pl
 import pandas as pd
 import pint
+import functools
 
 from common.i18n import TranslatedString
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import VALUE_COLUMN, IMPACT_COLUMN, IMPACT_GROUP
 from .node import Node
 from .simple import SimpleNode, AdditiveNode
 from .actions.simple import AdditiveAction
@@ -31,7 +32,7 @@ class ValueProfile(SimpleNode):
     '''
     allowed_parameters = SimpleNode.allowed_parameters + [
         NumberParameter(
-            local_id='threshold',
+            local_id='impact_threshold',
             is_customizable=True,
         ),
         NumberParameter(
@@ -52,6 +53,33 @@ class ValueProfile(SimpleNode):
         )
     ]
 
+    def weighted_impact(self, action: ActionNode, weight, quantity=None, tag=None):
+        w = self.get_parameter_value(weight, required=False, units=True)
+        if w is None:
+            return None
+        if quantity is not None:
+            n = self.get_input_node(quantity=quantity)
+        else:
+            n = self.get_input_node(tag=tag)
+        df = action.compute_impact(n)
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(pl.lit(IMPACT_GROUP))).drop(IMPACT_COLUMN)
+        df = df.multiply_quantity(VALUE_COLUMN, w)
+        
+        return df
+
+    def sum_dfs(self, dfs: list[ppl.PathsDataFrame | None]) -> ppl.PathsDataFrame:
+        def join_and_sum(df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame | None):
+            if df2 is None:
+                return df1
+            df = df1.paths.join_over_index(df2, how='outer', index_from='union')
+            df = df.sum_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+            df = df.drop(VALUE_COLUMN + '_right')
+            return df
+
+        dfs = [x for x in dfs if x is not None]
+        df = functools.reduce(lambda df1, df2: join_and_sum(df1, df2), [df for df in dfs])
+        return df
+    
     def compute(self):
         actions: list[ActionNode] = []
         nodes: list[Node] = []
@@ -61,58 +89,37 @@ class ValueProfile(SimpleNode):
                 actions += [node]
             else:
                 nodes += [node]
-
         assert len(actions) > 0
         assert len(nodes) > 0
 
-        def add_pdf(df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame):
-            df = df1.paths.join_over_index(df2, how='outer', index_from='union')
-            df = df.sum_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
-            df = df.drop(VALUE_COLUMN + '_right')
-            return df
-        
-        def weighted_sum(action: ActionNode, weight, df=None, quantity=None, tag=None):
-            w = self.get_parameter_value(weight, required=False, units=True)
-            if w is None:
-                return df
-            if quantity is not None:
-                n = self.get_input_node(quantity=quantity)
-            else:
-                n = self.get_input_node(tag=tag)
-            dft = action.compute_impact(n)
-            dft = dft.filter(pl.col('Impact').eq(pl.lit('Impact'))).drop('Impact')
-            dft = dft.multiply_quantity(VALUE_COLUMN, w)
-            
-            if df is None:
-                df = dft
-            else:
-                df = add_pdf(df, dft)
-            return df
-
-        df_out = None
+        df = None
         round = 0
         for action in actions:
-            df = None
             round += 1
-            df = weighted_sum(action, 'emissions_weight', df, quantity='emissions')
-            df = weighted_sum(action, 'cost_weight', df, quantity='currency')
-            df = weighted_sum(action, 'health_weight', df, quantity='disease_burden')
-            df = weighted_sum(action, 'equity_weight', df, tag='equity')
-            df = df.with_columns(pl.lit('hypothesis_' + str(round)).alias('hypothesis')).add_to_index('hypothesis')
+            dfs = [
+                self.weighted_impact(action, 'emissions_weight', quantity='emissions'),
+                self.weighted_impact(action, 'cost_weight', quantity='currency'),
+                self.weighted_impact(action, 'health_weight', quantity='disease_burden'),
+                self.weighted_impact(action, 'equity_weight', tag='equity')
+            ]
+            df_action = self.sum_dfs(dfs)
+            df_action = df_action.with_columns(
+                pl.lit('hypothesis_' + str(round)).alias('hypothesis')).add_to_index('hypothesis')
 
-            if df_out is None:
-                df_out = df
+            if df is None:
+                df = df_action
             else:
-                meta = df.get_meta()
-                df_out = pl.concat([df_out, df])
-                df_out = ppl.to_ppdf(df_out, meta=meta)
+                meta = df_action.get_meta()
+                df = pl.concat([df, df_action])
+                df = ppl.to_ppdf(df, meta=meta)
 
-        th = self.get_parameter_value('threshold', required=True, units=True)
-        df_out = df_out.cumulate(VALUE_COLUMN)
-        df_out = df_out.multiply_quantity(VALUE_COLUMN, Quantity('1 a'))
-        df_out = df_out.with_columns([
+        df = df.cumulate(VALUE_COLUMN)
+        df = df.multiply_quantity(VALUE_COLUMN, Quantity('1 a'))
+        th = self.get_parameter_value('impact_threshold', required=True, units=True)
+        th = th.to(df.get_unit(VALUE_COLUMN))
+        df = df.with_columns([
             pl.when(pl.col(VALUE_COLUMN).gt(pl.lit(th.m))).then(pl.lit(1))
             .otherwise(pl.lit(0)).alias(VALUE_COLUMN)
         ])
 
-        return df_out
+        return df

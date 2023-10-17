@@ -108,3 +108,28 @@ class AllInInvestment(BoolParameter):
 class Placeholder(BoolParameter):
     name = _('Placeholder for updated_building_code_residential')
     id = 'placeholder'
+
+
+class EmissionsWeight(NumberParameter):
+    name = _('Weight for emission impacts in value profiles')
+    id = 'emissions_weight'
+
+
+class CostWeight(NumberParameter):
+    name = _('Weight for cost impacts in value profiles')
+    id = 'cost_weight'
+
+
+class HealthWeight(NumberParameter):
+    name = _('Weight for health impacts in value profiles')
+    id = 'health_weight'
+
+
+class EquityWeight(NumberParameter):
+    name = _('Weight for equity impacts in value profiles')
+    id = 'equity_weight'
+
+
+class ImpactThreshold(NumberParameter):
+    name = _('Threshold for sum of weighted impacts in value profiles')
+    id = 'impact_threshold'

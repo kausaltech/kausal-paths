@@ -32,6 +32,27 @@ action_groups:
 params:
 - id: municipality_name
   value: Espoo
+- id: impact_threshold
+  label: Threshold for sum of impacts in value profiles
+  is_customizable: true
+  value: 0.2
+  min_value: 0
+  max_value: 1000
+  unit: dimensionless
+- id: emissions_weight
+  label: Weight for emissions impacts in value profiles
+  is_customizable: true
+  value: 6
+  min_value: 0
+  max_value: 10
+  unit: 1/kt
+- id: cost_weight
+  label: Weight for cost impacts in value profiles
+  is_customizable: true
+  value: 2
+  min_value: 0
+  max_value: 10
+  unit: 1/MEUR
 
 dimensions:
 - id: building_heat_source
@@ -368,7 +389,8 @@ nodes:
 #
 
 - id: value_profile
-  name: Value profile
+  name: Metsänhoidon arvoprofiili
+  name_en: Value profile for forest management
   description: '<ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>'
   type: values.ValueProfile
   quantity: ratio
@@ -380,21 +402,12 @@ nodes:
   - net_profit_from_state_forests2
   output_dimensions: [hypothesis]
   params:
-  - id: threshold
-    value: 0.2
-    min_value: 0
-    max_value: 1000
-    unit: dimensionless
+  - id: impact_threshold
+    ref: impact_threshold
   - id: emissions_weight
-    value: 6
-    min_value: 0
-    max_value: 10
-    unit: 1/kt
+    ref: emissions_weight
   - id: cost_weight
-    value: 2
-    min_value: 0
-    max_value: 10
-    unit: 1/MEUR
+    ref: cost_weight
 
 pages:
 - id: home
