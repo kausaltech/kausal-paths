@@ -3069,8 +3069,6 @@ actions:
   input_dimensions: [heating_system]
   output_dimensions: [heating_system]
   input_datasets:
-  # - id: zuerich/district_heat_production_mix
-  #   tags: [historical]
   - id: zuerich/building_heat_mix_goals
     tags: [goal]
   input_nodes:
