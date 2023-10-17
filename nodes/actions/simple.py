@@ -30,7 +30,7 @@ class AdditiveAction(ActionNode):
 class CumulativeAdditiveAction(ActionNode):  # FIXME Update to deal with old-fashioned multi-metric nodes such as Tampere/private_building_energy_renovation
     """Additive action where the effect is cumulative and remains in the future."""
 
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         PercentageParameter('target_year_ratio', min_value=0),
     ]
 
@@ -65,7 +65,7 @@ class CumulativeAdditiveAction(ActionNode):  # FIXME Update to deal with old-fas
 
 
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
-    allowed_parameters = CumulativeAdditiveAction.allowed_parameters + [
+    allowed_parameters: ClassVar[list[Parameter]] = CumulativeAdditiveAction.allowed_parameters + [
         NumberParameter('target_year_level'),
         NumberParameter(
             local_id='action_delay',
@@ -127,7 +127,7 @@ class EmissionReductionAction(ActionNode):
 
 
 class ExponentialAction(ActionNode):
-    allowed_parameters = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         NumberParameter(
             local_id='current_value',
             unit_str='EUR/t',

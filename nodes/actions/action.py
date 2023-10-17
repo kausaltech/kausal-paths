@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Optional
+from typing import ClassVar, Iterable, Iterator, Optional
 
 import pandas as pd
 import polars as pl
@@ -16,7 +16,7 @@ from nodes.constants import (
     VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, DecisionLevel
 )
 from nodes.units import Quantity, Unit
-from params import BoolParameter
+from params import BoolParameter, Parameter
 
 if typing.TYPE_CHECKING:
     from nodes.context import Context
@@ -37,6 +37,14 @@ class ActionNode(Node):
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
     parent_action: 'ParentActionNode' | None = None
+    allowed_parameters: ClassVar[list[Parameter]] = [
+        BoolParameter(
+            local_id='hide_toggle',
+            label='Hide action toggle to prevent user from choosing',
+            value=False,
+            is_customizable=False
+        ),
+    ]
 
     # The value to use for "no effect" years.
     # For additive actions, it probably is 0, and for multiplicative

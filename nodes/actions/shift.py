@@ -121,7 +121,7 @@ class ShiftParameter(ParameterWithUnit, Parameter):
 
 
 class ShiftAction(ActionNode):
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         ShiftParameter(local_id='shift')
     ]
 

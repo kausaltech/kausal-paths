@@ -8,6 +8,7 @@ import polars as pl
 from numba import njit, int32, types as nbt
 import numba as nb
 from pint_pandas import PintType
+from typing import ClassVar
 
 from common.i18n import gettext_lazy as _
 from nodes import NodeMetric
@@ -46,7 +47,7 @@ class LEDRetrofitAction(ActionNode):
         ENERGY_QUANTITY: NodeMetric('MWh/a', ENERGY_QUANTITY),
         CURRENCY_QUANTITY: NodeMetric('EUR/a', CURRENCY_QUANTITY),
     }
-    allowed_parameters = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         NumberParameter(
             local_id='yearly_retrofit_number_baseline',
             label=_('Number of LED bulbs changed per year (baseline)'),
@@ -279,7 +280,7 @@ class BuildingEnergySavingAction(ActionNode):
         'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
         'Electricity': NodeMetric('kWh/a/m**2', 'energy_per_area')
     }
-    allowed_parameters: typing.ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         NumberParameter(
             local_id='investment_lifetime',
             label=_('Investment lifetime (a)'),
@@ -437,7 +438,7 @@ class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
         'natural_gas': NodeMetric('thm/a/ft**2', 'energy_per_area'),
         'electricity': NodeMetric('kWh/a/ft**2', 'energy_per_area')
     }
-    allowed_parameters: typing.ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         NumberParameter(
             local_id='investment_lifetime',
             label=_('Investment lifetime (a)'),
@@ -548,7 +549,7 @@ class EnergyCostAction(ExponentialAction):
         'EnergyTax': NodeMetric('SEK/kWh', 'currency')
     }
     global_parameters: list[str] = ['include_energy_taxes']
-    allowed_parameters = ExponentialAction.allowed_parameters + [
+    allowed_parameters: ClassVar[list[Parameter]] = ExponentialAction.allowed_parameters + [
         NumberParameter(
             local_id='added_value_tax',
             label='Added value tax (%)',
@@ -623,7 +624,7 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
 #        'electricity': NodeMetric('kWh/m**2/a', 'consumption_factor', column_id='electricity'),
 #        'natural_gas': NodeMetric('thm/m**2/a', 'consumption_factor', column_id='natural_gas')
     }
-    allowed_parameters = BuildingEnergySavingAction.allowed_parameters + [
+    allowed_parameters: ClassVar[list[Parameter]] = BuildingEnergySavingAction.allowed_parameters + [
         StringParameter(
             local_id='electricity_unit',
             label='Electricity unit',

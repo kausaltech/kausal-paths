@@ -94,7 +94,7 @@ class ReduceParameter(ParameterWithUnit, Parameter):
 
 
 class ReduceAction(ActionNode):
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         ReduceParameter(local_id='reduce'),
         NumberParameter(local_id='multiplier'),
     ]
@@ -213,7 +213,7 @@ class DatasetReduceAction(ActionNode):
     a multiplier.
     """
 
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
         BoolParameter(local_id='relative_goal'),
     ]
 

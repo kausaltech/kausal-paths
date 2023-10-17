@@ -391,6 +391,9 @@ actions:
   output_nodes:
   - biodiversity_in_state_forests
   - logging_intensity_in_state_forests
+  params:
+  - id: hide_toggle
+    value: true
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
