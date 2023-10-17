@@ -1,5 +1,6 @@
 -c requirements.txt
 -c requirements-dev.txt
+-c requirements-lint.txt
 jupyterlab
 jupyterlab-lsp
 python-lsp-server[all]

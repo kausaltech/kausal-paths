@@ -3830,6 +3830,7 @@ actions:
 
 - id: cleaner_electricity_production
   group: other
+  decision_level: nation
   name_en: Cleaner electricity production
   name_de: Dekarbonisierung Stromversorgung
   type: shift.ShiftAction
@@ -3893,6 +3894,7 @@ actions:
 
 - id: import_biogas_emission_accounting_agreement
   group: other
+  decision_level: nation
   name_en: Import biogas emission accounting agreement
   name_de: Import biogas emission accounting agreement
   type: linear.ReduceAction
@@ -4018,7 +4020,7 @@ pages:
   name_de: Netto-Null 2040
   path: /
   type: emission
-  outcome_node: direct_emissions
+  outcome_node: net_emissions
   lead_title_en: Development version
   lead_title_de: Entwicklungsversion
   lead_paragraph_en: This is a test version of the City of Zürich's interactive scenario

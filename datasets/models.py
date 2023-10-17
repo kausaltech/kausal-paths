@@ -307,13 +307,9 @@ class Dimension(ClusterableModel, UserModifiableModel):
                 cat_obj.save()
             else:
                 found_cats.add(cat_obj.pk)
-                if isinstance(cat.label, TranslatedString):
-                    cat_label = cat.label.i18n.get(default_lang)
-                else:
-                    cat_label = cat.label
-
-                if not cat_obj.i18n or cat_obj.label != cat_label:
-                    cat_obj.label, cat_obj.i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+                if i18n != cat_obj.i18n or cat_obj.label != label:
+                    cat_obj.label, cat_obj.i18n = label, i18n
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 

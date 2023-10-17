@@ -1,0 +1,8 @@
+-c requirements.txt
+mypy
+pandas-stubs
+graphene-stubs
+django-stubs
+types-orjson
+djangorestframework-stubs
+ruff

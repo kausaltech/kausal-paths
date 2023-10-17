@@ -1,12 +1,6 @@
 -c requirements.txt
-mypy
+-c requirements-lint.txt
 ipython
 pip-tools
-pandas-stubs
-graphene-stubs
-django-stubs
-types-orjson
 ipdb
-djangorestframework-stubs
 plotext
-ruff

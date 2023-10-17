@@ -11,7 +11,7 @@ from rest_framework_nested import routers
 from drf_spectacular.utils import extend_schema_field, extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
-from paths.types import APIRequest
+from paths.types import PathsAPIRequest
 from nodes.api import instance_router
 from nodes.models import InstanceConfig, DataSource
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
@@ -539,12 +539,12 @@ class InstanceRelatedViewSet(viewsets.ViewSet, generics.GenericAPIView):
         permissions.DjangoModelPermissions,
     )
 
-    def list(self, request: APIRequest, instance_pk: str | None = None):
+    def list(self, request: PathsAPIRequest, instance_pk: str | None = None):
         qs = self.get_queryset().filter(instance=instance_pk)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request: APIRequest, pk: str | None = None, instance_pk: str | None = None):
+    def retrieve(self, request: PathsAPIRequest, pk: str | None = None, instance_pk: str | None = None):
         qs = self.get_queryset()
         obj = get_object_or_404(qs, pk=pk, instance=instance_pk)
         serializer = self.get_serializer(obj)
