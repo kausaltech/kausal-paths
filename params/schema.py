@@ -189,7 +189,13 @@ class ActivateScenarioMutation(graphene.Mutation):
             raise GraphQLError("Scenario '%s' not found" % id, info.field_nodes)
 
         assert context.setting_storage is not None
-        context.setting_storage.set_active_scenario(scenario.id)
+
+        default_scenario_id = context.get_default_scenario().id
+        if scenario.id == default_scenario_id:
+            val = None
+        else:
+            val = scenario.id
+        context.setting_storage.set_active_scenario(val)
         context.activate_scenario(scenario)
 
         return dict(ok=True, active_scenario=scenario)
