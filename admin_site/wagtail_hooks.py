@@ -4,7 +4,6 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
-import logging, sys
 
 from nodes.models import InstanceConfig
 
@@ -28,6 +27,7 @@ def register_icons(icons):
         'wagtailadmin/icons/kausal-categories.svg',
         'wagtailadmin/icons/kausal-attributes.svg'
     ]
+
 
 class InstanceChooserMenuItem(SubmenuMenuItem):
     def is_shown(self, request):

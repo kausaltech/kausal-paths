@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 from importlib.util import find_spec
+from threading import ExceptHookArgs
 from typing import Literal
 
 import environ
@@ -45,12 +46,15 @@ env = environ.FileAwareEnv(
     INTERNAL_IPS=(list, []),
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
     CONFIGURE_LOGGING=(bool, True),
+    LOG_SQL_QUERIES=(bool, False),
     LOG_GRAPHQL_QUERIES=(bool, True),
+    ENABLE_DEBUG_TOOLBAR=(bool, False),
     MEDIA_FILES_S3_ENDPOINT=(str, ''),
     MEDIA_FILES_S3_BUCKET=(str, ''),
     MEDIA_FILES_S3_ACCESS_KEY_ID=(str, ''),
     MEDIA_FILES_S3_SECRET_ACCESS_KEY=(str, ''),
     MEDIA_FILES_S3_CUSTOM_DOMAIN=(str, ''),
+    WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech')
 )
 
 BASE_DIR = root()
@@ -102,6 +106,9 @@ INSTALLED_APPS = [
     'wagtail.contrib.styleguide',
     'wagtail_localize',
     'wagtail_localize.locales',  # replaces `wagtail.locales`
+    'wagtailfontawesomesvg',
+    'wagtail_color_panel',
+    'generic_chooser',
 
     'taggit',
     'modelcluster',
@@ -259,6 +266,7 @@ GRAPHENE = {
 }
 GRAPPLE = {
     'APPS': ['pages'],
+    'PAGE_INTERFACE': 'pages.page_interface.PageInterface',
 }
 
 REST_FRAMEWORK = {
@@ -371,6 +379,7 @@ WAGTAILADMIN_PERMITTED_LANGUAGES = list(LANGUAGES)
 BASE_URL = env('ADMIN_BASE_URL')
 WAGTAILADMIN_BASE_URL = BASE_URL
 
+WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
 
 INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
@@ -411,18 +420,37 @@ if not locals().get('SECRET_KEY', ''):
 
 
 if DEBUG:
-    from rich.traceback import install
-    install()
+    from rich import traceback
+    from rich.console import Console
+    traceback.install(show_locals=True)
+
+    traceback_console = Console(stderr=True)
+
+    def excepthook(args: ExceptHookArgs):
+        assert args.exc_value is not None
+        traceback_console.print(traceback.Traceback.from_exception(
+            args.exc_type, args.exc_value, args.exc_traceback, show_locals=True
+        ))
+
+    import threading
+    threading.excepthook = excepthook
 
     from paths.watchfiles_reloader import replace_reloader
     replace_reloader()
 
 
 LOG_GRAPHQL_QUERIES = env('LOG_GRAPHQL_QUERIES')
+LOG_SQL_QUERIES = env('LOG_SQL_QUERIES')
+ENABLE_DEBUG_TOOLBAR = env('ENABLE_DEBUG_TOOLBAR')
+
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     import warnings
     from wagtail.utils.deprecation import RemovedInWagtail60Warning
+    from loguru import logger
+    from .log_handler import LogHandler
+
+    logger.configure(handlers=[dict(sink=LogHandler(), format="{message}")])
 
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
@@ -465,7 +493,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             },
         },
         'loggers': {
-            'django.db': level('INFO'),
+            'django.db': level('DEBUG' if LOG_SQL_QUERIES else 'INFO'),
             'django.template': level('WARNING'),
             'django.utils.autoreload': level('INFO'),
             'django': level('DEBUG'),

@@ -1,5 +1,5 @@
 import io
-import logging
+from loguru import logger
 
 from sentry_sdk import capture_exception
 from social_core.backends.oauth import OAuthAuth
@@ -9,10 +9,6 @@ from admin_site.msgraph import get_user_photo
 
 from users.models import User
 from users.base import uuid_to_username
-
-
-
-logger = logging.getLogger('users.login')
 
 
 def log_login_attempt(backend, details, *args, **kwargs):

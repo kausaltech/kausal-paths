@@ -1179,7 +1179,7 @@ class Node:
 
     def as_node_config_attributes(self):
         """Return a dict that can be used to set corresponding fields of NodeConfig."""
-        attributes: dict[str, str] = {
+        attributes: dict[str, str | dict[str, str]] = {
             'identifier': self.id,
         }
 
@@ -1192,11 +1192,14 @@ class Node:
 
             val, tr = get_modeltrans_attrs_from_str(s, field_name, default_lang)
             i18n.update(tr)
+            attributes[field_name] = val
 
         set_from_translated_str(self.name, 'name')
         # Node's description is called `short_description` in NodeConfig and there is no equivalent for
         # NodeConfig's `long_description` in Node
         set_from_translated_str(self.description, 'short_description')
+
+        attributes['i18n'] = i18n
 
         if self.color:
             attributes['color'] = self.color

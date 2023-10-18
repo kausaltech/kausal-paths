@@ -5,10 +5,12 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
+from paths.types import PathsAdminRequest
+
 
 @require_http_methods(['POST', 'GET'])
 @login_required
-def change_admin_instance(request, instance_id):
+def change_admin_instance(request: PathsAdminRequest, instance_id):
     if request.method == 'POST':
         instance_id = request.POST.get('instance', None)
 
