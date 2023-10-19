@@ -47,7 +47,7 @@ env = environ.FileAwareEnv(
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
     CONFIGURE_LOGGING=(bool, True),
     LOG_SQL_QUERIES=(bool, False),
-    LOG_GRAPHQL_QUERIES=(bool, True),
+    LOG_GRAPHQL_QUERIES=(bool, False),
     ENABLE_DEBUG_TOOLBAR=(bool, False),
     MEDIA_FILES_S3_ENDPOINT=(str, ''),
     MEDIA_FILES_S3_BUCKET=(str, ''),
@@ -439,7 +439,7 @@ if DEBUG:
     replace_reloader()
 
 
-LOG_GRAPHQL_QUERIES = env('LOG_GRAPHQL_QUERIES')
+LOG_GRAPHQL_QUERIES = DEBUG and env('LOG_GRAPHQL_QUERIES')
 LOG_SQL_QUERIES = env('LOG_SQL_QUERIES')
 ENABLE_DEBUG_TOOLBAR = env('ENABLE_DEBUG_TOOLBAR')
 

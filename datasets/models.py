@@ -321,13 +321,12 @@ class Dimension(ClusterableModel, UserModifiableModel):
 
     @classmethod
     def sync_dimension(cls, ic: InstanceConfig, dim: NodeDimension, update_existing=False, delete_stale=False):
-        instance = ic.get_instance()
         dim_obj = ic.dimensions.filter(identifier=dim.id).first()
         if dim_obj is None:
             dim_obj = cls(instance=ic, identifier=dim.id)
             print("Creating dimension %s" % dim.id)
 
-        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', instance.default_language)  #type: ignore
+        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', ic.primary_language)  #type: ignore
         if update_existing and (dim_obj.label != label or dim_obj.i18n != i18n):
             if dim_obj.pk:
                 print('Updating dimension %s' % dim.id)

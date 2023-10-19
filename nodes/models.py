@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union, cast
 from urllib.parse import urlparse
 import uuid
+from django.contrib.postgres.fields import ArrayField
 
 from loguru import logger
 from django.conf import settings
@@ -95,11 +96,12 @@ class InstanceConfig(PathsModel):
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
+    cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
     primary_language = models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language)
     other_languages = ChoiceArrayField(
         models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language),
-        default=list, null=True, blank=True
+        default=list,
     )
 
     admin_group = models.ForeignKey(
@@ -194,7 +196,11 @@ class InstanceConfig(PathsModel):
 
     @property
     def default_language(self) -> str:
-        return self.get_instance().default_language
+        return self.primary_language
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return [self.primary_language, *self.other_languages]
 
     @cached_property
     def root_page(self) -> Page:
@@ -271,8 +277,8 @@ class InstanceConfig(PathsModel):
         assert home_page_conf is not None
 
         root_node: Page = cast(Page, Page.get_first_root_node())
-        with override(self.default_language):
-            locale, _ = Locale.objects.get_or_create(language_code=self.default_language)
+        with override(self.primary_language):
+            locale, _ = Locale.objects.get_or_create(language_code=self.primary_language)
             try:
                 home_page = home_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
@@ -347,6 +353,11 @@ class InstanceConfig(PathsModel):
 
         super().save(*args, **kwargs)
 
+    def invalidate_cache(self):
+        self.cache_invalidated_at = timezone.now()
+        self.log.info("Invalidating cache")
+        self.save(update_fields=['cache_invalidated_at'])
+
     @cached_property
     def log(self) -> Logger:
         return logger.bind(instance=self.identifier)
@@ -361,6 +372,8 @@ class InstanceHostname(models.Model):
     )
     hostname = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100, blank=True, default='')
+
+    extra_script_urls = ArrayField(models.URLField(max_length=300), default=list)
 
     class Meta:
         verbose_name = _('Instance hostname')

@@ -1,12 +1,14 @@
 import re
-from typing import Callable, Optional, cast
+from typing import Callable, Optional
+
 from django.conf import settings
 from django.db import transaction
 from django.utils import translation
 from wagtail.users.models import UserProfile
+
 from nodes.models import InstanceConfig
 from paths.admin_context import set_admin_instance
-from paths.types import PathsAdminRequest, PathsRequest
+from paths.types import PathsAdminRequest
 from users.models import User
 
 
@@ -48,7 +50,7 @@ class AdminMiddleware:
         lang = profile.preferred_language
         if (not lang or lang not in (x[0] for x in settings.LANGUAGES)):
             if ic is not None:
-                lang = ic.default_language
+                lang = ic.primary_language
                 profile.preferred_language = lang
                 profile.save(update_fields=['preferred_language'])
             else:
@@ -70,12 +72,10 @@ class AdminMiddleware:
         assert ic.site is not None
         request._wagtail_site = ic.site
 
-        return self.get_response(request)
-        """
-        # If it's an admin method that changes something, invalidate Plan-related
-        # GraphQL cache.
+        # If it's an admin method that changes something, invalidate GraphQL cache.
         if request.method in ('POST', 'PUT', 'DELETE'):
             def invalidate_cache():
-                instance.invalidate_cache()
+                ic.invalidate_cache()
             transaction.on_commit(invalidate_cache)
-        """
+
+        return self.get_response(request)
