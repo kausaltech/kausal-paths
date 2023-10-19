@@ -121,5 +121,6 @@ class ValueProfile(SimpleNode):
             pl.when(pl.col(VALUE_COLUMN).gt(pl.lit(th.m))).then(pl.lit(1))
             .otherwise(pl.lit(0)).alias(VALUE_COLUMN)
         ])
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df

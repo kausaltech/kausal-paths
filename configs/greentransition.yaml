@@ -22,10 +22,6 @@ action_groups:
   name: Vihreä murros
 - id: hs_voting_aid
   name: HS-vaalikone
-- id: priority
-  name: Valinta
-- id: value_profile
-  name: Arvoprofiili
 - id: hypothesis
   name: Hypoteesi
 
@@ -44,15 +40,15 @@ params:
   is_customizable: true
   value: 6
   min_value: 0
-  max_value: 10
-  unit: 1/kt
+  max_value: 100
+  unit: 1/t
 - id: cost_weight
   label: Weight for cost impacts in value profiles
   is_customizable: true
   value: 2
   min_value: 0
-  max_value: 10
-  unit: 1/MEUR
+  max_value: 100
+  unit: 1/EUR
 
 dimensions:
 - id: building_heat_source
@@ -261,42 +257,15 @@ nodes:
   description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
     vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman
     asiaa.
-  type: simple.FixedMultiplierNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  output_nodes:
-  - carbon_sinks_in_state_forests
-  - net_profit_from_state_forests
-  params:
-  - id: multiplier
-    value: 1
-    unit: pcs*a/m**3
-
-- id: logging_intensity_in_state_forests2
-  name: Hakkumäärä valtion metsissä
-  description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
-    vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman
-    asiaa.
   type: simple.AdditiveNode
   quantity: consumption
   unit: m**3/a
   historical_values: [[2010, 69000000], [2015, 70000000], [2022, 80000000]]
   output_nodes:
-  - carbon_sinks_in_state_forests2
-  - net_profit_from_state_forests2
+  - carbon_sinks_in_state_forests
+  - net_profit_from_state_forests
 
 - id: carbon_sinks_in_state_forests
-  name: Hiilinielut valtion metsissä
-  description: Hiilnielut kuvastavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
-    yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä
-    vapautuva metaani.
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-
-- id: carbon_sinks_in_state_forests2
   name: Hiilinielut valtion metsissä
   description: Hiilnielut kuvastavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
     yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä
@@ -315,16 +284,6 @@ nodes:
   description: Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
     ja hiilipäästöistä johtuvilla kustannuksilla.
   is_outcome: true
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-
-- id: net_profit_from_state_forests2
-  name: Puukaupan nettotulo valtion metsissä
-  description: Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
-    ja hiilipäästöistä johtuvilla kustannuksilla.
-  is_outcome: true
   type: simple.FixedMultiplierNode
   quantity: currency
   unit: MEUR/a
@@ -333,22 +292,6 @@ nodes:
   - id: multiplier
     value: 1
     unit: kEUR/m**3
-
-- id: hypothesis_net_profit_from_state_forests
-  name: Backnäsin hypoteesi puukaupan nettotulosta valtion metsissä
-  description: <p>Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset
-    tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon
-    (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin
-    hakkuin.</p><p>Tähän päättelyyn nojaten hypoteesi antaa puukaupalle huomattavasti
-    suuremman arvon, joka tässä harjoitusmallissa on merkitty välille 200-290 yksikköä
-    (luvuilla ei ole toistaiseksi mitään vastinetta reaalimaailmassa.)</p>
-  references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
-  type: simple.AdditiveNode
-  group: hypothesis
-  quantity: number
-  unit: pcs
-  input_nodes:
-  - net_profit_from_state_forests
 
 - id: biodiversity_in_state_forests
   name: Luonnon monimuotoisuus valtion metsissä
@@ -365,41 +308,95 @@ nodes:
     value: -1
     unit: pcs*a/m**3
 
-- id: value_profile_greens
-  name: Vihreiden arvoprofiili
-  description: Tämä on moniarvohyötyteorian mukainen arvoprofiili. Siinä ajatellaan,
-    että olennaiset lopputulokset voidaan summata yhteen, kun jokainen niistä ensin
-    painotetaan oikeanlaisella kertoimella. Tässä käytetyt painokertoimet ovat <ul>
-    <li>luonnon monimuotoisuus, 0.5</li> <li>hiilinielut valtion metsissä, 0.8</li>
-    <li>valtion budjetti, 1.0.</li></ul> Tämä on vasta harjoitusarviointi, joten luvut
-    eivät tarkoita mitään, eikä niillä ole yksiköitä.
-  type: values.AdditiveNode
-  quantity: number
-  unit: pcs
-  input_nodes:
-  - id: biodiversity_in_finland
-    tags: [biodiversity]
-  - id: carbon_sinks_in_state_forests
-    tags: [climate_emissions]
-  - id: net_profit_from_state_forests
-    tags: [state_budget]
-
 #
 ### VALUE PROFILES
 #
 
-- id: value_profile
+- id: value_profile_forest
   name: Metsänhoidon arvoprofiili
   name_en: Value profile for forest management
-  description: '<ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>'
+  description: '<ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>
+    <h2> Perussuomalaiset: Vähennetäänkö metsähakkuita valtion mailla? Ei.</h2>
+    <b>Jussi Wihonen, Perus­suomalaiset.</b> Valtion metsiä tulee hoitaa
+    vastuullisesti, kuten tähänkin asti. Toimet suomen metsissä ei vaikuta gloobaalissa
+    mittakaavassa kuin promilletasolla, se syytä muistaa.
+    <h2>Vihreät: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h2>
+    <p><b>Krista Mikkonen, Vihreät.</b> Valtion omistamat vanhat ja luonnontilaiset
+    metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi
+    kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista
+    jatkuvaan kasvatukseen. Myös yksityisille metsänomistajille tulee luoda kannusteita
+    pidentää hakkuukiertoa, siirtyä jatkuvaan kasvatukseen ja lisätä luonnonhoitotoimia
+    metsissään. Lisäksi on varmistettava, että luonnonsuojelurahoja on riittävästi,
+    jotta halukkaat metsänomistajat voivat siirtää metsiään luonnonsuojelun piiriin
+    saaden siitä korvauksen.</p> <p>Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy
+    nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä
+    maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla.
+    Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin
+    henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista
+    päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan
+    paljon meidän käyttämiä tuotteita.</p>
+    <h2>Demarit: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h2>
+    <p><b>Teemu Backnäs, Sdp.</b> Iso osa Suomalaisesta hyvinvoinnista
+    tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden toimintaedellytykset
+    varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen (LUKE) tutkimusten
+    mukaan hiilinielut ovat pienetyneet, joten olisi fiksua olla proaktiivinen hakkuiden
+    suhteen. Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset tuulivoimalavat)
+    on yli 100-kertainen verrattuna perinteiseen sellun tuottoon (~700€/tn), joten
+    todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin hakkuin. Todennäköisesti
+    muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti ja metsäteollisuuden
+    tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet" (=ligniini) päätyi
+    järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>'
   type: values.ValueProfile
   quantity: ratio
   unit: dimensionless
   input_nodes:
   - reduce_logging_in_state_forests
   - add_logging_in_state_forests
-  - carbon_sinks_in_state_forests2
-  - net_profit_from_state_forests2
+  - carbon_sinks_in_state_forests
+  - net_profit_from_state_forests
+  output_dimensions: [hypothesis]
+  params:
+  - id: impact_threshold
+    ref: impact_threshold
+  - id: emissions_weight
+    ref: emissions_weight
+  - id: cost_weight
+    ref: cost_weight
+
+- id: value_profile_climate
+  name: Ilmastotoimien arvoprofiili
+  name_en: Value profile for climate mitigation
+  description: '<h2>Vihreät: Lykätäänkö ilmastotavoitteita? Ei.</h2>
+    <p><b>Krista Mikkonen, Vihreät.</b> Ilmastoratkaisuja kysyy nyt koko maailma.
+    Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella
+    ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt
+    pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat
+    kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin
+    maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä
+    tuotteita.</p>
+    <h2>Demarit: Lykätäänkö ilmastotavoitteita? Ei.</h2>
+    <p><b>Teemu Backnäs, Sdp.</b> Ei. Suomi elää viennistä. Tämä on elinkeinoelämän
+    ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin
+    tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin
+    kautta Suomella onkin iso ekologinen _kädenjälki_, tarkoittaen että vientituotteemme
+    vähentävät kasvihuonepäästöjä maailmalla. Me olemmekin kokoamme isompi ympäristötekijä
+    maailmalla. Tärkeää onkin kasvattaa tuotekehityspanoksia, jotta myös jatkossa
+    saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää
+    parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa
+    tuotekehityksen kautta.</p>
+    <h2>Perussuomalaiset: Lykätäänkö ilmastotavoitteita? Kyllä.</h2>
+    <p><b>Jussi Wihonen, Perus­suomalaiset.</b>Kannatamme EU:n yhteistä
+    tavoitetta, 2050. Teollisuuden kilpailukyky turvattava, emme voi asettaa tiukempia
+    normeja kuin kilpailijamaat, muuten teollisuus hakeutuu sinne. Suomi ei menetä
+    mitään, sitoutumalla EU:n hiilineutraalisuustavoitteeseen.</p>'
+  type: values.ValueProfile
+  quantity: ratio
+  unit: dimensionless
+  input_nodes:
+  - postpone_climate_targets
+  - carbon_sinks_in_state_forests
+  - net_profit_from_state_forests
+  - biodiversity_in_finland
   output_dimensions: [hypothesis]
   params:
   - id: impact_threshold
@@ -459,9 +456,6 @@ actions:
   description: Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa
     annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa
     käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
-    Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun
-    lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa
-    käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
   references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221145">Laki</a>
     vesilain väliaikaisesta muuttamisesta. <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221146">Laki</a>
     ympäristönsuojelulain väliaikaisesta muuttamisesta.
@@ -506,7 +500,6 @@ actions:
   output_nodes:
   - biodiversity_in_state_forests
   - logging_intensity_in_state_forests
-  - logging_intensity_in_state_forests2
 
 - id: add_logging_in_state_forests
   name: Lisää hakkuita metsissä
@@ -516,7 +509,7 @@ actions:
   unit: m**3/a
   forecast_values: [[2023, 5], [2027, 5]]
   output_nodes:
-  - logging_intensity_in_state_forests2
+  - logging_intensity_in_state_forests
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
@@ -566,163 +559,6 @@ actions:
   forecast_values: [[2023, 0], [2035, 0]]
 
 #
-# PRIORITIES
-#
-- id: priority_logging_true_finns
-  name: 'Perussuomalaiset: Vähennetäänkö metsähakkuita valtion mailla?'
-  description: <b>Jussi Wihonen, Perus­suomalaiset.</b> Valtion metsiä tulee hoitaa
-    vastuullisesti, kuten tähänkin asti. Toimet suomen metsissä ei vaikuta gloobaalissa
-    mittakaavassa kuin promilletasolla, se syytä muistaa.
-  type: values.PriorityNode
-  group: priority
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - net_profit_from_state_forests
-  params:
-  - id: endorsers
-    value: perussuomalaiset
-  - id: action_id
-    value: reduce_logging_in_state_forests
-  - id: priority
-    value: false
-
-- id: priority_logging_greens
-  name: 'Vihreät: Vähennetäänkö metsähakkuita valtion mailla?'
-  description: <p><b>Krista Mikkonen, Vihreät.</b> Valtion omistamat vanhat ja luonnontilaiset
-    metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi
-    kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista
-    jatkuvaan kasvatukseen. Myös yksityisille metsänomistajille tulee luoda kannusteita
-    pidentää hakkuukiertoa, siirtyä jatkuvaan kasvatukseen ja lisätä luonnonhoitotoimia
-    metsissään. Lisäksi on varmistettava, että luonnonsuojelurahoja on riittävästi,
-    jotta halukkaat metsänomistajat voivat siirtää metsiään luonnonsuojelun piiriin
-    saaden siitä korvauksen.</p> <p>Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy
-    nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä
-    maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla.
-    Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin
-    henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista
-    päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan
-    paljon meidän käyttämiä tuotteita.</p>
-  type: values.PriorityNode
-  group: priority
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - biodiversity_in_finland
-  - carbon_sinks_in_state_forests
-  params:
-  - id: endorsers
-    value: greens
-  - id: action_id
-    value: reduce_logging_in_state_forests
-  - id: priority
-    value: true
-
-- id: priority_logging_social_democrats
-  name: 'Demarit: Vähennetäänkö metsähakkuita valtion mailla?'
-  description: <p><b>Teemu Backnäs, Sdp.</b> Iso osa Suomalaisesta hyvinvoinnista
-    tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden toimintaedellytykset
-    varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen (LUKE) tutkimusten
-    mukaan hiilinielut ovat pienetyneet, joten olisi fiksua olla proaktiivinen hakkuiden
-    suhteen. Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset tuulivoimalavat)
-    on yli 100-kertainen verrattuna perinteiseen sellun tuottoon (~700€/tn), joten
-    todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin hakkuin. Todennäköisesti
-    muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti ja metsäteollisuuden
-    tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet" (=ligniini) päätyi
-    järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>
-  type: values.PriorityNode
-  group: priority
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - biodiversity_in_finland
-  - carbon_sinks_in_state_forests
-  - hypothesis_net_profit_from_state_forests
-  params:
-  - id: endorsers
-    value: social_democrats
-  - id: action_id
-    value: logging_intensity_in_state_forests
-  - id: priority
-    value: true
-
-- id: priority_carbon_neutrality_target_greens
-  name: 'Vihreät: Lykätäänkö ilmastotavoitteita?'
-  description: <b>Krista Mikkonen, Vihreät.</b> Ilmastoratkaisuja kysyy nyt koko maailma.
-    Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella
-    ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt
-    pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden päästömme ovat
-    kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin
-    maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä
-    tuotteita.
-  type: values.PriorityNode
-  group: priority
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - carbon_sinks_in_state_forests
-  params:
-  - id: endorsers
-    value: greens
-  - id: action_id
-    value: postpone_climate_targets
-  - id: priority
-    value: false
-
-- id: priority_climate_target_social_democrats
-  name: 'Demarit: Lykätäänkö ilmastotavoitteita?'
-  description: <p><b>Teemu Backnäs, Sdp.</b> Ei. Suomi elää viennistä. Tämä on elinkeinoelämän
-    ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin
-    tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin
-    kautta Suomella onkin iso ekologinen _kädenjälki_, tarkoittaen että vientituotteemme
-    vähentävät kasvihuonepäästöjä maailmalla. Me olemmekin kokoamme isompi ympäristötekijä
-    maailmalla. Tärkeää onkin kasvattaa tuotekehityspanoksia, jotta myös jatkossa
-    saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää
-    parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa
-    tuotekehityksen kautta.</p>
-  type: values.PriorityNode
-  group: priority
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - biodiversity_in_finland
-  - carbon_sinks_in_state_forests
-  params:
-  - id: endorsers
-    value: social_democrats
-  - id: action_id
-    value: postpone_climate_targets
-  - id: priority
-    value: false
-
-- id: priority_climate_target_true_finns
-  name: 'Perussuomalaiset: Lykätäänkö ilmastotavoitteita?'
-  description: <p><b>Jussi Wihonen, Perus­suomalaiset.</b>Kannatamme EU:n yhteistä
-    tavoitetta, 2050. Teollisuuden kilpailukyky turvattava, emme voi asettaa tiukempia
-    normeja kuin kilpailijamaat, muuten teollisuus hakeutuu sinne. Suomi ei menetä
-    mitään, sitoutumalla EU:n hiilineutraalisuustavoitteeseen.</p>
-  type: values.PriorityNode
-  group: priority
-  quantity: number
-  unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
-  input_nodes:
-  - carbon_sinks_in_state_forests
-  - net_profit_from_state_forests
-  params:
-  - id: endorsers
-    value: true_finns
-  - id: action_id
-    value: postpone_climate_targets
-  - id: priority
-    value: true
-
-#
 # HYPOTHESES
 #
 
@@ -748,6 +584,23 @@ actions:
     min_value: 0
     max_value: 10
 
+- id: hypothesis_net_profit_from_state_forests
+  name: Hypoteesit puukaupan nettotulosta valtion metsissä (mm. Backnäs)
+  description: <p>Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset
+    tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon
+    (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin
+    hakkuin.</p><p>Tähän päättelyyn nojaten hypoteesi antaa puukaupalle huomattavasti
+    suuremman arvon, joka tässä harjoitusmallissa on merkitty välille 200-290 yksikköä
+    (luvuilla ei ole toistaiseksi mitään vastinetta reaalimaailmassa.)</p>
+  references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
+  type: simple.LinearCumulativeAdditiveAction
+  group: hypothesis
+  quantity: currency
+  unit: MEUR/a
+  forecast_values: [[2023, 0], [2024, 100], [2040, 200]]
+#  output_nodes:
+#  - net_profit_from_state_forests
+
 scenarios:
 - id: baseline
   name: Tätä menoa
@@ -757,3 +610,54 @@ scenarios:
   default: true
   name: Aktiivinen
   all_actions_enabled: true
+
+- id: true_finns
+  name: Perussuomalaisten arvot
+  all_actions_enabled: true
+  params:
+  - id: reduce_logging_in_state_forests.enabled
+    value: false
+  - id: postpone_climate_targets.enabled
+    value: true
+  - id: impact_threshold
+    value: 0
+  - id: emissions_weight
+    value: 0
+    unit: 1 / t
+  - id: cost_weight
+    value: 1
+    unit: 1 / EUR
+
+- id: social_democrats
+  name: Sosiaalidemokraattien arvot
+  all_actions_enabled: true
+  params:
+  - id: reduce_logging_in_state_forests.enabled
+    value: true
+  - id: postpone_climate_targets.enabled
+    value: false
+  - id: impact_threshold
+    value: 0
+  - id: emissions_weight
+    value: 50
+    unit: 1 / t
+  - id: cost_weight
+    value: 1
+    unit: 1 / EUR
+
+- id: greens
+  name: Vihreiden arvot
+  all_actions_enabled: true
+  params:
+  - id: reduce_logging_in_state_forests.enabled
+    value: true
+  - id: postpone_climate_targets.enabled
+    value: false
+  - id: impact_threshold
+    value: 0
+  - id: emissions_weight
+    value: 50
+    unit: 1 / t
+  - id: cost_weight
+    value: 1
+    unit: 1 / EUR
