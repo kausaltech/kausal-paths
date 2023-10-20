@@ -96,7 +96,7 @@ class LocaleDirective(GraphQLDirective):
                     description='Selected language'
                 )
             },
-            locations=[DirectiveLocation.QUERY]
+            locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION]
         )
 
 

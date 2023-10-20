@@ -33,7 +33,7 @@ class SettingStorage:
         """Returns ids of all currently customized parameters with their values."""
         raise NotImplementedError()
 
-    def set_active_scenario(self, id: str):
+    def set_active_scenario(self, id: str | None):
         """Mark the supplied scenario as active."""
         raise NotImplementedError()
 
@@ -98,3 +98,15 @@ class SessionStorage(SettingStorage):
 
     def get_active_scenario(self) -> Optional[str]:
         return self._instance_settings.get('active_scenario')
+
+    @classmethod
+    def can_use_cache(cls, session: SessionBase, instance_id: str) -> bool:
+        ip = session.get(instance_id, None)
+        if not ip:
+            return True
+        if not isinstance(ip, dict):
+            return True
+        active_scenario = ip.get('active_scenario')
+        if active_scenario and active_scenario != 'default':
+            return False
+        return True
