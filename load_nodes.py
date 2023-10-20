@@ -3,6 +3,7 @@ import argparse
 import cProfile
 from decimal import Decimal
 from math import frexp, log10
+import math
 import sys
 import time
 
@@ -214,8 +215,11 @@ def round_quantity(e: Quantity):
     if abs(e.m) > 10000:
         e = round(e, 1)
     else:
-        l = int(-log10(abs(e.m))) + 4
-        e = round(e, ndigits=l)
+        if math.isclose(e.m, 0):
+            digits = 2
+        else:
+            digits = int(-log10(abs(e.m))) + 4
+        e = round(e, ndigits=digits)
     return e
 
 
