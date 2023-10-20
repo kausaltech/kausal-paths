@@ -113,6 +113,9 @@ class Context:
         if not nx.is_directed_acyclic_graph(g):
             raise Exception("Node graph is not directed (there are loops between nodes)")
 
+        for node in self.nodes.values():
+            node.finalize_init()
+
         self.node_graph = g
 
     def get_parameter_type(self, parameter_id: str) -> type:
@@ -225,6 +228,8 @@ class Context:
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
         self.scenarios[scenario.id] = scenario
+        for node in self.nodes.values():
+            node.on_scenario_created(scenario)
 
     def set_custom_scenario(self, scenario: CustomScenario):
         assert self.custom_scenario is None

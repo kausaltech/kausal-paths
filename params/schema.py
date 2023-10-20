@@ -15,11 +15,14 @@ class ResolveDefaultValueMixin:
     def resolve_default_value(root: Parameter, info: GQLInstanceInfo) -> Any:
         context = info.context.instance.context
         scenario = context.get_default_scenario()
-        return root.get_scenario_setting(scenario)
+        if not scenario.has_parameter(root):
+            return None
+        return scenario.get_parameter_value(root)
 
 
 class ParameterInterface(graphene.Interface):
-    id = graphene.ID()  # global id
+    id = graphene.ID(required=True, description="Global ID for the parameter in the instance")
+    local_id = graphene.ID(required=False, description="ID of parameter in the node's namespace")
     label = graphene.String(required=False)
     description = graphene.String(required=False)
     node_relative_id = graphene.ID(required=False)  # can be null if node is null
@@ -96,7 +99,10 @@ class SetParameterMutation(graphene.Mutation):
     ok = graphene.Boolean()
     parameter = graphene.Field(ParameterInterface)
 
-    def mutate(root, info: GQLInstanceInfo, id, number_value=None, bool_value=None, string_value=None):
+    def mutate(
+        self, info: GQLInstanceInfo, id: str, number_value: float | None = None,
+        bool_value: bool | None = None, string_value: str | None = None
+    ):
         context = info.context.instance.context
         try:
             param = context.get_parameter(id)
@@ -182,7 +188,7 @@ class ActivateScenarioMutation(graphene.Mutation):
     ok = graphene.Boolean()
     active_scenario = graphene.Field('nodes.schema.ScenarioType')
 
-    def mutate(root, info: GQLInstanceInfo, id):
+    def mutate(self, info: GQLInstanceInfo, id):
         context = info.context.instance.context
         scenario = context.scenarios.get(id)
         if scenario is None:
@@ -214,13 +220,16 @@ class Query(graphene.ObjectType):
     @ensure_instance
     def resolve_parameters(root, info: GQLInstanceInfo):
         instance = info.context.instance
-        return instance.context.global_parameters.values()
+        params = [param for param in instance.context.global_parameters.values() if param.is_visible]
+        return params
 
     @ensure_instance
     def resolve_parameter(root, info: GQLInstanceInfo, id):
         instance = info.context.instance
         try:
-            return instance.context.get_parameter(id)
+            param = instance.context.get_parameter(id)
+            if not param.is_visible:
+                return None
         except KeyError:
             raise GraphQLError(f"Parameter {id} does not exist", info.field_nodes)
 

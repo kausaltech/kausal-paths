@@ -407,7 +407,7 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_parameters(root: Node, info):
-        return [param for param in root.parameters.values() if param.is_customizable]
+        return [param for param in root.parameters.values() if param.is_visible]
 
     @staticmethod
     def resolve_short_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:

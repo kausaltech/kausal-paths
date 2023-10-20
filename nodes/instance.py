@@ -1,16 +1,17 @@
 import dataclasses
+from functools import cached_property
 import importlib
-import logging
 import re
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import threading
-from typing import Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
 import pint
+from loguru import logger
 from ruamel.yaml import YAML as RuamelYAML, CommentedMap
 from ruamel.yaml.comments import LineCol
 from rich import print
@@ -30,8 +31,10 @@ from params.param import ReferenceParameter, Parameter
 
 from . import Context, Dataset, DVCDataset, FixedDataset
 
+if TYPE_CHECKING:
+    from loguru import Logger
+    from .models import InstanceConfig
 
-logger = logging.getLogger(__name__)
 
 yaml = RuamelYAML()
 
@@ -64,8 +67,6 @@ class Instance:
     action_groups: list[ActionGroup] = field(default_factory=list)
     pages: list[OutcomePage] = field(default_factory=list)
 
-    modified_at: Optional[datetime] = field(init=False)
-    logger: logging.Logger = field(init=False)
     lock: threading.Lock = field(init=False)
 
     @property
@@ -76,9 +77,13 @@ class Instance:
     def model_end_year(self) -> int:
         return self.context.model_end_year
 
+    @cached_property
+    def config(self) -> InstanceConfig:
+        return InstanceConfig.objects.get(identifier=self.id)
+
     def __post_init__(self):
-        self.logger = logging.getLogger('instance.%s' % self.id)
-        self.modified_at = None
+        self.logger: Logger = logger.bind(instance=self.id)
+        self.modified_at: datetime | None = None
         self.lock = threading.Lock()
         if isinstance(self.features, dict):
             self.features = InstanceFeatures(**self.features)
@@ -102,7 +107,7 @@ class Instance:
             yaml.dump(data, f)
 
     def warning(self, msg: Any, *args):
-        self.logger.warning(msg, *args)
+        self.logger.opt(depth=1).warning(msg, *args)
 
     @overload
     def get_goals(self, goal_id: str) -> NodeGoalsEntry: ...
@@ -140,6 +145,7 @@ class InstanceLoader:
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
+    _scenario_values: dict[str, list[tuple[Parameter, Any]]]
 
     @overload
     def make_trans_string(
@@ -307,6 +313,8 @@ class InstanceLoader:
                 ref = pc.pop('ref', None)
                 description = self.make_trans_string(pc, 'description', pop=True) or param_obj.description
 
+                scenario_values = pc.pop('values', {})
+
                 if ref is not None:
                     target = self.context.global_parameters.get(ref)
                     if target is None:
@@ -322,7 +330,6 @@ class InstanceLoader:
                     node.add_parameter(param)
                     continue
 
-                scenario_values = pc.pop('values', {})
                 # Merge parameter values
                 fields = asdict(param_obj)
                 fields.update(pc)
@@ -345,11 +352,12 @@ class InstanceLoader:
                     if value is not None:
                         param.set(value)
                 except:
-                    logger.error("Error setting parameter %s for node %s" % (param.local_id, node.id))
+                    self.instance.logger.error("Error setting parameter %s for node %s" % (param.local_id, node.id))
                     raise
 
                 for scenario_id, value in scenario_values.items():
-                    param.add_scenario_setting(scenario_id, param.clean(value))
+                    sv = self._scenario_values.setdefault(scenario_id, list())
+                    sv.append((param, param.clean(value)))
 
         tags = config.get('tags', None)
         if isinstance(tags, str):
@@ -528,13 +536,16 @@ class InstanceLoader:
         default_scenario = None
 
         for sc in self.config['scenarios']:
+            name = self.make_trans_string(sc, 'name', pop=True)
+            scenario = Scenario(self.context, **sc, name=name)
+
             params_config = sc.pop('params', [])
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
-                param.add_scenario_setting(sc['id'], param.clean(pc['value']))
+                scenario.add_parameter(param, param.clean(pc['value']))
 
-            name = self.make_trans_string(sc, 'name', pop=True)
-            scenario = Scenario(**sc, name=name, notified_nodes=list(self.context.nodes.values()))
+            for param, value in self._scenario_values.get(scenario.id, []):
+                scenario.add_parameter(param, value)
 
             if scenario.default:
                 assert default_scenario is None
@@ -547,16 +558,16 @@ class InstanceLoader:
         for param in self.context.get_all_parameters():
             if not param.is_customizable:
                 continue
-            if param.scenario_settings:
+            if default_scenario.has_parameter(param):
                 continue
-            param.scenario_settings[default_scenario.id] = param.value
+            default_scenario.add_parameter(param, param.value)
 
         self.context.set_custom_scenario(
             CustomScenario(
+                context=self.context,
                 id='custom',
                 name=_('Custom'),
                 base_scenario=default_scenario,
-                notified_nodes=self.context.nodes.values(),
             )
         )
 
@@ -707,6 +718,7 @@ class InstanceLoader:
         self._input_nodes = {}
         self._output_nodes = {}
         self._subactions = {}
+        self._scenario_values = {}
 
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()

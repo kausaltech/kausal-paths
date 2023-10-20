@@ -48,6 +48,7 @@ from .units import Quantity, Unit
 
 if typing.TYPE_CHECKING:
     from .processors import Processor
+    from .scenario import Scenario
 
 
 class_fname_cache: dict[type, str] = {}
@@ -229,6 +230,10 @@ class Node:
     """YAML line and column information"""
 
     def __post_init__(self): ...
+
+    def finalize_init(self):
+        """Customization and validation that is run after the node graph is fully configured."""
+        pass
 
     def _init_metrics(
         self, unit: Unit | None, quantity: str | None, output_metrics: dict[str, NodeMetric] | None = None
@@ -1082,7 +1087,7 @@ class Node:
                 open += current.input_nodes
         return result
 
-    def on_scenario_created(self, scenario):
+    def on_scenario_created(self, scenario: Scenario):
         """Called when a scenario is created with this node among the nodes to be notified."""
         pass
 

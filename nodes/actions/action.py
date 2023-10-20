@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import typing
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Optional
+from typing import ClassVar, Iterable, Iterator, Optional
 
 import pandas as pd
 import polars as pl
 
 from common import polars as ppl
-from common.i18n import TranslatedString
+from common.i18n import TranslatedString, gettext_lazy as _
 from common.perf import PerfCounter
+
 from nodes import Node, NodeError
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, SCENARIO_ACTION_GROUP,
@@ -17,6 +18,7 @@ from nodes.constants import (
 )
 from nodes.units import Quantity, Unit
 from params import BoolParameter
+from params.param import Parameter
 
 if typing.TYPE_CHECKING:
     from nodes.context import Context
@@ -33,6 +35,12 @@ class ActionGroup:
     color: str | None
 
 
+ENABLED_PARAM = BoolParameter(
+    local_id=ENABLED_PARAM_ID, label=_("Enabled"), description=_("Is the action included in the scenario"),
+    is_customizable=True
+)
+
+
 class ActionNode(Node):
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
@@ -43,11 +51,36 @@ class ActionNode(Node):
     # actions, 1.0.
     no_effect_value: Optional[float] = None
     enabled_param: BoolParameter
+    allowed_parameters: ClassVar[list[Parameter]] = []
 
-    def __post_init__(self):
-        self.enabled_param = BoolParameter(local_id=ENABLED_PARAM_ID)
-        self.enabled_param.set(False)
-        self.add_parameter(self.enabled_param)
+    def __init_subclass__(cls) -> None:
+        """Ensure the 'enabled' parameter is allowed for all action classes."""
+        for p in cls.allowed_parameters:
+            if p.local_id == 'enabled':
+                break
+        else:
+            # No 'enabled' parameter in allowed_parameters – add it here.
+            cls.allowed_parameters = [
+                ENABLED_PARAM,
+                *cls.allowed_parameters,
+            ]
+        super().__init_subclass__()
+
+    def finalize_init(self):
+        param = self.get_parameter(ENABLED_PARAM_ID, required=False)
+        if param is None:
+            for param in self.allowed_parameters:
+                if param.local_id == ENABLED_PARAM_ID:
+                    break
+            else:
+                raise NodeError(self, "'enabled' is missing from allowed parameters")
+            param = param.copy()
+            self.add_parameter(param)
+        assert isinstance(param, BoolParameter)
+        assert param.node == self
+        if param.value is None:
+            param.set(False, notify=False)
+        self.enabled_param = param
 
     def is_enabled(self) -> Optional[bool]:
         return self.enabled_param.value
@@ -121,8 +154,8 @@ class ActionNode(Node):
 
     def on_scenario_created(self, scenario):
         super().on_scenario_created(scenario)
-        if self.enabled_param.get_scenario_setting(scenario) is None:
-            self.enabled_param.add_scenario_setting(scenario.id, scenario.all_actions_enabled)
+        if not scenario.has_parameter(self.enabled_param):
+            scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
     def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
