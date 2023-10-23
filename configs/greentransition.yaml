@@ -11,7 +11,7 @@ name_en: Green transition values and priorities
 owner: Kausal Oy
 owner_en: Kausal Ltd
 theme_identifier: default
-emission_unit: pcs
+emission_unit: kt/a
 model_end_year: 2035
 target_year: 2035
 reference_year: 2010
@@ -220,26 +220,47 @@ emission_sectors:
   color: #ff4f57
   historical_values: [[2015, 100], [2022, 100]]
 
-- id: consumer_electricity_emissions
-  name: Kulutussähkön päästöt
-  name_en: Household electricity emissions
-  part_of: net_emissions
-  color: #0047b6
-  historical_values: [[2015, 50], [2022, 40]]
-
-- id: transport_emissions
-  name: Liikenteen päästöt
-  name_en: Emissions from traffic
-  part_of: net_emissions
-  color: #014B30
-  historical_values: [[2015, 200], [2022, 100]]
-
 nodes:
 - id: population
   type: finland.population.Population
   name: Väestö
   name_en: Population
   description: Population size of the imaginary city.
+
+- id: consumer_electricity_emissions
+  name: Kulutussähkön päästöt
+  name_en: Household electricity emissions
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes: [net_emissions]
+  color: #0047b6
+  historical_values: [[2015, 50], [2022, 40]]
+  params:
+  - id: multiplier
+    value: 1
+    unit: kt/a/pcs
+
+- id: transport_mileage
+  name: Liikennemäärä
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mkm/a
+  historical_values: [[2015, 50], [2022, 40]]
+
+- id: transport_emissions
+  name: Liikenteen päästöt
+  name_en: Emissions from traffic
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: kt/a
+  color: #014B30
+  historical_values: [[2015, 200], [2022, 100]]
+  input_nodes: [transport_mileage]
+  params:
+  - id: multiplier
+    value: 1
+    unit: kt/Mkm
 
 - id: biodiversity_in_finland
   name: Luonnon monimuotoisuus Suomessa
@@ -262,21 +283,22 @@ nodes:
   unit: m**3/a
   historical_values: [[2010, 69000000], [2015, 70000000], [2022, 80000000]]
   output_nodes:
-  - carbon_sinks_in_state_forests
+  - carbon_emissions_in_state_forests
   - net_profit_from_state_forests
 
-- id: carbon_sinks_in_state_forests
-  name: Hiilinielut valtion metsissä
-  description: Hiilnielut kuvastavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
+- id: carbon_emissions_in_state_forests
+  name: Hiilipäästöt valtion metsissä
+  description: Hiilnielut parantavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
     yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä
     vapautuva metaani.
   type: simple.FixedMultiplierNode
   quantity: emissions
   unit: kt/a
   historical_values: [[2010, 10000], [2022, 4000]]
+  output_nodes: [net_emissions]
   params:
   - id: multiplier
-    value: -1
+    value: 1
     unit: t/m**3
 
 - id: net_profit_from_state_forests
@@ -350,10 +372,12 @@ nodes:
   quantity: ratio
   unit: dimensionless
   input_nodes:
-  - reduce_logging_in_state_forests
-  - add_logging_in_state_forests
-  - carbon_sinks_in_state_forests
-  - net_profit_from_state_forests
+  - id: reduce_logging_in_state_forests
+  - id: add_logging_in_state_forests
+  - id: carbon_emissions_in_state_forests
+    tags: [emissions]
+  - id: net_profit_from_state_forests
+    tags: [currency]
   output_dimensions: [hypothesis]
   params:
   - id: impact_threshold
@@ -393,10 +417,12 @@ nodes:
   quantity: ratio
   unit: dimensionless
   input_nodes:
-  - postpone_climate_targets
-  - carbon_sinks_in_state_forests
-  - net_profit_from_state_forests
-  - biodiversity_in_finland
+  - id: postpone_climate_targets
+  - id: carbon_emissions_in_state_forests
+    tags: [emissions]
+  - id: net_profit_from_state_forests
+    tags: [currency]
+#  - id: biodiversity_in_finland
   output_dimensions: [hypothesis]
   params:
   - id: impact_threshold
@@ -500,6 +526,9 @@ actions:
   output_nodes:
   - biodiversity_in_state_forests
   - logging_intensity_in_state_forests
+  params:
+  - id: enabled
+    is_visible: false
 
 - id: add_logging_in_state_forests
   name: Lisää hakkuita metsissä
@@ -522,8 +551,8 @@ actions:
     Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
   group: hs_voting_aid
   type: simple.AdditiveAction
-  quantity: number
-  unit: pcs
+  quantity: emissions
+  unit: kt/a
   forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
   - building_heating_emissions
@@ -538,11 +567,11 @@ actions:
   references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
   group: hs_voting_aid
   type: simple.AdditiveAction
-  quantity: number
-  unit: pcs
+  quantity: mileage
+  unit: Mkm/a
   forecast_values: [[2023, 0], [2035, 0]]
   output_nodes:
-  - transport_emissions
+  - transport_mileage
 
 - id: ban_fur_animals
   name: Turkistarhaus on kiellettävä Suomessa
