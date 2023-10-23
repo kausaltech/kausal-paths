@@ -16,7 +16,7 @@ from ruamel.yaml import YAML as RuamelYAML, CommentedMap
 from ruamel.yaml.comments import LineCol
 from rich import print
 
-from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
+from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
@@ -37,6 +37,11 @@ if TYPE_CHECKING:
 
 
 yaml = RuamelYAML()
+
+
+class InstanceTerms(I18nBaseModel):
+    action: TranslatedString | None = None
+    enabled_label: TranslatedString | None = None
 
 
 @pydantic_dataclass
@@ -64,6 +69,7 @@ class Instance:
     lead_paragraph: Optional[TranslatedString] = None
     theme_identifier: Optional[str] = None
     features: InstanceFeatures = field(default_factory=InstanceFeatures)
+    terms: InstanceTerms = field(default_factory=InstanceTerms)
     action_groups: list[ActionGroup] = field(default_factory=list)
     pages: list[OutcomePage] = field(default_factory=list)
 
@@ -78,7 +84,8 @@ class Instance:
         return self.context.model_end_year
 
     @cached_property
-    def config(self) -> InstanceConfig:
+    def config(self) -> 'InstanceConfig':
+        from .models import InstanceConfig
         return InstanceConfig.objects.get(identifier=self.id)
 
     def __post_init__(self):
@@ -87,7 +94,8 @@ class Instance:
         self.lock = threading.Lock()
         if isinstance(self.features, dict):
             self.features = InstanceFeatures(**self.features)
-
+        if isinstance(self.terms, dict):
+            self.terms = InstanceTerms(**self.terms)
         if not self.supported_languages:
             self.supported_languages = [self.default_language]
         else:
@@ -325,7 +333,8 @@ class InstanceLoader:
                             param_class, ref, type(target)
                         ))
                     param = ReferenceParameter(
-                        local_id=param_obj.local_id, label=param_obj.label, target=target
+                        local_id=param_obj.local_id, label=param_obj.label, target=target,
+                        context=self.context
                     )
                     node.add_parameter(param)
                     continue
@@ -336,7 +345,8 @@ class InstanceLoader:
                 if description is not None:
                     fields['description'] = description
                 if label is not None:
-                    fields['label'] = description
+                    fields['label'] = label
+                fields['context'] = self.context
 
                 unit = fields.get('unit', None)
                 if unit is not None:
@@ -537,9 +547,9 @@ class InstanceLoader:
 
         for sc in self.config['scenarios']:
             name = self.make_trans_string(sc, 'name', pop=True)
+            params_config = sc.pop('params', [])
             scenario = Scenario(self.context, **sc, name=name)
 
-            params_config = sc.pop('params', [])
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
                 scenario.add_parameter(param, param.clean(pc['value']))
@@ -702,6 +712,7 @@ class InstanceLoader:
             context=self.context,
             action_groups=agcs,
             features=self.config.get('features', {}),
+            terms=self.config.get('terms', {}),
             pages=pages_from_config(self.config.get('pages', [])),
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other

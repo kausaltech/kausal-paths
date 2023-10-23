@@ -56,7 +56,7 @@ class ActionNode(Node):
     def __init_subclass__(cls) -> None:
         """Ensure the 'enabled' parameter is allowed for all action classes."""
         for p in cls.allowed_parameters:
-            if p.local_id == 'enabled':
+            if p.local_id == ENABLED_PARAM_ID:
                 break
         else:
             # No 'enabled' parameter in allowed_parameters – add it here.
@@ -75,6 +75,7 @@ class ActionNode(Node):
             else:
                 raise NodeError(self, "'enabled' is missing from allowed parameters")
             param = param.copy()
+            param.context = self.context
             self.add_parameter(param)
         assert isinstance(param, BoolParameter)
         assert param.node == self

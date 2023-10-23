@@ -125,6 +125,8 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
+context.load_all_dvc_datasets()
+
 for node_id in (args.debug_nodes or []):
     node = context.get_node(node_id)
     node.debug = True

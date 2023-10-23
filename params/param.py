@@ -11,7 +11,7 @@ from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
-    from nodes import Node, NodeMetric
+    from nodes import Node, NodeMetric, Context
     from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
 
@@ -30,6 +30,9 @@ V = TypeVar('V')
 @dataclass
 class Parameter(Generic[V]):
     local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
+    context: Optional[Context] = field(repr=False, hash=False, default=None)
+    "The context to which this parameter is bound"
+
     label: Optional[I18nString] = None
     description: Optional[I18nString] = None
 
