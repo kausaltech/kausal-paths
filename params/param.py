@@ -1,17 +1,17 @@
 from __future__ import annotations
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, asdict, dataclass, field
 
 import hashlib
 import orjson
 import pandas as pd
 from pydantic import BaseModel
 from common.i18n import I18nString
-from typing import Any, Dict, Optional, TYPE_CHECKING, Type
+from typing import Any, Dict, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar
 from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
-    from nodes import Node, NodeMetric
+    from nodes import Node, NodeMetric, Context
     from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
 
@@ -25,9 +25,14 @@ class ValidationError(Exception):
         super().__init__("[Param %s]: Parameter validation failed%s" % (param.local_id, msg_str))
 
 
+V = TypeVar('V')
+
 @dataclass
-class Parameter:
+class Parameter(Generic[V]):
     local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
+    context: Optional[Context] = field(repr=False, hash=False, default=None)
+    "The context to which this parameter is bound"
+
     label: Optional[I18nString] = None
     description: Optional[I18nString] = None
 
@@ -42,12 +47,21 @@ class Parameter:
 
     is_customized: bool = False
     is_customizable: bool = True
-    # Maps a scenario ID to the value of this parameter in that scenario
-    scenario_settings: Dict[str, Any] = field(default_factory=dict)
+    is_visible: bool | None = None
 
     def __post_init__(self):
         assert '.' not in self.local_id
         self._hash = None
+        self._follows_scenario: Scenario | None = None
+        if self.is_visible is None:
+            if self.is_customizable:
+                self.is_visible = True
+            else:
+                self.is_visible = False
+
+    def copy(self) -> Self:
+        fields = asdict(self)
+        return type(self)(**fields)
 
     def notify_change(self):
         self._hash = None
@@ -58,19 +72,18 @@ class Parameter:
         for param in self.subscription_params:
             param.notify_change()
 
-    def set(self, value: Any):
+    def set(self, value: V, notify: bool = True):
         prev_val = getattr(self, 'value', None)
         self.value = self.clean(value)
-        if not self.is_value_equal(prev_val):
+        if notify and not self.is_value_equal(prev_val):
             self.notify_change()
 
-    def reset_to_scenario_setting(self, scenario: Scenario):
-        if scenario.id in self.scenario_settings:
-            setting = self.scenario_settings[scenario.id]
-            self.set(setting)
-            self.is_customized = False
+    def reset_to_scenario_setting(self, scenario: Scenario, value: V):
+        self.set(value)
+        self._follows_scenario = scenario
+        self.is_customized = False
 
-    def get(self) -> Any:
+    def get(self) -> V:
         return self.value
 
     def serialize_value(self) -> Any:
@@ -92,25 +105,6 @@ class Parameter:
 
     def clean(self, value: Any) -> Any:
         raise NotImplementedError('Implement in subclass')
-
-    def add_scenario_setting(self, scenario, value):
-        """
-        Add the given value as the setting for the given scenario.
-
-        `scenario` can be an instance of `Scenario` or a string that is a scenario ID.
-        """
-        from nodes.scenario import Scenario
-        if isinstance(scenario, Scenario):
-            scenario_id = scenario.id
-        else:
-            scenario_id = scenario
-
-        if scenario_id in self.scenario_settings:
-            raise Exception(f"Setting for parameter {self.global_id} in scenario {scenario_id} already exists")
-        self.scenario_settings[scenario_id] = value
-
-    def get_scenario_setting(self, scenario):
-        return self.scenario_settings.get(scenario.id)
 
     @property
     def global_id(self):
@@ -189,7 +183,7 @@ class ParameterWithUnit:
 
 
 @dataclass
-class NumberParameter(ParameterWithUnit, Parameter):
+class NumberParameter(ParameterWithUnit, Parameter[float]):
     value: Optional[float] = None
     min_value: Optional[float] = None
     max_value: Optional[float] = None
@@ -229,6 +223,7 @@ class NumberParameter(ParameterWithUnit, Parameter):
     def set(self, value: float | Quantity):
         if isinstance(value, Quantity):
             unit = value.units
+            value = value.m
         else:
             unit = None
         super().set(value)

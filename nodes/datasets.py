@@ -85,15 +85,6 @@ class DVCDataset(Dataset):
             assert isinstance(self.unit, Unit)
         self.dvc_dataset = None
 
-    def _load_dvc_dataset(self, context: Context) -> DVCPandasDataset:
-        if self.dvc_dataset is not None:
-            return self.dvc_dataset
-        if self.input_dataset:
-            dvc_dataset_id = self.input_dataset
-        else:
-            dvc_dataset_id = self.id
-        return context.load_dvc_dataset(dvc_dataset_id)
-
     def _process_output(self, df: ppl.PathsDataFrame, ds_hash: str, context: Context) -> ppl.PathsDataFrame:
         if self.max_year:
             df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)

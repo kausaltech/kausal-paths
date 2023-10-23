@@ -169,7 +169,7 @@ class ActionListPage(PathsPage):
     default_sort_order = models.CharField(max_length=40, choices=ActionSortOrder.choices, default=ActionSortOrder.STANDARD)
     show_cumulative_impact = models.BooleanField(default=True, verbose_name=_('Show cumulative impact'))
     show_action_comparison = models.BooleanField(default=True, verbose_name=_('Show action comparison'))
-    show_only_municipal_actions = models.BooleanField(default=False, verbose_name=_('Show action comparison'))
+    show_only_municipal_actions = models.BooleanField(default=False, verbose_name=_('Show only municipal actions'))
 
     content_panels = PathsPage.content_panels + [
         FieldPanel('lead_title'),

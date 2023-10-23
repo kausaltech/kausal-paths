@@ -1,5 +1,6 @@
 from __future__ import annotations
 import abc
+import types
 import typing
 import threading
 from contextlib import contextmanager
@@ -9,7 +10,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 
 from pydantic_core import CoreSchema, core_schema
-from pydantic import GetCoreSchemaHandler, BaseModel, model_validator, root_validator
+from pydantic import GetCoreSchemaHandler, BaseModel, ValidationInfo, model_validator, root_validator
 
 
 if typing.TYPE_CHECKING:
@@ -237,6 +238,6 @@ class I18nBaseModel(BaseModel, abc.ABC):
         val = val.copy()
         for fn, f in cls.model_fields.items():
             t = f.annotation
-            if (typing.get_origin(t) == typing.Union and TranslatedString in typing.get_args(t)):
+            if (typing.get_origin(t) in (typing.Union, types.UnionType) and TranslatedString in typing.get_args(t)):
                 val[fn] = validate_translated_string(cls, fn, val)  # type: ignore
         return val

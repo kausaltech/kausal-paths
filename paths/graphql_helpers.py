@@ -34,7 +34,7 @@ class GQLInstanceInfo(GQLInfo):
 
 
 def _instance_or_bust(info: GQLInstanceInfo):
-    if info.context.instance is None:
+    if getattr(info.context, 'instance', None) is None:
         raise GraphQLError(
             "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
             info.field_nodes
@@ -42,7 +42,7 @@ def _instance_or_bust(info: GQLInstanceInfo):
     return info.context.instance
 
 
-C = TypeVar('C', bound=Callable[Concatenate[Any, GQLInstanceInfo, ...], Any])
+C = TypeVar('C', bound=Callable)
 
 def ensure_instance(method: C) -> C:
     """Wrap a class method to ensure instance is specified when the method is called."""

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, InitVar
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import sentry_sdk
 
@@ -12,6 +12,7 @@ from nodes.node import Node
 if TYPE_CHECKING:
     from .context import Context
     from params.storage import SettingStorage
+    from params import Parameter
 
 logger = logging.getLogger(__name__)
 
@@ -19,32 +20,44 @@ logger = logging.getLogger(__name__)
 class Scenario:
     id: str
     name: TranslatedString
+    context: Context
 
     default: bool = False
     all_actions_enabled: bool = False
-    # Nodes that will be notified of this scenario's creation
-    notified_nodes: List[Node] = field(default_factory=list)
+    param_values: dict[str, Any]
 
     def __init__(
-        self, id: str, name: TranslatedString, default: bool = False,
-        all_actions_enabled: bool = False, notified_nodes: Optional[List[Node]] = None,
+        self, context: Context, id: str, name: TranslatedString, default: bool = False,
+        all_actions_enabled: bool = False,
     ):
         self.id = id
+        self.context = context
         self.name = name
         self.default = default
         self.all_actions_enabled = all_actions_enabled
-        self.notified_nodes = notified_nodes or []
-        for node in self.notified_nodes:
-            node.on_scenario_created(self)
+        self.param_values = {}
 
     def activate(self, context: Context):
         """Resets each parameter in the context to its setting for this scenario if it has one."""
-        for param in context.get_all_parameters():
-            param.reset_to_scenario_setting(self)
+        for param_id, val in self.param_values.items():
+            param = context.get_parameter(param_id)
+            param.reset_to_scenario_setting(self, val)
+
+    def add_parameter(self, param: Parameter, value: Any):
+        assert param.global_id not in self.param_values
+        self.param_values[param.global_id] = value
+
+    def has_parameter(self, param: Parameter):
+        return param.global_id in self.param_values
+
+    def get_parameter_value(self, param: Parameter):
+        return self.param_values[param.global_id]
 
     def __str__(self) -> str:
         return self.id
 
+    def __repr__(self) -> str:
+        return "Scenario(id=%s, name='%s', instance=%s)" % (self.id, str(self.name), self.context.instance.id)
 
 class CustomScenario(Scenario):
     base_scenario: Scenario
@@ -86,5 +99,6 @@ class CustomScenario(Scenario):
                 return
 
             assert param is not None
-            param.set(val)
-            param.is_customized = True
+            if not param.is_value_equal(val):
+                param.set(val)
+                param.is_customized = True

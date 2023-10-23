@@ -3,6 +3,7 @@ import argparse
 import cProfile
 from decimal import Decimal
 from math import frexp, log10
+import math
 import sys
 import time
 
@@ -124,6 +125,8 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
+context.load_all_dvc_datasets()
+
 for node_id in (args.debug_nodes or []):
     node = context.get_node(node_id)
     node.debug = True
@@ -214,8 +217,11 @@ def round_quantity(e: Quantity):
     if abs(e.m) > 10000:
         e = round(e, 1)
     else:
-        l = int(-log10(abs(e.m))) + 4
-        e = round(e, ndigits=l)
+        if math.isclose(e.m, 0):
+            digits = 2
+        else:
+            digits = int(-log10(abs(e.m))) + 4
+        e = round(e, ndigits=digits)
     return e
 
 

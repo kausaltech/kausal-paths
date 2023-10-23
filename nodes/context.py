@@ -113,6 +113,9 @@ class Context:
         if not nx.is_directed_acyclic_graph(g):
             raise Exception("Node graph is not directed (there are loops between nodes)")
 
+        for node in self.nodes.values():
+            node.finalize_init()
+
         self.node_graph = g
 
     def get_parameter_type(self, parameter_id: str) -> type:
@@ -129,6 +132,15 @@ class Context:
             ds = self.dataset_repo.load_dataset(id, skip_pull_if_exists=True)
             self.dvc_datasets[id] = ds
         return ds
+
+    def load_all_dvc_datasets(self):
+        all_datasets = set()
+        for node in self.nodes.values():
+            for ds in node.input_dataset_instances:
+                if not isinstance(ds, DVCDataset):
+                    continue
+                all_datasets.add(ds.id)
+        self.dataset_repo.load_datasets(list(all_datasets))
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets
@@ -225,6 +237,8 @@ class Context:
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
         self.scenarios[scenario.id] = scenario
+        for node in self.nodes.values():
+            node.on_scenario_created(scenario)
 
     def set_custom_scenario(self, scenario: CustomScenario):
         assert self.custom_scenario is None
@@ -338,7 +352,7 @@ class Context:
                 url = 'file://%s#%d' % (node.yaml_fn, node.yaml_lc[0])
                 node_name = f'[link={url}]{node.name}[/link]'
             else:
-                node_name = node.name
+                node_name = str(node.name)
             node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node_name} [orchid]{unit_quantity} {node_class_str}'
             if include_datasets:
                 for ds in node.input_dataset_instances:
