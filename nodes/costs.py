@@ -29,7 +29,7 @@ class SelectiveNode(AdditiveNode):
         included_nodes: list[Node] = []
 
         for node in nodes:
-            df = node.get_output_pl()
+            df = node.get_output_pl(target_node=self)
             if 'co2_cost' in node.tags:
                 if include_co2:
                     included_nodes.append(node)
@@ -45,7 +45,7 @@ class SelectiveNode(AdditiveNode):
         assert len(included_nodes)
         output_unit = self.output_metrics[DEFAULT_METRIC].unit
         for node in included_nodes:
-            df = node.get_output_pl().ensure_unit(VALUE_COLUMN, output_unit)
+            df = node.get_output_pl(target_node=self).ensure_unit(VALUE_COLUMN, output_unit)
             if out is None:
                 out = df
             else:

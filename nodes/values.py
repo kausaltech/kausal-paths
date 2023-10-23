@@ -97,9 +97,9 @@ class ValueProfile(SimpleNode):
         for action in actions:
             round += 1
             dfs = [
-                self.weighted_impact(action, 'emissions_weight', quantity='emissions'),
-                self.weighted_impact(action, 'cost_weight', quantity='currency'),
-                self.weighted_impact(action, 'health_weight', quantity='disease_burden'),
+                self.weighted_impact(action, 'emissions_weight', tag='emissions'),
+                self.weighted_impact(action, 'cost_weight', tag='currency'),
+                self.weighted_impact(action, 'health_weight', tag='disease_burden'),
                 self.weighted_impact(action, 'equity_weight', tag='equity')
             ]
             df_action = self.sum_dfs(dfs)
