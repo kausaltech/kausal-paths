@@ -1,13 +1,25 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 import pytest
-from datetime import datetime
-from django.utils.timezone import make_aware, utc
 from graphene_django.utils.testing import graphql_query
+
+if not TYPE_CHECKING:
+    from factory import Factory, SubFactory
+    # These classes need to support the generics syntax
+    for kls in (Factory, SubFactory):
+        if not hasattr(kls, '__class_getitem__'):
+            kls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
+else:
+    from nodes.instance import Instance
+
+
 from pytest_factoryboy import register
 
 from nodes.tests.factories import (
-    AdditiveActionFactory, ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceConfigFactory,
-    InstanceFactory, NodeFactory, ScenarioFactory, SimpleNodeFactory
+    AdditiveActionFactory, ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceConfigFactory, InstanceFactory,
+    NodeFactory, ScenarioFactory, SimpleNodeFactory
 )
 from params.tests.factories import (
     BoolParameterFactory, ParameterFactory, NumberParameterFactory, StringParameterFactory
@@ -27,26 +39,26 @@ register(ParameterFactory)
 register(StringParameterFactory)
 register(DatasetFactory)
 register(UserFactory)
+register(InstanceFactory)
 
 
 @pytest.fixture
 def node(context):
     node = NodeFactory(context=context)
-    context.add_node(node)
     return node
 
 
 @pytest.fixture
 def action_node(context):
+    assert context.instance is not None
     node = ActionNodeFactory(context=context)
-    context.add_node(node)
     return node
 
 
 @pytest.fixture
-def additive_action(context):
+def additive_action(context, instance):
+    assert context.instance is not None
     node = AdditiveActionFactory(context=context)
-    context.add_node(node)
     return node
 
 
@@ -61,14 +73,13 @@ def scenario(context):
 @pytest.fixture
 def simple_node(context):
     node = SimpleNodeFactory(context=context)
-    context.add_node(node)
     return node
 
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
 def default_scenario(context):
     """Adds default scenario but doesn't notify any nodes of its creation."""
-    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True)
+    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True, context=context)
     context.add_scenario(scenario)
     context.activate_scenario(scenario)
     return scenario
@@ -97,16 +108,14 @@ def custom_scenario(context, default_scenario):
 @pytest.fixture(autouse=True)
 def instance(context, default_scenario):
     instance = InstanceFactory(context=context)
-    # Replicate some code from InstanceConfig.get_instance
-    # FIXME: This is likely to break
-    # Make instance newer than anything we'll likely encounter so we always use the instance_cache forced below
-    instance.modified_at = make_aware(datetime(3000, 1, 1, 0, 0), utc)
-    # instance.context.generate_baseline_values()  # TODO
-    from pages import global_instance
-    global_instance.instance = instance
-    from nodes import models
-    models.instance_cache[instance.id] = instance
+    if context.instance is None:
+        context.instance = instance
     return instance
+
+
+@pytest.fixture(autouse=True)
+def instance_config(instance: Instance):
+    return InstanceConfigFactory(identifier=instance.id, instance=instance)
 
 
 @pytest.fixture

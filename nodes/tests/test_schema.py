@@ -42,7 +42,9 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
     assert data == expected
 
 
-def test_forecast_metric_type(graphql_client_query_data, additive_action, context, baseline_scenario):
+def test_forecast_metric_type(
+        graphql_client_query_data, additive_action, context, baseline_scenario
+):
     context.generate_baseline_values()
     metric = Metric.from_node(additive_action)
     data = graphql_client_query_data(
@@ -119,11 +121,13 @@ def test_forecast_metric_type(graphql_client_query_data, additive_action, contex
 
 def test_node_type(graphql_client_query_data, additive_action, instance_config):
     node_config = NodeConfigFactory(instance=instance_config, identifier=additive_action.id)
-    input_node = NodeFactory()
+    ctx = instance_config._instance.context
+    assert ctx.instance == instance_config._instance
+    input_node = NodeFactory.create(context=ctx)
     additive_action.add_input_node(input_node)
-    output_node = NodeFactory()
+    output_node = NodeFactory.create(context=ctx)
     additive_action.add_output_node(output_node)
-    upstream_action = ActionNodeFactory()
+    upstream_action = ActionNodeFactory.create(context=ctx)
     input_node.add_input_node(upstream_action)
     data = graphql_client_query_data(
         '''

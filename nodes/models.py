@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from datasets.models import Dimension as DimensionModel, Dataset as DatasetModel
     from loguru import Logger
     from users.models import User
+    from pages.models import ActionListPage
 
 
 instance_cache_lock = threading.Lock()
@@ -119,6 +120,8 @@ class InstanceConfig(PathsModel):
     dimensions: models.manager.RelatedManager['DimensionModel']
     datasets: models.manager.RelatedManager['DatasetModel']
 
+    _instance: Instance
+
     search_fields = [
         index.SearchField('identifier'),
         index.SearchField('name_i18n'),
@@ -163,6 +166,9 @@ class InstanceConfig(PathsModel):
             self.other_languages = list(other_langs)
 
     def _get_instance(self) -> Instance:
+        if hasattr(self, '_instance'):
+            return self._instance
+
         if self.identifier in instance_cache:
             instance: Instance = instance_cache[self.identifier]
             if not self.nodes.exists():
@@ -179,9 +185,11 @@ class InstanceConfig(PathsModel):
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
         instance_cache[self.identifier] = instance
+        self._instance = instance
         return instance
 
     def get_instance(self, generate_baseline: bool = False) -> Instance:
+        assert not generate_baseline
         with instance_cache_lock:
             instance = self._get_instance()
             if generate_baseline:
@@ -206,6 +214,12 @@ class InstanceConfig(PathsModel):
     def root_page(self) -> Page:
         assert self.site is not None
         return self.site.root_page
+
+    @cached_property
+    def action_list_page(self) -> ActionListPage | None:
+        from pages.models import ActionListPage
+        qs = self.root_page.get_descendants().type(ActionListPage)
+        return qs.first()
 
     def get_translated_root_page(self) -> Page:
         """Return root page in activated language, fall back to default language."""
@@ -262,7 +276,8 @@ class InstanceConfig(PathsModel):
         from pages.models import ActionListPage, OutcomePage
         from pages.config import OutcomePage as OutcomePageConfig
 
-        home_pages: models.QuerySet['Page'] = Page.get_first_root_node().get_children()
+        root = cast(Page, Page.get_first_root_node())
+        home_pages: models.QuerySet['Page'] = root.get_children()
 
         instance = self.get_instance()
         outcome_nodes = {node.identifier: node for node in self.get_outcome_nodes()}
@@ -306,6 +321,7 @@ class InstanceConfig(PathsModel):
                 if page is not None:
                     continue
 
+                assert page_config.outcome_node is not None
                 home_page.add_child(instance=OutcomePage(
                     locale=locale,
                     title=str(page_config.name),

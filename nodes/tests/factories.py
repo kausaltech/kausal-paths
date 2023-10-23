@@ -1,8 +1,9 @@
-from datetime import datetime
-from django.utils.timezone import make_aware, utc
-from factory import Factory, Sequence, SubFactory, post_generation
+from __future__ import annotations
+from datetime import datetime, timezone, timedelta
+
+from factory import Factory, LazyFunction, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
-from typing import List
+from typing import Any
 
 from common.i18n import TranslatedString
 from nodes.actions import ActionNode
@@ -16,32 +17,26 @@ from nodes.simple import SimpleNode
 from nodes.scenario import CustomScenario, Scenario
 
 
-class ContextFactory(Factory):
+class ContextFactory(Factory[Context]):
     class Meta:
         model = Context
 
-    dataset_repo = None  # TODO: Set appropriately when we have tests for datasets
+    dataset_repo: str | None = None  # TODO: Set appropriately when we have tests for datasets
     target_year = 2030
+    instance: RelatedFactory[Any, Instance] = RelatedFactory(
+        'nodes.tests.factories.InstanceFactory',
+        factory_related_name='context'
+    )
 
-
-class InstanceConfigFactory(DjangoModelFactory):
-    class Meta:
-        model = InstanceConfig
-
-    identifier = 'test'
-    lead_title = "lead title"
-    lead_paragraph = "Lead paragraph"
-
-
-class InstanceFactory(Factory):
+class InstanceFactory(Factory[Instance]):
     class Meta:
         model = Instance
 
-    id = 'test'
+    id = Sequence(lambda i: f'instance{i}')
     name = 'instance'
     owner = 'owner'
     default_language = 'fi'
-    context = SubFactory(ContextFactory)
+    context: SubFactory[Any, Context] = SubFactory(ContextFactory)
     reference_year = 1990
     minimum_historical_year = 2010
     maximum_historical_year = 2018
@@ -49,24 +44,56 @@ class InstanceFactory(Factory):
     # pages: Optional[Dict[str, Page]] = None
     # content_refreshed_at: Optional[datetime] = field(init=False)
 
+    @classmethod
+    def create(cls, **kwargs: Any) -> Instance:
+        ret = super().create(**kwargs)
+        return ret
+
+    @post_generation
+    @staticmethod
+    def post(obj: Instance, create: bool, extracted, **kwargs):
+        obj.modified_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+
+class InstanceConfigFactory(DjangoModelFactory):
+    class Meta:
+        model = InstanceConfig
+        exclude = ('instance',)
+
+    identifier = Sequence(lambda i: f'ic{i}')
+    lead_title = "lead title"
+    lead_paragraph = "Lead paragraph"
+    instance = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
+
+    @classmethod
+    def create(cls, **kwargs: Any) -> InstanceConfig:
+        instance = kwargs.get('instance', None)
+        obj = super().create(**kwargs)
+        if instance:
+            obj._instance = instance
+            from nodes.models import instance_cache
+            instance_cache[obj.identifier] = instance
+
+        return obj
+
 
 class NodeConfigFactory(DjangoModelFactory):
     class Meta:
         model = NodeConfig
 
-    instance = SubFactory(InstanceConfigFactory)
+    instance: SubFactory[Any, InstanceConfig] = SubFactory(InstanceConfigFactory)
     identifier = Sequence(lambda i: f'nodeconfig{i}')
     name = "name"
     short_description = "short description"
     description = "description"
 
 
-class NodeFactory(Factory):
+class NodeFactory(Factory[Node]):
     class Meta:
         model = Node
 
     id = Sequence(lambda i: f'node{i}')
-    context = SubFactory(ContextFactory)
+    context: SubFactory[Any, Context] = SubFactory(ContextFactory)
     name = TranslatedString('name')
     description = TranslatedString('description')
     color = 'pink'
@@ -80,6 +107,13 @@ class NodeFactory(Factory):
         forecast=[(2021, 2.34)],
         tags=[],
     )]
+
+    @post_generation
+    @staticmethod
+    def post(obj: Node, create: bool, extracted, **kwargs):
+        assert obj.context.instance is not None
+        obj.context.add_node(obj)
+        obj.context.finalize_nodes()
 
 
 class ActionNodeFactory(NodeFactory):
@@ -105,7 +139,7 @@ class ScenarioFactory(Factory):
     name = TranslatedString('scenario')
     default = False
     all_actions_enabled = False
-    notified_nodes: List[Node] = []
+    context = SubFactory(ContextFactory)
 
 
 class CustomScenarioFactory(ScenarioFactory):

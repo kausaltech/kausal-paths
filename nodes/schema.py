@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 import logging
 import dataclasses
 
@@ -56,6 +56,7 @@ def create_from_dataclass(kls):
     fields = dataclasses.fields(kls)
     gfields = {}
     for field in fields:
+        gf: type[graphene.Scalar]
         if field.type == bool:
             gf = graphene.Boolean
         elif field.type == int:
@@ -108,6 +109,13 @@ class InstanceGoalEntry(graphene.ObjectType):
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
 
 
+def get_action_list_page_node():
+    from grapple.registry import registry
+    from pages.models import ActionListPage
+
+    return registry.pages[ActionListPage]
+
+
 class InstanceType(graphene.ObjectType):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
@@ -121,32 +129,26 @@ class InstanceType(graphene.ObjectType):
     minimum_historical_year = graphene.Int(required=True)
     maximum_historical_year = graphene.Int()
 
-    hostname = graphene.Field(InstanceHostname, hostname=graphene.String())
+    hostname = graphene.Field(InstanceHostname, hostname=graphene.String(required=True))
     lead_title = graphene.String()
     lead_paragraph = graphene.String()
     theme_identifier = graphene.String()
     action_groups = graphene.List(graphene.NonNull(ActionGroupType), required=True)
     features = graphene.Field(InstanceFeaturesType, required=True)
     goals = graphene.List(graphene.NonNull(InstanceGoalEntry), id=graphene.ID(required=False), required=True)
+    action_list_page = graphene.Field(get_action_list_page_node, required=False)
 
     @staticmethod
-    def resolve_lead_title(root, info):
-        obj = InstanceConfig.objects.filter(identifier=root.id).first()
-        if obj is None:
-            return None
-        return obj.lead_title_i18n  # type: ignore
+    def resolve_lead_title(root: Instance, info):
+        return root.config.lead_title_i18n  # type: ignore
 
     @staticmethod
-    def resolve_lead_paragraph(root, info):
-        obj = InstanceConfig.objects.filter(identifier=root.id).first()
-        if obj is None:
-            return None
-        return obj.lead_paragraph_i18n  # type: ignore
+    def resolve_lead_paragraph(root: Instance, info):
+        return root.config.lead_paragraph_i18n  # type: ignore
 
     @staticmethod
-    def resolve_hostname(root, info, hostname):
-        return InstanceConfig.objects.get(identifier=root.id)\
-            .hostnames.filter(hostname__iexact=hostname).first()
+    def resolve_hostname(root: Instance, info: GQLInstanceInfo, hostname: str):
+        return root.config.hostnames.filter(hostname__iexact=hostname).first()
 
     @staticmethod
     def resolve_goals(root: Instance, info: GQLInstanceInfo, id: str | None = None):
@@ -718,7 +720,7 @@ class Query(graphene.ObjectType):
     active_normalization = graphene.Field(NormalizationType, required=False)
 
     @ensure_instance
-    def resolve_instance(root, info: GQLInstanceInfo):
+    def resolve_instance(root: Any, info: GQLInstanceInfo) -> Any:
         return info.context.instance
 
     @ensure_instance

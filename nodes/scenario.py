@@ -57,7 +57,9 @@ class Scenario:
         return self.id
 
     def __repr__(self) -> str:
-        return "Scenario(id=%s, name='%s', instance=%s)" % (self.id, str(self.name), self.context.instance.id)
+        instance = self.context.instance if self.context is not None else None
+        return "Scenario(id=%s, name='%s', instance=%s)" % (self.id, str(self.name), instance.id if instance is not None else None)
+
 
 class CustomScenario(Scenario):
     base_scenario: Scenario
