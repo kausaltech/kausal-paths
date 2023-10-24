@@ -35,7 +35,18 @@ class ActionGroup:
     color: str | None
 
 
-ENABLED_PARAM = BoolParameter(
+class EnabledParam(BoolParameter):
+    def set_node(self, node: Node):
+        if self.context is not None:
+            # If the Instance defines a custom label for the 'enabled' parameter,
+            # replace the default with it.
+            instance = self.context.instance
+            if instance.terms.enabled_label:
+                self.label = instance.terms.enabled_label
+        return super().set_node(node)
+
+
+ENABLED_PARAM = EnabledParam(
     local_id=ENABLED_PARAM_ID, label=_("Enabled"), description=_("Is the action included in the scenario"),
     is_customizable=True
 )
@@ -51,7 +62,7 @@ class ActionNode(Node):
     # actions, 1.0.
     no_effect_value: Optional[float] = None
     enabled_param: BoolParameter
-    allowed_parameters: ClassVar[list[Parameter]] = []
+    allowed_parameters: ClassVar[list[Parameter]] = [ENABLED_PARAM]
 
     def __init_subclass__(cls) -> None:
         """Ensure the 'enabled' parameter is allowed for all action classes."""
@@ -67,6 +78,10 @@ class ActionNode(Node):
         super().__init_subclass__()
 
     def finalize_init(self):
+        if hasattr(self, 'enabled_param'):
+            # Init already called
+            return
+
         param = self.get_parameter(ENABLED_PARAM_ID, required=False)
         if param is None:
             for param in self.allowed_parameters:

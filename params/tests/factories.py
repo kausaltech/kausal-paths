@@ -2,10 +2,11 @@ from factory import Factory, Sequence, SubFactory
 
 from common.i18n import TranslatedString
 from nodes.context import unit_registry
+from nodes.tests.factories import ContextFactory
 from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
 
 
-class ParameterFactory(Factory):
+class ParameterFactory(Factory[Parameter]):
     class Meta:
         model = Parameter
 
@@ -13,6 +14,8 @@ class ParameterFactory(Factory):
     label = TranslatedString("Parameter label")
     description = TranslatedString("Parameter description")
     is_customizable = True
+    is_visible = True
+    context = SubFactory(ContextFactory)
 
 
 class NumberParameterFactory(ParameterFactory):

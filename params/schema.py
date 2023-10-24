@@ -232,6 +232,7 @@ class Query(graphene.ObjectType):
                 return None
         except KeyError:
             raise GraphQLError(f"Parameter {id} does not exist", info.field_nodes)
+        return param
 
 
 types = [

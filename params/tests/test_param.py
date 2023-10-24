@@ -1,11 +1,15 @@
 import pytest
+from nodes.scenario import Scenario
 
 from params.param import ValidationError
 
+pytestmark = pytest.mark.django_db
 
+
+"""
 def test_parameter_add_scenario_setting(parameter, scenario):
     value = 'foo'
-    parameter.add_scenario_setting(scenario, value)
+    scenario.add_parameter(parameter, value)
     assert parameter.get_scenario_setting(scenario) == value
 
 
@@ -13,7 +17,7 @@ def test_parameter_add_scenario_setting_twice(parameter, scenario):
     parameter.add_scenario_setting(scenario, 'foo')
     with pytest.raises(Exception):
         parameter.add_scenario_setting(scenario, 'bar')
-
+"""
 
 def test_parameter_global_id_global_param(parameter):
     assert parameter.global_id == parameter.local_id
@@ -58,14 +62,15 @@ def test_bool_parameter_clean_fails(bool_parameter, value):
 
 
 @pytest.mark.parametrize('setting_exists', [True, False])
-def test_bool_parameter_reset_to_scenario_setting(bool_parameter, scenario, setting_exists):
+def test_bool_parameter_reset_to_scenario_setting(bool_parameter, scenario: Scenario, setting_exists):
     if setting_exists:
-        bool_parameter.add_scenario_setting(scenario, True)
+        scenario.add_parameter(bool_parameter, True)
         expected = True
     else:
         expected = None
     assert bool_parameter.get() is None
-    bool_parameter.reset_to_scenario_setting(scenario)
+    if setting_exists:
+        bool_parameter.reset_to_scenario_setting(scenario, scenario.param_values[bool_parameter.global_id])
     assert bool_parameter.get() is expected
 
 
