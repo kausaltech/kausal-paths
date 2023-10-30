@@ -3530,11 +3530,11 @@ actions:
         dest_amounts: [100]
 
 #
-# Massnahmenpaket 5: Verträgliche Gestaltung des Verkehrs
+# Massnahmenpaket 5: Verträgliche Abwicklung des Verkehrs
 #
 - id: improved_vehicle_fleet
   name_en: Electrify vehicle fleet
-  name_de: Verträgliche Gestaltung des Verkehrs
+  name_de: Verträgliche Abwicklung des Verkehrs
   description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
     dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
     erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung)
@@ -3933,7 +3933,7 @@ actions:
   name_en: Buses use synthetic diesel
   name_de: Buses use synthetic diesel
   type: shift.ShiftAction
-  #parent: heater_replacement_and_district_heat
+  parent: improved_vehicle_fleet
   group: mobility
   output_nodes:
   - id: transport_emissions_for_fuel
