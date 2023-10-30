@@ -7,8 +7,8 @@ dataset_repo:
   commit: 959c8ae71be5e47bdb839535db99e8129400e444
   dvc_remote: kausal-s3-private
   default_path: zuerich
-name_en: Net Zero 2040
-name_de: Netto-Null 2040
+name_en: Net Zero Cockpit
+name_de: Netto-Null Cockpit
 owner_en: City of Zürich
 owner_de: Stadt Zürich
 theme_identifier: zurich
@@ -47,7 +47,7 @@ terms:
 action_groups:
 # Handlungsfeld
 - id: buildings
-  name: Gebäude und Wärmeversorgung
+  name: Gebäude
   name_en: Buildings and Heat Supply
   color: '#002F96'
 - id: mobility
@@ -4020,8 +4020,8 @@ actions:
 
 pages:
 - id: home
-  name_en: Net Zero 2040
-  name_de: Netto-Null 2040
+  name_en: Emissions
+  name_de: Treibhausgasemissionen
   path: /
   type: emission
   outcome_node: net_emissions
