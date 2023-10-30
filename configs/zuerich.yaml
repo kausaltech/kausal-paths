@@ -7,8 +7,8 @@ dataset_repo:
   commit: 959c8ae71be5e47bdb839535db99e8129400e444
   dvc_remote: kausal-s3-private
   default_path: zuerich
-name_en: Net Zero 2040
-name_de: Netto-Null 2040
+name_en: Net Zero Cockpit
+name_de: Netto-Null Cockpit
 owner_en: City of Zürich
 owner_de: Stadt Zürich
 theme_identifier: zurich
@@ -47,17 +47,17 @@ terms:
 action_groups:
 # Handlungsfeld
 - id: buildings
-  name: Gebäude und Wärmeversorgung
+  name: Gebäude
   name_en: Buildings and Heat Supply
-  color: '#002F96'
+  color: '#989898'
 - id: mobility
   name: Mobilität
   name_en: Transportation
-  color: '#E22D53'
+  color: '#0505A0'
 - id: waste
   name: Entsorgung
   name_en: Waste
-  color: '#F18830'
+  color: '#007C78'
 - id: other
   name: Andere
   name_en: Other
@@ -87,7 +87,7 @@ dimensions:
   - id: negative
     label: Negative Emissionen
     label_en: Negative emissions
-    color: '#F7A5AF'
+    color: '#8ECF69'
     #id_match: ^negative_emissions$
     order: -1
   categories:
@@ -112,7 +112,7 @@ dimensions:
   - id: negative_emissions
     label_de: Negative Emissionen
     label_en: Negative emissions
-    color: '#F7A5AF'
+    color: '#8ECF69'
     order: -1
     group: negative
 
@@ -737,7 +737,7 @@ emission_sectors:
   name_de: Negative Emissionen
   name_en: Negative emissions
   part_of: net_emissions
-  color: '#F7A5AF'
+  color: '#8ECF69'
   order: -1
 
 # - id: direct_emissions
@@ -780,7 +780,7 @@ emission_sectors:
   short_name_en: Food consumption
   category: food_consumption
   part_of: net_emissions
-  color: '#BCE59E'
+  color: '#002914'
   input_dataset_processors: [LinearInterpolation]
 
 - id: textile_consumption_emissions
@@ -790,7 +790,7 @@ emission_sectors:
   short_name_en: Textile consumption
   category: textile_consumption
   part_of: net_emissions
-  color: '#FBCB97'
+  color: '#EB5E00'
   input_dataset_processors: [LinearInterpolation]
 
 - id: other_consumption_emissions
@@ -800,7 +800,7 @@ emission_sectors:
   short_name_en: Other consumption
   category: other_consumption
   part_of: net_emissions
-  color: '#2AC7C7'
+  color: '#A174DE'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -1467,7 +1467,7 @@ nodes:
   name_de: Treibhausgasemissionen Gebäude
   short_name_de: Gebäude
   short_name_en: Buildings
-  color: '#002F96'
+  color: '#989898'
   unit: kt/a
   quantity: emissions
   type: simple.SectorEmissions
@@ -1487,7 +1487,7 @@ nodes:
   quantity: emissions
   unit: kt/a
   type: simple.SectorEmissions
-  color: '#E22D53'
+  color: '#0505A0'
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
@@ -2155,7 +2155,7 @@ nodes:
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
   type: simple.SectorEmissions
-  color: '#F18830'
+  color: '#007C78'
 
 - id: afolu_emissions
   name_de: Treibhausgasemissionen Land- und Forstwirtschaft
@@ -2177,6 +2177,7 @@ nodes:
     - id: emission_sectors
       flatten: true
   input_dataset_processors: [LinearInterpolation]
+  color: '#F1D900'
 
 - id: building_fgas_emissions
   name_en: F-gas emissions from buildings
@@ -4020,19 +4021,11 @@ actions:
 
 pages:
 - id: home
-  name_en: Net Zero 2040
-  name_de: Netto-Null 2040
+  name_en: Emissions
+  name_de: Treibhausgasemissionen
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title_en: Development version
-  lead_title_de: Entwicklungsversion
-  lead_paragraph_en: This is a test version of the City of Zürich's interactive scenario
-    modeling platform for the Net Zero goal. All information on this website is to
-    be considered incomplete and experimental.
-  lead_paragraph_de: Dies ist eine Testversion der interaktiven Szenariomodellierungsplattform
-    zum Klimaschutzziel Netto-Null 2040. Alle Informationen auf dieser Website sind
-    als unvollständig und provisorisch zu verstehen.
 
 - id: 2000watt
   name_en: 2000-Watt
