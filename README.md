@@ -18,6 +18,14 @@ Install the required Python packages:
 ```shell
 pip install -r requirements.txt
 ```
+
+> _Note for macOS users: If you run into issues installing python-snappy, install it separately first_
+>
+> ```
+> brew install snappy
+> CPPFLAGS="-I/opt/homebrew/include -L/opt/homebrew/lib" pip install python-snappy
+> ```
+
 Create a file called `local_settings.py` in your repo root with the following contents:
 
 ```python
@@ -27,8 +35,8 @@ DEBUG = True
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': f'{BASE_DIR}/db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'paths',
         'ATOMIC_REQUESTS': True,
     }
 }
@@ -41,6 +49,7 @@ python manage.py migrate
 ```
 
 Create a superuser:
+
 > You might need the following translations during the createsuperuser operation: käyttäjätunnus = username, sähköpostiosoite = e-mail
 
 ```shell
