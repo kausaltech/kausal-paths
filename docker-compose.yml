@@ -27,6 +27,7 @@ services:
       args:
         - STATIC_ROOT=/srv/static
         - MEDIA_ROOT=/srv/media
+        - XDG_CACHE_HOME=/cache
         - EXTRA_PYPI_INDEX
     restart: always
     volumes:
