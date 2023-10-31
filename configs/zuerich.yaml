@@ -809,7 +809,7 @@ nodes:
   quantity: population
   unit: cap
   name_en: Inhabitants
-  name_de: Bevölkerungsentwicklung
+  name_de: Einwohner*in
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/population
