@@ -544,11 +544,27 @@ class NodeType(graphene.ObjectType):
         name = 'Node'
         interfaces = (NodeInterface,)
 
-    upstream_actions = graphene.List(graphene.NonNull(lambda: ActionNodeType, required=True))
+    upstream_actions = graphene.List(
+        graphene.NonNull(lambda: ActionNodeType, required=True),
+        only_root=graphene.Boolean(required=False, default_value=False),
+        decision_level=ActionDecisionLevel(required=False),
+    )
 
     @staticmethod
-    def resolve_upstream_actions(root: Node, info: GQLInstanceInfo):
-        return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
+    def resolve_upstream_actions(
+        root: Node, info: GQLInstanceInfo, only_root: bool = False,
+        decision_level: DecisionLevel | None = None,
+    ):
+        def filter_action(n: Node):
+            if not isinstance(n, ActionNode):
+                return False
+            if only_root and n.parent_action is not None:
+                return False
+            if decision_level is not None:
+                if n.decision_level != decision_level:
+                    return False
+            return True
+        return root.get_upstream_nodes(filter=filter_action)
 
 
 class ActionNodeType(graphene.ObjectType):
