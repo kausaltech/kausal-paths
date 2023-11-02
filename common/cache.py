@@ -86,7 +86,7 @@ class Cache(AbstractContextManager):
             self.client = None
             self.local_cache = {}
         self.prefix = 'kausal-paths'
-        self.timeout = 600
+        self.timeout = 30 * 60
         self.ureg = ureg
         self.run_cache = None
         self.run_pipe = None

@@ -254,7 +254,7 @@ class PathsGraphQLView(GraphQLView):
         return cache.get(key)
 
     def store_to_cache(self, key, result):
-        return cache.set(key, result, timeout=600)
+        return cache.set(key, result, timeout=30 * 60)
 
     def execute_graphql_request(
         self, request: GQLInstanceContext, data: dict, query: str | None, variables: dict | None,
