@@ -33,6 +33,7 @@ env = environ.FileAwareEnv(
     AZURE_AD_CLIENT_SECRET=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
+    REDIS_URL=(str, ''),
     CACHE_URL=(str, 'locmemcache://'),
     MEDIA_ROOT=(environ.Path(), root('media')),
     STATIC_ROOT=(environ.Path(), root('static')),
@@ -74,9 +75,17 @@ DATABASES = {
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
+# If Redis is configured, but no CACHE_URL is set in the environment,
+# default to using Redis as the cache.
+cache_var = 'CACHE_URL'
+if env.get_value('CACHE_URL', default=None) is None:  # pyright: ignore
+    if env('REDIS_URL'):
+        cache_var = 'REDIS_URL'
 CACHES = {
-    'default': env.cache(),
+    'default': env.cache_url(var=cache_var),
 }
+if 'KEY_PREFIX' not in CACHES['default']:
+    CACHES['default']['KEY_PREFIX'] = PROJECT_NAME
 
 SECRET_KEY = env('SECRET_KEY')
 
