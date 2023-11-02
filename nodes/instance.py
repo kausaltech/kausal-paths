@@ -626,8 +626,7 @@ class InstanceLoader:
         for nc in ncs:
             n = Normalization.from_config(self.context, nc)
             n_id = n.normalizer_node.id
-            assert n_id not in self.context.normalizations
-            self.context.normalizations[n_id] = n
+            self.context.add_normalization(n_id, n)
 
     @classmethod
     def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict]):

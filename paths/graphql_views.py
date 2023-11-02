@@ -7,11 +7,12 @@ from typing import Any, Optional, cast
 import orjson
 import sentry_sdk
 from sentry_sdk.tracing import Transaction
+from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import translation
 from graphene_django.views import GraphQLView
-from graphql import DirectiveNode
+from graphql import DirectiveNode, OperationType
 from graphql.error import GraphQLError
 from graphql.execution import ExecutionContext
 from graphql.language import OperationDefinitionNode
@@ -185,6 +186,8 @@ class PathsExecutionContext(ExecutionContext):
             yield
 
     def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:
+        if operation.operation != OperationType.QUERY:
+            setattr(self.context_value, 'graphene_no_cache', True)
         try:
             with self.instance_context(operation):
                 ret = super().execute_operation(operation, root_value)
@@ -221,20 +224,31 @@ class PathsGraphQLView(GraphQLView):
             return None
         if not query:
             return None
+
         if request.user.is_authenticated:
             return None
 
-        if not SessionStorage.can_use_cache(request.session, identifier):
+        session_key = SessionStorage.get_cache_key(request.session, identifier)
+        if session_key is None:
+            return None
+
+        ic = InstanceConfig.objects.filter(identifier=identifier).first()
+        if ic is None:
             return None
 
         m = hashlib.sha1()
         if operation_name:
             m.update(operation_name.encode('utf8'))
+        dt = ic.cache_invalidated_at.isoformat()
+        m.update(dt.encode('ascii'))
         if variables:
-            m.update(json.dumps(variables).encode('utf8'))
+            m.update(json.dumps(variables, sort_keys=True, ensure_ascii=True).encode('ascii'))
         m.update(query.encode('utf8'))
         key = m.hexdigest()
-        return key
+        parts = [key]
+        if session_key:
+            parts.append(session_key)
+        return ':'.join(parts)
 
     def get_from_cache(self, key):
         return cache.get(key)
@@ -272,20 +286,27 @@ class PathsGraphQLView(GraphQLView):
                 # No tracing activated, use an inert Span
                 span = sentry_sdk.start_span()
 
+            # We currently disable users in the graphql requests
+            request.user = AnonymousUser()
             cache_key = self.get_cache_key(request, query, variables, operation_name)
             span.set_tag('cache_key', cache_key)
-
             with span:
                 pc = PerfCounter('graphql query')
                 result = None
                 if cache_key is not None:
                     result = self.get_from_cache(cache_key)
+                    logger.debug('Cache key %s, %s' % (cache_key, "got result" if result is not None else "no cache"))
+                else:
+                    logger.debug('Not caching request')
                 if result is None:
                     result = super().execute_graphql_request(
                         request, data, query, variables, operation_name, *args, **kwargs
                     )
-                    if result and not result.errors and cache_key:
+                    if result and not result.errors and cache_key and not getattr(request, 'graphene_no_cache', False):
+                        logger.debug('Storing to cache: %s' % cache_key)
                         self.store_to_cache(cache_key, result)
+                    else:
+                        logger.debug('Not storing to cache: %s' % cache_key)
                 query_time = pc.measure()
                 logger.debug("GQL response took %.1f ms" % query_time)
 

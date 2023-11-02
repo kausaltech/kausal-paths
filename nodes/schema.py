@@ -821,13 +821,20 @@ class SetNormalizerMutation(graphene.Mutation):
 
     @pass_context
     def mutate(root, info: GQLInstanceInfo, context: Context, id: str | None = None):
+        default = context.default_normalization
         if id:
             normalizer = context.normalizations.get(id)
             if normalizer is None:
                 raise GraphQLError("Normalization '%s' not found" % id)
+        else:
+            normalizer = None
 
         assert context.setting_storage is not None
-        context.setting_storage.set_option('normalizer', id)
+
+        if normalizer == default:
+            context.setting_storage.reset_option('normalizer')
+        else:
+            context.setting_storage.set_option('normalizer', id)
         context.set_option('normalizer', id)
 
         return dict(ok=True, active_normalizer=context.active_normalization)
