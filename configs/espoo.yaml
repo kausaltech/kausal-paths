@@ -768,7 +768,9 @@ actions:
   params:
   - id: target_year_level
     value: -30
-    is_customizable: false
+    min_value: -60
+    max_value: 0
+    is_visible: false
 
 - id: heating_efficiency_improvements_old
   name: Ominaislämmönkulutuksen tehostuminen vanhassa rakennuskannassa
@@ -815,7 +817,9 @@ actions:
   params:
   - id: target_year_level
     value: -51.3
-    is_customizable: false
+    min_value: -70
+    max_value: 0
+    is_visible: false
 
 - id: heating_oil_bioshare
   name: Lämmitysöljyn sekoitusvelvoite
@@ -1051,8 +1055,10 @@ actions:
   unit: g/kWh
   params:
   - id: multiplier
-    is_customizable: false
+    is_visible: false
     value: 100.0
+    min_value: 50
+    max_value: 100
     unit: '%'
 
 - id: city_building_heat_optimization
@@ -1145,7 +1151,9 @@ actions:
   params:
   - id: target_year_level
     value: -0.1079092776
-    is_customizable: false
+    min_value: -0.2
+    max_value: 0
+    is_visible: false
 
 - id: reduce_industrial_fuel_emissions
   name: Teollisuuden polttoaineiden päästöt pienenevät
@@ -1182,7 +1190,9 @@ actions:
   params:
   - id: target_year_level
     value: -2.98
-    is_customizable: false
+    min_value: -3
+    max_value: -2
+    is_visible: false
 
 - id: reduce_machinery_emissions
   name: Työkoneiden päästöt pienenevät
@@ -1415,8 +1425,10 @@ actions:
   - car_traffic_emission_factor
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -3.616
+    min_value: -4
+    max_value: -3
 
 - id: upgrade_car_fleet
   name: Autokannan nopeampi uudistuminen
@@ -1443,8 +1455,10 @@ actions:
   - car_traffic_emission_factor
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -3.616
+    min_value: -4
+    max_value: -3
 
 - id: emission_limits_for_cars_and_vans
   name: Henkilö- ja pakettiautojen sitovat päästörajat
@@ -1471,8 +1485,10 @@ actions:
   - van_traffic_emission_factor
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -17.70
+    min_value: -18
+    max_value: -17
 
 - id: increase_fuel_distribution_requirement
   name: Jakeluvelvoitteen nosto
@@ -1499,8 +1515,10 @@ actions:
   - car_traffic_emission_factor
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -13.658
+    min_value: -14
+    max_value: -13
 
 - id: improve_personal_traffic_efficiency
   name: Liikennejärjestelmän tehostaminen
@@ -1524,8 +1542,10 @@ actions:
   - car_energy
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -35.31
+    min_value: -36
+    max_value: -35
 
 - id: increase_remote_work
   name: Etätyön lisääminen
@@ -1549,8 +1569,10 @@ actions:
   - car_energy
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -11.35
+    min_value: -12
+    max_value: -11
 
 - id: improve_transport_services
   name: Liikenteen palveluiden edistäminen
@@ -1574,8 +1596,10 @@ actions:
   - car_energy
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -11.35
+    min_value: -12
+    max_value: -11
 
 - id: trip_aggregation
   name: Yhdistetyt kuljetukset
@@ -1599,8 +1623,10 @@ actions:
   - car_energy
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -2.522
+    min_value: -3
+    max_value: -2
 
 - id: road_transportation_emission_trade
   name: Tieliikenteen päästökauppa
@@ -1624,8 +1650,10 @@ actions:
   - car_energy
   params:
   - id: target_year_level
-    is_customizable: false
+    is_visible: false
     value: -56.75
+    min_value: -57
+    max_value: -56
 
 scenarios:
 - id: baseline
