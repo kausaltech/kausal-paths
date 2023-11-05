@@ -4,19 +4,19 @@ supported_languages: []
 site_url: https://surrey.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 89642dc29d106bda6f1ea44cbc6be1803d544f1b
+  commit: c05ff4271abc98635d4034bd11a6b36262d990bc
   dvc_remote: kausal-s3
   default_path: surrey
 name: Surrey Greenhouse Gas Inventory
 owner_en: City of Surrey
 theme_identifier: ca-surrey
-target_year: 2020
-model_end_year: 2020
+target_year: 2050
+model_end_year: 2050
 # reference_year: 2007
 minimum_historical_year: 2007
 maximum_historical_year: 2020
 emission_unit: t/a
-# emission_forecast_from: 2021
+emission_forecast_from: 2021
 emission_dimensions: []
 emission_dataset: surrey/greenhouse_gas_emissions
 emission_sector_dimension: emission_sectors
@@ -31,15 +31,15 @@ features:
   baseline_visible_in_graphs: false
 
 
-action_groups:
-- id: buildings
-  name: Buildings
-- id: transportation
-  name: Transportation
-- id: electric_grid
-  name: Electric Grid
-- id: solid_waste
-  name: Solid Waste
+# action_groups:
+# - id: buildings
+#   name: Buildings
+# - id: transportation
+#   name: Transportation
+# - id: electric_grid
+#   name: Electric Grid
+# - id: solid_waste
+#   name: Solid Waste
 
 
 dimensions:
@@ -72,6 +72,8 @@ dimensions:
     label: Waste Water Treatment
   - id: district
     label: District Energy
+  - id: agriculture
+    label: Agriculture
 
 - id: vehicle_type
   label: Vehicle Type
@@ -107,6 +109,42 @@ dimensions:
   - id: combined_fuels
     label: Combined Fuels
 
+- id: model_action
+  label: Model Action
+  categories:
+  - id: zev
+    label: ZEV Regulations
+  - id: land_20min_t
+    label: LU & 20-Minute T
+  - id: land_20min_b
+    label: LU & 20-Minute B
+  - id: clean_ldvs
+    label: Clean LDVs
+  - id: clean_mhdvs
+    label: Clean MHDVs
+  - id: road_management
+    label: Road Management
+  - id: mhdv_technology
+    label: MHDV Technology
+  - id: clean_fuels
+    label: Clean Fuels
+  - id: new_construction
+    label: New Construction
+  - id: existing_buildings
+    label: Existing Buildings
+  - id: rng
+    label: RNG
+  - id: de_decarbonization
+    label: DE Decarbonization
+  - id: bchydro_decarbonization
+    label: BC Hydro Decarbonization
+  - id: carbon_sequestration
+    label: Carbon Sequestration
+  - id: waste_reduction
+    label: Waste Reduction
+  - id: biofuel_facility
+    label: Biofuel Facility
+
 
 params:
 - id: municipality_name
@@ -121,6 +159,11 @@ emission_sectors:
   description: <p>Greenhouse Gas Emissions</p><p><b>Unit:</b> t/yr. = metric tons
     CO2e per year</b></p>
 
+# Values for 2007, 2010, 2012, 2014, and 2016 - 2018 from Community spreadsheet.
+# Values for 2018 - 2019 from Community StoryMap.
+# Values for 2020 from Community spreadsheet.
+# BAU values for 2020, 2030, 2040, and 2050 from Model spreadsheet.
+
 - id: waste_emissions
   name: Waste Emissions
   color: '#C4D652'
@@ -134,11 +177,15 @@ emission_sectors:
   part_of: net_emissions
   input_dataset_processors: [LinearInterpolation]
 
+# Value for 2014 from Community spreadsheet.
+
 - id: waste_water_emissions
   name: Waste Water Treatment
   category: waste_water
   part_of: other_emissions
   input_dataset_processors: [LinearInterpolation]
+
+# Value for 2016 from Community spreadsheet.
 
 - id: district_emissions
   name: District Energy
@@ -146,9 +193,19 @@ emission_sectors:
   part_of: other_emissions
   input_dataset_processors: [LinearInterpolation]
 
+# BAU values for 2020, 2030, 2040, and 2050 from Model spreadsheet.
+
+- id: agriculture_emissions
+  name: Agriculture
+  category: agriculture
+  part_of: other_emissions
+  input_dataset_processors: [LinearInterpolation]
 
 nodes:
 # ----- Population -----
+
+# Values for 2000 - 2018 from Community spreadsheet.
+# Values for 2019 - 2022, 2026, 2031, 2036, 2041, 2046 from Surrey Population Estimates & Projections.
 
 - id: population
   name: Population
@@ -159,6 +216,7 @@ nodes:
   output_dimensions: []
   input_datasets:
   - id: surrey/population
+    forecast_from: 2022
   input_dataset_processors: [LinearInterpolation]
   minimum_year: 2005
 
@@ -186,10 +244,9 @@ nodes:
   - id: surrey/energy_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
-- id: stationary_emissions
-  name: Stationary (Buildings)
+- id: consumption_emissions
+  name: Stationary Energy Consumption Emissions
   type: simple.MultiplicativeNode
-  color: '#6EC0C7'
   quantity: emissions
   unit: t/a
   input_dimensions: [emission_sector, energy_carrier]
@@ -201,12 +258,27 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: energy_carrier
+
+- id: stationary_emissions
+  name: Stationary (Buildings)
+  type: simple.AdditiveNode
+  color: '#6EC0C7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_nodes:
+  - id: consumption_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  input_datasets:
+  - id: surrey/building_emissions
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: emission_sector
-      flatten: true
-    - id: energy_carrier
       flatten: true
 
 # ----- Other Stationary Emissions -----
@@ -222,40 +294,35 @@ nodes:
   - id: surrey/stationary_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
-# - id: stationary_plus_emissions_pc
-#   name: Per Capita Stationary+ Emissions (Engines & Equipment)
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sector]
-#   output_dimensions: [emission_sector]
-#   input_nodes:
-#   - id: population
-#     to_dimensions: []
-#   - id: stationary_emission_factors
+- id: stationary_plus_emissions_pc
+  name: Per Capita Stationary+ Emissions (Engines & Equipment)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: stationary_emission_factors
 
 - id: stationary_plus_emissions
   name: Stationary+ (Engines & Equipment)
-  type: formula.FormulaNode
+  type: simple.AdditiveNode
   color: '#A7D6DB'
   quantity: emissions
   unit: t/a
   input_dimensions: [emission_sector, energy_carrier]
   output_dimensions: [emission_sector, energy_carrier]
-  params:
-    formula: zero_fill((population * stationary_emission_factors) + stationary_emissions_fuels)
-  input_datasets:
-  - id: surrey/stationary_emissions
-    tags: [stationary_emissions_fuels]
-  input_dataset_processors: [LinearInterpolation]
   input_nodes:
-  - id: stationary_emission_factors
+  - id: stationary_plus_emissions_pc
     to_dimensions:
     - id: emission_sector
     - id: energy_carrier
       categories: [combined_fuels]
-  - id: population
-    to_dimensions: []
+  input_datasets:
+  - id: surrey/stationary_emissions
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -263,9 +330,45 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
-  minimum_year: 2007
+
+# - id: stationary_plus_emissions
+#   name: Stationary+ (Engines & Equipment)
+#   type: formula.FormulaNode
+#   color: '#A7D6DB'
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [emission_sector, energy_carrier]
+#   output_dimensions: [emission_sector, energy_carrier]
+#   params:
+#     formula: zero_fill((population * stationary_emission_factors) + stationary_emissions_fuels)
+#   input_datasets:
+#   - id: surrey/stationary_emissions
+#     tags: [stationary_emissions_fuels]
+#   input_dataset_processors: [LinearInterpolation]
+#   input_nodes:
+#   - id: stationary_emission_factors
+#     to_dimensions:
+#     - id: emission_sector
+#     - id: energy_carrier
+#       categories: [combined_fuels]
+#   - id: population
+#     to_dimensions: []
+#   output_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: emission_sector
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#   minimum_year: 2007
 
 # ----- Transportation Emissions
+
+# Values for 2005, 2010, and 2015 from Community spreadsheet.
+# Per-capita values for 2016 - 2018 as in Community spreadsheet.
+# Values for 2018 - 2019 from Community StoryMap.
+# Values for 2020 from Community spreadsheet.
+# BAU values for 2020, 2030, 2040, and 2050 from Model spreadsheet.
 
 - id: transportation_emission_factors
   name: Per Capita Transportation(+) Emission Factors
@@ -278,79 +381,1782 @@ nodes:
   - id: surrey/transportation_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
-# - id: transportation_emissions_pc
-#   name: Per Capita Transportation(+) Emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [vehicle_type]
-#   output_dimensions: [vehicle_type]
-#   input_nodes:
-#   - id: population
-#     to_dimensions: []
-#   - id: transportation_emission_factors
+- id: transportation_emissions_pc
+  name: Per Capita Transportation(+) Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: transportation_emission_factors
 
 - id: transportation_emissions
   name: Transportation (On-Road)
-  type: formula.FormulaNode
+  type: simple.AdditiveNode
   color: '#B93F40'
   quantity: emissions
   unit: t/a
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
-  params:
-    formula: zero_fill((population * transportation_emission_factors) + transportation_emissions_onroad)
+  input_nodes:
+  - id: transportation_emissions_pc
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv]
   input_datasets:
   - id: surrey/transportation_emissions
-    tags: [transportation_emissions_onroad]
     filters:
     - dimension: vehicle_type
       categories: [ldv, hdv, transit]
   input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: transportation_emission_factors
-    from_dimensions:
-    - id: vehicle_type
-      categories: [ldv, hdv]
-  - id: population
-    to_dimensions: []
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  minimum_year: 2007
 
 - id: transportation_plus_emissions
   name: Transportation+ (Rail)
-  type: formula.FormulaNode
+  type: simple.AdditiveNode
   color: '#E06565'
   quantity: emissions
   unit: t/a
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
-  params:
-    formula: zero_fill((population * transportation_emission_factors) + transportation_emissions_rail)
+  input_nodes:
+  - id: transportation_emissions_pc
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
   input_datasets:
   - id: surrey/transportation_emissions
-    tags: [transportation_emissions_rail]
     filters:
     - dimension: vehicle_type
       categories: [rail]
   input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: transportation_emission_factors
-    from_dimensions:
-    - id: vehicle_type
-      categories: [rail]
-  - id: population
-    to_dimensions: []
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  minimum_year: 2007
+
+# - id: transportation_emissions
+#   name: Transportation (On-Road)
+#   type: formula.FormulaNode
+#   color: '#B93F40'
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [vehicle_type]
+#   output_dimensions: [vehicle_type]
+#   params:
+#     formula: zero_fill((population * transportation_emission_factors) + transportation_emissions_onroad)
+#   input_datasets:
+#   - id: surrey/transportation_emissions
+#     tags: [transportation_emissions_onroad]
+#     filters:
+#     - dimension: vehicle_type
+#       categories: [ldv, hdv, transit]
+#   input_dataset_processors: [LinearInterpolation]
+#   input_nodes:
+#   - id: transportation_emission_factors
+#     from_dimensions:
+#     - id: vehicle_type
+#       categories: [ldv, hdv]
+#   - id: population
+#     to_dimensions: []
+#   output_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#   minimum_year: 2007
+
+# - id: transportation_plus_emissions
+#   name: Transportation+ (Rail)
+#   type: formula.FormulaNode
+#   color: '#E06565'
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [vehicle_type]
+#   output_dimensions: [vehicle_type]
+#   params:
+#     formula: zero_fill((population * transportation_emission_factors) + transportation_emissions_rail)
+#   input_datasets:
+#   - id: surrey/transportation_emissions
+#     tags: [transportation_emissions_rail]
+#     filters:
+#     - dimension: vehicle_type
+#       categories: [rail]
+#   input_dataset_processors: [LinearInterpolation]
+#   input_nodes:
+#   - id: transportation_emission_factors
+#     from_dimensions:
+#     - id: vehicle_type
+#       categories: [rail]
+#   - id: population
+#     to_dimensions: []
+#   output_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#   minimum_year: 2007
+
+
+actions:
+
+- id: zev_action
+  name: Zero-Emission Vehicles (ZEVs)
+  description: Adopt policies and regulations facilitating a transition to ZEVs.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: zev_stationary_plus
+  name: ZEV Action 1
+  parent: zev_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [zev]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: zev_transportation
+  name: ZEV Action 2
+  parent: zev_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [zev]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: zev_waste
+  name: ZEV Action 3
+  parent: zev_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [zev]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: zev_stationary
+  name: ZEV Action 4
+  parent: zev_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [zev]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: land_t_action
+  name: Land Use & 15-Minute Neighborhoods (T)
+  description: Adopt 50x50 and develop 15-minute neighborhoods (T).
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: land_t_stationary_plus
+  name: Land Use Action 1
+  parent: land_t_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_t]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: land_t_transportation
+  name: Land Use Action 2
+  parent: land_t_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_t]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: land_t_waste
+  name: Land Use Action 3
+  parent: land_t_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_t]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: land_t_stationary
+  name: Land Use Action 4
+  parent: land_t_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_t]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: land_b_action
+  name: Land Use & 15-Minute Neighborhoods (B)
+  description: Adopt 50x50 and develop 15-minute neighborhoods (B).
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: land_b_stationary_plus
+  name: Land Use Action 1
+  parent: land_b_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_b]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: land_b_transportation
+  name: Land Use Action 2
+  parent: land_b_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_b]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: land_b_waste
+  name: Land Use Action 3
+  parent: land_b_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_b]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: land_b_stationary
+  name: Land Use Action 4
+  parent: land_b_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [land_20min_b]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: clean_ldvs_action
+  name: Clean LDVs
+  description: Improve fuel efficiency in light-duty vehicles (LDVs).
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: clean_ldvs_stationary_plus
+  name: Clean LDVs Action 1
+  parent: clean_ldvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_ldvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: clean_ldvs_transportation
+  name: Clean LDVs Action 2
+  parent: clean_ldvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_ldvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: clean_ldvs_waste
+  name: Clean LDVs Action 3
+  parent: clean_ldvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_ldvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: clean_ldvs_stationary
+  name: Clean LDVs Action 4
+  parent: clean_ldvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_ldvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: clean_mhdvs_action
+  name: Clean MHDVs
+  description: Improve fuel efficiency in medium and heavy-duty vehicles (MHDVs).
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: clean_mhdvs_stationary_plus
+  name: Clean MHDVs Action 1
+  parent: clean_mhdvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_mhdvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: clean_mhdvs_transportation
+  name: Clean MHDVs Action 2
+  parent: clean_mhdvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_mhdvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: clean_mhdvs_waste
+  name: Clean MHDVs Action 3
+  parent: clean_mhdvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_mhdvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: clean_mhdvs_stationary
+  name: Clean MHDVs Action 4
+  parent: clean_mhdvs_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_mhdvs]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: road_action
+  name: Roadway Management
+  description: Manage roadways for transportation emissions reductions.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: road_stationary_plus
+  name: Roadway Management Action 1
+  parent: road_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [road_management]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: road_transportation
+  name: Roadway Management Action 2
+  parent: road_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [road_management]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: road_waste
+  name: Roadway Management Action 3
+  parent: road_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [road_management]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: road_stationary
+  name: Roadway Management Action 4
+  parent: road_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [road_management]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: mhdv_action
+  name: MHDV Technology
+  description: Transition medium and heavy-duty vehicles (MHDVs) to ZEVs.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: mhdv_stationary_plus
+  name: MHDV Technology Action 1
+  parent: mhdv_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [mhdv_technology]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: mhdv_transportation
+  name: MHDV Technology Action 2
+  parent: mhdv_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [mhdv_technology]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: mhdv_waste
+  name: MHDV Technology Action 3
+  parent: mhdv_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [mhdv_technology]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: mhdv_stationary
+  name: MHDV Technology Action 4
+  parent: mhdv_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [mhdv_technology]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: clean_fuels_action
+  name: Clean Transportation Fuels
+  description: Transition to renewable fuels for transportation.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: clean_fuels_stationary_plus
+  name: Clean Fuels Action 1
+  parent: clean_fuels_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_fuels]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: clean_fuels_transportation
+  name: Clean Fuels Action 2
+  parent: clean_fuels_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_fuels]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: clean_fuels_waste
+  name: Clean Fuels Action 3
+  parent: clean_fuels_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_fuels]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: clean_fuels_stationary
+  name: Clean Fuels Action 4
+  parent: clean_fuels_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [clean_fuels]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: new_construction_action
+  name: New Construction
+  description: Building new zero-GHG residential and ICI buildings.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: new_construction_stationary_plus
+  name: New Construction Action 1
+  parent: new_construction_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [new_construction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: new_construction_transportation
+  name: New Construction Action 2
+  parent: new_construction_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [new_construction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: new_construction_waste
+  name: New Construction Action 3
+  parent: new_construction_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [new_construction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: new_construction_stationary
+  name: New Construction Action 4
+  parent: new_construction_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [new_construction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: existing_buildings_action
+  name: Building Retrofits
+  description: Rapidly implement fuel-switching retrofits to existing buildings.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: existing_buildings_stationary_plus
+  name: Building Retrofits Action 1
+  parent: existing_buildings_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [existing_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: existing_buildings_transportation
+  name: Building Retrofits Action 2
+  parent: existing_buildings_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [existing_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: existing_buildings_waste
+  name: Building Retrofits Action 3
+  parent: existing_buildings_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [existing_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: existing_buildings_stationary
+  name: Building Retrofits Action 4
+  parent: existing_buildings_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [existing_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: rng_action
+  name: Renewable Natural Gas
+  description: Shift from fossil to renewable natural gas.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: rng_stationary_plus
+  name: Renewable Natural Gas Action 1
+  parent: rng_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [rng]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: rng_transportation
+  name: Renewable Natural Gas Action 2
+  parent: rng_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [rng]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: rng_waste
+  name: Renewable Natural Gas Action 3
+  parent: rng_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [rng]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: rng_stationary
+  name: Renewable Natural Gas Action 4
+  parent: rng_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [rng]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: bchydro_action
+  name: BC Hydro Renewable Electricity
+  description: Decarbonize the BC Hydro electrical grid with renewable energy.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: bchydro_stationary_plus
+  name: BC Hydro Renewable Electricity Action 1
+  parent: bchydro_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [bchydro_decarbonization]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: bchydro_transportation
+  name: BC Hydro Renewable Electricity Action 2
+  parent: bchydro_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [bchydro_decarbonization]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: bchydro_waste
+  name: BC Hydro Renewable Electricity Action 3
+  parent: bchydro_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [bchydro_decarbonization]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: bchydro_stationary
+  name: BC Hydro Renewable Electricity Action 4
+  parent: bchydro_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [bchydro_decarbonization]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
+
+
+- id: waste_action
+  name: Waste Reduction & Diversion
+  description: Reduce and divert waste to landfills.
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: true
+  indicator_nodes:
+  - id: net_emissions
+  output_dimensions: []
+
+- id: waste_stationary_plus
+  name: Waste Reduction & Diversion Action 1
+  parent: waste_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/stationary_emissions
+    tags: [historical]
+    max_year: 2020
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [waste_reduction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_plus_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [construction, agricultural, lawn_garden, recreation]
+    to_dimensions:
+    - id: emission_sector
+    - id: energy_carrier
+      categories: [combined_fuels]
+
+- id: waste_transportation
+  name: Waste Reduction & Diversion Action 2
+  parent: waste_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: surrey/transportation_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/transportation_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [waste_reduction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [ldv, hdv, transit]
+  - id: transportation_plus_emissions
+    from_dimensions:
+    - id: vehicle_type
+      categories: [rail]
+
+- id: waste_waste
+  name: Waste Reduction & Diversion Action 3
+  parent: waste_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/greenhouse_gas_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [waste_reduction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste]
+      flatten: true
+
+- id: waste_stationary
+  name: Waste Reduction & Diversion Action 4
+  parent: waste_action
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_datasets:
+  - id: surrey/building_emissions
+    tags: [historical]
+    max_year: 2020
+  - id: surrey/greenhouse_gas_emission_goals
+    tags: [goal]
+    filters:
+    - dimension: model_action
+      categories: [waste_reduction]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [residential, ici_buildings]
 
 
 pages:
@@ -364,10 +2170,11 @@ pages:
 
 
 scenarios:
-- id: baseline
+- id: bau
   name: Business as Usual
+  all_actions_enabled: false
 
-- id: default
+- id: ccas
   default: true
   name: Climate Change Action Strategy
   all_actions_enabled: true

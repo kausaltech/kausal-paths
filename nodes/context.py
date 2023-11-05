@@ -55,6 +55,7 @@ class Context:
     unit_registry: CachingUnitRegistry
     active_scenario: Scenario
     active_normalization: Normalization | None
+    default_normalization: Normalization | None = None
     supported_parameter_types: dict[str, type]
     cache: Cache
     skip_cache: bool = False
@@ -171,6 +172,13 @@ class Context:
         if parameter.local_id in self.global_parameters:
             raise Exception(f"Global parameter {parameter.local_id} already defined")
         self.global_parameters[parameter.local_id] = parameter
+
+    def add_normalization(self, id: str, norm: Normalization):
+        assert id not in self.normalizations
+        if norm.default:
+            assert not self.default_normalization
+            self.default_normalization = norm
+        self.normalizations[id] = norm
 
     def _get_caller_node(self, frame: FrameType) -> Node | None:
         from nodes import Node

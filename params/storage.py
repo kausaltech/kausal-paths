@@ -1,6 +1,11 @@
 from __future__ import annotations
+
+import hashlib
+import json
 import typing
 from typing import Any, Optional
+
+from loguru import logger
 
 if typing.TYPE_CHECKING:
     from django.contrib.sessions.backends.base import SessionBase
@@ -49,6 +54,7 @@ class SessionStorage(SettingStorage):
     def __init__(self, instance: Instance, session: SessionBase):
         self.session = session
         self.instance = instance
+        self.log = logger.bind(session=session.session_key)
 
     def reset(self):
         self.session[self.instance.id] = {}
@@ -64,6 +70,17 @@ class SessionStorage(SettingStorage):
     @property
     def _instance_options(self) -> dict[str, Any]:
         return self._instance_settings.setdefault('options', {})
+
+    def get_instance_settings(self, instance_id: str) -> dict | None:
+        settings = self.session.get(instance_id, None)
+        if settings is None:
+            return None
+        if not isinstance(settings, dict):
+            self.log.error('invalid settings type: %s' % type(settings))
+            self.session[instance_id] = {}
+            self.session.modified = True
+            return None
+        return settings
 
     def set_param(self, id: str, val: Any):
         self._instance_params[id] = val
@@ -100,13 +117,17 @@ class SessionStorage(SettingStorage):
         return self._instance_settings.get('active_scenario')
 
     @classmethod
-    def can_use_cache(cls, session: SessionBase, instance_id: str) -> bool:
+    def get_cache_key(cls, session: SessionBase, instance_id: str) -> str | None:
         ip = session.get(instance_id, None)
-        if not ip:
-            return True
-        if not isinstance(ip, dict):
-            return True
+        if not ip or not isinstance(ip, dict):
+            return ''
         active_scenario = ip.get('active_scenario')
         if active_scenario and active_scenario != 'default':
-            return False
-        return True
+            return None
+
+        opts = ip.get('options', None)
+        if not opts:
+            return ''
+
+        s = hashlib.md5(json.dumps(opts, sort_keys=True, ensure_ascii=True).encode('ascii')).hexdigest()
+        return s

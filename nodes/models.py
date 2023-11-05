@@ -232,7 +232,7 @@ class InstanceConfig(PathsModel):
             pass
         return root
 
-    def sync_nodes(self, update_existing=False, delete_stale=False):
+    def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False):
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
@@ -245,7 +245,7 @@ class InstanceConfig(PathsModel):
             else:
                 found_nodes.add(node.id)
                 if update_existing:
-                    node_config.update_from_node(node)
+                    node_config.update_from_node(node, overwrite=overwrite)
                     node_config.save()
 
         for node in list(node_configs.values()):
@@ -503,17 +503,23 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     def update_from_node(self, node: Node, overwrite=False):
         """Sets attributes of this instance from revelant fields of the given node but does not save."""
 
+        overwritten = False
+
         conf = node.as_node_config_attributes()
         i18n = conf.pop('i18n', None)
         for k, v in node.as_node_config_attributes().items():
             if overwrite or getattr(self, k, None) is None:
                 setattr(self, k, v)
+                overwritten = True
 
         if i18n is not None:
             if not self.i18n:
                 self.i18n = {}
             assert isinstance(self.i18n, dict)
             self.i18n |= cast(dict, i18n)
+
+        if overwritten:
+            self.instance.log.info('Overwrote contents in node %s' % str(node))
 
     def can_edit_data(self):
         node = self.get_node()

@@ -6,6 +6,9 @@ set -e
 
 cd /code
 python manage.py migrate --no-input
+# Clear the caches before uwsgi starts
+python manage.py shell -c "from django.core.cache import cache; cache.clear()"
+
 # Log to stdout
 exec uwsgi --http-socket :8000 --socket :8001 --processes 4 \
     --enable-threads \

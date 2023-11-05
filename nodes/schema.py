@@ -544,11 +544,27 @@ class NodeType(graphene.ObjectType):
         name = 'Node'
         interfaces = (NodeInterface,)
 
-    upstream_actions = graphene.List(graphene.NonNull(lambda: ActionNodeType, required=True))
+    upstream_actions = graphene.List(
+        graphene.NonNull(lambda: ActionNodeType, required=True),
+        only_root=graphene.Boolean(required=False, default_value=False),
+        decision_level=ActionDecisionLevel(required=False),
+    )
 
     @staticmethod
-    def resolve_upstream_actions(root: Node, info: GQLInstanceInfo):
-        return root.get_upstream_nodes(filter=lambda x: isinstance(x, ActionNode))
+    def resolve_upstream_actions(
+        root: Node, info: GQLInstanceInfo, only_root: bool = False,
+        decision_level: DecisionLevel | None = None,
+    ):
+        def filter_action(n: Node):
+            if not isinstance(n, ActionNode):
+                return False
+            if only_root and n.parent_action is not None:
+                return False
+            if decision_level is not None:
+                if n.decision_level != decision_level:
+                    return False
+            return True
+        return root.get_upstream_nodes(filter=filter_action)
 
 
 class ActionNodeType(graphene.ObjectType):
@@ -805,13 +821,20 @@ class SetNormalizerMutation(graphene.Mutation):
 
     @pass_context
     def mutate(root, info: GQLInstanceInfo, context: Context, id: str | None = None):
+        default = context.default_normalization
         if id:
             normalizer = context.normalizations.get(id)
             if normalizer is None:
                 raise GraphQLError("Normalization '%s' not found" % id)
+        else:
+            normalizer = None
 
         assert context.setting_storage is not None
-        context.setting_storage.set_option('normalizer', id)
+
+        if normalizer == default:
+            context.setting_storage.reset_option('normalizer')
+        else:
+            context.setting_storage.set_option('normalizer', id)
         context.set_option('normalizer', id)
 
         return dict(ok=True, active_normalizer=context.active_normalization)

@@ -1075,16 +1075,24 @@ class Node:
         return result
 
     def get_upstream_nodes(self, filter: Callable[[Node], bool] | None = None) -> List[Node]:
+        from nodes.actions.parent import ParentActionNode
+        from nodes.actions import ActionNode
+
         result = []
         closed = set()
         open = self.input_nodes.copy()
         while open:
             current = open.pop()
-            if current not in closed:
-                closed.add(current)
-                if filter is None or filter(current):
-                    result.append(current)
-                open += current.input_nodes
+            if current in closed:
+                continue
+            closed.add(current)
+            if filter is None or filter(current):
+                result.append(current)
+            if isinstance(current, ActionNode) and current.parent_action is not None:
+                open.append(current.parent_action)
+            if isinstance(current, ParentActionNode):
+                open += current.subactions
+            open += current.input_nodes
         return result
 
     def on_scenario_created(self, scenario: Scenario):

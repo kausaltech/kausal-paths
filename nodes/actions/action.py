@@ -47,7 +47,7 @@ class EnabledParam(BoolParameter):
 
 
 ENABLED_PARAM = EnabledParam(
-    local_id=ENABLED_PARAM_ID, label=_("Enabled"), description=_("Is the action included in the scenario"),
+    local_id=ENABLED_PARAM_ID, label=_("Is implemented"), description=_("Is the action included in the scenario"),
     is_customizable=True
 )
 

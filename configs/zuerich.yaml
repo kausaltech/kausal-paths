@@ -7,8 +7,8 @@ dataset_repo:
   commit: 959c8ae71be5e47bdb839535db99e8129400e444
   dvc_remote: kausal-s3-private
   default_path: zuerich
-name_en: Net Zero 2040
-name_de: Netto-Null 2040
+name_en: Net Zero Cockpit
+name_de: Netto-Null-Cockpit
 owner_en: City of Zürich
 owner_de: Stadt Zürich
 theme_identifier: zurich
@@ -47,17 +47,17 @@ terms:
 action_groups:
 # Handlungsfeld
 - id: buildings
-  name: Gebäude und Wärmeversorgung
+  name: Gebäude
   name_en: Buildings and Heat Supply
-  color: '#002F96'
+  color: '#989898'
 - id: mobility
   name: Mobilität
   name_en: Transportation
-  color: '#E22D53'
+  color: '#0505A0'
 - id: waste
   name: Entsorgung
   name_en: Waste
-  color: '#F18830'
+  color: '#007C78'
 - id: other
   name: Andere
   name_en: Other
@@ -87,7 +87,7 @@ dimensions:
   - id: negative
     label: Negative Emissionen
     label_en: Negative emissions
-    color: '#F7A5AF'
+    color: '#8ECF69'
     #id_match: ^negative_emissions$
     order: -1
   categories:
@@ -112,7 +112,7 @@ dimensions:
   - id: negative_emissions
     label_de: Negative Emissionen
     label_en: Negative emissions
-    color: '#F7A5AF'
+    color: '#8ECF69'
     order: -1
     group: negative
 
@@ -737,7 +737,7 @@ emission_sectors:
   name_de: Negative Emissionen
   name_en: Negative emissions
   part_of: net_emissions
-  color: '#F7A5AF'
+  color: '#8ECF69'
   order: -1
 
 # - id: direct_emissions
@@ -780,7 +780,7 @@ emission_sectors:
   short_name_en: Food consumption
   category: food_consumption
   part_of: net_emissions
-  color: '#BCE59E'
+  color: '#002914'
   input_dataset_processors: [LinearInterpolation]
 
 - id: textile_consumption_emissions
@@ -790,7 +790,7 @@ emission_sectors:
   short_name_en: Textile consumption
   category: textile_consumption
   part_of: net_emissions
-  color: '#FBCB97'
+  color: '#EB5E00'
   input_dataset_processors: [LinearInterpolation]
 
 - id: other_consumption_emissions
@@ -800,7 +800,7 @@ emission_sectors:
   short_name_en: Other consumption
   category: other_consumption
   part_of: net_emissions
-  color: '#2AC7C7'
+  color: '#A174DE'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -809,7 +809,7 @@ nodes:
   quantity: population
   unit: cap
   name_en: Inhabitants
-  name_de: Bevölkerungsentwicklung
+  name_de: Einwohner*in
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/population
@@ -1467,7 +1467,7 @@ nodes:
   name_de: Treibhausgasemissionen Gebäude
   short_name_de: Gebäude
   short_name_en: Buildings
-  color: '#002F96'
+  color: '#989898'
   unit: kt/a
   quantity: emissions
   type: simple.SectorEmissions
@@ -1487,7 +1487,7 @@ nodes:
   quantity: emissions
   unit: kt/a
   type: simple.SectorEmissions
-  color: '#E22D53'
+  color: '#0505A0'
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
@@ -2155,7 +2155,7 @@ nodes:
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
   type: simple.SectorEmissions
-  color: '#F18830'
+  color: '#007C78'
 
 - id: afolu_emissions
   name_de: Treibhausgasemissionen Land- und Forstwirtschaft
@@ -2177,6 +2177,7 @@ nodes:
     - id: emission_sectors
       flatten: true
   input_dataset_processors: [LinearInterpolation]
+  color: '#F1D900'
 
 - id: building_fgas_emissions
   name_en: F-gas emissions from buildings
@@ -3031,17 +3032,16 @@ actions:
 - id: heater_replacement_and_district_heat
   name_en: Replacement of heaters and district heat expansion
   name_de: Heizungsersatz und Ausbau thermische Netze
-  description_de: "Aktuell gibt es 19'800 Heizungen in der Stadt Zürich, die mit fossiler
-    Energie betrieben werden. Diese liefern Wärme für etwas mehr als die Hälfte (52%)
-    aller rund 55'000 Gebäude in der Stadt und verursachen 610'000 Tonnen CO<sub>2</sub>-Äquivalente
-    pro Jahr bzw. 1.4 Tonnen CO<sub>2</sub>-Äquivalente pro Einwohner*in und Jahr.
-    Für Netto-Null Treibhausgasemissionen müssen diese Heizungen durch solche ersetzt
-    werden, die mit Wärme aus erneuerbarer Energie, Abfall oder Abwärme betrieben
-    werden. Dies entspricht einem Richtwert von 1&#39;100 Heizungen pro Jahr, wobei
-    die Summe der Leistungen der Heizungen eine wichtigere Rolle spielt als die Anzahl
-    Heizungen.\n\nDa mehr als die Hälfte der Wärmeenergie über thermische Netze zur
-    Verfügung gestellt werden soll, müssen zudem die thermischen Netze ausgebaut und
-    deren Wärmequellen dekarbonisiert werden."
+  description_de: "<b>Hauptziel bis 2040: 100 Prozent der Wärmeenergie stammen aus erneuerbaren 
+  Energiequellen, Abfall oder Abwärme.</b><br><br>Aktuell werden noch 19 800 Heizungen in der Stadt 
+  Zürich mit fossiler Energie betrieben (Stand 2022). Sie verursachen 560 000 Tonnen 
+  CO<sub>2</sub>-Äquivalente pro Jahr und müssen in den kommenden Jahren durch klimafreundliche 
+  Heizlösungen wie Wärmepumpen oder Anschlüsse an thermische Netze ersetzt werden. Damit das Ziel 
+  von 100 Prozent Wärme aus erneuerbaren Energiequellen, Abfall oder Abwärme erreicht werden kann, 
+  müssen zudem die thermischen Netze weiter ausgebaut und bis 2040 vollständig dekarbonisiert werden.<br><br>
+  Grundsätzlich ist eine vollständige Dekarbonisierung des Gebäudesektors aufgrund der beschränkten 
+  Verfügbarkeit von Wärme aus erneuerbarer Energie, Abfall oder Abwärme nur dann möglich, wenn auch 
+  der Gesamtenergieverbrauch gesenkt wird (vgl. Massnahmenpaket 2)."
   type: parent.ParentActionNode
   unit: kt/a
   quantity: emissions
@@ -3052,7 +3052,9 @@ actions:
 
 - id: fossil_fuel_heater_to_district_heat
   name_en: Replacement of fossil fuel heaters with district heat
-  name_de: Heizungsersatz durch thermische Netze
+  name_de: Heizungsersatz durch Anschluss an thermische Netze
+  description_de: "Ziel bis 2040: 49 Prozent des Wärmebedarfes des gesamten Gebäudeparks werden
+    durch thermische Netze gedeckt."
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
@@ -3090,6 +3092,8 @@ actions:
 - id: fossil_fuel_heater_to_heat_pumps
   name_en: Replacement of fossil fuel heaters with heat pumps
   name_de: Heizungsersatz durch Wärmepumpen
+  description_de: "Ziel bis 2040: 35 Prozent des Wärmebedarfes des gesamten Gebäudeparks werden
+    durch Wärmepumpen gedeckt."
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
@@ -3127,6 +3131,8 @@ actions:
 - id: fossil_fuel_heater_to_other
   name_en: Replacement of fossil fuel heaters with other heaters
   name_de: Heizungsersatz durch übrige Systeme
+  description_de: "Ziel bis 2040: 7 Prozent des Wärmebedarfes des gesamten Gebäudeparks werden durch 
+    Holz und thermische Solarkollektoren gedeckt."
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
@@ -3166,9 +3172,8 @@ actions:
         dest_amounts: [10, 1]
 
 - id: district_heat_decarbonisation
-  name_de: Dekarbonisierung thermische Netze
-  description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr
-    2022 auf 100% im Jahr 2040.
+  name_de: Dekarbonisierung der thermischen Netze
+  description_de: "Ziel bis 2040: 100 Prozent der Energie der thermischen Netze sind fossilfrei."
   group: buildings
   parent: heater_replacement_and_district_heat
   type: parent.ParentActionNode
@@ -3236,12 +3241,12 @@ actions:
         amount: 0
 
 - id: natural_gas_network_decarbonisation
-  name_de: Dekarbonisierung Gasversorgung
+  name_de: Dekarbonisierung der Gasversorgung
   name_en: Decarbonisation of gas network
   group: buildings
   parent: heater_replacement_and_district_heat
-  description_de: Fossiles Erdgas wird vollständig durch Biogas und andere Gase aus
-    erneuerbaren Quellen ersetzt.
+  description_de: "Ziel bis 2040: 100 Prozent des verbleibenden Gasbedarfes werden durch 
+    erneuerbares Gas gedeckt."
   quantity: mix
   unit: '%'
   type: linear.DatasetReduceAction
@@ -3255,7 +3260,9 @@ actions:
 
 - id: other_building_fuel_to_biogas
   name_en: Other building fuel use to biogas
-  name_de: Prozessenergie und Blockheizkraftwerke mit Biogas statt Erdgas
+  name_de: Dekarbonisierung Prozessenergie und Blockheizkraftwerke
+  description_de: "Ziel bis 2040: 100 Prozent des Gasbedarfes für Prozessenergie und 
+    für Blockheizkraftwerke werden durch erneuerbares Gas gedeckt."
   type: linear.ReduceAction
   group: buildings
   parent: heater_replacement_and_district_heat
@@ -3529,11 +3536,11 @@ actions:
         dest_amounts: [100]
 
 #
-# Massnahmenpaket 5: Verträgliche Gestaltung des Verkehrs
+# Massnahmenpaket 5: Verträgliche Abwicklung des Verkehrs
 #
 - id: improved_vehicle_fleet
   name_en: Electrify vehicle fleet
-  name_de: Verträgliche Gestaltung des Verkehrs
+  name_de: Verträgliche Abwicklung des Verkehrs
   description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
     dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
     erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung)
@@ -3932,7 +3939,7 @@ actions:
   name_en: Buses use synthetic diesel
   name_de: Buses use synthetic diesel
   type: shift.ShiftAction
-  #parent: heater_replacement_and_district_heat
+  parent: improved_vehicle_fleet
   group: mobility
   output_nodes:
   - id: transport_emissions_for_fuel
@@ -4020,19 +4027,11 @@ actions:
 
 pages:
 - id: home
-  name_en: Net Zero 2040
-  name_de: Netto-Null 2040
+  name_en: Emissions
+  name_de: Treibhausgasemissionen
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title_en: Development version
-  lead_title_de: Entwicklungsversion
-  lead_paragraph_en: This is a test version of the City of Zürich's interactive scenario
-    modeling platform for the Net Zero goal. All information on this website is to
-    be considered incomplete and experimental.
-  lead_paragraph_de: Dies ist eine Testversion der interaktiven Szenariomodellierungsplattform
-    zum Klimaschutzziel Netto-Null 2040. Alle Informationen auf dieser Website sind
-    als unvollständig und provisorisch zu verstehen.
 
 - id: 2000watt
   name_en: 2000-Watt
