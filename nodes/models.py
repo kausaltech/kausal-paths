@@ -476,6 +476,8 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     search_fields = [
         index.AutocompleteField('identifier'),
         index.AutocompleteField('name'),
+        index.SearchField('name'),
+        index.SearchField('identifier'),
         index.FilterField('instance'),
     ]
 
