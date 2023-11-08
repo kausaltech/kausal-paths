@@ -2624,6 +2624,11 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
       categories: [electricity]
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+      categories: [aviation]
 
 - id: stationary_end_energy_consumption
   name_de: Stationary total end energy consumption
@@ -2965,6 +2970,8 @@ nodes:
 - id: aviation_fuel_consumption
   name_de: Aviation fuel consumption
   name_en: Aviation fuel consumption
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
   type: simple.MultiplicativeNode
   quantity: energy
   input_dimensions: [energy_carrier]
