@@ -1,3 +1,4 @@
+from django.db import models
 from wagtail import hooks
 from wagtail.admin.panels import FieldPanel
 from wagtail.snippets.models import register_snippet
@@ -7,6 +8,7 @@ from admin_site.panels import TranslatedFieldPanel
 from admin_site.viewsets import PathsViewSet
 
 from nodes.models import NodeConfig
+from paths.types import PathsAdminRequest
 
 
 class NodeViewSet(PathsViewSet):
@@ -23,6 +25,11 @@ class NodeViewSet(PathsViewSet):
         FieldPanel("short_description"),
         FieldPanel("description"),
     ]
+
+    def get_queryset(self, request: PathsAdminRequest) -> models.QuerySet[NodeConfig]:
+        qs = super().get_queryset(request)
+        qs = qs.filter(instance=request.admin_instance)
+        return qs
 
     def get_edit_handler(self):
         return super().get_edit_handler()
