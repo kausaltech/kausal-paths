@@ -188,8 +188,10 @@ dimensions:
   categories:
   - id: hypothesis_1
     label: Hypothesis 1
+    color: '#ee2222'
   - id: hypothesis_2
     label: Hypothesis 2
+    color: '#22ee22'
   - id: hypothesis_3
     label: Hypothesis 3
   - id: hypothesis_4
@@ -744,7 +746,7 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: reduce_logging_in_state_forests.enabled
-    value: true
+    value: false
   - id: postpone_climate_targets.enabled
     value: true
   - id: impact_threshold

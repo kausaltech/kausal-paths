@@ -24,11 +24,16 @@ class ValueProfile(SimpleNode):
     and when based on the impacts of outcome nodes and parameters.
     Cost-efficiency can be implemented if a decision criterion is known, e.g. 50 €/t.
     Then, emissions and cost are put to an equal scale by multiplying
-    cost by -0.02 1/EUR and emissions by -1 1/t, resulting in a scale
-    where cost-effective scenarios show value > 0 when cumulated over the time span.
+    cost by 0.02 1/EUR and emissions by 1 1/t, resulting in a scale
+    where cost-effective scenarios show value < 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
-    The value profile results in 0 if the criterion is not fulfilled and
-    1 for years when the cumulative criterion is fulfilled.
+    The value profile results in -1 if the criterion is not fulfilled and
+    +1 for years when the cumulative criterion is fulfilled.
+    Note that the outcome of a value profile does NOT depend on whether the actions
+    are enabled or disabled in the selected scenario. Therefore, the stakeholder scenarios
+    (scenarios containing the choices and values of a particular stakeholder) can show
+    which actions they would choose while also showing which actions they should choose
+    based on their expressed values.
     '''
     allowed_parameters = SimpleNode.allowed_parameters + [
         NumberParameter(
