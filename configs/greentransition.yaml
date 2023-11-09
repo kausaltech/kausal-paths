@@ -20,10 +20,13 @@ maximum_historical_year: 2022
 action_groups:
 - id: green_transition
   name: Vihreä murros
+  name_en: Green transition
 - id: hs_voting_aid
   name: HS-vaalikone
+  name_en: Voting Advice Application
 - id: hypothesis
   name: Hypoteesi
+  name_en: Hypothesis
 
 params:
 - id: municipality_name
@@ -31,21 +34,21 @@ params:
 - id: impact_threshold
   label: Threshold for sum of impacts in value profiles
   is_customizable: true
-  value: 0.2
+  value: 0
   min_value: 0
   max_value: 1000
   unit: dimensionless
 - id: emissions_weight
   label: Weight for emissions impacts in value profiles
   is_customizable: true
-  value: 6
+  value: 50
   min_value: 0
   max_value: 100
   unit: 1/t
 - id: cost_weight
   label: Weight for cost impacts in value profiles
   is_customizable: true
-  value: 2
+  value: 1
   min_value: 0
   max_value: 100
   unit: 1/EUR
@@ -219,6 +222,7 @@ emission_sectors:
   part_of: net_emissions
   color: #ff4f57
   historical_values: [[2015, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
 
 nodes:
 - id: population
@@ -236,6 +240,7 @@ nodes:
   output_nodes: [net_emissions]
   color: #0047b6
   historical_values: [[2015, 50], [2022, 40]]
+  input_dataset_processors: [LinearInterpolation]
   params:
   - id: multiplier
     value: 1
@@ -243,10 +248,12 @@ nodes:
 
 - id: transport_mileage
   name: Liikennemäärä
+  name_en: Traffic volume
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mkm/a
   historical_values: [[2015, 50], [2022, 40]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: transport_emissions
   name: Liikenteen päästöt
@@ -256,6 +263,7 @@ nodes:
   unit: kt/a
   color: #014B30
   historical_values: [[2015, 200], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
   input_nodes: [transport_mileage]
   params:
   - id: multiplier
@@ -264,6 +272,7 @@ nodes:
 
 - id: biodiversity_in_finland
   name: Luonnon monimuotoisuus Suomessa
+  name_en: Biodiversity in the state forests
   description: Luonnon monimuotoisuus Suomessa kuvaa luonnon kokonaistilaa. Vaikka
     tällaista kattavaa mittaria ei ole onnistuttu kehittämään, voidaan mallin seuraavassa
     versiossa kuvata tätä esimerkiksi uhanalaisten lajien osuudella tai jollain muulla
@@ -275,6 +284,7 @@ nodes:
 
 - id: logging_intensity_in_state_forests
   name: Hakkumäärä valtion metsissä
+  name_en: Logging amount in the state forests
   description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
     vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman
     asiaa.
@@ -282,12 +292,14 @@ nodes:
   quantity: consumption
   unit: m**3/a
   historical_values: [[2010, 69000000], [2015, 70000000], [2022, 80000000]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - carbon_emissions_in_state_forests
   - net_profit_from_state_forests
 
 - id: carbon_emissions_in_state_forests
   name: Hiilipäästöt valtion metsissä
+  name_en: Carbon emissions in the state forests
   description: Hiilnielut parantavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
     yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä
     vapautuva metaani.
@@ -298,31 +310,48 @@ nodes:
   output_nodes: [net_emissions]
   params:
   - id: multiplier
-    value: 1
+    value: 2
     unit: t/m**3
 
 - id: net_profit_from_state_forests
   name: Puukaupan nettotulo valtion metsissä
+  name_en: Net income from forest industry in the state forests
   description: Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
     ja hiilipäästöistä johtuvilla kustannuksilla.
-  is_outcome: true
   type: simple.FixedMultiplierNode
   quantity: currency
   unit: MEUR/a
   historical_values: [[2015, 50], [2022, 40]]
+  input_dataset_processors: [LinearInterpolation]
   params:
   - id: multiplier
-    value: 1
-    unit: kEUR/m**3
+    value: 60
+    unit: EUR/m**3
+
+- id: net_cost_of_forests
+  name: Metsien kokonaiskustannukset
+  name_en: Total costs of forests
+  is_outcome: true
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: MEUR/a
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_nodes:
+  - net_profit_from_state_forests
 
 - id: biodiversity_in_state_forests
   name: Luonnon monimuotoisuus valtion metsissä
+  name_en: Biodiversity in the state forests
   description: Tämä solmu tarkastelee nimenomaan valtion metsien monimuotoisuutta
     esimerkiksi uhanalaisten lajien osuutena.
   type: simple.FixedMultiplierNode
   quantity: number
   unit: pcs
   historical_values: [[2015, 50], [2022, 40]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - biodiversity_in_finland
   params:
@@ -337,12 +366,12 @@ nodes:
 - id: value_profile_forest
   name: Metsänhoidon arvoprofiili
   name_en: Value profile for forest management
-  description: '<ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>
-    <h2> Perussuomalaiset: Vähennetäänkö metsähakkuita valtion mailla? Ei.</h2>
+  description: '<h2>Puolueiden sanalliset selitykset</h2>
+    <h3> Perussuomalaiset: Vähennetäänkö metsähakkuita valtion mailla? Ei.</h3>
     <b>Jussi Wihonen, Perus­suomalaiset.</b> Valtion metsiä tulee hoitaa
     vastuullisesti, kuten tähänkin asti. Toimet suomen metsissä ei vaikuta gloobaalissa
     mittakaavassa kuin promilletasolla, se syytä muistaa.
-    <h2>Vihreät: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h2>
+    <h3>Vihreät: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h3>
     <p><b>Krista Mikkonen, Vihreät.</b> Valtion omistamat vanhat ja luonnontilaiset
     metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi
     kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista
@@ -357,7 +386,7 @@ nodes:
     henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista
     päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan
     paljon meidän käyttämiä tuotteita.</p>
-    <h2>Demarit: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h2>
+    <h3>Demarit: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h3>
     <p><b>Teemu Backnäs, Sdp.</b> Iso osa Suomalaisesta hyvinvoinnista
     tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden toimintaedellytykset
     varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen (LUKE) tutkimusten
@@ -367,16 +396,53 @@ nodes:
     todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin hakkuin. Todennäköisesti
     muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti ja metsäteollisuuden
     tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet" (=ligniini) päätyi
-    järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>'
+    järjestään polttoon, jonka tuottama arvo on pieni suhteessa uusiin sovelluksiin.</p>
+    <h2>Tarkasteltavat päätökset</h2>
+    <p>Päätökset on nimetty hypoteeseiksi teknisistä syistä.</p>
+    <ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>'
+  description_en: "<h2>Verbal explanations of the parties</h2>
+     <h3>True Finns: Will deforestation be reduced on state lands? No.</h3>
+     <b>Jussi Wihonen, Perussuomalaiset.</b> State forests must be managed
+     responsibly, as up to now. Actions in Finnish forests have no global impact
+     on a scale like a per mille level, that should be remembered.
+     <h3>The Greens: Will deforestation be reduced on state lands? Yes.</h3>
+     <p><b>Krista Mikkonen, The Greens.</b> State-owned old and natural estates
+     forests should be removed from economic use and protected. To grow carbon sinks
+     the rotation period in the state forests should be extended and peatlands should be switched from open felling
+     for continuous education. Incentives must also be created for private forest owners
+     extend the felling cycle, switch to continuous cultivation and increase nature management activities
+     in their forests. In addition, it must be ensured that there is enough money for nature conservation,
+     so that willing forest owners can transfer their forests to nature conservation
+     receiving compensation for it.</p> <p>Krista Mikkonen, Vihreät. Climate solutions are being asked
+     now the whole world. We should be at the forefront of creating and selling them
+     to the world, not waiting and later buying other people's solutions with expensive money.
+     Although Finland's total emissions remain small due to the small population, yes
+     our emissions per person are at the top. In addition to this, part of those due to consumption
+     emissions are registered in other countries, such as China, because it is manufactured there
+     many products we use.</p>
+     <h3>Demarit: Will deforestation be reduced on state lands? Yes.</h3>
+     <p><b>Teemu Backnäs, Sdp.</b> A big part of Finnish well-being
+     comes from our forests, so that this will continue to be the case, are the operating conditions of the forest industry
+     ensured by sustainable forest management. The Natural Resources Center's (LUKE) studies
+     according to the carbon sinks have decreased, so it would be smart to be proactive when logging
+     regarding. The value of new products in the forest industry (e.g. lignin-based wind turbine platforms)
+     is more than 100 times compared to the traditional pulp yield (~€700/tn), so
+     we can probably create a bigger value chain with less logging. Likely
+     the change in the reduction of felling takes place according to market conditions and the forest industry
+     the value produced increases. Previously, the 'waste' (=lignin) of the forest industry ended up
+     I arrange for burning, the value produced is small in relation to new applications.</p>
+     <h2>Reviewed decisions</h2>
+     <p>Decisions are named hypotheses for technical reasons.</p>
+     <ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>"
   type: values.ValueProfile
-  quantity: ratio
+  quantity: value_profile
   unit: dimensionless
   input_nodes:
   - id: reduce_logging_in_state_forests
   - id: add_logging_in_state_forests
-  - id: carbon_emissions_in_state_forests
+  - id: net_emissions
     tags: [emissions]
-  - id: net_profit_from_state_forests
+  - id: net_cost_of_forests
     tags: [currency]
   output_dimensions: [hypothesis]
   params:
@@ -390,7 +456,7 @@ nodes:
 - id: value_profile_climate
   name: Ilmastotoimien arvoprofiili
   name_en: Value profile for climate mitigation
-  description: '<h2>Vihreät: Lykätäänkö ilmastotavoitteita? Ei.</h2>
+  description: '<h2>Puolueiden sanalliset kuvaukset</h2><h3>Vihreät: Lykätäänkö ilmastotavoitteita? Ei.</h3>
     <p><b>Krista Mikkonen, Vihreät.</b> Ilmastoratkaisuja kysyy nyt koko maailma.
     Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle, ei odotella
     ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen kokonaispäästöt
@@ -398,7 +464,7 @@ nodes:
     kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä kirjautuu muihin
     maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon meidän käyttämiä
     tuotteita.</p>
-    <h2>Demarit: Lykätäänkö ilmastotavoitteita? Ei.</h2>
+    <h3>Demarit: Lykätäänkö ilmastotavoitteita? Ei.</h3>
     <p><b>Teemu Backnäs, Sdp.</b> Ei. Suomi elää viennistä. Tämä on elinkeinoelämän
     ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin
     tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin
@@ -408,20 +474,44 @@ nodes:
     saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää
     parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa
     tuotekehityksen kautta.</p>
-    <h2>Perussuomalaiset: Lykätäänkö ilmastotavoitteita? Kyllä.</h2>
+    <h3>Perussuomalaiset: Lykätäänkö ilmastotavoitteita? Kyllä.</h3>
     <p><b>Jussi Wihonen, Perus­suomalaiset.</b>Kannatamme EU:n yhteistä
     tavoitetta, 2050. Teollisuuden kilpailukyky turvattava, emme voi asettaa tiukempia
     normeja kuin kilpailijamaat, muuten teollisuus hakeutuu sinne. Suomi ei menetä
     mitään, sitoutumalla EU:n hiilineutraalisuustavoitteeseen.</p>'
+  description_en: "<h2>Parties' verbal rationale</h2>
+    <h3>The Greens: Will climate goals be postponed? No.</h3>
+     <p><b>Krista Mikkonen, The Greens.</b> The whole world is now asking for climate solutions.
+     We should be at the forefront of creating and selling them to the world, not waiting
+     and later buys other people's solutions with expensive money. Although Finland's total emissions
+     due to the small population remain small, so are our emissions per person
+     at the top. In addition to this, some of the emissions resulting from consumption are recorded in others
+     to countries like, for example, China, because a lot of the ones we use are manufactured there
+     products.</p>
+     <h3>Demarit: Will climate goals be postponed? No.</h3>
+     <p><b>Teemu Backnäs, Sdp.</b> No. Finland lives on exports. This is business life
+     and the desire of the export industry and already large listed companies to make results more sustainably
+     of the products produced. Finland will not solve climate change alone, but export will
+     through Finland has a big ecological _handprint_, meaning that our export products
+     reduce greenhouse emissions worldwide. We are an environmental factor bigger than our size
+     in the world. It is important to increase product development investments so that also in the future
+     we get prosperity from exports so that our scientists and engineers can develop
+     better products. It is good to remember that a momentary monopoly position can be achieved
+     through product development.</p>
+     <h3>True Finns: Should climate goals be postponed? Yes.</h3>
+     <p><b>Jussi Wihonen, Perussuomalaiset.</b>We support the common EU
+     goal, 2050. The competitiveness of industry must be secured, we cannot set stricter ones
+     standards than competitor countries, otherwise the industry will go there. Finland will lose
+     nothing by committing to the EU's carbon neutrality goal.</p>"
   type: values.ValueProfile
-  quantity: ratio
+  quantity: value_profile
   unit: dimensionless
   input_nodes:
   - id: postpone_climate_targets
-  - id: carbon_emissions_in_state_forests
+  - id: net_emissions
     tags: [emissions]
-  - id: net_profit_from_state_forests
-    tags: [currency]
+#  - id: net_cost_of_forests
+#    tags: [currency]
 #  - id: biodiversity_in_finland
   output_dimensions: [hypothesis]
   params:
@@ -429,8 +519,8 @@ nodes:
     ref: impact_threshold
   - id: emissions_weight
     ref: emissions_weight
-  - id: cost_weight
-    ref: cost_weight
+#  - id: cost_weight
+#    ref: cost_weight
 
 pages:
 - id: home
@@ -508,11 +598,13 @@ actions:
 - id: reduce_logging_in_state_forests
   name: Hakkuita pitää vähentää valtion metsissä luontokadon ja ilmastonmuutoksen
     torjumiseksi
+  name_en: Forest logging must be reduced to mitigate biodiversity loss and climate change
   description: Maankäyttö on Suomessa muuttunut ilmastonmuutosta hillitsevästä hiilinielusta
     päästöjen lähteeksi hakkuiden lisääntymisen ja puuston kasvun hidastumisen vuoksi.
     Metsälajeista yhdeksän prosenttia on uhanalaisia. Valtio omistaa Suomen metsistä
     noin neljänneksen. Hakkuiden vähentäminen vähentäisi valtion tuloja, teollisuuden
     puunsaantia ja työpaikkoja.
+  description_en: Land use in Finland has changed from a carbon sink that moderates climate change to a source of emissions due to the increase in logging and the slowdown in tree growth. Nine percent of forest species are endangered. The state owns about a quarter of Finland's forests. Reducing logging would reduce government income, wood supply for industry and jobs.
   references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
     <a 
     href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaarion-ennakkotiedot-vahvistavat-maankayttosektori-paastolahde-vuonna-2021-metsat-pysyivat-edelleen-nettonieluna">Kasvihuonekaasuinventaarion
@@ -522,16 +614,16 @@ actions:
   type: simple.CumulativeAdditiveAction
   quantity: consumption
   unit: m**3/a
-  forecast_values: [[2023, -10], [2030, -5]]
+  forecast_values: [[2023, -10000000], [2030, 5000000]]
   output_nodes:
   - biodiversity_in_state_forests
   - logging_intensity_in_state_forests
   params:
   - id: enabled
-    is_visible: false
 
 - id: add_logging_in_state_forests
   name: Lisää hakkuita metsissä
+  name_en: More forest logging
   group: hs_voting_aid
   type: simple.CumulativeAdditiveAction
   quantity: consumption
@@ -542,6 +634,7 @@ actions:
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
+  name_en: Finland must postpone its climate emission target from 2035
   description: Hiilineutraalius tarkoittaa, että ilmastoa lämmittäviä päästöjä tuotetaan
     korkeintaan sen verran kuin niitä voidaan sitoa ilmakehästä esimerkiksi metsien
     avulla. Suomi tavoittelee hiilineutraaliutta viimeistään vuonna 2035. EU:n tavoite
@@ -550,10 +643,10 @@ actions:
   references: <a href="https://julkaisut.valtioneuvosto.fi/handle/10024/164321">Hiilineutraali
     Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
   group: hs_voting_aid
-  type: simple.AdditiveAction
+  type: simple.CumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2023, 10], [2035, 10]]
   output_nodes:
   - building_heating_emissions
 
@@ -593,10 +686,12 @@ actions:
 
 - id: hp_consumer_electricity_emissions
   name: Hypoteesit kulutussähkön päästöistä
+  name_en: Hypothesis about consumer electricity emissions
   type: values.Hypothesis
   quantity: number
   unit: pcs
   group: hypothesis
+  color: '#232323'
   input_datasets:
   - id: greentransition/hp_consumer_electricity_emissions
     forecast_from: 2020
@@ -615,6 +710,7 @@ actions:
 
 - id: hypothesis_net_profit_from_state_forests
   name: Hypoteesit puukaupan nettotulosta valtion metsissä (mm. Backnäs)
+  name_en: Hypotheses about net profit from forest industry in the state forests
   description: <p>Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini pohjaiset
     tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun tuottoon
     (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi pienemmin
@@ -624,6 +720,7 @@ actions:
   references: Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.
   type: simple.LinearCumulativeAdditiveAction
   group: hypothesis
+  color: '#232323'
   quantity: currency
   unit: MEUR/a
   forecast_values: [[2023, 0], [2024, 100], [2040, 200]]
@@ -638,14 +735,16 @@ scenarios:
 - id: default
   default: true
   name: Aktiivinen
+  name_en: Active
   all_actions_enabled: true
 
 - id: true_finns
   name: Perussuomalaisten arvot
+  name_en: Values of the True Finns
   all_actions_enabled: true
   params:
   - id: reduce_logging_in_state_forests.enabled
-    value: false
+    value: true
   - id: postpone_climate_targets.enabled
     value: true
   - id: impact_threshold
@@ -659,6 +758,7 @@ scenarios:
 
 - id: social_democrats
   name: Sosiaalidemokraattien arvot
+  name_en: Values of the Social Democrats
   all_actions_enabled: true
   params:
   - id: reduce_logging_in_state_forests.enabled
@@ -676,6 +776,7 @@ scenarios:
 
 - id: greens
   name: Vihreiden arvot
+  name_en: Values of the Greens
   all_actions_enabled: true
   params:
   - id: reduce_logging_in_state_forests.enabled

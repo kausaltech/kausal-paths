@@ -61,7 +61,12 @@ class ValueProfile(SimpleNode):
             n = self.get_input_node(quantity=quantity)
         else:
             n = self.get_input_node(tag=tag)
+
+        enabled = action.is_enabled()
+        action.enabled_param.set(True)
         df = action.compute_impact(n)
+        action.enabled_param.set(enabled)
+
         df = df.filter(pl.col(IMPACT_COLUMN).eq(pl.lit(IMPACT_GROUP))).drop(IMPACT_COLUMN)
         df = df.multiply_quantity(VALUE_COLUMN, w)
         
@@ -115,12 +120,12 @@ class ValueProfile(SimpleNode):
 
         df = df.cumulate(VALUE_COLUMN)
         df = df.multiply_quantity(VALUE_COLUMN, Quantity('1 a'))
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         th = self.get_parameter_value('impact_threshold', required=True, units=True)
         th = th.to(df.get_unit(VALUE_COLUMN))
         df = df.with_columns([
-            pl.when(pl.col(VALUE_COLUMN).gt(pl.lit(th.m))).then(pl.lit(1))
-            .otherwise(pl.lit(0)).alias(VALUE_COLUMN)
+            pl.when(pl.col(VALUE_COLUMN).lt(pl.lit(th.m))).then(pl.lit(1))
+            .otherwise(pl.lit(-1)).alias(VALUE_COLUMN)
         ])
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
