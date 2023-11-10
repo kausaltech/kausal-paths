@@ -108,7 +108,7 @@ params:
   value: 3.5
   min_value: 0
   max_value: 18
-  step: 0.5
+  step: 1
   unit: '%'
 - id: avoided_electricity_capacity_price  # null
   label: Benefit for avoiding new electricity capacity (SEK/kWh)
@@ -151,7 +151,7 @@ params:
   value: 0.5
   min_value: 0
   max_value: 2
-  step: 0.5
+  step: 1
   unit: '%/a'
 - id: price_of_co2  # OK
   value: 6450
@@ -171,7 +171,7 @@ params:
   value: 3
   min_value: 0
   max_value: 5
-  step: 0.5
+  step: 1
   unit: '%'
   is_customizable: true
   label: CO2 kostnadsökningtakt (%/år)
@@ -180,7 +180,7 @@ params:
   value: 0.670
   min_value: 0
   max_value: 5.0
-  step: 0.5
+  step: 1
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande elpris (SEK/kWh)
@@ -189,7 +189,7 @@ params:
   value: 0
   min_value: 0
   max_value: 5
-  step: 0.5
+  step: 1
   unit: '%'
   is_customizable: true
   label: Kostnadsökningstakt av elpris (%/år)
@@ -198,7 +198,7 @@ params:
   value: 0.6944
   min_value: 0
   max_value: 0.8
-  step: 0.1
+#  step: 0.1
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande värmepris (SEK/kWh)
@@ -207,7 +207,7 @@ params:
   value: 0
   min_value: 0
   max_value: 5
-  step: 0.5
+  step: 1
   unit: '%'
   is_customizable: true
   label: Kostnadsökningstakt av värmepris (%/år)
