@@ -95,12 +95,12 @@ params:
 - id: municipality_name
   label: Municipality
   value: Tampere
-- id: all_in_investment
+- id: all_in_investment  # OK
   label: Alla investeringar sker första året (inte kontinuerligt)
 #  label: All investments happen during the first year (not continuously)
   is_customizable: true
   value: true
-- id: discount_rate
+- id: discount_rate  # JSON.parse: unexpected character at line 2 column 1 of the JSON data
   label: Diskonteringsränta (%/år)
 #  label: Discount rate (%/yr.)
   description: Speed of value decrease for monetary variables
@@ -110,48 +110,54 @@ params:
   max_value: 18
   step: 0.5
   unit: '%'
-- id: avoided_electricity_capacity_price
+- id: avoided_electricity_capacity_price  # null
   label: Benefit for avoiding new electricity capacity (SEK/kWh)
   is_customizable: false
   value: 0.4
   min_value: 0.3
   max_value: 0.5
+  step: 0.1
   unit: SEK/kWh
-- id: health_impacts_per_kwh
+- id: health_impacts_per_kwh  # null
   is_customizable: false
   label: Cost of health impacts (SEK/kWh)
   value: 0.07344
   min_value: 0.07
   max_value: 0.08
+  step: 0.001
   unit: SEK/kWh
-- id: heat_co2_ef
+- id: heat_co2_ef  # OK
   label: Emissionsfaktor för värmeproduktion (g CO2/kWh)
 #  label: Emission factor of heat production (g CO2/kWh)
   is_customizable: true
   value: 52
   min_value: 40
   max_value: 70
+  step: 1
   unit: g/kWh
-- id: electricity_co2_ef
+- id: electricity_co2_ef  # OK
   label: Emissionsfaktor för elproduktion (g CO2/kWh)
 #  label: Emission factor of electricity production (g CO2/kWh)
   is_customizable: true
   value: 93.2
   min_value: 80
   max_value: 140
+  step: 1
   unit: g/kWh
-- id: renovation_rate_baseline
+- id: renovation_rate_baseline  # OK
   label: Baslinje renoveringstakt (%/år)
 #  label: Baseline renovation rate (%/yr.)
   is_customizable: true
   value: 0.5
   min_value: 0
   max_value: 2
+  step: 0.5
   unit: '%/a'
-- id: price_of_co2
+- id: price_of_co2  # OK
   value: 6450
   min_value: 1000
   max_value: 10000
+  step: 100
   unit: SEK/t
   is_customizable: true
   label: Koldioxidkostnad (SEK/t)
@@ -161,42 +167,47 @@ params:
 #      Förut 7000kr/ton co2. Nu 7000-550=6450. (550 var genomsnittspriset 2021)
 #      ASEK 7.0, Trafikverkets Analysmetod och samhällsekonomiska kalkylvärden (2020)
 #      https://www.naturvardsverket.se/om-oss/aktuellt/nyheter-och-pressmeddelanden/utslappen-okade-med-106-procent-i-eus-utslappshandel-2021/
-- id: price_of_co2_annual_change
+- id: price_of_co2_annual_change  # OK
   value: 3
   min_value: 0
   max_value: 5
+  step: 0.5
   unit: '%'
   is_customizable: true
   label: CO2 kostnadsökningtakt (%/år)
 #  label: CO2 cost increase rate (%/yr.)
-- id: price_of_electricity
+- id: price_of_electricity  # OK
   value: 0.670
   min_value: 0
   max_value: 5.0
+  step: 0.5
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande elpris (SEK/kWh)
 #  label: Current electricity price (SEK/kWh)
-- id: price_of_electricity_annual_change
+- id: price_of_electricity_annual_change  # OK
   value: 0
   min_value: 0
   max_value: 5
+  step: 0.5
   unit: '%'
   is_customizable: true
   label: Kostnadsökningstakt av elpris (%/år)
 #  label: Electricity price increase rate (%/yr.)
-- id: price_of_heat
+- id: price_of_heat  # OK
   value: 0.6944
   min_value: 0
   max_value: 0.8
+  step: 0.1
   unit: SEK/kWh
   is_customizable: true
   label: Nuvarande värmepris (SEK/kWh)
 #  label: Current heat price (SEK/kWh)
-- id: price_of_heat_annual_change
+- id: price_of_heat_annual_change  # OK
   value: 0
   min_value: 0
   max_value: 5
+  step: 0.5
   unit: '%'
   is_customizable: true
   label: Kostnadsökningstakt av värmepris (%/år)
@@ -3157,7 +3168,7 @@ pages:
   name: Grön logik -projekt
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title_fi: Grön logik -projektin päästöskenaariot
   lead_title_en: Grön logik project's emission scenarios
   lead_title: Projekt Grön logiks utsläppsscenarion
@@ -3167,6 +3178,22 @@ pages:
     and how different actions reduce it and thus climate emissions.
   lead_paragraph: Grön logik projektet undersöker byggnaders energiförbrukning och
     hur olika åtgärder minskar det och därmed klimatutsläppen.
+- id: about
+  name: About calculations
+  path: /about
+  type: outcome
+  outcome_node: net_emissions
+  lead_title_en: About calculations
+  lead_paragraph_en: 'https://data-88e.github.io/textbook/content/12-environmental/textbook1.html
+    https://www.nepp.se/pdf/Det_kr%C3%A4vs_stora_investeringar.pdf
+    https://www.energiforetagen.se/energifakta/miljo-och-klimat/elens-miljopaverkan/vaxthuseffekten/
+    https://smed.se/luft-och-klimat/4708?fbclid=IwAR1mhwqqEHH4h2NuRr8P7KlENuPxWRLmYAMeQ3r1fTmgPOhTRw0Cdh2UJJ0
+    https://www.energiforetagen.se/energifakta/miljo-och-klimat/
+    NPV Kostnads-besparing: I×(1−(1÷(1+Q$41))^Q$44)÷(1−(1÷(1+Q$41)))
+    Proof: If you denote a = 1/(1+r) where r is discount rate, you can solve
+    sum a^n, n=0 to k = (a^(k+1)-1)/(a-1)
+    https://www.wolframalpha.com/input?i=sum+a%5En%2C+n%3D0+to+k
+    (You can check the formula by polynomial division, and you get a^k+a^(k-1)+...+a+1).'
 
 scenarios:
 - id: baseline
