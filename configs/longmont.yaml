@@ -1814,7 +1814,7 @@ actions:
     help Platte River reach 90% noncarbon by 2030.</p> <p>To model the 100% renewable
     electric energy supply goal, select this action and <a href=\"https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables_additional\"\
     >Additional 10% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
-    <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
+    <ul><li><a href=\"https://indicators.longmontcolorado.gov/indicators/1674\"\
     >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
     >Longmont Renewable Energy</a></li></ul></p>"
   type: simple.AdditiveAction
@@ -1840,7 +1840,7 @@ actions:
     the 100% renewable electric energy supply goal, select this action and <a href=\"\
     https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables\"\
     >90% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
-    <ul><li><a href=\"https://longmont-envision.watch-test.kausal.tech/indicators/1674\"\
+    <ul><li><a href=\"https://indicators.longmontcolorado.gov/indicators/1674\"\
     >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
     >Longmont Renewable Energy</a></li></ul></p>"
   type: linear.ReduceAction
@@ -1933,7 +1933,7 @@ actions:
   description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
     by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
     GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Sustainability
-    Plan Strategy T-4</a></li> <li><a href="https://longmont-sca.watch-test.kausal.tech/indicators/1771">Electric
+    Plan Strategy T-4</a></li> <li><a href="https://indicators.longmontcolorado.gov/indicators/1771">Electric
     Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
   type: simple.AdditiveAction
   quantity: number
