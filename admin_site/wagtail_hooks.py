@@ -6,6 +6,7 @@ from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 
 from nodes.models import InstanceConfig
+from paths.types import PathsAdminRequest
 
 
 def global_admin_css():
@@ -44,16 +45,18 @@ class InstanceItem(MenuItem):
 
 
 class InstanceChooserMenu(Menu):
-    def menu_items_for_request(self, request):
+    def menu_items_for_request(self, request: PathsAdminRequest):
         user = request.user
-        instances = InstanceConfig.objects.all()  # FIXME
+        instances = InstanceConfig.permission_policy.instances_user_has_any_permission_for(user, ['change'])
+        if len(instances) < 2:
+            return []
         items = []
         for instance in instances:
             url = reverse('change-admin-instance', kwargs=dict(instance_id=instance.id))
             url += '?admin=wagtail'
             icon_name = ''
-            if instance == user.get_active_instance():
-                icon_name = 'tick'
+            if instance == request.admin_instance:
+                icon_name = 'tick-inverse'
             text = instance.name or instance.identifier
             item = InstanceItem(text, url, icon_name=icon_name)
             items.append(item)
