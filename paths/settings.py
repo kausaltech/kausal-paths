@@ -382,6 +382,7 @@ WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = True
 WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
 WAGTAIL_PASSWORD_RESET_ENABLED = True
 WAGTAILADMIN_PERMITTED_LANGUAGES = list(LANGUAGES)
+WAGTAILEMBEDS_RESPONSIVE_HTML = True
 
 # Base URL to use when referring to full URLs within the Wagtail admin backend -
 # e.g. in notification emails. Don't include '/admin' or a trailing slash
