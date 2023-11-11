@@ -49,6 +49,7 @@ from .units import Quantity, Unit
 if typing.TYPE_CHECKING:
     from .processors import Processor
     from .scenario import Scenario
+    from .models import NodeConfig
 
 
 class_fname_cache: dict[type, str] = {}
@@ -139,6 +140,9 @@ class Node:
 
     database_id: Optional[int]
     "The database row that corresponds to this Node instance."
+
+    db_obj: NodeConfig | None
+    "The Django object for this Node Instance"
 
     name: I18nString
     "Human-readable label for the Node instance."
@@ -334,6 +338,7 @@ class Node:
             input_datasets = []
 
         self.database_id = None
+        self.db_obj = None
         self.name = name
         self.yaml_fn = yaml_fn
         self.yaml_lc = yaml_lc

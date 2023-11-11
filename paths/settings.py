@@ -348,6 +348,21 @@ WAGTAILSEARCH_BACKENDS = {
     }
 }
 
+WAGTAILADMIN_RICH_TEXT_EDITORS = {
+    'default': {"WIDGET": "wagtail.admin.rich_text.DraftailRichTextArea"},
+    'limited': {
+        "WIDGET": "wagtail.admin.rich_text.DraftailRichTextArea",
+        "OPTIONS": {
+            "features": ["bold", "italic", "ol", "ul", "link"]
+        },
+    },
+    'very-limited': {
+        "WIDGET": "wagtail.admin.rich_text.DraftailRichTextArea",
+        "OPTIONS": {
+            "features": ["bold", "italic"]
+        },
+    },
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/

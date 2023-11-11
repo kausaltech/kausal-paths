@@ -3,7 +3,7 @@ from functools import cached_property
 
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union, cast
 from urllib.parse import urlparse
 import uuid
@@ -18,7 +18,8 @@ from django.utils.translation import get_language, override
 from django.utils.translation import gettext_lazy as _, gettext
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
-from wagtail.fields import RichTextField
+from wagtail import blocks
+from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
@@ -26,6 +27,7 @@ from wagtail_color_panel.fields import ColorField
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
+from pages.blocks import CardListBlock
 from paths.permissions import PathsPermissionPolicy
 from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
@@ -165,25 +167,43 @@ class InstanceConfig(PathsModel):
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
-    def _get_instance(self) -> Instance:
-        if hasattr(self, '_instance'):
-            return self._instance
+    def _get_instance_from_memory(self):
+        if self.identifier not in instance_cache:
+            return
+        instance: Instance = instance_cache[self.identifier]
+        assert instance.modified_at is not None
+        if self.modified_at > instance.modified_at:
+            return
 
-        if self.identifier in instance_cache:
-            instance: Instance = instance_cache[self.identifier]
-            if not self.nodes.exists():
-                return instance
-            latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
-            assert isinstance(latest_node_edit, datetime)
-            assert instance.modified_at is not None
-            if latest_node_edit <= instance.modified_at and self.modified_at <= instance.modified_at:
-                return instance
+        if not self.nodes.exists():
+            return instance
+        latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
+        assert isinstance(latest_node_edit, datetime)
+        more_recent_nodes = latest_node_edit > instance.modified_at
+        ic_recently_saved = self.modified_at > instance.modified_at
+        if more_recent_nodes or ic_recently_saved:
+            return
+        return instance
 
+    def _create_new_instance(self) -> Instance:
         config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
         loader = InstanceLoader.from_yaml(config_fn)
         instance = loader.instance
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
+        instance.context.load_all_dvc_datasets()
+        return instance
+
+    def _get_instance(self) -> Instance:
+        if hasattr(self, '_instance'):
+            return self._instance
+
+        instance = self._get_instance_from_memory()
+        if instance:
+            setattr(self, '_instance', instance)
+            return instance
+
+        instance = self._create_new_instance()
         instance_cache[self.identifier] = instance
         self._instance = instance
         return instance
@@ -454,11 +474,23 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')
     )
+    goal = RichTextField(
+        null=True, blank=True, verbose_name=_('Goal'), editor='very-limited',
+        max_length=200,
+    ) # pyright: ignore
     short_description = RichTextField(
-        null=True, blank=True, verbose_name=_('Short description')
-    )
+        null=True, blank=True, verbose_name=_('Short description'), editor='limited',
+    ) # pyright: ignore
     description = RichTextField(
         null=True, blank=True, verbose_name=_('Description')
+    ) # -> StreamField
+    body = StreamField([
+        ('card_list', CardListBlock()),
+        ('paragraph', blocks.RichTextBlock()),
+    ], use_json_field=True, blank=True)
+
+    indicator_node = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
     )
 
     color = ColorField(max_length=20, null=True, blank=True)
@@ -469,9 +501,13 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     modified_at = models.DateTimeField(auto_now=True)
 
     i18n = TranslationField(
-        fields=('name', 'short_description', 'description'),
+        fields=('name', 'short_description', 'description', 'goal'),
         default_language_field='instance__primary_language',
     )  # pyright: ignore
+    name_i18n: str | None
+    short_description_i18n: str | None
+    description_i18n: str | None
+    goal_i18n: str | None
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -487,12 +523,18 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         unique_together = (('instance', 'identifier'),)
 
     def get_node(self, visible_for_user: UserOrAnon | None = None) -> Optional[Node]:
+        if hasattr(self, '_node'):
+            return getattr(self, '_node')
+
         instance = self.instance.get_instance()
         # FIXME: Node visibility restrictions
-        return instance.context.nodes.get(self.identifier)
+        node = instance.context.nodes.get(self.identifier)
+        setattr(self, '_node', node)
+        return node
 
     def update_node_from_config(self, node: Node):
         node.database_id = self.pk
+        node.db_obj = self
         if self.order is not None:
             node.order = self.order
 
@@ -532,6 +574,15 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         return True
 
     def __str__(self) -> str:
+        return self.name or '<no name>'
+
+    def __rich_repr__(self):
+        yield self.name
+        yield 'pk', self.pk
+        yield 'identifier', self.identifier
+        yield 'instance', self.instance.identifier
+
+    def get_name_with_icon(self):
         node = self.get_node()
         prefix = ''
         if node is None:

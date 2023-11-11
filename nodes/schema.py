@@ -5,6 +5,8 @@ import dataclasses
 import graphene
 from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
+from grapple.types.streamfield import StreamFieldInterface
+from grapple.types.rich_text import RichText
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
@@ -27,7 +29,7 @@ from .constants import (
 )
 from .instance import Instance, InstanceFeatures
 from .metric import DimensionalFlow, DimensionalMetric, Metric
-from .models import InstanceConfig, NodeConfig
+from .models import InstanceConfig
 from .scenario import Scenario
 
 
@@ -341,8 +343,9 @@ class NodeInterface(graphene.Interface):
     parameters = graphene.List(graphene.NonNull('params.schema.ParameterInterface'), required=True)
 
     # These are potentially plucked from nodes.models.NodeConfig
-    short_description = graphene.String()
+    short_description = RichText()
     description = graphene.String()
+    body = graphene.List(graphene.NonNull(StreamFieldInterface))
 
     @classmethod
     def resolve_type(cls, node: Node, info: GQLInstanceInfo):
@@ -352,6 +355,9 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_color(root: Node, info):
+        nc = root.db_obj
+        if nc and nc.color:
+            return nc.color
         if root.color:
             return root.color
         if root.quantity == 'emissions':
@@ -412,14 +418,17 @@ class NodeInterface(graphene.Interface):
         return [param for param in root.parameters.values() if param.is_visible]
 
     @staticmethod
+    def resolve_name(root: Node, info: GQLInstanceInfo) -> str | None:
+        nc = root.db_obj
+        if nc is not None and nc.name_i18n:
+            return nc.name_i18n
+        return str(root.name)
+
+    @staticmethod
     def resolve_short_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:
-        obj: NodeConfig | None = (
-            NodeConfig.objects
-            .filter(instance__identifier=info.context.instance.id, identifier=root.id)
-            .first()
-        )
-        if obj is not None and obj.short_description_i18n:  # type: ignore
-            return expand_db_html(obj.short_description_i18n)  # type: ignore
+        nc = root.db_obj
+        if nc is not None and nc.short_description_i18n:
+            return expand_db_html(nc.short_description_i18n)
         if root.description:
             desc = str(root.description)
             if desc:
@@ -429,12 +438,17 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:
-        obj = (NodeConfig.objects
-               .filter(instance__identifier=info.context.instance.id, identifier=root.id)
-               .first())
-        if obj is None or not obj.description_i18n:  # type: ignore
+        nc = root.db_obj
+        if nc is None or not nc.description_i18n:
             return None
-        return expand_db_html(obj.description_i18n)  # type: ignore
+        return expand_db_html(nc.description_i18n)
+
+    @staticmethod
+    def resolve_body(root: Node, info: GQLInstanceInfo):
+        nc = root.db_obj
+        if nc is None or not nc.body:
+            return None
+        return nc.body
 
     @staticmethod
     def resolve_goals(root: Node, info: GQLInstanceInfo, active_goal: str | None = None):
@@ -577,6 +591,7 @@ class ActionNodeType(graphene.ObjectType):
 
     group = graphene.Field(ActionGroupType, required=False)
     decision_level = graphene.Field(ActionDecisionLevel)
+    goal = RichText(required=False)
 
     is_enabled = graphene.Boolean(required=True)
 
@@ -597,6 +612,17 @@ class ActionNodeType(graphene.ObjectType):
     @staticmethod
     def resolve_is_enabled(root: ActionNode, info: GQLInstanceInfo) -> bool:
         return bool(root.is_enabled())
+
+    @staticmethod
+    def resolve_goal(root: ActionNode, info: GQLInstanceInfo) -> str | None:
+        nc = root.db_obj
+        if nc is None:
+            return None
+        val = nc.goal_i18n
+        if val:
+            return expand_db_html(val)
+        return None
+
 
 
 class ScenarioType(graphene.ObjectType):
