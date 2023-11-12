@@ -349,17 +349,26 @@ nodes:
   name_en: Biodiversity in the state forests
   description: Tämä solmu tarkastelee nimenomaan valtion metsien monimuotoisuutta
     esimerkiksi uhanalaisten lajien osuutena.
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: number
   unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
+  historical_values: [[2010, 50], [2022, 40]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - biodiversity_in_finland
-  params:
-  - id: multiplier
-    value: -1
-    unit: pcs*a/m**3
+
+- id: test_node
+  name: Test node
+  type: values.AssociationNode
+  quantity: currency
+  unit: MEUR
+  historical_values: [[2010, 100], [2022, 200]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: biodiversity_in_state_forests
+    tags: increase
+  - id: net_emissions
+    tags: decrease
 
 #
 ### VALUE PROFILES
@@ -618,8 +627,9 @@ actions:
   unit: m**3/a
   forecast_values: [[2023, -10000000], [2030, 5000000]]
   output_nodes:
-  - biodiversity_in_state_forests
-  - logging_intensity_in_state_forests
+  - id: biodiversity_in_state_forests
+    tags: [increase]
+  - id: logging_intensity_in_state_forests
   params:
   - id: enabled
 

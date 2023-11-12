@@ -134,3 +134,55 @@ class ValueProfile(SimpleNode):
         ])
 
         return df
+
+
+class AssociationNode(SimpleNode):
+    '''
+    Association nodes connect to their upstream nodes in a loose way:
+    Their values follow the relative changes of the input nodes but
+    their quantities and units are not dependent on those of the input nodes.
+    The node MUST have exactly one dataset, which is the prior estimate.
+    '''
+
+    def compute(self):
+        df = self.get_input_dataset_pl()
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+
+        for node in self.input_nodes:
+
+            scen = self.context.active_scenario.id
+            self.context.active_scenario.id == 'baseline'
+            m = node.get_default_output_metric().column_id
+            base = node.get_output_pl(target_node=self)
+            base = base[m].mean()
+            self.context.active_scenario.id == scen
+
+            dfn = node.get_output_pl(target_node=self)
+            dfn = dfn.with_columns((pl.col(m) / pl.lit(base)).alias(m))
+            dfn = dfn.clear_unit(m)
+
+            for edge in self.edges:
+                if edge.input_node == node:
+                    tags = edge.tags
+                    break
+
+            if len(tags) == 1:
+                if tags[0] == 'increase':
+                    pass
+                elif tags[0] == 'decrease':
+                    dfn = dfn.with_columns((pl.lit(1) / pl.col(m)).alias(m))
+                else:
+                    raise NodeError(self, 'The only tag allowed must be either "increase" or "decrease".')
+            else:
+                raise NodeError(self, 'There must be exactly one tag with node %s' % node)
+            
+            df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+            df = df.with_columns(pl.col(m + '_right').fill_null(1))
+#            df = df.with_columns(pl.col(m) * pl.col(m + '_right')).drop(m + '_right')
+            df = df.with_columns(pl.col(m) * pl.lit(2)).drop(m + '_right')  # FIXME The upper line should be used but
+            # it crashes the UI although it works on terminal. The reason is that at the API
+            # the node has metricDim in both cases but metric is missing if the commented-out line is used.
+            # I don't see any difference between the two dataframes or output_metrics.
+            # This node is using the node type: http://greentransition.localhost:3000/node/test_node
+
+        return df
