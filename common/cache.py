@@ -255,7 +255,8 @@ class Cache(AbstractContextManager):
         self.log.debug('<{}> Cache initialized{}', self.obj_id, redis_str)
 
     def __del__(self):
-        self.log.debug('<{}> Cache destroyed', self.obj_id)
+        #self.log.debug('<{}> Cache destroyed', self.obj_id)
+        pass
 
     def __enter__(self):
         self.start_run()

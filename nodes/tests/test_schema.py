@@ -243,8 +243,8 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'BoolParameterType',
                 'id': additive_action.enabled_param.global_id,
             }],
-            'shortDescription': node_config.short_description,
-            'description': str(additive_action.description),
+            'shortDescription': '<p>%s</p>\n' % str(additive_action.description),
+            'description': None,
         }
     }
     assert data == expected

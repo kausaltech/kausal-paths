@@ -1,5 +1,6 @@
 import pytest
 from nodes.context import Context
+from nodes.instance import Instance
 from nodes.scenario import Scenario
 
 from params.tests.factories import BoolParameterFactory, NumberParameterFactory, StringParameterFactory
@@ -56,9 +57,9 @@ def test_parameter_interface(graphql_client_query_data, context: Context, is_glo
 
 
 @pytest.mark.parametrize('default_value', [True, False])
-def test_bool_parameter_type(graphql_client_query_data, context: Context, default_value, default_scenario: Scenario):
-    param = BoolParameterFactory.create(context=context)
-    context.add_global_parameter(param)
+def test_bool_parameter_type(graphql_client_query_data, instance: Instance, default_value, default_scenario: Scenario):  # noqa: F821
+    param = BoolParameterFactory.create(context=instance.context)
+    instance.context.add_global_parameter(param)
     default_scenario.add_parameter(param, default_value)
     data = graphql_client_query_data(
         '''

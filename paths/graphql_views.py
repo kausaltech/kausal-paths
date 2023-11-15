@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import translation
 from graphene_django.views import GraphQLView
-from graphql import DirectiveNode, ExecutionResult, GraphQLScalarType, OperationType, get_named_type
+from graphql import DirectiveNode, ExecutionResult, GraphQLOutputType, GraphQLScalarType, OperationType, get_named_type
 from graphql.error import GraphQLError
 from graphql.execution import ExecutionContext
 from graphql.language import FieldNode, OperationDefinitionNode
@@ -47,6 +47,21 @@ logger = logger.bind(markup=True)
 
 class PathsExecutionContext(ExecutionContext):
     context_value: GQLInstanceContext
+
+    def handle_field_error(
+        self, error: GraphQLError, return_type: GraphQLOutputType,
+    ) -> None:
+        if settings.DEBUG and error.original_error is not None:
+            from rich import traceback
+            exc = error
+            tb = traceback.Traceback.from_exception(
+                type(exc), exc, traceback=exc.__traceback__
+            )
+            console = Console()
+            console.print(tb)
+            raise error.original_error
+        else:
+            return super().handle_field_error(error, return_type)
 
     def process_locale_directive(self, ic: InstanceConfig, directive: DirectiveNode) -> Optional[str]:
         for arg in directive.arguments:
@@ -421,9 +436,10 @@ class PathsGraphQLView(GraphQLView):
                 console = Console()
 
                 def print_error(err: GraphQLError, orig: Exception | None):
-                    console.print(err)
                     oe = getattr(err, 'original_error', err)
                     if oe:
+                        if settings.DEBUG:
+                            raise oe
                         tb = Traceback.from_exception(
                             type(oe), oe, traceback=oe.__traceback__
                         )
@@ -447,6 +463,9 @@ class PathsGraphQLView(GraphQLView):
                     # It's an invalid query
                     continue
                 sentry_sdk.capture_exception(err)
+
+            if settings.DEBUG:
+                raise result.errors[0]
 
         # Check for the reasons why the result might not be cached
         if cache_key:
