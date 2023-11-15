@@ -11,7 +11,7 @@ from common import polars as ppl
 from common.i18n import TranslatedString, gettext_lazy as _
 from common.perf import PerfCounter
 
-from nodes import Node, NodeError
+from nodes.node import Node, NodeError
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, SCENARIO_ACTION_GROUP,
     VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, DecisionLevel
@@ -177,25 +177,27 @@ class ActionNode(Node):
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
-        cost_df = self.compute_impact(cost_node)
-        cost_m = cost_node.get_default_output_metric()
-        cost_df = (
-            cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        )
-        cost_df = cost_df.select([*cost_df.primary_keys, FORECAST_COLUMN, pl.col(cost_m.column_id).alias('Cost')])
+        with self.context.perf_context.exec_node(cost_node):
+            cost_df = self.compute_impact(cost_node)
+            cost_m = cost_node.get_default_output_metric()
+            cost_df = (
+                cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+            )
+            cost_df = cost_df.select([*cost_df.primary_keys, FORECAST_COLUMN, pl.col(cost_m.column_id).alias('Cost')])
         pc.display('cost impact of %s on %s computed' % (self.id, cost_node.id))
 
-        impact_df = self.compute_impact(impact_node)
-        impact_m = impact_node.get_default_output_metric()
-        impact_df = (
-            impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        )
-        # Replace impact values that are very close to zero with null
-        zero_to_nan = pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
-        impact_df = (
-            impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
-            .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
-        )
+        with self.context.perf_context.exec_node(impact_node):
+            impact_df = self.compute_impact(impact_node)
+            impact_m = impact_node.get_default_output_metric()
+            impact_df = (
+                impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+            )
+            # Replace impact values that are very close to zero with null
+            zero_to_nan = pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
+            impact_df = (
+                impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
+                .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
+            )
 
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
         df = cost_df.paths.join_over_index(impact_df, how='left')
@@ -276,7 +278,8 @@ class ActionEfficiencyPair:
                 # Action is not connected to either cost or impact nodes, skip it
                 continue
 
-            df = action.compute_efficiency(self.cost_node, self.impact_node, self.efficiency_unit)
+            with context.perf_context.exec_node(action):
+                df = action.compute_efficiency(self.cost_node, self.impact_node, self.efficiency_unit)
             if not len(df):
                 # No impact for this action, skip it
                 continue

@@ -21,7 +21,7 @@ per_100000py = 1e-5 * case / personyear
 personyear = cap * year = py
 quality_adjusted_lifeyear = -1 * DALY = QALY
 
-ppm = mg / kg  # parts per million
+#ppm = mg / kg  # parts per million
 ppb = ug / kg  # parts per billion
 ppt = ng / kg  # parts per trillion
 

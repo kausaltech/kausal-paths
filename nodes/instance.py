@@ -15,6 +15,7 @@ from loguru import logger
 from ruamel.yaml import YAML as RuamelYAML, CommentedMap
 from ruamel.yaml.comments import LineCol
 from rich import print
+from common import base32_crockford
 
 from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
@@ -29,7 +30,7 @@ from nodes.units import Unit
 from pages.config import OutcomePage, pages_from_config
 from params.param import ReferenceParameter, Parameter
 
-from . import Context, Dataset, DVCDataset, FixedDataset
+from .context import Context, Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
     from loguru import Logger
@@ -57,7 +58,6 @@ class Instance:
     name: TranslatedString
     owner: TranslatedString
     default_language: str
-    context: Context
     _: dataclasses.KW_ONLY
     yaml_file_path: Optional[str] = None
     site_url: Optional[str] = None
@@ -73,6 +73,8 @@ class Instance:
     action_groups: list[ActionGroup] = field(default_factory=list)
     pages: list[OutcomePage] = field(default_factory=list)
 
+    context: Context = field(init=False)
+    obj_id: str = field(init=False)
     lock: threading.Lock = field(init=False)
 
     @property
@@ -89,9 +91,10 @@ class Instance:
         return InstanceConfig.objects.get(identifier=self.id)
 
     def __post_init__(self):
-        self.logger: Logger = logger.bind(instance=self.id)
         self.modified_at: datetime | None = None
         self.lock = threading.Lock()
+        self.obj_id = base32_crockford.gen_obj_id(self)
+        self.log: Logger = logger.bind(instance=self.id, instance_obj_id=self.obj_id, markup=True)
         if isinstance(self.features, dict):
             self.features = InstanceFeatures(**self.features)
         if isinstance(self.terms, dict):
@@ -101,6 +104,9 @@ class Instance:
         else:
             if self.default_language not in self.supported_languages:
                 self.supported_languages.append(self.default_language)
+
+    def set_context(self, context: Context):
+        self.context = context
 
     def update_dataset_repo_commit(self, commit_id: str):
         assert self.yaml_file_path
@@ -115,7 +121,7 @@ class Instance:
             yaml.dump(data, f)
 
     def warning(self, msg: Any, *args):
-        self.logger.opt(depth=1).warning(msg, *args)
+        self.log.opt(depth=1).warning(msg, *args)
 
     @overload
     def get_goals(self, goal_id: str) -> NodeGoalsEntry: ...
@@ -362,7 +368,7 @@ class InstanceLoader:
                     if value is not None:
                         param.set(value)
                 except:
-                    self.instance.logger.error("Error setting parameter %s for node %s" % (param.local_id, node.id))
+                    self.instance.log.error("Error setting parameter %s for node %s" % (param.local_id, node.id))
                     raise
 
                 for scenario_id, value in scenario_values.items():
@@ -686,16 +692,7 @@ class InstanceLoader:
             )
             dataset_repo.set_target_commit(commit)
             dataset_repo_default_path = dataset_repo_config.get('default_path')
-        target_year = self.config['target_year']
-        model_end_year = self.config.get('model_end_year', target_year)
-        self.context = Context(
-            dataset_repo, target_year, model_end_year=model_end_year, dataset_repo_default_path=dataset_repo_default_path
-        )
 
-        instance_attrs = [
-            'reference_year', 'minimum_historical_year', 'maximum_historical_year',
-            'supported_languages', 'site_url', 'theme_identifier',
-        ]
         agc_all = self.config.get('action_groups', [])
         agcs = []
         for agc in agc_all:
@@ -703,26 +700,33 @@ class InstanceLoader:
             ag = ActionGroup(agc['id'], self.make_trans_string(agc, 'name'), agc.get('color'))
             agcs.append(ag)
 
+        instance_attrs = [
+            'reference_year', 'minimum_historical_year', 'maximum_historical_year',
+            'supported_languages', 'site_url', 'theme_identifier',
+        ]
         self.instance = Instance(
             id=self.config['id'],
             name=self.make_trans_string(self.config, 'name', required=True),
             owner=self.make_trans_string(self.config, 'owner', required=True),
             default_language=self.config['default_language'],
-            context=self.context,
             action_groups=agcs,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
+            yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
             **self._build_instance_args_from_home_page(),
         )
-        self.context.instance = self.instance
-        self.instance.yaml_file_path = self.yaml_file_path
 
-        # Deprecated
-        # self.load_datasets(self.config.get('datasets', []))
+        target_year = self.config['target_year']
+        model_end_year = self.config.get('model_end_year', target_year)
+        self.context = Context(
+            instance=self.instance, dataset_repo=dataset_repo, target_year=target_year,
+            model_end_year=model_end_year, dataset_repo_default_path=dataset_repo_default_path,
+        )
+        self.instance.set_context(self.context)
 
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}

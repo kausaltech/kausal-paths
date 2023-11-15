@@ -4,7 +4,7 @@ import pandas as pd
 import polars as pl
 import pint_pandas
 
-from nodes import NodeMetric, Node
+from nodes.node import NodeMetric, Node
 from nodes.units import Quantity
 import common.polars as ppl
 from params.param import NumberParameter, StringParameter, BoolParameter

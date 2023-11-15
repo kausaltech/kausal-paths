@@ -50,6 +50,7 @@ env = environ.FileAwareEnv(
     LOG_SQL_QUERIES=(bool, False),
     LOG_GRAPHQL_QUERIES=(bool, False),
     ENABLE_DEBUG_TOOLBAR=(bool, False),
+    ENABLE_PERF_TRACING=(bool, False),
     MEDIA_FILES_S3_ENDPOINT=(str, ''),
     MEDIA_FILES_S3_BUCKET=(str, ''),
     MEDIA_FILES_S3_ACCESS_KEY_ID=(str, ''),
@@ -157,6 +158,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
+    'paths.middleware.RequestMiddleware',
     'admin_site.middleware.AuthExceptionMiddleware',
     'paths.middleware.AdminMiddleware',
 ]
@@ -262,6 +264,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
+    'baggage',
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 3600
@@ -335,7 +338,6 @@ LANGUAGE_CODE = 'en'
 TIME_ZONE = 'Europe/Helsinki'
 USE_I18N = True
 WAGTAIL_I18N_ENABLED = True
-USE_L10N = True
 USE_TZ = True
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'locale')
@@ -371,19 +373,29 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
-# STATICFILES_DIRS = [
-#     os.path.join(PROJECT_DIR, 'static'),
-# ]
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static_overrides'),
+]
 
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
 MEDIA_FILES_S3_ENDPOINT= env('MEDIA_FILES_S3_ENDPOINT')
 MEDIA_FILES_S3_BUCKET = env('MEDIA_FILES_S3_BUCKET')
 MEDIA_FILES_S3_ACCESS_KEY_ID = env('MEDIA_FILES_S3_ACCESS_KEY_ID')
 MEDIA_FILES_S3_SECRET_ACCESS_KEY = env('MEDIA_FILES_S3_SECRET_ACCESS_KEY')
 MEDIA_FILES_S3_CUSTOM_DOMAIN = env('MEDIA_FILES_S3_CUSTOM_DOMAIN')
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+    }
+}
+
 if MEDIA_FILES_S3_ENDPOINT:
-    DEFAULT_FILE_STORAGE = 'paths.storage.MediaFilesS3Storage'
+    STORAGES['default']['BACKEND'] = 'paths.storage.MediaFilesS3Storage'
+
 
 STATIC_URL = env('STATIC_URL')
 MEDIA_URL = env('MEDIA_URL')
@@ -472,8 +484,9 @@ if DEBUG:
 
 
 LOG_GRAPHQL_QUERIES = DEBUG and env('LOG_GRAPHQL_QUERIES')
-LOG_SQL_QUERIES = env('LOG_SQL_QUERIES')
-ENABLE_DEBUG_TOOLBAR = env('ENABLE_DEBUG_TOOLBAR')
+LOG_SQL_QUERIES = DEBUG and env('LOG_SQL_QUERIES')
+ENABLE_DEBUG_TOOLBAR = DEBUG and env('ENABLE_DEBUG_TOOLBAR')
+ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
@@ -482,8 +495,11 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     from loguru import logger
     from .log_handler import LogHandler
 
-    logger.configure(handlers=[dict(sink=LogHandler(), format="{message}")])
-
+    logger.configure(
+        handlers=[
+            dict(sink=LogHandler(), format="{message}"),
+        ],
+    )
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
             handlers=['rich' if DEBUG else 'console'],
@@ -511,11 +527,6 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'null': {
                 'level': 'DEBUG',
                 'class': 'logging.NullHandler',
-            },
-            'console': {
-                'level': 'DEBUG',
-                'class': 'logging.StreamHandler',
-                'formatter': 'simple',
             },
             'rich': {
                 'level': 'DEBUG',
@@ -547,7 +558,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'numba': level('INFO'),
             'botocore': level('INFO'),
             'filelock': level('INFO'),
-            'sentry_sdk.errors': level('INFO'),
+            'sentry_sdk.errors': level('DEBUG'),
             'markdown_it': level('INFO'),
             'colormath': level('INFO'),
             '': level('DEBUG'),
@@ -563,6 +574,7 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         send_default_pii=True,
         traces_sample_rate=1.0,
+        profiles_sample_rate=1.0 if ENABLE_PERF_TRACING else 0.0,
         integrations=[DjangoIntegration()],
         environment=DEPLOYMENT_TYPE,
     )

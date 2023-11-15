@@ -6,3 +6,4 @@ django-stubs
 types-orjson
 djangorestframework-stubs
 ruff
+types-factory-boy

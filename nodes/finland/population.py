@@ -1,7 +1,7 @@
 import pandas as pd
 import polars as pl
 
-from nodes import Node
+from nodes.node import Node
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from common import polars as ppl

@@ -21,7 +21,7 @@ from paths.graphql_helpers import (
     GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
 )
 
-from . import Node
+from .node import Node
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
 from .constants import (

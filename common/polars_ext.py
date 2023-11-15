@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from typing import Literal, TypeAlias, TYPE_CHECKING, Union
 
-from polars.datatypes import Float32, Float64
 import pandas as pd
-from pint_pandas import PintType
 
 import polars as pl
 import common.polars as ppl
 from nodes.units import Unit
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
+from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 
 
 if TYPE_CHECKING:

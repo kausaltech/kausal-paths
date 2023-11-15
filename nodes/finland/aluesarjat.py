@@ -2,7 +2,7 @@ import pandas as pd
 import pint_pandas
 import polars as pl
 
-from nodes import Node, NodeMetric
+from nodes.node import Node, NodeMetric
 from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
 from nodes.constants import ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, CONSUMPTION_FACTOR_QUANTITY
 from nodes.simple import AdditiveNode, SimpleNode, DivisiveNode

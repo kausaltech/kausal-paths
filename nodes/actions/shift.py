@@ -135,17 +135,17 @@ class ShiftAction(ActionNode):
         dest_cols = ['Dest%d' % idx for idx in range(len(param.dests))]
         cols = [YEAR_COLUMN, 'Source', *dest_cols]
 
-        df = pl.DataFrame(data, schema=cols, orient='row')
-        dest_sum = df.select(pl.col(dest_cols)).sum(axis=1)
-        df = df.with_columns(pl.col(dest_cols) / dest_sum * (pl.col('Source') * -1))
+        zdf = pl.DataFrame(data, schema=cols, orient='row')
+        df = zdf.with_columns(pl.sum_horizontal(dest_cols).alias('DestSum')).lazy()
+        df = df.with_columns(pl.col(dest_cols) / pl.col('DestSum') * (pl.col('Source') * -1)).drop('DestSum')
 
-        years = pl.DataFrame(range(amounts[0].year, self.get_end_year() + 1), schema=[YEAR_COLUMN])
-        df = years.join(df, how='left', on=YEAR_COLUMN)
-        dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
-        if len(dupes):
-            raise NodeError(self, "Duplicate rows")
+        years = pl.LazyFrame(pl.int_range(amounts[0].year, self.get_end_year() + 1, eager=True), schema=[YEAR_COLUMN])
+        df = years.join(df.lazy(), how='left', on=YEAR_COLUMN)
+        #dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
+        #if len(dupes):
+        #    raise NodeError(self, "Duplicate rows")
         df = df.groupby(YEAR_COLUMN).agg([pl.first(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
-        df = df.interpolate().fill_null(0)
+        df = df.with_columns(pl.col(col).interpolate().fill_null(0.0) for col in ('Source', *dest_cols))
 
         value_cols = [col for col in df.columns if col != YEAR_COLUMN]
         if self.is_enabled():
@@ -173,7 +173,7 @@ class ShiftAction(ActionNode):
                 nr = node_id
             return self.output_nodes[nr]
 
-        def make_target_df(target: ShiftTarget, valuecol: str):
+        def make_target_df(df: pl.LazyFrame, target: ShiftTarget, valuecol: str):
             target_dims = set(target.categories.keys())
             null_dims = all_dims - target_dims
             node = get_node(target.node)
@@ -202,18 +202,20 @@ class ShiftAction(ActionNode):
             ])
             return tdf
 
-        dfs = [make_target_df(target, col) for col, target in targets]
+        df = df.collect()
+        dfs = [make_target_df(df.lazy(), target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
         #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([
             pl.lit(True).alias(FORECAST_COLUMN),
             pl.lit(flow_id).alias(FLOW_ID_COLUMN),
         ])
+        zdf = df.collect()
         meta = ppl.DataFrameMeta(
             units={VALUE_COLUMN: unit},
             primary_keys=[FLOW_ID_COLUMN, YEAR_COLUMN, NODE_COLUMN, *all_dims]
         )
-        ret = ppl.to_ppdf(df, meta=meta)
+        ret = ppl.to_ppdf(zdf, meta=meta)
         return ret
 
     def compute_effect_flow(self) -> ppl.PathsDataFrame:

@@ -447,7 +447,7 @@ class YearlyPercentageChangeNode(SimpleNode):
             if col in (FORECAST_COLUMN, 'Multiplier'):
                 continue
             dt = df.dtypes[col]
-            df[col] = df[col].pint.m.fillna(method='pad').astype(dt)
+            df[col] = df[col].pint.m.ffill().astype(dt)
             df.loc[df[FORECAST_COLUMN], col] *= df['Multiplier']
 
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
@@ -464,6 +464,10 @@ class MixNode(AdditiveNode):
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
     }
     default_unit = '%'
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+    ]
+    skip_normalize: bool = False
 
     def add_mix_normalized(self, df: ppl.PathsDataFrame, nodes: list[Node], over_dims: list[str] | None = None):
         df = self.add_nodes_pl(df=df, nodes=nodes)
@@ -481,11 +485,14 @@ class MixNode(AdditiveNode):
         col = df.metric_cols[0]
         df = (df
             .ensure_unit(col, 'dimensionless')
-            .with_columns(pl.col(col).clip(0, 1))
         )
-        sdf = df.paths.sum_over_dims(over_dims).rename({col: '_YearSum'})
-        df = df.paths.join_over_index(sdf)
-        df = df.divide_cols([col, '_YearSum'], col).drop('_YearSum')
+        if not self.skip_normalize:
+            # Normalize so that all values are 0 <= x <= 1.0 and
+            # the yearly sum is 1.0
+            df = df.with_columns(pl.col(col).clip(0, 1))
+            sdf = df.paths.sum_over_dims(over_dims).rename({col: '_YearSum'})
+            df = df.paths.join_over_index(sdf)
+            df = df.divide_cols([col, '_YearSum'], col).drop('_YearSum')
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
         m = self.get_default_output_metric()

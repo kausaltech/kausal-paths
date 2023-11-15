@@ -1,17 +1,17 @@
 from __future__ import annotations
 from dataclasses import InitVar, asdict, dataclass, field
 
-import hashlib
 import orjson
 import pandas as pd
 from pydantic import BaseModel
 from common.i18n import I18nString
-from typing import Any, Dict, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar
+from typing import Any, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar
 from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
-    from nodes import Node, NodeMetric, Context
+    from nodes.node import Node, NodeMetric
+    from nodes.context import Context
     from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
 
@@ -94,12 +94,15 @@ class Parameter(Generic[V]):
     def is_value_equal(self, value: Any) -> bool:
         return self.value == value
 
-    def calculate_hash(self) -> bytes:
+    def calculate_hash(self) -> str:
         h = getattr(self, '_hash', None)
         if h is not None:
             return h
-        s = orjson.dumps({'id': self.global_id, 'value': self.serialize_value()})
-        h = hashlib.md5(s).digest()
+        if isinstance(self.value, (bool, int, float, str)):
+            h = '%s:%s' % (self.global_id, self.value)
+        else:
+            h = '%s:%s' % (self.global_id, orjson.dumps({'value': self.serialize_value()}))
+
         self._hash = h
         return h
 
@@ -191,6 +194,12 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
 
     def __post_init__(self, unit_str: str | None = None):
         self._init_unit(unit_str)
+        if self.min_value is not None:
+            self.min_value = float(self.min_value)
+        if self.max_value is not None:
+            self.max_value = float(self.max_value)
+        if self.step is not None:
+            self.step = float(self.step)
         super().__post_init__()
 
     def clean(self, value: float | Quantity) -> float:

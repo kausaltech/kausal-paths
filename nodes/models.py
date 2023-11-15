@@ -1,21 +1,21 @@
 from __future__ import annotations
-from functools import cached_property
 
 import os
 import threading
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union, cast
-from urllib.parse import urlparse
 import uuid
-from django.contrib.postgres.fields import ArrayField
+from datetime import datetime
+from functools import cached_property
+from typing import TYPE_CHECKING, ClassVar, Optional, Sequence, Tuple, Union, cast
+from urllib.parse import urlparse
 
-from loguru import logger
 from django.conf import settings
-from django.db import models
 from django.contrib.auth.models import Group
+from django.contrib.postgres.fields import ArrayField
+from django.db import models
 from django.utils import timezone
-from django.utils.translation import get_language, override
-from django.utils.translation import gettext_lazy as _, gettext
+from django.utils.translation import get_language, gettext, override
+from django.utils.translation import gettext_lazy as _
+from loguru import logger
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from wagtail import blocks
@@ -23,7 +23,7 @@ from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
-from wagtail_color_panel.fields import ColorField
+from wagtail_color_panel.fields import ColorField  # type: ignore
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
@@ -31,17 +31,23 @@ from pages.blocks import CardListBlock
 from paths.permissions import PathsPermissionPolicy
 from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
-    IdentifierField, get_supported_languages, get_default_language, ChoiceArrayField,
-    UserModifiableModel, UUIDIdentifierField
+    ChoiceArrayField,
+    IdentifierField,
+    UserModifiableModel,
+    UUIDIdentifierField,
+    get_default_language,
+    get_supported_languages,
 )
 
 from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
-    from datasets.models import Dimension as DimensionModel, Dataset as DatasetModel
     from loguru import Logger
-    from users.models import User
+
+    from datasets.models import Dataset as DatasetModel
+    from datasets.models import Dimension as DimensionModel
     from pages.models import ActionListPage
+    from users.models import User
 
 
 instance_cache_lock = threading.Lock()
@@ -69,6 +75,8 @@ class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
             lookup |= models.Q(identifier=identifier)
         return self.filter(lookup)
 
+    def adminable_for(self, user: User):
+        return InstanceConfig.permission_policy.adminable_instances(user)
 
 class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
     def __init__(self):
@@ -79,6 +87,9 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
         if not user.is_superuser:
             qs = qs.filter(admin_group__in=user.groups.all())
         return qs
+
+    def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
+        return self.instances_user_has_any_permission_for(user, ['change'])
 
 
 class InstanceConfigManager(models.Manager['InstanceConfig']):
@@ -122,6 +133,7 @@ class InstanceConfig(PathsModel):
     dimensions: models.manager.RelatedManager['DimensionModel']
     datasets: models.manager.RelatedManager['DatasetModel']
 
+    permission_policy: ClassVar[InstancePermissionPolicy]
     _instance: Instance
 
     search_fields = [
@@ -192,6 +204,8 @@ class InstanceConfig(PathsModel):
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
         instance.context.load_all_dvc_datasets()
+        if settings.ENABLE_PERF_TRACING:
+            instance.context.perf_context.enabled = True
         return instance
 
     def _get_instance(self) -> Instance:
@@ -293,8 +307,8 @@ class InstanceConfig(PathsModel):
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_default_pages(self) -> Page:
-        from pages.models import ActionListPage, OutcomePage
         from pages.config import OutcomePage as OutcomePageConfig
+        from pages.models import ActionListPage, OutcomePage
 
         root = cast(Page, Page.get_first_root_node())
         home_pages: models.QuerySet['Page'] = root.get_children()

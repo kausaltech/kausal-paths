@@ -3,33 +3,28 @@ from __future__ import annotations
 import base64
 import hashlib
 import inspect
-import io
-import json
 import logging
 import os
-import re
 import typing
 from time import perf_counter_ns
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Set, Tuple, Union, overload
 
-import networkx as nx
+import sentry_sdk
 import numpy as np
 import pandas as pd
 import pint_pandas
 import polars as pl
 from rich import print as pprint
+import networkx as nx
 
 from common import polars as ppl
 from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
-from common.perf import PerfCounter
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
 from nodes.constants import (
-    BASELINE_VALUE_COLUMN,
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
-    STACKABLE_QUANTITIES,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
@@ -50,6 +45,7 @@ if typing.TYPE_CHECKING:
     from .processors import Processor
     from .scenario import Scenario
     from .models import NodeConfig
+    from common.cache import CacheResult
 
 
 class_fname_cache: dict[type, str] = {}
@@ -228,6 +224,7 @@ class Node:
 
     logger: logging.Logger
     debug: bool = False
+    disable_cache: bool = False
     yaml_fn: str | None
     """YAML filename"""
     yaml_lc: Tuple[int, int] | None
@@ -635,55 +632,53 @@ class Node:
             return cached_hash
 
         h = hashlib.md5()
-        debug = self.debug
         if cache is None:
             cache = {}
-        if debug:
-            print('hashing %s' % self.id)
 
-        def hash_part(part: str, val: str | bytes):
+        cache_parts = []
+
+        def hash_part(typ: str, part: str, val: str | bytes):
             if isinstance(val, str):
-                if debug:
-                    print('\t%s: "%s"' % (part, val))
-                val = val.encode('utf8')
+                cache_parts.append((typ, part, val))
+                val = val.encode('ascii')
             else:
-                if debug:
-                    print('\t%s: "%s"' % (part, base64.b64encode(val).decode('ascii')))
+                cache_parts.append((typ, part, base64.b64encode(val).decode('ascii')))
             h.update(val)
 
-        hash_part('id', self.id.encode('ascii'))
+        hash_part('id', '', self.id)
         if self.metrics_hash is None:
             metrics_hash = bytes()
             for m in self.output_metrics.values():
                 metrics_hash += m.calculate_hash()
             self.metrics_hash = metrics_hash
-        hash_part('metrics', self.metrics_hash)
+        hash_part('metrics', '', self.metrics_hash)
 
         if self.output_dimensions:
             dim_hash = bytes()
             for dim_id, dim in self.output_dimensions.items():
                 dim_hash += dim.calculate_hash()
             self.dim_hash = dim_hash
-            hash_part('dimensions', self.dim_hash)
+            hash_part('dimensions', '', self.dim_hash)
 
         for node in self.input_nodes:
-            hash_part('input %s' % node.id, node.calculate_hash(cache=cache))
+            hash_part('input node', node.id, node.calculate_hash(cache=cache))
 
-        if self.param_hash is None:
-            param_hash = bytes()
-            for param in self.parameters.values():
-                param_hash += param.calculate_hash()
-                # hash_part('param %s' % param.local_id, param.calculate_hash())
+        if True or self.param_hash is None:
+            param_hash = ''
+            for _, param in sorted(self.parameters.items(), key=lambda x: x[0]):
+                ph = param.calculate_hash()
+                param_hash += ph
+                hash_part('param', param.local_id, ph)
             for param_id in self.global_parameters:
                 gp = self.context.get_parameter(param_id, required=False)
                 if gp is not None:
-                    param_hash += gp.calculate_hash()
-                    # hash_part('global param %s' % gp.global_id, gp.calculate_hash())
-            self.param_hash = param_hash
-        hash_part('params', self.param_hash)
+                    ph = gp.calculate_hash()
+                    param_hash += ph
+                    hash_part('global param', gp.global_id, ph)
+            self.param_hash = hashlib.md5(param_hash.encode('ascii')).digest()
 
         for ds in self.input_dataset_instances:
-            hash_part('dataset %s' % ds.id, ds.calculate_hash(self.context))
+            hash_part('dataset', ds.id, ds.calculate_hash(self.context))
 
         if self.mtime_hash is None:
             mtime_hash = bytes()
@@ -706,11 +701,13 @@ class Node:
                     cache[klass] = mod_mtime
                 mtime_hash += str(mod_mtime).encode('ascii')
             self.mtime_hash = mtime_hash
-        hash_part('mtime', self.mtime_hash)
+        hash_part('mtime', '', self.mtime_hash)
 
         ret = h.digest()
         self.last_hash = ret
         self.last_hash_time = perf_counter_ns()
+        self.prev_hash_parts = getattr(self, 'last_hash_parts', None)
+        self.last_hash_parts = cache_parts
         return ret
 
     def _get_output_for_node(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:
@@ -838,7 +835,7 @@ class Node:
                 df = df.drop(dim_col)
         meta = df.get_meta()
         if set(meta.dim_ids) != output_dimensions:
-            self.print(df)
+            print(df)
             out_dims = ', '.join(meta.dim_ids)
             target_in_dims = ', '.join(output_dimensions)
             raise NodeError(
@@ -855,6 +852,9 @@ class Node:
         if YEAR_COLUMN not in meta.primary_keys:
             raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
 
+        if df.schema[YEAR_COLUMN] not in pl.INTEGER_DTYPES:
+            raise NodeError(self, "Invalid dtype for 'Year': %s" % df.schema[YEAR_COLUMN])
+
         ldf = df.lazy()
         dupe_rows = (
             ldf.groupby(meta.primary_keys)
@@ -864,7 +864,7 @@ class Node:
         )
         has_dupes = bool(len(dupe_rows.limit(1).collect()))
         if has_dupes:
-            self.print(dupe_rows.collect())
+            print(dupe_rows.collect())
             print(df)
             raise NodeError(self, "Node output has duplicate index rows")
 
@@ -923,21 +923,44 @@ class Node:
         return df.to_pandas()
 
     def get_output_pl(self, target_node: Node | None = None, metric: str | None = None) -> ppl.PathsDataFrame:
-        pc = PerfCounter(
-            '%s [%s.%s]' % (self.id, type(self).__module__, type(self).__name__),
-            level=PerfCounter.Level.INFO if self.debug else PerfCounter.Level.DEBUG
-        )
-        self.context.perf_context.node_start(self)
+        perf_cm = self.context.perf_context
+        with sentry_sdk.start_span(op='node', description=self.id), perf_cm.exec_node(self) as node_run:
+            res, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
+            if node_run is not None and cache_res is not None:
+                node_run.mark_cache(cache_res)
+        return res
 
-        node_hash = self.calculate_hash().hex()
-        out = self.context.cache.get(node_hash)
-        pc.display("Cache %s" % ('hit' if out is not None else 'miss'))
-        if out is None or self.context.skip_cache:
+    def _get_output_pl(
+        self, target_node: Node | None = None, metric: str | None = None
+    ) -> Tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
+        use_cache = not (self.disable_cache or self.context.skip_cache)
+        cache_res = None
+        out = None
+        if use_cache:
+            node_hash = '%s:%s' % (self.id, self.calculate_hash().hex())
+            cache_res = self.context.cache.get(node_hash)
+            out = cache_res.obj
+        else:
+            node_hash = ''
+
+        if False and out is None and self.prev_hash_parts:
+            print(self.id)
+            if len(self.prev_hash_parts) != len(self.last_hash_parts):
+                pprint('Length mismatch!!')
+                pprint(self.prev_hash_parts)
+                pprint(self.last_hash_parts)
+                pprint('\n\n')
+            for old, new in zip(self.prev_hash_parts, self.last_hash_parts):
+                if old[0] == 'input node' and new[0] == 'input node' and old[1] == new[1]:
+                    continue
+                if old != new:
+                    pprint('\told: %s\n\tnew: %s' % (old, new))
+
+        if out is None:
             try:
                 out = self.compute()
-                pc.display('Computation done')
             except Exception as e:
-                print('Exception when computing node %s' % str(self))
+                self.context.log.exception('Exception when computing node %s' % str(self))
                 raise e
             if out is None:
                 raise NodeError(self, "Node returned no output")
@@ -947,14 +970,9 @@ class Node:
 
             self.validate_output(out)
 
-            cache_hit = False
-        else:
-            cache_hit = True
-        self.context.perf_context.record_cache(self, is_hit=cache_hit)
-
         assert isinstance(out, ppl.PathsDataFrame)
 
-        if not cache_hit:
+        if cache_res and not cache_res.is_hit:
             self.context.cache.set(node_hash, out.copy())
 
         meta = out.get_meta()
@@ -972,17 +990,12 @@ class Node:
                 cols.append(FORECAST_COLUMN)
             out = out.select(cols)
             out = out.rename({metric: VALUE_COLUMN})
-            self.context.perf_context.node_end(self)
-            pc.display('Done (with dimensions)')
-            return out  # FIXME I'd like to comment this out because if metric, to_dimensions is ignored.
+            return (out, cache_res)  # FIXME I'd like to comment this out because if metric, to_dimensions is ignored.
 
         if target_node is not None:
             out = self._get_output_for_target(out, target_node)
-            pc.display('Done (with target node)')
-        else:
-            pc.display('Done (normal exit)')
-        self.context.perf_context.node_end(self)
-        return out
+
+        return (out, cache_res)
 
     def print_output(self, only_years: list[int] | None = None, filters: list[str] | None = None):
         from .debug import print_node_output

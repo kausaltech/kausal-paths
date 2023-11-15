@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from params import StringParameter, BoolParameter
-from nodes import Node
+from nodes.node import Node
 from nodes.constants import (
     VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )

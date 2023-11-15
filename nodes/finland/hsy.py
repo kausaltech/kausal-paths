@@ -9,7 +9,7 @@ from common import polars as ppl
 from nodes.calc import extend_last_historical_value
 from nodes.dimensions import Dimension
 from params import StringParameter, Parameter, NumberParameter
-from nodes import Node, NodeMetric
+from nodes.node import Node, NodeMetric
 from nodes.constants import (
     FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, 
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
