@@ -599,6 +599,7 @@ class ActionNodeType(graphene.ObjectType):
     group = graphene.Field(ActionGroupType, required=False)
     decision_level = graphene.Field(ActionDecisionLevel)
     goal = RichText(required=False)
+    indicator_node = graphene.Field(NodeType, required=False)
 
     is_enabled = graphene.Boolean(required=True)
 
@@ -630,6 +631,14 @@ class ActionNodeType(graphene.ObjectType):
             return expand_db_html(val)
         return None
 
+    @staticmethod
+    def resolve_indicator_node(root: ActionNode, info: GQLInstanceInfo) -> Node | None:
+        nc = root.db_obj
+        if nc is None:
+            return None
+        if nc.indicator_node is None:
+            return None
+        return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
 class ScenarioType(graphene.ObjectType):

@@ -5,7 +5,7 @@ import threading
 import uuid
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, ClassVar, Optional, Self, Sequence, Tuple, Union, cast
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -504,7 +504,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         ('paragraph', blocks.RichTextBlock()),
     ], use_json_field=True, blank=True)
 
-    indicator_node = models.ForeignKey(
+    indicator_node: models.ForeignKey[Self | None] = models.ForeignKey(  # type: ignore[type-arg]
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
     )
 

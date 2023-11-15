@@ -12,6 +12,7 @@ from common.perf import PerfCounter
 
 from nodes.instance import Instance
 from nodes.perf import PerfContext
+from paths.types import UserOrAnon
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
 # Helper classes for typing
 class GQLContext(WSGIRequest):
+    user: UserOrAnon
     graphql_query_language: str
 
 

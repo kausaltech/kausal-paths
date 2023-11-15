@@ -22,6 +22,7 @@ class NodeViewSet(PathsViewSet):
         FieldPanel("identifier", read_only=True),
         TranslatedFieldPanel("name"),
         NativeColorPanel("color"),
+        FieldPanel("indicator_node"),
         FieldPanel("goal"),
         FieldPanel("short_description"),
     ]
