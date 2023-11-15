@@ -475,6 +475,7 @@ nodes:
   name: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
+  input_datasets: ['hsy/pks_khk_paastot']
 
 - id: building_floor_area_existing
   type: finland.aluesarjat.BuildingStock

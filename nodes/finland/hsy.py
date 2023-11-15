@@ -62,9 +62,6 @@ class AluesarjatNode(Node):
 
 
 class HsyNode(Node):
-    input_datasets = [
-        'hsy/pks_khk_paastot',
-    ]
     global_parameters = ['municipality_name']
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
@@ -78,10 +75,12 @@ class HsyNode(Node):
         muni_name = self.get_global_parameter_value('municipality_name')
 
         df = self.get_input_dataset()
-        todrop = ['Kaupunki']
+        if 'Kaupunki' in df.columns:
+            df = df.loc[df['Kaupunki'] == muni_name].drop(columns=['Kaupunki'])
+
         if 'index' in df.columns:
-            todrop += ['index']
-        df = df.loc[df['Kaupunki'] == muni_name].drop(columns=todrop)
+            df = df.drop(columns=['index'])
+
         df = df.rename(columns={
             'Vuosi': YEAR_COLUMN,
             'Päästöt': EMISSION_QUANTITY,

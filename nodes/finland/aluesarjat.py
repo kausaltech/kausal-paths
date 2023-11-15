@@ -79,8 +79,9 @@ class BuildingStock(AdditiveNode):
     def compute(self) -> pd.DataFrame:
         df = self.get_input_dataset()
         muni = self.get_global_parameter_value('municipality_name')
+        if 'Alue' in df.columns:
+            df = df.loc[df.Alue == muni]
         df = df.loc[
-            (df.Alue == muni) &
             (df.Tiedot == 'Kerrosala (m2)') &
             (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä')
         ]

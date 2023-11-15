@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import InitVar, asdict, dataclass, field
 
-import orjson
+import json
 import pandas as pd
 from pydantic import BaseModel
 from common.i18n import I18nString
@@ -88,7 +88,7 @@ class Parameter(Generic[V]):
 
     def serialize_value(self) -> Any:
         if isinstance(self.value, BaseModel):
-            return self.value.dict()
+            return self.value.model_dump(mode='json')
         return self.value
 
     def is_value_equal(self, value: Any) -> bool:
@@ -98,11 +98,14 @@ class Parameter(Generic[V]):
         h = getattr(self, '_hash', None)
         if h is not None:
             return h
-        if isinstance(self.value, (bool, int, float, str)):
-            h = '%s:%s' % (self.global_id, self.value)
+        if isinstance(self.value, str):
+            v = self.value.encode('unicode_escape').decode('ascii')
+        elif isinstance(self.value, (bool, int, float)):
+            v = str(self.value)
         else:
-            h = '%s:%s' % (self.global_id, orjson.dumps({'value': self.serialize_value()}))
+            v = json.dumps({'value': self.serialize_value()}, ensure_ascii=True)
 
+        h = '%s:%s' % (self.global_id, v)
         self._hash = h
         return h
 
