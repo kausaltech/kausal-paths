@@ -82,11 +82,12 @@ class PickledPathsDataFrame:
 class LocalLRUCache:
     cache: OrderedDict[str, bytes]
 
-    def __init__(self, max_size: int):
+    def __init__(self, max_size: int, log: loguru.Logger):
         self.cache = OrderedDict()
         self.max_size = max_size
         self.current_size = 0
         self.discarded = 0
+        self.log = log
  
     # we return the value of the key
     # that is queried in O(1) and return -1 if we
@@ -106,6 +107,10 @@ class LocalLRUCache:
     # ordered dictionary has exceeded our capacity,
     # If so we remove the first key (least recently used)
     def put(self, key: str, value: bytes) -> None:
+        value_len = len(value)
+        if value_len > self.max_size:
+            self.log.warning('Discarding object with size %d bytes: %s' % (value_len, key))
+            return
         self.cache[key] = value
         self.cache.move_to_end(key)
         self.current_size += len(value)
@@ -114,7 +119,7 @@ class LocalLRUCache:
             nr = len(item)
             self.current_size -= nr
             self.discarded += nr
-        assert self.current_size > 0
+        assert self.current_size >= 0
 
     def clear(self):
         self.cache = OrderedDict()
@@ -246,7 +251,7 @@ class Cache(AbstractContextManager):
         self.log = base_logger or loguru.logger
         self.obj_id = base32_crockford.gen_obj_id(self)
         self.pc = PerfCounter('cache {}'.format(self.obj_id))
-        self.local = LocalLRUCache(6 * 1024 * 1024)
+        self.local = LocalLRUCache(6 * 1024 * 1024, self.log)
         redis_str = ''
         if self.client is None:
             redis_str = ', [warning]not using external cache[/]'
@@ -365,6 +370,11 @@ class Cache(AbstractContextManager):
         full_key = '%s:%s' % (self.prefix, key)
         if self.run:
             self.run.add(full_key, obj)
+            if isinstance(obj, pl.DataFrame):
+                s = obj.estimated_size()
+                if s > self.local.max_size:
+                    self.log.warning('Attempting to cache a large object of %d bytes: %s' % (s, key))
+
             self.run.add_ext(full_key, obj)
         else:
             data = self.serialize_object(obj)
