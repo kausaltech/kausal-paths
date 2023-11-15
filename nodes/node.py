@@ -470,7 +470,9 @@ class Node:
 
     def get_global_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> Any:
         if id not in self.global_parameters:
-            raise NodeError(self, f"Attempting to access global parameter {id} which is not declared")
+            if not required:
+                return None
+            raise NodeError(self, f"Attempting to access global parameter {id} which is not declared in the node definition")
         if units:
             param = self.context.get_parameter(id, required=required)
             if param is None:

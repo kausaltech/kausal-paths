@@ -113,3 +113,10 @@ class AllInInvestment(BoolParameter):
 class Placeholder(BoolParameter):
     name = _('Placeholder for updated_building_code_residential')
     id = 'placeholder'
+
+
+class ActionImpactFromBaseline(BoolParameter):
+    name = _('Action impact based on baseline')
+    description = _('Compute action impact based on the baseline scenario instead of the default one')
+    id = 'action_impact_from_baseline'
+    value = False

@@ -133,7 +133,7 @@ class Context:
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
         if param_type is None:
-            raise Exception("Unknown parameter: {param_id}")
+            raise Exception("Unknown parameter: %s" % parameter_id)
         return param_type
 
     def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
@@ -164,6 +164,8 @@ class Context:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
         for param_id in node.global_parameters:
+            if param_id not in self.global_parameters:
+                continue
             param = self.global_parameters[param_id]
             assert node not in param.subscription_nodes
             param.subscription_nodes.append(node)
@@ -291,7 +293,7 @@ class Context:
 
     def activate_scenario(self, scenario: Scenario):
         # Set the new parameters
-        scenario.activate(self)
+        scenario.activate()
         self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:

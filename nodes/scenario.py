@@ -1,8 +1,9 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 import logging
 from dataclasses import dataclass, field, InitVar
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Optional
 
 import sentry_sdk
 
@@ -37,10 +38,27 @@ class Scenario:
         self.all_actions_enabled = all_actions_enabled
         self.param_values = {}
 
-    def activate(self, context: Context):
-        """Resets each parameter in the context to its setting for this scenario if it has one."""
+    def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
         for param_id, val in self.param_values.items():
-            param = context.get_parameter(param_id)
+            param = self.context.get_parameter(param_id)
+            yield param, val
+
+    @contextmanager
+    def override(self):
+        old_vals: dict[str, Any] = {}
+        for param, _ in self.get_param_values():
+            old_vals[param.global_id] = param.value
+
+        self.activate()
+        yield
+
+        for param_id, val in old_vals.items():
+            param = self.context.get_parameter(param_id)
+            param.set(val)
+
+    def activate(self):
+        """Resets each parameter in the context to its setting for this scenario if it has one."""
+        for param, val in self.get_param_values():
             param.reset_to_scenario_setting(self, val)
 
     def add_parameter(self, param: Parameter, value: Any):
@@ -74,33 +92,37 @@ class CustomScenario(Scenario):
     def set_storage(self, storage: SettingStorage):
         self.storage = storage
 
-    def reset(self, context: Context):
+    def reset(self):
         self.storage.reset()
-        self.base_scenario.activate(context)
+        self.base_scenario.activate()
 
-    def activate(self, context: Context):
-        self.base_scenario.activate(context)
-        params = self.storage.get_customized_param_values()
-        for param_id, val in list(params.items()):
-            param = context.get_parameter(param_id, required=False)
+    def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
+        params = list(self.storage.get_customized_param_values().items())
+        for param_id, val in params:
+            param = self.context.get_parameter(param_id, required=False)
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)
-                logger.error('parameter %s not found in context', param_id)
+                self.context.log.error('parameter %s not found in context', param_id)
                 is_valid = False
             else:
                 try:
                     val = param.clean(val)
                 except Exception as e:
-                    logger.error('parameter %s has invalid value: %s', param_id, val)
+                    self.context.log.error('parameter %s has invalid value: %s', param_id, val)
                     is_valid = False
-                    sentry_sdk.capture_exception(e)
-
             if not is_valid:
-                self.reset(context)
-                return
-
+                self.storage.reset_param(param_id)
+                continue
             assert param is not None
+            yield param, val
+
+    def activate(self):
+        self.base_scenario.activate()
+        for param, val in self.get_param_values():
             if not param.is_value_equal(val):
                 param.set(val)
                 param.is_customized = True
+            else:
+                self.context.log.warning('parameter %s was set to default value (%s)', param.global_id, val)
+                self.storage.reset_param(param.global_id)

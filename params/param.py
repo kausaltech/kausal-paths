@@ -1,11 +1,12 @@
 from __future__ import annotations
+from contextlib import contextmanager
 from dataclasses import InitVar, asdict, dataclass, field
 
 import json
 import pandas as pd
 from pydantic import BaseModel
 from common.i18n import I18nString
-from typing import Any, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar
+from typing import Any, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar, cast
 from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
@@ -71,6 +72,13 @@ class Parameter(Generic[V]):
             node.notify_parameter_change(self)
         for param in self.subscription_params:
             param.notify_change()
+
+    @contextmanager
+    def override(self, value: V):
+        prev_val = self.value
+        self.set(value)
+        yield
+        self.set(prev_val)
 
     def set(self, value: V, notify: bool = True):
         prev_val = getattr(self, 'value', None)
@@ -232,7 +240,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
 
         return value
 
-    def set(self, value: float | Quantity):
+    def set(self, value):
         if isinstance(value, Quantity):
             unit = value.units
             value = value.m
@@ -240,7 +248,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
             unit = None
         super().set(value)
         if unit is not None:
-            self.unit = unit
+            self.unit = cast(Unit, unit)
 
 
 @dataclass
@@ -276,7 +284,7 @@ class PercentageParameter(NumberParameter):
 
 
 @dataclass
-class BoolParameter(Parameter):
+class BoolParameter(Parameter[bool]):
     value: Optional[bool] = None
 
     def clean(self, value: bool):
@@ -287,7 +295,7 @@ class BoolParameter(Parameter):
 
 
 @dataclass
-class StringParameter(Parameter):
+class StringParameter(Parameter[str]):
     value: Optional[str] = None
 
     def clean(self, value: str):

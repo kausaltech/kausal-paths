@@ -53,6 +53,7 @@ ENABLED_PARAM = EnabledParam(
 
 
 class ActionNode(Node):
+    global_parameters = ['action_impact_from_baseline']
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
     parent_action: 'ParentActionNode' | None = None
@@ -98,8 +99,8 @@ class ActionNode(Node):
             param.set(False, notify=False)
         self.enabled_param = param
 
-    def is_enabled(self) -> Optional[bool]:
-        return self.enabled_param.value
+    def is_enabled(self) -> bool:
+        return bool(self.enabled_param.value)
 
     def forecast_series(self, series: pd.Series):
         df = pd.DataFrame(index=series.index)
@@ -118,16 +119,31 @@ class ActionNode(Node):
         return self.compute_effect()
 
     def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
-        # Determine the impact of this action in the target node
-        enabled = self.is_enabled()
+        from_baseline: bool | None = self.get_global_parameter_value('action_impact_from_baseline', required=False)
 
-        edf = target_node.get_output_pl()
-        if enabled:
-            self.enabled_param.set(False)
-            ddf = target_node.get_output_pl()
-            self.enabled_param.set(True)
+        was_enabled = self.is_enabled()
+        if from_baseline:
+            # Calculate impact by first activating the baseline scenario
+            # and then enabling just this one action.
+            baseline = self.context.get_scenario('baseline')
+            with baseline.override():
+                ddf = target_node.get_output_pl()
+                if self.is_enabled() != was_enabled:
+                    self.enabled_param.set(was_enabled)
+                    edf = target_node.get_output_pl()
+                else:
+                    edf = ddf
         else:
-            ddf = edf
+            # Calculate impact by disabling the action, computing
+            # the results, and then do the same after the action
+            # is enabled.
+            with self.enabled_param.override(False):
+                # Determine the impact of this action in the target node
+                ddf = target_node.get_output_pl()
+            if self.is_enabled():
+                edf = target_node.get_output_pl()
+            else:
+                edf = ddf
 
         assert len(ddf) == len(edf)
 
@@ -142,12 +158,23 @@ class ActionNode(Node):
         df = edf.paths.join_over_index(ddf)
 
         value_vars = []
+        impact_cols = []
+        impact_units = {}
         for m in mcols:
-            df = df.with_columns([
-                (pl.col(m) - pl.col('%s:WithoutAction' % m)).alias('%s:Impact' % m)
-            ]).set_unit('%s:Impact' % m, df.get_unit(m))
-            value_vars += [m, '%s:WithoutAction' % m, '%s:Impact' % m]
+            wc = pl.col(m)
+            woc = pl.col('%s:WithoutAction' % m)
+            # If the values are very close to each other, make them match.
+            tol = 1e-6
+            woc = pl.when((wc - woc).abs() < (tol * woc).abs()).then(wc).otherwise(woc)
+            ic_name = '%s:Impact' % m
+            ic = (wc - woc).alias(ic_name)
+            impact_cols.append(ic)
+            value_vars += [m, '%s:WithoutAction' % m, ic_name]
+            impact_units[ic_name] = df.get_unit(m)
 
+        df = df.with_columns(impact_cols)
+        for col, unit in impact_units.items():
+            df = df.set_unit(col, unit)
         common_cols = [YEAR_COLUMN, *df.dim_ids, FORECAST_COLUMN]
         edf = df.select([*common_cols, pl.lit(SCENARIO_ACTION_GROUP).alias(IMPACT_COLUMN), *mcols])
         ddf = df.select([*common_cols, pl.lit(WITHOUT_ACTION_GROUP).alias(IMPACT_COLUMN), *[pl.col('%s:WithoutAction' % m).alias(m) for m in mcols]])

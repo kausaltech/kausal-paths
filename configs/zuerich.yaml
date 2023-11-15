@@ -678,6 +678,8 @@ dimensions:
 params:
 - id: municipality_name
   value: zurich
+- id: action_impact_from_baseline
+  value: True
 
 emission_sectors:
 - id: net_emissions
