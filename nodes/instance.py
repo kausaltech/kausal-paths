@@ -6,18 +6,19 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional, Sequence, Tuple, Type, overload
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional, Tuple, Type, overload
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
 import pint
 from loguru import logger
+from yaml import safe_load as yaml_load
 from ruamel.yaml import YAML as RuamelYAML, CommentedMap
 from ruamel.yaml.comments import LineCol
 from rich import print
 from common import base32_crockford
 
-from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString, gettext_lazy as _, set_default_language
+from common.i18n import I18nBaseModel, TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
@@ -155,7 +156,7 @@ class InstanceLoader:
     instance: Instance
     default_language: str
     yaml_file_path: Optional[str] = None
-    config: CommentedMap
+    config: CommentedMap | dict
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
@@ -438,8 +439,8 @@ class InstanceLoader:
                 raise
 
             try:
-                node = self.make_node(node_class, nc, yaml_lc=nc.lc)
-            except NodeError as err:
+                node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
+            except NodeError:
                 raise
             self.context.add_node(node)
 
@@ -472,7 +473,7 @@ class InstanceLoader:
                 params=dict(category=data_category) if data_category else [],
                 **ec
             )
-            node = self.make_node(node_class, nc, yaml_lc=ec.lc)
+            node = self.make_node(node_class, nc, yaml_lc=getattr(ec, 'lc', None))
             self.context.add_node(node)
 
     def setup_actions(self):
@@ -650,7 +651,7 @@ class InstanceLoader:
 
     @classmethod
     def from_yaml(cls, filename):
-        data = yaml.load(open(filename, 'r', encoding='utf8'))
+        data = yaml_load(open(filename, 'r', encoding='utf8'))
         if 'instance' in data:
             data = data['instance']
 
@@ -692,7 +693,6 @@ class InstanceLoader:
             )
             dataset_repo.set_target_commit(commit)
             dataset_repo_default_path = dataset_repo_config.get('default_path')
-
         agc_all = self.config.get('action_groups', [])
         agcs = []
         for agc in agc_all:
