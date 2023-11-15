@@ -316,7 +316,11 @@ class NodeInterface(graphene.Interface):
 
     input_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
     output_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
-    downstream_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
+    downstream_nodes = graphene.List(
+        graphene.NonNull(lambda: NodeInterface),
+        max_depth=graphene.Int(required=False),
+        required=True
+    )
     upstream_nodes = graphene.List(
         graphene.NonNull(lambda: NodeInterface),
         same_unit=graphene.Boolean(),
@@ -374,9 +378,9 @@ class NodeInterface(graphene.Interface):
         return isinstance(root, ActionNode)
 
     @staticmethod
-    def resolve_downstream_nodes(root: Node, info: GQLInstanceInfo):
+    def resolve_downstream_nodes(root: Node, info: GQLInstanceInfo, max_depth: int | None = None):
         info.context._upstream_node = root  # type: ignore
-        return root.get_downstream_nodes()
+        return root.get_downstream_nodes(max_depth=max_depth)
 
     @staticmethod
     def resolve_upstream_nodes(

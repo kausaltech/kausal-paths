@@ -1108,18 +1108,13 @@ class Node:
             metric = list(self.output_metrics.values())[0]
         return metric.ensure_output_unit(s, input_node)
 
-    def get_downstream_nodes(self) -> List[Node]:
-        # Depth-first traversal
-        result = []
-        closed = set()
-        open = self.output_nodes.copy()
-        while open:
-            current = open.pop()
-            if current not in closed:
-                closed.add(current)
-                result.append(current)
-                open += current.output_nodes
-        return result
+    def get_downstream_nodes(self, to_node: Node | None = None, max_depth: int | None = None) -> List[Node]:
+        res = nx.bfs_successors(self.context.node_graph, self.id, depth_limit=max_depth)
+        nodes = []
+        for _, children in res:
+            for node_id in children:
+                nodes.append(self.context.get_node(node_id))
+        return nodes
 
     def get_upstream_nodes(self, filter: Callable[[Node], bool] | None = None) -> List[Node]:
         from nodes.actions.parent import ParentActionNode
