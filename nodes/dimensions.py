@@ -55,6 +55,7 @@ class DimensionCategory(I18nBaseModel):
 class Dimension(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
+    help_text: I18nStringInstance | None = None
     groups: List[DimensionCategoryGroup] = Field(default_factory=list)
     categories: List[DimensionCategory] = Field(default_factory=list)
     is_internal: bool = False

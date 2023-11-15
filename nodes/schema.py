@@ -95,6 +95,7 @@ class InstanceGoalDimension(graphene.ObjectType):
 class InstanceGoalEntry(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=False)
+    disabled = graphene.Boolean(required=True)
     outcome_node: 'Node' = graphene.Field('nodes.schema.NodeType', required=True)  # type: ignore
     dimensions = graphene.List(graphene.NonNull(InstanceGoalDimension), required=True)
     default = graphene.Boolean(required=True)
@@ -174,6 +175,7 @@ class InstanceType(graphene.ObjectType):
                 outcome_node=node,
                 dimensions=dims,
                 default=goal.default,
+                disabled=goal.disabled,
             )
             out._goal = goal
             ret.append(out)
@@ -239,6 +241,7 @@ class MetricDimensionType(graphene.ObjectType):
     id = graphene.ID(required=True)
     original_id = graphene.ID(required=False)
     label = graphene.String(required=True)
+    help_text = graphene.String(required=False)
     categories = graphene.List(graphene.NonNull(MetricDimensionCategoryType), required=True)
     groups = graphene.List(graphene.NonNull(MetricDimensionCategoryGroupType), required=True)
 

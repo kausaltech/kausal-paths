@@ -42,6 +42,7 @@ class NodeGoalsEntry(I18nBaseModel):
     linear_interpolation: bool = False
     is_main_goal: bool = False
     default: bool = False
+    disabled: bool = False
 
     _node: 'Node' = PrivateAttr()
 

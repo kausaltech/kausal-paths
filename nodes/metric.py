@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 import pint
 import polars as pl
-from colormath.color_objects import sRGBColor, LabColor
-from colormath.color_conversions import convert_color
+from colormath.color_objects import sRGBColor, LabColor  # type: ignore
+from colormath.color_conversions import convert_color  # type: ignore
 
 from common import polars as ppl
 from common.i18n import gettext as _
@@ -216,6 +216,7 @@ class MetricDimension:
     label: str
     categories: list[MetricCategory]
     groups: list[MetricCategoryGroup] = field(default_factory=list)
+    help_text: str | None = None
 
     def get_original_cat_ids(self):
         return [cat.original_id for cat in self.categories]
@@ -313,7 +314,8 @@ class DimensionalMetric:
                 order=n.order
             ) for n in node.input_nodes]
             mdim = MetricDimension(
-                id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats, original_id=NODE_COLUMN
+                id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats,
+                original_id=NODE_COLUMN,
             )
             mdim.ensure_unique_colors()
             dims.append(mdim)
@@ -387,6 +389,7 @@ class DimensionalMetric:
             mdim = MetricDimension(
                 id=make_id('dim', dim.id),
                 label=str(dim.label),
+                help_text=str(dim.help_text),
                 categories=ordered_cats,
                 original_id=dim.id,
                 groups=ordered_groups,

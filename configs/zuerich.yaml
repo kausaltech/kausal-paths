@@ -73,6 +73,7 @@ dimensions:
 - id: emission_scope
   label: Emissionsbereiche
   label_en: Emission scopes
+  help_text: Lorem ipsum
   groups:
   - id: direct
     label: Direkte Emissionen
@@ -717,6 +718,7 @@ emission_sectors:
   - normalized_by: population
     label_de: Indirekte Emissionen
     label_en: Indirect emissions
+    disabled: true
     dimensions:
       emission_scope:
         groups: [indirect]
@@ -729,6 +731,7 @@ emission_sectors:
   - normalized_by: population
     label_de: Alle Emissionen
     label_en: Total emissions
+    disabled: true
     values:
     - year: 2022
       value: 10.3
@@ -4104,6 +4107,9 @@ scenarios:
 - id: baseline
   name_en: Baseline
   name_de: Basisszenario
+  params:
+  - id: import_biogas_emission_accounting_agreement.enabled
+    value: true
 
 - id: default
   default: true
