@@ -502,7 +502,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     )
     def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
         return dict(
-            handlers=['rich' if DEBUG else 'console'],
+            handlers=['rich'],
             propagate=False,
             level=level,
         )
@@ -575,6 +575,7 @@ if SENTRY_DSN:
         send_default_pii=True,
         traces_sample_rate=1.0,
         profiles_sample_rate=1.0 if ENABLE_PERF_TRACING else 0.0,
+        # instrumenter='otel',
         integrations=[DjangoIntegration()],
         environment=DEPLOYMENT_TYPE,
     )
