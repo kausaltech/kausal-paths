@@ -1,14 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from collections import namedtuple
 
 import polars as pl
-import plotly.express as px
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
 
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
-from nodes.instance import InstanceLoader
-from nodes.node import Node
-import common.polars as ppl
+
+if TYPE_CHECKING:
+    from nodes.node import Node
+    from nodes.context import Context
 
 
 _django_initialized = False
@@ -36,8 +37,15 @@ def _enable_autoreload():
 
 
 def _get_context(instance_id: str):
+    from nodes.instance import InstanceLoader
+    from common import polars_ext  # noqa
+
     _enable_autoreload()
     _init_django()
+
+    # Disable locals when running in notebook
+    from rich import traceback
+    traceback.install(show_locals=False)
 
     config_fn = 'configs/%s.yaml' % instance_id
     loader = InstanceLoader.from_yaml(config_fn)
@@ -46,12 +54,15 @@ def _get_context(instance_id: str):
     return context
 
 
+class NotebookNodes(dict[str, 'Node']):
+    context: Context
+
+
 def get_nodes(instance_id: str):
     context = _get_context(instance_id)
-    name = '%sNodes' % (instance_id.capitalize())
-    kls = namedtuple(name, list(context.nodes.keys()))  # type: ignore
-    obj = kls(**context.nodes)
-    return obj
+    out = NotebookNodes(context.nodes)
+    out.context = context
+    return out
 
 
 def get_datasets(instance_id: str):
@@ -65,6 +76,8 @@ def get_datasets(instance_id: str):
 
 
 def plot_node(node: Node):
+    from plotly import express as px
+
     df = node.get_output_pl()
     for metric in node.output_metrics.values():
         m_col = metric.column_id
