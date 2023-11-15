@@ -69,9 +69,9 @@ def action_node(context):
 
 
 @pytest.fixture
-def additive_action(context, instance):
+def additive_action(context: Context, instance):
     assert context.instance is not None
-    node = AdditiveActionFactory(context=context)
+    node = AdditiveActionFactory.create(context=context)
     return node
 
 
@@ -97,21 +97,23 @@ def default_scenario(instance: Instance, context):
 
 
 @pytest.fixture
-def baseline_scenario(instance, context):
+def baseline_scenario(instance: Instance):
     """Adds baseline scenario but doesn't notify any nodes of its creation."""
-    scenario = ScenarioFactory(id='baseline', all_actions_enabled=True)
-    assert instance.context == context
+    context = instance.context
+    scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, context=context)
     context.add_scenario(scenario)
     return scenario
 
 
 @pytest.fixture
-def custom_scenario(instance, context: Context):
+def custom_scenario(instance: Instance):
+    context = instance.context
     """Adds custom scenario but doesn't notify any nodes of its creation."""
     custom_scenario = CustomScenarioFactory.create(
         id='custom',
         name='Custom',
         base_scenario=context.get_default_scenario(),
+        context=context,
     )
     context.set_custom_scenario(custom_scenario)
     return custom_scenario

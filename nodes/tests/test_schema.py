@@ -1,5 +1,8 @@
 import pytest
 from django.utils.translation import get_language
+from nodes.actions.simple import AdditiveAction
+from nodes.context import Context
+from nodes.scenario import Scenario
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
 from nodes.metric import Metric
 
@@ -43,7 +46,10 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
 
 
 def test_forecast_metric_type(
-        graphql_client_query_data, additive_action, context, baseline_scenario
+    graphql_client_query_data,
+    additive_action: AdditiveAction,
+    context: Context,
+    baseline_scenario: Scenario
 ):
     context.generate_baseline_values()
     metric = Metric.from_node(additive_action)
