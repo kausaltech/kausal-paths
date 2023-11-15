@@ -311,6 +311,7 @@ class Context:
         scenario = self.scenarios['baseline']
         with sentry_sdk.start_span(op='compute', description='Baseline'):
             self.activate_scenario(scenario)
+            self.log.info('Generating baseline values')
             pc = PerfCounter('generate baseline values')
             for node in self.nodes.values():
                 node.generate_baseline_values()

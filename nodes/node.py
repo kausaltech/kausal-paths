@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+from contextlib import contextmanager
+from functools import wraps
 import hashlib
 import inspect
 import logging
@@ -38,7 +40,7 @@ from .context import Context
 from .datasets import Dataset, JSONDataset
 from .dimensions import Dimension
 from .edges import Edge
-from .exceptions import NodeError
+from .exceptions import NodeComputationError, NodeError, NodeHashingError
 from .units import Quantity, Unit
 
 if typing.TYPE_CHECKING:
@@ -626,6 +628,21 @@ class Node:
             return self.last_hash
         return None
 
+    @staticmethod
+    def _wrap_hashing_error(func):
+        @wraps(func)
+        def report_error(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                node = args[0]
+                if isinstance(e, NodeHashingError):
+                    e.add_node(node)
+                    raise
+                raise NodeHashingError(args[0], "Unable to hash node") from e
+        return report_error
+
+    @_wrap_hashing_error
     def calculate_hash(self, cache: dict | None = None) -> bytes:
         cached_hash = self._get_cached_hash()
         if cached_hash is not None:
@@ -638,11 +655,15 @@ class Node:
         cache_parts = []
 
         def hash_part(typ: str, part: str, val: str | bytes):
-            if isinstance(val, str):
-                cache_parts.append((typ, part, val))
-                val = val.encode('ascii')
-            else:
-                cache_parts.append((typ, part, base64.b64encode(val).decode('ascii')))
+            try:
+                if isinstance(val, str):
+                    cache_parts.append((typ, part, val))
+                    val = val.encode('ascii', 'backslashreplace')
+                else:
+                    cache_parts.append((typ, part, base64.b64encode(val).decode('ascii')))
+            except Exception:
+                self.logger.error("Unable to hash node: %s %s (value %s)" % (typ, part, val))
+                raise
             h.update(val)
 
         hash_part('id', '', self.id)
@@ -925,7 +946,13 @@ class Node:
     def get_output_pl(self, target_node: Node | None = None, metric: str | None = None) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
         with sentry_sdk.start_span(op='node', description=self.id), perf_cm.exec_node(self) as node_run:
-            res, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
+            try:
+                res, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
+            except Exception as e:
+                if isinstance(e, NodeComputationError):
+                    e.add_node(self)
+                    raise
+                raise NodeComputationError(self, "Error getting output") from e
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
         return res
