@@ -103,7 +103,7 @@ class CustomScenario(Scenario):
             is_valid = True
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)
-                self.context.log.error('parameter %s not found in context', param_id)
+                self.context.log.error('parameter %s not found in context' % param_id)
                 is_valid = False
             else:
                 try:

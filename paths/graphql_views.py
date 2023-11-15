@@ -456,16 +456,18 @@ class PathsGraphQLView(GraphQLView):
 
             log('WARNING', "Query resulted in %d errors" % len(result.errors))
 
+            server_errors = []
             for error in result.errors:
                 err = getattr(error, 'original_error', None)
                 print_error(error, orig=err)
                 if not err:
                     # It's an invalid query
                     continue
+                server_errors.append(error)
                 sentry_sdk.capture_exception(err)
 
-            if settings.DEBUG:
-                raise result.errors[0]
+            if settings.DEBUG and server_errors:
+                raise server_errors[0]
 
         # Check for the reasons why the result might not be cached
         if cache_key:

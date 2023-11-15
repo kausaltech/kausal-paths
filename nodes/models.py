@@ -217,6 +217,7 @@ class InstanceConfig(PathsModel):
             setattr(self, '_instance', instance)
             return instance
 
+        self.log.info("Creating new instance")
         instance = self._create_new_instance()
         instance_cache[self.identifier] = instance
         self._instance = instance
@@ -410,7 +411,7 @@ class InstanceConfig(PathsModel):
 
     @cached_property
     def log(self) -> Logger:
-        return logger.bind(instance=self.identifier)
+        return logger.bind(instance=self.identifier, markup=True)
 
     def __str__(self) -> str:
         return self.get_name()

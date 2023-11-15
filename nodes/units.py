@@ -41,7 +41,7 @@ class SpecifierUnitDefinition(facets.plain.UnitDefinition):
     specifier: str | None = None
 
 
-class CachingUnitRegistry(
+class CachingUnitRegistry(  # type: ignore[misc]
     facets.GenericSystemRegistry[Quantity, Unit],
     facets.GenericContextRegistry[Quantity, Unit],
     facets.GenericNumpyRegistry[Quantity, Unit],
