@@ -558,9 +558,10 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'numba': level('INFO'),
             'botocore': level('INFO'),
             'filelock': level('INFO'),
-            'sentry_sdk.errors': level('DEBUG'),
+            'sentry_sdk.errors': level('INFO'),
             'markdown_it': level('INFO'),
             'colormath': level('INFO'),
+            'gql': level('WARNING'),
             '': level('DEBUG'),
         }
     }
