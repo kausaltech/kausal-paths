@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ from nodes.exceptions import NodeError
 
 if typing.TYPE_CHECKING:
     from .node import Node
+    from common.polars import PathsDataFrame
 
 
 class GoalValue(BaseModel):
@@ -40,6 +42,7 @@ class NodeGoalsEntry(I18nBaseModel):
     linear_interpolation: bool = False
     is_main_goal: bool = False
     default: bool = False
+    disabled: bool = False
 
     _node: 'Node' = PrivateAttr()
 
@@ -75,7 +78,7 @@ class NodeGoalsEntry(I18nBaseModel):
             out[dim_id] = cats
         return out
 
-    def filter_df(self, df: ppl.PathsDataFrame):
+    def filter_df(self, df: PathsDataFrame):
         goal_dims = self.get_dimension_categories()
         for dim_id in df.dim_ids:
             goal_cats = goal_dims.get(dim_id)

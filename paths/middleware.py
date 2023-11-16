@@ -1,15 +1,28 @@
 import re
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 
 from django.conf import settings
 from django.db import transaction
+from django.http import HttpRequest
 from django.utils import translation
+from django.utils.deprecation import MiddlewareMixin
 from wagtail.users.models import UserProfile
 
 from nodes.models import InstanceConfig
 from paths.admin_context import set_admin_instance
-from paths.types import PathsAdminRequest
+from paths.cache import PathsObjectCache
+from paths.types import PathsAdminRequest, PathsRequest
 from users.models import User
+
+
+class RequestMiddleware(MiddlewareMixin):
+    def __init__(self, get_response) -> None:
+        super().__init__(get_response)
+
+    def __call__(self, request: HttpRequest):
+        request = cast(PathsRequest, request)
+        request.cache = PathsObjectCache()
+        return self.get_response(request)  # pyright: ignore
 
 
 class AdminMiddleware:

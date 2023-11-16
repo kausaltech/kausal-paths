@@ -11,7 +11,7 @@ from common import polars as ppl
 from common.i18n import TranslatedString, gettext_lazy as _
 from common.perf import PerfCounter
 
-from nodes import Node, NodeError
+from nodes.node import Node, NodeError
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, SCENARIO_ACTION_GROUP,
     VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, DecisionLevel
@@ -53,6 +53,7 @@ ENABLED_PARAM = EnabledParam(
 
 
 class ActionNode(Node):
+    global_parameters = ['action_impact_from_baseline']
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
     parent_action: 'ParentActionNode' | None = None
@@ -98,8 +99,8 @@ class ActionNode(Node):
             param.set(False, notify=False)
         self.enabled_param = param
 
-    def is_enabled(self) -> Optional[bool]:
-        return self.enabled_param.value
+    def is_enabled(self) -> bool:
+        return bool(self.enabled_param.value)
 
     def forecast_series(self, series: pd.Series):
         df = pd.DataFrame(index=series.index)
@@ -118,16 +119,31 @@ class ActionNode(Node):
         return self.compute_effect()
 
     def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
-        # Determine the impact of this action in the target node
-        enabled = self.is_enabled()
+        from_baseline: bool | None = self.get_global_parameter_value('action_impact_from_baseline', required=False)
 
-        edf = target_node.get_output_pl()
-        if enabled:
-            self.enabled_param.set(False)
-            ddf = target_node.get_output_pl()
-            self.enabled_param.set(True)
+        was_enabled = self.is_enabled()
+        if from_baseline:
+            # Calculate impact by first activating the baseline scenario
+            # and then enabling just this one action.
+            baseline = self.context.get_scenario('baseline')
+            with baseline.override():
+                ddf = target_node.get_output_pl()
+                if self.is_enabled() != was_enabled:
+                    self.enabled_param.set(was_enabled)
+                    edf = target_node.get_output_pl()
+                else:
+                    edf = ddf
         else:
-            ddf = edf
+            # Calculate impact by disabling the action, computing
+            # the results, and then do the same after the action
+            # is enabled.
+            with self.enabled_param.override(False):
+                # Determine the impact of this action in the target node
+                ddf = target_node.get_output_pl()
+            if self.is_enabled():
+                edf = target_node.get_output_pl()
+            else:
+                edf = ddf
 
         assert len(ddf) == len(edf)
 
@@ -142,12 +158,23 @@ class ActionNode(Node):
         df = edf.paths.join_over_index(ddf)
 
         value_vars = []
+        impact_cols = []
+        impact_units = {}
         for m in mcols:
-            df = df.with_columns([
-                (pl.col(m) - pl.col('%s:WithoutAction' % m)).alias('%s:Impact' % m)
-            ]).set_unit('%s:Impact' % m, df.get_unit(m))
-            value_vars += [m, '%s:WithoutAction' % m, '%s:Impact' % m]
+            wc = pl.col(m)
+            woc = pl.col('%s:WithoutAction' % m)
+            # If the values are very close to each other, make them match.
+            tol = 1e-6
+            woc = pl.when((wc - woc).abs() < (tol * woc).abs()).then(wc).otherwise(woc)
+            ic_name = '%s:Impact' % m
+            ic = (wc - woc).alias(ic_name)
+            impact_cols.append(ic)
+            value_vars += [m, '%s:WithoutAction' % m, ic_name]
+            impact_units[ic_name] = df.get_unit(m)
 
+        df = df.with_columns(impact_cols)
+        for col, unit in impact_units.items():
+            df = df.set_unit(col, unit)
         common_cols = [YEAR_COLUMN, *df.dim_ids, FORECAST_COLUMN]
         edf = df.select([*common_cols, pl.lit(SCENARIO_ACTION_GROUP).alias(IMPACT_COLUMN), *mcols])
         ddf = df.select([*common_cols, pl.lit(WITHOUT_ACTION_GROUP).alias(IMPACT_COLUMN), *[pl.col('%s:WithoutAction' % m).alias(m) for m in mcols]])
@@ -177,25 +204,27 @@ class ActionNode(Node):
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
-        cost_df = self.compute_impact(cost_node)
-        cost_m = cost_node.get_default_output_metric()
-        cost_df = (
-            cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        )
-        cost_df = cost_df.select([*cost_df.primary_keys, FORECAST_COLUMN, pl.col(cost_m.column_id).alias('Cost')])
+        with self.context.perf_context.exec_node(cost_node):
+            cost_df = self.compute_impact(cost_node)
+            cost_m = cost_node.get_default_output_metric()
+            cost_df = (
+                cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+            )
+            cost_df = cost_df.select([*cost_df.primary_keys, FORECAST_COLUMN, pl.col(cost_m.column_id).alias('Cost')])
         pc.display('cost impact of %s on %s computed' % (self.id, cost_node.id))
 
-        impact_df = self.compute_impact(impact_node)
-        impact_m = impact_node.get_default_output_metric()
-        impact_df = (
-            impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        )
-        # Replace impact values that are very close to zero with null
-        zero_to_nan = pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
-        impact_df = (
-            impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
-            .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
-        )
+        with self.context.perf_context.exec_node(impact_node):
+            impact_df = self.compute_impact(impact_node)
+            impact_m = impact_node.get_default_output_metric()
+            impact_df = (
+                impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+            )
+            # Replace impact values that are very close to zero with null
+            zero_to_nan = pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
+            impact_df = (
+                impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
+                .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
+            )
 
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
         df = cost_df.paths.join_over_index(impact_df, how='left')
@@ -276,7 +305,8 @@ class ActionEfficiencyPair:
                 # Action is not connected to either cost or impact nodes, skip it
                 continue
 
-            df = action.compute_efficiency(self.cost_node, self.impact_node, self.efficiency_unit)
+            with context.perf_context.exec_node(action):
+                df = action.compute_efficiency(self.cost_node, self.impact_node, self.efficiency_unit)
             if not len(df):
                 # No impact for this action, skip it
                 continue

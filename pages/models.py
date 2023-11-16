@@ -98,7 +98,7 @@ class PathsPage(Page):
         if not site or not instance:
             return super().get_url_parts(request)
 
-        return (site.id, instance.site_url, self.url_path)
+        return (site.pk, instance.site_url, self.url_path)
 
 
 class InstanceRootPage(PathsPage):

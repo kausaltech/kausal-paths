@@ -1,18 +1,26 @@
 from __future__ import annotations
+from collections import OrderedDict
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
+from enum import Enum
+from functools import cached_property
 from types import TracebackType
 
-from typing import Any, Dict, Optional, Union, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generic, Literal, Optional, TypeVar, Union, Tuple, cast
 import pickle
 
 import pandas as pd
 import polars as pl
 import pint_pandas
-from pint import UnitRegistry
 import redis
+import loguru
 
-from common import polars as ppl
+from common import base32_crockford, polars as ppl
 from common.perf import PerfCounter
+from nodes.perf import PerfStats
+
+if TYPE_CHECKING:
+    from nodes.units import CachingUnitRegistry as UnitRegistry
 
 
 class PickledPintDataFrame:
@@ -71,25 +79,189 @@ class PickledPathsDataFrame:
         return cls(pldf, units, meta.primary_keys)
 
 
+class LocalLRUCache:
+    cache: OrderedDict[str, bytes]
+
+    def __init__(self, max_size: int, log: loguru.Logger):
+        self.cache = OrderedDict()
+        self.max_size = max_size
+        self.current_size = 0
+        self.discarded = 0
+        self.log = log
+ 
+    # we return the value of the key
+    # that is queried in O(1) and return -1 if we
+    # don't find the key in out dict / cache.
+    # And also move the key to the end
+    # to show that it was recently used.
+    def get(self, key: str) -> bytes | None:
+        if key not in self.cache:
+            return None
+        else:
+            self.cache.move_to_end(key)
+            return self.cache[key]
+ 
+    # first, we add / update the key by conventional methods.
+    # And also move the key to the end to show that it was recently used.
+    # But here we will also check whether the length of our
+    # ordered dictionary has exceeded our capacity,
+    # If so we remove the first key (least recently used)
+    def put(self, key: str, value: bytes) -> None:
+        value_len = len(value)
+        if value_len > self.max_size:
+            self.log.warning('Discarding object with size %d bytes: %s' % (value_len, key))
+            return
+        self.cache[key] = value
+        self.cache.move_to_end(key)
+        self.current_size += len(value)
+        while self.current_size > self.max_size:
+            _, item = self.cache.popitem(last=False)
+            nr = len(item)
+            self.current_size -= nr
+            self.discarded += nr
+        assert self.current_size >= 0
+
+    def clear(self):
+        self.cache = OrderedDict()
+        self.current_size = 0
+
+
+class CacheKind(Enum):
+    RUN = 1
+    LOCAL = 2
+    EXT = 3
+
+    @cached_property
+    def color(self):
+        if self == self.RUN:
+            return 'green'
+        if self == self.LOCAL:
+            return 'blue'
+        return 'yellow'
+
+O = TypeVar('O')
+
+@dataclass(slots=True)
+class CacheResult(Generic[O]):
+    is_hit: bool
+    kind: CacheKind
+    obj: O
+
+    @property
+    def color(self) -> str:
+        if not self.is_hit:
+            if self.kind == CacheKind.EXT:
+                return 'bold red'
+            return 'red'
+        if self.kind == CacheKind.RUN:
+            return 'bright_green'
+        if self.kind == CacheKind.LOCAL:
+            return 'green'
+        return 'blue'
+
+
+class CacheRun:
+    cache: Cache
+    store: dict[str, Any]
+    new_objs: list[Tuple[str, Any]]
+    stats: PerfStats
+    ext_stats: PerfStats
+    local_stats: PerfStats
+
+    def __init__(self, cache: Cache):
+        self.cache = cache
+        self.store = {}
+        self.new_objs = []
+        self.obj_id = base32_crockford.gen_obj_id(self)
+        self.stats = PerfStats()
+        self.ext_stats = PerfStats()
+        self.local_stats = PerfStats()
+        self.cache.log.debug('[{}:{}] Start execution run', self.cache.obj_id, self.obj_id)
+
+    def end(self):
+        comp_time = self.cache.pc.measure()
+        nr_new_objs = len(self.new_objs)
+        if self.new_objs:
+            self.cache.store_ext(self.new_objs)
+            self.new_objs = []
+
+        if comp_time < 50:
+            style = 'green'
+        elif comp_time < 200:
+            style = 'yellow'
+        elif comp_time < 1000:
+            style = 'magenta'
+        else:
+            style = 'bold red'
+        self.cache.log.info(
+            '[{}:{}] End execution run ([{style}]{comp_time:.2f}[/] ms, {nr_reqs} reqs ({nr_hits} hits, {nr_misses} misses); caching {nr_new_objs} new objects took {dump_time:.2f} ms)',
+            self.cache.obj_id, self.obj_id, style=style, comp_time=comp_time,
+            nr_reqs=self.stats.nr_calls, nr_hits=self.stats.cache_hits,
+            nr_misses=self.stats.cache_misses, nr_new_objs=nr_new_objs,
+            dump_time=self.cache.pc.measure()
+        )
+        self.cache.log.debug('[{}:{}] Cache stats:\nLocal cache: {}\nExt cache: {}\nObjs in LRU {}, bytes in LRU: {}, discarded bytes: {}',
+            self.cache.obj_id, self.obj_id, repr(self.local_stats), repr(self.ext_stats),
+            len(self.cache.local.cache), self.cache.local.current_size, self.cache.local.discarded,
+        )
+
+    def __del__(self):
+        self.cache.log.debug('[{}:{}] Run destroyed', self.cache.obj_id, self.obj_id)
+
+    def get(self, key: str) -> object | None:
+        obj = self.store.get(key)
+        if obj is None:
+            self.stats.cache_misses += 1
+            return None
+        self.stats.cache_hits += 1
+        return obj
+
+    def add(self, key: str, obj: Any):
+        assert key not in self.store
+        self.store[key] = obj
+
+    def add_ext(self, key: str, obj: Any):
+        self.new_objs.append((key, obj))
+
+
+LOCAL = 1
+EXT = 2
+
+REQ = 1
+HIT = 2
+MISS = 3
+
+
 class Cache(AbstractContextManager):
     client: Optional[redis.Redis]
     prefix: str
 
-    local_cache: Dict[str, bytes]
-    run_cache: Dict[str, Any] | None
-    run_pipe: list[Tuple[str, Any]] | None
+    local: LocalLRUCache
+    run: CacheRun | None
 
-    def __init__(self, ureg: UnitRegistry, redis_url: Optional[str] = None):
-        if redis_url is not None:
+    def __init__(self, ureg: UnitRegistry, redis_url: Optional[str] = None, base_logger: loguru.Logger | None = None):
+        if redis_url:
             self.client = redis.Redis.from_url(redis_url)
         else:
             self.client = None
-            self.local_cache = {}
-        self.prefix = 'kausal-paths'
+        self.prefix = 'kausal-paths-model'
         self.timeout = 30 * 60
         self.ureg = ureg
-        self.run_cache = None
-        self.run_pipe = None
+        self.run = None
+        self.log = base_logger or loguru.logger
+        self.obj_id = base32_crockford.gen_obj_id(self)
+        self.pc = PerfCounter('cache {}'.format(self.obj_id))
+        self.local = LocalLRUCache(6 * 1024 * 1024, self.log)
+        redis_str = ''
+        if self.client is None:
+            redis_str = ', [warning]not using external cache[/]'
+        else:
+            redis_str = ' using Redis at [repr.url]%s[/]' % redis_url
+        self.log.debug('<{}> Cache initialized{}', self.obj_id, redis_str)
+
+    def __del__(self):
+        #self.log.debug('<{}> Cache destroyed', self.obj_id)
+        pass
 
     def __enter__(self):
         self.start_run()
@@ -97,41 +269,35 @@ class Cache(AbstractContextManager):
 
     def __exit__(self, __exc_type: type[BaseException] | None, __exc_value: BaseException | None, __traceback: TracebackType | None) -> bool | None:
         if __exc_type is not None:
-            self.run_pipe = None
+            if self.run:
+                self.run.new_objs = []
         self.end_run()
         return None
 
     def start_run(self):
-        self.run_cache = {}
-        if self.client is not None:
-            self.run_pipe = []
+        self.pc.measure()
+        self.run = CacheRun(self)
 
     def end_run(self):
-        self.run_cache = None
+        if self.run is None:
+            self.log.error('<{}> end_run() called while no run was active', self.obj_id)
+            return
+        self.run.end()
+        self.run = None
 
-        if self.run_pipe:
-            pc = PerfCounter('end run')
-            if self.client is not None:
-                pipe = self.client.pipeline(transaction=False)
-            else:
-                pipe = None
+    def store_ext(self, objs: list[Tuple[str, Any]]):
+        if not self.client:
+            return
 
-            pc.display('dumping %d objects' % len(self.run_pipe))
-            for key, obj in self.run_pipe:
-                data = self.dump_object(obj)
-                if pipe is not None:
-                    pipe.setex(key, self.timeout, data)
-                else:
-                    self.local_cache[key] = data
-            pc.display('dumped')
+        pipe = self.client.pipeline(transaction=False)
 
-            if pipe is not None:
-                pipe.execute()
-                pc.display('executed')
+        for key, obj in objs:
+            data = self.serialize_object(obj)
+            pipe.set(key, data, ex=self.timeout)
+            self.local.put(key, data)
+        pipe.execute()
 
-        self.run_pipe = None
-
-    def dump_object(self, obj: Any) -> bytes:
+    def serialize_object(self, obj: Any) -> bytes:
         if isinstance(obj, ppl.PathsDataFrame):
             obj = PickledPathsDataFrame.from_df(obj)
         elif isinstance(obj, pd.DataFrame) and hasattr(obj, 'pint'):
@@ -139,7 +305,7 @@ class Cache(AbstractContextManager):
         data = pickle.dumps(obj)
         return data
 
-    def load_object(self, data: bytes) -> Any:
+    def deserialize_object(self, data: bytes) -> object:
         obj = pickle.loads(data)
         if isinstance(obj, PickledPathsDataFrame):
             return obj.to_df(self.ureg)
@@ -147,42 +313,77 @@ class Cache(AbstractContextManager):
             return obj.to_df(self.ureg)
         return obj
 
-    def get(self, key: str) -> Any:
+    def get(self, key: str) -> CacheResult:
         full_key = '%s:%s' % (self.prefix, key)
-        if self.run_cache is not None and full_key in self.run_cache:
-            obj = self.run_cache[full_key]
-            if isinstance(obj, (pd.DataFrame, ppl.PathsDataFrame)):
-                return obj.copy()
-            return obj
+        obj = None
 
-        if self.client:
-            data = self.client.get(full_key)
+        def record_event(cache: CacheKind, event: Literal['req', 'hit', 'miss']):
+            if not self.run:
+                return
+            if cache == CacheKind.LOCAL:
+                stats = self.run.local_stats
+            else:
+                stats = self.run.ext_stats
+            if event == 'req':
+                stats.nr_calls += 1
+            elif event == 'hit':
+                stats.cache_hits += 1
+            elif event == 'miss':
+                stats.cache_misses += 1
+
+        if self.run is not None:
+            obj = self.run.get(full_key)
+            if obj is not None:
+                if isinstance(obj, (pd.DataFrame, ppl.PathsDataFrame)):
+                    obj = obj.copy()
+                return CacheResult(True, CacheKind.RUN, obj)
+
+        kind = CacheKind.LOCAL
+        record_event(kind, 'req')
+        data = self.local.get(full_key)
+        if data is not None:
+            obj = self.deserialize_object(data)
+            record_event(kind, 'hit')
+            if self.run is not None:
+                self.run.add(full_key, obj)
+            return CacheResult(True, kind, obj)
         else:
-            data = self.local_cache.get(full_key)
-        if data is None:
-            return None
+            record_event(kind, 'miss')
 
-        obj = self.load_object(data)
-        if self.run_cache is not None:
-            self.run_cache[full_key] = obj
-        return obj
+        if not self.client:
+            return CacheResult(False, kind, None)
+
+        record_event(CacheKind.EXT, 'req')
+        resp = self.client.get(full_key)
+        data = cast(bytes | None, resp)
+        if data is None:
+            record_event(CacheKind.EXT, 'miss')
+            return CacheResult(False, CacheKind.EXT, None)
+        record_event(CacheKind.EXT, 'hit')
+        self.local.put(full_key, data)
+        obj = self.deserialize_object(data)
+        if self.run is not None:
+            self.run.add(full_key, obj)
+        return CacheResult(True, CacheKind.EXT, obj)
 
     def set(self, key: str, obj: Any):
         full_key = '%s:%s' % (self.prefix, key)
-        if self.run_pipe is not None:
-            self.run_pipe.append((full_key, obj))
+        if self.run:
+            self.run.add(full_key, obj)
+            if isinstance(obj, pl.DataFrame):
+                s = obj.estimated_size()
+                if s > self.local.max_size:
+                    self.log.warning('Attempting to cache a large object of %d bytes: %s' % (s, key))
+
+            self.run.add_ext(full_key, obj)
         else:
-            data = self.dump_object(obj)
+            data = self.serialize_object(obj)
             if self.client:
                 self.client.setex(full_key, time=self.timeout, value=data)
-            else:
-                self.local_cache[full_key] = data
-
-        if self.run_cache is not None:
-            self.run_cache[full_key] = obj
+            self.local.put(full_key, data)
 
     def clear(self):
+        self.log.info('Clearing cache')
         if self.client:
             self.client.flushall()
-        else:
-            self.local_cache = {}
+        self.local.clear()

@@ -1,7 +1,7 @@
 import pandas as pd
 import polars as pl
 
-from nodes import Node
+from nodes.node import Node
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from common import polars as ppl
@@ -31,7 +31,8 @@ class Population(Node):
         muni_name = self.get_global_parameter_value('municipality_name')
 
         df_hist = self.get_historical_input().lazy()
-        df_hist = df_hist.filter(pl.col('Alue') == muni_name)
+        if 'Alue' in df_hist.columns:
+            df_hist = df_hist.filter(pl.col('Alue') == muni_name)
         df_hist = df_hist.groupby('Vuosi').agg(pl.col(self.TOTAL_POPULATION_COLUMN).sum().alias(VALUE_COLUMN))
         df_hist = df_hist.with_columns([
             pl.col('Vuosi').cast(pl.Int32),
@@ -42,7 +43,8 @@ class Population(Node):
         df_forecast = self.get_forecast_input()
         if df_forecast is not None:
             df_forecast = df_forecast.lazy()
-            df_forecast = df_forecast.filter(pl.col('Alue') == muni_name)
+            if 'Alue' in df_forecast.columns:
+                df_forecast = df_forecast.filter(pl.col('Alue') == muni_name)
             pop_col = [col for col in df_forecast.columns if col.startswith(self.TOTAL_POPULATION_COLUMN)]
             if len(pop_col) != 1:
                 raise NodeError(self, 'Unable to find population forecast column')

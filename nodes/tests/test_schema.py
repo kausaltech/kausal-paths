@@ -1,5 +1,8 @@
 import pytest
 from django.utils.translation import get_language
+from nodes.actions.simple import AdditiveAction
+from nodes.context import Context
+from nodes.scenario import Scenario
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
 from nodes.metric import Metric
 
@@ -43,7 +46,10 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
 
 
 def test_forecast_metric_type(
-        graphql_client_query_data, additive_action, context, baseline_scenario
+    graphql_client_query_data,
+    additive_action: AdditiveAction,
+    context: Context,
+    baseline_scenario: Scenario
 ):
     context.generate_baseline_values()
     metric = Metric.from_node(additive_action)
@@ -243,8 +249,8 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'BoolParameterType',
                 'id': additive_action.enabled_param.global_id,
             }],
-            'shortDescription': node_config.short_description,
-            'description': str(additive_action.description),
+            'shortDescription': '<p>%s</p>\n' % str(additive_action.description),
+            'description': None,
         }
     }
     assert data == expected

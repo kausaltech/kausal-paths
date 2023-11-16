@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Generic, Sequence, TypeVar, cast
 from django.db.models import Model, QuerySet
 from wagtail.permission_policies import ModelPermissionPolicy
+from rest_framework.permissions import DjangoModelPermissions
 
 if TYPE_CHECKING:
     from users.models import User
@@ -19,3 +20,7 @@ class PathsPermissionPolicy(ModelPermissionPolicy, Generic[M, QS]):
     def instances_user_has_any_permission_for(self, user: User, actions: Sequence[str]) -> QS:
         qs = cast(QS, super().instances_user_has_any_permission_for(user, actions))
         return qs
+
+
+class PathsAPIPermission(DjangoModelPermissions):
+    pass

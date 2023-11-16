@@ -110,6 +110,13 @@ class Placeholder(BoolParameter):
     id = 'placeholder'
 
 
+class ActionImpactFromBaseline(BoolParameter):
+    name = _('Action impact based on baseline')
+    description = _('Compute action impact based on the baseline scenario instead of the default one')
+    id = 'action_impact_from_baseline'
+    value = False
+
+
 class EmissionsWeight(NumberParameter):
     name = _('Weight for emission impacts in value profiles')
     id = 'emissions_weight'

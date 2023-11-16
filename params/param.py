@@ -1,17 +1,18 @@
 from __future__ import annotations
+from contextlib import contextmanager
 from dataclasses import InitVar, asdict, dataclass, field
 
-import hashlib
-import orjson
+import json
 import pandas as pd
 from pydantic import BaseModel
 from common.i18n import I18nString
-from typing import Any, Dict, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar
+from typing import Any, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar, cast
 from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
 if TYPE_CHECKING:
-    from nodes import Node, NodeMetric, Context
+    from nodes.node import Node, NodeMetric
+    from nodes.context import Context
     from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
 
@@ -72,6 +73,13 @@ class Parameter(Generic[V]):
         for param in self.subscription_params:
             param.notify_change()
 
+    @contextmanager
+    def override(self, value: V):
+        prev_val = self.value
+        self.set(value)
+        yield
+        self.set(prev_val)
+
     def set(self, value: V, notify: bool = True):
         prev_val = getattr(self, 'value', None)
         self.value = self.clean(value)
@@ -88,18 +96,24 @@ class Parameter(Generic[V]):
 
     def serialize_value(self) -> Any:
         if isinstance(self.value, BaseModel):
-            return self.value.dict()
+            return self.value.model_dump(mode='json')
         return self.value
 
     def is_value_equal(self, value: Any) -> bool:
         return self.value == value
 
-    def calculate_hash(self) -> bytes:
+    def calculate_hash(self) -> str:
         h = getattr(self, '_hash', None)
         if h is not None:
             return h
-        s = orjson.dumps({'id': self.global_id, 'value': self.serialize_value()})
-        h = hashlib.md5(s).digest()
+        if isinstance(self.value, str):
+            v = self.value.encode('unicode_escape').decode('ascii')
+        elif isinstance(self.value, (bool, int, float)):
+            v = str(self.value)
+        else:
+            v = json.dumps({'value': self.serialize_value()}, ensure_ascii=True)
+
+        h = '%s:%s' % (self.global_id, v)
         self._hash = h
         return h
 
@@ -191,6 +205,12 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
 
     def __post_init__(self, unit_str: str | None = None):
         self._init_unit(unit_str)
+        if self.min_value is not None:
+            self.min_value = float(self.min_value)
+        if self.max_value is not None:
+            self.max_value = float(self.max_value)
+        if self.step is not None:
+            self.step = float(self.step)
         super().__post_init__()
 
     def clean(self, value: float | Quantity) -> float:
@@ -220,7 +240,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
 
         return value
 
-    def set(self, value: float | Quantity):
+    def set(self, value):
         if isinstance(value, Quantity):
             unit = value.units
             value = value.m
@@ -228,7 +248,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
             unit = None
         super().set(value)
         if unit is not None:
-            self.unit = unit
+            self.unit = cast(Unit, unit)
 
 
 @dataclass
@@ -264,7 +284,7 @@ class PercentageParameter(NumberParameter):
 
 
 @dataclass
-class BoolParameter(Parameter):
+class BoolParameter(Parameter[bool]):
     value: Optional[bool] = None
 
     def clean(self, value: bool):
@@ -275,7 +295,7 @@ class BoolParameter(Parameter):
 
 
 @dataclass
-class StringParameter(Parameter):
+class StringParameter(Parameter[str]):
     value: Optional[str] = None
 
     def clean(self, value: str):

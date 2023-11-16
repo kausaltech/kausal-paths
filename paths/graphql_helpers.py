@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 
 import functools
 from typing import Any, Callable, Concatenate, ParamSpec, TypeAlias, TypeVar, TYPE_CHECKING, cast
@@ -7,8 +8,11 @@ from django.core.handlers.wsgi import WSGIRequest
 from graphql.type import GraphQLResolveInfo
 from graphql.language.ast import OperationDefinitionNode
 from graphql.error import GraphQLError
+from common.perf import PerfCounter
 
 from nodes.instance import Instance
+from nodes.perf import PerfContext
+from paths.types import UserOrAnon
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -16,12 +20,20 @@ if TYPE_CHECKING:
 
 # Helper classes for typing
 class GQLContext(WSGIRequest):
+    user: UserOrAnon
     graphql_query_language: str
+
+
+@dataclass(slots=True)
+class GraphQLPerfNode:
+    id: str
 
 
 class GQLInstanceContext(GQLContext):
     instance: Instance
     _referer: str | None
+    graphql_operation_name: str | None
+    graphql_perf: PerfContext[GraphQLPerfNode]
 
 
 class GQLInfo(GraphQLResolveInfo):

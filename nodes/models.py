@@ -1,45 +1,53 @@
 from __future__ import annotations
-from functools import cached_property
 
 import os
 import threading
-from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union, cast
-from urllib.parse import urlparse
 import uuid
-from django.contrib.postgres.fields import ArrayField
+from datetime import datetime
+from functools import cached_property
+from typing import TYPE_CHECKING, ClassVar, Optional, Self, Sequence, Tuple, Union, cast
+from urllib.parse import urlparse
 
-from loguru import logger
 from django.conf import settings
-from django.db import models
 from django.contrib.auth.models import Group
+from django.contrib.postgres.fields import ArrayField
+from django.db import models
 from django.utils import timezone
-from django.utils.translation import get_language, override
-from django.utils.translation import gettext_lazy as _, gettext
+from django.utils.translation import get_language, gettext, override
+from django.utils.translation import gettext_lazy as _
+from loguru import logger
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
-from wagtail.fields import RichTextField
+from wagtail import blocks
+from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
-from wagtail_color_panel.fields import ColorField
+from wagtail_color_panel.fields import ColorField  # type: ignore
 
 from common.i18n import get_modeltrans_attrs_from_str
 from nodes.node import Node
+from pages.blocks import CardListBlock
 from paths.permissions import PathsPermissionPolicy
 from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
-    IdentifierField, get_supported_languages, get_default_language, ChoiceArrayField,
-    UserModifiableModel, UUIDIdentifierField
+    ChoiceArrayField,
+    IdentifierField,
+    UserModifiableModel,
+    UUIDIdentifierField,
+    get_default_language,
+    get_supported_languages,
 )
 
 from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
-    from datasets.models import Dimension as DimensionModel, Dataset as DatasetModel
     from loguru import Logger
-    from users.models import User
+
+    from datasets.models import Dataset as DatasetModel
+    from datasets.models import Dimension as DimensionModel
     from pages.models import ActionListPage
+    from users.models import User
 
 
 instance_cache_lock = threading.Lock()
@@ -67,6 +75,8 @@ class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
             lookup |= models.Q(identifier=identifier)
         return self.filter(lookup)
 
+    def adminable_for(self, user: User):
+        return InstanceConfig.permission_policy.adminable_instances(user)
 
 class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
     def __init__(self):
@@ -77,6 +87,9 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
         if not user.is_superuser:
             qs = qs.filter(admin_group__in=user.groups.all())
         return qs
+
+    def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
+        return self.instances_user_has_any_permission_for(user, ['change'])
 
 
 class InstanceConfigManager(models.Manager['InstanceConfig']):
@@ -120,6 +133,7 @@ class InstanceConfig(PathsModel):
     dimensions: models.manager.RelatedManager['DimensionModel']
     datasets: models.manager.RelatedManager['DatasetModel']
 
+    permission_policy: ClassVar[InstancePermissionPolicy]
     _instance: Instance
 
     search_fields = [
@@ -165,25 +179,46 @@ class InstanceConfig(PathsModel):
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
-    def _get_instance(self) -> Instance:
-        if hasattr(self, '_instance'):
-            return self._instance
+    def _get_instance_from_memory(self):
+        if self.identifier not in instance_cache:
+            return
+        instance: Instance = instance_cache[self.identifier]
+        assert instance.modified_at is not None
+        if self.modified_at > instance.modified_at:
+            return
 
-        if self.identifier in instance_cache:
-            instance: Instance = instance_cache[self.identifier]
-            if not self.nodes.exists():
-                return instance
-            latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
-            assert isinstance(latest_node_edit, datetime)
-            assert instance.modified_at is not None
-            if latest_node_edit <= instance.modified_at and self.modified_at <= instance.modified_at:
-                return instance
+        if not self.nodes.exists():
+            return instance
+        latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
+        assert isinstance(latest_node_edit, datetime)
+        more_recent_nodes = latest_node_edit > instance.modified_at
+        ic_recently_saved = self.modified_at > instance.modified_at
+        if more_recent_nodes or ic_recently_saved:
+            return
+        return instance
 
+    def _create_new_instance(self) -> Instance:
         config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
         loader = InstanceLoader.from_yaml(config_fn)
         instance = loader.instance
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
+        instance.context.load_all_dvc_datasets()
+        if settings.ENABLE_PERF_TRACING:
+            instance.context.perf_context.enabled = True
+        return instance
+
+    def _get_instance(self) -> Instance:
+        if hasattr(self, '_instance'):
+            return self._instance
+
+        instance = self._get_instance_from_memory()
+        if instance:
+            setattr(self, '_instance', instance)
+            return instance
+
+        self.log.info("Creating new instance")
+        instance = self._create_new_instance()
         instance_cache[self.identifier] = instance
         self._instance = instance
         return instance
@@ -273,8 +308,8 @@ class InstanceConfig(PathsModel):
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_default_pages(self) -> Page:
-        from pages.models import ActionListPage, OutcomePage
         from pages.config import OutcomePage as OutcomePageConfig
+        from pages.models import ActionListPage, OutcomePage
 
         root = cast(Page, Page.get_first_root_node())
         home_pages: models.QuerySet['Page'] = root.get_children()
@@ -376,7 +411,7 @@ class InstanceConfig(PathsModel):
 
     @cached_property
     def log(self) -> Logger:
-        return logger.bind(instance=self.identifier)
+        return logger.bind(instance=self.identifier, markup=True)
 
     def __str__(self) -> str:
         return self.get_name()
@@ -454,11 +489,23 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')
     )
+    goal = RichTextField(
+        null=True, blank=True, verbose_name=_('Goal'), editor='very-limited',
+        max_length=200,
+    ) # pyright: ignore
     short_description = RichTextField(
-        null=True, blank=True, verbose_name=_('Short description')
-    )
+        null=True, blank=True, verbose_name=_('Short description'), editor='limited',
+    ) # pyright: ignore
     description = RichTextField(
         null=True, blank=True, verbose_name=_('Description')
+    ) # -> StreamField
+    body = StreamField([
+        ('card_list', CardListBlock()),
+        ('paragraph', blocks.RichTextBlock()),
+    ], use_json_field=True, blank=True)
+
+    indicator_node: models.ForeignKey[Self | None] = models.ForeignKey(  # type: ignore[type-arg]
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
     )
 
     color = ColorField(max_length=20, null=True, blank=True)
@@ -469,9 +516,13 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     modified_at = models.DateTimeField(auto_now=True)
 
     i18n = TranslationField(
-        fields=('name', 'short_description', 'description'),
+        fields=('name', 'short_description', 'description', 'goal'),
         default_language_field='instance__primary_language',
     )  # pyright: ignore
+    name_i18n: str | None
+    short_description_i18n: str | None
+    description_i18n: str | None
+    goal_i18n: str | None
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -487,12 +538,18 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         unique_together = (('instance', 'identifier'),)
 
     def get_node(self, visible_for_user: UserOrAnon | None = None) -> Optional[Node]:
+        if hasattr(self, '_node'):
+            return getattr(self, '_node')
+
         instance = self.instance.get_instance()
         # FIXME: Node visibility restrictions
-        return instance.context.nodes.get(self.identifier)
+        node = instance.context.nodes.get(self.identifier)
+        setattr(self, '_node', node)
+        return node
 
     def update_node_from_config(self, node: Node):
         node.database_id = self.pk
+        node.db_obj = self
         if self.order is not None:
             node.order = self.order
 
@@ -532,6 +589,15 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         return True
 
     def __str__(self) -> str:
+        return self.name or '<no name>'
+
+    def __rich_repr__(self):
+        yield self.name
+        yield 'pk', self.pk
+        yield 'identifier', self.identifier
+        yield 'instance', self.instance.identifier
+
+    def get_name_with_icon(self):
         node = self.get_node()
         prefix = ''
         if node is None:

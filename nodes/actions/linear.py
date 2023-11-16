@@ -117,9 +117,9 @@ class ReduceAction(ActionNode):
         dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
         if len(dupes):
             raise NodeError(self, "Duplicate rows")
-        df = df.groupby(YEAR_COLUMN).agg(pl.first('Target')).sort(YEAR_COLUMN)
-        df = df.interpolate().fill_null(0)
 
+        df = df.groupby(YEAR_COLUMN).agg(pl.first('Target')).sort(YEAR_COLUMN)
+        df = df.with_columns(df['Target'].interpolate()).fill_null(0)
         value_cols = [col for col in df.columns if col != YEAR_COLUMN]
         if self.is_enabled():
             df = df.with_columns([(pl.cumsum(col) * pl.lit(mult)).alias(col) for col in value_cols])
@@ -273,7 +273,8 @@ class DatasetReduceAction(ActionNode):
         meta = df.get_meta()
         df = ppl.to_ppdf(pl.concat([df, gdf], how='diagonal'), meta=meta)
         df = df.paths.make_forecast_rows(end_year=self.get_end_year())
-        df = ppl.to_ppdf(df.interpolate())
+        df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
+
         # Change the time series to be a difference to the last historical
         # year.
         exprs = [pl.col(m) - pl.first(m) for m in df.metric_cols]

@@ -1,7 +1,7 @@
 import pandas as pd
 import polars as pl
 
-from nodes import Node
+from nodes.node import Node
 from common import polars as ppl
 from nodes.calc import AR5GWP100
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN

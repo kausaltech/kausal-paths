@@ -1,13 +1,15 @@
 import pytest
+from nodes.context import Context
 
 from nodes.tests.factories import NodeFactory
 
 pytestmark = pytest.mark.django_db
 
 
-def test_node_get_downstream_nodes(context, node):
+def test_node_get_downstream_nodes(context: Context, node):
     output_node = NodeFactory(context=context)
     node.add_output_node(output_node)
+    context.finalize_nodes()
     expected = [output_node]
     assert node.get_downstream_nodes() == expected
 

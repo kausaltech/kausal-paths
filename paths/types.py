@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from users.models import User
     from nodes.models import InstanceConfig
     from wagtail.models import Site
+    from paths.cache import PathsObjectCache
 
 
 UserOrAnon: typing.TypeAlias = 'User | AnonymousUser'
@@ -20,9 +21,10 @@ UserOrAnon: typing.TypeAlias = 'User | AnonymousUser'
 
 class PathsRequest(HttpRequest):
     user: UserOrAnon
+    cache: PathsObjectCache
 
 
-class PathsAuthenticatedRequest(HttpRequest):
+class PathsAuthenticatedRequest(PathsRequest):
     user: 'User'
 
 

@@ -10,7 +10,7 @@ import numba as nb
 from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
-from nodes import NodeMetric
+from nodes.metric import NodeMetric
 from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN, DEFAULT_METRIC
 from nodes.calc import nafill_all_forecast_years
 from params import Parameter, NumberParameter, StringParameter

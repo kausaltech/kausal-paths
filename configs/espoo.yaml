@@ -235,6 +235,26 @@ nodes:
     väestöennustetta, joka on 345000 vuodelle 2035. Toteutunut väestönkehitys (1990,
     2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
+  input_datasets:
+    - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
+      filters:
+        - column: Alue
+          value: Espoo
+    - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
+      filters:
+        - column: Alue
+          value: Espoo
+
+- id: all_hsy_emissions
+  type: finland.hsy.HsyNode
+  name: HSY:n päästöinventaario
+  name_en: HSY emission inventory
+  name_sv: HRM:s utsläppsinventering
+  input_datasets:
+    - id: hsy/pks_khk_paastot
+      filters:
+      - column: Kaupunki
+        value: Espoo
 
 #
 # TRANSPORT
@@ -436,6 +456,11 @@ nodes:
     2017–2021 samt befolkningsutvecklingen. I scenarierna Finland 2035 och HNE2030
     antas att det gamla byggnadsbeståndet bevaras under perioden 2021–2035 och nybyggnaderna
     motsvarar ökningen av byggnadsbeståndet.
+  input_datasets:
+    - id: helsinki/aluesarjat/02um_rakennukset_lammitys
+      filters:
+        - column: Alue
+          value: Espoo
 
 - id: building_heat_per_floor_area_new
   name: Ominaislämmönkulutus uudessa rakennuskannassa

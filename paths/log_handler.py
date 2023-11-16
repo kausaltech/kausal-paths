@@ -9,8 +9,6 @@ from rich.text import Text, TextType
 from rich.traceback import Traceback
 from rich.containers import Renderables
 
-from loguru import logger
-
 
 if TYPE_CHECKING:
     from rich.console import Console, ConsoleRenderable, RenderableType
@@ -99,6 +97,7 @@ class LogHandler(RichHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         lr = self._log_render
+
         self._log_render = LogRender(
             show_time=lr.show_time,
             show_level=lr.show_level,
@@ -111,8 +110,33 @@ class LogHandler(RichHandler):
 
     def render_message(self, record: LogRecord, message: str) -> ConsoleRenderable:
         extra: dict[str, Any] = getattr(record, 'extra', {})
-        if 'instance' in extra:
-            message = '[%s] %s' % (extra['instance'], message)
+        markup = extra.pop('markup', False)
+        if markup:
+            setattr(record, 'markup', True)
+            def with_style(style: str, msg: str):
+                return '[%s]%s[/]' % (style, msg)
+        else:
+            def with_style(style: str, msg: str):
+                return msg
+        scope_parts = []
+        instance_id = extra.get('instance')
+        if instance_id:
+            scope_parts.append(with_style('scope.key', instance_id))
+        instance_obj_id = extra.get('instance_obj_id')
+        if instance_obj_id:
+            scope_parts.append(with_style('log.path', instance_obj_id))
+
+        ctx_id = extra.get('context')
+        if ctx_id:
+            scope_parts.append('[scope.key.special]%s[/]' % ctx_id)
+
+        session_id = extra.get('session')
+        if session_id:
+            scope_parts.append('sess [json.key]%s[/]' % session_id)
+
+        if scope_parts:
+            record.highlighter = None
+            message = r'[log.path]\[[/]%s[log.path]][/] %s' % (':'.join(scope_parts), message)
         ret = super().render_message(record, message)
         return ret
 
@@ -150,3 +174,13 @@ class LogHandler(RichHandler):
             link_path=record.pathname if self.enable_link_path else None,
         )
         return log_renderable
+
+
+def configure_logging():
+    from loguru import logger
+    logger.configure(
+        handlers=[
+            dict(sink=LogHandler(), format="{message}"),
+        ],
+        extra={'markup': True}
+    )

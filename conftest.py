@@ -13,6 +13,7 @@ if not TYPE_CHECKING:
             kls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
 else:
     from nodes.instance import Instance
+    from nodes.context import Context
 
 
 from pytest_factoryboy import register
@@ -30,6 +31,18 @@ from datasets.tests.factories import (
 from users.tests.factories import (
     UserFactory
 )
+
+
+@pytest.fixture(autouse=True)
+def instance():
+    instance = InstanceFactory()
+    return instance
+
+
+@pytest.fixture(autouse=True)
+def context(instance):
+    return instance.context
+
 
 register(BoolParameterFactory)
 register(ContextFactory)
@@ -56,9 +69,9 @@ def action_node(context):
 
 
 @pytest.fixture
-def additive_action(context, instance):
+def additive_action(context: Context, instance):
     assert context.instance is not None
-    node = AdditiveActionFactory(context=context)
+    node = AdditiveActionFactory.create(context=context)
     return node
 
 
@@ -77,40 +90,33 @@ def simple_node(context):
 
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
-def default_scenario(context):
+def default_scenario(instance: Instance, context):
     """Adds default scenario but doesn't notify any nodes of its creation."""
-    scenario = ScenarioFactory(id='default', default=True, all_actions_enabled=True, context=context)
-    context.add_scenario(scenario)
-    context.activate_scenario(scenario)
-    return scenario
+    assert context == instance.context
+    return context.get_default_scenario()
 
 
 @pytest.fixture
-def baseline_scenario(context):
+def baseline_scenario(instance: Instance):
     """Adds baseline scenario but doesn't notify any nodes of its creation."""
-    scenario = ScenarioFactory(id='baseline', all_actions_enabled=True)
+    context = instance.context
+    scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, context=context)
     context.add_scenario(scenario)
     return scenario
 
 
 @pytest.fixture
-def custom_scenario(context, default_scenario):
+def custom_scenario(instance: Instance):
+    context = instance.context
     """Adds custom scenario but doesn't notify any nodes of its creation."""
-    custom_scenario = CustomScenarioFactory(
+    custom_scenario = CustomScenarioFactory.create(
         id='custom',
         name='Custom',
-        base_scenario=default_scenario,
+        base_scenario=context.get_default_scenario(),
+        context=context,
     )
     context.set_custom_scenario(custom_scenario)
     return custom_scenario
-
-
-@pytest.fixture(autouse=True)
-def instance(context, default_scenario):
-    instance = InstanceFactory(context=context)
-    if context.instance is None:
-        context.instance = instance
-    return instance
 
 
 @pytest.fixture(autouse=True)

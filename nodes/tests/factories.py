@@ -21,12 +21,24 @@ class ContextFactory(Factory[Context]):
     class Meta:
         model = Context
 
+    instance: SubFactory[Any, Instance] = SubFactory(
+        'nodes.tests.factories.InstanceFactory',
+    )
     dataset_repo: str | None = None  # TODO: Set appropriately when we have tests for datasets
     target_year = 2030
-    instance: RelatedFactory[Any, Instance] = RelatedFactory(
-        'nodes.tests.factories.InstanceFactory',
-        factory_related_name='context'
-    )
+
+    @classmethod
+    def create(cls, **kwargs: Any) -> Instance:
+        return super().create(**kwargs)
+
+    @post_generation
+    @staticmethod
+    def post(obj: Context, create: bool, extracted, **kwargs):
+        obj.instance.set_context(obj)
+        default_scenario = ScenarioFactory.create(id='default', context=obj, default=True, all_actions_enabled=True)
+        obj.add_scenario(default_scenario)
+        obj.activate_scenario(obj.get_default_scenario())
+
 
 class InstanceFactory(Factory[Instance]):
     class Meta:
@@ -36,7 +48,7 @@ class InstanceFactory(Factory[Instance]):
     name = 'instance'
     owner = 'owner'
     default_language = 'fi'
-    context: SubFactory[Any, Context] = SubFactory(ContextFactory)
+    context: RelatedFactory[Any, Context] = RelatedFactory(ContextFactory, 'instance')
     reference_year = 1990
     minimum_historical_year = 2010
     maximum_historical_year = 2018
@@ -53,7 +65,6 @@ class InstanceFactory(Factory[Instance]):
     @staticmethod
     def post(obj: Instance, create: bool, extracted, **kwargs):
         obj.modified_at = datetime.now(timezone.utc) + timedelta(hours=1)
-
 
 class InstanceConfigFactory(DjangoModelFactory):
     class Meta:

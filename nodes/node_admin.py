@@ -1,6 +1,6 @@
 from django.db import models
 from wagtail import hooks
-from wagtail.admin.panels import FieldPanel
+from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
 from wagtail_color_panel.edit_handlers import NativeColorPanel
 
@@ -13,17 +13,24 @@ from paths.types import PathsAdminRequest
 
 class NodeViewSet(PathsViewSet):
     model = NodeConfig
-    icon = 'circle-nodes'
+    icon = 'kausal-node'
     add_to_admin_menu = True
     search_fields = ['name', 'identifier']
     menu_order = 10
 
-    panels = [
+    basic_panels = [
         FieldPanel("identifier", read_only=True),
         TranslatedFieldPanel("name"),
         NativeColorPanel("color"),
+        FieldPanel("indicator_node"),
+        FieldPanel("goal"),
         FieldPanel("short_description"),
+    ]
+    description_panels = [
         FieldPanel("description"),
+    ]
+    extra_panels = [
+        FieldPanel("body"),
     ]
 
     def get_queryset(self, request: PathsAdminRequest) -> models.QuerySet[NodeConfig]:
@@ -32,7 +39,12 @@ class NodeViewSet(PathsViewSet):
         return qs
 
     def get_edit_handler(self):
-        return super().get_edit_handler()
+        edit_handler = TabbedInterface([
+            ObjectList(self.basic_panels, heading='Basic'),
+            ObjectList(self.description_panels, heading='Description'),
+            ObjectList(self.extra_panels, heading='Extra'),
+        ])
+        return edit_handler.bind_to_model(self.model)
 
 
 register_snippet(NodeViewSet)

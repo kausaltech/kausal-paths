@@ -1,7 +1,9 @@
 from __future__ import annotations
+from contextlib import ExitStack, contextmanager
 
 import inspect
 import os
+import sentry_sdk
 from types import FrameType
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, overload
 
@@ -10,8 +12,9 @@ import networkx as nx
 import rich
 from rich.tree import Tree
 
-from common import polars_ext  # noqa
+from common import base32_crockford
 from common import polars as pl  # noqa
+from common import polars_ext  # noqa
 from common.cache import Cache
 from common.perf import PerfCounter
 from params import Parameter
@@ -63,12 +66,13 @@ class Context:
     instance: Instance
     action_efficiency_pairs: list[ActionEfficiencyPair]
     setting_storage: Optional[SettingStorage]
-    perf_context: PerfContext
+    perf_context: PerfContext[Node]
     node_graph: nx.DiGraph
     baseline_values_generated: bool = False
+    obj_id: str
 
     def __init__(
-        self, dataset_repo: dvc_pandas.Repository, target_year: int,
+        self, instance: Instance, dataset_repo: dvc_pandas.Repository, target_year: int,
         model_end_year: int | None = None, dataset_repo_default_path: str | None = None
     ):
         from nodes.actions import ActionNode
@@ -88,7 +92,6 @@ class Context:
         self.dataset_repo = dataset_repo
         self.dataset_repo_default_path = dataset_repo_default_path
         self.supported_parameter_types = discover_parameter_types()
-        self.cache = Cache(ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'))
         # will be set later
         self.instance = None  # type: ignore
         self.active_scenario = None  # type: ignore
@@ -98,6 +101,14 @@ class Context:
         self.dimensions = {}
         self.options = {}
         self.normalizations = {}
+        self.instance = instance
+        self.obj_id = base32_crockford.gen_obj_id(id(self))
+        self.log = self.instance.log.bind(context=self.obj_id)
+        self.log.debug('Context initialized')
+        self.cache = Cache(
+            ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'),
+            base_logger=self.log
+        )
 
     def finalize_nodes(self):
         """Finalize the node graph.
@@ -122,7 +133,7 @@ class Context:
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
         if param_type is None:
-            raise Exception("Unknown parameter: {param_id}")
+            raise Exception("Unknown parameter: %s" % parameter_id)
         return param_type
 
     def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
@@ -153,6 +164,8 @@ class Context:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
         for param_id in node.global_parameters:
+            if param_id not in self.global_parameters:
+                continue
             param = self.global_parameters[param_id]
             assert node not in param.subscription_nodes
             param.subscription_nodes.append(node)
@@ -181,7 +194,7 @@ class Context:
         self.normalizations[id] = norm
 
     def _get_caller_node(self, frame: FrameType) -> Node | None:
-        from nodes import Node
+        from nodes.node import Node
 
         caller_frame: FrameType | None = inspect.getouterframes(frame, 0)[1].frame
         while caller_frame is not None:
@@ -280,7 +293,7 @@ class Context:
 
     def activate_scenario(self, scenario: Scenario):
         # Set the new parameters
-        scenario.activate(self)
+        scenario.activate()
         self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:
@@ -298,13 +311,14 @@ class Context:
         old_scenario = self.active_scenario
 
         scenario = self.scenarios['baseline']
-        self.activate_scenario(scenario)
-        pc = PerfCounter('generate baseline values')
-        for node in self.nodes.values():
-            node.generate_baseline_values()
-        if self.instance is not None:
-            self.instance.logger.info('Baseline values generated in %.1f ms' % pc.measure())
-        self.activate_scenario(old_scenario)
+        with sentry_sdk.start_span(op='compute', description='Baseline'):
+            self.activate_scenario(scenario)
+            self.log.info('Generating baseline values')
+            pc = PerfCounter('generate baseline values')
+            for node in self.nodes.values():
+                node.generate_baseline_values()
+            self.log.info('Baseline values generated in %.1f ms' % pc.measure())
+            self.activate_scenario(old_scenario)
         self.baseline_values_generated = True
 
     def get_all_parameters(self):
@@ -403,3 +417,12 @@ class Context:
 
     def warning(self, msg: Any, *args):
         self.instance.warning(msg, *args)
+
+    @contextmanager
+    def run(self):
+        with ExitStack() as stack:
+            stack.enter_context(self.cache)
+            stack.enter_context(self.perf_context)
+            if self.dataset_repo is not None:
+                stack.enter_context(self.dataset_repo.lock.lock)
+            yield

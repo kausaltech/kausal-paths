@@ -5,6 +5,8 @@ import dataclasses
 import graphene
 from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
+from grapple.types.streamfield import StreamFieldInterface
+from grapple.types.rich_text import RichText
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
@@ -19,7 +21,7 @@ from paths.graphql_helpers import (
     GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
 )
 
-from . import Node
+from .node import Node
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
 from .constants import (
@@ -27,7 +29,7 @@ from .constants import (
 )
 from .instance import Instance, InstanceFeatures
 from .metric import DimensionalFlow, DimensionalMetric, Metric
-from .models import InstanceConfig, NodeConfig
+from .models import InstanceConfig
 from .scenario import Scenario
 
 
@@ -93,6 +95,7 @@ class InstanceGoalDimension(graphene.ObjectType):
 class InstanceGoalEntry(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=False)
+    disabled = graphene.Boolean(required=True)
     outcome_node: 'Node' = graphene.Field('nodes.schema.NodeType', required=True)  # type: ignore
     dimensions = graphene.List(graphene.NonNull(InstanceGoalDimension), required=True)
     default = graphene.Boolean(required=True)
@@ -172,6 +175,7 @@ class InstanceType(graphene.ObjectType):
                 outcome_node=node,
                 dimensions=dims,
                 default=goal.default,
+                disabled=goal.disabled,
             )
             out._goal = goal
             ret.append(out)
@@ -237,6 +241,7 @@ class MetricDimensionType(graphene.ObjectType):
     id = graphene.ID(required=True)
     original_id = graphene.ID(required=False)
     label = graphene.String(required=True)
+    help_text = graphene.String(required=False)
     categories = graphene.List(graphene.NonNull(MetricDimensionCategoryType), required=True)
     groups = graphene.List(graphene.NonNull(MetricDimensionCategoryGroupType), required=True)
 
@@ -311,7 +316,11 @@ class NodeInterface(graphene.Interface):
 
     input_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
     output_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
-    downstream_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
+    downstream_nodes = graphene.List(
+        graphene.NonNull(lambda: NodeInterface),
+        max_depth=graphene.Int(required=False),
+        required=True
+    )
     upstream_nodes = graphene.List(
         graphene.NonNull(lambda: NodeInterface),
         same_unit=graphene.Boolean(),
@@ -341,8 +350,9 @@ class NodeInterface(graphene.Interface):
     parameters = graphene.List(graphene.NonNull('params.schema.ParameterInterface'), required=True)
 
     # These are potentially plucked from nodes.models.NodeConfig
-    short_description = graphene.String()
+    short_description = RichText()
     description = graphene.String()
+    body = graphene.List(graphene.NonNull(StreamFieldInterface))
 
     @classmethod
     def resolve_type(cls, node: Node, info: GQLInstanceInfo):
@@ -352,6 +362,9 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_color(root: Node, info):
+        nc = root.db_obj
+        if nc and nc.color:
+            return nc.color
         if root.color:
             return root.color
         if root.quantity == 'emissions':
@@ -365,9 +378,9 @@ class NodeInterface(graphene.Interface):
         return isinstance(root, ActionNode)
 
     @staticmethod
-    def resolve_downstream_nodes(root: Node, info: GQLInstanceInfo):
+    def resolve_downstream_nodes(root: Node, info: GQLInstanceInfo, max_depth: int | None = None):
         info.context._upstream_node = root  # type: ignore
-        return root.get_downstream_nodes()
+        return root.get_downstream_nodes(max_depth=max_depth)
 
     @staticmethod
     def resolve_upstream_nodes(
@@ -412,14 +425,17 @@ class NodeInterface(graphene.Interface):
         return [param for param in root.parameters.values() if param.is_visible]
 
     @staticmethod
+    def resolve_name(root: Node, info: GQLInstanceInfo) -> str | None:
+        nc = root.db_obj
+        if nc is not None and nc.name_i18n:
+            return nc.name_i18n
+        return str(root.name)
+
+    @staticmethod
     def resolve_short_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:
-        obj: NodeConfig | None = (
-            NodeConfig.objects
-            .filter(instance__identifier=info.context.instance.id, identifier=root.id)
-            .first()
-        )
-        if obj is not None and obj.short_description_i18n:  # type: ignore
-            return expand_db_html(obj.short_description_i18n)  # type: ignore
+        nc = root.db_obj
+        if nc is not None and nc.short_description_i18n:
+            return expand_db_html(nc.short_description_i18n)
         if root.description:
             desc = str(root.description)
             if desc:
@@ -429,12 +445,17 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_description(root: Node, info: GQLInstanceInfo) -> Optional[str]:
-        obj = (NodeConfig.objects
-               .filter(instance__identifier=info.context.instance.id, identifier=root.id)
-               .first())
-        if obj is None or not obj.description_i18n:  # type: ignore
+        nc = root.db_obj
+        if nc is None or not nc.description_i18n:
             return None
-        return expand_db_html(obj.description_i18n)  # type: ignore
+        return expand_db_html(nc.description_i18n)
+
+    @staticmethod
+    def resolve_body(root: Node, info: GQLInstanceInfo):
+        nc = root.db_obj
+        if nc is None or not nc.body:
+            return None
+        return nc.body
 
     @staticmethod
     def resolve_goals(root: Node, info: GQLInstanceInfo, active_goal: str | None = None):
@@ -577,6 +598,8 @@ class ActionNodeType(graphene.ObjectType):
 
     group = graphene.Field(ActionGroupType, required=False)
     decision_level = graphene.Field(ActionDecisionLevel)
+    goal = RichText(required=False)
+    indicator_node = graphene.Field(NodeType, required=False)
 
     is_enabled = graphene.Boolean(required=True)
 
@@ -597,6 +620,25 @@ class ActionNodeType(graphene.ObjectType):
     @staticmethod
     def resolve_is_enabled(root: ActionNode, info: GQLInstanceInfo) -> bool:
         return bool(root.is_enabled())
+
+    @staticmethod
+    def resolve_goal(root: ActionNode, info: GQLInstanceInfo) -> str | None:
+        nc = root.db_obj
+        if nc is None:
+            return None
+        val = nc.goal_i18n
+        if val:
+            return expand_db_html(val)
+        return None
+
+    @staticmethod
+    def resolve_indicator_node(root: ActionNode, info: GQLInstanceInfo) -> Node | None:
+        nc = root.db_obj
+        if nc is None:
+            return None
+        if nc.indicator_node is None:
+            return None
+        return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
 class ScenarioType(graphene.ObjectType):

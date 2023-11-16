@@ -9,24 +9,24 @@ import numpy as np
 import pandas as pd
 import pint
 import polars as pl
-from colormath.color_objects import sRGBColor, LabColor
-from colormath.color_conversions import convert_color
+from colormath.color_objects import sRGBColor, LabColor  # type: ignore
+from colormath.color_conversions import convert_color  # type: ignore
 
 from common import polars as ppl
 from common.i18n import gettext as _
-from nodes import Node
-from nodes.actions import ActionNode
-from nodes.actions.shift import ShiftAction
-from nodes.constants import (
+from .node import Node
+from .actions import ActionNode
+from .actions.shift import ShiftAction
+from .constants import (
     BASELINE_VALUE_COLUMN, FLOW_ID_COLUMN, FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE,
     FLOW_ROLE_TARGET, FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES,
     VALUE_COLUMN, YEAR_COLUMN,
 )
-from nodes.exceptions import NodeError
-from nodes.goals import NodeGoalsEntry
-from nodes.node import NodeMetric
-from nodes.simple import AdditiveNode
-from nodes.units import Unit
+from .exceptions import NodeError
+from .goals import NodeGoalsEntry
+from .node import NodeMetric
+from .simple import AdditiveNode
+from .units import Unit
 
 
 @dataclass
@@ -183,7 +183,8 @@ class Metric:
         if not self.unit:
             return None
         # Check if the unit as a time divisor
-        if self.unit.dimensionality.get('[time]') > -1:
+        dim = self.unit.dimensionality.get('[time]')
+        if dim is None or dim > -1:
             return None
         year_unit = self.unit._REGISTRY('year').units
         return self.unit * year_unit
@@ -215,6 +216,7 @@ class MetricDimension:
     label: str
     categories: list[MetricCategory]
     groups: list[MetricCategoryGroup] = field(default_factory=list)
+    help_text: str | None = None
 
     def get_original_cat_ids(self):
         return [cat.original_id for cat in self.categories]
@@ -312,7 +314,8 @@ class DimensionalMetric:
                 order=n.order
             ) for n in node.input_nodes]
             mdim = MetricDimension(
-                id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats, original_id=NODE_COLUMN
+                id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats,
+                original_id=NODE_COLUMN,
             )
             mdim.ensure_unique_colors()
             dims.append(mdim)
@@ -375,15 +378,18 @@ class DimensionalMetric:
                     original_id=cat.id, group=group_id_map[cat.group] if cat.group else None
                 ))
                 if node.goals:
-                    goal = node.goals.get_exact_match(dim.id, categories=[cat.id])
-                    if goal:
-                        goals.append(MetricDimensionGoal(categories=[cat_id], values=make_goal_values(goal)))
+                    ng = node.goals.get_exact_match(dim.id, categories=[cat.id])
+                    if ng:
+                        goals.append(
+                            MetricDimensionGoal(categories=[cat_id], groups=[], values=make_goal_values(ng))
+                        )
 
             assert len(df_cats) == len(ordered_cats)
 
             mdim = MetricDimension(
                 id=make_id('dim', dim.id),
                 label=str(dim.label),
+                help_text=str(dim.help_text),
                 categories=ordered_cats,
                 original_id=dim.id,
                 groups=ordered_groups,

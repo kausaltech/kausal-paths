@@ -145,7 +145,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
         if set(dim_ids) != set(old_dim_ids):
             instance = self.instance.get_instance()
-            instance.logger.warn("New dimensions do not match the old ones, generating empty dataset")
+            instance.log.warn("New dimensions do not match the old ones, generating empty dataset")
             self.table = self.generate_empty_table()
 
     def get_dimension_categories(self) -> dict[str, list[str]]:

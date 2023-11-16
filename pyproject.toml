@@ -28,6 +28,8 @@ line-length = 130
 
 [tool.ruff.isort]
 split-on-trailing-comma = false
+required-imports = ["from __future__ import annotations"]
+
 
 [tool."pylint.MASTER"]
 load-plugins = "pylint_django"
@@ -69,6 +71,7 @@ exclude = [
     '^local_settings\.py',
 ]
 check_untyped_defs = true
+new_type_inference = true
 
 
 [[tool.mypy.overrides]]

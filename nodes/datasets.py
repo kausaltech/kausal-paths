@@ -110,9 +110,13 @@ class DVCDataset(Dataset):
         if self.df is not None:
             return self.df
 
-        ds_hash = self.calculate_hash(context).hex()
-        obj = context.cache.get(ds_hash)
-        if obj is not None and not context.skip_cache:
+        obj = None
+        if not context.skip_cache:
+            ds_hash = self.calculate_hash(context).hex()
+            res = context.cache.get(ds_hash)
+            if res.is_hit:
+                obj = res.obj
+        if obj is not None:
             self.df = obj
             return obj
 

@@ -3,8 +3,11 @@ import argparse
 import cProfile
 from math import log10
 import math
+import os
 import sys
 import time
+import types
+from typing import cast
 
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
@@ -21,25 +24,37 @@ import pandas as pd
 from nodes.units import Quantity
 
 
+load_dotenv()
+
+console = Console()
+
+
 if True:
     # Print traceback for warnings
     import traceback
     import warnings
 
     def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
-        log = sys.stderr
-        traceback.print_stack()
-        log.write(warnings.formatwarning(message, category, filename, lineno, line))
+        tb = None
+        depth = 2
+        while True:
+            try:
+                frame = sys._getframe(depth)
+                depth += 1
+            except ValueError:
+                break
+            tb = types.TracebackType(tb, frame, frame.f_lasti, frame.f_lineno)
+        exc = cast(Exception, category(message)).with_traceback(tb)
+
+        tbp = rich.traceback.Traceback.from_exception(type(exc), exc, traceback=tb, max_frames=5)
+        console.print(tbp)
+        return
 
     warnings.showwarning = warn_with_traceback
     # Pretty tracebacks
     rich.traceback.install()
 
-load_dotenv()
-
 django_initialized = False
-
-pd.set_option('display.max_rows', 500)
 
 
 def init_django():
@@ -62,7 +77,7 @@ parser.add_argument('--param', action='append', type=str, help='set a parameter'
 parser.add_argument('--list-params', action='store_true', help='list parameters')
 parser.add_argument('--debug-nodes', type=str, nargs='+', help='enable debug messages for nodes')
 parser.add_argument('--check', action='store_true', help='perform sanity checking')
-parser.add_argument('--skip-cache', action='store_true', help='skip caching')
+parser.add_argument('--skip-cache', action='store_true', help='skip caching altogether')
 parser.add_argument('--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--filter', type=str, nargs='+', help='filter node output')
 parser.add_argument('--normalize', type=str, metavar='NODE', help='normalize by other node')
@@ -75,12 +90,17 @@ parser.add_argument('--delete-stale-nodes', action='store_true', help='delete No
 parser.add_argument('--print-action-efficiencies', action='store_true', help='calculate and print action efficiencies')
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
+parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
+
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
 
 if (args.instance and args.config) or (not args.instance and not args.config):
     print('Specify either "--instance" or "--config"')
     exit(1)
+
+if args.disable_ext_cache:
+    os.environ['REDIS_URL'] = ''
 
 if args.instance:
     init_django()
@@ -89,6 +109,8 @@ if args.instance:
     instance = instance_obj.get_instance()
     context = instance.context
 else:
+    from paths.log_handler import configure_logging
+
     loader = InstanceLoader.from_yaml(args.config)
     context = loader.context
     instance = loader.instance
@@ -100,10 +122,7 @@ if args.check:
     context.check_mode = True
 
 if args.show_perf:
-    from common.perf import PerfCounter
-
-    PerfCounter.change_level(PerfCounter.Level.DEBUG)
-    context.perf_context.start()
+    context.perf_context.enabled = True
 
 
 profile: cProfile.Profile | None
@@ -136,9 +155,8 @@ if args.baseline:
     if profile is not None:
         profile.enable()
     pc.display('generating baseline values')
-    context.cache.start_run()
-    context.generate_baseline_values()
-    context.cache.end_run()
+    with context.run():
+        context.generate_baseline_values()
     pc.display('done')
     if profile is not None:
         profile.disable()
@@ -191,8 +209,10 @@ for line in args.filter or []:
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
-    node.print_output(filters=all_filters or None)
-    node.plot_output(filters=all_filters or None)
+    with context.run():
+        node.print_output(filters=all_filters or None)
+        #node.plot_output(filters=all_filters or None)
+
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
         for n in output_nodes:
@@ -215,19 +235,18 @@ for node_id in (args.node or []):
 
 def round_quantity(e: Quantity):
     if abs(e.m) > 10000:
-        e = round(e, 1)
+        e = round(e, 1)  # type: ignore
     else:
         if math.isclose(e.m, 0):
             digits = 2
         else:
             digits = int(-log10(abs(e.m))) + 4
-        e = round(e, ndigits=digits)
+        e = round(e, ndigits=digits)  # type: ignore
     return e
 
 
 if args.print_action_efficiencies:
     def print_action_efficiencies():
-        context.cache.start_run()
         pc = PerfCounter("Action efficiencies")
         for aep in context.action_efficiency_pairs:
             title = '%s / %s' % (aep.cost_node.id, aep.impact_node.id)
@@ -255,10 +274,7 @@ if args.print_action_efficiencies:
                 table.add_row(row[0], str(row[1]))
             console.print(table)
 
-        context.cache.end_run()
-
     def print_impacts():
-        context.cache.start_run()
         pc = PerfCounter("Action impacts")
         for outcome_node in context.get_outcome_nodes():
             title = outcome_node.id
@@ -299,17 +315,14 @@ if args.print_action_efficiencies:
     if profile is not None:
         profile.enable()
 
-    if context.action_efficiency_pairs:
-        print_action_efficiencies()
-    else:
-        print_impacts()
+    with context.run():
+        if context.action_efficiency_pairs:
+            print_action_efficiencies()
+        else:
+            print_impacts()
     if profile is not None:
         profile.disable()
         profile.dump_stats('action_efficiencies_profile.out')
-
-
-if args.show_perf:
-    context.perf_context.print()
 
 
 if False:
