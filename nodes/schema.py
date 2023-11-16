@@ -730,6 +730,7 @@ class InstanceBasicConfiguration(graphene.ObjectType):
         hostname = root._config.hostnames.filter(hostname=root._hostname.lower()).first()  # type: ignore
         if not hostname:
             return dict(hostname=root._hostname, base_path='')  # type: ignore
+        return hostname
 
 
 class NormalizationType(graphene.ObjectType):
