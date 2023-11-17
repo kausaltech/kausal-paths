@@ -69,7 +69,7 @@ elif os.path.exists(os.path.join(BASE_DIR, '.env')):
 
 DEBUG = env('DEBUG')
 ADMIN_BASE_URL = env('ADMIN_BASE_URL')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))
 DATABASES = {
     'default': env.db()
