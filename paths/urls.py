@@ -28,12 +28,13 @@ from wagtail.documents import urls as wagtaildocs_urls
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from social_django import urls as social_urls
 
+from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
 from admin_site import urls as admin_urls
-from users.views import change_admin_instance
-from nodes.api import all_routers as nodes_routers
 from datasets.api import all_routers as datasets_routers
-from .api_router import router as api_router
+from nodes.api import all_routers as nodes_routers
+from .views import health_view
+from users.views import change_admin_instance
 
 
 
@@ -75,7 +76,8 @@ urlpatterns = [
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    path('sso/', include(social_urls, namespace='social'))
+    path('sso/', include(social_urls, namespace='social')),
+    path('health/', csrf_exempt(health_view)),
 ]
 
 if kpe_urls is not None:

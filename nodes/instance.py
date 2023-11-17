@@ -292,6 +292,7 @@ class InstanceLoader:
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
+            is_visible=config.get('is_visible', True),
             is_outcome=config.get('is_outcome', False),
             minimum_year=config.get('minimum_year', None),
             target_year_goal=config.get('target_year_goal'),

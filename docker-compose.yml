@@ -52,6 +52,13 @@ services:
     depends_on:
       - db
       - redis
+    healthcheck:
+      # test: ["CMD", "curl", "-f", "http://127.0.0.1/health/"]
+      test: ["CMD", "wget", "-O", "/dev/null", "-q", "--tries=1", "http://127.0.0.1:8000/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 0s
 
 volumes:
   db_data:
