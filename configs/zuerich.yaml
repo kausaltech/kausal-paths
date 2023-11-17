@@ -3081,8 +3081,6 @@ actions:
 - id: fossil_fuel_heater_to_district_heat
   name_en: Replacement of fossil fuel heaters with district heat
   name_de: Heizungsersatz durch Anschluss an thermische Netze
-  description_de: 'Ziel bis 2040: 49 Prozent des Wärmebedarfes des gesamten Gebäudeparks
-    werden durch thermische Netze gedeckt.'
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
@@ -3130,8 +3128,6 @@ actions:
 - id: fossil_fuel_heater_to_heat_pumps
   name_en: Replacement of fossil fuel heaters with heat pumps
   name_de: Heizungsersatz durch Wärmepumpen
-  description_de: 'Ziel bis 2040: 35 Prozent des Wärmebedarfes des gesamten Gebäudeparks
-    werden durch Wärmepumpen gedeckt.'
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
@@ -3179,8 +3175,6 @@ actions:
 - id: fossil_fuel_heater_to_other
   name_en: Replacement of fossil fuel heaters with other heaters
   name_de: Heizungsersatz durch übrige Systeme
-  description_de: 'Ziel bis 2040: 7 Prozent des Wärmebedarfes des gesamten Gebäudeparks
-    werden durch Holz und thermische Solarkollektoren gedeckt.'
   type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
   group: buildings
@@ -3231,8 +3225,6 @@ actions:
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung der thermischen Netze
-  description_de: 'Ziel bis 2040: 100 Prozent der Energie der thermischen Netze sind
-    fossilfrei.'
   group: buildings
   parent: heater_replacement_and_district_heat
   type: parent.ParentActionNode
@@ -3304,8 +3296,6 @@ actions:
   name_en: Decarbonisation of gas network
   group: buildings
   parent: heater_replacement_and_district_heat
-  description_de: 'Ziel bis 2040: 100 Prozent des verbleibenden Gasbedarfes werden
-    durch erneuerbares Gas gedeckt.'
   quantity: mix
   unit: '%'
   type: linear.DatasetReduceAction
@@ -3320,8 +3310,6 @@ actions:
 - id: other_building_fuel_to_biogas
   name_en: Other building fuel use to biogas
   name_de: Dekarbonisierung Prozessenergie und Blockheizkraftwerke
-  description_de: 'Ziel bis 2040: 100 Prozent des Gasbedarfes für Prozessenergie und
-    für Blockheizkraftwerke werden durch erneuerbares Gas gedeckt.'
   type: linear.ReduceAction
   group: buildings
   parent: heater_replacement_and_district_heat
@@ -3529,8 +3517,6 @@ actions:
   group: mobility
   type: shift.ShiftAction
   quantity: mix
-  description_de: 'Wirkungsziel: Der Anteil der mit dem ÖV zurückgelegten Distanzen
-    steigt von 37% im Jahr 2022 auf 45% im Jahr 2040.'
   output_nodes:
   - id: transport_modal_split
   unit: '%'
@@ -3567,8 +3553,6 @@ actions:
   parent: shift_to_sustainable_transport_modes
   type: shift.ShiftAction
   quantity: mix
-  description_de: Der Anteil der mit dem Velo zurückgelegten Distanzen steigt von
-    10% im Jahr 2022 auf 15% im Jahr 2040.
   output_nodes:
   - id: transport_modal_split
   unit: '%'
@@ -3617,10 +3601,6 @@ actions:
   parent: improved_vehicle_fleet
   type: linear.DatasetReduceAction
   quantity: mix
-  description_en: Vehicle fleet electrification.
-  description_de: 'Wirkungsziel: Die Personenwagen, die in der Stadt verkehren, werden
-    bis 2040 zu 81% elektrifiziert (Batterie-elektrische Fahrzeuge, Plug-in-Hybrid-Fahrzeuge,
-    Brennstoffzellen-Fahrzeuge).'
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
@@ -3663,8 +3643,6 @@ actions:
   group: mobility
   type: linear.DatasetReduceAction
   quantity: mix
-  description_en: Vehicle fleet electrification.
-  description_de: Vehicle fleet electrification.
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
@@ -3836,9 +3814,6 @@ actions:
   group: waste
   type: linear.ReduceAction
   quantity: ratio
-  description_de: Ab 2035 werden durch die Abscheidung und Speicherung von CO2 bei
-    der Kehrichtverwertungsanlage Hagenholz jährlich 164&#39;000 Tonnen CO2-Äquivalente
-    negative Emissionen produziert.
   unit: '%'
   output_nodes: [waste_incineration_ccs_share]
   params:
@@ -3865,9 +3840,6 @@ actions:
   type: linear.ReduceAction
   quantity: ratio
   parent: install_waste_treatment_ccs
-  description_de: Ab 2030 werden durch die Abscheidung und Speicherung von CO2 bei
-    der Klärschlammverwertungsanlage Werdhölzli jährlich 20'000 Tonnen CO2-Äquivalente
-    negative Emissionen produziert.
   unit: '%'
   output_nodes: [sewage_sludge_processing_ccs_share]
   params:
