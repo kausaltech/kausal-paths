@@ -489,6 +489,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')
     )
+    is_visible = models.BooleanField(default=True)
     goal = RichTextField(
         null=True, blank=True, verbose_name=_('Goal'), editor='very-limited',
         max_length=1000,

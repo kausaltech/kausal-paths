@@ -43,6 +43,7 @@ class NodeGoalsEntry(I18nBaseModel):
     is_main_goal: bool = False
     default: bool = False
     disabled: bool = False
+    disable_reason: I18nStringInstance | None = None
 
     _node: 'Node' = PrivateAttr()
 

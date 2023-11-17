@@ -96,6 +96,7 @@ class InstanceGoalEntry(graphene.ObjectType):
     id = graphene.ID(required=True)
     label = graphene.String(required=False)
     disabled = graphene.Boolean(required=True)
+    disable_reason = graphene.String(required=False)
     outcome_node: 'Node' = graphene.Field('nodes.schema.NodeType', required=True)  # type: ignore
     dimensions = graphene.List(graphene.NonNull(InstanceGoalDimension), required=True)
     default = graphene.Boolean(required=True)
@@ -176,6 +177,7 @@ class InstanceType(graphene.ObjectType):
                 dimensions=dims,
                 default=goal.default,
                 disabled=goal.disabled,
+                disable_reason=goal.disable_reason,
             )
             out._goal = goal
             ret.append(out)
@@ -308,6 +310,7 @@ class NodeInterface(graphene.Interface):
     short_name = graphene.String(required=False)
     color = graphene.String()
     order = graphene.Int(required=False)
+    is_visible = graphene.Boolean(required=True)
     unit = graphene.Field('paths.schema.UnitType')
     quantity = graphene.String()
     target_year_goal = graphene.Float(deprecation_reason='Replaced by "goals".')
@@ -372,6 +375,13 @@ class NodeInterface(graphene.Interface):
                 if parent.color:
                     root.color = parent.color
                     return root.color
+
+    @staticmethod
+    def resolve_is_visible(root: Node, info):
+        nc = root.db_obj
+        if nc and nc.is_visible:
+            return nc.is_visible
+        return root.is_visible
 
     @staticmethod
     def resolve_is_action(root: Node, info):

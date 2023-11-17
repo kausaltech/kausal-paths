@@ -719,6 +719,7 @@ emission_sectors:
     label_de: Indirekte Emissionen
     label_en: Indirect emissions
     disabled: true
+    disable_reason: Werden später ergänzt
     dimensions:
       emission_scope:
         groups: [indirect]
@@ -732,6 +733,7 @@ emission_sectors:
     label_de: Alle Emissionen
     label_en: Total emissions
     disabled: true
+    disable_reason: Werden später ergänzt
     values:
     - year: 2022
       value: 10.3
@@ -3972,6 +3974,7 @@ actions:
   type: shift.ShiftAction
   parent: improved_vehicle_fleet
   group: mobility
+  is_visible: false
   output_nodes:
   - id: transport_emissions_for_fuel
     tags: [additive]
