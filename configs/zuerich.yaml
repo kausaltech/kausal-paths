@@ -3457,6 +3457,38 @@ actions:
       - year: 2040
         amount: -0.15
 
+- id: optimize_building_technology
+  name_en: Optimal/efficient use and operation of building technology
+  name_de: Optimaler/effizienter Einsatz und Betrieb der Gebäudetechnik
+  parent: reduce_building_heat_demand
+  group: buildings
+  type: linear.ReduceAction
+  quantity: energy_per_area
+  output_nodes:
+  - id: building_heat_per_area
+  unit: kWh/m**2/a
+  params:
+  - id: reduce
+    unit: kWh/m**2/a
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          building_use: residential
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2040
+        amount: 0
+    - target:
+        categories:
+          building_use: nonresidential
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2040
+        amount: 0
+
 #
 # Massnahmenpaket 3: Vermeidung von Verkehrsaufkommen
 #
