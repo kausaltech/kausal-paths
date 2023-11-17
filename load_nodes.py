@@ -69,8 +69,8 @@ def init_django():
 
 
 parser = argparse.ArgumentParser(description='Execute the computational graph')
-parser.add_argument('--instance', type=str, help='instance identifier')
-parser.add_argument('--config', type=str, help='config yaml file')
+parser.add_argument('-i', '--instance', type=str, help='instance identifier')
+parser.add_argument('-c', '--config', type=str, help='config yaml file')
 parser.add_argument('--baseline', action='store_true', help='generate baseline scenario values')
 parser.add_argument('--scenario', type=str, help='select scenario')
 parser.add_argument('--param', action='append', type=str, help='set a parameter')
@@ -78,7 +78,7 @@ parser.add_argument('--list-params', action='store_true', help='list parameters'
 parser.add_argument('--debug-nodes', type=str, nargs='+', help='enable debug messages for nodes')
 parser.add_argument('--check', action='store_true', help='perform sanity checking')
 parser.add_argument('--skip-cache', action='store_true', help='skip caching altogether')
-parser.add_argument('--node', type=str, nargs='+', help='compute node')
+parser.add_argument('-n', '--node', type=str, nargs='+', help='compute node')
 parser.add_argument('--filter', type=str, nargs='+', help='filter node output')
 parser.add_argument('--normalize', type=str, metavar='NODE', help='normalize by other node')
 parser.add_argument('--pull-datasets', action='store_true', help='refresh all datasets')
