@@ -10,7 +10,7 @@ python manage.py migrate --no-input
 python manage.py shell -c "from django.core.cache import cache; cache.clear()"
 
 # Log to stdout
-exec uwsgi --http-socket :8000 --socket :8001 --processes 4 \
+exec uwsgi --http11-socket :8000 --socket :8001 --processes 8 \
     --enable-threads \
     --buffer-size=32768 \
     --static-map /static=/srv/static \
