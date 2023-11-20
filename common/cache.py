@@ -245,7 +245,7 @@ class Cache(AbstractContextManager):
         else:
             self.client = None
         self.prefix = 'kausal-paths-model'
-        self.timeout = 30 * 60
+        self.timeout = 60 * 60
         self.ureg = ureg
         self.run = None
         self.log = base_logger or loguru.logger
@@ -354,7 +354,7 @@ class Cache(AbstractContextManager):
             return CacheResult(False, kind, None)
 
         record_event(CacheKind.EXT, 'req')
-        resp = self.client.get(full_key)
+        resp = self.client.getex(full_key, ex=self.timeout)
         data = cast(bytes | None, resp)
         if data is None:
             record_event(CacheKind.EXT, 'miss')

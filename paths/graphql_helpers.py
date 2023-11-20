@@ -12,10 +12,10 @@ from common.perf import PerfCounter
 
 from nodes.instance import Instance
 from nodes.perf import PerfContext
-from paths.types import UserOrAnon
 
 if TYPE_CHECKING:
     from nodes.context import Context
+    from paths.types import UserOrAnon
 
 
 # Helper classes for typing
