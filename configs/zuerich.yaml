@@ -73,7 +73,10 @@ dimensions:
 - id: emission_scope
   label: Emissionsbereiche
   label_en: Emission scopes
-  help_text: Lorem ipsum
+  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten
+    Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten
+    indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und
+    bilden die bis 2040 angestrebte Reduktion noch nicht ab.
   groups:
   - id: direct
     label: Direkte Emissionen
