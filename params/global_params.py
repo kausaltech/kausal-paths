@@ -137,6 +137,11 @@ class EquityWeight(NumberParameter):
     id = 'equity_weight'
 
 
+class BiodiversityWeight(NumberParameter):
+    name = _('Weight for biodiversity impacts in value profiles')
+    id = 'biodiversity_weight'
+
+
 class ImpactThreshold(NumberParameter):
     name = _('Threshold for sum of weighted impacts in value profiles')
     id = 'impact_threshold'

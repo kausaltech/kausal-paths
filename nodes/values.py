@@ -55,6 +55,10 @@ class ValueProfile(SimpleNode):
         NumberParameter(
             local_id='equity_weight',
             is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='biodiversity_weight',
+            is_customizable=True,
         )
     ]
 
@@ -110,11 +114,12 @@ class ValueProfile(SimpleNode):
                 self.weighted_impact(action, 'emissions_weight', tag='emissions'),
                 self.weighted_impact(action, 'cost_weight', tag='currency'),
                 self.weighted_impact(action, 'health_weight', tag='disease_burden'),
-                self.weighted_impact(action, 'equity_weight', tag='equity')
+                self.weighted_impact(action, 'equity_weight', tag='equity'),
+                self.weighted_impact(action, 'biodiversity_weight', tag='biodiversity')
             ]
             df_action = self.sum_dfs(dfs)
             df_action = df_action.with_columns(
-                pl.lit('hypothesis_' + str(round)).alias('hypothesis')).add_to_index('hypothesis')
+                pl.lit('action_' + str(round)).alias('action')).add_to_index('action')
 
             if df is None:
                 df = df_action
@@ -178,6 +183,7 @@ class AssociationNode(SimpleNode):
             
             df = df.paths.join_over_index(dfn, how='outer', index_from='union')
             df = df.with_columns(pl.col(m + '_right').fill_null(1))
+            print(df.columns)
 #            df = df.with_columns(pl.col(m) * pl.col(m + '_right')).drop(m + '_right')
             df = df.with_columns(pl.col(m) * pl.lit(2)).drop(m + '_right')  # FIXME The upper line should be used but
             # it crashes the UI although it works on terminal. The reason is that at the API

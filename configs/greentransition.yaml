@@ -211,6 +211,31 @@ dimensions:
   - id: equal_weight
     label: Equal weight
 
+- id: action
+  label: Toimenpide
+  label_en: Action
+  categories:
+  - id: action_1
+    label: Action 1
+  - id: action_2
+    label: Action 2
+  - id: action_3
+    label: Action 3
+  - id: action_4
+    label: Action 4
+  - id: action_5
+    label: Action 5
+  - id: action_6
+    label: Action 6
+  - id: action_7
+    label: Action 7
+  - id: action_8
+    label: Action 8
+  - id: action_9
+    label: Action 9
+  - id: action_10
+    label: Action 10
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt
