@@ -37,7 +37,7 @@ params:
   value: 0
   min_value: 0
   max_value: 1000
-  unit: dimensionless
+  unit: 1/a
 - id: emissions_weight
   label: Weight for emissions impacts in value profiles
   is_customizable: true
@@ -52,6 +52,13 @@ params:
   min_value: 0
   max_value: 100
   unit: 1/EUR
+- id: biodiversity_weight
+  label: Weight for biodiversity impacts in value profiles
+  is_customizable: true
+  value: 1
+  min_value: 0
+  max_value: 100
+  unit: 1/pcs/a
 
 dimensions:
 - id: building_heat_source
@@ -307,6 +314,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
+  historical_values: [[2015, 50], [2022, 40]]
   is_outcome: true
 
 - id: logging_intensity_in_state_forests
@@ -382,18 +390,19 @@ nodes:
   output_nodes:
   - biodiversity_in_finland
 
-- id: test_node
-  name: Test node
+- id: societal_benefit_forest
+  name: Valtionmetsien yhteiskunnallinen hyöty
+  name_en: Societal net benefit of forests
   type: values.AssociationNode
   quantity: currency
   unit: MEUR
-  historical_values: [[2010, 100], [2022, 200]]
+  historical_values: [[2010, 200], [2022, 200]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: biodiversity_in_state_forests
     tags: increase
-  - id: net_emissions
-    tags: decrease
+  - id: net_profit_from_state_forests
+    tags: increase
 
 #
 ### VALUE PROFILES
@@ -472,15 +481,14 @@ nodes:
      <ul><li>Hypothesis 1: Reduce logging in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>"
   type: values.ValueProfile
   quantity: value_profile
-  unit: dimensionless
+  unit: 1/a
   input_nodes:
-  - id: reduce_logging_in_state_forests
-  - id: add_logging_in_state_forests
   - id: net_emissions
     tags: [emissions]
   - id: net_cost_of_forests
     tags: [currency]
-  output_dimensions: [hypothesis]
+  - id: biodiversity_in_finland
+    tags: biodiversity
   params:
   - id: impact_threshold
     ref: impact_threshold
@@ -488,6 +496,8 @@ nodes:
     ref: emissions_weight
   - id: cost_weight
     ref: cost_weight
+  - id: biodiversity_weight
+    ref: biodiversity_weight
 
 - id: value_profile_climate
   name: Ilmastotoimien arvoprofiili
@@ -541,22 +551,19 @@ nodes:
      nothing by committing to the EU's carbon neutrality goal.</p>"
   type: values.ValueProfile
   quantity: value_profile
-  unit: dimensionless
+  unit: 1/a
   input_nodes:
-  - id: postpone_climate_targets
   - id: net_emissions
     tags: [emissions]
-#  - id: net_cost_of_forests
-#    tags: [currency]
-#  - id: biodiversity_in_finland
-  output_dimensions: [hypothesis]
+  - id: net_cost_of_forests
+    tags: [currency]
   params:
   - id: impact_threshold
     ref: impact_threshold
   - id: emissions_weight
     ref: emissions_weight
-#  - id: cost_weight
-#    ref: cost_weight
+  - id: cost_weight
+    ref: cost_weight
 
 pages:
 - id: home

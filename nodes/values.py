@@ -17,23 +17,15 @@ from .units import Quantity
 from .exceptions import NodeError
 
 
-class ValueProfile(SimpleNode):
+class ValueProfile(AdditiveNode):
     '''
-    Value profiles are nodes that take in actions, outcome nodes and parameters.
-    They produce a dataframe showing which of the actions should be implemented
-    and when based on the impacts of outcome nodes and parameters.
+    Value profiles are nodes that take in outcome nodes and value weight parameters.
+    They produce a dataframe showing the value-weighted sums of outcomes.
     Cost-efficiency can be implemented if a decision criterion is known, e.g. 50 €/t.
     Then, emissions and cost are put to an equal scale by multiplying
     cost by 0.02 1/EUR and emissions by 1 1/t, resulting in a scale
     where cost-effective scenarios show value < 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
-    The value profile results in -1 if the criterion is not fulfilled and
-    +1 for years when the cumulative criterion is fulfilled.
-    Note that the outcome of a value profile does NOT depend on whether the actions
-    are enabled or disabled in the selected scenario. Therefore, the stakeholder scenarios
-    (scenarios containing the choices and values of a particular stakeholder) can show
-    which actions they would choose while also showing which actions they should choose
-    based on their expressed values.
     '''
     allowed_parameters = SimpleNode.allowed_parameters + [
         NumberParameter(
@@ -62,7 +54,7 @@ class ValueProfile(SimpleNode):
         )
     ]
 
-    def weighted_impact(self, action: ActionNode, weight, quantity=None, tag=None):
+    def weighted_impact(self, weight, quantity=None, tag=None):
         w = self.get_parameter_value(weight, required=False, units=True)
         if w is None:
             return None
@@ -71,12 +63,7 @@ class ValueProfile(SimpleNode):
         else:
             n = self.get_input_node(tag=tag)
 
-        enabled = action.is_enabled()
-        action.enabled_param.set(True)
-        df = action.compute_impact(n)
-        action.enabled_param.set(enabled)
-
-        df = df.filter(pl.col(IMPACT_COLUMN).eq(pl.lit(IMPACT_GROUP))).drop(IMPACT_COLUMN)
+        df = n.get_output_pl(target_node=self)  # Calculate output rather than impact.
         df = df.multiply_quantity(VALUE_COLUMN, w)
         
         return df
@@ -95,47 +82,26 @@ class ValueProfile(SimpleNode):
         return df
     
     def compute(self):
-        actions: list[ActionNode] = []
         nodes: list[Node] = []
 
         for node in self.input_nodes:
-            if isinstance(node, ActionNode):
-                actions += [node]
-            else:
+            if not isinstance(node, ActionNode):
                 nodes += [node]
-        assert len(actions) > 0
         assert len(nodes) > 0
 
-        df = None
-        round = 0
-        for action in actions:
-            round += 1
-            dfs = [
-                self.weighted_impact(action, 'emissions_weight', tag='emissions'),
-                self.weighted_impact(action, 'cost_weight', tag='currency'),
-                self.weighted_impact(action, 'health_weight', tag='disease_burden'),
-                self.weighted_impact(action, 'equity_weight', tag='equity'),
-                self.weighted_impact(action, 'biodiversity_weight', tag='biodiversity')
-            ]
-            df_action = self.sum_dfs(dfs)
-            df_action = df_action.with_columns(
-                pl.lit('action_' + str(round)).alias('action')).add_to_index('action')
-
-            if df is None:
-                df = df_action
-            else:
-                meta = df_action.get_meta()
-                df = pl.concat([df, df_action])
-                df = ppl.to_ppdf(df, meta=meta)
-
-        df = df.cumulate(VALUE_COLUMN)
-        df = df.multiply_quantity(VALUE_COLUMN, Quantity('1 a'))
+        dfs = [
+            self.weighted_impact('emissions_weight', tag='emissions'),
+            self.weighted_impact('cost_weight', tag='currency'),
+            self.weighted_impact('health_weight', tag='disease_burden'),
+            self.weighted_impact('equity_weight', tag='equity'),
+            self.weighted_impact('biodiversity_weight', tag='biodiversity')
+        ]
+        df = self.sum_dfs(dfs)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         th = self.get_parameter_value('impact_threshold', required=True, units=True)
         th = th.to(df.get_unit(VALUE_COLUMN))
-        df = df.with_columns([
-            pl.when(pl.col(VALUE_COLUMN).lt(pl.lit(th.m))).then(pl.lit(1))
-            .otherwise(pl.lit(-1)).alias(VALUE_COLUMN)
+        df = df.with_columns([(
+            pl.col(VALUE_COLUMN) - pl.lit(th.m)).alias(VALUE_COLUMN)
         ])
 
         return df
@@ -155,15 +121,17 @@ class AssociationNode(SimpleNode):
 
         for node in self.input_nodes:
 
-            scen = self.context.active_scenario.id
-            self.context.active_scenario.id == 'baseline'
+            scen = self.context.active_scenario
+            self.context.activate_scenario(self.context.scenarios['default'])
             m = node.get_default_output_metric().column_id
-            base = node.get_output_pl(target_node=self)
-            base = base[m].mean()
-            self.context.active_scenario.id == scen
-
             dfn = node.get_output_pl(target_node=self)
-            dfn = dfn.with_columns((pl.col(m) / pl.lit(base)).alias(m))
+            base = dfn[m].mean()
+            self.context.activate_scenario(scen)
+
+            if abs(base) > 0.5:  # Relative adjustment makes no sense when too close to zero.
+                dfn = dfn.with_columns((pl.col(m) / pl.lit(base)).alias(m))
+            else:
+                dfn = dfn.with_columns(pl.lit(1).alias(m))
             dfn = dfn.clear_unit(m)
 
             for edge in self.edges:
@@ -183,12 +151,6 @@ class AssociationNode(SimpleNode):
             
             df = df.paths.join_over_index(dfn, how='outer', index_from='union')
             df = df.with_columns(pl.col(m + '_right').fill_null(1))
-            print(df.columns)
-#            df = df.with_columns(pl.col(m) * pl.col(m + '_right')).drop(m + '_right')
-            df = df.with_columns(pl.col(m) * pl.lit(2)).drop(m + '_right')  # FIXME The upper line should be used but
-            # it crashes the UI although it works on terminal. The reason is that at the API
-            # the node has metricDim in both cases but metric is missing if the commented-out line is used.
-            # I don't see any difference between the two dataframes or output_metrics.
-            # This node is using the node type: http://greentransition.localhost:3000/node/test_node
+            df = df.with_columns((pl.col(m) * pl.col(m + '_right').alias(m))).drop(m + '_right')
 
         return df
