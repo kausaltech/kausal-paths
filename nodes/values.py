@@ -122,15 +122,18 @@ class AssociationNode(SimpleNode):
         for node in self.input_nodes:
 
             scen = self.context.active_scenario
-            self.context.activate_scenario(self.context.scenarios['default'])
             m = node.get_default_output_metric().column_id
-            dfn = node.get_output_pl(target_node=self)
-            base = dfn[m].mean()
+
+            self.context.activate_scenario(self.context.get_scenario('default'))
+            base = node.get_output_pl(target_node=self)[m].mean()
             self.context.activate_scenario(scen)
 
+            dfn = node.get_output_pl(target_node=self)
             if abs(base) > 0.5:  # Relative adjustment makes no sense when too close to zero.
                 dfn = dfn.with_columns((pl.col(m) / pl.lit(base)).alias(m))
             else:
+                dfn = dfn.with_columns(pl.lit(1).alias(m))
+            if abs(dfn[m].mean()) < 0.5:  # If the input node is a non-enabled action, self should not go to zero.
                 dfn = dfn.with_columns(pl.lit(1).alias(m))
             dfn = dfn.clear_unit(m)
 
