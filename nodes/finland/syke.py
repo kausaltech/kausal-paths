@@ -41,7 +41,7 @@ class AlasNode(Node):
         df.loc[df['hinku-laskenta'], 'Sector'] += ':Hinku'
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
-        df = df.set_index(['Year', 'Sector'])
+        df = df.set_index(['Year', 'Sector']).sort_index()
         df[FORECAST_COLUMN] = False
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
@@ -84,6 +84,8 @@ class AlasEmissions(Node):
             else:
                 raise
         df = df[[EMISSION_QUANTITY]]
+        if df[EMISSION_QUANTITY].isnull().all():
+            df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df['Forecast'] = False
         return df
