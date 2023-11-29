@@ -100,273 +100,273 @@ nodes:
   name: Asumisen kulutussähkön päästöt
   output_nodes: [consumer_electricity_emissions]
   params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Asuminen:ETS
+    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Asuminen:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: consumer_electricity_commerce_emissions
   name: Palveluiden kulutussähkön päästöt
   output_nodes: [consumer_electricity_emissions]
   params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Palvelut:ETS
+    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Palvelut:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: consumer_electricity_agriculture_emissions
   name: Maatalouden kulutussähkön päästöt
   output_nodes: [consumer_electricity_emissions]
   params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Maatalous:ETS
+    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Maatalous:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_residence_emissions
   name: Asumisen suoran sähkölämmityksen päästöt
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_commerce_emissions
   name: Palveluiden suoran sähkölämmityksen päästöt
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_industry_emissions
   name: Teollisuuden suoran sähkölämmityksen päästöt
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Teollisuus:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_agriculture_emissions
   name: Maatalouden suoran sähkölämmityksen päästöt
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Maatalous:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Maatalous:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_residence_emissions
   name: Asumisen maalämmön päästöt
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Asuminen:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Asuminen:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_commerce_emissions
   name: Palveluiden maalämmön päästöt
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Palvelut:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Palvelut:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_industry_emissions
   name: Teollisuuden maalämmön päästöt
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Teollisuus:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Teollisuus:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_agriculture_emissions
   name: Maatalouden maalämmön päästöt
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Maatalous:ETS
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Maatalous:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_residence_emissions
   name: Asumisen kaukolämmön päästöt
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Asuminen:ETS
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Asuminen:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_residence_nonets_emissions
   name: Asumisen kaukolämmön päästöt ei-päästökauppa
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_commerce_emissions
   name: Palveluiden kaukolämmön päästöt
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Palvelut:ETS
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Palvelut:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_commerce_nonets_emissions
   name: Palveluiden kaukolämmön päästöt ei-päästökauppa
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Palvelut
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_industry_emissions
   name: Teollisuuden kaukolämmön päästöt
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus:ETS
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_industry_nonets_emissions
   name: Teollisuuden kaukolämmön päästöt ei-päästökauppa
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Teollisuus:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_agriculture_emissions
   name: Maatalouden kaukolämmön päästöt
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Maatalous:ETS
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Maatalous:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: district_heating_agriculture_nonets_emissions
   name: Maatalouden kaukolämmön päästöt ei-päästökauppa
   output_nodes: [district_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Maatalous
+    sector: Energia|Rakennusten lämmitys|Kaukolämpö|Kaukolämpö|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: oil_heating_residence_emissions
   name: Asumisen öljylämmityksen päästöt
   output_nodes: [oil_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
+    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: oil_heating_commerce_emissions
   name: Palveluiden öljylämmityksen päästöt
   output_nodes: [oil_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Palvelut
+    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: oil_heating_industry_emissions
   name: Teollisuuden öljylämmityksen päästöt
   output_nodes: [oil_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus
+    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Teollisuus:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: oil_heating_agriculture_emissions
   name: Maatalouden öljylämmityksen päästöt
   output_nodes: [oil_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Maatalous
+    sector: Energia|Rakennusten lämmitys|Öljylämmitys|Öljylämmitys|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: wood_heating_residence_emissions
   name: Asumisen puulämmityksen päästöt
   output_nodes: [wood_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Asuminen
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: wood_heating_commerce_emissions
   name: Palveluiden puulämmityksen päästöt
   output_nodes: [wood_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Palvelut
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: wood_heating_industry_emissions
   name: Teollisuuden puulämmityksen päästöt
   output_nodes: [wood_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Teollisuus
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Teollisuus:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: wood_heating_agriculture_emissions
   name: Maatalouden puulämmityksen päästöt
   output_nodes: [wood_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Maatalous
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Puulämmitys|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_direct_heating_residence_emissions
   name: Asumisen muun suoran lämmityksen päästöt
   output_nodes: [other_direct_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Asuminen
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_direct_heating_commerce_emissions
   name: Palveluiden muun suoran lämmityksen päästöt
   output_nodes: [other_direct_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Palvelut
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_direct_heating_industry_emissions
   name: Teollisuuden muun suoran lämmityksen päästöt
   output_nodes: [other_direct_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Teollisuus
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Teollisuus:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_direct_heating_agriculture_emissions
   name: Maatalouden muun suoran lämmityksen päästöt
   output_nodes: [other_direct_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Maatalous
+    sector: Energia|Rakennusten lämmitys|Muu lämmitys|Muu lämmitys|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: car_road_emissions
   name: Henkilöautojen päästöt (maantieajo)
   output_nodes: [transport_on_roads_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Tiet|Henkilöautot
+    sector: Energia|Liikenne|Tieliikenne|Tiet|Henkilöautot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: truck_road_emissions
   name: Kuorma-autojen päästöt (maantieajo)
   output_nodes: [transport_on_roads_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Tiet|Kuorma-autot
+    sector: Energia|Liikenne|Tieliikenne|Tiet|Kuorma-autot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: bus_road_emissions
   name: Linja-autojen päästöt (maantieajo)
   output_nodes: [transport_on_roads_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Tiet|Linja-autot
+    sector: Energia|Liikenne|Tieliikenne|Tiet|Linja-autot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: van_road_emissions
   name: Pakettiautojen päästöt (maantieajo)
   output_nodes: [transport_on_roads_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Tiet|Pakettiautot
+    sector: Energia|Liikenne|Tieliikenne|Tiet|Pakettiautot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: car_street_emissions
   name: Henkilöautojen päästöt (katuajo)
   output_nodes: [transport_on_streets_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Kadut|Henkilöautot
+    sector: Energia|Liikenne|Tieliikenne|Kadut|Henkilöautot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: truck_street_emissions
   name: Kuorma-autojen päästöt (katuajo)
   output_nodes: [transport_on_streets_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Kadut|Kuorma-autot
+    sector: Energia|Liikenne|Tieliikenne|Kadut|Kuorma-autot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: bus_street_emissions
   name: Linja-autojen päästöt (katuajo)
   output_nodes: [transport_on_streets_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Kadut|Linja-autot
+    sector: Energia|Liikenne|Tieliikenne|Kadut|Linja-autot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: van_street_emissions
   name: Pakettiautojen päästöt (katuajo)
   output_nodes: [transport_on_streets_emissions]
   params:
-    sector: Energia|Liikenne|Tieliikenne|Kadut|Pakettiautot
+    sector: Energia|Liikenne|Tieliikenne|Kadut|Pakettiautot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: motorbike_emissions
@@ -374,189 +374,189 @@ nodes:
   output_nodes: [road_transport_emissions]
   params:
     sector: Energia|Liikenne|Tieliikenne|Moottoripyörät ja mopot|Moottoripyörät ja
-      mopot
+      mopot:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: local_train_emissions
   name: Lähijunien päästöt
   output_nodes: [local_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Lähijunat:ETS
+    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Lähijunat:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: tram_emissions
   name: Metrojen ja raitiovaunujen päästöt
   output_nodes: [local_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Metrot ja raitiovaunut:ETS
+    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Metrot ja raitiovaunut:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: electric_train_emissions
   name: Sähköjunien päästöt
   output_nodes: [distant_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Sähkö:ETS
+    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Sähkö:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: diesel_train_emissions
   name: Dieseljunien päästöt
   output_nodes: [distant_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Diesel
+    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Diesel:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: electric_freight_train_emissions
   name: Sähkötavarajunien päästöt
   output_nodes: [rail_goods_transport_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Tavaraliikenne|Sähkö:ETS
+    sector: Energia|Liikenne|Raideliikenne|Tavaraliikenne|Sähkö:ETS:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: diesel_freight_train_emissions
   name: Dieseltavarajunien päästöt
   output_nodes: [rail_goods_transport_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Tavaraliikenne|Diesel
+    sector: Energia|Liikenne|Raideliikenne|Tavaraliikenne|Diesel:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: yacht_emissions
   name: Huviveneiden päästöt
   output_nodes: [water_transport_emissions]
   params:
-    sector: Energia|Liikenne|Vesiliikenne|Huviveneet|Huviveneet
+    sector: Energia|Liikenne|Vesiliikenne|Huviveneet|Huviveneet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: passenger_ship_emissions
   name: Matkustajalaivaliikenteen päästöt
   output_nodes: [ships_emissions]
   params:
-    sector: Energia|Liikenne|Vesiliikenne|Laivat|Matkustajaliikenne
+    sector: Energia|Liikenne|Vesiliikenne|Laivat|Matkustajaliikenne:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: freight_ship_emissions
   name: Tavaralaivaliikenteen päästöt
   output_nodes: [ships_emissions]
   params:
-    sector: Energia|Liikenne|Vesiliikenne|Laivat|Tavaraliikenne
+    sector: Energia|Liikenne|Vesiliikenne|Laivat|Tavaraliikenne:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: fishing_boat_emissions
   name: Kalastusalusten päästöt
   output_nodes: [utility_boats_emissions]
   params:
-    sector: Energia|Liikenne|Vesiliikenne|Työveneet|Kalastusalukset
+    sector: Energia|Liikenne|Vesiliikenne|Työveneet|Kalastusalukset:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: ferry_emissions
   name: Lauttojen ja lossien päästöt
   output_nodes: [utility_boats_emissions]
   params:
-    sector: Energia|Liikenne|Vesiliikenne|Työveneet|Lautat ja lossit
+    sector: Energia|Liikenne|Vesiliikenne|Työveneet|Lautat ja lossit:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: work_boat_emissions
   name: Työveneiden ja -alusten päästöt
   output_nodes: [utility_boats_emissions]
   params:
-    sector: Energia|Liikenne|Vesiliikenne|Työveneet|Työveneet ja alukset
+    sector: Energia|Liikenne|Vesiliikenne|Työveneet|Työveneet ja alukset:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: industry_fuel_nonets_emissions
   name: Teollisuuden polttoaineiden päästöt ei-päästökauppa
   output_nodes: [industry_emissions]
   params:
-    sector: Energia|Teollisuus ja työkoneet|Teollisuus|Teollisuus|Teollisuuden polttoaineet
+    sector: Energia|Teollisuus ja työkoneet|Teollisuus|Teollisuus|Teollisuuden polttoaineet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: construction_machinery_emissions
   name: Rakennustyökoneiden päästöt
   output_nodes: [machinery_emissions]
   params:
-    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Rakennustyökoneet
+    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Rakennustyökoneet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: agricultural_machinery_emissions
   name: Maa- ja metsätalouskoneiden päästöt
   output_nodes: [machinery_emissions]
   params:
-    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Maa- ja metsätalouskoneet
+    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Maa- ja metsätalouskoneet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: mining_machinery_emissions
   name: Kaivos- ja teollisuustyökoneiden päästöt
   output_nodes: [machinery_emissions]
   params:
-    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Kaivos- ja teollisuustyökoneet
+    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Kaivos- ja teollisuustyökoneet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_machinery_emissions
   name: Muiden työkoneiden päästöt
   output_nodes: [machinery_emissions]
   params:
-    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Muut työkoneet
+    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Muut työkoneet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: road_machinery_emissions
   name: Tietyökoneiden päästöt
   output_nodes: [machinery_emissions]
   params:
-    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Tietyökoneet
+    sector: Energia|Työkoneet|Työkoneet|Työkoneet|Tietyökoneet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: inorganic_fertilizer_emissions
   name: Epäorgaanisten lannoitteiden päästöt
   output_nodes: [agricultural_field_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Epäorgaaniset lannoitteet
+    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Epäorgaaniset lannoitteet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: organic_fertilizer_emissions
   name: Orgaanisten lannoitteiden päästöt
   output_nodes: [agricultural_field_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Orgaaniset lannoitteet
+    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Orgaaniset lannoitteet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: agricultural_land_emissions
   name: Peltoviljelyn maaperän päästöt
   output_nodes: [agricultural_field_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Maaperä
+    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Maaperä:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_agricultural_land_emissions
   name: Muut viljelysmaiden päästöt
   output_nodes: [agricultural_field_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Muut viljelysmaiden päästöt
+    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Muut viljelysmaiden päästöt:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: fermentation_emissions
-  name: Eläinten ruoansulatuksen päästöt
+  name: Eläinten ruuansulatuksen päästöt
   output_nodes: [livestock_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Eläinten ruoansulatus
+    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Eläinten ruuansulatus:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: grazing_emissions
   name: Laidunnuksen päästöt
   output_nodes: [livestock_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Laidunnus
+    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Laidunnus:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: manure_treatment_emissions
   name: Lannankäsittelyn päästöt
   output_nodes: [livestock_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Lannankäsittely
+    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Lannankäsittely:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: residential_waste_landfill_emissions
   name: Yhdyskuntajätteen kaatopaikkojen päästöt
   output_nodes: [waste_landfill_emissions]
   params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kaatopaikat|Yhdyskuntajäte
+    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kaatopaikat|Yhdyskuntajäte:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: residential_waste_water_treatment_emissions
@@ -564,21 +564,21 @@ nodes:
   output_nodes: [waste_water_treatment_emissions]
   params:
     sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Jätevesien
-      puhdistus|Yhdyskuntajäte
+      puhdistus|Yhdyskuntajäte:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: residential_waste_composting_emissions
   name: Yhdyskuntajätteen kompostoinnin päästöt
   output_nodes: [waste_composting_emissions]
   params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kompostointi|Yhdyskuntajäte
+    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kompostointi|Yhdyskuntajäte:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: residential_waste_putrefaction_emissions
   name: Yhdyskuntajätteen mädätyksen päästöt
   output_nodes: [waste_putrefaction_emissions]
   params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Mädätys|Yhdyskuntajäte
+    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Mädätys|Yhdyskuntajäte:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: commercial_refridgerator_emissions
@@ -586,7 +586,7 @@ nodes:
   output_nodes: [f_gases_emissions]
   params:
     sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Kaupan ja ammattikeittiöiden
-      kylmälaitteet|Kaupan ja ammattikeittiöiden kylmälaitteet
+      kylmälaitteet|Kaupan ja ammattikeittiöiden kylmälaitteet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: building_air_conditioner_emissions
@@ -594,7 +594,7 @@ nodes:
   output_nodes: [f_gases_emissions]
   params:
     sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Rakennusten
-      ilmastointilaitteet|Rakennusten ilmastointilaitteet
+      ilmastointilaitteet|Rakennusten ilmastointilaitteet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: car_air_conditioner_emissions
@@ -602,7 +602,7 @@ nodes:
   output_nodes: [f_gases_emissions]
   params:
     sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Ajoneuvojen
-      ilmastointilaitteet|Ajoneuvojen ilmastointilaitteet
+      ilmastointilaitteet|Ajoneuvojen ilmastointilaitteet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: other_fgas_source_emissions
@@ -610,111 +610,104 @@ nodes:
   output_nodes: [f_gases_emissions]
   params:
     sector: Teollisuusprosessit ja tuotteiden käyttö|F-kaasut|F-kaasut|Muut F-kaasujen
-      lähteet|Muut F-kaasujen lähteet
+      lähteet|Muut F-kaasujen lähteet:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: wind_power_compensation
   name: Tuulivoiman kompensaatiot
   output_nodes: [compensation]
   params:
-    sector: Kompensaatiot|Kompensaatiot|Tuulivoima|Tuulivoima|Tuulivoima
+    sector: Kompensaatiot|Kompensaatiot|Tuulivoima|Tuulivoima|Tuulivoima:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: consumer_electricity_residence_nonets_emissions
   name: Asumisen kulutussähkön päästöt ei-päästökauppa
   output_nodes: [consumer_electricity_emissions]
   params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Asuminen
+    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: consumer_electricity_agriculture_nonets_emissions
   name: Maatalouden kulutussähkön päästöt ei-päästökauppa
   output_nodes: [consumer_electricity_emissions]
   params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Maatalous
+    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: consumer_electricity_commerce_nonets_emissions
   name: Palveluiden kulutussähkön päästöt ei-päästökauppa
   output_nodes: [consumer_electricity_emissions]
   params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Palvelut
+    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_residence_nonets_emissions
   name: Asumisen suoran sähkölämmityksen päästöt ei-päästökauppa
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_commerce_nonets_emissions
   name: Palveluiden suoran sähkölämmityksen päästöt ei-päästökauppa
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: direct_electric_heating_agriculture_nonets_emissions
   name: Maatalouden suoran sähkölämmityksen päästöt ei-päästökauppa
   output_nodes: [direct_electric_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Maatalous
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Sähkölämmitys|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_residence_nonets_emissions
   name: Asumisen maalämmön päästöt ei-päästökauppa
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Asuminen
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Asuminen:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_commerce_nonets_emissions
   name: Palveluiden maalämmön päästöt ei-päästökauppa
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Palvelut
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Palvelut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: geothermal_heating_agriculture_nonets_emissions
   name: Maatalouden maalämmön päästöt ei-päästökauppa
   output_nodes: [geothermal_heating_emissions]
   params:
-    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Maatalous
+    sector: Energia|Rakennusten lämmitys|Sähkölämmitys|Maalämpö|Maatalous:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: local_train_nonets_emissions
   name: Lähijunien päästöt ei-päästökauppa
   output_nodes: [local_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Lähijunat
+    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Lähijunat:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: tram_nonets_emissions
   name: Metrojen ja raitiovaunujen päästöt ei-päästökauppa
   output_nodes: [local_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Metrot ja raitiovaunut
+    sector: Energia|Liikenne|Raideliikenne|Lähiliikenne|Metrot ja raitiovaunut:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: electric_train_nonets_emissions
   name: Sähköjunien päästöt ei-päästökauppa
   output_nodes: [distant_rail_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Sähkö
+    sector: Energia|Liikenne|Raideliikenne|Henkilöliikenne|Sähkö:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: electric_freight_train_nonets_emissions
   name: Sähkötavarajunien päästöt ei-päästökauppa
   output_nodes: [rail_goods_transport_emissions]
   params:
-    sector: Energia|Liikenne|Raideliikenne|Tavaraliikenne|Sähkö
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
-- id: fermentation_emissions
-  name: Eläinten ruuansulatuksen päästöt
-  output_nodes: [livestock_emissions]
-  params:
-    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Eläinten ruuansulatus
+    sector: Energia|Liikenne|Raideliikenne|Tavaraliikenne|Sähkö:Hinku
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions

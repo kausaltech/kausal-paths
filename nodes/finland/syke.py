@@ -3,7 +3,7 @@ import pandas as pd
 from params import StringParameter, BoolParameter
 from nodes.node import Node
 from nodes.constants import (
-    VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
+    FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.exceptions import NodeError
 from nodes.node import NodeMetric
@@ -19,6 +19,7 @@ class AlasNode(Node):
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
+    allow_unknown_dimensions = True
 
     def compute(self) -> pd.DataFrame:
         muni_name = self.get_global_parameter_value('municipality_name')
@@ -37,9 +38,11 @@ class AlasNode(Node):
                 df['Sector'] += '|'
             df['Sector'] += df['taso_%d' % i].astype(str)
         df.loc[df['päästökauppa'], 'Sector'] += ':ETS'
+        df.loc[df['hinku-laskenta'], 'Sector'] += ':Hinku'
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
         df = df.set_index(['Year', 'Sector'])
+        df[FORECAST_COLUMN] = False
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
         for dim_id, dim in self.output_metrics.items():

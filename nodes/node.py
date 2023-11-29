@@ -940,7 +940,7 @@ class Node:
 
         dim_ids = set(meta.dim_ids)
         node_dims = set(self.output_dimensions.keys())
-        if dim_ids != node_dims:
+        if dim_ids != node_dims and not getattr(self, 'allow_unknown_dimensions', None):
             raise NodeError(self, "Output has unknown dimensions: %s (expecting %s)" % (', '.join(dim_ids), ', '.join(node_dims)))
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
