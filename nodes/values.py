@@ -113,48 +113,50 @@ class AssociationNode(SimpleNode):
     Their values follow the relative changes of the input nodes but
     their quantities and units are not dependent on those of the input nodes.
     The node MUST have exactly one dataset, which is the prior estimate.
+    Fractions 1..3 can be used to tell how much the input node should adjust
+    the output node. The default relation is "increase", if "decrease" is used,
+    that must be explicitly said in the tags.
     '''
+    allowed_parameters = MultiplicativeNode.allowed_parameters + [
+        NumberParameter(local_id='fraction1', label='Fraction for node 1', is_customizable=False),
+        NumberParameter(local_id='fraction2', label='Fraction for node 2', is_customizable=False),
+        NumberParameter(local_id='fraction3', label='Fraction for node 3', is_customizable=False)
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        for edge in self.edges:
+            if edge.output_node is self:
+                node = edge.input_node
+                m = node.get_default_output_metric().column_id
 
-        for node in self.input_nodes:
+                fraction = 0.1  # Default fraction of the output node's output
+                for fr in ['fraction1', 'fraction2', 'fraction3']:
+                    if fr in edge.tags:
+                        fraction = self.get_parameter_value(fr, units=False, required=True)
 
-            scen = self.context.active_scenario
-            m = node.get_default_output_metric().column_id
+                scen = self.context.active_scenario
+                self.context.activate_scenario(self.context.get_scenario('default'))
+                mean_in = node.get_output_pl(target_node=self)[m].mean()
+                self.context.activate_scenario(scen)
+                mean_out = df[VALUE_COLUMN].mean()
 
-            self.context.activate_scenario(self.context.get_scenario('default'))
-            base = node.get_output_pl(target_node=self)[m].mean()
-            self.context.activate_scenario(scen)
-
-            dfn = node.get_output_pl(target_node=self)
-            if abs(base) > 0.5:  # Relative adjustment makes no sense when too close to zero.
-                dfn = dfn.with_columns((pl.col(m) / pl.lit(base)).alias(m))
-            else:
-                dfn = dfn.with_columns(pl.lit(1).alias(m))
-            if abs(dfn[m].mean()) < 0.5:  # If the input node is a non-enabled action, self should not go to zero.
-                dfn = dfn.with_columns(pl.lit(1).alias(m))
-            dfn = dfn.clear_unit(m)
-
-            for edge in self.edges:
-                if edge.input_node == node:
-                    tags = edge.tags
-                    break
-
-            if len(tags) == 1:
-                if tags[0] == 'increase':
-                    pass
-                elif tags[0] == 'decrease':
-                    dfn = dfn.with_columns((pl.lit(1) / pl.col(m)).alias(m))
+                if abs(mean_in) > 0.1:  # Relative adjustment makes no sense when too close to zero.
+                    multiplier = fraction * mean_out / mean_in
                 else:
-                    raise NodeError(self, 'The only tag allowed must be either "increase" or "decrease".')
-            else:
-                raise NodeError(self, 'There must be exactly one tag with node %s' % node)
-            
-            df = df.paths.join_over_index(dfn, how='outer', index_from='union')
-            df = df.with_columns(pl.col(m + '_right').fill_null(1))
-            df = df.with_columns((pl.col(m) * pl.col(m + '_right').alias(m))).drop(m + '_right')
+                    multiplier = 1
+                if 'decrease' in edge.tags:
+                    multiplier *= -1
+#                multiplier = 20  # FIXME Temporary for bug testing
+
+                dfn = node.get_output_pl(target_node=self)  # FIXME For some reason, this gives the same irrespective of  the enabled status of the upstream action
+                
+                df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+                df = df.with_columns(pl.col(m + '_right').fill_null(0))
+                df = df.with_columns((
+                    pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)
+                    )).drop(m + '_right')
 
         return df
 
@@ -180,30 +182,29 @@ class LogicalNode(MultiplicativeNode):
     def compute(self) -> ppl.PathsDataFrame:
         df = None
         for edge in self.edges:
-            if edge.input_node is self:
-                pass
-            node = edge.input_node
-            dfn = node.get_output_pl(target_node=self)
-            m = VALUE_COLUMN  # FIXME use default metric instead
+            if edge.output_node is self:
+                node = edge.input_node
+                dfn = node.get_output_pl(target_node=self)
+                m = VALUE_COLUMN  # FIXME use default metric instead
 
-            for thr in ['threshold1', 'threshold2', 'threshold3']:
-                if thr in edge.tags:
-                    threshold = self.get_parameter_value(thr, units=True, required=True)
-                    dfn = dfn.ensure_unit(m, threshold.units)
-                    dfn = dfn.with_columns((pl.col(m) >= pl.lit(threshold.m)).alias(m))
-            dfn = dfn.clear_unit(m).set_unit(m, 'dimensionless')
-            if 'not' in edge.tags:
-                dfn = dfn.with_columns(pl.col(m).not_().alias(m))
-            if df is None:
-                df = dfn
-            else:
-                df = df.paths.join_over_index(dfn, how='outer', index_from='union')
-                if 'and' in edge.tags:
-                    df = df.with_columns(pl.all_horizontal(m, m + '_right').alias(m))
-                elif 'or' in edge.tags:
-                    df = df.with_columns(pl.any_horizontal(m, m + '_right').alias(m))
+                for thr in ['threshold1', 'threshold2', 'threshold3']:
+                    if thr in edge.tags:
+                        threshold = self.get_parameter_value(thr, units=True, required=True)
+                        dfn = dfn.ensure_unit(m, threshold.units)
+                        dfn = dfn.with_columns((pl.col(m) >= pl.lit(threshold.m)).alias(m))
+                dfn = dfn.clear_unit(m).set_unit(m, 'dimensionless')
+                if 'not' in edge.tags:
+                    dfn = dfn.with_columns(pl.col(m).not_().alias(m))
+                if df is None:
+                    df = dfn
                 else:
-                    raise NodeError(self, 'You must give a boolean tag (and, or) for all input nodes except the first')
-                df = df.drop(m + '_right')
+                    df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+                    if 'and' in edge.tags:
+                        df = df.with_columns(pl.all_horizontal(m, m + '_right').alias(m))
+                    elif 'or' in edge.tags:
+                        df = df.with_columns(pl.any_horizontal(m, m + '_right').alias(m))
+                    else:
+                        raise NodeError(self, 'You must give a boolean tag (and, or) for all input nodes except the first')
+                    df = df.drop(m + '_right')
         df = df.with_columns((pl.col(m) * pl.lit(1)).alias(m))
         return df
