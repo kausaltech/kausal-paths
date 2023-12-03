@@ -10,7 +10,7 @@ from common.i18n import TranslatedString
 from common import polars as ppl
 from .constants import VALUE_COLUMN, IMPACT_COLUMN, IMPACT_GROUP
 from .node import Node
-from .simple import SimpleNode, AdditiveNode
+from .simple import SimpleNode, AdditiveNode, MultiplicativeNode
 from .actions.simple import AdditiveAction
 from .actions.action import ActionNode
 from .units import Quantity
@@ -81,7 +81,7 @@ class ValueProfile(AdditiveNode):
         df = functools.reduce(lambda df1, df2: join_and_sum(df1, df2), [df for df in dfs])
         return df
     
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         nodes: list[Node] = []
 
         for node in self.input_nodes:
@@ -115,7 +115,7 @@ class AssociationNode(SimpleNode):
     The node MUST have exactly one dataset, which is the prior estimate.
     '''
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
 
@@ -156,4 +156,54 @@ class AssociationNode(SimpleNode):
             df = df.with_columns(pl.col(m + '_right').fill_null(1))
             df = df.with_columns((pl.col(m) * pl.col(m + '_right').alias(m))).drop(m + '_right')
 
+        return df
+
+
+class LogicalNode(MultiplicativeNode):
+    '''
+    LogicalNode takes in logical values (either 0 or 1) and gives an output 0 or 1
+    based on the Boolean operators (and, or) given as tags. The operator of an edge is used
+    between this and the previous input node; therefore, the boolean of the first node is ignored.
+    Note! The ordering of input nodes is the ordering of the logical operators.
+    If the input is not logical, a threshold can be used to check whether the value is equal or above
+    the threshold; this becomes the logical value. There are three threshold parameters available:
+    threshold1, threshold2, and threshold3. If there is a threshold tag, the respective parameter
+    must be found.
+    Tag "not" can be used to invert the logical values.
+    '''
+    allowed_parameters = MultiplicativeNode.allowed_parameters + [
+        NumberParameter(local_id='threshold1', label='Threshold for trigger 1', is_customizable=False),
+        NumberParameter(local_id='threshold2', label='Threshold for trigger 2', is_customizable=False),
+        NumberParameter(local_id='threshold3', label='Threshold for trigger 3', is_customizable=False)
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = None
+        for edge in self.edges:
+            if edge.input_node is self:
+                pass
+            node = edge.input_node
+            dfn = node.get_output_pl(target_node=self)
+            m = VALUE_COLUMN  # FIXME use default metric instead
+
+            for thr in ['threshold1', 'threshold2', 'threshold3']:
+                if thr in edge.tags:
+                    threshold = self.get_parameter_value(thr, units=True, required=True)
+                    dfn = dfn.ensure_unit(m, threshold.units)
+                    dfn = dfn.with_columns((pl.col(m) >= pl.lit(threshold.m)).alias(m))
+            dfn = dfn.clear_unit(m).set_unit(m, 'dimensionless')
+            if 'not' in edge.tags:
+                dfn = dfn.with_columns(pl.col(m).not_().alias(m))
+            if df is None:
+                df = dfn
+            else:
+                df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+                if 'and' in edge.tags:
+                    df = df.with_columns(pl.all_horizontal(m, m + '_right').alias(m))
+                elif 'or' in edge.tags:
+                    df = df.with_columns(pl.any_horizontal(m, m + '_right').alias(m))
+                else:
+                    raise NodeError(self, 'You must give a boolean tag (and, or) for all input nodes except the first')
+                df = df.drop(m + '_right')
+        df = df.with_columns((pl.col(m) * pl.lit(1)).alias(m))
         return df
