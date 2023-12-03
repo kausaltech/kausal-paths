@@ -247,6 +247,32 @@ emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt
   name_en: Net emissions
+  description: 'Suomen kasvihuonekaasujen nettokokonaispäästöt, eli scope 1+2 ja hiilinielut.
+    <h2>Hypoteesit</h2>
+    <ul><li>Hakkuiden lisääminen lisää kasvihuonekaasupäästöjä. (1)</li>
+    <li>Hakkuiden lisääminen ei vaikuta kasvihuonekaasupäästöihin. (2)</li>
+    <li>Löysempi kasvihuonekaasupäästötavoite ei aiheuta haittaa. (3)</li>
+    <li>Suomen toimien vaikutukset kasvihuonekaasupäästöihin ovat vähäiset. (4)</li></ul>
+    <h2>Viitteet</h2>
+    <ul><li>HS.ymp.2 Krist Savo</li>
+    <li>(1) HS.ymp.1 Vihr Uusimaa</li>
+    <li>HS.ymp.2 Vihr Uusimaa</li>
+    <li>(2) HS.ymp.1 Perus Uusimaa</li>
+    <li>HS.ymp.2 Perus Uusimaa</li>
+    <li>(3) HS.ymp.1 Perus Savo</li>
+    <li>HS.ymp.1 Rkp Uusimaa</li>
+    <li>(4) HS.ymp.2 Rkp Uusimaa</li>
+    <li>HS.ymp.2 Vihr Savo</li>
+    <li>HS.ymp.2 Kok Savo</li>
+    <li>HS.ymp.2 Vas Savo</li>
+    <li>(4) HS.ymp.1 Liik Savo</li>
+    <li>HS.ymp.1 Liik Uusimaa</li>
+    <li>HS.ymp.2 Kok Uusimaa</li>
+    <li>HS.ymp.1 Sdp Savo</li>
+    <li>HS.ymp.1 Sdp Uusimaa</li>
+    <li>HS.ymp.2 Sdp Uusimaa</li>
+    <li>HS.ymp.1 Kesk Savo</li>
+    <li>HS.ymp.2 Kesk Savo</li></ul>'
   is_outcome: true
   target_year_goal: 212
 
@@ -318,15 +344,19 @@ nodes:
   is_outcome: true
 
 - id: logging_intensity_in_state_forests
-  name: Hakkumäärä valtion metsissä
+  name: Hakkuumäärä valtion metsissä
   name_en: Logging amount in the state forests
-  description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
-    vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaalman
+  description: 'Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
+    vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaailman
     asiaa.
+    <h2>Viitteet</h2>
+    <ul><li>HS.ymp.1 Krist Savo</li>
+    <li>HS.ymp.1 Vas Savo</li>
+    <li>HS.ymp.1 Kesk Savo</li></ul>'
   type: simple.AdditiveNode
   quantity: consumption
-  unit: m**3/a
-  historical_values: [[2010, 69000000], [2015, 70000000], [2022, 80000000]]
+  unit: hm**3/a
+  historical_values: [[2010, 69], [2015, 70], [2022, 80]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - carbon_emissions_in_state_forests
@@ -437,6 +467,22 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
+  historical_values: [[2010, 2], [2022, 2]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: equity_performance
+  name: Oikeudenmukaisuuden toteutuminen
+  name_en: Equity performance
+  description: 'Oikeudenmukaisuuden toteutumisella tarkoitetaan esimerkiksi sitä, että kukaan yksittäinen henkilö ei joudu kohtuuttomaan tilanteeseen yhteiskunnan toteuttamien toimenpiteiden takia.
+    <h3>Viitteet</h3>
+    <ul><li>HS.ymp.2 Kesk Uusimaa</li>
+    <li>HS.ymp.2 Vas Uusimaa</li>
+    <li>HS.ymp.2 Vihr Savo</li>
+    <li>HS.ymp.1 Vihr Savo</li>
+    <li>HS.ymp.2 Vas Savo</li>'
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs/a
   historical_values: [[2010, 2], [2022, 2]]
   input_dataset_processors: [LinearInterpolation]
 
@@ -704,7 +750,8 @@ actions:
   type: simple.AdditiveAction
   quantity: number
   unit: pcs
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2023, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: priority_to_nature_water_in_avi
   name: Etusija ympäristönsuojelu- ja vesiasioissa AVI-käsittelyssä
@@ -718,7 +765,8 @@ actions:
   type: simple.AdditiveAction
   quantity: number
   unit: pcs
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2023, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: priority_to_planning_complaints_of_green_transition
   name: Uusiutuvan energian kaavavalitukset käsiteltävä kiireellisenä
@@ -732,7 +780,8 @@ actions:
   type: simple.AdditiveAction
   quantity: number
   unit: pcs
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2023, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: reduce_logging_in_state_forests
   name: Hakkuita pitää vähentää valtion metsissä luontokadon ja ilmastonmuutoksen
@@ -765,10 +814,11 @@ actions:
   name: Lisää hakkuita metsissä
   name_en: More forest logging
   group: hs_voting_aid
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: consumption
   unit: m**3/a
   forecast_values: [[2023, 5], [2027, 5]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - logging_intensity_in_state_forests
 
@@ -783,10 +833,11 @@ actions:
   references: <a href="https://julkaisut.valtioneuvosto.fi/handle/10024/164321">Hiilineutraali
     Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
   group: hs_voting_aid
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2023, 10], [2035, 10]]
+  forecast_values: [[2023, 10], [2035, 20]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - building_heating_emissions
 
@@ -803,6 +854,7 @@ actions:
   quantity: mileage
   unit: Mkm/a
   forecast_values: [[2023, 0], [2035, 0]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - transport_mileage
 
@@ -819,6 +871,7 @@ actions:
   quantity: number
   unit: pcs
   forecast_values: [[2023, 0], [2035, 0]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: implicit_action_to_ensure_equity
   name: Määrittelemätön toimenpide oikeudenmukaisuuden toteuttamiseksi
@@ -828,6 +881,8 @@ actions:
   quantity: number
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [equity_performance]
 
 - id: implicit_action_to_promote_green_economy
   name: Määrittelemätön toimenpide vihreän talouden edistämisestä
@@ -837,6 +892,7 @@ actions:
   quantity: number
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: implicit_action_to_increase_carbon_sinks
   name: Määrittelemätön toimenpide hiilinielujen lisäämiseksi
@@ -854,6 +910,7 @@ actions:
   quantity: number
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
 
 #
 # HYPOTHESES
