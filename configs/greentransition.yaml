@@ -404,6 +404,42 @@ nodes:
   - id: net_profit_from_state_forests
     tags: increase
 
+- id: biodiversity_survival
+  name: Biodiversity survival
+  type: values.LogicalNode
+  quantity: probability
+  unit: dimensionless
+  input_nodes:
+  - id: biodiversity_in_state_forests
+    tags: [threshold1]
+  - id: biodiversity_in_finland
+    tags: [and, threshold2]
+  params:
+  - id: threshold1
+    value: 45
+    unit: pcs
+  - id: threshold2
+    value: 60
+    unit: pcs
+
+- id: global_net_emissions_average
+  name: Globaalit nettopäästöt keskimäärin
+  name_en: Global net emissions average
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/cap/a
+  historical_values: [[2010, 2], [2022, 2]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: economic_growth_in_finland
+  name: Talouskasvu Suomessa
+  name_en: Economic growth in Finland
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  historical_values: [[2010, 2], [2022, 2]]
+  input_dataset_processors: [LinearInterpolation]
+
 #
 ### VALUE PROFILES
 #
@@ -565,6 +601,66 @@ nodes:
   - id: cost_weight
     ref: cost_weight
 
+- id: value_profile_finland_to_reduce_own_emissions_anyway
+  name: Suomen pitäisi vähentää omia päästöjään riippumatta siitä, mitä muut maat tekevät
+  name_en: Finland should reduce its own actions irrespective of what other countries do
+  references: HS.arv.10
+  description: '<h3>Pekka Niiranen: Jokseenkin eri mieltä (Kokoomus)</h3>
+    Suomen on oltava aktiivisesti mukana ilmastonmuutoksen torjumisessa ja päästöjen vähentämisessä, mutta se on tehtävä koordinoidusti ja yhteistyössä muiden valtioiden kanssa. Meidän ei pidä tässä(kään) asiassa ampua itseämme jalkaan, eli yritysten toimintaedellytyksiä ei pidä säädellä enemmän kuin mitä kilpailijamme tekevät.
+    <h3>Markku Siponen: Jokseenkin samaa mieltä (Keskusta)</h3>
+    Ei pidä ajatella, että en minäkään, kun ei muutkaan. Suomi voi olla edelläkävijänä kehittämässä vähäpäästöisempiä ratkaisuja.
+    <h3>Krista Mikkonen: Täysin samaa mieltä (Vihreät)</h3>
+    Suomella on osaamista luoda ratkaisuja päästöjen vähentämiseksi ja niitä ratkaisuja voimme myydä maailmalle. Elinkeinoelämämme on vahvasti sitoutunut päästöjen vähentämiseksi ja tässä työssä onkin edistytty hyvin. Tänä päivänä uudet investoinnit syntyvät sinne, missä on tarjolla puhdasta energiaa ja jossa yhteiskunta on sitoutunut päästöjen vähentämiseen ja fossiilienergiasta luopumiseen.
+    <h3Teemu Backnäs: Täysin samaa mieltä (Sdp)</h3>
+    Tämä luo kannusteen luoda parempia tuotteita, josta vientimmekin elää. Jatkuvasti uutisoidaan uusista investoinneista vihreän siirtymän alueelle ja uskonkin, että tapahtuu teollisuuden uusjakoa, jossa aikaiset mukautujat ovat voittajia. Jossain asioissa uudet teknologiat asioiden tekemiseksi kestävemmin ovat jo olemassa, mutta lainsäädäntö täytyy saada kuntoon, kuten pienydinvoiman mahdollistava lainsäädäntö, jolla olisi hyvät kerrannaisvaikutukset puun käyttöön ja sitä kautta paine metsien käytölle vähenisi.'
+  type: values.ValueProfile
+  quantity: value_profile
+  unit: 1/a
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+#  - id: global_net_emissions_average  # FIXME Should we use logical node here to check whether FI emissions are larger than global emissions per capita. If yes, it is bad for Kokoomus.
+#    tags: [emissions]
+  params:
+  - id: impact_threshold
+    ref: impact_threshold
+  - id: emissions_weight
+    ref: emissions_weight
+
+- id: value_profile_environment_first
+  name: Ympäristön etu tulisi asettaa talouskasvun ja työpaikkojen luomisen edelle, jos ne ovat keskenään ristiriidassa
+  name_en: Environment should have the higher priority if it is in conflict with economic growth or employment
+  description: '<h3>Pekka Niiranen: Jokseenkin eri mieltä (Kokoomus)</h3>
+    Niiden ei tarvitse olla keskenään ristiriidassa. Talouskasvu ja uudet työpaikat ovat yhteiskunnan kehityksen kannalta välttämättömiä, mutta ne voidaan saavuttaa rasittamatta ympäristöä. Talouskasvu ja työpaikkojen luominen ja ympäristöasiat eivät ole toisilleen vastakkaisia asioita. Ympäristöasioihin panostaminen voi päinvastoin luoda lisää työpaikkoja ja siten myös talouskasvua, sillä ekologisuus ja vihreä siirtymä ovat yhä tärkeämpiä kilpailutekijöitä.
+    <h3>Markku Siponen: Ei samaa eikä eri mieltä (Keskusta)</h3>
+    Ympäristövastuullisuus on tätä päivää, joka kulkee rinnakkain talouskasvun kanssa.
+    <h3>Teemu Backnäs: Jokseenkin samaa mieltä (Sdp)</h3>
+    Väittäisin että nämä harvoin ovat ristiriidassa keskenään ja yhä etenevissä määrin uusien puhtaiden investointien merkitys korostuu. Kaikella ihmisen tekemisellä on aina impakti ympäröivään luontoon ja sitä varten meillä on mm. ympäristövaikutusten arviointiprosessi erilaisissa hankkeissa. Teollisissa investoinnista luvan saaminen on tärkein asia ja onkin kaikkien etu, että niissä tehdään perusteellinen tutkimus ennen mahdollista investointipäätöstä.
+    <h3>Krista Mikkonen: Täysin samaa mieltä (Vihreät)</h3>
+    Miltei jokaisella ihmisen toimella on haitallisia vaikutuksia ympäristöön, niiden välttäminen ja minimoiminen on kaikissa hankkeissa tärkeää. Ne ympäristöhaitat, joita ei voida välttää, tulisi kompensoida toisaalla. Tämän vuoksi ekologinen kompensaatio tulisi ottaa käyttöön. Elinkelpoinen planeetta on ainoa tapa taata kestävä tulevaisuus. Luontokato ja ilmastokriisi ovat esimerkkejä siitä, kuinka olemme jo ylittäneet kestävyyden rajat luodessamme hyvinvointia. Siksi enää emme voi laiminlyödä ympäristöä.
+    <h2>Viitteet</h2>
+    Helsingin Sanomien vaalikone eduskuntavaaleissa 2023.'
+  references: HS.arv.12
+  type: values.ValueProfile
+  quantity: value_profile
+  unit: 1/a
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+  - id: biodiversity_in_finland
+    tags: [biodiversity]
+  - id: economic_growth_in_finland
+    tags: [currency]
+  params:
+  - id: impact_threshold
+    ref: impact_threshold
+  - id: emissions_weight
+    ref: emissions_weight
+  - id: biodiversity_weight
+    ref: biodiversity_weight
+  - id: cost_weight
+    ref: cost_weight
+
 pages:
 - id: home
   name: Vihreän siirtymän prioriteetit
@@ -723,6 +819,41 @@ actions:
   quantity: number
   unit: pcs
   forecast_values: [[2023, 0], [2035, 0]]
+
+- id: implicit_action_to_ensure_equity
+  name: Määrittelemätön toimenpide oikeudenmukaisuuden toteuttamiseksi
+  name_en: Implicit action to ensure equity
+  description: Vaikka toimenpiteen sisällöstä ei ole vielä kunnollista suunnitelmaa, on jo tunnistettu tällaisen toimenpiteen tarpeellisuus.
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs/a
+  forecast_values: [[2023, 1], [2035, 1]]
+
+- id: implicit_action_to_promote_green_economy
+  name: Määrittelemätön toimenpide vihreän talouden edistämisestä
+  name_en: Implicit action to promote green economy
+  description: Vaikka vielä ei ole tarkkaan tiedossa, miten vihreää yritystoimintaa pitäisi edistää, tällaisen toimenpiteen tarve on tunnistettu.
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs/a
+  forecast_values: [[2023, 1], [2035, 1]]
+
+- id: implicit_action_to_increase_carbon_sinks
+  name: Määrittelemätön toimenpide hiilinielujen lisäämiseksi
+  name_en: Implicit action to increase carbon sinks
+  description: 'Useat kansanedustajaehdokkaat ehdottivat hiilinieluja lisääviä toimia. Niitä on kerätty tähän.
+    <h2>Vaihtoehdot</h2>
+    <ul><li>Metsäntutkimus (1)</li>
+    <li>Metsänomistajia palkitaan hiilinieluista ja jatkuvapeitteisyydestä (2)</li>
+    <li>Käytetään kestäviä metsänhoitomenetelmiä talousmetsissä. (3)</li></ul>
+    <h2>Viitteet</h2>
+    <ul><li>(2) HS.ymp.1 Vihr Uusimaa</li>
+    <li>(1) HS.ymp.1 Liik Savo</li>
+    <li>(3) HS.ymp.1 Kok Uusimaa</li></ul>'
+  type: simple.AdditiveAction
+  quantity: number
+  unit: pcs/a
+  forecast_values: [[2023, 1], [2035, 1]]
 
 #
 # HYPOTHESES
