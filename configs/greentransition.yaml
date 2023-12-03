@@ -24,9 +24,24 @@ action_groups:
 - id: hs_voting_aid
   name: HS-vaalikone
   name_en: Voting Advice Application
+- id: implicit
+  name: Määrittelemättömät toimet
+  name_en: Implicit actions
 - id: hypothesis
   name: Hypoteesi
   name_en: Hypothesis
+
+action_efficiency_pairs:
+- cost_node: gross_domestic_product_in_finland
+  impact_node: net_emissions
+  invert_cost: false
+  invert_impact: true
+  efficiency_unit: EUR/t
+  cost_unit: GEUR
+  impact_unit: kt
+  plot_limit_efficiency: 10
+  label: Kasvihuonekaasusäästön marginaalikustannus
+  label_en: Marginal cost in emissions savings
 
 params:
 - id: municipality_name
@@ -425,7 +440,7 @@ nodes:
   name_en: Societal net benefit of forests
   type: values.AssociationNode
   quantity: currency
-  unit: MEUR
+  unit: MEUR/a
   historical_values: [[2010, 200], [2022, 200]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
@@ -461,14 +476,16 @@ nodes:
   historical_values: [[2010, 2], [2022, 2]]
   input_dataset_processors: [LinearInterpolation]
 
-- id: economic_growth_in_finland
-  name: Talouskasvu Suomessa
-  name_en: Economic growth in Finland
+- id: gross_domestic_product_in_finland
+  name: Bruttokansantuote Suomessa
+  name_en: Gross domestic procuct in Finland
   type: simple.AdditiveNode
   quantity: currency
-  unit: EUR/a
-  historical_values: [[2010, 2], [2022, 2]]
+  unit: GEUR/a
+  historical_values: [[2010, 200], [2022, 220]]
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - societal_benefit_forest
 
 - id: equity_performance
   name: Oikeudenmukaisuuden toteutuminen
@@ -485,6 +502,151 @@ nodes:
   unit: pcs/a
   historical_values: [[2010, 2], [2022, 2]]
   input_dataset_processors: [LinearInterpolation]
+
+- id: fossil_fuel_dependency
+  name: Riippuvuus fossiilisista polttoaineista
+  name_en: Fossi fuel dependency
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: implicit_action_to_promote_green_economy
+    tags: [decrease]
+
+- id: energy_crisis
+  name: Energiakriisi
+  name_en: Energy crisis
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: fossil_fuel_dependency
+    tags: [increase]
+
+- id: carbon_capture_capacity_of_wood_products
+  name: Puutuotteiden hiilensitomuskyky
+  name_en: Carbon capture capacity of wood products
+  type: values.AssociationNode
+  quantity: number
+  unit: kt/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: implicit_action_to_promote_green_economy
+    tags: [increase]
+  output_nodes:
+  - id: net_emissions
+    tags: [increase]
+
+- id: handprint_of_export_products
+  name: Vientituotteiden kädenjälki
+  name_en: Handprint of export products
+  type: values.AssociationNode
+  quantity: number
+  unit: kt/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: implicit_action_to_promote_green_economy
+    tags: [fraction1, increase]
+  output_nodes:
+  - id: net_emissions
+    tags: [increase]
+  params:
+  - id: fraction1
+    value: 0.2
+
+- id: competitiveness_of_finnish_products
+  name: Suomalaisten tuotteiden kilpailukyky
+  name_en: Competitiveness of Finnish products
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: postpone_climate_targets
+    tags: [decrease]
+
+- id: profit_of_finnish_business
+  name: Suomalaisen yritystoiminnan liikevoitto
+  name_en: Profit of Finnish business
+  type: values.AssociationNode
+  quantity: number
+  unit: GEUR/a
+  historical_values: [[2010, 10], [2022, 10]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: implicit_action_to_promote_green_economy
+    tags: [increase]
+  - id: competitiveness_of_finnish_products
+    tags: [increase]
+  output_nodes:
+  - gross_domestic_product_in_finland
+
+- id: emission_trade_costs
+  name: Päästökauppamaksut
+  name_en: Emission trade costs
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: net_emissions
+    tags: [increase]
+
+- id: state_budget_balance
+  name: Valtion budjetin tasapaino
+  name_en: State budget balance
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: emission_trade_costs
+    tags: [decrease]
+
+- id: energy_price
+  name: Energian hinta
+  name_en: Energy price
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: energy_crisis
+    tags: [increase]
+
+- id: citizen_discomfort
+  name: Haitta kantalaisten elämälle
+  name_en: Citizen discomfort
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: energy_price
+    tags: [increase]
+
+- id: international_commitments_of_finland
+  name: Suomen kansainvälisten sitoutmusten toteutuminen
+  name: International commitments of Finland
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs/a
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: postpone_climate_targets
+    tags: [increase]
 
 #
 ### VALUE PROFILES
@@ -687,25 +849,26 @@ nodes:
     <h2>Viitteet</h2>
     Helsingin Sanomien vaalikone eduskuntavaaleissa 2023.'
   references: HS.arv.12
-  type: values.ValueProfile
+  type: values.LogicalNode
   quantity: value_profile
-  unit: 1/a
+  unit: dimensionless
   input_nodes:
+  - id: gross_domestic_product_in_finland
+    tags: [threshold1]
   - id: net_emissions
-    tags: [emissions]
+    tags: [and, threshold2]
   - id: biodiversity_in_finland
-    tags: [biodiversity]
-  - id: economic_growth_in_finland
-    tags: [currency]
+    tags: [and, threshold3]
   params:
-  - id: impact_threshold
-    ref: impact_threshold
-  - id: emissions_weight
-    ref: emissions_weight
-  - id: biodiversity_weight
-    ref: biodiversity_weight
-  - id: cost_weight
-    ref: cost_weight
+  - id: threshold1
+    value: 0
+    unit: EUR/a
+  - id: threshold2
+    value: 0
+    unit: kt/a
+  - id: threshold3
+    value: 0
+    unit: pcs
 
 pages:
 - id: home
@@ -878,6 +1041,7 @@ actions:
   name_en: Implicit action to ensure equity
   description: Vaikka toimenpiteen sisällöstä ei ole vielä kunnollista suunnitelmaa, on jo tunnistettu tällaisen toimenpiteen tarpeellisuus.
   type: simple.AdditiveAction
+  group: implicit
   quantity: number
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
@@ -889,6 +1053,7 @@ actions:
   name_en: Implicit action to promote green economy
   description: Vaikka vielä ei ole tarkkaan tiedossa, miten vihreää yritystoimintaa pitäisi edistää, tällaisen toimenpiteen tarve on tunnistettu.
   type: simple.AdditiveAction
+  group: implicit
   quantity: number
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
@@ -907,6 +1072,7 @@ actions:
     <li>(1) HS.ymp.1 Liik Savo</li>
     <li>(3) HS.ymp.1 Kok Uusimaa</li></ul>'
   type: simple.AdditiveAction
+  group: implicit
   quantity: number
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
