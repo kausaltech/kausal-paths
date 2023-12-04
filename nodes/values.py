@@ -107,7 +107,7 @@ class ValueProfile(AdditiveNode):
         return df
 
 
-class AssociationNode(SimpleNode):
+class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible units
     '''
     Association nodes connect to their upstream nodes in a loose way:
     Their values follow the relative changes of the input nodes but
@@ -136,22 +136,19 @@ class AssociationNode(SimpleNode):
                     if fr in edge.tags:
                         fraction = self.get_parameter_value(fr, units=False, required=True)
 
-                scen = self.context.active_scenario
-                self.context.activate_scenario(self.context.get_scenario('default'))
-                mean_in = node.get_output_pl(target_node=self)[m].mean()
-                self.context.activate_scenario(scen)
+                default = self.context.get_scenario('default')
+                with default.override():
+                    mean_in = node.get_output_pl(target_node=self)[m].mean()
                 mean_out = df[VALUE_COLUMN].mean()
 
-                if abs(mean_in) > 0.1:  # Relative adjustment makes no sense when too close to zero.
+                if abs(mean_in) > 0.01:  # Relative adjustment makes no sense when too close to zero.
                     multiplier = fraction * mean_out / mean_in
                 else:
                     multiplier = 1
                 if 'decrease' in edge.tags:
                     multiplier *= -1
-#                multiplier = 20  # FIXME Temporary for bug testing
 
-                dfn = node.get_output_pl(target_node=self)  # FIXME For some reason, this gives the same irrespective of  the enabled status of the upstream action
-                
+                dfn = node.get_output_pl(target_node=self)
                 df = df.paths.join_over_index(dfn, how='outer', index_from='union')
                 df = df.with_columns(pl.col(m + '_right').fill_null(0))
                 df = df.with_columns((
