@@ -18,15 +18,15 @@ reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2022
 action_groups:
-- id: green_transition
-  name: Vihreä murros
-  name_en: Green transition
 - id: hs_voting_aid
   name: HS-vaalikone
   name_en: Voting Advice Application
 - id: implicit
   name: Määrittelemättömät toimet
   name_en: Implicit actions
+- id: green_transition
+  name: Vihreä murros
+  name_en: Green transition
 - id: hypothesis
   name: Hypoteesi
   name_en: Hypothesis
@@ -37,7 +37,7 @@ action_efficiency_pairs:
   invert_cost: false
   invert_impact: true
   efficiency_unit: EUR/t
-  cost_unit: GEUR
+  cost_unit: MEUR
   impact_unit: kt
   plot_limit_efficiency: 10
   label: Kasvihuonekaasusäästön marginaalikustannus
@@ -296,7 +296,7 @@ emission_sectors:
   name_en: Building heating emissions
   part_of: net_emissions
   color: #ff4f57
-  historical_values: [[2015, 100], [2022, 100]]
+  historical_values: [[2015, 8200], [2022, 8200]]
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -314,7 +314,7 @@ nodes:
   unit: kt/a
   output_nodes: [net_emissions]
   color: #0047b6
-  historical_values: [[2015, 50], [2022, 40]]
+  historical_values: [[2015, 2400], [2022, 2500]]
   input_dataset_processors: [LinearInterpolation]
   params:
   - id: multiplier
@@ -327,7 +327,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mkm/a
-  historical_values: [[2015, 50], [2022, 40]]
+  historical_values: [[2015, 30000], [2022, 31000]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: transport_emissions
@@ -337,7 +337,7 @@ nodes:
   quantity: emissions
   unit: kt/a
   color: #014B30
-  historical_values: [[2015, 200], [2022, 100]]
+  historical_values: [[2015, 8500], [2022, 8500]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes: [transport_mileage]
   params:
@@ -375,7 +375,6 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - carbon_emissions_in_state_forests
-  - net_profit_from_state_forests
 
 - id: carbon_emissions_in_state_forests
   name: Hiilipäästöt valtion metsissä
@@ -401,8 +400,9 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: currency
   unit: MEUR/a
-  historical_values: [[2015, 50], [2022, 40]]
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - logging_intensity_in_state_forests
   params:
   - id: multiplier
     value: 60
@@ -445,9 +445,12 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: biodiversity_in_state_forests
-    tags: increase
+    tags: [increase]
   - id: net_profit_from_state_forests
-    tags: increase
+    tags: [increase, fraction1]
+  params:
+  - id: fraction1
+    value: 0.5
 
 - id: biodiversity_survival
   name: Biodiversity survival
@@ -481,8 +484,8 @@ nodes:
   name_en: Gross domestic procuct in Finland
   type: simple.AdditiveNode
   quantity: currency
-  unit: GEUR/a
-  historical_values: [[2010, 200], [2022, 220]]
+  unit: MEUR/a
+  historical_values: [[2010, 200000], [2022, 220000]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - societal_benefit_forest
@@ -577,8 +580,8 @@ nodes:
   name_en: Profit of Finnish business
   type: values.AssociationNode
   quantity: number
-  unit: GEUR/a
-  historical_values: [[2010, 10], [2022, 10]]
+  unit: MEUR/a
+  historical_values: [[2010, 10000], [2022, 10000]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: implicit_action_to_promote_green_economy
@@ -964,14 +967,12 @@ actions:
   group: hs_voting_aid
   type: simple.CumulativeAdditiveAction
   quantity: consumption
-  unit: m**3/a
-  forecast_values: [[2023, -10000000], [2030, 5000000]]
+  unit: hm**3/a
+  forecast_values: [[2023, 0], [2024, -10], [2030, 5]]
   output_nodes:
+  - id: logging_intensity_in_state_forests
   - id: biodiversity_in_state_forests
     tags: [increase]
-  - id: logging_intensity_in_state_forests
-  params:
-  - id: enabled
 
 - id: add_logging_in_state_forests
   name: Lisää hakkuita metsissä
@@ -979,11 +980,13 @@ actions:
   group: hs_voting_aid
   type: simple.AdditiveAction
   quantity: consumption
-  unit: m**3/a
-  forecast_values: [[2023, 5], [2027, 5]]
+  unit: hm**3/a
+  forecast_values: [[2023, 5], [2030, 5]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - logging_intensity_in_state_forests
+  - id: biodiversity_in_state_forests
+    tags: [decrease]
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
@@ -999,7 +1002,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2023, 10], [2035, 20]]
+  forecast_values: [[2023, 20000], [2035, 30000]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - building_heating_emissions
