@@ -21,7 +21,7 @@ class AlasNode(Node):
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
     output_dimensions = {
-        'sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True)
+        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True)
     }
 
     def compute(self) -> pd.DataFrame:
@@ -45,8 +45,7 @@ class AlasNode(Node):
         df.loc[df['päästökauppa'], 'Sector'] += ':ETS'
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
-        df = df.rename({'Sector': 'sector'})
-        df = df.set_index([YEAR_COLUMN, 'sector']).sort_index()
+        df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
         for metric_id, metric in self.output_metrics.items():
@@ -84,10 +83,10 @@ class AlasEmissions(Node):
         sector = self.get_parameter_value('sector')
         required = self.get_parameter_value('required', required=False)
         try:
-            df = df.xs(sector, level='sector')
+            df = df.xs(sector, level='Sector')
         except KeyError:
             if not required:
-                years = df.index.get_level_values('Year').unique()
+                years = df.index.get_level_values(YEAR_COLUMN).unique()
                 dt = df.dtypes[EMISSION_QUANTITY]
                 df = pd.DataFrame([0.0] * len(years), index=years, columns=[EMISSION_QUANTITY])
                 df[EMISSION_QUANTITY] = df[EMISSION_QUANTITY].astype(dt)
@@ -97,5 +96,5 @@ class AlasEmissions(Node):
         if df[EMISSION_QUANTITY].isnull().all():
             df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
-        df['Forecast'] = False
+        df[FORECAST_COLUMN] = False
         return df

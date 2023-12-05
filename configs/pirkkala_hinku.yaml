@@ -5,9 +5,10 @@ framework: hinku
 site_url: https://pirkkala.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8d00cd37d73e15018dc9bd321eb8f9aa2e133e62
+  commit: 141836a380fa2985982a8cf9a34b05bd338c9b02
 name: Pirkkalan Hinku-päästöt
 owner: Pirkkalan kaupunki
+theme_identifier: default
 emission_unit: kt/a
 target_year: 2030
 reference_year: 1990
@@ -19,7 +20,7 @@ params:
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
-  target_year_goal: 245
+  is_outcome: true
 
 nodes:
 - id: population
@@ -35,7 +36,7 @@ pages:
   name: Päästöskenaario
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title: Päästöskenaariot
 
 scenarios:
