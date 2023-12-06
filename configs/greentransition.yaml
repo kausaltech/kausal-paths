@@ -74,6 +74,13 @@ params:
   min_value: 0
   max_value: 100
   unit: 1/pcs/a
+- id: equity_weight
+  label: Weight for equity impacts in value profiles
+  is_customizable: true
+  value: 1
+  min_value: 0
+  max_value: 100
+  unit: 1/pcs
 
 dimensions:
 - id: building_heat_source
@@ -531,12 +538,12 @@ nodes:
     tags: [increase]
 
 - id: carbon_capture_capacity_of_wood_products
-  name: Puutuotteiden hiilensitomuskyky
+  name: Puutuotteiden hiilensitomiskyky
   name_en: Carbon capture capacity of wood products
   type: values.AssociationNode
-  quantity: number
+  quantity: emissions
   unit: kt/a
-  historical_values: [[2010, 100], [2022, 100]]
+  historical_values: [[2010, 50000], [2022, 50000]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: implicit_action_to_promote_green_economy
@@ -551,14 +558,13 @@ nodes:
   type: values.AssociationNode
   quantity: number
   unit: kt/a
-  historical_values: [[2010, 100], [2022, 100]]
+  historical_values: [[2010, 10000], [2022, 10000]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: implicit_action_to_promote_green_economy
     tags: [fraction1, increase]
   output_nodes:
   - id: net_emissions
-    tags: [increase]
   params:
   - id: fraction1
     value: 0.2
@@ -730,8 +736,10 @@ nodes:
   quantity: value_profile
   unit: 1/a
   input_nodes:
-  - id: net_emissions
-    tags: [emissions]
+  - id: equity_performance
+    tags: [equity]
+#  - id: net_emissions
+#    tags: [emissions]
   - id: net_cost_of_forests
     tags: [currency]
   - id: biodiversity_in_finland
@@ -739,8 +747,10 @@ nodes:
   params:
   - id: impact_threshold
     ref: impact_threshold
-  - id: emissions_weight
-    ref: emissions_weight
+  - id: equity_weight
+    ref: equity_weight
+#  - id: emissions_weight
+#    ref: emissions_weight
   - id: cost_weight
     ref: cost_weight
   - id: biodiversity_weight
@@ -828,15 +838,19 @@ nodes:
   quantity: value_profile
   unit: 1/a
   input_nodes:
-  - id: net_emissions
-    tags: [emissions]
+  - id: equity_performance
+    tags: [equity]
+#  - id: net_emissions
+#    tags: [emissions]
 #  - id: global_net_emissions_average  # FIXME Should we use logical node here to check whether FI emissions are larger than global emissions per capita. If yes, it is bad for Kokoomus.
 #    tags: [emissions]
   params:
   - id: impact_threshold
     ref: impact_threshold
-  - id: emissions_weight
-    ref: emissions_weight
+  - id: equity_weight
+    ref: equity_weight
+#  - id: emissions_weight
+#    ref: emissions_weight
 
 - id: value_profile_environment_first
   name: Ympäristön etu tulisi asettaa talouskasvun ja työpaikkojen luomisen edelle, jos ne ovat keskenään ristiriidassa
