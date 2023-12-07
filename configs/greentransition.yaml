@@ -56,16 +56,16 @@ params:
 - id: emissions_weight
   label: Weight for emissions impacts in value profiles
   is_customizable: true
-  value: 50
-  min_value: 0
-  max_value: 100
+  value: -50
+  min_value: -100
+  max_value: 0
   unit: 1/t
 - id: cost_weight
   label: Weight for cost impacts in value profiles
   is_customizable: true
-  value: 1
-  min_value: 0
-  max_value: 100
+  value: -1
+  min_value: -100
+  max_value: 0
   unit: 1/EUR
 - id: biodiversity_weight
   label: Weight for biodiversity impacts in value profiles
@@ -362,7 +362,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
-  historical_values: [[2015, 50], [2022, 40]]
+  historical_values: [[2010, 50], [2022, 40]]
+  input_dataset_processors: [LinearInterpolation]
   is_outcome: true
 
 - id: logging_intensity_in_state_forests
@@ -537,9 +538,9 @@ nodes:
   - id: fossil_fuel_dependency
     tags: [increase]
 
-- id: carbon_capture_capacity_of_wood_products
-  name: Puutuotteiden hiilensitomiskyky
-  name_en: Carbon capture capacity of wood products
+- id: carbon_emissions_of_wood_products
+  name: Puutuotteiden hiilipäästöt
+  name_en: Carbon emissions of wood products
   type: values.AssociationNode
   quantity: emissions
   unit: kt/a
@@ -547,14 +548,13 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: implicit_action_to_promote_green_economy
-    tags: [increase]
+    tags: [decrease]
   output_nodes:
   - id: net_emissions
-    tags: [increase]
 
-- id: handprint_of_export_products
-  name: Vientituotteiden kädenjälki
-  name_en: Handprint of export products
+- id: footprint_of_export_products
+  name: Vientituotteiden jalanjälki
+  name_en: Footprint of export products
   type: values.AssociationNode
   quantity: number
   unit: kt/a
@@ -562,7 +562,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: implicit_action_to_promote_green_economy
-    tags: [fraction1, increase]
+    tags: [fraction1, decrease]
   output_nodes:
   - id: net_emissions
   params:
@@ -985,8 +985,8 @@ actions:
   forecast_values: [[2023, 0], [2024, -10], [2030, 5]]
   output_nodes:
   - id: logging_intensity_in_state_forests
-  - id: biodiversity_in_state_forests
-    tags: [increase]
+#  - id: biodiversity_in_state_forests
+#    tags: [increase]
 
 - id: add_logging_in_state_forests
   name: Lisää hakkuita metsissä
@@ -995,12 +995,12 @@ actions:
   type: simple.AdditiveAction
   quantity: consumption
   unit: hm**3/a
-  forecast_values: [[2023, 5], [2030, 5]]
+  forecast_values: [[2023, 5], [2024, 5], [2025, 5], [2026, 5], [2027, 5], [2028, 5], [2029, 5], [2030, 5]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - logging_intensity_in_state_forests
-  - id: biodiversity_in_state_forests
-    tags: [decrease]
+#  output_nodes:
+#  - logging_intensity_in_state_forests
+#  - id: biodiversity_in_state_forests
+#    tags: [decrease]
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
@@ -1146,12 +1146,18 @@ scenarios:
 - id: baseline
   name: Tätä menoa
   name_en: Business as usual
+  params:
+  - id: postpone_climate_targets.enabled
+    value: true
 
 - id: default
   default: true
   name: Aktiivinen
   name_en: Active
   all_actions_enabled: true
+  params:
+  - id: postpone_climate_targets.enabled
+    value: false
 
 - id: true_finns
   name: Perussuomalaisten arvot
@@ -1168,7 +1174,7 @@ scenarios:
     value: 0
     unit: 1 / t
   - id: cost_weight
-    value: 1
+    value: -1
     unit: 1 / EUR
 
 - id: social_democrats
@@ -1183,10 +1189,10 @@ scenarios:
   - id: impact_threshold
     value: 0
   - id: emissions_weight
-    value: 50
+    value: -50
     unit: 1 / t
   - id: cost_weight
-    value: 1
+    value: -1
     unit: 1 / EUR
 
 - id: greens
@@ -1201,8 +1207,8 @@ scenarios:
   - id: impact_threshold
     value: 0
   - id: emissions_weight
-    value: 50
+    value: -50
     unit: 1 / t
   - id: cost_weight
-    value: 1
+    value: -1
     unit: 1 / EUR
