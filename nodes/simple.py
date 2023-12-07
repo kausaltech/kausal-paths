@@ -798,3 +798,18 @@ class ImprovementNode2(MultiplicativeNode):
         df = df.with_columns((pl.lit(1) + pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
         return df
+
+
+class RelativeNode(AdditiveNode):
+    '''
+    First like AdditiveNode, then multiply with a node with "non_additive".
+    '''
+
+    def compute(self) -> ppl.PathsDataFrame:
+        n = self.get_input_node(tag='non_additive')
+        df = super().compute()
+        dfn = n.get_output_pl(target_node=self)
+        df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+        df = df.with_columns(pl.col(VALUE_COLUMN + '_right').fill_null(1))
+        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+        return df

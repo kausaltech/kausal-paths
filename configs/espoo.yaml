@@ -6,6 +6,7 @@ site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: e269e7efdd2f1ac5722389e8d8dd4da6e44f4279
+#  commit: a05551b4ae639843d9bad69377f5ab842372c6de
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -598,6 +599,24 @@ nodes:
   - consumer_electricity_residence_energy
   - consumer_electricity_industry_energy
   - consumer_electricity_services_energy
+
+- id: test
+  name: test
+  type: simple.RelativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: waste_treatment_emissions
+  - id: test2
+    tags: [non_additive]
+
+- id: test2
+  name: test2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: dimensionless
+  historical_values: [[2010, 1000], [2022, 900]]
+  input_dataset_processors: [LinearInterpolation]
 
 pages:
 - id: home
@@ -1708,6 +1727,14 @@ actions:
     value: -56.75
     min_value: -57
     max_value: -56
+
+- id: testaction
+  name: Test action
+  type: simple.ScenarioAction
+  quantity: ratio
+  unit: '%'
+  historical_values: [[2020, 1], [2015, 2]]
+  forecast_values: [[2023, 2], [2035, 3]]
 
 scenarios:
 - id: baseline

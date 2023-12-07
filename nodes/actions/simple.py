@@ -182,3 +182,4 @@ class ScenarioAction(AdditiveAction):
         scen_id = self.get_parameter_value('scenario', required=True)
         df = super().compute_effect()
         df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+        return df
