@@ -194,6 +194,24 @@ dimensions:
     label_en: Air traffic
     label_sv: Flygtrafik
 
+- id: scenario
+  label: Skenaario
+  label_en: Scenario
+  label_sv: Skenario
+  categories:
+  - id: baseline
+    label: Suomi 2035
+    label_en: Finland 2035
+    label_sv: Finland 2035
+  - id: default
+    label: Hiilineutraali Espoo 2030
+    label_en: Carbon-neutral Espoo 2030
+    label_sv: Kolneutralt Esbo 2030
+  - id: pessimistic
+    label: Pessimistinen
+    label_en: Pessimistic
+    label_sv: Pessimistisk
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
@@ -236,14 +254,14 @@ nodes:
     2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
   input_datasets:
-    - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
-      filters:
-        - column: Alue
-          value: Espoo
-    - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
-      filters:
-        - column: Alue
-          value: Espoo
+  - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
+    filters:
+    - column: Alue
+      value: Espoo
+  - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
+    filters:
+    - column: Alue
+      value: Espoo
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -251,10 +269,10 @@ nodes:
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
   input_datasets:
-    - id: hsy/pks_khk_paastot
-      filters:
-      - column: Kaupunki
-        value: Espoo
+  - id: hsy/pks_khk_paastot
+    filters:
+    - column: Kaupunki
+      value: Espoo
 
 #
 # TRANSPORT
@@ -457,10 +475,10 @@ nodes:
     antas att det gamla byggnadsbeståndet bevaras under perioden 2021–2035 och nybyggnaderna
     motsvarar ökningen av byggnadsbeståndet.
   input_datasets:
-    - id: helsinki/aluesarjat/02um_rakennukset_lammitys
-      filters:
-        - column: Alue
-          value: Espoo
+  - id: helsinki/aluesarjat/02um_rakennukset_lammitys
+    filters:
+    - column: Alue
+      value: Espoo
 
 - id: building_heat_per_floor_area_new
   name: Ominaislämmönkulutus uudessa rakennuskannassa
@@ -563,9 +581,9 @@ nodes:
   quantity: energy
   unit: g/kWh
   historical_values: [[2010, 0], [2021, 0], [2022, 0]]
-  forecast_values: [[2023, -8.616], [2024, -12.924], [2025, -17.232],
-    [2026, -21.54], [2027, -25.848], [2028, -30.156], [2029, -34.464], [2030, -38.772],
-    [2031, -43.08], [2032, -47.388], [2033, -51.696], [2034, -56.004], [2035, -60.312]]
+  forecast_values: [[2023, -8.616], [2024, -12.924], [2025, -17.232], [2026, -21.54],
+    [2027, -25.848], [2028, -30.156], [2029, -34.464], [2030, -38.772], [2031, -43.08],
+    [2032, -47.388], [2033, -51.696], [2034, -56.004], [2035, -60.312]]
   output_nodes:
   - electric_heating_emission_factor
 
@@ -1141,9 +1159,20 @@ actions:
   unit: kt/a
   group: waste_agriculture
   forecast_values: [[2023, 0], [2024, 0]]
+#  type: linear.DatasetReduceAction
+#  quantity: emissions
+#  unit: kt/a
+#  group: waste_agriculture
+#  input_datasets:
+#  - id: espoo/waste_reduction_goals
+#    column: relative_value
   output_nodes:
   - waste_treatment_emissions
   params:
+#  - id: relative_goal
+#    value: true
+#  - id: scenario
+#    value: default
   - id: target_year_level
     description: Jätteiden käsittelyn päästöjen muutos 2021-2030
     description_en: Change in waste treatment emissions 2021–2030

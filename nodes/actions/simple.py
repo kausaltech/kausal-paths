@@ -8,7 +8,7 @@ import polars as pl
 
 
 from params.param import Parameter
-from params import PercentageParameter, NumberParameter
+from params import PercentageParameter, NumberParameter, StringParameter
 from nodes.constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.node import NodeError
 from .action import ActionNode
@@ -167,3 +167,18 @@ class ExponentialAction(ActionNode):
 
     def compute_effect(self):
         return self.compute_exponential()
+
+
+class ScenarioAction(AdditiveAction):
+    '''
+    Goal scenario can be selected with a parameter if there is dimension scenario.
+    '''
+    allowed_parameters = AdditiveAction.allowed_parameters + [
+        StringParameter(local_id='scenario'),
+        NumberParameter(local_id='target_year_level')
+    ]
+    def compute_effect(self):
+        
+        scen_id = self.get_parameter_value('scenario', required=True)
+        df = super().compute_effect()
+        df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
