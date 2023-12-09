@@ -185,6 +185,4 @@ class ScenarioAction(AdditiveAction):
         df = super().compute_effect()
         df = ppl.from_pandas(df)
         df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
-        if not self.is_enabled:
-            df = df.with_columns(pl.lit(0).alias[VALUE_COLUMN])  # FIXME no effect value has no effect on impact
         return df

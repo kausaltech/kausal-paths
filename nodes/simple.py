@@ -803,6 +803,9 @@ class ImprovementNode2(MultiplicativeNode):
 class RelativeNode(AdditiveNode):
     '''
     First like AdditiveNode, then multiply with a node with "non_additive".
+    The relative node is assumed to be the relative difference R = V / N - 1,
+    where V is the expected output value and N is the comparison value from
+    the other input nodes. So, the output value V = (R + 1)N.
     '''
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -812,7 +815,9 @@ class RelativeNode(AdditiveNode):
         if dfn.get_unit(VALUE_COLUMN).dimensionless:
             dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
         df = df.paths.join_over_index(dfn, how='outer', index_from='union')
-        df = df.with_columns(pl.col(VALUE_COLUMN + '_right').fill_null(1))
-        df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+        rn = VALUE_COLUMN + '_right'
+        df = df.with_columns([pl.col(rn).fill_null(0)])
+        df = df.with_columns((pl.col(rn) + pl.lit(1)))
+        df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
