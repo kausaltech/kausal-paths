@@ -5,7 +5,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 10b2f4596e215272d4e669a2314ab0f931571ef6
+  commit: 3a4384a07174d79dede489035e9ac77d109d12a2
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -449,6 +449,45 @@ nodes:
   - bus_traffic_emission_factor
   output_nodes:
   - road_transport_emissions
+
+- id: addition_to_traffic_emission_factors
+  name: Lisäys liikenteen päästökertoimiin
+  name_en: Addition to traffic emission factors
+  description: HSY teki uudelleenlaskentaa pääkaupunkiseudun päästöihin kesällä 2023. Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä. Laskennan pohjana on edelleen yksityiskohtainen HSY-data, joka on saatu 26.6.2023. 
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - id: espoo/addition_to_traffic_emission_factor
+    column: emission_factor
+    forecast_from: 2023
+  output_dimensions: [vehicle]
+  output_nodes:
+  - id: car_traffic_emission_factor
+    from_dimensions:
+    - id: vehicle
+      categories: [passenger_cars]
+      flatten: true
+  - id: truck_traffic_emission_factor
+    from_dimensions:
+    - id: vehicle
+      categories: [trucks]
+      flatten: true
+  - id: van_traffic_emission_factor
+    from_dimensions:
+    - id: vehicle
+      categories: [vans]
+      flatten: true
+  - id: bus_traffic_emission_factor
+    from_dimensions:
+    - id: vehicle
+      categories: [buses]
+      flatten: true
+# Sectors  HSY updated  2022  Difference kt/a  Energiankulutus GWh/a  Lisäys päästökertoimeen  t/GWh = g/kWh
+# Henkilöautojen päästöt  172.42  171.997034311959  0.4249  774.035488065814  0.5489
+# Pakettiautojen päästöt  26.44  26.3409471013722  0.0987  127.015500854571  0.7769
+# Kuorma-autojen päästöt  82.22  71.2923419123624  10.9233  354.818804216936  30.7857
+# Linja-autojen päästöt   4.85  3.85473468256427  0.9925  73.053958703957  13.5853
 
 #
 # OTHER SECTORS
