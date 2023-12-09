@@ -5,8 +5,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e269e7efdd2f1ac5722389e8d8dd4da6e44f4279
-#  commit: a05551b4ae639843d9bad69377f5ab842372c6de
+  commit: 36594c235d316429aa4b5a258d22c81aa6b72635
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -600,23 +599,165 @@ nodes:
   - consumer_electricity_industry_energy
   - consumer_electricity_services_energy
 
-- id: test
-  name: test
+- id: waste_landfill_emissions
+  name: Kaatopaikkojen päästöt
+  name_en: Landfill emissions
+  name_sv: Deponiutsläpp
   type: simple.RelativeNode
   quantity: emissions
   unit: kt/a
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [waste_treatment_emissions]
   input_nodes:
-  - id: waste_treatment_emissions
-  - id: test2
+  - id: reduce_waste_treatment_emissions
+    tags: [non_additive]
+- id: biowaste_composting_emissions
+  name: Biojätteen kompostoinnin päästöt
+  name_en: Biowaste composting emissions
+  name_sv: Komposteringsutsläpp av bioavfall
+  type: simple.RelativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [waste_treatment_emissions]
+  input_nodes:
+  - id: reduce_waste_treatment_emissions
+    tags: [non_additive]
+- id: waste_water_treatment_emissions
+  name: Jäteveden käsittelyn päästöt
+  name_en: Wastewater treatment emissions
+  name_sv: Utsläpp från rening av avloppsvatten
+  type: simple.RelativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [waste_treatment_emissions]
+  input_nodes:
+  - id: reduce_waste_treatment_emissions
+    tags: [non_additive]
+- id: sludge_composting_emissions
+  name: Jätevesilietteen kompostoinnin päästöt
+  name_en: Emissions from sewage sludge composting
+  name_sv: Utsläpp från kompostering av avloppsslam
+  type: simple.RelativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [waste_treatment_emissions]
+  input_nodes:
+  - id: reduce_waste_treatment_emissions
     tags: [non_additive]
 
-- id: test2
-  name: test2
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: dimensionless
-  historical_values: [[2010, 1000], [2022, 900]]
-  input_dataset_processors: [LinearInterpolation]
+####### Detailed waste emissions with altered names
+
+- id: waste_landfill_residence_emissions
+  name: Kaatopaikkojen historialliset päästöt (Asuminen)
+  name_en: Landfill historical emissions (Housing)
+  name_sv: Deponiutsläpp historisk (bostäder)
+  output_nodes: [waste_landfill_emissions]
+  params:
+    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_landfill_services_emissions
+  name: Kaatopaikkojen historialliset päästöt (Palvelut)
+  name_en: Landfill historical emissions (Services)
+  name_sv: Deponiutsläpp historisk (tjänster)
+  output_nodes: [waste_landfill_emissions]
+  params:
+    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_landfill_industry_emissions
+  name: Kaatopaikkojen historialliset päästöt (Teollisuus)
+  name_en: Landfill historical emissions (Industry)
+  name_sv: Deponiutsläpp historisk (industri)
+  output_nodes: [waste_landfill_emissions]
+  params:
+    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: biowaste_composting_residence_emissions
+  name: Biojätteen kompostoinnin historialliset päästöt (Asuminen)
+  name_en: Biowaste composting historical emissions (Housing)
+  name_sv: Bioavfallskomposteringsutsläpp historisk (bostäder)
+  output_nodes: [biowaste_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: biowaste_composting_services_emissions
+  name: Biojätteen kompostoinnin historialliset päästöt (Palvelut)
+  name_en: Biowaste composting historical emissions (Services)
+  name_sv: Bioavfallskomposteringsutsläpp historisk (tjänster)
+  output_nodes: [biowaste_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: biowaste_composting_industry_emissions
+  name: Biojätteen kompostoinnin historialliset päästöt (Teollisuus)
+  name_en: Biowaste composting historical emissions (Industry)
+  name_sv: Bioavfallskomposteringsutsläpp historisk (industri)
+  output_nodes: [biowaste_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_water_treatment_residence_emissions
+  name: Jäteveden käsittelyn historialliset päästöt (Asuminen)
+  name_en: Wastewater treatment historical emissions (Housing)
+  name_sv: Utsläpp av avloppsvattenrening historisk (bostäder)
+  output_nodes: [waste_water_treatment_emissions]
+  params:
+    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_water_treatment_services_emissions
+  name: Jäteveden käsittelyn historialliset päästöt (Palvelut)
+  name_en: Wastewater treatment historical emissions (Services)
+  name_sv: Utsläpp av avloppsvattenrening historisk (tjänster)
+  output_nodes: [waste_water_treatment_emissions]
+  params:
+    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: waste_water_treatment_industry_emissions
+  name: Jäteveden käsittelyn historialliset päästöt (Teollisuus)
+  name_en: Wastewater treatment historical emissions (Industry)
+  name_sv: Utsläpp av avloppsvattenrening historisk (industri)
+  output_nodes: [waste_water_treatment_emissions]
+  params:
+    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: sludge_composting_residence_emissions
+  name: Jätevesilietteen kompostoinnin historialliset päästöt (Asuminen)
+  name_en: Emissions from sewage sludge composting historical (Housing)
+  name_sv: Utsläpp från kompostering av avloppsslam historisk (bostäder)
+  output_nodes: [sludge_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: sludge_composting_services_emissions
+  name: Jätevesilietteen kompostoinnin historialliset päästöt (Palvelut)
+  name_en: Emissions from sewage sludge composting historical (Services)
+  name_sv: Utsläpp från kompostering av avloppsslam historisk (tjänster)
+  output_nodes: [sludge_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Palvelut
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+- id: sludge_composting_industry_emissions
+  name: Jätevesilietteen kompostoinnin historialliset päästöt (Teollisuus)
+  name_en: Emissions from sewage sludge composting historical (Industry)
+  name_sv: Utsläpp från kompostering av avloppsslam historisk (industri)
+  output_nodes: [sludge_composting_emissions]
+  params:
+    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Teollisuus
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
 
 pages:
 - id: home
@@ -1173,32 +1314,18 @@ actions:
     förverkligas även under perioden 2030–2035. I scenariot HNE2030 antas utsläppen
     minska med 68 procent under perioden 2021–2030, varefter utsläppen förväntas stanna
     på samma nivå som 2030.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  unit: kt/a
+  type: simple.ScenarioAction
+  quantity: ratio
+  unit: '%'
   group: waste_agriculture
-  forecast_values: [[2023, 0], [2024, 0]]
-#  type: linear.DatasetReduceAction
-#  quantity: emissions
-#  unit: kt/a
-#  group: waste_agriculture
-#  input_datasets:
-#  - id: espoo/waste_reduction_goals
-#    column: relative_value
-  output_nodes:
-  - waste_treatment_emissions
+  input_datasets:
+  - id: espoo/waste_treatment_goals
+    forecast_from: 2022
+    column: ratio
+  input_dataset_processors: [LinearInterpolation]
   params:
-#  - id: relative_goal
-#    value: true
-#  - id: scenario
-#    value: default
-  - id: target_year_level
-    description: Jätteiden käsittelyn päästöjen muutos 2021-2030
-    description_en: Change in waste treatment emissions 2021–2030
-    description_sv: Förändring av utsläppen från avfallshantering 2021–2030
-    min_value: -20.0
-    max_value: 0.0
-    unit: kt/a
+  - id: scenario
+    value: baseline
 
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
@@ -1728,14 +1855,6 @@ actions:
     min_value: -57
     max_value: -56
 
-- id: testaction
-  name: Test action
-  type: simple.ScenarioAction
-  quantity: ratio
-  unit: '%'
-  historical_values: [[2020, 1], [2015, 2]]
-  forecast_values: [[2023, 2], [2035, 3]]
-
 scenarios:
 - id: baseline
   name: Suomi 2035
@@ -1743,11 +1862,6 @@ scenarios:
   name_sv: Finland 2035
   params:
   - id: cleaner_electricity_production.enabled
-    value: true
-
-  - id: reduce_waste_treatment_emissions.target_year_level
-    value: -1.07
-  - id: reduce_waste_treatment_emissions.enabled
     value: true
 
   - id: reduce_machinery_emissions.target_year_level
@@ -1801,6 +1915,11 @@ scenarios:
   - id: reduce_oil_heating_industry.enabled
     value: true
 
+  - id: reduce_waste_treatment_emissions.enabled
+    value: true
+  - id: reduce_waste_treatment_emissions.scenario
+    value: baseline
+
 - id: default
   default: true
   name: Hiilineutraali Espoo 2030
@@ -1808,8 +1927,6 @@ scenarios:
   name_sv: Kolneutralt Esbo 2030
   all_actions_enabled: true
   params:
-  - id: reduce_waste_treatment_emissions.target_year_level
-    value: -18.2
   - id: reduce_machinery_emissions.target_year_level
     value: -2.05
   - id: change_consumer_electricity.target_year_level
@@ -1836,6 +1953,11 @@ scenarios:
   - id: replace_fossil_fuels_in_district_heating.multiplier
     value: 100.0
 
+  - id: reduce_waste_treatment_emissions.enabled
+    value: true
+  - id: reduce_waste_treatment_emissions.scenario
+    value: default
+
 - id: pessimistic
   name: Pessimistinen
   name_en: Pessimistic
@@ -1850,6 +1972,10 @@ scenarios:
     value: true
   - id: change_bus_traffic_emission_factor.enabled
     value: true
+  - id: reduce_waste_treatment_emissions.enabled
+    value: true
+  - id: reduce_waste_treatment_emissions.scenario
+    value: pessimistic
 
 #######################
 # DATA SOURCES
