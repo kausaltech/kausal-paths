@@ -5,7 +5,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3a4384a07174d79dede489035e9ac77d109d12a2
+  commit: 0e91600b3e637bfdc6835916a175faa2bcc2b286
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -324,10 +324,11 @@ nodes:
   unit: GWh/a
   input_nodes:
   - car_energy_hsy
-  forecast_values: [[2023, 121.246355266667], [2024, 127.3695329], [2025, 133.492710533333],
-    [2026, 139.615888166667], [2027, 145.7390658], [2028, 151.862243433333], [2029,
-      157.985421066667], [2030, 164.1085987], [2031, 184.9763880744], [2032, 205.8441774488],
-    [2033, 226.7119668232], [2034, 247.5797561976], [2035, 268.447545572]]
+  input_datasets:
+  - id: espoo/traffic_energy_forecast
+    filters:
+    - column: vehicle
+      value: passenger_cars
 - id: van_energy
   name: Pakettiautojen energiankulutus
   name_en: Energy consumption of vans
@@ -337,10 +338,11 @@ nodes:
   unit: GWh/a
   input_nodes:
   - van_energy_hsy
-  forecast_values: [[2023, 4.96795078], [2024, 7.45192617], [2025, 9.93590156], [
-      2026, 12.41987695], [2027, 14.90385234], [2028, 17.38782773], [2029, 19.87180312],
-    [2030, 22.35577851], [2031, 25.107258942], [2032, 27.858739374], [2033, 30.610219806],
-    [2034, 33.361700238], [2035, 36.11318067]]
+  input_datasets:
+  - id: espoo/traffic_energy_forecast
+    filters:
+    - column: vehicle
+      value: vans
 - id: truck_energy
   name: Kuorma-autojen energiankulutus
   name_en: Energy consumption of lorries
@@ -350,10 +352,11 @@ nodes:
   unit: GWh/a
   input_nodes:
   - truck_energy_hsy
-  forecast_values: [[2023, 31.0686695733333], [2024, 46.60300436], [2025, 62.1373391466667],
-    [2026, 77.6716739333333], [2027, 93.20600872], [2028, 108.740343506667], [2029,
-      124.274678293333], [2030, 139.80901308], [2031, 141.9696978276], [2032, 144.1303825752],
-    [2033, 146.2910673228], [2034, 148.4517520704], [2035, 150.612436818]]
+  input_datasets:
+  - id: espoo/traffic_energy_forecast
+    filters:
+    - column: vehicle
+      value: trucks
 - id: bus_energy
   name: Linja-autojen energiankulutus
   name_en: Energy consumption of buses
@@ -363,10 +366,11 @@ nodes:
   unit: GWh/a
   input_nodes:
   - bus_energy_hsy
-  forecast_values: [[2023, 0.156899793333333], [2024, 0.23534969], [2025, 0.313799586666667],
-    [2026, 0.392249483333333], [2027, 0.47069938], [2028, 0.549149276666667], [2029,
-      0.627599173333333], [2030, 0.70604907], [2031, 0.70604907], [2032, 0.70604907],
-    [2033, 0.70604907], [2034, 0.70604907], [2035, 0.70604907]]
+  input_datasets:
+  - id: espoo/traffic_energy_forecast
+    filters:
+    - column: vehicle
+      value: buses
 
 - id: car_traffic_emission_factor
   name: Henkilöautoliikenteen päästökerroin
@@ -453,7 +457,10 @@ nodes:
 - id: addition_to_traffic_emission_factors
   name: Lisäys liikenteen päästökertoimiin
   name_en: Addition to traffic emission factors
-  description: HSY teki uudelleenlaskentaa pääkaupunkiseudun päästöihin kesällä 2023. Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä. Laskennan pohjana on edelleen yksityiskohtainen HSY-data, joka on saatu 26.6.2023. 
+  description: HSY teki uudelleenlaskentaa pääkaupunkiseudun päästöihin kesällä 2023.
+    Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite
+    huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä.
+    Laskennan pohjana on edelleen yksityiskohtainen HSY-data, joka on saatu 26.6.2023.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
@@ -488,6 +495,7 @@ nodes:
 # Pakettiautojen päästöt  26.44  26.3409471013722  0.0987  127.015500854571  0.7769
 # Kuorma-autojen päästöt  82.22  71.2923419123624  10.9233  354.818804216936  30.7857
 # Linja-autojen päästöt   4.85  3.85473468256427  0.9925  73.053958703957  13.5853
+# https://www.avoindata.fi/data/fi/dataset/liikenteen-paastot-paakaupunkiseudulla
 
 #
 # OTHER SECTORS
@@ -579,7 +587,7 @@ nodes:
     - id: building_use
     - id: building_heat_source
 
-- id: consumer_electricity_residence_energy_adjustment
+- id: consumer_electricity_residence_energy_adjustment  # FIXME Use scenario-specific dataset instead
   name: Korjaus kulutusähkön kulutuksen perusskenaarion ennusteeseen
   name_en: Adjustment of the baseline scenario forecast for household electricity
     consumption
@@ -603,7 +611,7 @@ nodes:
   output_nodes:
   - consumer_electricity_residence_energy
 
-- id: electric_heating_emission_factor_adjustment
+- id: electric_heating_emission_factor_adjustment  # FIXME Use scenario-specific dataset instead
   name: Korjaus lämmityssähkön päästökertoimeen
   name_en: Electric heating emission factor adjustment
   name_sv: Korrigering av prognosen för emissionskoefficient för värmeel
@@ -689,7 +697,7 @@ nodes:
 
 ####### Detailed waste emissions with altered names
 
-- id: waste_landfill_residence_emissions
+- id: waste_landfill_residence_emissions  # FIXME These nodes are here from the framework as the names have changed.
   name: Kaatopaikkojen historialliset päästöt (Asuminen)
   name_en: Landfill historical emissions (Housing)
   name_sv: Deponiutsläpp historisk (bostäder)
@@ -799,7 +807,7 @@ nodes:
   type: finland.hsy.HsyEmissions
 
 pages:
-- id: home
+- id: home  # FIXME The page is not shown
   name: Hiilineutraali Espoo -päästöskenaario
   name_en: Carbon-neutral Espoo emission scenario
   name_sv: Utsläppsscenariot Kolneutralt Esbo
@@ -905,7 +913,7 @@ actions:
 #
 # ELECTRICITY
 #
-- id: cleaner_electricity_production
+- id: cleaner_electricity_production  # FIXME Use goals dataset instead
   name: Kansallinen sähköntuotanto puhdistuu
   name_en: Shift to low-carbon in national electricity production
   name_sv: Den nationella elproduktionen blir ren
@@ -1265,7 +1273,7 @@ actions:
         source_amount: -10000
         dest_amounts: [50, 50]
 
-- id: replace_fossil_fuels_in_district_heating
+- id: replace_fossil_fuels_in_district_heating  # FIXME Use goals dataset instead
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
   name_en: Fortum replaces fossil fuels in district heat production
   name_sv: Fortum ersätter fossila energikällor inom fjärrvärmeproduktionen
@@ -1303,7 +1311,7 @@ actions:
     max_value: 100
     unit: '%'
 
-- id: city_building_heat_optimization
+- id: city_building_heat_optimization  # FIXME Use goals dataset instead
   name: Kaupungin kiinteistöjen lämmityksen optimointi
   name_en: Optimization of heating systems in city-owned buildings
   name_sv: Optimering av uppvärmningen av stadens fastigheter
@@ -1478,16 +1486,18 @@ actions:
   name_en: Change in car traffic emission factor
   name_sv: Förändring av biltrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
   group: transportation
   # No change in 2021->2022 in any vehicle emission factor; therefore, expected 2022 change moved to 2023.
-  forecast_values: [[2023, -18.20308062222222], [2024, -9.10308062222222], [2025,
-      -9.10308062222222], [2026, -9.10308062222222], [2027, -9.10308062222222], [
-      2028, -9.10308062222222], [2029, -9.10308062222222], [2030, -9.10308062222222],
-    [2031, -6.086059616], [2032, -6.086059616], [2033, -6.086059616], [2034, -6.086059616],
-    [2035, -6.086059616]]
+  input_datasets:
+  - id: espoo/traffic_emission_factor_goals
+    column: emission_factor
+    forecast_from: 2023
+    filters:
+    - column: vehicle
+      value: passenger_cars
   output_nodes:
   - car_traffic_emission_factor
 
@@ -1496,14 +1506,17 @@ actions:
   name_en: Change in van traffic emission factor
   name_sv: Förändring av paketbiltrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2023, -24.5039168533333], [2024, -12.2539168533333], [2025, -12.2539168533333],
-    [2026, -12.2539168533333], [2027, -12.2539168533333], [2028, -12.2539168533333],
-    [2029, -12.2539168533333], [2030, -12.2539168533333], [2031, -3.676175056], [
-      2032, -3.676175056], [2033, -3.676175056], [2034, -3.676175056], [2035, -3.676175056]]
+  input_datasets:
+  - id: espoo/traffic_emission_factor_goals
+    column: emission_factor
+    forecast_from: 2023
+    filters:
+    - column: vehicle
+      value: vans
   output_nodes:
   - van_traffic_emission_factor
 
@@ -1512,14 +1525,17 @@ actions:
   name_en: Change in lorry traffic emission factor
   name_sv: Förändring av lastbiltrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2023, -19.42260146], [2024, -9.72260146], [2025, -9.72260146],
-    [2026, -9.72260146], [2027, -9.72260146], [2028, -9.72260146], [2029, -9.72260146],
-    [2030, -9.72260146], [2031, -2.692412712], [2032, -2.692412712], [2033, -2.692412712],
-    [2034, -2.692412712], [2035, -2.692412712]]
+  input_datasets:
+  - id: espoo/traffic_emission_factor_goals
+    column: emission_factor
+    forecast_from: 2023
+    filters:
+    - column: vehicle
+      value: trucks
   output_nodes:
   - truck_traffic_emission_factor
 
@@ -1532,15 +1548,17 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2023, -11.36301907075556], [2024, -5.66301907075556], [2025,
-      -5.66301907075556], [2026, -5.66301907075556], [2027, -5.66301907075556], [
-      2028, -5.66301907075556], [2029, -5.66301907075556], [2030, -5.66301907075556],
-    [2031, -0.70770494112], [2032, -0.70770494112], [2033, -0.70770494112], [2034,
-      -0.70770494112], [2035, -0.70770494112]]
+  input_datasets:
+  - id: espoo/traffic_emission_factor_goals
+    column: emission_factor
+    forecast_from: 2023
+    filters:
+    - column: vehicle
+      value: buses
   output_nodes:
   - bus_traffic_emission_factor
 
-- id: change_car_traffic_energy
+- id: change_car_traffic_energy  # FIXME Use goals dataset instead
   name: Muutos henkilöautoliikenteen energiankulutuksessa
   name_en: Change in energy consumption of car traffic
   name_sv: Ändring i personbilstrafikens energiförbrukning
