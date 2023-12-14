@@ -176,13 +176,36 @@ class ScenarioAction(AdditiveAction):
     The parameter must be given, and the df must have dimension scenario.
     '''
     allowed_parameters = AdditiveAction.allowed_parameters + [
-        StringParameter(local_id='scenario'),
-        NumberParameter(local_id='target_year_level')
+        StringParameter(local_id='scenario')
     ]
     def compute_effect(self):
         
-        scen_id = self.get_parameter_value('scenario', required=True)
         df = super().compute_effect()
         df = ppl.from_pandas(df)
-        df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+        scen_id = self.get_parameter_value('scenario', required=False)
+        if scen_id is not None:
+            df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+        return df
+
+
+class TrajectoryAction(AdditiveAction):
+    '''
+    TrajectoryAction is a ScenarioAction where you define the effect as an absolute trajectory of values, not as a relative change from the baseline like usually. The trajectory is converted to baseline-relative values by giving the baseline value and baseline year as parameter values. This is a bit cumbersome, but we cannot get the baseline value from the output node because that would make the graph cyclic.
+    '''
+    allowed_parameters = AdditiveAction.allowed_parameters + [
+        StringParameter(local_id='scenario'),
+        NumberParameter(local_id='baseline_year_level'),
+        NumberParameter(local_id='baseline_year')
+    ]
+    def compute_effect(self):
+        
+        df = super().compute_effect()
+        df = ppl.from_pandas(df)
+        level = self.get_parameter_value('baseline_year_level', required=True)
+        year = int(self.get_parameter_value('baseline_year', required=True))
+        scen_id = self.get_parameter_value('scenario', required=False)
+        if scen_id is not None:
+            df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+        df = df.filter(pl.col(YEAR_COLUMN).ge(year))
+        df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(level))
         return df
