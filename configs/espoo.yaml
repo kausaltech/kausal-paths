@@ -1,3 +1,10 @@
+# FIXME Liikenteen kokonaispäästöt historiassa oK, tulevaisuudessa eivät täsmää HNE2030 eikä myöskään kun lisätoimet otetaan pois.
+# FIXME Kulutussähkön päästöt tulevaisuudessa ovat lähellä mutta eivät identtiset -> korjaa
+# Jätteiden käsittelyn päästöt ovat identtiset
+# FIXME Teaollisuus ja työkoneet poikkeaa historiassa 2017- sekä tulevaisuudessa.
+# Maatalous on riittävän lähellä
+# FIXME Kaukolämpö, öljylämmitys: ei täsmää 2022 alkaen
+
 id: espoo
 default_language: fi
 supported_languages: [sv, en]
@@ -5,7 +12,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ec03aca2d6c65a83d5fdff7b1a71640f80f3849c
+  commit: 270d2eebacdac1478da7c27ced1203d0d2ece6e7
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -587,32 +594,8 @@ nodes:
     - id: building_use
     - id: building_heat_source
 
-- id: consumer_electricity_residence_energy_adjustment  # FIXME Use scenario-specific dataset instead
-  name: Korjaus kulutusähkön kulutuksen perusskenaarion ennusteeseen
-  name_en: Adjustment of the baseline scenario forecast for household electricity
-    consumption
-  name_sv: Korrigering av prognosen för konsumtionsförbrukningen i basscenariot
-  description: Tämän verran kulutussähkön kulutuksen oletetaan kasvavan myös pessimistisessä
-    skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta 2021.
-  description_en: This is how much the consumption of household electricity is expected
-    to increase also in the pessimistic scenario compared to the latest value of HSY
-    statistics for 2021.
-  description_sv: Så här mycket förväntas konsumtionen av konsumtionsel öka även i
-    det pessimistiska scenariot, jämfört med det senaste värdet i HRM-statistiken
-    för 2021.
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  forecast_values: [[2023, 46.8156449901301], [2024, 55.3398489194226], [2025, 75.7353948766418],
-    [2026, 95.9182666625295], [2027, 115.850619274135], [2028, 135.46164499662], [
-      2029, 154.731750817255], [2030, 173.619465695491], [2031, 192.11713717284],
-    [2032, 210.250300046423], [2033, 228.038646400391], [2034, 245.501598139984],
-    [2035, 262.68009047217]]
-  output_nodes:
-  - consumer_electricity_residence_energy
-
-- id: electric_heating_emission_factor_adjustment  # FIXME Use scenario-specific dataset instead
-  name: Korjaus lämmityssähkön päästökertoimeen
+- id: electric_heating_emission_factor_adjustment  # FIXME Use scenario-specific dataset instead DONE
+  name: Korjaus lämmityssähkön päästökertoimeen  # FIXME Is this double counting?
   name_en: Electric heating emission factor adjustment
   name_sv: Korrigering av prognosen för emissionskoefficient för värmeel
   description: Tämän verran lämmityssähkön päästökertoimen oletetaan laskevan myös
@@ -697,7 +680,7 @@ nodes:
 
 ####### Detailed waste emissions with altered names
 
-- id: waste_landfill_residence_emissions  # FIXME These nodes are here from the framework as the names have changed.
+- id: waste_landfill_residence_emissions  # These nodes are here from the framework as the names have changed.
   name: Kaatopaikkojen historialliset päästöt (Asuminen)
   name_en: Landfill historical emissions (Housing)
   name_sv: Deponiutsläpp historisk (bostäder)
@@ -807,7 +790,7 @@ nodes:
   type: finland.hsy.HsyEmissions
 
 pages:
-- id: home  # FIXME The page is not shown
+- id: home  # The page is not shown
   name: Hiilineutraali Espoo -päästöskenaario
   name_en: Carbon-neutral Espoo emission scenario
   name_sv: Utsläppsscenariot Kolneutralt Esbo
@@ -913,7 +896,7 @@ actions:
 #
 # ELECTRICITY
 #
-- id: cleaner_electricity_production  # FIXME Use goals dataset instead
+- id: cleaner_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
   name_en: Shift to low-carbon in national electricity production
   name_sv: Den nationella elproduktionen blir ren
@@ -936,14 +919,55 @@ actions:
   output_nodes:
   - electricity_production_emission_factor
   - electric_heating_emission_factor
-  type: simple.CumulativeAdditiveAction
-  # Adjust 2023 value so that it keeps the trajectory intact after new data point 2022.
-  forecast_values: [[2023, -6.30989059255608], [2024, -4.93989059255608], [2025, -4.93989059255608],
-    [2026, -4.93989059255608], [2027, -4.93989059255608], [2028, -4.93989059255608],
-    [2029, -4.93989059255608], [2030, -4.93989059255608], [2031, -4.93989059255608],
-    [2032, -4.93989059255608], [2033, -4.93989059255608], [2034, -4.93989059255608],
-    [2035, -4.93989059255608]]
-  unit: g/kWh
+  type: simple.TrajectoryAction
+  unit: t/GWh
+  input_datasets:
+  - id: espoo/energy_sector_trajectories
+    column: electricity_emission_factor
+    forecast_from: 2023
+  params:
+  - id: baseline_year
+    value: 2022
+  - id: baseline_year_level
+    value: 79.1585
+    unit: t/GWh
+  - id: scenario
+    value: baseline
+
+- id: consumer_electricity_residence_energy_adjustment  # FIXME Is this double counting?
+  name: Korjaus kulutusähkön kulutuksen perusskenaarion ennusteeseen
+  name_en: Adjustment of the baseline scenario forecast for household electricity
+    consumption
+  name_sv: Korrigering av prognosen för konsumtionsförbrukningen i basscenariot
+  description: Tämän verran kulutussähkön kulutuksen oletetaan kasvavan myös pessimistisessä
+    skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta 2021.
+  description_en: This is how much the consumption of household electricity is expected
+    to increase also in the pessimistic scenario compared to the latest value of HSY
+    statistics for 2021.
+  description_sv: Så här mycket förväntas konsumtionen av konsumtionsel öka även i
+    det pessimistiska scenariot, jämfört med det senaste värdet i HRM-statistiken
+    för 2021.
+  type: simple.TrajectoryAction
+  quantity: energy
+  unit: GWh/a
+  group: electricity
+  input_datasets:
+  - id: espoo/energy_sector_trajectories
+    column: electricity_consumption
+    forecast_from: 2023
+  output_nodes:
+  - consumer_electricity_residence_energy
+  params:
+  - id: baseline_year
+    value: 2022
+    is_visible: false
+  - id: baseline_year_level
+    value: 1712.3
+    unit: GWh/a
+    is_visible: false
+  - id: scenario
+    value: baseline
+    is_visible: false
 
 - id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
@@ -1273,7 +1297,7 @@ actions:
         source_amount: -10000
         dest_amounts: [50, 50]
 
-- id: replace_fossil_fuels_in_district_heating  # FIXME Use goals dataset instead
+- id: replace_fossil_fuels_in_district_heating  # FIXME Use goals dataset instead DONE
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
   name_en: Fortum replaces fossil fuels in district heat production
   name_sv: Fortum ersätter fossila energikällor inom fjärrvärmeproduktionen
@@ -1367,7 +1391,7 @@ actions:
   group: waste_agriculture
   input_datasets:
   - id: espoo/waste_treatment_goals
-    forecast_from: 2022
+    forecast_from: 2023
     column: ratio
   input_dataset_processors: [LinearInterpolation]
   params:
@@ -1544,7 +1568,7 @@ actions:
   name_en: Change in bus traffic emission factor
   name_sv: Förändring av busstrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
   group: transportation
@@ -1610,7 +1634,7 @@ actions:
   output_nodes:
   - bus_energy
 
-- id: change_van_traffic_energy
+- id: change_van_traffic_energy  # FIXME Use goals dataset
   name: Muutos pakettiautoliikenteen energiankulutuksessa
   name_en: Change in energy consumption of van traffic
   name_sv: Ändring i paketbilstrafikens energiförbrukning
@@ -1634,7 +1658,7 @@ actions:
   output_nodes:
   - van_energy
 
-- id: change_truck_traffic_energy
+- id: change_truck_traffic_energy  # FIXME Use goals dataset
   name: Muutos kuorma-autoliikenteen energiankulutuksessa
   name_en: Change in energy consumption of lorry traffic
   name_sv: Ändring i lastbilstrafikens energiförbrukning
@@ -1920,6 +1944,8 @@ scenarios:
   params:
   - id: cleaner_electricity_production.enabled
     value: true
+  - id: cleaner_electricity_production.scenario
+    value: baseline
 
   - id: reduce_machinery_emissions.target_year_level
     value: -0.818
@@ -1976,6 +2002,10 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.scenario
     value: baseline
+  - id: consumer_electricity_residence_energy_adjustment.enabled
+    value: true
+  - id: consumer_electricity_residence_energy_adjustment.scenario
+    value: baseline
 
 - id: default
   default: true
@@ -2014,6 +2044,14 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.scenario
     value: default
+  - id: consumer_electricity_residence_energy_adjustment.enabled
+    value: true
+  - id: consumer_electricity_residence_energy_adjustment.scenario
+    value: default
+  - id: cleaner_electricity_production.enabled
+    value: true
+  - id: cleaner_electricity_production.scenario
+    value: default
 
 - id: pessimistic
   name: Pessimistinen
@@ -2032,6 +2070,14 @@ scenarios:
   - id: reduce_waste_treatment_emissions.enabled
     value: true
   - id: reduce_waste_treatment_emissions.scenario
+    value: pessimistic
+  - id: consumer_electricity_residence_energy_adjustment.enabled
+    value: true
+  - id: consumer_electricity_residence_energy_adjustment.scenario
+    value: pessimistic
+  - id: cleaner_electricity_production.enabled
+    value: true
+  - id: cleaner_electricity_production.scenario
     value: pessimistic
 
 #######################
