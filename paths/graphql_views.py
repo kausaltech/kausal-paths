@@ -280,7 +280,7 @@ class PathsGraphQLView(GraphQLView):
             from rich import print_json
             print_json(ret.decode('utf8'))
             raise errors[0]
-        op_name = request.graphql_operation_name
+        op_name = getattr(request, 'graphql_operation_name', None)
         self.log_reg(
             'DEBUG', op_name, 'Response was {} bytes', len(ret)
         )

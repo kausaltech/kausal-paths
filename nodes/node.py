@@ -159,6 +159,7 @@ class Node:
     color: Optional[str]
     # order comes from NodeConfig
     order: Optional[int] = None
+    is_visible: bool = True
     # if this node should have its own outcome page
     is_outcome: bool = False
 
@@ -323,7 +324,7 @@ class Node:
         self, id: str, context: Context, name: I18nString, short_name: I18nString | None = None,
         unit: Unit | None = None, quantity: str | None = None, minimum_year: int | None = None,
         description: I18nString | None = None, color: str | None = None, order: int | None = None,
-        is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
+        is_visible: bool = True, is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
         input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
@@ -347,6 +348,7 @@ class Node:
         self.description = description
         self.color = color
         self.order = order
+        self.is_visible = is_visible
         self.is_outcome = is_outcome
         self.minimum_year = minimum_year
         if goals is not None:
@@ -938,7 +940,7 @@ class Node:
 
         dim_ids = set(meta.dim_ids)
         node_dims = set(self.output_dimensions.keys())
-        if dim_ids != node_dims:
+        if dim_ids != node_dims and not getattr(self, 'allow_unknown_dimensions', None):
             raise NodeError(self, "Output has unknown dimensions: %s (expecting %s)" % (', '.join(dim_ids), ', '.join(node_dims)))
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:

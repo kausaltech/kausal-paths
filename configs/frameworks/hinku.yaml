@@ -59,9 +59,6 @@ emission_sectors:
 - id: utility_boats_emissions
   name: Työveneiden päästöt
   part_of: water_transport_emissions
-- id: industry_emissions
-  name: Teollisuuden polttoaineenkulutuksen päästöt
-  part_of: net_emissions
 - id: machinery_emissions
   name: Työkoneiden päästöt
   part_of: net_emissions
@@ -77,18 +74,6 @@ emission_sectors:
 - id: waste_treatment_emissions
   name: Jätteiden käsittelyn päästöt
   part_of: net_emissions
-- id: waste_landfill_emissions
-  name: Kaatopaikkojen päästöt
-  part_of: waste_treatment_emissions
-- id: waste_water_treatment_emissions
-  name: Jätevesien puhdistuksen päästöt
-  part_of: waste_treatment_emissions
-- id: waste_composting_emissions
-  name: Jätteen kompostoinnin päästöt
-  part_of: waste_treatment_emissions
-- id: waste_putrefaction_emissions
-  name: Jätteen mädätyksen päästöt
-  part_of: waste_treatment_emissions
 - id: f_gases_emissions
   name: F-kaasujen päästöt
   part_of: net_emissions
@@ -120,20 +105,6 @@ nodes:
   output_nodes: [consumer_electricity_emissions]
   params:
     sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Palvelut:HINKU
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
-- id: consumer_electricity_industry_emissions
-  name: Teollisuuden kulutussähkön päästöt
-  output_nodes: [consumer_electricity_emissions]
-  params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Teollisuus:ETS
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
-- id: consumer_electricity_industry_nonets_emissions
-  name: Teollisuuden kulutussähkön päästöt ei-päästökauppa
-  output_nodes: [consumer_electricity_emissions]
-  params:
-    sector: Energia|Kulutussähkö|Kulutussähkö|Kulutussähkö|Teollisuus
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: consumer_electricity_agriculture_emissions
@@ -426,14 +397,6 @@ nodes:
       mopot:HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-- id: transit_traffic_emissions
-  name: Läpiajoliikenteen päästöt
-  output_nodes: [road_transport_emissions]
-  params:
-    sector: Energia|Liikenne|Tieliikenne|Läpiajoliikenne|Läpiajoliikenne
-    required: false
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
 
 - id: local_train_emissions
   name: Lähijunien päästöt
@@ -551,23 +514,9 @@ nodes:
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 
-- id: industry_fuel_nonhinku_emissions
-  name: Teollisuuden polttoaineiden päästöt ei-HINKU
-  output_nodes: [industry_emissions]
-  params:
-    sector: Energia|Teollisuus ja työkoneet|Teollisuus|Teollisuus|Teollisuuden polttoaineet:ETS
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
-- id: industry_fuel_nonhinku_nonets_emissions
-  name: Teollisuuden polttoaineiden päästöt ei-HINKU ei-päästökauppa
-  output_nodes: [industry_emissions]
-  params:
-    sector: Energia|Teollisuus ja työkoneet|Teollisuus|Teollisuus|Teollisuuden polttoaineet
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
 - id: industry_fuel_nonets_emissions
-  name: Teollisuuden polttoaineiden päästöt ei-päästökauppa
-  output_nodes: [industry_emissions]
+  name: Teollisuuden polttoaineiden päästöt
+  output_nodes: [net_emissions]
   params:
     sector: Energia|Teollisuus ja työkoneet|Teollisuus|Teollisuus|Teollisuuden polttoaineet:HINKU
   input_nodes: [all_alas_emissions]
@@ -660,63 +609,31 @@ nodes:
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 
-- id: industrial_waste_landfill_emissions
-  name: Teollisuuden kaatopaikkojen päästöt
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kaatopaikat|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
 - id: residential_waste_landfill_emissions
   name: Yhdyskuntajätteen kaatopaikkojen päästöt
-  output_nodes: [waste_landfill_emissions]
+  output_nodes: [waste_treatment_emissions]
   params:
     sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kaatopaikat|Yhdyskuntajäte:HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-
-- id: industrial_waste_water_treatment_emissions
-  name: Teollisuuden jätevesien puhdistuksen päästöt
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Jätevesien
-      puhdistus|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
 - id: residential_waste_water_treatment_emissions
   name: Yhdyskunnan jätevesien puhdistuksen päästöt
-  output_nodes: [waste_water_treatment_emissions]
+  output_nodes: [waste_treatment_emissions]
   params:
     sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Jätevesien
       puhdistus|Yhdyskuntajäte:HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-
-- id: industrial_waste_composting_emissions
-  name: Teollisuusjätteen kompostoinnin päästöt
-  output_nodes: [waste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kompostointi|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
 - id: residential_waste_composting_emissions
   name: Yhdyskuntajätteen kompostoinnin päästöt
-  output_nodes: [waste_composting_emissions]
+  output_nodes: [waste_treatment_emissions]
   params:
     sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Kompostointi|Yhdyskuntajäte:HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
-
-- id: industrial_waste_putrefaction_emissions
-  name: Teollisuusjätteen mädätyksen päästöt
-  output_nodes: [waste_putrefaction_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Mädätys|Teollisuus
-  input_nodes: [all_alas_emissions]
-  type: finland.syke.AlasEmissions
 - id: residential_waste_putrefaction_emissions
   name: Yhdyskuntajätteen mädätyksen päästöt
-  output_nodes: [waste_putrefaction_emissions]
+  output_nodes: [waste_treatment_emissions]
   params:
     sector: Jätteiden käsittely|Jätteiden käsittely|Jätteiden käsittely|Mädätys|Yhdyskuntajäte:HINKU
   input_nodes: [all_alas_emissions]

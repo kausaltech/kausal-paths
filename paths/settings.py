@@ -69,7 +69,7 @@ elif os.path.exists(os.path.join(BASE_DIR, '.env')):
 
 DEBUG = env('DEBUG')
 ADMIN_BASE_URL = env('ADMIN_BASE_URL')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))
 DATABASES = {
     'default': env.db()
@@ -417,6 +417,7 @@ WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = True
 WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
 WAGTAIL_PASSWORD_RESET_ENABLED = True
 WAGTAILADMIN_PERMITTED_LANGUAGES = list(LANGUAGES)
+WAGTAILEMBEDS_RESPONSIVE_HTML = True
 
 # Base URL to use when referring to full URLs within the Wagtail admin backend -
 # e.g. in notification emails. Don't include '/admin' or a trailing slash
@@ -558,9 +559,10 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'numba': level('INFO'),
             'botocore': level('INFO'),
             'filelock': level('INFO'),
-            'sentry_sdk.errors': level('DEBUG'),
+            'sentry_sdk.errors': level('INFO'),
             'markdown_it': level('INFO'),
             'colormath': level('INFO'),
+            'gql': level('WARNING'),
             '': level('DEBUG'),
         }
     }
