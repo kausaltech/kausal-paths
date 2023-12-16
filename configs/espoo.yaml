@@ -14,7 +14,7 @@ framework: hsy
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 270d2eebacdac1478da7c27ced1203d0d2ece6e7
+  commit: a788c3784c95ff3ba66a171767d4c5b58298489b
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -58,6 +58,8 @@ action_groups:
 params:
 - id: municipality_name
   value: Espoo
+- id: scenario_name
+  value: default
 
 dimensions:
 - id: building_heat_source
@@ -220,6 +222,44 @@ dimensions:
     label: Pessimistinen
     label_en: Pessimistic
     label_sv: Pessimistisk
+
+- id: main_emission_sector
+  label: Päästösektori
+  label_en: Main emission sector
+  label_sv: Utsläppsektor
+  categories:
+  - id: district_heating
+    label: Kaukolämpö
+    label_en: District heating
+    label_sv: Fjärrvärme
+  - id: oil_heating
+    label: Öljylämmitys
+    label_en: Oil heating
+    label_sv: Oljevärme
+  - id: electric_heating
+    label: Sähkölämmitys
+    label_en: Electric heating
+    label_sv: Elvärme
+  - id: consumer_electricity
+    label: Kulutussähkö
+    label_en: Consumer electricity
+    label_sv: Konsumtionel
+  - id: transportation
+    label: Liikenne
+    label_en: Transportation
+    label_sv: Trafik
+  - id: industry_and_machinery
+    label: Teollisuus ja työkoneet
+    label_en: Industry and machinery
+    label_sv: Industri och maskiner
+  - id: waste_treatment
+    label: Jätteiden käsittely
+    label_en: Waste treatment
+    label_sv: Avfall
+  - id: agriculture
+    label: Maatalous
+    label_en: Agriculture
+    label_sv: Jordbruk
 
 emission_sectors:
 - id: net_emissions
@@ -596,28 +636,90 @@ nodes:
     - id: building_use
     - id: building_heat_source
 
-- id: electric_heating_emission_factor_adjustment  # FIXME Use scenario-specific dataset instead DONE
-  name: Korjaus lämmityssähkön päästökertoimeen  # FIXME Is this double counting?
-  name_en: Electric heating emission factor adjustment
-  name_sv: Korrigering av prognosen för emissionskoefficient för värmeel
-  description: Tämän verran lämmityssähkön päästökertoimen oletetaan laskevan myös
-    pessimistisessä skenaariossa verrattuna uusimpaan HSY-tilaston arvoon vuodelta
-    2022.
-  description_en: This is how much the emission factor of heating electricity is expected
-    to increase also in the pessimistic scenario compared to the latest value of HSY
-    statistics for 2021.
-  description_sv: Så här mycket förväntas emissionskoefficient för värmeel minska
-    även i det pessimistiska scenariot, jämfört med det senaste värdet i HRM-statistiken
-    för 2021.
+- id: addim1  # FIXME Temporary node for optimizing
+  name: addim
   type: simple.AdditiveNode
-  quantity: energy
+  quantity: emission_factor
   unit: g/kWh
-  historical_values: [[2010, 0], [2021, 0], [2022, 0]]
-  forecast_values: [[2023, -8.616], [2024, -12.924], [2025, -17.232], [2026, -21.54],
-    [2027, -25.848], [2028, -30.156], [2029, -34.464], [2030, -38.772], [2031, -43.08],
-    [2032, -47.388], [2033, -51.696], [2034, -56.004], [2035, -60.312]]
+  historical_values: [[2000, 0], [2022, 0]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - electric_heating_emission_factor
+  - id: addim3
+    to_dimensions:
+    - id: vehicle
+      categories: [vans]
+
+- id: addim2  # FIXME Temporary node for optimizing
+  name: addim2
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2000, 0], [2022, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: addim3
+    to_dimensions:
+    - id: vehicle
+      categories: [buses]
+
+- id: addim3  # FIXME Temporary node for optimizing
+  name: addim3
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [vehicle]
+  output_dimensions: [vehicle]
+  output_nodes:
+  - id: electric_heating_emission_factor  # TÄÄLLÄKORJAUS
+    from_dimensions:
+    - id: vehicle
+      categories: [buses]
+      flatten: true
+
+- id: targe  # FIXME Temporary node for optimizing
+  name: Tavoite
+  name_en: Target
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: espoo/emission_estimates_by_sitowise
+    column: emissions
+    filters:
+    - column: scenario
+      value: baseline  # TÄÄLLÄKORJAUS
+    - column: main_emission_sector
+      value: electric_heating  # TÄÄLLÄKORJAUS
+    forecast_from: 2023
+    min_year: 2000
+  output_nodes:
+  - id: target
+    to_dimensions:
+    - id: vehicle
+      categories: [buses]
+
+- id: target  # FIXME Temporary node for optimizing
+  name: target
+  type: simple.FixedMultiplierNode2
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle]
+  output_dimensions: [vehicle]
+  params:
+  - id: multiplier
+    value: 2
+
+- id: outcome  # FIXME Temporary node for optimizing
+  name: Outcome
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: direct_electric_heating_emissions
+    to_dimensions:
+    - id: vehicle
+      categories: [buses]
+  output_dimensions: [vehicle]
 
 - id: consumer_electricity_energy
   name: Kulutussähkön kulutus yhteensä
@@ -934,9 +1036,9 @@ actions:
     value: 74.2185777
     unit: t/GWh
   - id: scenario
-    value: baseline
+    ref: scenario_name
 
-- id: change_consumer_electricity
+- id: change_consumer_electricity  # FIXME Miksi Suomi2035-skenaarion vaikutus poikkea nollasta?
   name: Muutos kulutussähkön käytössä
   name_en: Change in household energy consumption
   name_sv: Förändring i användningen av konsumtionsel
@@ -973,6 +1075,10 @@ actions:
   output_nodes:
   - consumer_electricity_residence_energy
   params:
+  - id: enabled
+    is_customizable: false
+  - id: scenario
+    ref: scenario_name
   - id: baseline_year
     value: 2022
     is_visible: false
@@ -980,8 +1086,31 @@ actions:
     value: 1712.3
     unit: GWh/a
     is_visible: false
+
+- id: electric_heating_emission_factor_action
+  name: Lämmityssähkön päästökerrointa muuttavat toimet
+  name_en: Actions to affect electric heating emission factor
+  name_sv: Åtgärger för emissionskoefficient för värmeel
+  description: Huomaa, että tämä toimenpide ei mallissa liity kansallisen sähköntuotannon päästökertoimeen, vaikka todellisuudessa ne toki liittyvät. Lämmityssähköä tarkastellaan erikseen, koska lämmityskaudella sähköntuotannon tavat poikkeavat vuoden keskiarvosta.
+  group: electricity
+  type: simple.TrajectoryAction
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - id: espoo/electric_heating_emission_factor_trajectories
+    column: emission_factor
+    forecast_from: 2023
+  params:
+  - id: enabled
+    is_customizable: false
   - id: scenario
-    value: baseline
+    ref: scenario_name
+  - id: baseline_year
+    value: 2022
+    is_visible: false
+  - id: baseline_year_level
+    value: 137.17171414402
+    unit: g/kWh
     is_visible: false
 
 - id: heating_efficiency_improvements_new
@@ -1310,7 +1439,7 @@ actions:
     value: 169.4
     unit: t/GWh
   - id: scenario
-    value: baseline
+    ref: scenario_name
 
 - id: city_building_heat_optimization  # FIXME Use goals dataset instead
   name: Kaupungin kiinteistöjen lämmityksen optimointi
@@ -1373,7 +1502,7 @@ actions:
   input_dataset_processors: [LinearInterpolation]
   params:
   - id: scenario
-    value: baseline
+    ref: scenario_name
 
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
@@ -1913,16 +2042,40 @@ actions:
     min_value: -57
     max_value: -56
 
+- id: test2  # FIXME Temporary node for optimizing
+  name: testi2
+  type: shift.ShiftAction
+  group: buildings
+  quantity: emission_factor
+  output_nodes:
+  - addim3
+  unit: t/GWh
+  params:
+  - id: shift
+    unit: t/GWh
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          vehicle: buses
+      dests:
+      - categories:
+          vehicle: vans
+      amounts:
+      - {year: 2000, source_amount: 0.0, dest_amounts: [100]}
+
 scenarios:
 - id: baseline
   name: Suomi 2035
   name_en: Finland 2035
   name_sv: Finland 2035
   params:
+  - id: scenario_name
+    value: baseline
+  - id: test2.enabled
+    value: true
   - id: cleaner_electricity_production.enabled
     value: true
-  - id: cleaner_electricity_production.scenario
-    value: baseline
 
   - id: reduce_machinery_emissions.target_year_level
     value: -0.818
@@ -1961,8 +2114,6 @@ scenarios:
 
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
-  - id: replace_fossil_fuels_in_district_heating.scenario
-    value: baseline
   - id: reduce_oil_heating_residence.enabled
     value: true
   - id: reduce_oil_heating_services.enabled
@@ -1972,12 +2123,10 @@ scenarios:
 
   - id: reduce_waste_treatment_emissions.enabled
     value: true
-  - id: reduce_waste_treatment_emissions.scenario
-    value: baseline
   - id: change_consumer_electricity.enabled
     value: true
-  - id: change_consumer_electricity.scenario
-    value: baseline
+  - id: electric_heating_emission_factor_action.enabled
+    value: true
 
 - id: default
   default: true
@@ -1986,6 +2135,8 @@ scenarios:
   name_sv: Kolneutralt Esbo 2030
   all_actions_enabled: true
   params:
+  - id: scenario_name
+    value: default
   - id: reduce_machinery_emissions.target_year_level
     value: -2.05
 
@@ -2009,21 +2160,15 @@ scenarios:
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
-  - id: replace_fossil_fuels_in_district_heating.scenario
-    value: default
 
   - id: reduce_waste_treatment_emissions.enabled
     value: true
-  - id: reduce_waste_treatment_emissions.scenario
-    value: default
   - id: change_consumer_electricity.enabled
     value: true
-  - id: change_consumer_electricity.scenario
-    value: default
   - id: cleaner_electricity_production.enabled
     value: true
-  - id: cleaner_electricity_production.scenario
-    value: default
+  - id: electric_heating_emission_factor_action.enabled
+    value: true
 
 - id: pessimistic
   name: Pessimistinen
@@ -2031,6 +2176,10 @@ scenarios:
   name_sv: Pessimistisk
   all_actions_enabled: false
   params:
+  - id: scenario_name
+    value: pessimistic
+  - id: test2.enabled
+    value: true
   - id: change_car_traffic_emission_factor.enabled
     value: true
   - id: change_van_traffic_emission_factor.enabled
@@ -2041,20 +2190,14 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.enabled
     value: true
-  - id: reduce_waste_treatment_emissions.scenario
-    value: pessimistic
   - id: change_consumer_electricity.enabled
     value: true
-  - id: change_consumer_electricity.scenario
-    value: pessimistic
   - id: cleaner_electricity_production.enabled
     value: true
-  - id: cleaner_electricity_production.scenario
-    value: pessimistic
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
-  - id: replace_fossil_fuels_in_district_heating.scenario
-    value: pessimistic
+  - id: electric_heating_emission_factor_action.enabled
+    value: true
 
 #######################
 # DATA SOURCES
