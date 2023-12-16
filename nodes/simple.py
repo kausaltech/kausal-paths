@@ -429,6 +429,35 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
         return df
 
 
+class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
+    allowed_parameters = [
+        NumberParameter(local_id='multiplier'),
+        StringParameter(local_id='global_multiplier'),
+    ] + AdditiveNode.allowed_parameters
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = super().compute()
+        multiplier = self.get_parameter_value('multiplier', required=True)
+
+        # FIXME Use actual function from branch clean-nodes and  update it for unitless quantities
+        def multiply_quantity(df, col: str, quantity, out_unit: Unit | None = None):
+            if not isinstance(quantity, float):
+                res_unit = df._units[col] * quantity.units
+                quant = quantity.m
+            else:
+                res_unit = df._units[col]
+                quant = quantity
+            df = df.with_columns([pl.col(col) * pl.lit(quant)])
+            df._units[col] = res_unit
+            if out_unit:
+                df = df.ensure_unit(col, out_unit)
+            return df
+
+        df = multiply_quantity(df, VALUE_COLUMN, multiplier)
+
+        return df
+
+
 class YearlyPercentageChangeNode(SimpleNode):
     allowed_parameters = [
         NumberParameter(local_id='yearly_change', unit_str='%'),

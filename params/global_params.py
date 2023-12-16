@@ -120,3 +120,8 @@ class ActionImpactFromBaseline(BoolParameter):
     description = _('Compute action impact based on the baseline scenario instead of the default one')
     id = 'action_impact_from_baseline'
     value = False
+
+
+class ScenarioName(StringParameter):
+    name = _('Scanario name')
+    id = 'scenario_name'
