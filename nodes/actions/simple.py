@@ -170,42 +170,51 @@ class ExponentialAction(ActionNode):
         return self.compute_exponential()
 
 
-class ScenarioAction(AdditiveAction):
+class ScenarioAction(ActionNode):
     '''
-    First like AdditiveAction, but then selecting a scenario based on a parameter.
+    First like ActionNode, but then selecting a scenario based on a parameter.
     The parameter must be given, and the df must have dimension scenario.
     '''
-    allowed_parameters = AdditiveAction.allowed_parameters + [
+    allowed_parameters = ActionNode.allowed_parameters + [
         StringParameter(local_id='scenario')
     ]
     def compute_effect(self):
-        
-        df = super().compute_effect()
-        df = ppl.from_pandas(df)
-        scen_id = self.get_parameter_value('scenario', required=False)
-        if scen_id is not None:
-            df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+        df = self.get_input_dataset_pl()
+        scen_id = self.get_parameter_value('scenario', required=True)
+        if not self.is_enabled():
+            scen_id = 'baseline'
+        df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
         return df
 
 
-class TrajectoryAction(AdditiveAction):
+class TrajectoryAction(ActionNode):
     '''
-    TrajectoryAction is a ScenarioAction where you define the effect as an absolute trajectory of values, not as a relative change from the baseline like usually. The trajectory is converted to baseline-relative values by giving the baseline value and baseline year as parameter values. This is a bit cumbersome, but we cannot get the baseline value from the output node because that would make the graph cyclic.
+    TrajectoryAction is an ActionNode where you define the effect as an absolute trajectory of values, not as a relative change from the baseline like usually. The trajectory is converted to baseline-relative values by giving the baseline value and baseline year as parameter values. This is a bit cumbersome, but we cannot get the baseline value from the output node because that would make the graph cyclic.
     '''
-    allowed_parameters = AdditiveAction.allowed_parameters + [
+    allowed_parameters = ActionNode.allowed_parameters + [
         StringParameter(local_id='scenario'),
         NumberParameter(local_id='baseline_year_level'),
         NumberParameter(local_id='baseline_year')
     ]
     def compute_effect(self):
-        
-        df = super().compute_effect()
-        df = ppl.from_pandas(df)
-        level = self.get_parameter_value('baseline_year_level', required=True)
+        df = self.get_input_dataset_pl()
+        scen_id = self.get_parameter_value('scenario', required=True)
+        if not self.is_enabled():
+            scen_id = 'baseline'
+        df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+
+        level = self.get_parameter_value('baseline_year_level', required=False)
         year = int(self.get_parameter_value('baseline_year', required=True))
-        scen_id = self.get_parameter_value('scenario', required=False)
-        if scen_id is not None:
-            df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
         df = df.filter(pl.col(YEAR_COLUMN).ge(year))
-        df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(level))
+        if level is None:  # Assume a relative change
+            level = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
+            df = df.with_columns((
+                pl.col(VALUE_COLUMN) / pl.lit(level) - pl.lit(1)
+            ))
+            df = df.clear_unit(VALUE_COLUMN)
+            df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        else:
+            df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(level))  # FIXME Check units
+
         return df
