@@ -1,11 +1,12 @@
 # FIXME Liikenteen kokonaispäästöt historiassa oK, tulevaisuudessa eivät täsmää HNE2030 eikä myöskään kun lisätoimet otetaan pois.
 # FIXME Kulutussähkön päästöt tulevaisuudessa ovat lähellä mutta eivät identtiset, +3 kt isommat -> optimoi?
-# Sähkölämmityksen päästöt OK
+# FIXME Sähkölämmityksen pessimistinen skenaario perustuu energiankulutuksen 5 %/a kasvuun, mutta nyt suurennetaan päästökerrointa. Tämä pitäiäsi korjata. Mitä muita sähkölämmitykseen vaikuttavia tekijöitä on?
 # Sähkölämmityksen päästökerroin laskee jostain syystä kaikissa skenaarioissa, eikä tätä ole kunnolla avattu. Nyt ei puututa siihen.
-# Jätteiden käsittelyn päästöt ovat identtiset
+# Jätteiden käsittelyn päästöt ovat identtiset OK.
 # FIXME Teaollisuus ja työkoneet poikkeaa historiassa 2017- sekä tulevaisuudessa.
 # Maatalous on riittävän lähellä
-# FIXME Kaukolämpö, öljylämmitys: ei täsmää 2022 alkaen
+# FIXME Kaukolämpö ei tästmää, pitäisi korjata muta mistä kohdasta?
+# FIXME öljylämmitys: ei täsmää 2022 alkaen
 
 id: espoo
 default_language: fi
@@ -721,6 +722,44 @@ nodes:
       categories: [buses]
   output_dimensions: [vehicle]
 
+- id: electricity_production_emission_factor_historic
+  name: Kansallisen sähköntuotannon päästökerroin, historiallinen
+  name_en: National electricity production emission factor, historic
+  name_sv: Emissionskoefficient för nationell elproduktion, historisk
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+
+- id: electricity_production_emission_factor
+  name: Sähköntuotannon päästökerroin
+  type: simple.RelativeNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_nodes:
+  - id: electricity_production_emission_factor_historic
+
+- id: electric_heating_emission_factor_historic
+  name: Lämmityssähkön päästökerroin, historiallinen
+  name_en: Electric heating emission factor, historical
+  name_sv: Emissionskoefficient för värmeel, historisk
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
+
+- id: electric_heating_emission_factor
+  name: Lämmityssähkön päästökerroin
+  name_en: Electric heating emission factor
+  name_sv: Emissionskoefficient för värmeel
+  type: simple.RelativeNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_nodes:
+  - id: electric_heating_emission_factor_historic
+
 - id: consumer_electricity_energy
   name: Kulutussähkön kulutus yhteensä
   name_en: consumer electricity, total
@@ -1021,10 +1060,12 @@ actions:
   quantity: emission_factor
   group: electricity
   output_nodes:
-  - electricity_production_emission_factor
-  - electric_heating_emission_factor
+  - id: electricity_production_emission_factor
+    tags: [non_additive]
+  - id: electric_heating_emission_factor
+    tags: [non_additive]
   type: simple.TrajectoryAction
-  unit: t/GWh
+  unit: '%'
   input_datasets:
   - id: espoo/energy_sector_trajectories
     column: electricity_emission_factor
@@ -1032,13 +1073,10 @@ actions:
   params:
   - id: baseline_year
     value: 2022
-  - id: baseline_year_level
-    value: 74.2185777
-    unit: t/GWh
   - id: scenario
     ref: scenario_name
 
-- id: change_consumer_electricity  # FIXME Miksi Suomi2035-skenaarion vaikutus poikkea nollasta?
+- id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
   name_en: Change in household energy consumption
   name_sv: Förändring i användningen av konsumtionsel
@@ -1112,6 +1150,48 @@ actions:
     value: 137.17171414402
     unit: g/kWh
     is_visible: false
+
+- id: replace_fossil_fuels_in_district_heating  # FIXME CHECK EMISSIONS
+  name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
+  name_en: Fortum replaces fossil fuels in district heat production
+  name_sv: Fortum ersätter fossila energikällor inom fjärrvärmeproduktionen
+  description: Kaukolämmön päästökertoimen osalta laskennassa on tehty seuraavat oletukset.
+    Pessimistisssä skenaariossa kaukolämmön päästökertoimen oletetaan pysyvän vuoden
+    2021 tasolla. Suomi 2035-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän
+    keskimäätin Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion arvion
+    mukaisesti. HNE 2030-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän
+    Fortumin arvion mukaisesti.
+  description_en: For the calculation of the emission factor for district heating,
+    the following assumptions have been made. In the pessimistic scenario, the emission
+    factor for district heating is expected to remain at the 2021 level. In the Finland
+    2035 scenario, the emission factor for district heating is expected to develop
+    on average according to the low-carbon scenario estimate of Finnish Energy’s low-carbon
+    roadmap. In the Carbon-neutral Espoo 2030 scenario, the emission factor for district
+    heating is expected to develop in accordance with Fortum’s estimate.
+  description_sv: I fråga om utsläppskoefficienten för fjärrvärme har följande antaganden
+    gjorts i beräkningen. I det pessimistiska scenariot antas utsläppskoefficienten
+    för fjärrvärme hållas på samma nivå som 2021. I scenariot Finland 2035 antas utsläppskoefficienten
+    för fjärrvärme utvecklas i genomsnitt enligt bedömningen av koldioxidsnålhetsscenariot
+    i vägkartan för koldioxidsnålhet för energiindustrin. I scenariot HNE 2030 antas
+    utsläppskoefficienten för fjärrvärme utvecklas enligt Fortums uppskattning.
+  type: simple.TrajectoryAction
+  quantity: emission_factor
+  unit: t/GWh
+  group: buildings
+  input_datasets:
+  - id: espoo/energy_sector_trajectories
+    column: district_heat_emission_factor
+    forecast_from: 2023
+  output_nodes:
+  - district_heating_emission_factor
+  params:
+  - id: baseline_year
+    value: 2022
+  - id: baseline_year_level
+    value: 169.4
+    unit: t/GWh
+  - id: scenario
+    ref: scenario_name
 
 - id: heating_efficiency_improvements_new
   name: Ominaislämmönkulutuksen paraneminen uudessa rakennuskannassa
@@ -1399,48 +1479,6 @@ actions:
         source_amount: -10000
         dest_amounts: [50, 50]
 
-- id: replace_fossil_fuels_in_district_heating  # FIXME CHECK EMISSIONS
-  name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
-  name_en: Fortum replaces fossil fuels in district heat production
-  name_sv: Fortum ersätter fossila energikällor inom fjärrvärmeproduktionen
-  description: Kaukolämmön päästökertoimen osalta laskennassa on tehty seuraavat oletukset.
-    Pessimistisssä skenaariossa kaukolämmön päästökertoimen oletetaan pysyvän vuoden
-    2021 tasolla. Suomi 2035-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän
-    keskimäätin Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion arvion
-    mukaisesti. HNE 2030-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän
-    Fortumin arvion mukaisesti.
-  description_en: For the calculation of the emission factor for district heating,
-    the following assumptions have been made. In the pessimistic scenario, the emission
-    factor for district heating is expected to remain at the 2021 level. In the Finland
-    2035 scenario, the emission factor for district heating is expected to develop
-    on average according to the low-carbon scenario estimate of Finnish Energy’s low-carbon
-    roadmap. In the Carbon-neutral Espoo 2030 scenario, the emission factor for district
-    heating is expected to develop in accordance with Fortum’s estimate.
-  description_sv: I fråga om utsläppskoefficienten för fjärrvärme har följande antaganden
-    gjorts i beräkningen. I det pessimistiska scenariot antas utsläppskoefficienten
-    för fjärrvärme hållas på samma nivå som 2021. I scenariot Finland 2035 antas utsläppskoefficienten
-    för fjärrvärme utvecklas i genomsnitt enligt bedömningen av koldioxidsnålhetsscenariot
-    i vägkartan för koldioxidsnålhet för energiindustrin. I scenariot HNE 2030 antas
-    utsläppskoefficienten för fjärrvärme utvecklas enligt Fortums uppskattning.
-  type: simple.TrajectoryAction
-  quantity: emission_factor
-  unit: t/GWh
-  group: buildings
-  input_datasets:
-  - id: espoo/energy_sector_trajectories
-    column: district_heat_emission_factor
-    forecast_from: 2023
-  output_nodes:
-  - district_heating_emission_factor
-  params:
-  - id: baseline_year
-    value: 2022
-  - id: baseline_year_level
-    value: 169.4
-    unit: t/GWh
-  - id: scenario
-    ref: scenario_name
-
 - id: city_building_heat_optimization  # FIXME Use goals dataset instead
   name: Kaupungin kiinteistöjen lämmityksen optimointi
   name_en: Optimization of heating systems in city-owned buildings
@@ -1473,12 +1511,12 @@ actions:
   name: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
   name_sv: Utsläppen från avfallsbehandlingen minskar
-  description: Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän
+  description: <p>Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän
     vuoden 2021 tasolla. Suomi 2035-skenaariossa päästöjen arvioidaan laskevan 4 prosenttia
     vuoden 2020 tasosta vuoteen 2030 mennessä. Samankaltaisen päästökehityksen arvioidaan
     toteutuvan myös aikavälillä 2030-2035. HNE2030-skenaariossa päästöjen oletetaan
     laskevan 68 prosenttia aikavälillä 2021-2030, minkä jälkeen päästöjen oletetaan
-    pysyvän vuoden 2030 tasolla.
+    pysyvän vuoden 2030 tasolla.</p><p>Vuonna 2021 päästöt olivat 23.7 kt ja näyden päästöarvioiden pohjana. Kuitenkin vuonna 2022 päästöt olivat vain 21.8 kt, joten pessimistinen ja Suomi 2035 -skenaariot ovat toteumaa pessimistisempiä.</p>
   description_en: In the pessimistic scenario, emissions per capita are expected to
     remain at the 2021 level. In the Finland 2035 scenario, emissions are estimated
     to decrease by 4% from the 2020 level by 2030. A similar trend in emissions is
