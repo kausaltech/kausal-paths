@@ -5,7 +5,7 @@
 # Jätteiden käsittelyn päästöt ovat identtiset OK.
 # Teaollisuus ja työkoneet poikkeaa historiassa 2017- sekä tulevaisuudessa. Mutta erot eivät ole kovin isoja ja johtunevat perustason muutoksesta vuoden 2022 datan myötä.
 # Maatalous on riittävän lähellä
-# FIXME Kaukolämpö ei tästmää, pitäisi korjata muta mistä kohdasta?
+# FIXME Kaukolämpö ei tästmää, pitäisi korjata muta mistä kohdasta? Päästökertoimesta varmaan
 # Öljylämmitys: ei täsmää 2022 alkaen mutta ei kovin kaukana
 
 id: espoo
@@ -636,96 +636,6 @@ nodes:
     to_dimensions:
     - id: building_use
     - id: building_heat_source
-
-- id: addim1  # FIXME Temporary node for optimizing
-  name: addim
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kWh/a/m**2
-  historical_values: [[2000, 0], [2022, 0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: addim3
-    to_dimensions:
-    - id: vehicle
-      categories: [vans]
-
-- id: addim2  # FIXME Temporary node for optimizing
-  name: addim2
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kWh/a/m**2
-  historical_values: [[2000, 0], [2022, 0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: addim3
-    to_dimensions:
-    - id: vehicle
-      categories: [buses]
-
-- id: addim3  # FIXME Temporary node for optimizing
-  name: addim3
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kWh/a/m**2
-  input_dimensions: [vehicle]
-  output_dimensions: [vehicle]
-#  output_nodes:
-#  - id: building_heat_per_floor_area  # TÄÄLLÄKORJAUS
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [buses]
-#      flatten: true
-#    to_dimensions:
-#    - id: building_heat_source
-#      categories: [direct_electric]
-#    - id: building_use
-#      categories: [residence]
-
-- id: targe  # FIXME Temporary node for optimizing
-  name: Tavoite
-  name_en: Target
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_datasets:
-  - id: espoo/emission_estimates_by_sitowise
-    column: emissions
-    filters:
-    - column: scenario
-      value: pessimistic  # TÄÄLLÄKORJAUS
-    - column: main_emission_sector
-      value: electric_heating  # TÄÄLLÄKORJAUS
-    forecast_from: 2023
-    min_year: 2000
-  output_nodes:
-  - id: target
-    to_dimensions:
-    - id: vehicle
-      categories: [buses]
-
-- id: target  # FIXME Temporary node for optimizing
-  name: target
-  type: simple.FixedMultiplierNode2
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle]
-  output_dimensions: [vehicle]
-  params:
-  - id: multiplier
-    value: 2
-
-- id: outcome  # FIXME Temporary node for optimizing
-  name: Outcome
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes:
-  - id: direct_electric_heating_emissions  # TÄÄLLÄ KORJAUS
-    to_dimensions:
-    - id: vehicle
-      categories: [buses]
-  output_dimensions: [vehicle]
 
 - id: electricity_production_emission_factor_historic
   name: Kansallisen sähköntuotannon päästökerroin, historiallinen
@@ -2118,101 +2028,6 @@ actions:
     min_value: -57
     max_value: -56
 
-- id: test2  # FIXME Temporary node for optimizing
-  name: testi2
-  type: shift.ShiftAction
-  group: buildings
-  quantity: emission_factor
-  output_nodes:
-  - addim3
-  unit: kWh/a/m**2
-  params:
-  - id: shift
-    unit: kWh/a/m**2
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          vehicle: buses
-      dests:
-      - categories:
-          vehicle: vans
-      amounts:
-      - {year: 2000, source_amount: 0, dest_amounts: [100]}
-      - {year: 2000, source_amount: 0, dest_amounts: [100]}
-      - {year: 2000, source_amount: 0, dest_amounts: [100]}
-      - {year: 2000, source_amount: 0, dest_amounts: [100]}
-      - {year: 2000, source_amount: 0, dest_amounts: [100]}
-      - {year: 2001, source_amount: 0, dest_amounts: [100]}
-      - {year: 2001, source_amount: 0, dest_amounts: [100]}
-      - {year: 2002, source_amount: 0, dest_amounts: [100]}
-      - {year: 2002, source_amount: 0, dest_amounts: [100]}
-      - {year: 2003, source_amount: 0, dest_amounts: [100]}
-      - {year: 2003, source_amount: 0, dest_amounts: [100]}
-      - {year: 2004, source_amount: 0, dest_amounts: [100]}
-      - {year: 2004, source_amount: 0, dest_amounts: [100]}
-      - {year: 2005, source_amount: 0, dest_amounts: [100]}
-      - {year: 2005, source_amount: 0, dest_amounts: [100]}
-      - {year: 2006, source_amount: 0, dest_amounts: [100]}
-      - {year: 2006, source_amount: 0, dest_amounts: [100]}
-      - {year: 2007, source_amount: 0, dest_amounts: [100]}
-      - {year: 2007, source_amount: 0, dest_amounts: [100]}
-      - {year: 2008, source_amount: 0, dest_amounts: [100]}
-      - {year: 2008, source_amount: 0, dest_amounts: [100]}
-      - {year: 2009, source_amount: 0, dest_amounts: [100]}
-      - {year: 2009, source_amount: 0, dest_amounts: [100]}
-      - {year: 2010, source_amount: 2.165, dest_amounts: [100]}
-      - {year: 2010, source_amount: 2.165, dest_amounts: [100]}
-      - {year: 2011, source_amount: 0.357, dest_amounts: [100]}
-      - {year: 2011, source_amount: 0.357, dest_amounts: [100]}
-      - {year: 2012, source_amount: 0.601, dest_amounts: [100]}
-      - {year: 2012, source_amount: 0.601, dest_amounts: [100]}
-      - {year: 2013, source_amount: 0.728, dest_amounts: [100]}
-      - {year: 2013, source_amount: 0.728, dest_amounts: [100]}
-      - {year: 2014, source_amount: 0.72, dest_amounts: [100]}
-      - {year: 2014, source_amount: 0.72, dest_amounts: [100]}
-      - {year: 2015, source_amount: 0.68, dest_amounts: [100]}
-      - {year: 2015, source_amount: 0.68, dest_amounts: [100]}
-      - {year: 2016, source_amount: 1.028, dest_amounts: [100]}
-      - {year: 2016, source_amount: 1.028, dest_amounts: [100]}
-      - {year: 2017, source_amount: 0.938, dest_amounts: [100]}
-      - {year: 2017, source_amount: 0.938, dest_amounts: [100]}
-      - {year: 2018, source_amount: 1.022, dest_amounts: [100]}
-      - {year: 2018, source_amount: 1.022, dest_amounts: [100]}
-      - {year: 2019, source_amount: 1.413, dest_amounts: [100]}
-      - {year: 2019, source_amount: 1.413, dest_amounts: [100]}
-      - {year: 2020, source_amount: 1.025, dest_amounts: [100]}
-      - {year: 2020, source_amount: 1.025, dest_amounts: [100]}
-      - {year: 2021, source_amount: -1.768, dest_amounts: [100]}
-      - {year: 2021, source_amount: -1.768, dest_amounts: [100]}
-      - {year: 2022, source_amount: -20, dest_amounts: [100]}
-      - {year: 2022, source_amount: -20, dest_amounts: [100]}
-      - {year: 2023, source_amount: 0.901, dest_amounts: [100]}
-      - {year: 2023, source_amount: 0.901, dest_amounts: [100]}
-      - {year: 2024, source_amount: 5.72, dest_amounts: [100]}
-      - {year: 2024, source_amount: 5.72, dest_amounts: [100]}
-      - {year: 2025, source_amount: 6.008, dest_amounts: [100]}
-      - {year: 2025, source_amount: 6.008, dest_amounts: [100]}
-      - {year: 2026, source_amount: 6.304, dest_amounts: [100]}
-      - {year: 2026, source_amount: 6.304, dest_amounts: [100]}
-      - {year: 2027, source_amount: 6.623, dest_amounts: [100]}
-      - {year: 2027, source_amount: 6.623, dest_amounts: [100]}
-      - {year: 2028, source_amount: 6.954, dest_amounts: [100]}
-      - {year: 2028, source_amount: 6.954, dest_amounts: [100]}
-      - {year: 2029, source_amount: 7.3, dest_amounts: [100]}
-      - {year: 2029, source_amount: 7.3, dest_amounts: [100]}
-      - {year: 2030, source_amount: 7.668, dest_amounts: [100]}
-      - {year: 2030, source_amount: 7.668, dest_amounts: [100]}
-      - {year: 2031, source_amount: 8.052, dest_amounts: [100]}
-      - {year: 2031, source_amount: 8.052, dest_amounts: [100]}
-      - {year: 2032, source_amount: 8.452, dest_amounts: [100]}
-      - {year: 2032, source_amount: 8.452, dest_amounts: [100]}
-      - {year: 2033, source_amount: 8.876, dest_amounts: [100]}
-      - {year: 2033, source_amount: 8.876, dest_amounts: [100]}
-      - {year: 2034, source_amount: 9.321, dest_amounts: [100]}
-      - {year: 2034, source_amount: 9.321, dest_amounts: [100]}
-      - {year: 2035, source_amount: 9.789, dest_amounts: [100]}
-      - {year: 2035, source_amount: 9.789, dest_amounts: [100]}
 scenarios:
 - id: baseline
   name: Suomi 2035
@@ -2221,8 +2036,6 @@ scenarios:
   params:
   - id: scenario_name
     value: baseline
-  - id: test2.enabled
-    value: true
   - id: cleaner_electricity_production.enabled
     value: true
 
@@ -2327,8 +2140,6 @@ scenarios:
   params:
   - id: scenario_name
     value: pessimistic
-  - id: test2.enabled
-    value: true
   - id: change_car_traffic_emission_factor.enabled
     value: true
   - id: change_van_traffic_emission_factor.enabled
