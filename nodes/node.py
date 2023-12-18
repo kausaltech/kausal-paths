@@ -1349,7 +1349,7 @@ class Node:
                 if len(nulls):
                     raise NodeError(self, 'Baseline output has nulls or NaNs in column %s' % m.column_id)
 
-        m = Metric.from_node(self)
+        m = Metric.from_node(self)  # FIXME Should this be done for DimensionslMetric as well?
         if m is None:
             raise NodeError(self, "Output did not result in a Metric")
         else:
