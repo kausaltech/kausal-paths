@@ -124,7 +124,7 @@ class AdditiveNode(SimpleNode):
                     else:
                         raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
-            df = extend_last_historical_value_pl(df, self.get_end_year())
+            df = extend_last_historical_value_pl(df, 2021)
 
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
@@ -182,7 +182,7 @@ class SectorEmissions(AdditiveNode):
             if len(df.metric_cols) != 1:
                 raise NodeError(self, "Input dataset has more than 1 metric")
             df = df.rename({df.metric_cols[0]: m.column_id})
-            df = extend_last_historical_value_pl(df, self.get_end_year())
+#            df = extend_last_historical_value_pl(df, self.get_end_year())
             df = df.drop_nulls()
             return super().add_nodes_pl(df, self.input_nodes)
 
