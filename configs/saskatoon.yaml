@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 434a96d9a02d6422eeec7376a1c1d5729eba92a2
+  commit: 046b9cf53121d48c814cbe483afee07a3a401722
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon Greenhouse Gas Inventory
@@ -307,13 +307,13 @@ emission_sectors:
 - id: ippu_emissions
   name: Industrial Processes & Product Use Emissions
   part_of: net_emissions
-  color: '#6686B9'
+  color: '#b07aa1'
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name: Agriculture, Forestry, & Other Land Use Emissions
   part_of: net_emissions
-  color: '#5D9C6F'
+  color: '#76b7b2'
   input_dataset_processors: [LinearInterpolation]
 
 # ----- Subsector Emissions -----
@@ -2413,12 +2413,6 @@ actions:
     from_dimensions:
     - id: emission_sectors
       categories: [energy_industries]
-  - id: waste_emissions_forecast
-    from_dimensions:
-    - id: emission_sectors
-      categories: [waste]
-    - id: energy_carrier
-      flatten: true
 
 - id: lec_action_37_energy
   name: LEC Action 37 Energy Reductions
