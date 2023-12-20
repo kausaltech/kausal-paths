@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c05ff4271abc98635d4034bd11a6b36262d990bc
+  commit: 13ad3b4c049c0f23970a529e90a30e3b7ddaef5d
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -1099,8 +1099,8 @@ nodes:
 - id: building_general_electricity_consumption
   name_de: Nichtheizstromverbrauch von Gebäuden
   name_en: Non-heating electricity consumption of buildings
-  short_name_de: Nichtheizstromverbrauch Gebäude
-  short_name_en: Buildings, non-heating
+  short_name_de: Gebäude Strom
+  short_name_en: Building Electricity
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -1367,8 +1367,8 @@ nodes:
 - id: building_general_electricity_emissions
   name_de: Treibhausgasemissionen allgemeiner Stromverbrauch des Gebäudes
   name_en: Building general electricity use emissions
-  short_name_de: Stromverbrauch
-  short_name_en: Electricity use
+  short_name_de: Gebäude Strom
+  short_name_en: Building Electricity
   type: ch.zuerich.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
@@ -1390,7 +1390,7 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: building_emissions_2kw
+  - id: net_emissions_2kw
 
 - id: building_other_fuel_gas_grid_share
   type: simple.AdditiveNode
@@ -2270,12 +2270,24 @@ nodes:
   input_dimensions: [energy_carrier, renewable_energy]
   output_dimensions: [energy_carrier, renewable_energy]
 
+- id: building_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Heizung & Ubrige
+  name_en: Building heat & other primary energy consumption
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  output_nodes:
+  - id: net_primary_energy_demand
 
 - id: building_heating_primary_energy_consumption
   name_de: Primärenergiebedarf Gebäude Heizung
   name_en: Building primary energy consumption
   short_name_de: Gebäude Heizung
-  short_name_en: Building heating
+  short_name_en: Building Heat
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2289,7 +2301,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   output_nodes:
-  - id: net_primary_energy_demand
+  - id: building_primary_energy_consumption
 
 - id: building_general_electricity_primary_energy_consumption
   name_de: Primärenergiebedarf Gebäude Strom
@@ -2319,7 +2331,7 @@ nodes:
   name_de: Primärenergiebedarf Gebäude Ubrige
   name_en: Other building primary energy consumption
   short_name_de: Gebäude Ubrige
-  short_name_en: Building other
+  short_name_en: Building Other
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2334,7 +2346,7 @@ nodes:
   - id: building_other_fuel_use
     tags: [non_additive]
   output_nodes:
-  - id: net_primary_energy_demand
+  - id: building_primary_energy_consumption
     from_dimensions:
     - id: building_other_emission_sources
       flatten: true
@@ -2631,6 +2643,8 @@ nodes:
 - id: transport_end_energy_consumption
   name_de: Transportation total end energy consumption
   name_en: Transportation total end energy consumption
+  short_name_de: Verkehr
+  short_name_en: Transportation
   type: simple.AdditiveNode
   quantity: energy
   input_dimensions: [energy_carrier, vehicle_type]
@@ -2655,8 +2669,10 @@ nodes:
       categories: [aviation]
 
 - id: stationary_end_energy_consumption
-  name_de: Stationary total end energy consumption
-  name_en: Stationary total end energy consumption
+  name_de: Stationary heat & other end energy consumption
+  name_en: Stationary heat & other end energy consumption
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
   type: simple.AdditiveNode
   quantity: energy
   input_dimensions: [energy_carrier]
@@ -2664,13 +2680,6 @@ nodes:
   unit: GWh/a
   input_nodes:
   - id: building_heat_consumption_by_carrier
-  - id: building_general_electricity_consumption
-    from_dimensions:
-    - id: building_use
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
   - id: building_other_fuel_use
     from_dimensions:
     - id: building_other_emission_sources
@@ -2688,6 +2697,13 @@ nodes:
   unit: GWh/a
   input_nodes:
   - id: stationary_end_energy_consumption
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
   - id: transport_end_energy_consumption
     from_dimensions:
     - id: vehicle_type
@@ -2705,15 +2721,157 @@ nodes:
   is_outcome: true
 
 - id: building_emissions_2kw
-  name_de: Treibhausgasemissionen Gebäude (2000-Watt)
-  name_en: Building greenhouse gas emissions (2000-watt)
+  name_de: Treibhausgasemissionen Gebäude Heizung & Ubrige
+  name_en: Building heat & other greenhouse gas emissions (2000-watt)
   type: simple.SectorEmissions
-  short_name_de: Gebäude
-  short_name_en: Buildings
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
   unit: kt/a
   input_dimensions: [energy_carrier, emission_scope]
   output_dimensions: [energy_carrier, emission_scope]
   output_nodes: [net_emissions_2kw]
+
+# - id: non_road_machinery_end_energy_consumption
+#   name_de: Non-road machinery end energy consumption
+#   name_en: Non-road machinery end energy consumption
+#   short_name_de: Non-Road Maschinen
+#   short_name_en: Non-road machinery
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   input_dimensions: [energy_carrier, non_road_machinery]
+#   output_dimensions: [energy_carrier, non_road_machinery]
+#   unit: MJ/a
+#   input_nodes:
+#   - id: non_road_machinery_fuel_consumption
+#   - id: fuel_energy_density
+
+- id: transport_emission_factor_2kw
+  name_de: Verkehr Emissionsfaktor (2000-Watt)
+  name_en: Transport emission factors (2000-Watt)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/transport_emission_factors_2kw
+
+- id: miv_emissions_2kw
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV) (2000-Watt)
+  name_en: Individual motor transport emissions (2000-Watt)
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: miv_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: public_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV) (2000-Watt)
+  name_en: Public transportation emissions (2000-Watt)
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: public_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: goods_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Güterverkehr (2000-Watt)
+  name_en: Goods transport emissions (2000-Watt)
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: goods_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: other_transport_emissions_2kw
+  name_de: Treibhausgasemissionen übriger Verkehr (2000-Watt)
+  name_en: Other transportation emissions (2000-Watt)
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: other_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+# - id: non_road_machinery_emissions_2kw
+#   name_de: Treibhausgasemissionen Non-Road Maschinen (2000-Watt)
+#   name_en: Fuel consumption of non-road machinery (2000-Watt)
+#   short_name_de: Non-Road Maschinen
+#   short_name_en: Non-road machinery
+#   type: ch.zuerich.TransportEmissions2kW
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+#   output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+#   input_nodes:
+#   - id: non_road_machinery_emissions
+#     tags: [emissions]
+#     to_dimensions:
+#     - id: emission_scope
+#       categories: [scope1]
+#   - id: non_road_machinery_end_energy_consumption
+#     tags: [consumption]
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: non_road_machinery
+#   - id: transport_emission_factor_2kw
+#     tags: [emission_factors]
+#     to_dimensions:
+#     - id: energy_carrier
 
 - id: transportation_emissions_2kw
   name_de: Treibhausgasemissionen Verkehr (2000-Watt)
@@ -2726,19 +2884,19 @@ nodes:
   output_dimensions: [energy_carrier, emission_scope]
   output_nodes: [net_emissions_2kw]
   input_nodes:
-  - id: miv_emissions
+  - id: miv_emissions_2kw
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  - id: public_transport_emissions
+  - id: public_transport_emissions_2kw
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  - id: goods_transport_emissions
+  - id: goods_transport_emissions_2kw
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  - id: other_transport_emissions
+  - id: other_transport_emissions_2kw
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -2750,6 +2908,10 @@ nodes:
     - id: emission_scope
       categories: [scope1]
     - id: energy_carrier
+  - id: aviation_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
 
 - id: european_electricity_renewable
   name_en: Renewable European-import component of electricity production mix
@@ -3046,10 +3208,6 @@ nodes:
     - id: greenhouse_gases
       flatten: true
     - id: energy_carrier
-      flatten: true
-  - id: transportation_emissions_2kw
-    from_dimensions:
-    - id: greenhouse_gases
       flatten: true
 
 #
