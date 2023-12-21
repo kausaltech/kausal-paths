@@ -949,6 +949,48 @@ class TransportEmissions(MultiplicativeNode):
         return df
 
 
+class TransportEmissions2kW(Node):
+    def compute(self):
+        enode = self.get_input_node(tag='emissions')
+        edf = enode.get_output_pl(target_node=self)
+        edf = edf.rename({VALUE_COLUMN: 'emissions'})
+
+        cnode = self.get_input_node(tag='consumption')
+        cdf = cnode.get_output_pl(target_node=self)
+        cdf = cdf.filter(pl.col('energy_carrier') != 'electricity')
+        cdf = cdf.rename({VALUE_COLUMN: 'consumption'})
+
+        fnode = self.get_input_node(tag='emission_factors')
+        fdf = fnode.get_output_pl(target_node=self)
+        fdf = fdf.rename({VALUE_COLUMN: 'factor'})
+
+        cdf = cdf.paths.join_over_index(fdf)
+        cdf = cdf.multiply_cols(['consumption', 'factor'], 'emissions_total')
+
+        df = edf.filter((pl.col('energy_carrier') == 'electricity') |
+                        (pl.col('emission_scope') == 'scope1'))
+
+        edf = edf.filter(pl.col('emission_scope') == 'scope1')
+        edf = edf.paths.join_over_index(cdf)
+
+        edf = edf.subtract_cols(['emissions_total', 'emissions'], 'emissions_2kw')
+        edf = edf.with_columns(emissions_2kw = pl.when(pl.col('emissions_2kw') < 0).then(0).otherwise(pl.col('emissions_2kw')))
+
+        # print('emissions: %s' % edf._units['emissions'])
+        # print('consumption: %s' % edf._units['consumption'])
+        # print('factor: %s' % edf._units['factor'])
+        # print('emissions_total: %s' % edf._units['emissions_total'])
+        # print('emissions_2kw: %s' % edf._units['emissions_2kw'])
+
+        edf = edf.drop(['consumption', 'factor', 'emissions_total', 'emissions'])
+        edf = edf.with_columns(emission_scope = pl.lit('scope3').cast(pl.Categorical))
+
+        edf = edf.rename({'emissions_2kw': VALUE_COLUMN})
+        df = df.rename({'emissions': VALUE_COLUMN})
+        df.extend(edf[df.columns])
+        return df
+
+
 class NonroadMachineryEmissions(Node):
     def compute(self) -> ppl.PathsDataFrame:
         nodes = list(self.input_nodes)
