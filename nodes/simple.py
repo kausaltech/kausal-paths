@@ -83,7 +83,12 @@ class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
     allowed_parameters: ClassVar[list[Parameter]] = [
         StringParameter(local_id='metric', is_customizable=False),
-    ] + SimpleNode.allowed_parameters
+    ] + SimpleNode.allowed_parameters + [
+        BoolParameter(
+            local_id='inventory_only',
+            description='Node represents historical (inventory) values only',
+            is_customizable=False,
+        )]
 
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
@@ -124,7 +129,11 @@ class AdditiveNode(SimpleNode):
                     else:
                         raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
-            df = extend_last_historical_value_pl(df, self.get_end_year())
+
+            if self.get_parameter_value('inventory_only', required=False):
+                df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+            else:
+                df = extend_last_historical_value_pl(df, self.get_end_year())
 
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]

@@ -4,15 +4,15 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f8850299a714248a80a5b708101049c8cee19c96
+  commit: 046b9cf53121d48c814cbe483afee07a3a401722
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon Greenhouse Gas Inventory
 owner_en: City of Saskatoon
 theme_identifier: ca-saskatoon
-target_year: 2025
-model_end_year: 2025
-reference_year: 2016
+target_year: 2050
+model_end_year: 2051
+# reference_year: 2020
 minimum_historical_year: 2014
 maximum_historical_year: 2021
 emission_unit: t/a
@@ -32,40 +32,32 @@ emission_sector_dimension: emission_sectors
 features:
   baseline_visible_in_graphs: true
 
+
 action_groups:
 - id: buildings
-  name: Buildings
+  name: Buildings & Energy Efficiency
 - id: transportation
   name: Transportation
-- id: electric_grid
-  name: Electric grid
-- id: solid_waste
-  name: Solid waste
-- id: oil_and_gas
-  name: Oil and gas
-- id: trend
-  name: Trends beyond own control
+- id: waste
+  name: Waste
+- id: water
+  name: Water Conservation
+- id: land
+  name: Land Use
+- id: energy
+  name: Energy Generation
+
 
 dimensions:
 - id: emission_scope
-  label: Emission scopes
+  label: Emission Scopes
   categories:
   - id: scope1
     label: Scope 1
-    color: '#0f05a0'
-    order: 0
   - id: scope2
     label: Scope 2
-    color: '#30505e'
-    order: 1
   - id: scope3
     label: Scope 3
-    color: '#6496ff'
-    order: 2
-  - id: negative_emissions
-    label: Negative emissions
-    color: '#F7A5AF'
-    order: -1
 
 - id: emission_sectors
   label: Emission Sectors
@@ -113,37 +105,10 @@ dimensions:
   - id: livestock
     label: V.1 Livestock
 
-# - id: vehicle_type
-#   label: Vehicle Type
-#   categories:
-#   - id: retail_diesel
-#     label: Retail (Diesel)
-#   - id: retail_gasoline
-#     label: Retail (Gasoline)
-#   - id: cardlock_diesel
-#     label: Cardlock (Diesel)
-#   - id: cardlock_gasoline
-#     label: Cardlock (Gasoline)
-#   - id: fleet_diesel
-#     label: City Fleet (Diesel)
-#   - id: fleet_gasoline
-#     label: City Fleet (Gasoline)
-#   - id: public_transit
-#     label: Public Transit
-#   - id: access_transit
-#     label: Access Transit
-#   - id: other_diesel
-#     label: Other Distributors (Diesel)
-#   - id: other_gasoline
-#     label: Other Distributors (Gasoline)
-#   - id: stc
-#     label: Saskatchewan Transportation Company
-#   - id: prairie_lily
-#     label: Prairie Lily
-#   - id: aviation_local
-#     label: Aviation (Local)
-#   - id: aviation_other
-#     label: Aviation (Domestic & International)
+  - id: fugitive
+    label: Fugitive
+  - id: municipal
+    label: Municipal
 
 - id: vehicle_type
   label: Vehicle Type
@@ -170,27 +135,16 @@ dimensions:
     label: Aviation (Domestic & International)
 
 - id: greenhouse_gases
-  label: Greenhouse gases
+  label: Greenhouse Gases
   categories:
-  - id: co2_eq
-    label: CO2 equivalent
+  - id: co2e
+    label: CO2 Equivalent
   - id: co2
-    label: CO2, fossil
-    aliases: [co2_fossil]
+    label: CO2
   - id: ch4
     label: CH4
   - id: n2o
     label: N2O
-  - id: hfc
-    label: HFC
-  - id: pfc
-    label: PFC
-  - id: sf6
-    label: SF6
-  - id: nf3
-    label: NF3
-  - id: co2_biogen
-    label: CO2, biogen
 
 - id: energy_carrier
   label: Energy Carrier
@@ -218,35 +172,18 @@ dimensions:
   - id: waste
     label: Waste
 
-- id: electricity_source
-  label: Electricity source
-  categories:
-  - id: hydro
-    label: Hydropower
-  - id: nuclear
-    label: Nuclear power
-  - id: natural_gas
-    label: Natural gas
-  - id: solar
-    label: Solar
-  - id: biogas
-    label: Biogas
-  - id: waste
-    label: Waste incineration
-  - id: wind
-    label: Wind
-  - id: wood
-    label: Wood
+  - id: diesel
+    label: Diesel
   - id: fuel_oil
-    label: Heating oil
-  - id: import
-    label: European import
-    aliases:
-    - UCTE-Mix / ENTSO-E Mix
-    - Nicht deklariert (UCTE)
-    - Nicht deklariert (UCTE-Mix)
-  - id: subsidized
-    label: Subsidized electricity
+    label: Fuel Oil
+  - id: fugitive
+    label: Fugitive
+  - id: gasoline
+    label: Gasoline
+  - id: other
+    label: Other
+  - id: propane
+    label: Propane
 
 - id: livestock
   label: Livestock
@@ -282,94 +219,67 @@ dimensions:
   - id: slp
     label: SL&P
 
-- id: waste
-  label: Waste type
+- id: actions
+  label: LEC Plan Actions
   categories:
-  - id: landfilled
-    label: Landfilled waste
-  - id: composted
-    label: Composted waste
-  - id: recycled
-    label: Recycled waste
-  - id: wastewater
-    label: Wastewater
+  - id: lec06
+    label: LEC Action 6
+  - id: lec07
+    label: LEC Action 7
+  - id: lec08
+    label: LEC Action 8
+  - id: lec10
+    label: LEC Action 10
+  - id: lec11
+    label: LEC Action 11
+  - id: lec12
+    label: LEC Action 12
+  - id: lec13
+    label: LEC Action 13
+  - id: lec14
+    label: LEC Action 14
+  - id: lec15
+    label: LEC Action 15
+  - id: lec16
+    label: LEC Action 16
+  - id: lec20
+    label: LEC Action 20
+  - id: lec21
+    label: LEC Action 21
+  - id: lec22
+    label: LEC Action 22
+  - id: lec23
+    label: LEC Action 23
+  - id: lec24
+    label: LEC Action 24
+  - id: lec26
+    label: LEC Action 26
+  - id: lec27
+    label: LEC Action 27
+  - id: lec32
+    label: LEC Action 32
+  - id: lec33
+    label: LEC Action 33
+  - id: lec34
+    label: LEC Action 34
+  - id: lec35
+    label: LEC Action 35
+  - id: lec36
+    label: LEC Action 36
+  - id: lec37
+    label: LEC Action 37
 
-- id: building_energy_class
-  label: Building energy class
-  categories:
-  - id: all
-    label: All buildings, baseline
-  - id: regular
-    label: Regular old buildings
-  - id: renovated
-    label: Renovated old buildings
-  - id: compliant
-    label: New code-compliant buildings
-  - id: non_compliant
-    label: New buildings not compliant with code
-
-- id: action
-  label: Actions affecting nodes
-  categories:
-  - id: none
-    label: No actions taken
-  - id: updated_building_code
-    label: Use updated building code
-  - id: updated_building_code_residential
-    label: Use updated building code, residential
-  - id: updated_building_code_commercial
-    label: Use updated building code, commercial
-  - id: develop_beyond_building_code
-    label: Develop beyond building code
-  - id: benchmark_energy_use
-    label: Report and benchmark energy use
-
-- id: action_change
-  label: Changes caused by actions
-  categories:
-  - id: triggered
-    label: Fraction triggered to change
-  - id: compliant
-    label: Fraction compliant with criteria
-  - id: improvement
-    label: Relative improvement
 
 params:
 - id: municipality_name
-  value: longmont
-- id: all_in_investment
-  label: All investments happen on the first year (not continuously)
-  is_customizable: false
-  value: false
-- id: discount_rate
-  label: Discount rate (%/year)
-  description: Speed of value decrease for monetary variables
-  is_customizable: false
-  value: 3.5
-  min_value: 0
-  max_value: 18
-  step: 0.5
-  unit: '%'
-- id: renovation_rate_baseline
-  label: Renovation rate baseline (%/year)
-  is_customizable: false
-  value: 0.5
-  min_value: 0
-  max_value: 2
-  unit: '%/a'
+  value: Saskatoon
+
 
 emission_sectors:
 - id: net_emissions
   name: Greenhouse Gas Emissions
-  color: '#273E60'
   input_node_dimension:
-    label: Emission sectors
-#  goals:  # FIXME Remove temporarily because causes some error
-#  - values:
-#    - year: 2050
-#      value: 335869.94
-#    default: true
-#    is_main_goal: true
+    label: Emission Sectors
   is_outcome: true
   description: <p>Greenhouse gas emissions</p><p><b>Unit:</b> t/yr. = metric tons
     per year</b></p>
@@ -379,31 +289,31 @@ emission_sectors:
 - id: stationary_energy_emissions
   name: Stationary Energy Emissions
   part_of: net_emissions
-  color: '#73C1B7'
+  color: '#4e79a7'
   input_dataset_processors: [LinearInterpolation]
 
 - id: transportation_emissions
   name: Transportation Emissions
   part_of: net_emissions
-  color: '#F4BD7B'
+  color: '#e15759'
   input_dataset_processors: [LinearInterpolation]
 
 - id: waste_emissions
   name: Waste Emissions
   part_of: net_emissions
-  color: '#D3805E'
+  color: '#59a14f'
   input_dataset_processors: [LinearInterpolation]
 
 - id: ippu_emissions
   name: Industrial Processes & Product Use Emissions
   part_of: net_emissions
-  color: '#6686B9'
+  color: '#b07aa1'
   input_dataset_processors: [LinearInterpolation]
 
 - id: afolu_emissions
   name: Agriculture, Forestry, & Other Land Use Emissions
   part_of: net_emissions
-  color: '#5D9C6F'
+  color: '#76b7b2'
   input_dataset_processors: [LinearInterpolation]
 
 # ----- Subsector Emissions -----
@@ -413,95 +323,219 @@ emission_sectors:
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: generation_emissions
-  name: Landfill Gas Combustion Emissions
-  category: energy_industries
-  part_of: stationary_energy_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: generation_emissions
+#   name: Landfill Gas Combustion Emissions
+#   category: energy_industries
+#   part_of: stationary_energy_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: solid_waste_emissions
-  name: Solid Waste Disposal Emissions
-  category: solid_waste
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: solid_waste_emissions
+#   name: Solid Waste Disposal Emissions
+#   category: solid_waste
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: biological_waste_emissions
-  name: Biological Waste Treatment Emissions
-  category: biological_waste
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: biological_waste_emissions
+#   name: Biological Waste Treatment Emissions
+#   category: biological_waste
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: wastewater_treatment_emissions
-  name: Wastewater Treatment Emissions
-  category: wastewater_treatment
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: wastewater_treatment_emissions
+#   name: Wastewater Treatment Emissions
+#   category: wastewater_treatment
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: industrial_emissions
-  name: Industrial Process Emissions
-  category: industrial_processes
-  part_of: ippu_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: industrial_emissions
+#   name: Industrial Process Emissions
+#   category: industrial_processes
+#   part_of: ippu_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 - id: onroad_emissions
   name: On-Road Transportation Emissions
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: railway_emissions
-  name: Railway Emissions
-  category: railways
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: railway_emissions
+#   name: Railway Emissions
+#   category: railways
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 - id: waterborne_emissions
   name: Waterborne Navigation Emissions
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: aviation_emissions
-  name: Aviation Emissions
-  category: aviation
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: aviation_emissions
+#   name: Aviation Emissions
+#   category: aviation
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: us_emissions
-  name: U of S Livestock & Fertilizer Emissions
-  category: livestock
-  part_of: afolu_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: us_emissions
+#   name: U of S Livestock & Fertilizer Emissions
+#   category: livestock
+#   part_of: afolu_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 nodes:
 
-# - id: population
-#   name: Inhabitants
-#   description: Population estimates from several sources. (a) 2016 - 2020 population
-#     estimates came from the Colorado Demography Office. Spreadsheet on file. (b) According
-#     to Longmont's Envision Plan (2016), Longmont's population is expected to grow
-#     by 24,165 residents from 2016 numbers by 2035. Population figures between 2021
-#     and 2035 assume a linear increase. (c) Population estimates between 2036 and 2050
-#     are based off the estimated annual population increase rate for Boulder County
-#     between 2035 and 2050. This rate is 0.501%. Raw data was taken from <a href="https://demography.dola.colorado.gov/assets/html/county.html">Colorado
-#     Department of Local Affairs</a>.
-#   type: simple.AdditiveNode
-#   quantity: population
-#   unit: cap
-#   historical_values: [[2010, 86270], [2016, 92858], [2017, 94461], [2018, 96398],
-#     [2019, 96577], [2020, 99129], [2021, 99629]]
-#   forecast_values: [[2022, 101517], [2023, 102711], [2024, 103906], [2025, 105100],
-#     [2030, 111072], [2035, 117045], [2040, 120006], [2045, 123042], [2050, 126156]]
-#   input_dataset_processors: [LinearInterpolation]
-
-- id: transmission_distribution_loss_factor
-  name: Transmission & Distribution Loss Factor by Utility
+- id: generation_emissions
+  name: Landfill Gas Combustion Emissions
   type: simple.AdditiveNode
-  quantity: fraction
-  unit: kWh/kWh
-  output_dimensions: [utility]
-  input_dimensions: [utility]
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - id: saskatoon/transmission_distribution_loss_factor
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [energy_industries]
+      flatten: true
+  output_nodes:
+  - id: stationary_energy_emissions
+  params:
+    inventory_only: true
+
+- id: solid_waste_emissions
+  name: Solid Waste Disposal Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [solid_waste]
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+  params:
+    inventory_only: true
+
+- id: biological_waste_emissions
+  name: Biological Waste Treatment Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [biological_waste]
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+  params:
+    inventory_only: true
+
+- id: wastewater_treatment_emissions
+  name: Wastewater Treatment Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [wastewater_treatment]
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+  params:
+    inventory_only: true
+
+- id: industrial_emissions
+  name: Industrial Process Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [industrial_processes]
+      flatten: true
+  output_nodes:
+  - id: ippu_emissions
+  params:
+    inventory_only: true
+
+- id: railway_emissions
+  name: Railway Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [railways]
+      flatten: true
+  output_nodes:
+  - id: transportation_emissions
+  params:
+    inventory_only: true
+
+- id: aviation_emissions
+  name: Aviation Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [aviation]
+      flatten: true
+  output_nodes:
+  - id: transportation_emissions
+  params:
+    inventory_only: true
+
+- id: us_emissions
+  name: U of S Livestock & Fertilizer Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [livestock]
+      flatten: true
+  output_nodes:
+  - id: afolu_emissions
+  params:
+    inventory_only: true
+
+# ----- Stationary Electricity -----
 
 - id: stationary_electricity_consumption
   name: Stationary Electricity Consumption by Sector & Utility
@@ -513,6 +547,91 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_electricity_consumption
+  params:
+    inventory_only: true
+
+- id: transmission_distribution_loss_factor
+  name: Transmission & Distribution Loss Factor by Utility
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: kWh/kWh
+  output_dimensions: [utility]
+  input_dimensions: [utility]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/transmission_distribution_loss_factor
+  params:
+    inventory_only: true
+
+- id: stationary_electricity_loss
+  name: Stationary Electricity Loss by Sector & Utility
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [emission_sectors, utility]
+  output_dimensions: [emission_sectors, utility]
+  input_nodes:
+  - id: stationary_electricity_consumption
+    tags: [non_additive]
+  - id: transmission_distribution_loss_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+
+- id: electricity_emission_factor
+  name: Electricity Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/kWh
+  output_dimensions: [greenhouse_gases]
+  input_dimensions: [greenhouse_gases]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/electricity_emission_factor
+  params:
+    inventory_only: true
+
+- id: stationary_electricity_consumption_emissions_inventory
+  name: Electricity Consumption Emissions (Inventory)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, greenhouse_gases]
+  output_dimensions: [emission_sectors, greenhouse_gases]
+  input_nodes:
+  - id: stationary_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: utility
+    flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: electricity_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: stationary_electricity_loss_emissions_inventory
+  name: Electricity Loss Emissions (Inventory)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, greenhouse_gases]
+  output_dimensions: [emission_sectors, greenhouse_gases]
+  input_nodes:
+  - id: stationary_electricity_loss
+    tags: [non_additive]
+    from_dimensions:
+    - id: utility
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: electricity_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+
+# ----- Stationary Fuels -----
 
 - id: stationary_natural_gas_consumption
   name: Stationary Natural Gas Consumption by Sector
@@ -524,6 +643,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_natural_gas_consumption
+  params:
+    inventory_only: true
 
 - id: stationary_propane_consumption
   name: Stationary Propane Consumption by Sector
@@ -535,6 +656,72 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_propane_consumption
+  params:
+    inventory_only: true
+
+- id: natural_gas_emission_factor
+  name: Natural Gas Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/m³
+  output_dimensions: [greenhouse_gases]
+  input_dimensions: [greenhouse_gases]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/natural_gas_emission_factor
+  params:
+    inventory_only: true
+
+- id: fuel_emission_factor
+  name: Fuel Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/L
+  output_dimensions: [energy_carrier, greenhouse_gases]
+  input_dimensions: [energy_carrier, greenhouse_gases]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/fuel_emission_factor
+  params:
+    inventory_only: true
+
+- id: stationary_natural_gas_consumption_emissions_inventory
+  name: Natural Gas Emissions (Inventory)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, greenhouse_gases]
+  output_dimensions: [emission_sectors, greenhouse_gases]
+  input_nodes:
+  - id: stationary_natural_gas_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: emission_sectors
+  - id: natural_gas_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: stationary_propane_consumption_emissions_inventory
+  name: Propane Emissions (Inventory)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, greenhouse_gases]
+  output_dimensions: [emission_sectors, energy_carrier, greenhouse_gases]
+  input_nodes:
+  - id: stationary_propane_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: fuel_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: greenhouse_gases
+
+# ----- Transportation Fuels -----
 
 - id: transport_fuel_consumption
   name: Transport Fuel Consumption by Sector, Vehicle Type, & Fuel
@@ -546,6 +733,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/transport_fuel_consumption
+  params:
+    inventory_only: true
 
 - id: transport_fuel_consumption_emissions
   name: Transport Emissions by Sector, Vehicle Type, & Fuel
@@ -603,159 +792,7 @@ nodes:
     - id: greenhouse_gases
       flatten: true
 
-- id: stationary_electricity_loss
-  name: Stationary Electricity Loss by Sector & Utility
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: [emission_sectors, utility]
-  output_dimensions: [emission_sectors, utility]
-  input_nodes:
-  - id: stationary_electricity_consumption
-    tags: [non_additive]
-  - id: transmission_distribution_loss_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: utility
-
-- id: electricity_emission_factor
-  name: Electricity Emission Factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/kWh
-  output_dimensions: [greenhouse_gases]
-  input_dimensions: [greenhouse_gases]
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - id: saskatoon/electricity_emission_factor
-
-- id: natural_gas_emission_factor
-  name: Natural Gas Emission Factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/m³
-  output_dimensions: [greenhouse_gases]
-  input_dimensions: [greenhouse_gases]
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - id: saskatoon/natural_gas_emission_factor
-
-- id: fuel_emission_factor
-  name: Fuel Emission Factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/L
-  output_dimensions: [energy_carrier, greenhouse_gases]
-  input_dimensions: [energy_carrier, greenhouse_gases]
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - id: saskatoon/fuel_emission_factor
-
-- id: stationary_electricity_loss_emissions
-  name: Electricity Loss Emissions # by Sector
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_sectors, greenhouse_gases]
-  output_dimensions: [emission_sectors, greenhouse_gases]
-  input_nodes:
-  - id: stationary_electricity_loss
-    tags: [non_additive]
-    from_dimensions:
-    - id: utility
-      flatten: true
-    to_dimensions:
-    - id: emission_sectors
-  - id: electricity_emission_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: greenhouse_gases
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-
-- id: stationary_electricity_consumption_emissions
-  name: Electricity Consumption Emissions # by Sector
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_sectors, greenhouse_gases]
-  output_dimensions: [emission_sectors, greenhouse_gases]
-  input_nodes:
-  - id: stationary_electricity_consumption
-    tags: [non_additive]
-    from_dimensions:
-    - id: utility
-    flatten: true
-    to_dimensions:
-    - id: emission_sectors
-  - id: electricity_emission_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: greenhouse_gases
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-
-- id: stationary_natural_gas_consumption_emissions
-  name: Natural Gas Emissions # by Sector
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_sectors, greenhouse_gases]
-  output_dimensions: [emission_sectors, greenhouse_gases]
-  input_nodes:
-  - id: stationary_natural_gas_consumption
-    tags: [non_additive]
-    to_dimensions:
-    - id: emission_sectors
-  - id: natural_gas_emission_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: greenhouse_gases
-  output_nodes:
-  - id: stationary_energy_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
-
-- id: stationary_propane_consumption_emissions
-  name: Propane Emissions # by Sector
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_sectors, energy_carrier, greenhouse_gases]
-  output_dimensions: [emission_sectors, energy_carrier, greenhouse_gases]
-  input_nodes:
-  - id: stationary_propane_consumption
-    tags: [non_additive]
-    to_dimensions:
-    - id: emission_sectors
-    - id: energy_carrier
-  - id: fuel_emission_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-    - id: greenhouse_gases
-  output_nodes:
-  - id: stationary_energy_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
+# ----- Livestock -----
 
 - id: livestock_count
   name: Livestock Count
@@ -767,6 +804,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/livestock_count
+  params:
+    inventory_only: true
 
 - id: livestock_emission_factor
   name: Livestock Emission Factor
@@ -778,6 +817,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/livestock_emission_factor
+  params:
+    inventory_only: true
 
 - id: livestock_emissions
   name: Other Livestock Emissions
@@ -801,1072 +842,1779 @@ nodes:
     - id: greenhouse_gases
       flatten: true
 
-# - id: global_warming_potential_100a
-#   name: Global warming potential 100 a
-#   type: emissions.GlobalWarmingPotential
-#   quantity: emission_factor
-#   unit: dimensionless
-#   output_dimensions: [greenhouse_gases]
-#   input_dataset_processors: [LinearInterpolation]
-#   historical_values: [[1990, 1], [2021, 1]]
+# ----- Forecasted Stationary Electricity -----
+
+- id: stationary_electricity_consumption_emissions
+  name: Electricity Consumption Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_electricity_consumption_emissions_inventory + stationary_electricity_consumption_emissions_forecast + energy_industries_emissions_forecast
+  input_nodes:
+  - id: stationary_electricity_consumption_emissions_inventory
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_electricity_consumption_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: emission_scope
+      categories: [scope2]
+      flatten: true
+  output_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: stationary_electricity_consumption_emissions_forecast
+  name: Electricity Consumption Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction]
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+    from_dimensions:
+    - id: emission_scope
+      categories: [scope2]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+    - id: emission_scope
+
+- id: stationary_electricity_loss_emissions
+  name: Electricity Loss Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_electricity_loss_emissions_inventory + stationary_electricity_loss_emissions_forecast + energy_industries_emissions_forecast
+  input_nodes:
+  - id: stationary_electricity_loss_emissions_inventory
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_electricity_loss_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: emission_scope
+      categories: [scope3]
+      flatten: true
+  output_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: stationary_electricity_loss_emissions_forecast
+  name: Electricity Loss Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction]
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+    from_dimensions:
+    - id: emission_scope
+      categories: [scope3]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+    - id: emission_scope
+
+# ----- Forecasted Stationary Fuels -----
+
+- id: stationary_natural_gas_consumption_emissions
+  name: Natural Gas Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_natural_gas_consumption_emissions_inventory + stationary_natural_gas_consumption_emissions_forecast + energy_industries_emissions_forecast + municipal_emissions_forecast
+  input_nodes:
+  - id: stationary_natural_gas_consumption_emissions_inventory
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_natural_gas_consumption_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+    - id: emission_scope
+      flatten: true
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+    - id: emission_scope
+      flatten: true
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: stationary_natural_gas_consumption_emissions_forecast
+  name: Natural Gas Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction]
+    - id: energy_carrier
+      categories: [natural_gas]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+
+- id: stationary_propane_consumption_emissions
+  name: Propane Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_propane_consumption_emissions_inventory + stationary_propane_consumption_emissions_forecast + municipal_emissions_forecast
+  input_nodes:
+  - id: stationary_propane_consumption_emissions_inventory
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_propane_consumption_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [propane]
+      flatten: true
+    - id: emission_scope
+      flatten: true
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: stationary_propane_consumption_emissions_forecast
+  name: Propane Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional]
+    - id: energy_carrier
+      categories: [propane]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+
+- id: stationary_other_fuel_consumption_emissions_forecast
+  name: Other Fuels Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [manufacturing_construction]
+    - id: energy_carrier
+      categories: [diesel, fuel_oil, other]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+# ----- Forecasted Transportation Fuels -----
+
+- id: transportation_emissions_forecast
+  name: Transportation Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  output_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [transport]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+# ----- Forecasted Emissions-Only Sectors -----
+
+- id: energy_industries_emissions_forecast
+  name: Energy Industries Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  output_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  minimum_year: 2022
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [energy_industries]
+
+- id: municipal_emissions_forecast
+  name: Municipal Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope, emission_sectors, energy_carrier]
+  output_dimensions: [emission_scope, emission_sectors, energy_carrier]
+  minimum_year: 2022
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [municipal]
+
+- id: waste_emissions_forecast
+  name: Waste Emissions (Forecast)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope, emission_sectors]
+  output_dimensions: [emission_scope, emission_sectors]
+  minimum_year: 2022
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [waste]
+    - dimension: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+- id: fugitive_emissions_forecast
+  name: Fugitive Emissions
+  type: simple.AdditiveNode
+  color: '#f28e2b'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  minimum_year: 2022
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [fugitive]
+    - dimension: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+# ----- Forecasted Emissions & Energy Consumption -----
+
+- id: forecasted_emissions
+  name: Emissions Forecast by SSG CityInSight
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  minimum_year: 2022
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+
+- id: forecasted_energy_consumption
+  name: Energy Consumption Forecast by SSG CityInSight
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  minimum_year: 2022
+  input_datasets:
+  - id: saskatoon/forecasted_energy_consumption
+
+- id: forecasted_emission_factors
+  name: Effective Emission Factors Forecast by SSG CityInSight
+  type: simple.DivisiveNode
+  quantity: emission_factor
+  unit: t/GJ
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_emissions
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction, transport]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+    - id: emission_scope
+  - id: forecasted_energy_consumption
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
 
-# #
-# # STATIONARY
-# #
-# - id: floor_increase_residential
-#   name: Relative residential floor area to current situation
-#   type: costs.ExponentialNode
-#   quantity: ratio
-#   unit: '%'
-#   historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
-#     [2021, 100]]
-#   params:
-#   - id: current_value
-#     value: 100.0
-#     unit: '%'
-#   - id: annual_change
-#     value: 1.0
-#     unit: '%'
-#   - id: replace_output_using_input_dataset
-#     value: true
-
-# - id: floor_increase_commercial
-#   name: Relative commercial floor area to current situation
-#   type: costs.ExponentialNode
-#   quantity: ratio
-#   unit: '%'
-#   historical_values: [[2016, 100], [2017, 100], [2018, 100], [2019, 100], [2020, 100],
-#     [2021, 100]]
-#   params:
-#   - id: current_value
-#     value: 100.0
-#     unit: '%'
-#   - id: annual_change
-#     value: 1.0
-#     unit: '%'
-#   - id: replace_output_using_input_dataset
-#     value: true
-
-# - id: floor_increase
-#   name: Relative floor area
-#   description: In the excel model, 1 % increase is assumed until 2035 and then 0 %.
-#     Here, the increase continues.
-#   type: simple.AdditiveNode
-#   quantity: ratio
-#   unit: '%'
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - id: floor_increase_residential
-#     to_dimensions:
-#     - id: emission_sectors
-#       categories: [residential_energy]
-#   - id: floor_increase_commercial
-#     to_dimensions:
-#     - id: emission_sectors
-#       categories: [commercial_industrial_energy]
-
-# - id: building_floor_area_historical
-#   name: Building floor area, historical
-#   type: simple.AdditiveNode
-#   quantity: floor_area
-#   unit: ft**2
-#   input_datasets:
-#   - longmont/building_floor_area
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-
-# - id: building_floor_area
-#   name: Building floor area
-#   type: buildings.FloorAreaNode
-#   quantity: floor_area
-#   unit: ft**2
-#   input_nodes:
-#   - id: floor_increase
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: building_floor_area_historical
-#     tags: [non_additive]
-#     to_dimensions:
-#     - id: emission_sectors
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors, building_energy_class, action]
-
-# - id: commercial_square_footage_over_20000_sf
-#   name: Commercial square footage over 20,000 square feet
-#   type: buildings.FloorAreaNode
-#   quantity: floor_area
-#   unit: ft**2
-#   input_datasets:
-#   - id: longmont/commercial_square_footage_over_20000_sf
-
-# - id: building_natural_gas_eui
-#   name: Energy use intensity EUI for natural gas
-#   type: buildings.CfNode
-#   quantity: consumption_factor
-#   unit: therm/ft**2/a
-#   input_datasets:
-#   - id: longmont/building_energy_use_intensity_eui
-#     column: natural_gas
-#   input_dimensions: [emission_sectors]
-
-# - id: building_electricity_use
-#   name: Building electricity use
-#   description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
-#   type: simple.MultiplyLastNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - id: building_electricity_use_intermediate
-#     from_dimensions:
-#     - id: building_energy_class
-#       flatten: true
-
-# - id: building_natural_gas_use
-#   name: Building natural gas use
-#   description: <b>Unit:</b> Mthm/yr. = million therms per year.
-#   type: simple.MultiplyLastNode
-#   quantity: energy
-#   unit: Mtherm/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - id: building_natural_gas_use_intermediate
-#     from_dimensions:
-#     - id: building_energy_class
-#       flatten: true
-
-# - id: building_natural_gas_use_intermediate
-#   name: Building natural gas use (intermediate)
-#   description: <p>This node shows the building natural gas use when some, but not
-#     all, actions have been implemented. the actual natural gas use with all the actions
-#     is shown downstream in the node "Building natural gas use". </p><p>Building energy
-#     class has a specific use here. "All buildings, baseline" shows the natural gas
-#     use that would occur in the building stock if none of the upstream actions are
-#     implemented. All other classes show the difference to the baseline; in other words
-#     energy saving actions take the natural gas use to the negative side. If the actions
-#     do not affect a particular class, the graph of that class seems empty.</p>
-#   type: buildings.EnergyNode
-#   quantity: energy
-#   unit: Mtherm/a
-#   input_dimensions: [building_energy_class, action, emission_sectors]
-#   output_dimensions: [building_energy_class, emission_sectors]
-#   input_nodes:
-#   - id: building_floor_area
-#     tags: [floor_area]
-#   - id: building_natural_gas_eui
-#     tags: [consumption_factor]
-
-# - id: building_natural_gas_use_20000_sf
-#   name: Building natural gas use in large commercial buildings
-#   description: <p>This node shows the building natural gas use when some, but not
-#     all, actions have been implemented on large commercial buildings. the actual natural
-#     gas use with all the actions is shown downstream in the node "Building natural
-#     gas use". </p><p>Building energy class has a specific use here. "All buildings,
-#     baseline" shows the natural gas use that would occur in the building stock if
-#     none of the upstream actions are implemented. All other classes show the difference
-#     to the baseline; in other words energy saving actions take the natural gas use
-#     to the negative side. If the actions do not affect a particular class, the graph
-#     of that class seems empty.</p><p><b>Unit:</b> Mthm/yr. = million therms per year.</p>
-#   type: buildings.EnergyNode
-#   quantity: energy
-#   unit: Mtherm/a
-#   input_dimensions: [building_energy_class, action, emission_sectors]
-#   output_dimensions: [building_energy_class, emission_sectors]
-#   input_nodes:
-#   - id: commercial_square_footage_over_20000_sf
-#     tags: [floor_area]
-#     # metrics: [floor_area]
-#   - id: building_natural_gas_eui
-#     tags: [consumption_factor]
-#   output_nodes:
-#   - id: building_natural_gas_use
-#     from_dimensions:
-#     - id: building_energy_class
-#       categories: [renovated, compliant]
-#       flatten: true
-
-# - id: building_electricity_use_20000_sf
-#   name: Building electricity use in large commercial buildings
-#   description: <p>This node shows the building electricity use when some, but not
-#     all, actions have been implemented on large commercial buildings. the actual electricity
-#     use with all the actions is shown downstream in the node "Building electricity
-#     use". </p><p>Building energy class has a specific use here. "All buildings, baseline"
-#     shows the electricity use that would occur in the building stock if none of the
-#     upstream actions are implemented. All other classes show the difference to the
-#     baseline; in other words energy saving actions take the electricity use to the
-#     negative side. If the actions do not affect a particular class, the graph of that
-#     class seems empty.</p>
-#   type: buildings.EnergyNode
-#   quantity: energy
-#   unit: Mtherm/a
-#   input_dimensions: [building_energy_class, action, emission_sectors]
-#   output_dimensions: [building_energy_class, emission_sectors]
-#   input_nodes:
-#   - id: commercial_square_footage_over_20000_sf
-#     tags: [floor_area]
-#     # metrics: [floor_area]
-#   - id: building_electricity_eui
-#     tags: [consumption_factor]
-#   output_nodes:
-#   - id: building_electricity_use
-#     from_dimensions:
-#     - id: building_energy_class
-#       categories: [renovated, compliant]
-#       flatten: true
-
-# - id: electricity_use
-#   name: Electricity use
-#   description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours per year.
-#   type: simple.MultiplyLastNode2
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - building_electricity_use
-
-# - id: electricity_emission_factor
-#   name: Emission factor of electricity production
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: t/MWh
-#   input_datasets:
-#   - id: longmont/electricity_emission_factor
-#     filters:
-#     - column: site
-#       value: longmont_power
-#   input_dataset_processors: [LinearInterpolation]
-#   input_dimensions: [greenhouse_gases]
-#   output_dimensions: [greenhouse_gases]
-
-# - id: building_electricity_eui
-#   name: Energy use intensity EUI for electricity
-#   type: buildings.CfNode
-#   quantity: consumption_factor
-#   unit: kWh/ft**2/a
-#   input_datasets:
-#   - id: longmont/building_energy_use_intensity_eui
-#     column: electricity
-#   input_dimensions: [emission_sectors]
-
-# - id: building_electricity_use_intermediate
-#   name: Building electricity use (intermediate)
-#   description: <p>This node shows the building electricity use when some, but not
-#     all, actions have been implemented. the actual electricity use with all the actions
-#     is shown downstream in the node "Building electricity use". </p><p>Building energy
-#     class has a specific use here. "All buildings, baseline" shows the electricity
-#     use that would occur in the building stock if none of the upstream actions are
-#     implemented. All other classes show the difference to the baseline; in other words
-#     energy saving actions take the electricity use to the negative side. If the actions
-#     do not affect a particular class, the graph of that class seems empty.</p>
-#   type: buildings.EnergyNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [emission_sectors, action, building_energy_class]
-#   output_dimensions: [emission_sectors, building_energy_class]
-#   input_nodes:
-#   - id: building_electricity_eui
-#     tags: consumption_factor
-#   - id: building_floor_area
-#     tags: floor_area
-#     # metrics: [floor_area]
-
-# # Building model, updated building code
-# # Floor area increses by B32 every year. categories residential, commercial
-# # Energy use intensity EUI improves every three years to the most recent IECC(?)
-# # Most recent IECC improves by C34 annually
-# # Existing building go through energy improvement 1 %
-# # New buildings: 90 % are compliant and have X % lower energy consumption
-# # Electricity and gas separately, for residential and commercial
-# # Energy saving = affected area * saved energy factor * compliant fraction; cumulatively
-# # Savings separately for new and existing buildings
-# # Emissions = energy * emission factors for electricity or natural gas (per ghg gas)
-
-# # Develop beyond bulding code
-# # New buildings only
-# # Estimated savings beyond IECC: goes from 0 to 100 % between 2017 and 2030
-# # energy efficiency = EUI with most recent IECC * (1-savings)
-# # Natural gas savings: subtract the impacts of electrification of heating
-# # Emissions = as above
-
-# # Report benchmark energy use
-# # Commercial area over 20000 sqft (increases by B33 every year)
-# # Percent participation: goes non-linearly fom 88 to 99 % between 2023 and  2029
-# # Percent saving: goes non-linearly from 2.4 to 0 % between 2023 and 2029; cumulatively
-# # Emissions = as above
-
-# # Expand the Efficiency Works Program
-# # Percent savings: after gradual increase 2016-2025, is constant C55.
-# # Energy = savings * total electricity consumption BAU!M44 (residence, commercial + losses)
-# # Emissions = as above
-
-# # Electrify buildings
-# # If time > electrification start year 2023, then use model input values for saving estimates
-# # Emission reduction is estimated to come from reduced natural gas, and the respective
-# # amount of additional electricity consumption is then added (with a factor conversion,
-# # but we want to rather use floor area changes)
-
-# - id: electricity_consumption_emissions
-#   name: Electricity consumption emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: t/a
-#   color: '#4d9870'
-#   output_dimensions: [greenhouse_gases, emission_sectors]
-#   input_nodes:
-#   - id: electricity_use
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: electricity_emission_factor
-#     to_dimensions:
-#     - id: greenhouse_gases
-#   output_nodes:
-#   - id: building_emissions
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     - id: emission_sectors
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope2]
-
-# - id: electricity_replacing_natural_gas_residential
-#   name: Electricity that replaces natural gas in residential buildings
-#   type: simple.FixedMultiplierNode
-#   quantity: energy
-#   unit: kWh/a
-#   params:
-#   - id: multiplier
-#     value: -0.33
-#   output_nodes:
-#   - id: building_electricity_use
-#     to_dimensions:
-#     - id: emission_sectors
-#       categories: [residential_energy]
-
-# - id: electricity_replacing_natural_gas_commercial
-#   name: Electricity that replaces natural gas in commercial buildings
-#   type: simple.FixedMultiplierNode
-#   quantity: energy
-#   unit: kWh/a
-#   params:
-#   - id: multiplier
-#     value: -0.39
-#   output_nodes:
-#   - id: building_electricity_use
-#     to_dimensions:
-#     - id: emission_sectors
-#       categories: [commercial_industrial_energy]
-
-# # Natural gas
-
-# - id: emission_factor_natural_gas
-#   name: Emission factor of natural gas
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: t/Mthm
-#   input_datasets:
-#   - longmont/emission_factor_natural_gas
-#   input_dataset_processors: [LinearInterpolation]
-#   output_dimensions: [greenhouse_gases, energy_carrier]
-
-# - id: leakage_from_natural_gas_emissions
-#   name: Emissions from natural gas leakage
-#   category: leakage_from_natural_gas
-#   type: simple.FixedMultiplierNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - building_natural_gas_use
-#   output_nodes:
-#   - id: fugitive_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-#   params:
-#   - id: multiplier
-#     value: 0.18409014  # =(D47*100000/1028*0.02832*0.8*0.934/1000*0.003*'Emission Factors and Constants'!$C$21)+(D47*100000/1028*0.02832*0.8*0.01/1000*0.003) = D47 * 0.00018409014
-#     unit: kg/therm
-
-# - id: natural_gas_consumption_emissions
-#   name: Natural gas consumption emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: t/a
-#   output_dimensions: [emission_sectors, greenhouse_gases, energy_carrier]
-#   input_nodes:
-#   - id: building_natural_gas_use
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#       categories: [natural_gas]
-#   - id: emission_factor_natural_gas
-#     to_dimensions:
-#     - id: greenhouse_gases
-#     - id: energy_carrier
-#   output_nodes:
-#   - id: building_emissions
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: greenhouse_gases
-#       flatten: true
-#     - id: emission_sectors
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-
-# # Other fuels
-
-# - id: stationary_fuel_consumption
-#   name: Other stationary fuel consumption
-#   type: simple.AdditiveNode
-#   quantity: energy
-#   unit: gal/a
-#   input_datasets:
-#   - longmont/stationary_fuel_use
-#   input_dimensions: [emission_sectors, energy_carrier]
-#   output_dimensions: [emission_sectors, energy_carrier]
-
-# - id: emission_factor_fuel
-#   name: Emission factor of stationary fuels
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: t/gal
-#   input_datasets:
-#   - longmont/emission_factor_fuels
-#   input_dataset_processors: [LinearInterpolation]
-#   output_dimensions: [energy_carrier, greenhouse_gases]
-
-# - id: stationary_fuel_consumption_emissions
-#   name: Stationary fuel consumption emissions
-#   description: <p>1) Stationary Diesel Use data was provided by CDPHE. Spreadsheet
-#     on file.</p> <p>2) Xcel Energy emission factor, electricity and natural gas usage
-#     data, and renewable energy data is from Xcel's 2021 Community Energy Report for
-#     Longmont, on file.</p> <p>3) Longmont Power & Communications data provided. PDF
-#     on file. The commercial buildings in Longmont's Weld County portion consumed 31,000,000
-#     kWh in 2021.</p> <p>4) T&D losses are calculated for Xcel and Longmont based on
-#     the EIA 861 (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically
-#     the Utility Operational Data_2021. Spreadsheet on file.</p> <p>5) Propane data
-#     provided by FerrellGas. Spreadsheet on file.</p> <p>6) Houses heated with wood
-#     were pulled from the US Census Bureau, data on file. It was assumed that all of
-#     the houses heated by wood in Longmont fell within the Boulder County portion of
-#     Longmont.</p> <p>7) Longmont Power and Communications data was provided by Longmont
-#     Power & Communications. PDF on file.</p> <p>8) Longmont Power & Communications
-#     and Lyons Municipal rooftop solar data was provided in kW of capacity rather than
-#     kWh generated. NREL's PVWatts was used to estimate kWh generated by rooftop solar
-#     systems. PDF of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due
-#     to Xcel's 15/15 rule, with less than 15 customers in the commercial and residential
-#     data sets they cannot provide usage for those customers to avoid violating privacy
-#     concerns. Therefore Lotus applied the average residential and commercial kWh use
-#     from LPC to the 7 residential and commercial customers (respectively) in Xcel
-#     territory to estimate use.</p> <p>11) PRPA emission factor and transmission and
-#     distribution loss rate for 2021 was provided. Email on file. Emissions factor
-#     value represents Longmont's load share emissions rate without unbundled RECs.</p>
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: t/a
-#   output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
-#   input_nodes:
-#   - id: stationary_fuel_consumption
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: emission_factor_fuel
-#     to_dimensions:
-#     - id: greenhouse_gases
-#     - id: energy_carrier
-#   output_nodes:
-#   - id: building_emissions
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: greenhouse_gases
-#       flatten: true
-#     - id: emission_sectors
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-
-# # Wood
-
-# - id: stationary_wood_consumption
-#   name: Stationary wood consumption
-#   type: simple.AdditiveNode
-#   quantity: energy
-#   unit: MMBtu/a
-#   input_datasets:
-#   - longmont/stationary_wood_consumption
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [energy_carrier, emission_sectors]
-
-# - id: emission_factor_wood
-#   name: Emission factor of wood
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/MMBtu
-#   input_datasets:
-#   - longmont/emission_factor_wood
-#   output_dimensions: [energy_carrier, greenhouse_gases]
-
-# - id: wood_consumption_emissions
-#   name: Wood consumption emissions
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: t/a
-#   output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
-#   input_nodes:
-#   - id: stationary_wood_consumption
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#       categories: [wood]
-#   - id: emission_factor_wood
-#     to_dimensions:
-#     - id: greenhouse_gases
-#     - id: energy_carrier
-#   output_nodes:
-#   - id: building_emissions
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: greenhouse_gases
-#       flatten: true
-#     - id: emission_sectors
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-
-# # Losses
-
-# - id: electricity_loss_fraction
-#   name: Electricity loss fraction
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   input_datasets:
-#   - id: longmont/transmission_and_distribution_loss
-#     filters:
-#     - column: site
-#       value: longmont_power
-#   output_dimensions: [energy_carrier]
-#   output_nodes:
-#   - id: electricity_losses
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [electricity]
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#       categories: [residential_energy]  # FIXME Should apply to commercial, too.
-
-# - id: electricity_losses
-#   name: Electricity losses
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - id: electricity_use
-#     tags: [non_additive]
-#     to_dimensions:
-#     - id: emission_sectors
-
-# - id: electricity_loss_emissions
-#   name: Emissions due to electricity losses
-#   type: simple.EmissionFactorActivity
-#   quantity: emissions
-#   unit: t/a
-#   input_nodes:
-#   - id: electricity_losses
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: electricity_emission_factor
-#     to_dimensions:
-#     - id: greenhouse_gases
-#   output_dimensions: [greenhouse_gases, emission_sectors]
-#   output_nodes:
-#   - id: electricity_consumption_emissions
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: greenhouse_gases
-
-# #
-# # TRANSPORTATION
-# #
-
-# - id: emission_factor_fuels
-#   name: Fuel emission factors for CO2
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/gal
-#   input_datasets:
-#   - longmont/emission_factor_fuels
-#   input_dimensions: [energy_carrier, greenhouse_gases]
-#   output_dimensions: [energy_carrier, greenhouse_gases]
-
-# - id: registered_vehicles
-#   name: Registered vehicles
-#   type: simple.FixedMultiplierNode
-#   quantity: number
-#   unit: vehicle
-#   input_nodes:
-#   - population
-#   params:
-#   - id: multiplier
-#     value: 0.8140
-#     unit: vehicle/person
-#     is_customizable: false
-
-# - id: miles_per_gallon
-#   name: Miles per gallon
-#   type: simple.AdditiveNode
-#   quantity: fuel_consumption
-#   unit: miles/gallon
-#   input_datasets:
-#   - longmont/miles_per_gallon
-
-# - id: vehicle_miles_per_vehicle
-#   name: Vehicle miles per vehicle
-#   description: '<p>The model has two different estimates for VMT: <ul><li>Row 50: Average
-#     annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li> <li>Row
-#     76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
-#     <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
-#   type: simple.AdditiveNode
-#   quantity: mileage
-#   unit: miles/vehicle/a
-#   input_datasets:
-#   - longmont/annual_vehicle_miles_per_vehicle
-
-# - id: registered_electric_vehicles
-#   name: Registered electric vehicles
-#   type: simple.AdditiveNode
-#   quantity: number
-#   unit: vehicle
-#   input_datasets:
-#   - longmont/registered_electric_vehicles
-
-# - id: registered_non_electric_vehicles
-#   name: Registered non-electric vehicles
-#   type: simple.SubtractiveNode
-#   quantity: number
-#   unit: vehicle
-#   input_nodes:
-#   - registered_vehicles
-#   - registered_electric_vehicles
-
-# - id: total_vehicle_miles_traveled
-#   name: Total combustion engine vehicle miles traveled
-#   description: '<p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per capita)</p>'
-#   type: simple.MultiplicativeNode
-#   quantity: mileage
-#   unit: Mmiles/a
-#   input_nodes:
-#   - vehicle_miles_per_vehicle
-#   - registered_non_electric_vehicles
-
-# - id: non_electric_vehicle_fuel_use
-#   name: Non-electric vehicle fuel use
-#   type: simple.DivisiveNode
-#   quantity: energy
-#   unit: gallons/a
-#   input_nodes:
-#   - total_vehicle_miles_traveled
-#   - miles_per_gallon
-
-# - id: vehicle_fuel_emissions
-#   name: Vehicle fuel emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [energy_carrier, greenhouse_gases]
-#   output_dimensions: [energy_carrier, greenhouse_gases]
-#   input_nodes:
-#   - id: non_electric_vehicle_fuel_use
-#     to_dimensions:
-#     - id: energy_carrier
-#       categories: [petrol]
-#   - id: emission_factor_fuels
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: greenhouse_gases
-#   output_nodes:
-#   - id: on_road_transportation_emissions
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-
-# - id: vehicle_electricity_emissions
-#   name: Vehicle electricity emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [greenhouse_gases]
-#   output_dimensions: [greenhouse_gases]
-#   input_nodes:
-#   - id: vehicle_electricity_use
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     to_dimensions: []
-#   - id: electricity_emission_factor
-#     to_dimensions:
-#     - id: greenhouse_gases
-#   output_nodes:
-#   - id: on_road_transportation_emissions
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-
-# - id: electric_vehicle_efficiency
-#   name: Electric vehicle efficiency
-#   type: simple.AdditiveNode
-#   quantity: fuel_consumption
-#   unit: kWh/mile
-#   input_datasets:
-#   - longmont/electric_vehicle_efficiency
-
-# - id: vehicle_electricity_use
-#   name: Vehicle electricity use
-#   description: <b>Unit:</b> kWh/yr. = kilowatt-hours per year.
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: kWh/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   input_nodes:
-#   - id: registered_electric_vehicles
-#     to_dimensions: []
-#   - id: vehicle_miles_per_vehicle
-#     to_dimensions: []
-#   - id: electric_vehicle_efficiency
-#     to_dimensions: []
-#   - vehicle_charging_shares
-
-# - id: vehicle_charging_shares
-#   name: Vehicle charging shares
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   input_datasets:
-#   - longmont/vehicle_charging_shares
-#   output_dimensions: [emission_sectors]
-
-# - id: free_rides_per_person
-#   name: Rides per person from Ride Free program
-#   type: simple.AdditiveNode
-#   quantity: number
-#   unit: trip/inhabitant/a
-#   historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019,
-#       1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
-
-# - id: ridership_program
-#   name: Ridership from Ride Free program
-#   type: simple.MultiplicativeNode
-#   quantity: number
-#   unit: trip/a
-#   input_nodes:
-#   - free_rides_per_person
-#   - population
-
-# - id: vmt_change_due_to_public_transportation
-#   name: Change in vehicle miles traveled due to public transportation
-#   type: simple.FixedMultiplierNode
-#   quantity: mileage
-#   unit: miles/a
-#   input_nodes:
-#   - public_transportation_trips
-#   params:
-#   - id: multiplier
-#     value: -8.8
-#     unit: miles/trip
-#   output_nodes:
-#   - total_vehicle_miles_traveled
-
-# - id: modal_share_of_active_transportation
-#   name: Modal share of active transportation
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10],
-#     [2021, 10]]
-
-# - id: vmt_change_from_active_transportation
-#   name: Change in vehicle miles traveled due to active transportation
-#   type: simple.ImprovementNode
-#   quantity: mileage
-#   unit: dimensionless
-#   input_nodes:
-#   - modal_share_of_active_transportation
-#   output_nodes:
-#   - id: total_vehicle_miles_traveled
-#     tags: [non_additive]
-
-# - id: public_transportation_change
-#   name: Public transportation change by last-mile actions
-#   description: This is an intermediate node converting the action into a relative
-#     amount of trips (business-as-usual = 1).
-#   type: simple.ImprovementNode2
-#   quantity: ratio
-#   unit: dimensionless
-#   historical_values: [[2016, 1.0], [2021, 1.9]]
-#   input_dataset_processsors: [LinearInterpolation]
-
-# - id: public_transportation_trips_per_person
-#   name: Public transportation trips per person
-#   description: Without further actions, the number of public transportation trips
-#     per person is assumed to be constant and at the level of 2017.
-#   type: simple.FixedMultiplierNode
-#   quantity: number
-#   unit: trips/inhabitant/a
-#   historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 5.906333777],
-#     [2019, 5.922192747], [2020, 5.938051718], [2021, 5.953910689]]
-#   input_nodes:
-#   - public_transportation_change
-#   params:
-#   - id: multiplier
-#     value: 5.890474806
-#     unit: trip/inhabitant/a
-#   - id: replace_output_using_input_dataset
-#     value: true
-
-# - id: public_transportation_trips
-#   name: Public transportation trips
-#   type: simple.MultiplicativeNode
-#   quantity: number
-#   unit: trip/a
-#   input_nodes:
-#   - population
-#   - public_transportation_trips_per_person
-#   - ridership_program
-
-# ### WASTE
-
-# - id: amount_of_waste_per_person
-#   name: Amount of waste per person
-#   type: simple.AdditiveNode
-#   quantity: mass
-#   unit: short_ton/inhabitant/a
-#   input_datasets:
-#   - longmont/amount_of_waste
-#   input_dataset_processors: [LinearInterpolation]
-#   output_dimensions: [waste]
-
-# - id: amount_of_waste
-#   name: Total amount of waste
-#   type: simple.MultiplicativeNode
-#   quantity: mass
-#   unit: short_ton/a
-#   input_dimensions: [waste]
-#   output_dimensions: [waste]
-#   input_nodes:
-#   - id: amount_of_waste_per_person
-#   - id: population
-#     to_dimensions: []
-
-# - id: diversion_rate
-#   name: Diversion rate
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [2020,
-#       31.1], [2021, 35.0]]
-
-# - id: waste_diversion
-#   name: Fraction of non-diverted waste
-#   type: simple.ImprovementNode
-#   quantity: fraction
-#   unit: dimensionless
-#   input_nodes:
-#   - diversion_rate
-
-# - id: amount_of_non_diverted_waste
-#   name: Amount of non-diverted waste
-#   type: simple.MultiplicativeNode
-#   quantity: mass
-#   unit: short_ton/a
-#   input_nodes:
-#   - id: amount_of_waste
-#     tags: [non_additive]
-#     from_dimensions:
-#     - id: waste
-#       categories: [landfilled]
-#       flatten: true
-#   - id: waste_diversion
-#     tags: [non_additive]
-
-# - id: waste_emission_factor
-#   name: Waste emission factor
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/short_ton
-#   historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 6], [2020, 6],
-#     [2021, 6]]
-
-# - id: landfill_emissions
-#   name: Landfill emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: metric_ton/a
-#   input_dimensions: [greenhouse_gases]
-#   output_dimensions: [greenhouse_gases]
-#   input_nodes:
-#   - id: amount_of_non_diverted_waste
-#     tags: [non_additive]
-#     to_dimensions:
-#     - id: greenhouse_gases
-#       categories: [ch4]
-#   - id: waste_emission_factor
-#     to_dimensions:
-#     - id: greenhouse_gases
-#       categories: [ch4]
-#   - id: global_warming_potential_100a
-#   output_nodes:
-#   - id: waste_disposal_emissions
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope3]
-
-# - id: participation_smart_grid
-#   name: Participation in smart grid projects
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [2021,
-#       9]]
-
-# - id: smart_grid_improvement
-#   name: Relative improvement due to smart grid implementation
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
-#       0]]
-
-# - id: smart_grid_benefits
-#   name: Smart grid action benefits
-#   type: simple.ImprovementNode
-#   quantity: fraction
-#   unit: dimensionless
-#   historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
-#   input_nodes:
-#   - id: participation_smart_grid
-#     tags: [non_additive]
-#   - id: smart_grid_improvement
-#     tags: [non_additive]
-#   output_nodes:
-#   - id: electricity_use
-#     to_dimensions: []
-
-# - id: transmission_loss_change
-#   name: Transmission loss changes
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
-#       0], [2022, 0]]
-
-# - id: transmission_loss_work_benefits
-#   name: Improvements due to transmission loss work
-#   description: Relative change of electricity use compared with the business as usual (baseline = 1).
-#   type: simple.ImprovementNode
-#   quantity: fraction
-#   unit: dimensionless
-#   historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [2021,
-#       1], [2022, 1]]
-#   input_nodes:
-#   - id: transmission_loss_change
-#     tags: [non_additive]
-#   output_nodes:
-#   - id: electricity_use
 
 actions:
 
-- id: mpg_trend  # FIXME Replace with real Saskatooon actions
-  name: Miles per gallon increasing trend
-  description: The model assumes that internal combustion vehicles that use gasoline
-    and diesel will become more efficient, increase miles traveled per gallon, over
-    time.
+- id: lec_action_06
+  name: LEC Action 6
+  description: Create an electric and thermal energy consumption cap for new home construction by
+               utilizing a municipal step code.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_06_emissions
+  name: LEC Action 6 Emissions Reductions
+  parent: lec_action_06
   type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: miles/gallon
-  group: trend
-  forecast_values: [[2022, 0.479], [2023, 1.007], [2024, 1.569], [2025, 2.178], [
-      2026, 2.778], [2027, 3.371], [2028, 3.945], [2029, 4.493], [2030, 5.017], [
-      2031, 5.513], [2032, 5.979], [2033, 6.416], [2034, 6.825], [2035, 7.2], [2036,
-      7.543], [2037, 7.853], [2038, 8.131], [2039, 8.378], [2040, 8.598], [2041, 8.919],
-    [2042, 9.244], [2043, 9.573], [2044, 9.906], [2045, 10.243], [2046, 10.584], [
-      2047, 10.929], [2048, 11.278], [2049, 11.632], [2050, 11.989]]
-#  output_nodes:
-#  - miles_per_gallon
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec06]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
 
-# - id: vmt_per_vehicle_trend
-#   name: Vehicle miles per vehicle trend
-#   description: '<p>The model assumes that overtime there will be a decrease in the annual
-#     miles traveled per vehicle.</p>
-#     <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
-#   type: simple.AdditiveAction
-#   quantity: mileage
-#   unit: miles/vehicle/a
-#   group: trend
-#   forecast_values: [[2022, -10.805], [2023, -21.611], [2024, -32.416], [2025, -43.222],
-#     [2026, -54.027], [2027, -64.833], [2028, -75.638], [2029, -86.444], [2030, -97.249],
-#     [2031, -108.055], [2032, -118.86], [2033, -129.666], [2034, -140.471], [2035,
-#       -151.277], [2036, -162.082], [2037, -172.888], [2038, -183.693], [2039, -194.499],
-#     [2040, -205.304], [2041, -216.109], [2042, -226.915], [2043, -237.72], [2044,
-#       -248.526], [2045, -259.331], [2046, -270.137], [2047, -280.942], [2048, -291.748],
-#     [2049, -302.553], [2050, -313.359]]
-#   output_nodes:
-#   - vehicle_miles_per_vehicle
+- id: lec_action_06_energy
+  name: LEC Action 6 Energy Reductions
+  parent: lec_action_06
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec06]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
 
-# - id: electric_vehicle_efficiency_trend
-#   name: Electric vehicle efficiency trend
-#   description: The model assumes that electric vehicles will become more efficient,
-#     increase in miles traveled per kilowatt hour of energy, overtime.
-#   type: simple.AdditiveAction
-#   quantity: fuel_consumption
-#   unit: kWh/mile
-#   group: trend
-#   forecast_values: [[2022, -0.005], [2023, -0.011], [2024, -0.016], [2025, -0.022],
-#     [2026, -0.027], [2027, -0.032], [2028, -0.038], [2029, -0.043], [2030, -0.048],
-#     [2031, -0.05], [2032, -0.052], [2033, -0.054], [2034, -0.056], [2035, -0.058],
-#     [2036, -0.06], [2037, -0.062], [2038, -0.064], [2039, -0.066], [2040, -0.068],
-#     [2041, -0.069], [2042, -0.07], [2043, -0.071], [2044, -0.072], [2045, -0.073],
-#     [2046, -0.074], [2047, -0.075], [2048, -0.076], [2049, -0.077], [2050, -0.078]]
-#   output_nodes:
-#   - electric_vehicle_efficiency
+
+- id: lec_action_07
+  name: LEC Action 7
+  description: Require new homes to include roof solar Photovoltaic (PV) installations in the final
+               year of a municipal step code.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_07_emissions
+  name: LEC Action 7 Emissions Reductions
+  parent: lec_action_07
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec07]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_07_energy
+  name: LEC Action 7 Energy Reductions
+  parent: lec_action_07
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec07]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_08
+  name: LEC Action 8
+  description: Create an electric and thermal energy consumption cap for new ICI construction by
+               utilizing a municipal step code.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_08_emissions
+  name: LEC Action 8 Emissions Reductions
+  parent: lec_action_08
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec08]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [municipal]
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_08_energy
+  name: LEC Action 8 Energy Reductions
+  parent: lec_action_08
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec08]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_10
+  name: LEC Action 10
+  description: Incentivize and later mandate homeowners to perform deep energy retrofits.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_10_emissions
+  name: LEC Action 10 Emissions Reductions
+  parent: lec_action_10
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec10]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_10_energy
+  name: LEC Action 10 Energy Reductions
+  parent: lec_action_10
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec10]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_11
+  name: LEC Action 11
+  description: Incentivize and later mandate ICI owners and operators to perform deep energy
+               retrofits.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_11_emissions
+  name: LEC Action 11 Emissions Reductions
+  parent: lec_action_11
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec11]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [municipal]
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_11_energy
+  name: LEC Action 11 Energy Reductions
+  parent: lec_action_11
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec11]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_12
+  name: LEC Action 12
+  description: Require energy efficiency improvements residential and ICI building lighting
+               systems.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_12_emissions
+  name: LEC Action 12 Emissions Reductions
+  parent: lec_action_12
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec12]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_12_energy
+  name: LEC Action 12 Energy Reductions
+  parent: lec_action_12
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec12]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_13
+  name: LEC Action 13
+  description: Incentivize and later mandate homeowners to upgrade household appliances to energy
+               and water efficient models.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_13_emissions
+  name: LEC Action 13 Emissions Reductions
+  parent: lec_action_13
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec13]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_13_energy
+  name: LEC Action 13 Energy Reductions
+  parent: lec_action_13
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec13]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_14
+  name: LEC Action 14
+  description: Retrofit home heating and cooling systems with ground-source or air-source heat
+               pumps.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_14_emissions
+  name: LEC Action 14 Emissions Reductions
+  parent: lec_action_14
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec14]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_14_energy
+  name: LEC Action 14 Energy Reductions
+  parent: lec_action_14
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec14]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_15
+  name: LEC Action 15
+  description: Retrofit ICI heating and cooling systems with ground-source or air-source heat
+               pumps.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_15_emissions
+  name: LEC Action 15 Emissions Reductions
+  parent: lec_action_15
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec15]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [municipal]
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_15_energy
+  name: LEC Action 15 Energy Reductions
+  parent: lec_action_15
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec15]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_16
+  name: LEC Action 16
+  description: Increase the efficiency of industrial processes.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: buildings
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_16_emissions
+  name: LEC Action 16 Emissions Reductions
+  parent: lec_action_16
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec16]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_16_energy
+  name: LEC Action 16 Energy Reductions
+  parent: lec_action_16
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec16]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_20
+  name: LEC Action 20
+  description: Increase transit routes and frequency through future updates to the Transit Plan.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: transportation
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_20_emissions
+  name: LEC Action 20 Emissions Reductions
+  parent: lec_action_20
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec20]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_20_energy
+  name: LEC Action 20 Energy Reductions
+  parent: lec_action_20
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec20]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_21
+  name: LEC Action 21
+  description: Electrify personal vehicles through incentive programs, education, and automotive
+               dealer partnerships.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: transportation
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_21_emissions
+  name: LEC Action 21 Emissions Reductions
+  parent: lec_action_21
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec21]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_21_energy
+  name: LEC Action 21 Energy Reductions
+  parent: lec_action_21
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec21]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_22
+  name: LEC Action 22
+  description: Electrify commercial vehicles through incentive programs, education, and automotive
+               dealer partnerships.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: transportation
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_22_emissions
+  name: LEC Action 22 Emissions Reductions
+  parent: lec_action_22
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec22]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_22_energy
+  name: LEC Action 22 Energy Reductions
+  parent: lec_action_22
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec22]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_23
+  name: LEC Action 23
+  description: Fund and implement improved cycling and walking infrastructure to encourage active
+               transportation.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: transportation
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_23_emissions
+  name: LEC Action 23 Emissions Reductions
+  parent: lec_action_23
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec23]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_23_energy
+  name: LEC Action 23 Energy Reductions
+  parent: lec_action_23
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec23]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_24
+  name: LEC Action 24
+  description: Improve and expand waste management programs and services to increase reduction and
+               diversion.
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  group: waste
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec24]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: waste_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+
+- id: lec_action_26
+  name: LEC Action 26
+  description: Reduce residential and ICI water use through education programming and water
+               efficiency incentive programs.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: water
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_26_emissions
+  name: LEC Action 26 Emissions Reductions
+  parent: lec_action_26
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec26]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: waste_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_26_energy
+  name: LEC Action 26 Energy Reductions
+  parent: lec_action_26
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec26]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_27
+  name: LEC Action 27
+  description: Build complete, compact communities through infill development, mixed-use buildings,
+               and compact housing.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: land
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_27_emissions
+  name: LEC Action 27 Emissions Reductions
+  parent: lec_action_27
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec27]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_27_energy
+  name: LEC Action 27 Energy Reductions
+  parent: lec_action_27
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec27]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_32
+  name: LEC Action 32
+  description: Encourage existing residential building owners and mandate new buildings to install
+               solar PV system through programming and bylaw.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: energy
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_32_emissions
+  name: LEC Action 32 Emissions Reductions
+  parent: lec_action_32
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec32]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_32_energy
+  name: LEC Action 32 Energy Reductions
+  parent: lec_action_32
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec32]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_33
+  name: LEC Action 33
+  description: Encourage existing ICI building owners and mandate new buildings to install solar PV
+               systems through programming and bylaw.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: energy
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_33_emissions
+  name: LEC Action 33 Emissions Reductions
+  parent: lec_action_33
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec33]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_33_energy
+  name: LEC Action 33 Energy Reductions
+  parent: lec_action_33
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec33]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_34
+  name: LEC Action 34
+  description: Install new solar PV utility-scale facilities within or adjacent to city boundaries.
+               Areas within city boundary to be prioritized first.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: energy
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_34_emissions
+  name: LEC Action 34 Emissions Reductions
+  parent: lec_action_34
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec34]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_34_energy
+  name: LEC Action 34 Energy Reductions
+  parent: lec_action_34
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec34]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_35
+  name: LEC Action 35
+  description: Install a CHP facility at St. Paul's Hospital.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: energy
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_35_emissions
+  name: LEC Action 35 Emissions Reductions
+  parent: lec_action_35
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec35]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [municipal]
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_35_energy
+  name: LEC Action 35 Energy Reductions
+  parent: lec_action_35
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec35]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_36
+  name: LEC Action 36
+  description: Implement district energy systems in the downtown and north downtown areas.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: energy
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_36_emissions
+  name: LEC Action 36 Emissions Reductions
+  parent: lec_action_36
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec36]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [municipal]
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+  - id: fugitive_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+- id: lec_action_36_energy
+  name: LEC Action 36 Energy Reductions
+  parent: lec_action_36
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec36]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
+
+- id: lec_action_37
+  name: LEC Action 37
+  description: Construct a hydropower plant at the weir.
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  output_dimensions: []
+  group: energy
+  indicator_nodes:
+  - id: net_emissions
+
+- id: lec_action_37_emissions
+  name: LEC Action 37 Emissions Reductions
+  parent: lec_action_37
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/action_emission_reductions
+    forecast_from: 2051
+    column: emissions
+    filters:
+    - dimension: actions
+      categories: [lec37]
+      flatten: true
+  output_nodes:
+  - id: forecasted_emissions
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: emission_sectors
+      categories: [energy_industries]
+
+- id: lec_action_37_energy
+  name: LEC Action 37 Energy Reductions
+  parent: lec_action_37
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/action_energy_reductions
+    forecast_from: 2051
+    column: energy
+    filters:
+    - dimension: actions
+      categories: [lec37]
+      flatten: true
+  output_nodes:
+  - id: forecasted_energy_consumption
+
 
 pages:
 - id: home
-  name: Saskatoon Greenhouse Gas Inventory
+  name: Saskatoon Greenhouse Gas Inventory & Forecast
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title_en: Development version
-  lead_paragraph_en: <p>The Saskatoon greenhouse gas inventory.</p>
+  lead_title: Development Version
+  lead_paragraph: Greenhouse gas inventory (2014-2021) and forecast (2022-2050) for the City of
+                  Saskatoon.
 
 scenarios:
 - id: baseline
