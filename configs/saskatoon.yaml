@@ -323,65 +323,217 @@ emission_sectors:
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: generation_emissions
-  name: Landfill Gas Combustion Emissions
-  category: energy_industries
-  part_of: stationary_energy_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: generation_emissions
+#   name: Landfill Gas Combustion Emissions
+#   category: energy_industries
+#   part_of: stationary_energy_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: solid_waste_emissions
-  name: Solid Waste Disposal Emissions
-  category: solid_waste
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: solid_waste_emissions
+#   name: Solid Waste Disposal Emissions
+#   category: solid_waste
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: biological_waste_emissions
-  name: Biological Waste Treatment Emissions
-  category: biological_waste
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: biological_waste_emissions
+#   name: Biological Waste Treatment Emissions
+#   category: biological_waste
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: wastewater_treatment_emissions
-  name: Wastewater Treatment Emissions
-  category: wastewater_treatment
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: wastewater_treatment_emissions
+#   name: Wastewater Treatment Emissions
+#   category: wastewater_treatment
+#   part_of: waste_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: industrial_emissions
-  name: Industrial Process Emissions
-  category: industrial_processes
-  part_of: ippu_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: industrial_emissions
+#   name: Industrial Process Emissions
+#   category: industrial_processes
+#   part_of: ippu_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 - id: onroad_emissions
   name: On-Road Transportation Emissions
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: railway_emissions
-  name: Railway Emissions
-  category: railways
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
+# - id: railway_emissions
+#   name: Railway Emissions
+#   category: railways
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
 
 - id: waterborne_emissions
   name: Waterborne Navigation Emissions
   part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
+# - id: aviation_emissions
+#   name: Aviation Emissions
+#   category: aviation
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: us_emissions
+#   name: U of S Livestock & Fertilizer Emissions
+#   category: livestock
+#   part_of: afolu_emissions
+#   input_dataset_processors: [LinearInterpolation]
+
+nodes:
+
+- id: generation_emissions
+  name: Landfill Gas Combustion Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [energy_industries]
+      flatten: true
+  output_nodes:
+  - id: stationary_energy_emissions
+  params:
+    inventory_only: true
+
+- id: solid_waste_emissions
+  name: Solid Waste Disposal Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [solid_waste]
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+  params:
+    inventory_only: true
+
+- id: biological_waste_emissions
+  name: Biological Waste Treatment Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [biological_waste]
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+  params:
+    inventory_only: true
+
+- id: wastewater_treatment_emissions
+  name: Wastewater Treatment Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [wastewater_treatment]
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+  params:
+    inventory_only: true
+
+- id: industrial_emissions
+  name: Industrial Process Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [industrial_processes]
+      flatten: true
+  output_nodes:
+  - id: ippu_emissions
+  params:
+    inventory_only: true
+
+- id: railway_emissions
+  name: Railway Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [railways]
+      flatten: true
+  output_nodes:
+  - id: transportation_emissions
+  params:
+    inventory_only: true
+
 - id: aviation_emissions
   name: Aviation Emissions
-  category: aviation
-  part_of: transportation_emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
   input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [aviation]
+      flatten: true
+  output_nodes:
+  - id: transportation_emissions
+  params:
+    inventory_only: true
 
 - id: us_emissions
   name: U of S Livestock & Fertilizer Emissions
-  category: livestock
-  part_of: afolu_emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
   input_dataset_processors: [LinearInterpolation]
-
-nodes:
+  input_datasets:
+  - id: saskatoon/greenhouse_gas_emissions_by_sector
+    filters:
+    - dimension: emission_sectors
+      categories: [livestock]
+      flatten: true
+  output_nodes:
+  - id: afolu_emissions
+  params:
+    inventory_only: true
 
 # ----- Stationary Electricity -----
 
@@ -395,6 +547,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_electricity_consumption
+  params:
+    inventory_only: true
 
 - id: transmission_distribution_loss_factor
   name: Transmission & Distribution Loss Factor by Utility
@@ -406,6 +560,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/transmission_distribution_loss_factor
+  params:
+    inventory_only: true
 
 - id: stationary_electricity_loss
   name: Stationary Electricity Loss by Sector & Utility
@@ -432,6 +588,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/electricity_emission_factor
+  params:
+    inventory_only: true
 
 - id: stationary_electricity_consumption_emissions_inventory
   name: Electricity Consumption Emissions (Inventory)
@@ -485,6 +643,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_natural_gas_consumption
+  params:
+    inventory_only: true
 
 - id: stationary_propane_consumption
   name: Stationary Propane Consumption by Sector
@@ -496,6 +656,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/stationary_propane_consumption
+  params:
+    inventory_only: true
 
 - id: natural_gas_emission_factor
   name: Natural Gas Emission Factor
@@ -507,6 +669,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/natural_gas_emission_factor
+  params:
+    inventory_only: true
 
 - id: fuel_emission_factor
   name: Fuel Emission Factor
@@ -518,6 +682,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/fuel_emission_factor
+  params:
+    inventory_only: true
 
 - id: stationary_natural_gas_consumption_emissions_inventory
   name: Natural Gas Emissions (Inventory)
@@ -567,6 +733,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/transport_fuel_consumption
+  params:
+    inventory_only: true
 
 - id: transport_fuel_consumption_emissions
   name: Transport Emissions by Sector, Vehicle Type, & Fuel
@@ -636,6 +804,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/livestock_count
+  params:
+    inventory_only: true
 
 - id: livestock_emission_factor
   name: Livestock Emission Factor
@@ -647,6 +817,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/livestock_emission_factor
+  params:
+    inventory_only: true
 
 - id: livestock_emissions
   name: Other Livestock Emissions
