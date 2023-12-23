@@ -117,6 +117,11 @@ class ActionImpactFromBaseline(BoolParameter):
     value = False
 
 
+class ScenarioName(StringParameter):
+    name = _('Scanario name')
+    id = 'scenario_name'
+
+
 class EmissionsWeight(NumberParameter):
     name = _('Weight for emission impacts in value profiles')
     id = 'emissions_weight'

@@ -736,6 +736,15 @@ class Node:
         return ret
 
     def _get_output_for_node(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:
+        '''
+        Filter and select the dataframe in the following ways:
+        * Choose rows that are specific to the target node.
+        * Choose the column that is defined in edge.metrics.
+        * Choose the only metric column.
+        * Remove rows where there are only nulls.
+        * Choose the column that has the name of the target node.
+        * Choose the column that has the name of the target node quantity.
+        '''
         target_node = edge.output_node
         # If target node is given, check first if there is a level in the df's
         # multi-index called 'node'.
@@ -1349,7 +1358,7 @@ class Node:
                 if len(nulls):
                     raise NodeError(self, 'Baseline output has nulls or NaNs in column %s' % m.column_id)
 
-        m = Metric.from_node(self)
+        m = Metric.from_node(self)  # FIXME Should this be done for DimensionslMetric as well?
         if m is None:
             raise NodeError(self, "Output did not result in a Metric")
         else:

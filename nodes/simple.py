@@ -83,7 +83,12 @@ class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
     allowed_parameters: ClassVar[list[Parameter]] = [
         StringParameter(local_id='metric', is_customizable=False),
-    ] + SimpleNode.allowed_parameters
+    ] + SimpleNode.allowed_parameters + [
+        BoolParameter(
+            local_id='inventory_only',
+            description='Node represents historical (inventory) values only',
+            is_customizable=False,
+        )]
 
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
@@ -124,7 +129,11 @@ class AdditiveNode(SimpleNode):
                     else:
                         raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
-            df = extend_last_historical_value_pl(df, self.get_end_year())
+
+            if self.get_parameter_value('inventory_only', required=False):
+                df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+            else:
+                df = extend_last_historical_value_pl(df, self.get_end_year())
 
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
@@ -429,6 +438,35 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
         return df
 
 
+class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
+    allowed_parameters = [
+        NumberParameter(local_id='multiplier'),
+        StringParameter(local_id='global_multiplier'),
+    ] + AdditiveNode.allowed_parameters
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = super().compute()
+        multiplier = self.get_parameter_value('multiplier', required=True)
+
+        # FIXME Use actual function from branch clean-nodes and  update it for unitless quantities
+        def multiply_quantity(df, col: str, quantity, out_unit: Unit | None = None):
+            if not isinstance(quantity, float):
+                res_unit = df._units[col] * quantity.units
+                quant = quantity.m
+            else:
+                res_unit = df._units[col]
+                quant = quantity
+            df = df.with_columns([pl.col(col) * pl.lit(quant)])
+            df._units[col] = res_unit
+            if out_unit:
+                df = df.ensure_unit(col, out_unit)
+            return df
+
+        df = multiply_quantity(df, VALUE_COLUMN, multiplier)
+
+        return df
+
+
 class MixNode(AdditiveNode):
     output_metrics = {
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
@@ -622,4 +660,27 @@ class ImprovementNode2(MultiplicativeNode):
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
         df = df.with_columns((pl.lit(1) + pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
+        return df
+
+
+class RelativeNode(AdditiveNode):
+    '''
+    First like AdditiveNode, then multiply with a node with "non_additive".
+    The relative node is assumed to be the relative difference R = V / N - 1,
+    where V is the expected output value and N is the comparison value from
+    the other input nodes. So, the output value V = (R + 1)N.
+    '''
+
+    def compute(self) -> ppl.PathsDataFrame:
+        n = self.get_input_node(tag='non_additive')
+        df = super().compute()
+        dfn = n.get_output_pl(target_node=self)
+        if dfn.get_unit(VALUE_COLUMN).dimensionless:
+            dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+        rn = VALUE_COLUMN + '_right'
+        df = df.with_columns([pl.col(rn).fill_null(0)])
+        df = df.with_columns((pl.col(rn) + pl.lit(1)))
+        df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df

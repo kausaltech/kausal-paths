@@ -25,7 +25,7 @@ from .constants import (
 from .exceptions import NodeError
 from .goals import NodeGoalsEntry
 from .node import NodeMetric
-from .simple import AdditiveNode
+from .simple import AdditiveNode, RelativeNode
 from .units import Unit
 
 
@@ -303,8 +303,12 @@ class DimensionalMetric:
 
         dims: list[MetricDimension] = []
 
+        # Use inputs nodes as categories for the dimension "Sectors" in some cases.
         input_nodes = [node for node in node.input_nodes if not isinstance(node, ActionNode)]
-        if isinstance(node, AdditiveNode) and len(input_nodes) > 1 and not node.input_dataset_instances:
+        if (
+            isinstance(node, AdditiveNode) and len(input_nodes) > 1
+            and not node.input_dataset_instances and not isinstance(node, RelativeNode)
+        ):
             df = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
             cats = [MetricCategory(
                 id=make_id('node', n.id),
