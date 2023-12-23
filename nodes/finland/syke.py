@@ -3,8 +3,9 @@ import pandas as pd
 from params import StringParameter, BoolParameter
 from nodes.node import Node
 from nodes.constants import (
-    VALUE_COLUMN, YEAR_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
+    VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
+from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
 from nodes.node import NodeMetric
 
@@ -19,6 +20,9 @@ class AlasNode(Node):
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
     }
+    output_dimensions = {
+        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True)
+    }
 
     def compute(self) -> pd.DataFrame:
         muni_name = self.get_global_parameter_value('municipality_name')
@@ -31,19 +35,27 @@ class AlasNode(Node):
             'energiankulutus': ENERGY_QUANTITY,
         })
         df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
+
         df['Sector'] = ''
         for i in range(1, 6):
             if i > 1:
                 df['Sector'] += '|'
             df['Sector'] += df['taso_%d' % i].astype(str)
+        df.loc[df['hinku-laskenta'], 'Sector'] += ':HINKU'
         df.loc[df['päästökauppa'], 'Sector'] += ':ETS'
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
-        df = df.set_index(['Year', 'Sector'])
+        df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()
         if len(df) == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        for dim_id, dim in self.output_metrics.items():
-            df[dim_id] = self.convert_to_unit(df[dim_id], dim.unit)
+        for metric_id, metric in self.output_metrics.items():
+            if hasattr(df[metric_id], 'pint'):
+                df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
+            else:
+                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+
+        df[FORECAST_COLUMN] = False
+
         return df
 
 
@@ -74,13 +86,15 @@ class AlasEmissions(Node):
             df = df.xs(sector, level='Sector')
         except KeyError:
             if not required:
-                years = df.index.get_level_values('Year').unique()
+                years = df.index.get_level_values(YEAR_COLUMN).unique()
                 dt = df.dtypes[EMISSION_QUANTITY]
                 df = pd.DataFrame([0.0] * len(years), index=years, columns=[EMISSION_QUANTITY])
                 df[EMISSION_QUANTITY] = df[EMISSION_QUANTITY].astype(dt)
             else:
                 raise
         df = df[[EMISSION_QUANTITY]]
+        if df[EMISSION_QUANTITY].isnull().all():
+            df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
-        df['Forecast'] = False
+        df[FORECAST_COLUMN] = False
         return df

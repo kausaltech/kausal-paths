@@ -1,0 +1,48 @@
+id: pirkkala_hinku
+default_language: fi
+supported_languages: []
+framework: hinku
+site_url: https://pirkkala.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 141836a380fa2985982a8cf9a34b05bd338c9b02
+name: Pirkkalan Hinku-päästöt
+owner: Pirkkalan kaupunki
+theme_identifier: default
+emission_unit: kt/a
+target_year: 2030
+reference_year: 1990
+minimum_historical_year: 2005
+params:
+- id: municipality_name
+  value: Pirkkala
+
+emission_sectors:
+- id: net_emissions
+  name: Kokonaispäästöt (scope 2)
+  is_outcome: true
+
+nodes:
+- id: population
+  type: finland.Population
+  name: Väestö
+
+- id: all_alas_emissions
+  type: finland.syke.AlasNode
+  name: SYKE:n ALaS-päästöinventaario
+
+pages:
+- id: home
+  name: Päästöskenaario
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Päästöskenaariot
+
+scenarios:
+- id: baseline
+  name: Nykykehitys
+
+- id: default
+  default: true
+  name: Toimenpideohjelma
