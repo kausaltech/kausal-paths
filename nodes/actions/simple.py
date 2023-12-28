@@ -127,51 +127,34 @@ class EmissionReductionAction(ActionNode):
         return df
 
 
-class ScenarioAction(ActionNode):
-    '''
-    First like ActionNode, but then selecting a scenario based on a parameter.
-    The parameter must be given, and the df must have dimension scenario.
-    '''
-    allowed_parameters = ActionNode.allowed_parameters + [
-        StringParameter(local_id='scenario')
-    ]
-    def compute_effect(self):
-        df = self.get_input_dataset_pl()
-        scen_id = self.get_parameter_value('scenario', required=True)
-        if not self.is_enabled():
-            scen_id = 'baseline'
-        df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
-        return df
-
-
 class TrajectoryAction(ActionNode):
     '''
-    TrajectoryAction is an ActionNode where you define the effect as an absolute trajectory of values, not as a relative change from the baseline like usually. The trajectory is converted to baseline-relative values by giving the baseline value and baseline year as parameter values. This is a bit cumbersome, but we cannot get the baseline value from the output node because that would make the graph cyclic.
+    TrajectoryAction uses select_category() to select a category from a dimension
+    and then possibly do some relative or absolute conversions.
     '''
     allowed_parameters = ActionNode.allowed_parameters + [
-        StringParameter(local_id='scenario'),
-        NumberParameter(local_id='baseline_year_level'),
-        NumberParameter(local_id='baseline_year')
+        StringParameter(local_id='dimension'),
+        StringParameter(local_id='category'),
+        NumberParameter(local_id='category_number'),
+        NumberParameter(local_id='baseline_year'),
+        NumberParameter(local_id='baseline_year_level')
     ]
     def compute_effect(self):
         df = self.get_input_dataset_pl()
-        scen_id = self.get_parameter_value('scenario', required=True)
+        dim_id = self.get_parameter_value('dimension', required=True)
+        cat_id = self.get_parameter_value('category', required=False)
+        cat_no = self.get_parameter_value('category_number', units=False, required=False)
+        if cat_no is not None:
+            cat_no = int(cat_no)
+        year = self.get_parameter_value('baseline_year', units=False, required=False)
+        if year is not None:
+            year = int(year)
+        level = self.get_parameter_value('baseline_year_level', units=True, required=False)
         if not self.is_enabled():
-            scen_id = 'baseline'
-        df = df.filter(pl.col('scenario').eq(scen_id)).drop('scenario')
+            cat_id = 'baseline'  # FIXME Generalize this
+            cat_no = None
 
-        level = self.get_parameter_value('baseline_year_level', required=False)
-        year = int(self.get_parameter_value('baseline_year', required=True))
-        df = df.filter(pl.col(YEAR_COLUMN).ge(year))
-        if level is None:  # Assume a relative change
-            level = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
-            df = df.with_columns((
-                pl.col(VALUE_COLUMN) / pl.lit(level) - pl.lit(1)
-            ))
-            df = df.clear_unit(VALUE_COLUMN)
-            df = df.set_unit(VALUE_COLUMN, 'dimensionless')
-            df = df.ensure_unit(VALUE_COLUMN, self.unit)
-        else:
-            df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(level))  # FIXME Check units
+        df = df.select_category(dim_id, cat_id, cat_no, year, level)
 
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df

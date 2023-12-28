@@ -14,7 +14,8 @@ from polars.type_aliases import IntoExpr
 from polars.utils._parse_expr_input import parse_as_list_of_expressions
 from polars.polars import PyExpr, PyDataFrame
 import numpy as np
-from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
+from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
+from nodes.dimensions import Dimension, DimensionCategory
 
 from nodes.units import Unit, unit_registry
 
@@ -415,6 +416,43 @@ class PathsDataFrame(pl.DataFrame):
         console = Console()
         console.print(table)
 
+
+    def select_category(
+            self,
+            dimension: str,
+            category: str | None = None,
+            category_number: int | None = None,
+            baseline_year: int | None = None,
+            baseline_year_level: Any | None = None) -> PathsDataFrame:
+        '''
+        Basic functionality is to select one category of a dimension and further process that.
+        The purpose is to choose a hypothesis of scenario among several ones.
+        * Give the dimension name (often in the node class).
+        * Give the category name (often in a string parameter).
+        * Or, give the category as an integer that is used to select from a list of categories.
+        * Give the output as such.
+        * Or, give the output as a ratio relative to the baseline year value.
+        * Or, give the output as a difference to the baseline year level.
+        '''
+        if category_number is not None:
+            assert category is None
+            category = sorted(self[dimension].unique())[category_number]  # FIXME Improve ordering method
+        df = self.filter(pl.col(dimension).eq(category)).drop(dimension)
+
+        if baseline_year is not None:
+            df = df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
+            if baseline_year_level is None:  # Assume a relative change
+                level = df.filter(pl.col(YEAR_COLUMN).eq(baseline_year))[VALUE_COLUMN][0]
+                df = df.with_columns((
+                    pl.col(VALUE_COLUMN) / pl.lit(level) - pl.lit(1)
+                ))
+                df = df.clear_unit(VALUE_COLUMN)
+                df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+            else:
+                unit = df.get_unit(VALUE_COLUMN)
+                baseline_year_level = baseline_year_level.to(unit)
+                df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(baseline_year_level.m))
+        return df
 
 def _validate_ppdf(df: PathsDataFrame):
     units = list(df._units.keys())
