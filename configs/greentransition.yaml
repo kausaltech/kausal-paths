@@ -27,6 +27,9 @@ action_groups:
 - id: green_transition
   name: Vihreä murros
   name_en: Green transition
+- id: covid
+  name: Koronapandemiaan liittyvät toimet
+  name_en: Actions about covid-19 pandemic
 - id: hypothesis
   name: Hypoteesi
   name_en: Hypothesis
@@ -215,12 +218,14 @@ dimensions:
   label: Hypoteesi
   label_en: Hypothesis
   categories:
+  - id: hypothesis_0
+    label: Null hypothesis
+    color: '#22ee22'
   - id: hypothesis_1
     label: Hypothesis 1
     color: '#ee2222'
   - id: hypothesis_2
     label: Hypothesis 2
-    color: '#22ee22'
   - id: hypothesis_3
     label: Hypothesis 3
   - id: hypothesis_4
@@ -656,6 +661,7 @@ nodes:
   input_nodes:
   - id: postpone_climate_targets
     tags: [increase]
+
 
 #
 ### VALUE PROFILES
@@ -1094,6 +1100,18 @@ actions:
   unit: pcs/a
   forecast_values: [[2023, 1], [2035, 1]]
   input_dataset_processors: [LinearInterpolation]
+
+#
+####### COVID
+#
+- id: testing_tracking_isolation
+  name: Testaus, jäljitys, eristys
+  description: Testaus, jäljitys ja eristys on tehokas tapa vähentää sairastuneen ihmisen kontakteja ja siten virusleviämistä, mikä hidastaa taudin leviämistä. Toimenpidettä mitataan testauksen, jäljityksen ja eristyksen piiriin tulevien osuutta sairastuneista.
+  type: simple.AdditiveAction
+  group: covid
+  quantity: fraction
+  unit: '%'
+  forecast_values: [[2022, 0], [2023, 50], [2035, 50]]
 
 #
 # HYPOTHESES
