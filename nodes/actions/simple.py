@@ -9,7 +9,7 @@ from common import polars as ppl
 
 
 from params.param import Parameter
-from params import PercentageParameter, NumberParameter, StringParameter
+from params import PercentageParameter, NumberParameter, StringParameter, BoolParameter
 from nodes.constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.node import NodeError
 from .action import ActionNode
@@ -137,7 +137,8 @@ class TrajectoryAction(ActionNode):
         StringParameter(local_id='category'),
         NumberParameter(local_id='category_number'),
         NumberParameter(local_id='baseline_year'),
-        NumberParameter(local_id='baseline_year_level')
+        NumberParameter(local_id='baseline_year_level'),
+        BoolParameter(local_id='keep_dimension')
     ]
     def compute_effect(self):
         df = self.get_input_dataset_pl()
@@ -150,11 +151,12 @@ class TrajectoryAction(ActionNode):
         if year is not None:
             year = int(year)
         level = self.get_parameter_value('baseline_year_level', units=True, required=False)
+        keep = self.get_parameter_value('keep_dimension', required=False)
         if not self.is_enabled():
             cat_id = 'baseline'  # FIXME Generalize this
             cat_no = None
 
-        df = df.select_category(dim_id, cat_id, cat_no, year, level)
+        df = df.select_category(dim_id, cat_id, cat_no, year, level, keep)
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df

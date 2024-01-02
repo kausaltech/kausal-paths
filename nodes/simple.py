@@ -684,3 +684,27 @@ class RelativeNode(AdditiveNode):
         df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
+
+class TrajectoryNode(SimpleNode):
+    '''
+    TrajectoryNode uses select_category() to select a category from a dimension.
+    '''
+    allowed_parameters = SimpleNode.allowed_parameters + [
+        StringParameter(local_id='dimension'),
+        StringParameter(local_id='category'),
+        NumberParameter(local_id='category_number'),
+        BoolParameter(local_id='keep_dimension')
+    ]
+    def compute(self):
+        df = self.get_input_dataset_pl()
+        dim_id = self.get_parameter_value('dimension', required=True)
+        cat_id = self.get_parameter_value('category', required=False)
+        cat_no = self.get_parameter_value('category_number', units=False, required=False)
+        if cat_no is not None:
+            cat_no = int(cat_no)
+        keep = self.get_parameter_value('keep_dimension', required=False)
+
+        df = df.select_category(dim_id, cat_id, cat_no, keep_dimension=keep)
+
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df

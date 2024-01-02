@@ -423,7 +423,8 @@ class PathsDataFrame(pl.DataFrame):
             category: str | None = None,
             category_number: int | None = None,
             baseline_year: int | None = None,
-            baseline_year_level: Any | None = None) -> PathsDataFrame:
+            baseline_year_level: Any | None = None,
+            keep_dimension: bool | None = None) -> PathsDataFrame:
         '''
         Basic functionality is to select one category of a dimension and further process that.
         The purpose is to choose a hypothesis of scenario among several ones.
@@ -437,7 +438,9 @@ class PathsDataFrame(pl.DataFrame):
         if category_number is not None:
             assert category is None
             category = sorted(self[dimension].unique())[category_number]  # FIXME Improve ordering method
-        df = self.filter(pl.col(dimension).eq(category)).drop(dimension)
+        df = self.filter(pl.col(dimension).eq(category))
+        if keep_dimension is not True:
+            df = df.drop(dimension)
 
         if baseline_year is not None:
             df = df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
