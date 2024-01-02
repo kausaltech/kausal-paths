@@ -45,7 +45,7 @@ PER_CAPITA_QUANTITY = 'per_capita'
 POPULATION_QUANTITY = 'population'
 MIX_QUANTITY = 'mix'
 GROUPED_MIX_QUANTITY = 'grouped_mix'
-VALUE_PROFILE_QUANTITY = 'value_profile'
+UTILITY_QUANTITY = 'utility'
 ACTIVITY_QUANTITIES = set([
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
     PASSENGER_MILEAGE_QUANTITY, 'mass'
@@ -58,7 +58,7 @@ STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | set([
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, UNIT_PRICE_QUANTITY,
     PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY, MIX_QUANTITY, CONSUMPTION_FACTOR_QUANTITY,
-    VALUE_PROFILE_QUANTITY,
+    UTILITY_QUANTITY,
     'population', 'per_capita', 'fuel_consumption', 'ratio',
     'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',

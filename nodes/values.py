@@ -17,9 +17,9 @@ from .units import Quantity
 from .exceptions import NodeError
 
 
-class ValueProfile(AdditiveNode):
+class UtilityNode(AdditiveNode):
     '''
-    Value profiles are nodes that take in outcome nodes and value weight parameters.
+    Utility nodes take in outcome nodes and value weight parameters.
     They produce a dataframe showing the value-weighted sums of outcomes.
     Cost-efficiency can be implemented if a decision criterion is known, e.g. 50 €/t.
     Then, emissions and cost are put to an equal scale by multiplying
