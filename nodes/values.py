@@ -144,7 +144,7 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
                 if abs(mean_in) > 0.01:  # Relative adjustment makes no sense when too close to zero.
                     multiplier = fraction * mean_out / mean_in
                 else:
-                    multiplier = 1
+                    multiplier = fraction
                 if 'decrease' in edge.tags:
                     multiplier *= -1
 

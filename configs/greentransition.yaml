@@ -30,9 +30,6 @@ action_groups:
 - id: covid
   name: Koronapandemiaan liittyvät toimet
   name_en: Actions about covid-19 pandemic
-- id: hypothesis
-  name: Hypoteesi
-  name_en: Hypothesis
 
 action_efficiency_pairs:
 - cost_node: gross_domestic_product_in_finland
@@ -50,35 +47,35 @@ params:
 - id: municipality_name
   value: Espoo
 - id: impact_threshold
-  label: Threshold for sum of impacts in value profiles
+  label: Threshold for sum of impacts in utilities
   is_customizable: true
   value: 0
   min_value: 0
   max_value: 1000
   unit: 1/a
 - id: emissions_weight
-  label: Weight for emissions impacts in value profiles
+  label: Weight for emissions impacts in utilities
   is_customizable: true
   value: -50
   min_value: -100
   max_value: 0
   unit: 1/t
 - id: cost_weight
-  label: Weight for cost impacts in value profiles
+  label: Weight for cost impacts in utilities
   is_customizable: true
   value: -1
   min_value: -100
   max_value: 0
   unit: 1/EUR
 - id: biodiversity_weight
-  label: Weight for biodiversity impacts in value profiles
+  label: Weight for biodiversity impacts in utilities
   is_customizable: true
   value: 1
   min_value: 0
   max_value: 100
   unit: 1/pcs/a
 - id: equity_weight
-  label: Weight for equity impacts in value profiles
+  label: Weight for equity impacts in utilities
   is_customizable: true
   value: 1
   min_value: 0
@@ -390,7 +387,7 @@ nodes:
   name_en: Wood product yield
   type: simple.FixedMultiplierNode
   quantity: consumption
-  unit: t/a
+  unit: Mt/a
   input_nodes: [logging_intensity_in_state_forests]
   params:
   - id: multiplier
@@ -658,7 +655,7 @@ nodes:
     tags: [increase]
 
 - id: citizen_discomfort
-  name: Haitta kantalaisten elämälle
+  name: Haitta kansalaisten elämälle
   name_en: Citizen discomfort
   type: values.AssociationNode
   quantity: number
@@ -681,14 +678,37 @@ nodes:
   - id: postpone_climate_targets
     tags: [increase]
 
+- id: administrative_restrictions_to_companies
+  name: Yritysten lainsäädännölliset toimintaedellytysten rajoitteet
+  name_en: Administrative restrictions to companies
+  description: Toimintaedellytykset tarkoittavat tässä erilaisia lainsäädännöllisiä rajoituksia tai maksuja, joiden tavoitteena on ympäristöhaittojen ehkäisy. Toimintaedellytyksiä verrataan muihin maihin.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [utility_finland_to_reduce_own_emissions_anyway]
+  params:
+  - id: fraction1
+    value: 0.001
+
+- id: carbon_sinks_in_finland
+  name: Hiilinielut Suomessa
+  name_en: Carbon sinks in Finland
+  description: <h2>Viitteet</h2>Kasvihuonekaasuinventaario 2021. Maataloussektorin ja maankäyttösektorin nettopäästöihin ei merkittäviä muutoksia verrattuna joulukuussa 2022 julkaistuihin ennakkotietoihin. <a href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaario-2021-maataloussektorin-ja-maankayttosektorin-nettopaastoihin-ei-merkittavia-muutoksia-verrattuna-joulukuussa-2022-julkaistuihin-ennakkotietoihin">Luken seurantajulkistus 15.3.2023</a>
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: Mt/a
+  historical_values: [[2010, -26.03], [2021, 0.49]]
+  output_nodes: [net_emissions]
 
 #
-### VALUE PROFILES
+### UTILITIES
 #
 
-- id: value_profile_forest
-  name: Metsänhoidon arvoprofiili
-  name_en: Value profile for forest management
+- id: utility_forest
+  name: Metsänhoidon utiliteetti
+  name_en: Utility of forest management
   description: '<h2>Puolueiden sanalliset selitykset</h2> <h3> Perussuomalaiset: Vähennetäänkö
     metsähakkuita valtion mailla? Ei.</h3> <b>Jussi Wihonen, Perus­suomalaiset.</b>
     Valtion metsiä tulee hoitaa vastuullisesti, kuten tähänkin asti. Toimet suomen
@@ -761,8 +781,8 @@ nodes:
   input_nodes:
   - id: equity_performance
     tags: [equity]
-#  - id: net_emissions
-#    tags: [emissions]
+  - id: net_emissions
+    tags: [emissions]
   - id: net_cost_of_forests
     tags: [currency]
   - id: biodiversity_in_finland
@@ -772,16 +792,16 @@ nodes:
     ref: impact_threshold
   - id: equity_weight
     ref: equity_weight
-#  - id: emissions_weight
-#    ref: emissions_weight
+  - id: emissions_weight
+    ref: emissions_weight
   - id: cost_weight
     ref: cost_weight
   - id: biodiversity_weight
     ref: biodiversity_weight
 
-- id: value_profile_climate
-  name: Ilmastotoimien arvoprofiili
-  name_en: Value profile for climate mitigation
+- id: utility_climate
+  name: Ilmastotoimien utiliteetti
+  name_en: Utility of climate mitigation
   description: '<h2>Puolueiden sanalliset kuvaukset</h2><h3>Vihreät: Lykätäänkö ilmastotavoitteita?
     Ei.</h3> <p><b>Krista Mikkonen, Vihreät.</b> Ilmastoratkaisuja kysyy nyt koko
     maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle,
@@ -842,7 +862,7 @@ nodes:
   - id: cost_weight
     ref: cost_weight
 
-- id: value_profile_finland_to_reduce_own_emissions_anyway
+- id: utility_finland_to_reduce_own_emissions_anyway
   name: Suomen pitäisi vähentää omia päästöjään riippumatta siitä, mitä muut maat
     tekevät
   name_en: Finland should reduce its own actions irrespective of what other countries
@@ -874,8 +894,8 @@ nodes:
   input_nodes:
   - id: equity_performance
     tags: [equity]
-#  - id: net_emissions
-#    tags: [emissions]
+  - id: net_emissions
+    tags: [emissions]
 #  - id: global_net_emissions_average  # FIXME Should we use logical node here to check whether FI emissions are larger than global emissions per capita. If yes, it is bad for Kokoomus.
 #    tags: [emissions]
   params:
@@ -883,8 +903,8 @@ nodes:
     ref: impact_threshold
   - id: equity_weight
     ref: equity_weight
-#  - id: emissions_weight
-#    ref: emissions_weight
+  - id: emissions_weight
+    ref: emissions_weight
 
 - id: value_profile_environment_first
   name: Ympäristön etu tulisi asettaa talouskasvun ja työpaikkojen luomisen edelle,
@@ -1038,8 +1058,8 @@ actions:
   forecast_values: [[2023, 0], [2024, -10], [2030, 5]]
   output_nodes:
   - id: logging_intensity_in_state_forests
-#  - id: biodiversity_in_state_forests
-#    tags: [increase]
+  - id: biodiversity_in_state_forests
+    tags: [increase]
 
 - id: add_logging_in_state_forests
   name: Lisää hakkuita metsissä
@@ -1051,10 +1071,10 @@ actions:
   forecast_values: [[2023, 5], [2024, 5], [2025, 5], [2026, 5], [2027, 5], [2028,
       5], [2029, 5], [2030, 5]]
   input_dataset_processors: [LinearInterpolation]
-#  output_nodes:
-#  - logging_intensity_in_state_forests
-#  - id: biodiversity_in_state_forests
-#    tags: [decrease]
+  output_nodes:
+  - logging_intensity_in_state_forests
+  - id: biodiversity_in_state_forests
+    tags: [decrease]
 
 - id: postpone_climate_targets
   name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
@@ -1073,7 +1093,9 @@ actions:
   forecast_values: [[2023, 20000], [2035, 30000]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - building_heating_emissions
+  - id: building_heating_emissions
+  - id: administrative_restrictions_to_companies
+    tags: [increase]
 
 - id: congestion_charge
   name: Helsingissä ja muissa suurissa kaupungeissa on otettava käyttöön ruuhkamaksu
@@ -1144,24 +1166,10 @@ actions:
   type: simple.AdditiveAction
   group: implicit
   quantity: number
-  unit: pcs/a
-  forecast_values: [[2023, 1], [2035, 1]]
+  unit: Mt/a
+  forecast_values: [[2023, 0], [2035, -35.0]]
   input_dataset_processors: [LinearInterpolation]
-
-#
-####### COVID
-#
-- id: testing_tracking_isolation
-  name: Testaus, jäljitys, eristys
-  description: Testaus, jäljitys ja eristys on tehokas tapa vähentää sairastuneen
-    ihmisen kontakteja ja siten virusleviämistä, mikä hidastaa taudin leviämistä.
-    Toimenpidettä mitataan testauksen, jäljityksen ja eristyksen piiriin tulevien
-    osuutta sairastuneista.
-  type: simple.AdditiveAction
-  group: covid
-  quantity: fraction
-  unit: '%'
-  forecast_values: [[2022, 0], [2023, 50], [2035, 50]]
+  output_nodes: [carbon_sinks_in_finland]
 
 - id: increasing_wood_product_prices
   name: Puunjalostuksen lisäarvon parantaminen (mm. Backnäs)
@@ -1177,7 +1185,7 @@ actions:
   type: simple.TrajectoryAction
   quantity: unit_price
   unit: EUR/t
-  group: hypothesis
+  group: hs_voting_aid
   color: '#232323'
   input_datasets:
   - id: greentransition/wood_product_price_trajectories
@@ -1199,6 +1207,21 @@ actions:
   - id: baseline_year_level
     value: 700
     unit: EUR/t
+
+#
+####### COVID
+#
+- id: testing_tracking_isolation
+  name: Testaus, jäljitys, eristys
+  description: Testaus, jäljitys ja eristys on tehokas tapa vähentää sairastuneen
+    ihmisen kontakteja ja siten virusleviämistä, mikä hidastaa taudin leviämistä.
+    Toimenpidettä mitataan testauksen, jäljityksen ja eristyksen piiriin tulevien
+    osuutta sairastuneista.
+  type: simple.AdditiveAction
+  group: covid
+  quantity: fraction
+  unit: '%'
+  forecast_values: [[2022, 0], [2023, 50], [2035, 50]]
 
 scenarios:
 - id: baseline
@@ -1236,6 +1259,8 @@ scenarios:
     unit: 1 / EUR
   - id: consumer_electricity_emissions.category_number
     value: 0
+  - id: implicit_action_to_increase_carbon_sinks.enabled
+    value: false
 
 - id: social_democrats
   name: Sosiaalidemokraattien arvot
