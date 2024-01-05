@@ -4,7 +4,8 @@ supported_languages: [en]  # FIXME instance_config.other_languages is [] for an 
 site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0b6112fb402d720f55705d2f8320baa81267ecf5
+  commit: dc83135f4ce6b248c96ae0c6eb69024bf2434f42
+  dvc_remote: kausal-s3
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
 # name_de: Klimaneutrales Tampere 2030
@@ -23,6 +24,65 @@ emission_forecast_from: 2019
 params:
 - id: municipality_name
   value: Tampere
+
+action_groups:
+- id: transportation
+  name: Kestävä liikennejärjestelmä
+  name_en: Sustainable transportation
+- id: buildings
+  name: Kestävä rakentaminen
+  name_en: Sustainable buildings
+- id: energy
+  name: Kestävä energia
+  name_en: Sustainable energy
+
+dimensions:
+- id: tram_phase
+  label: Ratikan vaihe
+  label_en: Tram phase
+  categories:
+  - id: phase1
+    label: Vaihe 1
+    label_en: Phase 1
+  - id: phase2
+    label: Vaihe 2
+    label_en: Phase 2
+  - id: phase3
+    label: Vaihe 3
+    label_en: Phase 3
+- id: vehicle
+  label: Ajoneuvo
+  label_en: Vehicle
+  categories:
+  - id: tram
+    label: Ratikka
+    label_en: Tram
+  - id: car
+    label: Henkilöauto
+    label_en: Car
+  - id: bus
+    label: Bussi
+    label_en: Bus
+- id: energy_consumption
+  label: Energiankulutus
+  label_en: Energy consumption
+  categories:
+  - id: district_heating
+    label: Kaukolämpö
+    label_en: District heating
+  - id: other_electricity
+    label: Kuluttajasähkö
+    label_en: Consumer electricity
+  - id: direct_electric_heating
+    label: Suora sähkölämmitys
+    label_en: Direct electric heating
+  - id: oil_heating
+    label: Öljylämmitys
+    label_en: Oil heating
+  - id: geothermal_heating_electricity
+    label: Maalämmön sähkö
+    label_en: Geothermal heating electricity
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
@@ -392,7 +452,8 @@ nodes:
   name: Muun sähkönkulutuksen päästöt
   name_en: Other electricity consumption emissions
   # name_de: Sonstige Stromverbrauchsemissionen
-  type: simple.EmissionFactorActivity
+  type: simple.MultiplicativeNode
+  quantity: emissions
   unit: kt/a
   params:
     replace_output_using_input_dataset: true
@@ -478,13 +539,13 @@ nodes:
   # name_de: Nahverkehrszugkilometer
   type: simple.Activity
   quantity: mileage
-  unit: Mkm/a
+  unit: Mvkm/a
   input_datasets:
   - id: tampere/scenarios/activity/bau
     column: Local train
     min_year: 2016
     dropna: true
-    unit: Mkm/a
+    unit: Mvkm/a
   output_nodes:
   - local_train_emissions
 
@@ -494,7 +555,7 @@ nodes:
   # name_de: Straßenbahnkilometer
   type: simple.Activity
   quantity: mileage
-  unit: Mkm/a
+  unit: Mvkm/a
   historical_values: [[2020, 0]]
   forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026,
       0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
@@ -507,13 +568,13 @@ nodes:
   # name_de: Autokilometer (innerorts)
   type: simple.Activity
   quantity: mileage
-  unit: Mkm/a
+  unit: Mvkm/a
   input_datasets:
   - id: tampere/scenarios/activity/bau
     column: Private car street
     min_year: 2016
     dropna: true
-    unit: Mkm/a
+    unit: Mvkm/a
   output_nodes:
   - car_emissions_streets
 
@@ -523,13 +584,13 @@ nodes:
   # name_de: Autokilometer (außerorts)
   type: simple.Activity
   quantity: mileage
-  unit: Mkm/a
+  unit: Mvkm/a
   input_datasets:
   - id: tampere/scenarios/activity/bau
     column: Private car road
     min_year: 2016
     dropna: true
-    unit: Mkm/a
+    unit: Mvkm/a
   output_nodes:
   - car_emissions_roads
 
@@ -539,13 +600,13 @@ nodes:
   # name_de: Buskilometer (innerorts)
   type: simple.Activity
   quantity: mileage
-  unit: Mkm/a
+  unit: Mvkm/a
   input_datasets:
   - id: tampere/scenarios/activity/bau
     column: Bus street
     min_year: 2016
     dropna: true
-    unit: Mkm/a
+    unit: Mvkm/a
   output_nodes:
   - bus_emissions_streets
 
@@ -555,13 +616,13 @@ nodes:
   # name_de: Buskilometer (außerorts)
   type: simple.Activity
   quantity: mileage
-  unit: Mkm/a
+  unit: Mvkm/a
   input_datasets:
   - id: tampere/scenarios/activity/bau
     column: Bus road
     min_year: 2016
     dropna: true
-    unit: Mkm/a
+    unit: Mvkm/a
   output_nodes:
   - bus_emissions_roads
 
@@ -570,12 +631,12 @@ nodes:
   name_en: Local train emission factor
   # name_de: Nahverkehrszug-Emissionsfaktor
   quantity: emission_factor
-  unit: g/km
+  unit: g/vkm
   type: simple.FixedMultiplierNode
   params:
   - id: multiplier
     value: 6.5  # Derived from explicit emission factors of trains and electricity
-    unit: kWh/km
+    unit: kWh/vkm
   input_nodes:
   - electricity_production_emission_factor
   output_nodes:
@@ -587,11 +648,11 @@ nodes:
   # name_de: Straßenbahn-Emissionsfaktor
   quantity: emission_factor
   type: simple.FixedMultiplierNode
-  unit: g/km
+  unit: g/vkm
   params:
   - id: multiplier
     value: 2.56  # Derived from explicit emission factors of trams and electricity
-    unit: kWh/km
+    unit: kWh/vkm
   input_nodes:
   - electricity_production_emission_factor
   output_nodes:
@@ -603,12 +664,12 @@ nodes:
   # name_de: Pkw-Emissionsfaktor (innerorts)
   quantity: emission_factor
   type: simple.AdditiveNode
-  unit: g/km
+  unit: g/vkm
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Private car street
     dropna: true
-    unit: g/km
+    unit: g/vkm
   output_nodes:
   - car_emissions_streets
 
@@ -618,12 +679,12 @@ nodes:
   # name_de: Pkw-Emissionsfaktor (außerorts)
   quantity: emission_factor
   type: simple.AdditiveNode
-  unit: g/km
+  unit: g/vkm
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Private car road
     dropna: true
-    unit: g/km
+    unit: g/vkm
   output_nodes:
   - car_emissions_roads
 
@@ -633,12 +694,12 @@ nodes:
   # name_de: Bus-Emissionsfaktor (innerorts)
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: g/km
+  unit: g/vkm
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Bus street constant fuel share
     dropna: true
-    unit: g/km
+    unit: g/vkm
   output_nodes:
   - bus_emissions_streets
 
@@ -648,12 +709,12 @@ nodes:
   # name_de: Bus-Emissionsfaktor (außerorts)
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: g/km
+  unit: g/vkm
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Bus road
     dropna: true
-    unit: g/km
+    unit: g/vkm
   output_nodes:
   - bus_emissions_roads
 
@@ -815,6 +876,7 @@ actions:
   # name_de: Biothermische Anlage Naistenlahti 3
   type: simple.CumulativeAdditiveAction
   quantity: emission_factor
+  group: energy
   description: Naistenlahti 3 -voimalaitos pystyy käyttämään myös biopolttoainetta,
     ja polttoainevalinta onkin keskeinen päästöjä vähentävä tekijä.
   description_en: The Naistenlahti 3 power plant is also able to use biofuel, and
@@ -878,6 +940,7 @@ actions:
   # name_de: Erhöhung des Anteils erneuerbarer Energien an der Fernwärmeerzeugung
   type: simple.CumulativeAdditiveAction
   quantity: energy
+  group: energy
   output_nodes:
   - district_heating_emission_factor
   forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
@@ -889,8 +952,9 @@ actions:
   name_en: Energy renovation of privately owned buildings
   # name_de: Energetische Sanierung von Privatgebäuden
   unit: GWh/a
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: energy
+  group: buildings
   description: Keskeisimmät kohderyhmät energianeuvonnalle ovat yli 20 vuotta vanhat
     kerrostalot sekä öljy- ja sähkölämmitteiset pientalot.
   description_en: The most important target groups for energy advice are apartment
@@ -898,17 +962,27 @@ actions:
     by oil and electricity.
   # description_de: Die wichtigste Zielgruppe für die Energieberatung sind über 20 Jahre alte
   #   Wohnhäuser und Einfamilienhäuser, die mit Öl und Strom beheizt werden.
+  input_datasets:
+  - id: tampere/scenarios/energy_renovation_changes
+    forecast_from: 2022
+    column: energy
+  output_dimensions: [energy_consumption]
   output_nodes:
-  - district_heating_consumption
-  - other_electricity_consumption
-  - direct_electric_heating_electricity_use
-  forecast_values:
   - id: district_heating_consumption
-    values: [[2021, 0], [2030, -239]]
+    from_dimensions:
+    - id: energy_consumption
+      categories: [district_heating]
+      flatten: true
   - id: other_electricity_consumption
-    values: [[2021, 0], [2030, -12.65]]
+    from_dimensions:
+    - id: energy_consumption
+      categories: [other_electricity]
+      flatten: true
   - id: direct_electric_heating_electricity_use
-    values: [[2021, 0], [2030, 10.01]]
+    from_dimensions:
+    - id: energy_consumption
+      categories: [direct_electric_heating]
+      flatten: true
 
 - id: distributed_renewable_energy
   name: Hajautettu uusiutuva energia
@@ -917,6 +991,7 @@ actions:
   unit: GWh/a
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
+  group: energy
   description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
     uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten
     katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
@@ -946,9 +1021,10 @@ actions:
   name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
   name_en: Private oil heated buildings to geothermal
   # name_de: Umstieg ölbeheizter privater Gebäude auf Erdwärme
-  type: simple.CumulativeAdditiveAction
+  type: simple.AdditiveAction
   unit: GWh/a
   quantity: energy
+  group: buildings
   description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta
     lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon
     arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä
@@ -962,24 +1038,31 @@ actions:
   #  Wärme werden auf COP-3-Niveau produziert, der Rest ist direkter Strom. Dies basiert auf Juho
   #  Rinta-Rahkos Einschätzung des Potenzials von Renovierungen und Energieberatung in Tampere.
   #  Einige Ölheizungen werden in Dienstleistungs- und Industriegebäuden verbleiben.
+  input_datasets:
+  - id: tampere/scenarios/private_oil_heating_change
+    forecast_from: 2022
+    column: energy
+  output_dimensions: [energy_consumption]
   output_nodes:
-  - oil_heating_energy_use
-  - geothermal_heating_electricity_use
-  forecast_values:
   - id: oil_heating_energy_use
-    values: [[2021, -5.73], [2022, -5.73], [2023, -5.73], [2024, -5.73], [2025, -5.73],
-      [2026, -5.73], [2027, -5.73], [2028, -5.73], [2029, -5.73], [2030, -5.73]]
+    from_dimensions:
+    - id: energy_consumption
+      categories: [oil_heating]
+      flatten: true
   - id: geothermal_heating_electricity_use
-    values: [[2021, 2.10], [2022, 2.10], [2023, 2.10], [2024, 2.10], [2025, 2.10],
-      [2026, 2.10], [2027, 2.10], [2028, 2.10], [2029, 2.10], [2030, 2.10]]
+    from_dimensions:
+    - id: energy_consumption
+      categories: [geothermal_heating_electricity]
+      flatten: true
 
 - id: oil_heated_municipal_buildings_to_heat_pump
   name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
   name_en: Oil-heated municipal buildings to heat pumps
   # name_de: Umstieg ölbeheizter kommunaler Gebäude auf Wärmepumpen
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.AdditiveAction
   quantity: energy
   unit: GWh/a
+  group: buildings
   description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v
     eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden
     COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu
@@ -993,14 +1076,22 @@ actions:
   #  oder 3,67 GWh. Mit diesen Aussichten wird Öl durch Wasser-Luft-Wärmepumpen mit einem COP von
   #  etwa 2,5 ersetzt, wenn sie die gesamte benötigte Wärme produzieren. Bioöl galt als Reserve,
   #  sein Anteil am Energieverbrauch ist jedoch unbedeutend.
+  input_datasets:
+  - id: tampere/scenarios/public_oil_heating_change
+    forecast_from: 2022
+    column: energy
+  output_dimensions: [energy_consumption]
   output_nodes:
-  - oil_heating_energy_use
-  - direct_electric_heating_electricity_use
-  forecast_values:
   - id: oil_heating_energy_use
-    values: [[2021, 0], [2025, -3.674]]
-  - id: direct_electric_heating_electricity_use
-    values: [[2021, 0], [2025, 1.468]]
+    from_dimensions:
+    - id: energy_consumption
+      categories: [oil_heating]
+      flatten: true
+  - id: direct_electric_heating_electricity_use  # FIXME Should this raher be geothermal?
+    from_dimensions:
+    - id: energy_consumption
+      categories: [geothermal_heating_electricity]
+      flatten: true
 
 - id: cleaner_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
@@ -1013,6 +1104,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   forecast_values: [[2021, 0], [2030, -80]]
   unit: g/kWh
+  group: energy
   params:
   - id: target_year_level
     values:
@@ -1032,6 +1124,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   unit: GWh/a
   quantity: energy
+  group: energy
   description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
     otetaan käyttöön vuoteen 2025 mennessä.
   description_en: The city’s street lighting will be transformed into LEDs and intelligent
@@ -1046,74 +1139,134 @@ actions:
   name: Ratikan rakennusvaihe 1 (2019-2022)
   name_en: Tram construction phase 1 (2019-2022)
   # name_de: Straßenbahn Bauphase 1 (2019-2022)
-  type: simple.CumulativeAdditiveAction
-  unit: Mkm/a
+  type: simple.AdditiveAction
+  unit: Mvkm/a
   quantity: mileage
+  group: transportation
   description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
   description_en: The first construction phase of the tramway. Also learn more about
     local train traffic.
   # description_de: Die erste Bauphase der Straßenbahn. Erfahren Sie auch mehr über den Nahverkehr.
+  input_datasets:
+  - id: tampere/scenarios/mode_changes_after_tram
+    column: vehicle_mileage
+    forecast_from: 2023
+  output_dimensions: [tram_phase, vehicle]
   output_nodes:
-  - tram_kilometers
-  - car_kilometers_streets
-  - bus_kilometers_streets
-  forecast_values:
   - id: tram_kilometers
-    values: [[2021, 0.7], [2022, 0.7]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase1]
+      flatten: true
+    - id: vehicle
+      categories: [tram]
+      flatten: true
   - id: car_kilometers_streets
-    values: [[2021, -2.95], [2022, -2.95]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase1]
+      flatten: true
+    - id: vehicle
+      categories: [car]
+      flatten: true
   - id: bus_kilometers_streets
-    values: [[2021, -0.48], [2022, -0.36]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase1]
+      flatten: true
+    - id: vehicle
+      categories: [bus]
+      flatten: true
 
 - id: tram_phase_2
   name: Ratikan rakennusvaihe 2 (2023-2025)
   name_en: Tram construction phase 2 (2023-2025)
   # name_de: Straßenbahn Bauphase 2 (2023-2025)
-  type: simple.CumulativeAdditiveAction
-  unit: Mkm/a
+  type: simple.AdditiveAction
+  unit: Mvkm/a
   quantity: mileage
+  group: transportation
   description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava,
     jotta tämä olisi mielekäs.
   description_en: The second construction phase of the tramway. The first phase of
     construction needs to be implemented for this action to make sense.
   # description_de: Der zweite Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist, muss
   #   der erste Bauabschnitt umgesetzt werden.
+  input_datasets:
+  - id: tampere/scenarios/mode_changes_after_tram
+    column: vehicle_mileage
+    forecast_from: 2023
+  output_dimensions: [tram_phase, vehicle]
   output_nodes:
-  - tram_kilometers
-  - car_kilometers_streets
-  - bus_kilometers_streets
-  forecast_values:
   - id: tram_kilometers
-    values: [[2024, 0.535], [2025, 0.535]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase2]
+      flatten: true
+    - id: vehicle
+      categories: [tram]
+      flatten: true
   - id: car_kilometers_streets
-    values: [[2024, -2.35], [2025, -2.35]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase2]
+      flatten: true
+    - id: vehicle
+      categories: [car]
+      flatten: true
   - id: bus_kilometers_streets
-    values: [[2025, -0.71]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase2]
+      flatten: true
+    - id: vehicle
+      categories: [bus]
+      flatten: true
 
-- id: tram_phase_3
+- id: tram_phase_3  # FIXME The wirst graph on page is incorrect http://tampere.localhost:3000/actions/tram_phase_3
   name: Ratikan rakennusvaihe 3 (2028-2030)
   name_en: Tram construction phase 3 (2028-2030)
   # name_de: Straßenbahn Bauphase 3 (2028-2030)
-  type: simple.CumulativeAdditiveAction
-  unit: Mkm/a
+  type: simple.AdditiveAction
+  unit: Mvkm/a
   quantity: mileage
+  group: transportation
   description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe
     on toteutettava, jotta tämä olisi mielekäs.
   description_en: The third construction phase of the tramway. The first and second
     construction phases need to be implemented for this action to make sense.
   # description_de: Der dritte Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist,
   #   müssen der erste und der zweite Bauabschnitt umgesetzt werden.
+  input_datasets:
+  - id: tampere/scenarios/mode_changes_after_tram
+    column: vehicle_mileage
+    forecast_from: 2023
+  output_dimensions: [tram_phase, vehicle]
   output_nodes:
-  - tram_kilometers
-  - car_kilometers_streets
-  - bus_kilometers_streets
-  forecast_values:
   - id: tram_kilometers
-    values: [[2029, 0.325], [2030, 0.325]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase3]
+      flatten: true
+    - id: vehicle
+      categories: [tram]
+      flatten: true
   - id: car_kilometers_streets
-    values: [[2029, -4.3], [2030, -4.3]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase3]
+      flatten: true
+    - id: vehicle
+      categories: [car]
+      flatten: true
   - id: bus_kilometers_streets
-    values: [[2030, 0]]
+    from_dimensions:
+    - id: tram_phase
+      categories: [phase3]
+      flatten: true
+    - id: vehicle
+      categories: [bus]
+      flatten: true
 
 - id: renewable_diesel_in_city_machinery
   name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
@@ -1122,6 +1275,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   unit: g/l
   quantity: emission_factor
+  group: transportation
   description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
     dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
   description_en: The city’s own work machinery will move gradually to use renewable
@@ -1130,16 +1284,7 @@ actions:
   #   umgestellt, sodass 2030 nur noch dieser zum Einsatz kommt.
   output_nodes:
   - city_machinery_emission_factor
-    #  - city_machinery_fuel_consumption
-  forecast_values:
-  - id: city_machinery_emission_factor
-      #  quantity: emission_factor
-      #  unit: g/l
-    values: [[2021, 0], [2030, -2689]]
-      #- id: city_machinery_fuel_consumption # TODO An action should be able to have several output nodes with different units
-      #  quantity: fuel_consumption
-      #  unit: l
-      #  values: [[2021, 0], [2030, 64000]]
+  forecast_values: [[2021, 0], [2030, -2689]]
 
 - id: energy_conversion_in_buses
   name: Bussiliikenteen käyttövoimamuutos
@@ -1147,13 +1292,14 @@ actions:
   # name_de: Energieumwandlung in Bussen
   type: simple.AdditiveAction
   quantity: emission_factor
-  unit: g/km
+  unit: g/vkm
+  group: transportation
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Bus street difference to constant fuel share
     forecast_from: 2020
     dropna: true
-    unit: g/km
+    unit: g/vkm
   output_nodes:
   - bus_emission_factor_streets
 
