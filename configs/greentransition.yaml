@@ -955,6 +955,107 @@ nodes:
     value: 0
     unit: pcs
 
+############# Lauri's nodes
+#
+# EV charging infrastructure
+#
+- id:  ev_charging_infrastructure
+  name_en: Increase EV charging infrastructure
+  description: Why has municipality decided to increase EV charging infra
+  decision_level: nation
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+  output_nodes:
+    - demand
+    - energy_company_financial_incentive
+
+- id: demand
+  name_en: Demand for EV charging
+  description: More people have EV’s and demand charging in public places. 
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+  output_nodes:
+    - drive_sustainable_transition
+    - duty_of_municipality
+
+- id: drive_sustainable_transition
+  name_en: Drive sustainable transition
+  description: Help people to transition to sustainable living
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+  output_nodes:
+    - vp_follow_the_law
+
+- id: duty_of_municipality
+  name_en: Duty of municipality to offer infrastructure
+  description: Law requires municipalities to build necessary infrastructure.
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+  output_nodes:
+    - vp_follow_the_law
+
+- id: vp_follow_the_law
+  name_en: VP. Following the law is the municipality's duty.
+  description: EU and national law require municipalities to offer EV charging
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+  output_nodes:
+    - p_municipality_b_ev_infra
+
+- id: p_municipality_b_ev_infra
+  name_en: Should municipality B build EV charging infrastructure? Yes.
+  description: EU and national law require municipalities to offer charging infrastructure. Also financial benefits for municipalities.
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+#  output_nodes:
+#    -
+
+- id: energy_company_financial_incentive
+  name_en: Energy company’s financial incentive
+  description: The municipally-owned energy company earns revenue from charging points. 
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+  output_nodes:
+    - vp_earn_profit
+
+- id: vp_earn_profit
+  name_en: VP. The income is beneficial for the municipality.
+  description: The municipally-owned energy company earns revenue from charging points. 
+  decision_level: natio
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  group: electricity
+
+############# Lauri's nodes
 pages:
 - id: home
   name: Vihreän siirtymän prioriteetit
