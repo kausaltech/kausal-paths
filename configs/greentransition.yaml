@@ -30,6 +30,9 @@ action_groups:
 - id: covid
   name: Koronapandemiaan liittyvät toimet
   name_en: Actions about covid-19 pandemic
+- id: electricity
+  name: Sähkö
+  name_en: Electricity
 
 action_efficiency_pairs:
 - cost_node: gross_domestic_product_in_finland
@@ -51,7 +54,7 @@ params:
   is_customizable: true
   value: 0
   min_value: 0
-  max_value: 1000
+  max_value: 10000000
   unit: 1/a
 - id: emissions_weight
   label: Weight for emissions impacts in utilities
@@ -65,7 +68,7 @@ params:
   is_customizable: true
   value: -1
   min_value: -100
-  max_value: 0
+  max_value: 10
   unit: 1/EUR
 - id: biodiversity_weight
   label: Weight for biodiversity impacts in utilities
@@ -79,8 +82,8 @@ params:
   is_customizable: true
   value: 1
   min_value: 0
-  max_value: 100
-  unit: 1/pcs
+  max_value: 10000000
+  unit: 1/a
 
 dimensions:
 - id: building_heat_source
@@ -779,8 +782,8 @@ nodes:
   quantity: utility
   unit: 1/a
   input_nodes:
-  - id: equity_performance
-    tags: [equity]
+#  - id: equity_performance
+#    tags: [equity]
   - id: net_emissions
     tags: [emissions]
   - id: net_cost_of_forests
@@ -790,8 +793,8 @@ nodes:
   params:
   - id: impact_threshold
     ref: impact_threshold
-  - id: equity_weight
-    ref: equity_weight
+#  - id: equity_weight
+#    ref: equity_weight
   - id: emissions_weight
     ref: emissions_weight
   - id: cost_weight
@@ -892,8 +895,8 @@ nodes:
   quantity: utility
   unit: 1/a
   input_nodes:
-  - id: equity_performance
-    tags: [equity]
+#  - id: equity_performance
+#    tags: [equity]
   - id: net_emissions
     tags: [emissions]
 #  - id: global_net_emissions_average  # FIXME Should we use logical node here to check whether FI emissions are larger than global emissions per capita. If yes, it is bad for Kokoomus.
@@ -901,8 +904,8 @@ nodes:
   params:
   - id: impact_threshold
     ref: impact_threshold
-  - id: equity_weight
-    ref: equity_weight
+#  - id: equity_weight
+#    ref: equity_weight
   - id: emissions_weight
     ref: emissions_weight
 
@@ -959,103 +962,108 @@ nodes:
 #
 # EV charging infrastructure
 #
-- id:  ev_charging_infrastructure
-  name_en: Increase EV charging infrastructure
-  description: Why has municipality decided to increase EV charging infra
+- id: charging_stations
+  name_en: Number of charging stations
+  description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations.
+  decision_level: nation
+  quantity: fraction
+  type: values.AdditiveNode
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  group: electricity
+  goals:
+  - is_main_goal: true
+    default: true
+    label: Municipality goal for the number of charging stations
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+  output_nodes:
+  - supply
+
+- id: supply
+  name_en: Supply for EV charging
+  description: More people have EV’s because there is supply for charging in public places. 
+  decision_level: nation
+  quantity: energy
+  type: simple.FixedMultiplierNode
+  unit: GWh/a
+  historical_values: [[2010, 100], [2030, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  group: electricity
+  params:
+  - id: multiplier
+    value: 5
+    unit: kW/pcs
+  output_nodes:
+  - drive_sustainable_transition
+  - energy_company_financial_incentive
+
+- id: drive_sustainable_transition
+  name_en: Drive sustainable transition
+  description: Help people to transition to sustainable living
   decision_level: nation
   quantity: number
   type: values.AssociationNode
   unit: pcs
   historical_values: [[2010, 100], [2023, 100]]
+  input_dataset_processors: [LinearInterpolation]
   group: electricity
-  output_nodes:
-    - demand
-    - energy_company_financial_incentive
-
-- id: demand
-  name_en: Demand for EV charging
-  description: More people have EV’s and demand charging in public places. 
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
-  group: electricity
-  output_nodes:
-    - drive_sustainable_transition
-    - duty_of_municipality
-
-- id: drive_sustainable_transition
-  name_en: Drive sustainable transition
-  description: Help people to transition to sustainable living
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
-  group: electricity
-  output_nodes:
-    - vp_follow_the_law
 
 - id: duty_of_municipality
   name_en: Duty of municipality to offer infrastructure
-  description: Law requires municipalities to build necessary infrastructure.
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
+  description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations. The graph shows the year when the goal is reached.
+  decision_level: nation
+  quantity: fraction
+  type: values.LogicalNode
+  unit: dimensionless
   group: electricity
-  output_nodes:
-    - vp_follow_the_law
-
-- id: vp_follow_the_law
-  name_en: VP. Following the law is the municipality's duty.
-  description: EU and national law require municipalities to offer EV charging
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
-  group: electricity
-  output_nodes:
-    - p_municipality_b_ev_infra
-
-- id: p_municipality_b_ev_infra
-  name_en: Should municipality B build EV charging infrastructure? Yes.
-  description: EU and national law require municipalities to offer charging infrastructure. Also financial benefits for municipalities.
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
-  group: electricity
-#  output_nodes:
-#    -
+  params:
+  - id: threshold1
+    value: 300
+    unit: pcs
+  input_nodes:
+  - id: charging_stations
+    tags: [threshold1]
 
 - id: energy_company_financial_incentive
   name_en: Energy company’s financial incentive
-  description: The municipally-owned energy company earns revenue from charging points. 
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
+  description: The municipally-owned energy company earns revenue from charging points. (Costs are not included here.)
+  decision_level: nation
+  quantity: currency
+  type: simple.FixedMultiplierNode
+  unit: MEUR/a
   group: electricity
-  output_nodes:
-    - vp_earn_profit
+  params:
+  - id: multiplier
+    value: 0.1  # price of electricity
+    unit: EUR/kWh
 
 - id: vp_earn_profit
-  name_en: VP. The income is beneficial for the municipality.
-  description: The municipally-owned energy company earns revenue from charging points. 
-  decision_level: natio
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
-  group: electricity
+  name_en: Value profiles about EVs
+  description: <h2>Municipality's value profile</h2>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities.<h2>Energy company's value profile</h2>The municipally-owned energy company earns revenue from charging points.
+  decision_level: nation
+  type: values.UtilityNode
+  quantity: utility
+  unit: 1/a
+  input_nodes:
+  - id: energy_company_financial_incentive
+    tags: [currency]
+  - id: duty_of_municipality
+    tags: [equity]
+  params:
+  - id: impact_threshold
+    ref: impact_threshold
+  - id: cost_weight
+    ref: cost_weight
+  - id: equity_weight
+    ref: equity_weight
 
 ############# Lauri's nodes
+
 pages:
 - id: home
   name: Vihreän siirtymän prioriteetit
@@ -1075,6 +1083,21 @@ pages:
     be promoted.
 
 actions:
+
+############## Lauri's actions
+- id:  ev_charging_infrastructure
+  name_en: Increase EV charging infrastructure
+  description: Why has municipality decided to increase EV charging infra
+  decision_level: nation
+  quantity: number
+  type: simple.LinearCumulativeAdditiveAction
+  unit: pcs
+  forecast_values: [[2022, 0], [2030, 500]]
+  group: electricity
+  output_nodes:
+  - charging_stations
+############### Lauri's actions
+
 - id: priority_to_green_transition_in_avi
   name: Etusija vihreän siirtymän hankkeille AVI-käsittelyssä
   description: <p>Aluehallintoviraston on käsittelyssä annettava etusija kestävää
@@ -1404,3 +1427,33 @@ scenarios:
     unit: 1 / EUR
   - id: consumer_electricity_emissions.category_number
     value: 1
+
+- id: municipality
+  name: Kunnan arvot
+  name_en: Values of the municipality
+  all_actions_enabled: true
+  params:
+  - id: impact_threshold
+    value: 5000000
+    unit: 1/a
+  - id: cost_weight
+    value: 1
+    unit: 1/EUR
+  - id: equity_weight
+    value: 10000000
+    unit: 1/a
+
+- id: energy_company
+  name: Energiayhtiön arvot
+  name_en: Values of the energy company
+  all_actions_enabled: true
+  params:
+  - id: impact_threshold
+    value: 500000
+    unit: 1/a
+  - id: cost_weight
+    value: 1
+    unit: 1/EUR
+  - id: equity_weight
+    value: 0
+    unit: 1/a
