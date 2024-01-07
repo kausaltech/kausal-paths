@@ -1151,29 +1151,24 @@ actions:
   - id: tampere/scenarios/mode_changes_after_tram
     column: vehicle_mileage
     forecast_from: 2023
-  output_dimensions: [tram_phase, vehicle]
+    filters:
+    - dimension: tram_phase
+      categories: [phase1]
+      flatten: true
+  output_dimensions: [vehicle]
   output_nodes:
   - id: tram_kilometers
     from_dimensions:
-    - id: tram_phase
-      categories: [phase1]
-      flatten: true
     - id: vehicle
       categories: [tram]
       flatten: true
   - id: car_kilometers_streets
     from_dimensions:
-    - id: tram_phase
-      categories: [phase1]
-      flatten: true
     - id: vehicle
       categories: [car]
       flatten: true
   - id: bus_kilometers_streets
     from_dimensions:
-    - id: tram_phase
-      categories: [phase1]
-      flatten: true
     - id: vehicle
       categories: [bus]
       flatten: true
@@ -1196,29 +1191,24 @@ actions:
   - id: tampere/scenarios/mode_changes_after_tram
     column: vehicle_mileage
     forecast_from: 2023
-  output_dimensions: [tram_phase, vehicle]
+    filters:
+    - dimension: tram_phase
+      categories: [phase2]
+      flatten: true
+  output_dimensions: [vehicle]
   output_nodes:
   - id: tram_kilometers
     from_dimensions:
-    - id: tram_phase
-      categories: [phase2]
-      flatten: true
     - id: vehicle
       categories: [tram]
       flatten: true
   - id: car_kilometers_streets
     from_dimensions:
-    - id: tram_phase
-      categories: [phase2]
-      flatten: true
     - id: vehicle
       categories: [car]
       flatten: true
   - id: bus_kilometers_streets
     from_dimensions:
-    - id: tram_phase
-      categories: [phase2]
-      flatten: true
     - id: vehicle
       categories: [bus]
       flatten: true
@@ -1241,29 +1231,24 @@ actions:
   - id: tampere/scenarios/mode_changes_after_tram
     column: vehicle_mileage
     forecast_from: 2023
-  output_dimensions: [tram_phase, vehicle]
+    filters:
+    - dimension: tram_phase
+      categories: [phase3]
+      flatten: true
+  output_dimensions: [vehicle]
   output_nodes:
   - id: tram_kilometers
     from_dimensions:
-    - id: tram_phase
-      categories: [phase3]
-      flatten: true
     - id: vehicle
       categories: [tram]
       flatten: true
   - id: car_kilometers_streets
     from_dimensions:
-    - id: tram_phase
-      categories: [phase3]
-      flatten: true
     - id: vehicle
       categories: [car]
       flatten: true
   - id: bus_kilometers_streets
     from_dimensions:
-    - id: tram_phase
-      categories: [phase3]
-      flatten: true
     - id: vehicle
       categories: [bus]
       flatten: true
