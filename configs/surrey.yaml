@@ -216,7 +216,7 @@ nodes:
   output_dimensions: []
   input_datasets:
   - id: surrey/population
-    forecast_from: 2022
+    forecast_from: 2023
   input_dataset_processors: [LinearInterpolation]
   minimum_year: 2005
 
