@@ -1296,7 +1296,7 @@ pages:
   # name_de: Emissionsszenario Klimaneutrales Tampere 2030
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title: Tampereen päästöskenaariot
   lead_title_en: Tampere emission scenarios
   # lead_title_de: Tampere-Emissionsszenarien

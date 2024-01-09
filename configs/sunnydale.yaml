@@ -1633,7 +1633,7 @@ pages:
   name_de: Emissionsszenario Klimaneutrales Sunnydale 2030
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title: Sunnydale emission scenarios
   lead_title_fi: Sunnydalen päästöskenaariot
   lead_title_de: Sunnydale-Emissionsszenarien
