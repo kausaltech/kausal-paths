@@ -854,7 +854,7 @@ pages:
   name_sv: Utsläppsscenariot Kolneutralt Esbo
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title: Espoon päästöskenaariot
   lead_title_en: Espoo emission scenarios
   lead_title_sv: Esbo utsläppsscenarier

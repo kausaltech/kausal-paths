@@ -1070,7 +1070,7 @@ pages:
   name_en: Green transition priotities
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title: Vihreän siirtymän prioriteetit
   lead_title_en: Green transition priorities
   lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä.
