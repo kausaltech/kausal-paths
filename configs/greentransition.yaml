@@ -986,7 +986,7 @@ nodes:
 
 - id: supply
   name_en: Supply for EV charging
-  description: More people have EV’s because there is supply for charging in public places. 
+  description: More people have EV’s because there is supply for charging in public places.
   decision_level: nation
   quantity: energy
   type: simple.FixedMultiplierNode
@@ -1062,6 +1062,116 @@ nodes:
   - id: equity_weight
     ref: equity_weight
 
+#
+# Shared micro mobility system
+#
+- id: city_mm_stations
+  name_en: Number of micro mobility stations
+  description:
+  decision_level: nation
+  quantity: fraction
+  type: values.AdditiveNode
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  group: electricity
+  goals:
+  - is_main_goal: true
+    default: true
+    label: 
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+  output_nodes:
+  - reduced_car_driven_km
+  - accessibility
+
+- id: reduced_car_driven_km
+  name_en: Reduced car driven trips inside the city center.
+  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city
+  decision_level: nation
+  quantity: fraction
+  type: values.AssociationNode
+  unit: Mvkm/a
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  group: electricity
+  goals:
+  - is_main_goal: true
+    default: true
+    label: 
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+  output_nodes:
+#  - health_benefits
+  - behavioral_change
+
+- id: accessibility
+  name_en: Make transportation more accessible 
+  Description: More people can access the city center. 
+  decision_level: nation
+  quantity: fraction
+  type: values.AdditiveNode
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  group: electricity
+  goals:
+  - is_main_goal: true
+    default: true
+    label: 
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+#  output_nodes:
+#   - 
+
+- id: behavioral_change  # Is this measuring the amount of active transport?
+  name_en: Behavioral change to sustainable 
+  Description: More people would change their behavior to sustainable methods whether it is walking, cycling etc. 
+  decision_level: nation
+  quantity: fraction
+  type: values.AdditiveNode
+  unit: Mvkm/a
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  group: electricity
+  goals:
+  - is_main_goal: true
+    default: true
+    label: 
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+
+- id: vp_change_behaviour
+  name_en: Value profiles about micro mobility
+  description: <h4>Municipality's value profile</h4> Shared micro mobility systems change behavior to sustainable mobility and reduces car driven trips. Shared micro mobility systems make the city more accessible to those without cars.
+  decision_level: nation
+  type: values.UtilityNode
+  quantity: utility
+  unit: 1/a
+  params:
+  - id: impact_threshold
+    ref: impact_threshold
+#  - id: cost_weight
+#    ref: cost_weight
+  - id: equity_weight
+    value: 1
+    unit: 1/Mvkm
+  input_nodes:
+  - id: behavioral_change
+    tags: [equity]
+
 ############# Lauri's nodes
 
 pages:
@@ -1096,6 +1206,19 @@ actions:
   group: electricity
   output_nodes:
   - charging_stations
+
+- id:  micromobility_sharing_system
+  name_en: Offer shared micro mobility system 
+  description: Why does municipality offer shared micro mobility system
+  decision_level: nation
+  quantity: number
+  type: simple.LinearCumulativeAdditiveAction
+  unit: pcs
+  forecast_values: [[2022, 0], [2030, 500]]
+  group: electricity
+  output_nodes:
+  - city_mm_stations
+
 ############### Lauri's actions
 
 - id: priority_to_green_transition_in_avi
