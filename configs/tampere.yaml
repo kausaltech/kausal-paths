@@ -1135,123 +1135,123 @@ actions:
   output_nodes:
   - other_electricity_consumption
 
-#- id: tram_phase_1
-#  name: Ratikan rakennusvaihe 1 (2019-2022)
-#  name_en: Tram construction phase 1 (2019-2022)
-#  # name_de: Straßenbahn Bauphase 1 (2019-2022)
-#  type: simple.AdditiveAction
-#  unit: Mvkm/a
-#  quantity: mileage
-#  group: transportation
-#  description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
-#  description_en: The first construction phase of the tramway. Also learn more about
-#    local train traffic.
-#  # description_de: Die erste Bauphase der Straßenbahn. Erfahren Sie auch mehr über den Nahverkehr.
-#  input_datasets:
-#  - id: tampere/scenarios/mode_changes_after_tram
-#    column: vehicle_mileage
-#    forecast_from: 2023
-#    filters:
-#    - dimension: tram_phase
-#      categories: [phase1]
-#      flatten: true
-#  output_dimensions: [vehicle]
-#  output_nodes:
-#  - id: tram_kilometers
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [tram]
-#      flatten: true
-#  - id: car_kilometers_streets
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [car]
-#      flatten: true
-#  - id: bus_kilometers_streets
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [bus]
-#      flatten: true
+- id: tram_phase_1
+  name: Ratikan rakennusvaihe 1 (2019-2022)
+  name_en: Tram construction phase 1 (2019-2022)
+  # name_de: Straßenbahn Bauphase 1 (2019-2022)
+  type: simple.AdditiveAction
+  unit: Mvkm/a
+  quantity: mileage
+  group: transportation
+  description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
+  description_en: The first construction phase of the tramway. Also learn more about
+    local train traffic.
+  # description_de: Die erste Bauphase der Straßenbahn. Erfahren Sie auch mehr über den Nahverkehr.
+  input_datasets:
+  - id: tampere/scenarios/mode_changes_after_tram
+    column: vehicle_mileage
+    forecast_from: 2023
+    filters:
+    - dimension: tram_phase
+      categories: [phase1]
+      flatten: true
+  output_dimensions: [vehicle]
+  output_nodes:
+  - id: tram_kilometers
+    from_dimensions:
+    - id: vehicle
+      categories: [tram]
+      flatten: true
+  - id: car_kilometers_streets
+    from_dimensions:
+    - id: vehicle
+      categories: [car]
+      flatten: true
+  - id: bus_kilometers_streets
+    from_dimensions:
+    - id: vehicle
+      categories: [bus]
+      flatten: true
 
-#- id: tram_phase_2
-#  name: Ratikan rakennusvaihe 2 (2023-2025)
-#  name_en: Tram construction phase 2 (2023-2025)
-#  # name_de: Straßenbahn Bauphase 2 (2023-2025)
-#  type: simple.AdditiveAction
-#  unit: Mvkm/a
-#  quantity: mileage
-#  group: transportation
-#  description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava,
-#    jotta tämä olisi mielekäs.
-#  description_en: The second construction phase of the tramway. The first phase of
-#    construction needs to be implemented for this action to make sense.
-#  # description_de: Der zweite Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist, muss
-#  #   der erste Bauabschnitt umgesetzt werden.
-#  input_datasets:
-#  - id: tampere/scenarios/mode_changes_after_tram
-#    column: vehicle_mileage
-#    forecast_from: 2023
-#    filters:
-#    - dimension: tram_phase
-#      categories: [phase2]
-#      flatten: true
-#  output_dimensions: [vehicle]
-#  output_nodes:
-#  - id: tram_kilometers
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [tram]
-#      flatten: true
-#  - id: car_kilometers_streets
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [car]
-#      flatten: true
-#  - id: bus_kilometers_streets
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [bus]
-#      flatten: true
+- id: tram_phase_2
+  name: Ratikan rakennusvaihe 2 (2023-2025)
+  name_en: Tram construction phase 2 (2023-2025)
+  # name_de: Straßenbahn Bauphase 2 (2023-2025)
+  type: simple.AdditiveAction
+  unit: Mvkm/a
+  quantity: mileage
+  group: transportation
+  description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava,
+    jotta tämä olisi mielekäs.
+  description_en: The second construction phase of the tramway. The first phase of
+    construction needs to be implemented for this action to make sense.
+  # description_de: Der zweite Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist, muss
+  #   der erste Bauabschnitt umgesetzt werden.
+  input_datasets:
+  - id: tampere/scenarios/mode_changes_after_tram
+    column: vehicle_mileage
+    forecast_from: 2023
+    filters:
+    - dimension: tram_phase
+      categories: [phase2]
+      flatten: true
+  output_dimensions: [vehicle]
+  output_nodes:
+  - id: tram_kilometers
+    from_dimensions:
+    - id: vehicle
+      categories: [tram]
+      flatten: true
+  - id: car_kilometers_streets
+    from_dimensions:
+    - id: vehicle
+      categories: [car]
+      flatten: true
+  - id: bus_kilometers_streets
+    from_dimensions:
+    - id: vehicle
+      categories: [bus]
+      flatten: true
 
-#- id: tram_phase_3
-#  name: Ratikan rakennusvaihe 3 (2028-2030)
-#  name_en: Tram construction phase 3 (2028-2030)
-#  # name_de: Straßenbahn Bauphase 3 (2028-2030)
-#  type: simple.AdditiveAction
-#  unit: Mvkm/a
-#  quantity: mileage
-#  group: transportation
-#  description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe
-#    on toteutettava, jotta tämä olisi mielekäs.
-#  description_en: The third construction phase of the tramway. The first and second
-#    construction phases need to be implemented for this action to make sense.
-#  # description_de: Der dritte Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist,
-#  #   müssen der erste und der zweite Bauabschnitt umgesetzt werden.
-#  input_datasets:
-#  - id: tampere/scenarios/mode_changes_after_tram
-#    column: vehicle_mileage
-##    forecast_from: 2023
- #   filters:
- #   - dimension: tram_phase
- #     categories: [phase3]
- #     flatten: true
- # output_dimensions: [vehicle]
- # output_nodes:
- # - id: tram_kilometers
- #   from_dimensions:
- #   - id: vehicle
- #     categories: [tram]
- #     flatten: true
- # - id: car_kilometers_streets
- #   from_dimensions:
- #   - id: vehicle
-#      categories: [car]
-#      flatten: true
-#  - id: bus_kilometers_streets
-#    from_dimensions:
-#    - id: vehicle
-#      categories: [bus]
-#      flatten: true
+- id: tram_phase_3
+  name: Ratikan rakennusvaihe 3 (2028-2030)
+  name_en: Tram construction phase 3 (2028-2030)
+  # name_de: Straßenbahn Bauphase 3 (2028-2030)
+  type: simple.AdditiveAction
+  unit: Mvkm/a
+  quantity: mileage
+  group: transportation
+  description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe
+    on toteutettava, jotta tämä olisi mielekäs.
+  description_en: The third construction phase of the tramway. The first and second
+    construction phases need to be implemented for this action to make sense.
+  # description_de: Der dritte Bauabschnitt der Straßenbahn. Damit diese Maßnahme sinnvoll ist,
+  #   müssen der erste und der zweite Bauabschnitt umgesetzt werden.
+  input_datasets:
+  - id: tampere/scenarios/mode_changes_after_tram
+    column: vehicle_mileage
+    forecast_from: 2023
+    filters:
+    - dimension: tram_phase
+      categories: [phase3]
+      flatten: true
+  output_dimensions: [vehicle]
+  output_nodes:
+  - id: tram_kilometers
+    from_dimensions:
+    - id: vehicle
+      categories: [tram]
+      flatten: true
+  - id: car_kilometers_streets
+    from_dimensions:
+    - id: vehicle
+      categories: [car]
+      flatten: true
+  - id: bus_kilometers_streets
+    from_dimensions:
+    - id: vehicle
+      categories: [bus]
+      flatten: true
 
 - id: renewable_diesel_in_city_machinery
   name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
@@ -1331,8 +1331,8 @@ scenarios:
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
-#  - id: tram_phase_1.enabled
-#    value: true
+  - id: tram_phase_1.enabled
+    value: true
 
 - id: default
   default: true
