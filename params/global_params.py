@@ -20,11 +20,6 @@ class MunicipalityName(StringParameter):
     id = 'municipality_name'
 
 
-class DiscountNodeName(StringParameter):
-    name = _('Discount node name')
-    id = 'discount_node_name'
-
-
 class DiscountRate(NumberParameter):
     name = _('Discount rate')
     id = 'discount_rate'
@@ -125,3 +120,33 @@ class ActionImpactFromBaseline(BoolParameter):
 class ScenarioName(StringParameter):
     name = _('Scanario name')
     id = 'scenario_name'
+
+
+class EmissionsWeight(NumberParameter):
+    name = _('Weight for emission impacts in value profiles')
+    id = 'emissions_weight'
+
+
+class CostWeight(NumberParameter):
+    name = _('Weight for cost impacts in value profiles')
+    id = 'cost_weight'
+
+
+class HealthWeight(NumberParameter):
+    name = _('Weight for health impacts in value profiles')
+    id = 'health_weight'
+
+
+class EquityWeight(NumberParameter):
+    name = _('Weight for equity impacts in value profiles')
+    id = 'equity_weight'
+
+
+class BiodiversityWeight(NumberParameter):
+    name = _('Weight for biodiversity impacts in value profiles')
+    id = 'biodiversity_weight'
+
+
+class ImpactThreshold(NumberParameter):
+    name = _('Threshold for sum of weighted impacts in value profiles')
+    id = 'impact_threshold'

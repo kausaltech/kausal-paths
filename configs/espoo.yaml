@@ -854,7 +854,7 @@ pages:
   name_sv: Utsläppsscenariot Kolneutralt Esbo
   path: /
   type: emission
-  node: net_emissions
+  outcome_node: net_emissions
   lead_title: Espoon päästöskenaariot
   lead_title_en: Espoo emission scenarios
   lead_title_sv: Esbo utsläppsscenarier
@@ -986,10 +986,12 @@ actions:
     column: electricity_emission_factor
     forecast_from: 2023
   params:
+  - id: dimension
+    value: scenario
+  - id: category
+    ref: scenario_name
   - id: baseline_year
     value: 2022
-  - id: scenario
-    ref: scenario_name
 
 - id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
@@ -1030,7 +1032,9 @@ actions:
   params:
   - id: enabled
     is_customizable: false
-  - id: scenario
+  - id: dimension
+    value: scenario
+  - id: category
     ref: scenario_name
   - id: baseline_year
     value: 2022
@@ -1041,7 +1045,7 @@ actions:
     is_visible: false
 
 - id: electric_heating_emission_factor_action
-  name: Lämmityssähkön päästökerrointa muuttavat toimet
+  name: Lämmityssähkön päästökerrointa muuttavat toimet  # FIXME Baseline is wrong
   name_en: Actions to affect electric heating emission factor
   name_sv: Åtgärger för emissionskoefficient för värmeel
   description: Huomaa, että tämä toimenpide ei mallissa liity kansallisen sähköntuotannon
@@ -1058,9 +1062,9 @@ actions:
   output_nodes:
   - id: electric_heating_emission_factor
   params:
-  - id: enabled
-    is_customizable: false
-  - id: scenario
+  - id: dimension
+    value: scenario
+  - id: category
     ref: scenario_name
   - id: baseline_year
     value: 2022
@@ -1104,13 +1108,15 @@ actions:
   output_nodes:
   - district_heating_emission_factor
   params:
+  - id: dimension
+    value: scenario
+  - id: category
+    ref: scenario_name
   - id: baseline_year
     value: 2022
   - id: baseline_year_level
     value: 169.4
     unit: t/GWh
-  - id: scenario
-    ref: scenario_name
 
 - id: heating_efficiency_improvements_new
   name: Ominaislämmönkulutuksen paraneminen uudessa rakennuskannassa
@@ -1453,7 +1459,7 @@ actions:
 #
 # OTHER SECTORS
 #
-- id: reduce_waste_treatment_emissions
+- id: reduce_waste_treatment_emissions  # FIXME Terminal shows impacts right but graphs are wrong
   name: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
   name_sv: Utsläppen från avfallsbehandlingen minskar
@@ -1477,7 +1483,7 @@ actions:
     förverkligas även under perioden 2030–2035. I scenariot HNE2030 antas utsläppen
     minska med 68 procent under perioden 2021–2030, varefter utsläppen förväntas stanna
     på samma nivå som 2030.
-  type: simple.ScenarioAction
+  type: simple.TrajectoryAction
   quantity: ratio
   unit: '%'
   group: waste_agriculture
@@ -1487,8 +1493,13 @@ actions:
     column: ratio
   input_dataset_processors: [LinearInterpolation]
   params:
-  - id: scenario
-    ref: scenario_name
+  - id: dimension
+    value: scenario
+  - id: category_number
+    value: 1
+    min_value: 0
+    max_value: 2
+    step: 5
 
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
@@ -2085,6 +2096,8 @@ scenarios:
 
   - id: reduce_waste_treatment_emissions.enabled
     value: true
+  - id: reduce_waste_treatment_emissions.category_number
+    value: 0
   - id: change_consumer_electricity.enabled
     value: true
   - id: electric_heating_emission_factor_action.enabled
@@ -2125,6 +2138,8 @@ scenarios:
 
   - id: reduce_waste_treatment_emissions.enabled
     value: true
+  - id: reduce_waste_treatment_emissions.category_number
+    value: 1
   - id: change_consumer_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
@@ -2150,6 +2165,8 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.enabled
     value: true
+  - id: reduce_waste_treatment_emissions.category_number
+    value: 2
   - id: change_consumer_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled

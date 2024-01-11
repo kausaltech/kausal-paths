@@ -288,7 +288,7 @@ nodes:
   name: Elpris utan skatt
   quantity: unit_price
   unit: SEK/kWh
-  type: costs.ElectricityPriceNode
+  type: costs.ExponentialNode
   historical_values: [[2019, 1.330], [2021, 2.5365]]
   params:
   - id: current_value
@@ -323,7 +323,7 @@ nodes:
   name: Värmepris utan skatt
   quantity: unit_price
   unit: SEK/kWh
-  type: costs.HeatPriceNode
+  type: costs.ExponentialNode
   historical_values: [[2019, 0.940], [2021, 0.868]]
   params:
   - id: current_value
@@ -369,10 +369,15 @@ nodes:
   name: Diskonterade nettokostnader
   name_fi: Diskontatut nettokustannukset
   name_en: Discounted net cost
-  type: costs.DiscountedNode
+  type: costs.ExponentialNode
   quantity: currency
   unit: MSEK/a
   input_nodes: [total_net_cost]
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
 
 - id: emissions_reduction
   name_fi: Päästövähennys
@@ -447,10 +452,8 @@ nodes:
   name: Ytarea i småhus
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 313000000.0]]
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_single_family
@@ -670,10 +673,8 @@ nodes:
   name: Ytarea flerbostadshus
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 211000000.0]]
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_apartment
@@ -892,10 +893,8 @@ nodes:
   name: Ytarea kontor
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 33200000.0]]    # Energimyndigheten
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_office
@@ -1114,10 +1113,8 @@ nodes:
   name: Ytarea i skolor
   quantity: number
   unit: m**2
-  type: simple.YearlyPercentageChangeNode
+  type: simple.AdditiveNode
   historical_values: [[2019, 42900000.0]]
-  params:
-    yearly_change: 0.0
   tags: floor_area
 
 - id: electricity_per_area_school

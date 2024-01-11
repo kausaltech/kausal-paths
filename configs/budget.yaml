@@ -1,0 +1,119 @@
+id: budget
+default_language: en
+supported_languages: [fi]
+site_url: https://budget.paths.test.kausal.dev
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 13ad3b4c049c0f23970a529e90a30e3b7ddaef5d
+  dvc_remote: kausal-s3
+  default_path: espoo
+name: Climate budgeting sandbox
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2040
+model_end_year: 2040
+minimum_historical_year: 2010
+maximum_historical_year: 2023
+emission_unit: kt/a
+emission_forecast_from: 2023
+#emission_dimensions: [emission_scope]
+emission_dataset: tampere/scenarios/emissions/bau
+#emission_sector_dimension: emission_sectors
+features:
+  baseline_visible_in_graphs: true
+  show_accumulated_effects: true
+  show_significant_digits: 3
+terms:
+  enabled_label: Is implemented
+  action_group_label: Group
+params:
+- id: municipality_name
+  value: sunnydale
+- id: action_impact_from_baseline
+  value: True
+
+action_efficiency_pairs:
+- cost_node: investments
+  impact_node: returns
+  invert_cost: false
+  invert_impact: true
+  efficiency_unit: '%'
+  cost_unit: MEUR
+  impact_unit: MEUR
+  plot_limit_efficiency: 10
+  label: Return of investment
+
+emission_sectors:
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+
+- id: industry_emissions
+  name: Industry emissions
+  part_of: net_emissions
+  column: Industry without city machinery
+  color: '#E8B455'
+  
+nodes:
+- id: population
+  type: finland.population.Population
+  name: Population
+  input_datasets:
+  - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
+    filters:
+    - column: Alue
+      value: Espoo
+  - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
+    filters:
+    - column: Alue
+      value: Espoo
+
+- id: investments
+  name: Investments
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: MEUR/a
+  params:
+  - id: multiplier
+    value: -80
+    unit: EUR/t
+
+- id: returns
+  name: Returns
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes: [net_emissions]
+  params:
+  - id: multiplier
+    value: -100
+    unit: EUR/t
+
+actions:
+
+- id: test_action
+  name: Test action
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2024, 0], [2030, -100]]
+  output_nodes: [industry_emissions, investments]
+
+pages:
+- id: home
+  name: Budget sandbox
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Sandbox for budgeting
+  lead_paragraph: Testing budgeting functionalities
+
+scenarios:
+
+- id: baseline
+  name: Baseline
+
+- id: default
+  name: Default
+  default: true
+  all_actions_enabled: true

@@ -801,14 +801,14 @@ instance:
 #      name_en: Climate emission and impact estimates of the Climate Food Program
       path: '/'
       type: emission
-      node: net_emissions
+      outcome_node: net_emissions
 
 #    - id: health
 #      name: Ilmastoruokaohjelman terveysvaikutusarviot
 #      name_en: Climate emission and impact estimates of the Climate Food Program
 #      path: '/health/'
 #      type: emission
-#      node: net_health_impact
+#      outcome_node: net_health_impact
 
   scenarios:
     - id: baseline

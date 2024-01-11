@@ -1207,5 +1207,5 @@ instance:
     name: Sveriges Panorama
     path: /
     type: emission
-    node: net_emissions
+    outcome_node: net_emissions
 
