@@ -967,7 +967,7 @@ nodes:
   description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations.
   decision_level: nation
   quantity: fraction
-  type: values.AdditiveNode
+  type: values.AssociationNode
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -983,6 +983,7 @@ nodes:
       value: 300
   output_nodes:
   - supply
+  - increases_jobs
 
 - id: supply
   name_en: Supply for EV charging
@@ -1001,6 +1002,34 @@ nodes:
   output_nodes:
   - drive_sustainable_transition
   - energy_company_financial_incentive
+
+- id: increases_jobs
+  name_en: Building EV charging infrastructure creates jobs.
+  description: Municipality B thinks that if municipalities build EV charging stations it creates jobs nationally.
+  decision_level: nation
+  quantity: currency
+  type: simple.FixedMultiplierNode
+  unit: MEUR/a
+  group: electricity
+  params:
+  - id: multiplier
+    value: 1
+    unit: MEUR/a/pcs
+
+- id: incentive_private_companies
+  name_en: Private companies have financial incentive to build EV charging stations.
+  description: The charging company earns revenue from charging points. (Costs are not included here.)
+  decision_level: nation
+  quantity: currency
+  type: simple.FixedMultiplierNode
+  unit: MEUR/a
+  group: electricity
+  params:
+  - id: multiplier
+    value: 0.1  # price of electricity
+    unit: EUR/a/pcs
+  output_nodes:
+  - charging_stations
 
 - id: drive_sustainable_transition
   name_en: Drive sustainable transition
@@ -1059,6 +1088,8 @@ nodes:
     ref: impact_threshold
   - id: cost_weight
     ref: cost_weight
+    value: 1
+    unit: Ut/EUR
   - id: equity_weight
     ref: equity_weight
 
@@ -1112,8 +1143,8 @@ nodes:
   - behavioral_change
 
 - id: accessibility
-  name_en: Make transportation more accessible 
-  Description: More people can access the city center. 
+  name_en: Make transportation more accessible
+  Description: More people can access the city center.
   decision_level: nation
   quantity: fraction
   type: values.AdditiveNode
@@ -1134,8 +1165,8 @@ nodes:
 #   - 
 
 - id: behavioral_change  # Is this measuring the amount of active transport?
-  name_en: Behavioral change to sustainable 
-  Description: More people would change their behavior to sustainable methods whether it is walking, cycling etc. 
+  name_en: Behavioral change to sustainable
+  Description: More people would change their behavior to sustainable methods whether it is walking, cycling etc.
   decision_level: nation
   quantity: fraction
   type: values.AdditiveNode
@@ -1155,7 +1186,7 @@ nodes:
 
 - id: vp_change_behaviour
   name_en: Value profiles about micro mobility
-  description: <h4>Municipality's value profile</h4> Shared micro mobility systems change behavior to sustainable mobility and reduces car driven trips. Shared micro mobility systems make the city more accessible to those without cars.
+  description: <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduces car driven trips. <h4>Value profile of municipality A</h4>Shared micro mobility systems make the city more accessible to those without cars.
   decision_level: nation
   type: values.UtilityNode
   quantity: utility
@@ -1163,13 +1194,16 @@ nodes:
   params:
   - id: impact_threshold
     ref: impact_threshold
-#  - id: cost_weight
-#    ref: cost_weight
-  - id: equity_weight
+  - id: cost_weight
     value: 1
     unit: Ut/Mvkm
+  - id: equity_weight
+    value: 1
+    unit: Ut/pcs/a
   input_nodes:
   - id: behavioral_change
+    tags: [currency]  # FIXME
+  - id: accessibility
     tags: [equity]
 
 ############# Lauri's nodes
@@ -1207,8 +1241,20 @@ actions:
   output_nodes:
   - charging_stations
 
+- id:  ev_charging_policy
+  name_en: Set policies to support EV charging
+  description: Why has municipality decided to set policies to support EV charging infra
+  decision_level: nation
+  quantity: number
+  type: simple.LinearCumulativeAdditiveAction
+  unit: pcs
+  forecast_values: [[2022, 0], [2030, 500]]
+  group: electricity
+  output_nodes:
+  - incentive_private_companies
+
 - id:  micromobility_sharing_system
-  name_en: Offer shared micro mobility system 
+  name_en: Offer shared micro mobility system
   description: Why does municipality offer shared micro mobility system
   decision_level: nation
   quantity: number
