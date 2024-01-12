@@ -118,6 +118,19 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     kt_co2e = kilotonne * CO2e
     kg_co2e = kg * CO2e
     g_co2e = g * CO2e
+    utility = [utility] = Ut
+    m3_natural_gas = 36.4 MJ  # https://en.wikipedia.org/wiki/Energy_density
+    kg_propane = 49.6 MJ
+    l_heating_oil = 37.3 MJ
+    l_kerosene = 35 MJ
+    l_diesel = 38.6 MJ
+    l_gasoline = 34.2 MJ
+    l_biodiesel = 33 MJ
+    l_gasohol_E10 = 33.18 MJ
+    l_ethanol = 24 MJ
+    l_methanol = 15.6 MJ
+    kg_wood = 18.0 MJ
+    kg_peat = 12.8 MJ
     '''
 
     for line in DEFINITIONS.strip().splitlines():
