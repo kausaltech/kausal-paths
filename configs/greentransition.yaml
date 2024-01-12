@@ -55,35 +55,35 @@ params:
   value: 0
   min_value: 0
   max_value: 10000000
-  unit: 1/a
+  unit: Ut/a
 - id: emissions_weight
   label: Weight for emissions impacts in utilities
   is_customizable: true
   value: -50
   min_value: -100
   max_value: 0
-  unit: 1/t
+  unit: Ut/kt
 - id: cost_weight
   label: Weight for cost impacts in utilities
   is_customizable: true
   value: -1
   min_value: -100
   max_value: 10
-  unit: 1/EUR
+  unit: Ut/MEUR
 - id: biodiversity_weight
   label: Weight for biodiversity impacts in utilities
   is_customizable: true
   value: 1
   min_value: 0
   max_value: 100
-  unit: 1/pcs/a
+  unit: Ut/pcs/a
 - id: equity_weight
   label: Weight for equity impacts in utilities
   is_customizable: true
   value: 1
   min_value: 0
   max_value: 10000000
-  unit: 1/a
+  unit: Ut/a
 
 dimensions:
 - id: building_heat_source
@@ -780,7 +780,7 @@ nodes:
     in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>"
   type: values.UtilityNode
   quantity: utility
-  unit: 1/a
+  unit: Ut/a
   input_nodes:
 #  - id: equity_performance
 #    tags: [equity]
@@ -851,7 +851,7 @@ nodes:
     committing to the EU's carbon neutrality goal.</p>"
   type: values.UtilityNode
   quantity: utility
-  unit: 1/a
+  unit: Ut/a
   input_nodes:
   - id: net_emissions
     tags: [emissions]
@@ -893,7 +893,7 @@ nodes:
     käytölle vähenisi.'
   type: values.UtilityNode
   quantity: utility
-  unit: 1/a
+  unit: Ut/a
   input_nodes:
 #  - id: equity_performance
 #    tags: [equity]
@@ -1048,7 +1048,7 @@ nodes:
   decision_level: nation
   type: values.UtilityNode
   quantity: utility
-  unit: 1/a
+  unit: Ut/a
   input_nodes:
   - id: energy_company_financial_incentive
     tags: [currency]
@@ -1159,7 +1159,7 @@ nodes:
   decision_level: nation
   type: values.UtilityNode
   quantity: utility
-  unit: 1/a
+  unit: Ut/a
   params:
   - id: impact_threshold
     ref: impact_threshold
@@ -1167,7 +1167,7 @@ nodes:
 #    ref: cost_weight
   - id: equity_weight
     value: 1
-    unit: 1/Mvkm
+    unit: Ut/Mvkm
   input_nodes:
   - id: behavioral_change
     tags: [equity]

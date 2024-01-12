@@ -36,11 +36,11 @@ action_efficiency_pairs:
 - cost_node: investments
   impact_node: returns
   invert_cost: false
-  invert_impact: true
+  invert_impact: false
   efficiency_unit: '%'
   cost_unit: MEUR
   impact_unit: MEUR
-  plot_limit_efficiency: 10
+#  plot_limit_efficiency: 10
   label: Return of investment
 
 emission_sectors:
