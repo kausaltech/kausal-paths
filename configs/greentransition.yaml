@@ -1256,6 +1256,17 @@ nodes:
 #  - id: health_benefits  # FIXME ENable several inputs with the same tag.
 #    tags: [equity]
 
+- id: total
+  name: Total
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0], [2022, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - vp_change_behaviour
+  - vp_earn_profit
+
 ############# Lauri's nodes
 
 pages:
