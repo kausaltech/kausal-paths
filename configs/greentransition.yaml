@@ -30,9 +30,9 @@ action_groups:
 - id: covid
   name: Koronapandemiaan liittyvät toimet
   name_en: Actions about covid-19 pandemic
-- id: electricity
-  name: Sähkö
-  name_en: Electricity
+- id: vp_traffic
+  name: Liikenteen arvoprofiilit
+  name_en: Value profiles of traffic
 
 action_efficiency_pairs:
 - cost_node: gross_domestic_product_in_finland
@@ -971,7 +971,6 @@ nodes:
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
   goals:
   - is_main_goal: true
     default: true
@@ -994,7 +993,6 @@ nodes:
   unit: GWh/a
   historical_values: [[2010, 100], [2030, 100]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
   params:
   - id: multiplier
     value: 5
@@ -1010,7 +1008,6 @@ nodes:
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
-  group: electricity
   params:
   - id: multiplier
     value: 1
@@ -1023,7 +1020,6 @@ nodes:
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
-  group: electricity
   params:
   - id: multiplier
     value: 0.1  # price of electricity
@@ -1040,7 +1036,6 @@ nodes:
   unit: pcs
   historical_values: [[2010, 100], [2023, 100]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
 
 - id: duty_of_municipality
   name_en: Duty of municipality to offer infrastructure
@@ -1049,7 +1044,6 @@ nodes:
   quantity: fraction
   type: values.LogicalNode
   unit: dimensionless
-  group: electricity
   params:
   - id: threshold1
     value: 300
@@ -1065,7 +1059,6 @@ nodes:
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
-  group: electricity
   params:
   - id: multiplier
     value: 0.1  # price of electricity
@@ -1073,7 +1066,7 @@ nodes:
 
 - id: vp_earn_profit
   name_en: Value profiles about EVs
-  description: <h4>Municipality's value profile</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities.<h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points.
+  description: <h4>Value profile of municipality A</h4> Municipality does not own gas stations so why would they own charging points. Setting policies allows private companies to meet the demand in the market. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> The municipality does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
   decision_level: nation
   type: values.UtilityNode
   quantity: utility
@@ -1083,6 +1076,7 @@ nodes:
     tags: [currency]
   - id: duty_of_municipality
     tags: [equity]
+  - id: reduce_transportation_emissions
   params:
   - id: impact_threshold
     ref: impact_threshold
@@ -1094,7 +1088,7 @@ nodes:
     ref: equity_weight
 
 #
-# Shared micro mobility system
+# Shared micro mobility system / safe bike parking
 #
 - id: city_mm_stations
   name_en: Number of micro mobility stations
@@ -1105,11 +1099,10 @@ nodes:
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
   goals:
   - is_main_goal: true
     default: true
-    label: 
+    label:
     values:
     - year: 2025
       value: 300
@@ -1118,6 +1111,7 @@ nodes:
   output_nodes:
   - reduced_car_driven_km
   - accessibility
+  - raise_service_level
 
 - id: reduced_car_driven_km
   name_en: Reduced car driven trips inside the city center.
@@ -1128,19 +1122,38 @@ nodes:
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
   goals:
   - is_main_goal: true
     default: true
-    label: 
+    label:
     values:
     - year: 2025
       value: 300
     - year: 2030
       value: 300
   output_nodes:
-#  - health_benefits
+  - health_benefits
   - behavioral_change
+  - reduce_transportation_emissions
+
+- id: raise_service_level
+  name_en: Raise municipality’s transportation service level
+  Description:  Raise municipality’s service level
+  decision_level: nation
+  quantity: fraction
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  goals:
+  - is_main_goal: true
+    default: true
+    label:
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
 
 - id: accessibility
   name_en: Make transportation more accessible
@@ -1151,33 +1164,68 @@ nodes:
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
   goals:
   - is_main_goal: true
     default: true
-    label: 
+    label:
     values:
     - year: 2025
       value: 300
     - year: 2030
       value: 300
-#  output_nodes:
-#   - 
+
+- id: health_benefits
+  name_en: Health benefits from sustainable transportation.
+  Description:  As people walk and cycle more their health improves. 
+  decision_level: nation
+  quantity: fraction
+  type: values.AssociationNode
+  unit: DALY/a
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  goals:
+  - is_main_goal: true
+    default: true
+    label:
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+
+- id: reduce_transportation_emissions
+  name_en: Reduce transportation emissions
+  Description:  If people use sustainable forms of transportation, the municipality's transportation emissions decrease.
+  decision_level: nation
+  quantity: fraction
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  goals:
+  - is_main_goal: true
+    default: true
+    label:
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+
 
 - id: behavioral_change  # Is this measuring the amount of active transport?
-  name_en: Behavioral change to sustainable
-  Description: More people would change their behavior to sustainable methods whether it is walking, cycling etc.
+  name_en: Behavioral change to sustainable transportation
+  Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation. 
   decision_level: nation
   quantity: fraction
   type: values.AdditiveNode
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  group: electricity
   goals:
   - is_main_goal: true
     default: true
-    label: 
+    label:
     values:
     - year: 2025
       value: 300
@@ -1186,7 +1234,7 @@ nodes:
 
 - id: vp_change_behaviour
   name_en: Value profiles about micro mobility
-  description: <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduces car driven trips. <h4>Value profile of municipality A</h4>Shared micro mobility systems make the city more accessible to those without cars.
+  description: <h4>Value profile of municipality A</h4>Shared micro mobility systems make the city more accessible to those without cars. <h4>Value profile of municipality B</h4> High-quality and sustainable transportation options drive municipality’s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
   decision_level: nation
   type: values.UtilityNode
   quantity: utility
@@ -1205,6 +1253,8 @@ nodes:
     tags: [currency]  # FIXME
   - id: accessibility
     tags: [equity]
+#  - id: health_benefits  # FIXME ENable several inputs with the same tag.
+#    tags: [equity]
 
 ############# Lauri's nodes
 
@@ -1237,7 +1287,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
   forecast_values: [[2022, 0], [2030, 500]]
-  group: electricity
+  group: vp_traffic
   output_nodes:
   - charging_stations
 
@@ -1249,7 +1299,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
   forecast_values: [[2022, 0], [2030, 500]]
-  group: electricity
+  group: vp_traffic
   output_nodes:
   - incentive_private_companies
 
@@ -1261,9 +1311,23 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
   forecast_values: [[2022, 0], [2030, 500]]
-  group: electricity
+  group: vp_traffic
   output_nodes:
   - city_mm_stations
+
+- id:  safe_bike_parking
+  name_en: Build safe parking space for bicycles.
+  description: Why would a municipality build safe parking space for bicycles? 
+  decision_level: nation
+  quantity: number
+  type: simple.LinearCumulativeAdditiveAction
+  unit: pcs
+  forecast_values: [[2022, 0], [2030, 500]]
+  group: vp_traffic
+  output_nodes:
+  - reduced_car_driven_km
+  - accessibility
+  - raise_service_level
 
 ############### Lauri's actions
 
