@@ -84,6 +84,20 @@ params:
   min_value: 0
   max_value: 10000000
   unit: Ut/a
+- id: health_weight
+  label: Weight for health impacts in utilities
+  is_customizable: true
+  value: 1
+  min_value: 0
+  max_value: 100
+  unit: Ut/DALY
+- id: legality_weight
+  label: Weight for legality of action in utilities
+  is_customizable: true
+  value: 1000000
+  min_value: 0
+  max_value: 10000000
+  unit: Ut/a
 
 dimensions:
 - id: building_heat_source
@@ -962,10 +976,9 @@ nodes:
 #
 # EV charging infrastructure
 #
-- id: charging_stations
+- id: charging_stations  # NOTE! I removed the group and the decision level, because it is relevant only for actions.
   name_en: Number of charging stations
   description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations.
-  decision_level: nation
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -981,13 +994,12 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - supply
-  - increases_jobs
+  - charging_supply
+  - charging_station_jobs
 
-- id: supply
-  name_en: Supply for EV charging
-  description: More people have EV’s because there is supply for charging in public places.
-  decision_level: nation
+- id: charging_supply  # NOTE! I changed some node id's to be more specific.
+  name_en: Energy supply for EV charging
+  description: Amount of electricity supplied for the EV charging stations. More people have EV’s because there is supply for charging in public places.  # NOTE! I add a sentence to description about what is the variable that this node estimates.
   quantity: energy
   type: simple.FixedMultiplierNode
   unit: GWh/a
@@ -998,13 +1010,12 @@ nodes:
     value: 5
     unit: kW/pcs
   output_nodes:
-  - drive_sustainable_transition
-  - energy_company_financial_incentive
+  - help_sustainable_transition
+  - energy_company_profit
 
-- id: increases_jobs
-  name_en: Building EV charging infrastructure creates jobs.
+- id: charging_station_jobs
+  name_en: Value of jobs for building and maintaining EV charging infrastructure  # NOTE I changed some names so that they describe the variable estimated, NOT the change caused by an action. The change can be described in the description
   description: Municipality B thinks that if municipalities build EV charging stations it creates jobs nationally.
-  decision_level: nation
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
@@ -1013,24 +1024,22 @@ nodes:
     value: 1
     unit: MEUR/a/pcs
 
-- id: incentive_private_companies
-  name_en: Private companies have financial incentive to build EV charging stations.
-  description: The charging company earns revenue from charging points. (Costs are not included here.)
-  decision_level: nation
+- id: incentive_private_companies  # FIXME Lauri: I don't understand the causal logic of this node.
+  name_en: Private companies have financial incentive to build EV charging stations
+  description: The charging company earns revenue from charging stations. (Costs are not included here.)
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
   params:
   - id: multiplier
-    value: 0.1  # price of electricity
+    value: 10000
     unit: EUR/a/pcs
   output_nodes:
   - charging_stations
 
-- id: drive_sustainable_transition
-  name_en: Drive sustainable transition
-  description: Help people to transition to sustainable living
-  decision_level: nation
+- id: help_sustainable_transition
+  name_en: Help sustainable transition
+  description: Help people to transition to sustainable living. WHAT IS ACTUALLY MEASURED HERE? The name implies that this is an action.
   quantity: number
   type: values.AssociationNode
   unit: pcs
@@ -1040,7 +1049,6 @@ nodes:
 - id: duty_of_municipality
   name_en: Duty of municipality to offer infrastructure
   description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations. The graph shows the year when the goal is reached.
-  decision_level: nation
   quantity: fraction
   type: values.LogicalNode
   unit: dimensionless
@@ -1052,10 +1060,9 @@ nodes:
   - id: charging_stations
     tags: [threshold1]
 
-- id: energy_company_financial_incentive
-  name_en: Energy company’s financial incentive
-  description: The municipally-owned energy company earns revenue from charging points. (Costs are not included here.)
-  decision_level: nation
+- id: energy_company_profit
+  name_en: Energy company’s profit
+  description: The profit of a company that offers energy to the EV charging stations. The municipally-owned energy company earns revenue from charging points. (Costs are not included here.)
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
@@ -1067,25 +1074,25 @@ nodes:
 - id: vp_earn_profit
   name_en: Value profiles about EVs
   description: <h4>Value profile of municipality A</h4> Municipality does not own gas stations so why would they own charging points. Setting policies allows private companies to meet the demand in the market. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> The municipality does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
-  decision_level: nation
   type: values.UtilityNode
   quantity: utility
   unit: Ut/a
   input_nodes:
-  - id: energy_company_financial_incentive
+  - id: energy_company_profit
     tags: [currency]
   - id: duty_of_municipality
-    tags: [equity]
-  - id: reduce_transportation_emissions
+    tags: [legality]
+  - id: transportation_emissions
+    tags: [emissions]
   params:
   - id: impact_threshold
     ref: impact_threshold
   - id: cost_weight
-    ref: cost_weight
-    value: 1
-    unit: Ut/EUR
-  - id: equity_weight
-    ref: equity_weight
+    ref: cost_weight  # NOTE! I removed value and unit, because those are already defined in ref.
+  - id: legality_weight
+    ref: legality_weight
+  - id: emissions_weight
+    ref: emissions_weight
 
 #
 # Shared micro mobility system / safe bike parking
@@ -1093,7 +1100,6 @@ nodes:
 - id: city_mm_stations
   name_en: Number of micro mobility stations
   description:
-  decision_level: nation
   quantity: fraction
   type: values.AdditiveNode
   unit: pcs
@@ -1109,20 +1115,19 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - reduced_car_driven_km
+  - car_km
   - accessibility
-  - raise_service_level
+  - transportation_service_level
 
-- id: reduced_car_driven_km
-  name_en: Reduced car driven trips inside the city center.
-  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city
-  decision_level: nation
-  quantity: fraction
+- id: car_km
+  name_en: Car kilometers driven with trips inside the city
+  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city.
+  quantity: vehicle_mileage
   type: values.AssociationNode
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  goals:
+  goals:  # FIXME Lauri: Are the goals relevant for this node?
   - is_main_goal: true
     default: true
     label:
@@ -1132,14 +1137,14 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - health_benefits
-  - behavioral_change
-  - reduce_transportation_emissions
+  - id: health_benefits
+    tags: [decrease]
+  - id: behavioral_change
+  - id: transportation_emissions
 
-- id: raise_service_level
-  name_en: Raise municipality’s transportation service level
-  Description:  Raise municipality’s service level
-  decision_level: nation
+- id: transportation_service_level
+  name_en: Municipality’s transportation service level
+  Description:  Raise municipality’s service level. What could be the quantity and unit?
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -1157,8 +1162,7 @@ nodes:
 
 - id: accessibility
   name_en: Make transportation more accessible
-  Description: More people can access the city center.
-  decision_level: nation
+  Description: More people can access the city center. What could be the quantity and unit?
   quantity: fraction
   type: values.AdditiveNode
   unit: pcs
@@ -1175,14 +1179,15 @@ nodes:
       value: 300
 
 - id: health_benefits
-  name_en: Health benefits from sustainable transportation.
-  Description:  As people walk and cycle more their health improves. 
-  decision_level: nation
+  name_en: Health benefits from sustainable transportation
+  description:  As people walk and cycle more their health improves. 
   quantity: fraction
   type: values.AssociationNode
   unit: DALY/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - behavioral_change
   goals:
   - is_main_goal: true
     default: true
@@ -1193,13 +1198,12 @@ nodes:
     - year: 2030
       value: 300
 
-- id: reduce_transportation_emissions
-  name_en: Reduce transportation emissions
+- id: transportation_emissions
+  name_en: Transportation emissions
   Description:  If people use sustainable forms of transportation, the municipality's transportation emissions decrease.
-  decision_level: nation
   quantity: fraction
   type: values.AssociationNode
-  unit: pcs
+  unit: kt/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
   goals:
@@ -1216,8 +1220,7 @@ nodes:
 - id: behavioral_change  # Is this measuring the amount of active transport?
   name_en: Behavioral change to sustainable transportation
   Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation. 
-  decision_level: nation
-  quantity: fraction
+  quantity: passenger_mileage  # NOTE! Use meaningful quantitite when available.
   type: values.AdditiveNode
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
@@ -1232,10 +1235,9 @@ nodes:
     - year: 2030
       value: 300
 
-- id: vp_change_behaviour
+- id: vp_change_behavior
   name_en: Value profiles about micro mobility
   description: <h4>Value profile of municipality A</h4>Shared micro mobility systems make the city more accessible to those without cars. <h4>Value profile of municipality B</h4> High-quality and sustainable transportation options drive municipality’s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
-  decision_level: nation
   type: values.UtilityNode
   quantity: utility
   unit: Ut/a
@@ -1248,13 +1250,15 @@ nodes:
   - id: equity_weight
     value: 1
     unit: Ut/pcs/a
+  - id: health_weight
+    ref: health_weight
   input_nodes:
   - id: behavioral_change
-    tags: [currency]  # FIXME
+    tags: [currency]  # FIXME What would be a meaningful quantity for this?
   - id: accessibility
     tags: [equity]
-#  - id: health_benefits  # FIXME ENable several inputs with the same tag.
-#    tags: [equity]
+  - id: health_benefits
+    tags: [disease_burden]
 
 - id: total
   name: Total
@@ -1264,7 +1268,7 @@ nodes:
   historical_values: [[2010, 0], [2022, 0]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
-  - vp_change_behaviour
+  - vp_change_behavior
   - vp_earn_profit
 
 ############# Lauri's nodes
@@ -1327,7 +1331,7 @@ actions:
   - city_mm_stations
 
 - id:  safe_bike_parking
-  name_en: Build safe parking space for bicycles.
+  name_en: Build safe parking space for bicycles
   description: Why would a municipality build safe parking space for bicycles? 
   decision_level: nation
   quantity: number
@@ -1336,9 +1340,9 @@ actions:
   forecast_values: [[2022, 0], [2030, 500]]
   group: vp_traffic
   output_nodes:
-  - reduced_car_driven_km
+  - car_km
   - accessibility
-  - raise_service_level
+  - transportation_service_level
 
 ############### Lauri's actions
 
