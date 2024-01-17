@@ -147,6 +147,11 @@ class BiodiversityWeight(NumberParameter):
     id = 'biodiversity_weight'
 
 
+class LegalityWeight(NumberParameter):
+    name = _('Weight for actions to be legal in value profiles')
+    id = 'legality_weight'
+
+
 class ImpactThreshold(NumberParameter):
     name = _('Threshold for sum of weighted impacts in value profiles')
     id = 'impact_threshold'

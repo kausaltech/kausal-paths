@@ -51,6 +51,10 @@ class UtilityNode(AdditiveNode):
         NumberParameter(
             local_id='biodiversity_weight',
             is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='legality_weight',
+            is_customizable=True,
         )
     ]
 
@@ -58,12 +62,10 @@ class UtilityNode(AdditiveNode):
         w = self.get_parameter_value(weight, required=False, units=True)
         if w is None:
             return None
-        if quantity is not None:
-            n = self.get_input_node(quantity=quantity)
-        else:
-            n = self.get_input_node(tag=tag)
+        nodes = self.get_input_nodes(quantity=quantity, tag=tag)
+        assert len(nodes) > 0
 
-        df = n.get_output_pl(target_node=self)  # Calculate output rather than impact.
+        df = nodes[0].add_nodes_pl(None, nodes)
         df = df.multiply_quantity(VALUE_COLUMN, w)
         
         return df
@@ -94,7 +96,8 @@ class UtilityNode(AdditiveNode):
             self.weighted_impact('cost_weight', tag='currency'),
             self.weighted_impact('health_weight', tag='disease_burden'),
             self.weighted_impact('equity_weight', tag='equity'),
-            self.weighted_impact('biodiversity_weight', tag='biodiversity')
+            self.weighted_impact('biodiversity_weight', tag='biodiversity'),
+            self.weighted_impact('legality_weight', tag='legality')
         ]
         df = self.sum_dfs(dfs)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
