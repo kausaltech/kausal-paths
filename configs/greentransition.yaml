@@ -228,6 +228,19 @@ dimensions:
   - id: water_activities
     label: Vesiasiat
 
+- id: stakeholder
+  label: Sidosryhmä
+  label_en: Stakeholder
+  categories:
+  - id: municipality
+    label: Kunta
+  - id: citizen
+    label: Kansalainen
+  - id: ici
+    label: Yrityselämä
+  - id: mankind
+    label: Ihmiskunta
+
 - id: hypothesis
   label: Hypoteesi
   label_en: Hypothesis
@@ -974,11 +987,11 @@ nodes:
 
 ############# Lauri's nodes
 #
-# EV charging infrastructure
+# EV charging infrastructure  # Municipality A: infra increases EVs
 #
 - id: charging_stations  # NOTE! I removed the group and the decision level, because it is relevant only for actions.
   name_en: Number of charging stations
-  description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations.
+  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations.
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -996,6 +1009,32 @@ nodes:
   output_nodes:
   - charging_supply
   - charging_station_jobs
+#  - purchase_intention
+  - transportation_emissions
+
+- id: number_of_evs
+  name_en: Number of EVs
+  description: More charging stations improves intention to purchase EVs as worry about charging availability decreases.
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
+    tags: [emissions]
+  - id: air_pollution
+
+- id: air_pollution
+  name_en: Air pollution
+  description: Air pollution decreases if car driven trips decrease because of sustainable transportation. Air pollution decreases if people switch from combustion vehicles to EVs.
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - health_benefits
 
 - id: charging_supply  # NOTE! I changed some node id's to be more specific.
   name_en: Energy supply for EV charging
@@ -1010,7 +1049,6 @@ nodes:
     value: 5
     unit: kW/pcs
   output_nodes:
-  - help_sustainable_transition
   - energy_company_profit
 
 - id: charging_station_jobs
@@ -1024,9 +1062,9 @@ nodes:
     value: 1
     unit: MEUR/a/pcs
 
-- id: incentive_private_companies  # FIXME Lauri: I don't understand the causal logic of this node.
-  name_en: Private companies have financial incentive to build EV charging stations
-  description: The charging company earns revenue from charging stations. (Costs are not included here.)
+- id: policies_demand
+  name_en: Policies demand private companies to build EV charging infra
+  description: If the policies demand private companies to build electric vehicle charging stations, the charging infrastructure expands. Some policies would also compel companies to build charging stations in multifamily homes etc., where individual residents cannot influence the existence of charging points compared to single family homes. (Costs are not included here.)
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: MEUR/a
@@ -1073,7 +1111,7 @@ nodes:
 
 - id: vp_earn_profit
   name_en: Value profiles about EVs
-  description: <h4>Value profile of municipality A</h4> Municipality does not own gas stations so why would they own charging points. Setting policies allows private companies to meet the demand in the market. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> The municipality does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
+  description: <h4>Value profile of municipality A</h4> Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
   type: values.UtilityNode
   quantity: utility
   unit: Ut/a
@@ -1093,6 +1131,7 @@ nodes:
     ref: legality_weight
   - id: emissions_weight
     ref: emissions_weight
+#  - id: air_pollution
 
 #
 # Shared micro mobility system / safe bike parking
@@ -1117,11 +1156,31 @@ nodes:
   output_nodes:
   - car_km
   - accessibility
-  - transportation_service_level
+  - behavioral_change
+
+- id: sponsor_money
+  name_en: Money from sponsors
+  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external money they cannot.
+  quantity: currency
+  type: values.AdditiveNode
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  goals:
+  - is_main_goal: true
+    default: true
+    label:
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+  output_nodes:
+  - city_mm_stations
 
 - id: car_km
   name_en: Car kilometers driven with trips inside the city
-  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city.
+  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling. 
   quantity: vehicle_mileage
   type: values.AssociationNode
   unit: Mvkm/a
@@ -1139,12 +1198,13 @@ nodes:
   output_nodes:
   - id: health_benefits
     tags: [decrease]
-  - id: behavioral_change
   - id: transportation_emissions
+  - id: air_pollution
+   
 
 - id: transportation_service_level
   name_en: Municipality’s transportation service level
-  Description:  Raise municipality’s service level. What could be the quantity and unit?
+  Description:  Raise municipality’s service level. # What could be the quantity and unit?
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -1160,11 +1220,30 @@ nodes:
     - year: 2030
       value: 300
 
+- id: public_transportation
+  name_en: Public transportation
+  type: values.AdditiveNode
+  quantity: number
+  unit: trips/d
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  goals:
+  - is_main_goal: true
+    default: true
+    label:
+    values:
+    - year: 2025
+      value: 300
+    - year: 2030
+      value: 300
+  output_nodes:
+  - id: accessibility
+
 - id: accessibility
   name_en: Make transportation more accessible
-  Description: More people can access the city center. What could be the quantity and unit?
+  Description: More people can access the city center. # What could be the quantity and unit?
   quantity: fraction
-  type: values.AdditiveNode
+  type: values.AssociationNode
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -1180,7 +1259,7 @@ nodes:
 
 - id: health_benefits
   name_en: Health benefits from sustainable transportation
-  description:  As people walk and cycle more their health improves. 
+  description:  As people walk and cycle more their health improves.
   quantity: fraction
   type: values.AssociationNode
   unit: DALY/a
@@ -1219,9 +1298,9 @@ nodes:
 
 - id: behavioral_change  # Is this measuring the amount of active transport?
   name_en: Behavioral change to sustainable transportation
-  Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation. 
-  quantity: passenger_mileage  # NOTE! Use meaningful quantitite when available.
-  type: values.AdditiveNode
+  Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation.
+  quantity: passenger_mileage  # NOTE! Use meaningful quantities when available.
+  type: values.AssociationNode
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -1259,6 +1338,24 @@ nodes:
     tags: [equity]
   - id: health_benefits
     tags: [disease_burden]
+  - id: transportation_emissions
+    tags: [emissions]
+  - id: air_pollution
+
+#- id: stakeholder_costs
+#  name: Costs according to stakeholders
+#  type: values.MatrixNode
+#  quantity: currency
+#  unit: MEUR/a
+#  input_nodes:
+#  - id: energy_company_profit
+#  params:
+#  - id: matrix
+#    value: {year: 2023, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
+#    - dimension: vehicle_type
+#      categories: [passenger_car]
+#    - dimension: stakeholder
+#      categories: [citizen]
 
 - id: total
   name: Total
@@ -1308,7 +1405,7 @@ actions:
 
 - id:  ev_charging_policy
   name_en: Set policies to support EV charging
-  description: Why has municipality decided to set policies to support EV charging infra
+  description: Why has municipality decided to set policies to support EV charging infrastructure
   decision_level: nation
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
@@ -1316,7 +1413,8 @@ actions:
   forecast_values: [[2022, 0], [2030, 500]]
   group: vp_traffic
   output_nodes:
-  - incentive_private_companies
+  - policies_demand
+  
 
 - id:  micromobility_sharing_system
   name_en: Offer shared micro mobility system
@@ -1329,10 +1427,11 @@ actions:
   group: vp_traffic
   output_nodes:
   - city_mm_stations
+  - sponsor_money
 
 - id:  safe_bike_parking
   name_en: Build safe parking space for bicycles
-  description: Why would a municipality build safe parking space for bicycles? 
+  description: Why would a municipality build safe parking space for bicycles?
   decision_level: nation
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
