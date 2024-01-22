@@ -669,20 +669,23 @@ class RelativeNode(AdditiveNode):
     The relative node is assumed to be the relative difference R = V / N - 1,
     where V is the expected output value and N is the comparison value from
     the other input nodes. So, the output value V = (R + 1)N.
+    If there is no "non-additive" node, it will behave like AdditiveNode except
+    it never creates a temporary dimension Sectors.
     '''
 
     def compute(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node(tag='non_additive')
+        n = self.get_input_node(tag='non_additive', required=False)
         df = super().compute()
-        dfn = n.get_output_pl(target_node=self)
-        if dfn.get_unit(VALUE_COLUMN).dimensionless:
-            dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
-        df = df.paths.join_over_index(dfn, how='outer', index_from='union')
-        rn = VALUE_COLUMN + '_right'
-        df = df.with_columns([pl.col(rn).fill_null(0)])
-        df = df.with_columns((pl.col(rn) + pl.lit(1)))
-        df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        if n is not None:
+            dfn = n.get_output_pl(target_node=self)
+            if dfn.get_unit(VALUE_COLUMN).dimensionless:
+                dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
+            df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+            rn = VALUE_COLUMN + '_right'
+            df = df.with_columns([pl.col(rn).fill_null(0)])
+            df = df.with_columns((pl.col(rn) + pl.lit(1)))
+            df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 class TrajectoryNode(SimpleNode):
