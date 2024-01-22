@@ -4,13 +4,13 @@ supported_languages: [fi]
 site_url: https://budget.paths.test.kausal.dev
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 13ad3b4c049c0f23970a529e90a30e3b7ddaef5d
+  commit: 11edf77441369173212c743019ee7c04a1ea2ca1
   dvc_remote: kausal-s3
-  default_path: espoo
+  default_path: budget
 name: Climate budgeting sandbox
 owner: Kausal Ltd
 theme_identifier: default
-target_year: 2040
+target_year: 2030
 model_end_year: 2040
 minimum_historical_year: 2010
 maximum_historical_year: 2023
@@ -30,7 +30,7 @@ params:
 - id: municipality_name
   value: sunnydale
 - id: action_impact_from_baseline
-  value: True
+  value: true
 
 action_efficiency_pairs:
 - cost_node: investments
@@ -43,6 +43,94 @@ action_efficiency_pairs:
 #  plot_limit_efficiency: 10
   label: Return of investment
 
+dimensions:
+
+- id: vehicle_type
+  label: Vehicle type
+  label_fi: Ajoneuvotyyppi
+  categories:
+  - id: walking
+    label: Walking
+    label_fi: Kävely
+  - id: cycling
+    label: Cycling
+    label_fi: Pyöräily
+  - id: bus
+    label: Bus
+    label_fi: Bussi
+  - id: tram
+    label: Tram
+    label_fi: Ratikka
+  - id: car
+    label: Car
+    label_fi: Auto
+
+- id: stakeholder
+  label: Stakeholder
+  label_fi: Sidosryhmä
+  categories:
+  - id: city
+    label: City
+    label_fi: Kaupunki
+  - id: citizen
+    label: Citizen
+    label_fi: Kaupunkilaiinen
+  - id: society
+    label: Society
+    label_fi: Yhteiskunta
+
+- id: outcome_of_interest
+  label: Outcome of interest
+  label_fi: Kiinnostava tulos
+  categories:
+  - id: infrastructure_investment
+    label: Infrastructure investment
+    label_fi: Infrastruktuuri-investointi
+  - id: infrastructure_maintenance
+    label: Infrastructure maintenance
+    label_fi: Infrastruktuurin ylläpito
+  - id: transit_operations
+    label: Transit operations
+    label_fi: Liikennöinti
+  - id: ticket_sales
+    label: Ticket sales
+    label_fi: Lipputulot
+  - id: vehicle_usage
+    label: Vehicle usage
+    label_fi: Ajoneuvon käyttö
+  - id: travel_time
+    label: Travel time
+    label_fi: Matka-aika
+  - id: health
+    label: Health
+    label_fi: Terveys
+  - id: healthcare_cost
+    label: Healthcare cost
+    label_fi: Terveydenhuollon kustannus
+  - id: accidents
+    label: Accidents
+    label_fi: Onnettomuudet
+  - id: climate_change
+    label: Climate change
+    label_fi: Ilmastonmuutos
+  - id: air_pollution
+    label: Air pollution
+    label_fi: Ilmansaaste
+  - id: noise
+    label: Noise
+    label_fi: Melu
+
+- id: action
+  label: Action
+  label_fi: Toimenpide
+  categories:
+  - id: baseline
+    label: Baseline
+    label_fi: Perusura
+  - id: activity
+    label: Activity
+    label_fi: Toiminto
+
 emission_sectors:
 - id: net_emissions
   name: Net emissions
@@ -53,9 +141,10 @@ emission_sectors:
   part_of: net_emissions
   column: Industry without city machinery
   color: '#E8B455'
-  
+
 nodes:
-- id: population
+
+- id: population2
   type: finland.population.Population
   name: Population
   input_datasets:
@@ -67,6 +156,14 @@ nodes:
     filters:
     - column: Alue
       value: Espoo
+
+- id: population
+  name: Population
+  name_fi: Väestö
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  historical_values: [[2010, 250000]]
 
 - id: investments
   name: Investments
@@ -89,6 +186,182 @@ nodes:
     value: -100
     unit: EUR/t
 
+- id: walking
+  name: Walking
+  name_fi: Kävely
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  historical_values: [[2005, 0]]
+#  input_nodes:
+#  - id: population
+#  - id: mode_activity
+
+- id: cycling
+  name: Cycling
+  name_fi: Pyöräily
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  historical_values: [[2005, 0]]
+#  input_nodes:
+#  - id: population
+#  - id: mode_activity
+
+- id: bus_transit
+  name: Bus transit
+  name_fi: Bussiliikenne
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  historical_values: [[2005, 0]]
+#  input_nodes:
+#  - id: population
+#  - id: mode_activity
+
+- id: tram_transit
+  name: Tram transit
+  name_fi: Ratikkaliikenne
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  historical_values: [[2005, 0]]
+
+- id: mode_activity
+  name: Mode activity
+  name_fi: Suorite liikkumismuodoittain
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: pkm/cap/d
+  historical_values: [[2010, 1.24], [2022, 1.24]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: person_mileage_car
+  name: Person mileage in cars
+  name_fi: Henkilökilometrit autolla
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  historical_values: [[2005, 0], [2023, 0]]
+  input_dataset_processors: [LinearInterpolation]
+
+#- id: vehicle_mileage_car
+#  name: Car vehicle mileage
+#  name_fi: Liikennesuorite henkilöautolla
+#  type: simple.MultiplicativeNode
+#  quantity: mileage
+#  unit: Mvkm/a
+#  input_nodes:
+#  - id: person_mileage_car
+#  - id: vehicle_load
+#    metric: car
+
+- id: vehicle_load
+  name: Persons in vehicle
+  name_fi: Keskikuormitus ajoneuvossa
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: vkm/pkm
+  historical_values: [[2010, 1.7]]
+
+- id: unit_prices
+  name: Unit prices
+  name_fi: Yksikkökustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/pkm
+  input_datasets:
+  - id: budget/unit_prices_of_transportation
+  input_dataset_processors: [LinearInterpolation]
+  output_dimensions: [vehicle_type, outcome_of_interest]
+
+- id: outcome_stakeholder_matrix
+  name: Outcome stakeholder matrix
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: budget/outcome_stakeholder_matrix
+  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [stakeholder, outcome_of_interest]
+  output_dimensions: [stakeholder, outcome_of_interest]
+
+- id: passenger_km
+  name: Total passenger kilometers
+  name_fi: Matkustajakilometrit yhteensä
+  type: simple.RelativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_nodes:
+  - id: walking
+    to_dimensions:
+    - id: vehicle_type
+      categories: [walking]
+  - id: cycling
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cycling]
+  - id: bus_transit
+    to_dimensions:
+    - id: vehicle_type
+      categories: [bus]
+  - id: tram_transit
+    to_dimensions:
+    - id: vehicle_type
+      categories: [tram]
+  - id: person_mileage_car
+    to_dimensions:
+    - id: vehicle_type
+      categories: [car]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+
+- id: costs
+  name: Costs of transportation
+  name_fi: Liikenteen kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_nodes:
+  - id: unit_prices
+    to_dimensions:
+    - id: outcome_of_interest
+    - id: vehicle_type
+  - id: passenger_km
+    to_dimensions:
+    - id: vehicle_type
+  - id: outcome_stakeholder_matrix
+    to_dimensions:
+    - id: outcome_of_interest
+    - id: stakeholder
+  input_dimensions: [vehicle_type, outcome_of_interest, stakeholder]
+  output_dimensions: [outcome_of_interest, stakeholder, vehicle_type]
+
+- id: discounted_costs
+  name: Discounted costs
+  name_fi: Diskontatut kustannukset
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
+  input_nodes:
+  - id: costs
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: outcome_of_interest
+      flatten: true
+  params:
+  - id: annual_change
+    value: 3.0
+    unit: '%'
+    min_value: 0.0
+    max_value: 5.0
+  - id: is_decreasing_rate
+    value: true
+
 actions:
 
 - id: test_action
@@ -98,6 +371,49 @@ actions:
   unit: kt/a
   forecast_values: [[2024, 0], [2030, -100]]
   output_nodes: [industry_emissions, investments]
+
+- id: sustainable_transportation
+  name: Some sustainable transportation action
+  name_fi: Jokin toimenpide kestävän liikkumisen lisäämiseksi
+  type: simple.TrajectoryAction
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: budget/passenger_kilometers_by_action
+    column: mileage
+    forecast_from: 2024
+  params:
+  - id: dimension
+    value: action
+  - id: category
+    value: activity
+  output_dimensions: [vehicle_type]
+  output_nodes:
+  - id: walking
+    from_dimensions:
+    - id: vehicle_type
+      categories: [walking]
+      flatten: true
+  - id: cycling
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cycling]
+      flatten: true
+  - id: bus_transit
+    from_dimensions:
+    - id: vehicle_type
+      categories: [bus]
+      flatten: true
+  - id: tram_transit
+    from_dimensions:
+    - id: vehicle_type
+      categories: [tram]
+      flatten: true
+  - id: person_mileage_car
+    from_dimensions:
+    - id: vehicle_type
+      categories: [car]
+      flatten: true
 
 pages:
 - id: home
