@@ -991,7 +991,7 @@ nodes:
 #
 - id: charging_stations  # NOTE! I removed the group and the decision level, because it is relevant only for actions.
   name_en: Number of charging stations
-  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations.
+  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A increases stations by setting policies. 
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -1009,7 +1009,7 @@ nodes:
   output_nodes:
   - charging_supply
   - charging_station_jobs
-#  - purchase_intention
+  - number_of_evs
   - transportation_emissions
 
 - id: number_of_evs
@@ -1023,11 +1023,11 @@ nodes:
   output_nodes:
   - id: transportation_emissions
     tags: [emissions]
-  - id: air_pollution
+  - id: air_quality
 
-- id: air_pollution
-  name_en: Air pollution
-  description: Air pollution decreases if car driven trips decrease because of sustainable transportation. Air pollution decreases if people switch from combustion vehicles to EVs.
+- id: air_quality
+  name_en: Air quality
+  description: Air quality improves if car driven trips decrease because of sustainable transportation. Air pollution decreases if people switch from combustion vehicles to EVs.
   quantity: number
   type: values.AssociationNode
   unit: pcs
@@ -1111,7 +1111,7 @@ nodes:
 
 - id: vp_earn_profit
   name_en: Value profiles about EVs
-  description: <h4>Value profile of municipality A</h4> Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
+  description: <h4>Value profile of municipality A</h4> Municipality A thinks that building charging infrastructure may not be the use of the funds or the most effective but it is monitored to see if they should change their opinion in years to come. Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. Improving air quality and reducing greenhouse gas emissions are both equally important priorities for the municipality. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
   type: values.UtilityNode
   quantity: utility
   unit: Ut/a
@@ -1122,16 +1122,16 @@ nodes:
     tags: [legality]
   - id: transportation_emissions
     tags: [emissions]
+  - id: air_quality
   params:
   - id: impact_threshold
     ref: impact_threshold
   - id: cost_weight
-    ref: cost_weight  # NOTE! I removed value and unit, because those are already defined in ref.
+    ref: cost_weight
   - id: legality_weight
     ref: legality_weight
   - id: emissions_weight
     ref: emissions_weight
-#  - id: air_pollution
 
 #
 # Shared micro mobility system / safe bike parking
@@ -1147,7 +1147,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Micro mobility stations
     values:
     - year: 2025
       value: 300
@@ -1160,7 +1160,7 @@ nodes:
 
 - id: sponsor_money
   name_en: Money from sponsors
-  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external money they cannot.
+  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot.
   quantity: currency
   type: values.AdditiveNode
   unit: pcs
@@ -1169,7 +1169,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Sponsor money
     values:
     - year: 2025
       value: 300
@@ -1180,45 +1180,17 @@ nodes:
 
 - id: car_km
   name_en: Car kilometers driven with trips inside the city
-  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling. 
+  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling.
   quantity: vehicle_mileage
   type: values.AssociationNode
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  goals:  # FIXME Lauri: Are the goals relevant for this node?
-  - is_main_goal: true
-    default: true
-    label:
-    values:
-    - year: 2025
-      value: 300
-    - year: 2030
-      value: 300
   output_nodes:
   - id: health_benefits
     tags: [decrease]
   - id: transportation_emissions
-  - id: air_pollution
-   
-
-- id: transportation_service_level
-  name_en: Municipality’s transportation service level
-  Description:  Raise municipality’s service level. # What could be the quantity and unit?
-  quantity: fraction
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
-  goals:
-  - is_main_goal: true
-    default: true
-    label:
-    values:
-    - year: 2025
-      value: 300
-    - year: 2030
-      value: 300
+  - id: air_quality
 
 - id: public_transportation
   name_en: Public transportation
@@ -1230,7 +1202,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Public transportation
     values:
     - year: 2025
       value: 300
@@ -1240,7 +1212,7 @@ nodes:
   - id: accessibility
 
 - id: accessibility
-  name_en: Make transportation more accessible
+  name_en: Accessibility of transportation
   Description: More people can access the city center. # What could be the quantity and unit?
   quantity: fraction
   type: values.AssociationNode
@@ -1250,7 +1222,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Accessibility
     values:
     - year: 2025
       value: 300
@@ -1258,9 +1230,9 @@ nodes:
       value: 300
 
 - id: health_benefits
-  name_en: Health benefits from sustainable transportation
-  description:  As people walk and cycle more their health improves.
-  quantity: fraction
+  name_en: Health benefits
+  description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives. 
+  quantity: disease_burden
   type: values.AssociationNode
   unit: DALY/a
   historical_values: [[2010, 30], [2023, 50]]
@@ -1270,7 +1242,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Health benefits
     values:
     - year: 2025
       value: 300
@@ -1280,7 +1252,7 @@ nodes:
 - id: transportation_emissions
   name_en: Transportation emissions
   Description:  If people use sustainable forms of transportation, the municipality's transportation emissions decrease.
-  quantity: fraction
+  quantity: emissions
   type: values.AssociationNode
   unit: kt/a
   historical_values: [[2010, 30], [2023, 50]]
@@ -1288,13 +1260,29 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Emissions
     values:
     - year: 2025
       value: 300
     - year: 2030
       value: 300
 
+- id: transportation_service_level
+  name_en: Transportation service level
+  type: values.AssociationNode
+  quantity: fraction
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: biodiesel_stations
+  name_en: Biodiesel stations
+  type: values.AssociationNode
+  quantity: fraction
+  unit: pcs
+  historical_values: [[2010, 30], [2023, 50]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
 
 - id: behavioral_change  # Is this measuring the amount of active transport?
   name_en: Behavioral change to sustainable transportation
@@ -1307,7 +1295,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
-    label:
+    label: Sustainable transportation
     values:
     - year: 2025
       value: 300
@@ -1316,7 +1304,7 @@ nodes:
 
 - id: vp_change_behavior
   name_en: Value profiles about micro mobility
-  description: <h4>Value profile of municipality A</h4>Shared micro mobility systems make the city more accessible to those without cars. <h4>Value profile of municipality B</h4> High-quality and sustainable transportation options drive municipality’s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
+  description: <h4>Value profile of municipality A</h4>One of thegoals of this action is to shift modes away from the single occupancy vehicles. Shared micro mobility systems make the city more accessible to those without cars. Municipality hired a consultant who found out that shared micro mobility is one of the best practices and their internal transportation planner is an expert in the subject. <h4>Value profile of municipality B</h4> High-quality and sustainable transportation options drive municipality’s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
   type: values.UtilityNode
   quantity: utility
   unit: Ut/a
@@ -1333,14 +1321,15 @@ nodes:
     ref: health_weight
   input_nodes:
   - id: behavioral_change
-    tags: [currency]  # FIXME What would be a meaningful quantity for this?
+    tags: [currency]
   - id: accessibility
     tags: [equity]
   - id: health_benefits
     tags: [disease_burden]
   - id: transportation_emissions
     tags: [emissions]
-  - id: air_pollution
+  - id: air_quality
+  - id: transportation_service_level
 
 #- id: stakeholder_costs
 #  name: Costs according to stakeholders
@@ -1351,11 +1340,11 @@ nodes:
 #  - id: energy_company_profit
 #  params:
 #  - id: matrix
-#    value: {year: 2023, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
-#    - dimension: vehicle_type
-#      categories: [passenger_car]
-#    - dimension: stakeholder
-#      categories: [citizen]
+# value: {year: 2023, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
+# - dimension: vehicle_type
+#   categories: [passenger_car]
+# - dimension: stakeholder
+#   categories: [citizen]
 
 - id: total
   name: Total
@@ -1414,7 +1403,18 @@ actions:
   group: vp_traffic
   output_nodes:
   - policies_demand
-  
+ 
+- id:  biodiesel
+  name_en: Build biodiesel stations
+  description: Why has municipality decided to build biodiesel stations
+  decision_level: nation
+  quantity: number
+  type: simple.LinearCumulativeAdditiveAction
+  unit: pcs
+  forecast_values: [[2022, 0], [2030, 500]]
+  group: vp_traffic
+  output_nodes:
+  - biodiesel_stations
 
 - id:  micromobility_sharing_system
   name_en: Offer shared micro mobility system
