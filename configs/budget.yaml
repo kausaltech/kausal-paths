@@ -33,11 +33,12 @@ params:
   value: true
 
 action_efficiency_pairs:
-- cost_node: investments
+- graph_type: return_of_investment
+  cost_node: investments
   impact_node: returns
   invert_cost: false
   invert_impact: false
-  efficiency_unit: '%'
+  indicator_unit: '%'
   cost_unit: MEUR
   impact_unit: MEUR
 #  plot_limit_efficiency: 10

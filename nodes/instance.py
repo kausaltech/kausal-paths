@@ -622,10 +622,19 @@ class InstanceLoader:
         for aepc in conf:
             label = self.make_trans_string(aepc, 'label', pop=False)
             aep = ActionEfficiencyPair.from_config(
-                self.context, aepc['cost_node'], aepc['impact_node'], aepc['efficiency_unit'],
-                aepc['cost_unit'], aepc['impact_unit'],
+                context=self.context,
+                graph_type=aepc['graph_type'],
+                cost_node_id=aepc['cost_node'],
+                impact_node_id=aepc['impact_node'],
+                cost_unit=aepc['cost_unit'],
+                impact_unit=aepc['impact_unit'],
+                indicator_unit=aepc.get('indicator_unit', None),
                 plot_limit_efficiency=aepc.get('plot_limit_efficiency', None),
-                invert_cost=aepc.get('invert_cost', False), invert_impact=aepc.get('invert_impact', False), label=label,
+                invert_cost=aepc.get('invert_cost', False),
+                invert_impact=aepc.get('invert_impact', False),
+                indicator_cutpoint=aepc.get('indicator_cutpoint', None),
+                cost_cutpoint=aepc.get('cost_cutpoint', None),
+                label=label,
             )
             self.context.action_efficiency_pairs.append(aep)
 

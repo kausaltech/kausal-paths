@@ -671,16 +671,21 @@ class ActionEfficiency(graphene.ObjectType):
     action = graphene.Field(ActionNodeType, required=True)
     cost_values = graphene.List(YearlyValue, required=True)
     impact_values = graphene.List(YearlyValue, required=True)
-    efficiency_divisor = graphene.Float()
+    efficiency_divisor = graphene.Float()  # FIXME AEP depreciated
+    unit_adjustment_multiplier = graphene.Float()  # To replace efficiency_divisor
 
 
 class ActionEfficiencyPairType(graphene.ObjectType):
     id = graphene.ID(required=True)
+    graph_type = graphene.String()
     cost_node = graphene.Field(NodeType, required=True)
     impact_node = graphene.Field(NodeType, required=True)
-    efficiency_unit = graphene.Field('paths.schema.UnitType', required=True)
+    efficiency_unit = graphene.Field('paths.schema.UnitType', required=True)  # FIXME depreciated
+    indicator_unit = graphene.Field('paths.schema.UnitType', required=True)  # FIXME Is this always needed?
     cost_unit = graphene.Field('paths.schema.UnitType', required=True)
     impact_unit = graphene.Field('paths.schema.UnitType', required=True)
+    indicator_cutpoint = graphene.Float()  # For setting decision criterion on the indicator. Uses indicator units
+    cost_cutpoint = graphene.Float()  # For setting decision criterion on the cost. Uses cost units
     plot_limit_efficiency = graphene.Float()
     invert_cost = graphene.Boolean(required=True)
     invert_impact = graphene.Boolean(required=True)
@@ -702,13 +707,18 @@ class ActionEfficiencyPairType(graphene.ObjectType):
                 cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']))],
                 impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']))],
                 efficiency_divisor=ae.efficiency_divisor,
+                unit_adjustment_multiplier=ae.unit_adjustment_multiplier
             )
             out.append(d)
         return out
 
     @staticmethod
-    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
-        return root.efficiency_unit
+    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):  # FIXME depreciated
+        return root.indicator_unit
+
+    @staticmethod
+    def resolve_indicator_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
+        return root.indicator_unit
 
     @staticmethod
     def resolve_cost_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):

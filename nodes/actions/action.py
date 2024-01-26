@@ -238,47 +238,61 @@ class ActionNode(Node):
 class ActionEfficiency(typing.NamedTuple):
     action: ActionNode
     df: ppl.PathsDataFrame
-    efficiency_divisor: float
-    cumulative_efficiency: Quantity | None
-    cumulative_cost: Quantity
-    cumulative_impact: Quantity
-    cumulative_cost_unit: Unit
-    cumulative_impact_unit: Unit
-
+    efficiency_divisor: float  # FIXME AEP depreciated
+    unit_adjustment_multiplier: float
 
 @dataclass
 class ActionEfficiencyPair:
+    graph_type: str
     cost_node: Node
     impact_node: Node
-    efficiency_unit: Unit
+    efficiency_unit: Unit  # FIXME AEP depreciated
     cost_unit: Unit
     impact_unit: Unit
-#    efficiency_divisor: float
+    indicator_unit: Unit
     plot_limit_efficiency: float | None
     invert_cost: bool
     invert_impact: bool
+    indicator_cutpoint: float | None
+    cost_cutpoint: float | None
     label: TranslatedString | str | None
 
     @classmethod
     def from_config(
-        cls, context: 'Context', cost_node_id: str, impact_node_id: str,
-        efficiency_unit: str, cost_unit: str, impact_unit: str,
-#        efficiency_divisor: float,
+        cls,
+        context: 'Context',
+        graph_type: str,
+        cost_node_id: str,
+        impact_node_id: str,
+        cost_unit: str,
+        impact_unit: str,
+        invert_cost: bool,
+        invert_impact: bool,
+        indicator_unit: str | None = None,
         plot_limit_efficiency: float | None = None,
-        invert_cost: bool = False, invert_impact: bool = True,
+        indicator_cutpoint: float | None = None,
+        cost_cutpoint: float | None = None,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
-        efficiency_unit_obj = context.unit_registry.parse_units(efficiency_unit)
+        indicator_unit_obj = context.unit_registry.parse_units(indicator_unit)
         cost_unit_obj = context.unit_registry.parse_units(cost_unit)
         impact_unit_obj = context.unit_registry.parse_units(impact_unit)
         aep = ActionEfficiencyPair(
-            cost_node=cost_node, impact_node=impact_node, efficiency_unit=efficiency_unit_obj,
-            cost_unit=cost_unit_obj, impact_unit=impact_unit_obj,
-#            efficiency_divisor=efficiency_divisor,
-            invert_cost=invert_cost, invert_impact=invert_impact,
-            plot_limit_efficiency=plot_limit_efficiency, label=label)
+            graph_type=graph_type,
+            cost_node=cost_node,
+            impact_node=impact_node,
+            efficiency_unit=indicator_unit_obj,  # FIXME depreciated
+            cost_unit=cost_unit_obj,
+            impact_unit=impact_unit_obj,
+            indicator_unit=indicator_unit_obj,
+            plot_limit_efficiency=plot_limit_efficiency,  # FIXME Rename plot_limit_for_indicator
+            invert_cost=invert_cost,
+            invert_impact=invert_impact,
+            indicator_cutpoint=indicator_cutpoint,
+            cost_cutpoint=cost_cutpoint,
+            label=label)
         aep.validate()
         return aep
 
@@ -286,9 +300,16 @@ class ActionEfficiencyPair:
         # Ensure units are compatible
         if self.cost_node.unit is None or self.impact_node.unit is None:
             raise Exception("Cost or impact node does not have a unit")
-        div_unit = self.cost_node.unit / self.impact_node.unit
-        if not self.efficiency_unit.is_compatible_with(div_unit):
-            raise Exception("Unit %s is not compatible with %s" % (self.unit, div_unit))
+        if self.graph_type == 'cost_efficiency':
+            div_unit = self.cost_node.unit / self.impact_node.unit
+            if not self.indicator_unit.is_compatible_with(div_unit):
+                raise Exception("Indicator unit %s is not compatible with %s" % (self.indicator_unit, div_unit))
+        if self.graph_type in ['return_of_investment', 'cost_benefit']:
+            if not self.cost_unit == self.impact_unit:
+                raise Exception("Units must be the same for cost %s and impact %s" % (self.cost_unit, self.impact_unit))
+        if self.graph_type == 'return_of_investment':
+            if not self.indicator_unit.dimensionless:
+                raise Exception("The indicator unit %s must be dimensionless" % (self.indicator_unit))
 
     def calculate_iter(
         self, context: 'Context', actions: Iterable[ActionNode] | None = None
@@ -306,7 +327,8 @@ class ActionEfficiencyPair:
                 continue
 
             with context.perf_context.exec_node(action):
-                df = action.compute_efficiency(self.cost_node, self.impact_node, self.efficiency_unit)
+                # FIXME Does not work with CBA
+                df = action.compute_efficiency(self.cost_node, self.impact_node, self.indicator_unit)
             if not len(df):
                 # No impact for this action, skip it
                 continue
@@ -316,32 +338,21 @@ class ActionEfficiencyPair:
             df = df.ensure_unit('Cost', self.cost_unit)
             df = df.ensure_unit('Impact', self.impact_unit)
 
-            ccost: Quantity = df['Cost'].sum() * df.get_unit('Cost') * Quantity('1 a')  # type: ignore
-            if self.invert_cost:
-                ccost *= -1
-            cimpact: Quantity = df['Impact'].sum() * df.get_unit('Impact') * Quantity('1 a')  # type: ignore
-            if self.invert_impact:
-                cimpact *= -1
-
-            efficiency: Quantity | None
-            if abs(cimpact.m) < 1e-9:
-                cimpact = 0 * cimpact.units  # type: ignore
-                efficiency = None
+            if self.graph_type == 'cost_efficiency':
+                unit_adjustment_multiplier = 1 * self.cost_unit / self.impact_unit / self.indicator_unit
+            elif self.graph_type == 'return_of_investment':
+                unit_adjustment_multiplier = 1 * self.impact_unit / self.cost_unit / self.indicator_unit
             else:
-                efficiency = (ccost / cimpact).to(self.efficiency_unit)  # type: ignore
+                assert self.cost_unit == self.impact_unit
+                unit_adjustment_multiplier = 1 * self.cost_unit / self.indicator_unit
 
-            efficiency_divisor = 1 * self.efficiency_unit * self.impact_unit / self.cost_unit
-            efficiency_divisor = efficiency_divisor.to('dimensionless')
+            unit_adjustment_multiplier = unit_adjustment_multiplier.to('dimensionless')
 
             ae = ActionEfficiency(
                 action=action,
                 df=df,
-                efficiency_divisor=efficiency_divisor,
-                cumulative_cost=ccost,
-                cumulative_impact=cimpact,
-                cumulative_efficiency=efficiency,
-                cumulative_cost_unit=ccost.units,
-                cumulative_impact_unit=cimpact.units
+                efficiency_divisor=1 / unit_adjustment_multiplier,  # FIXME depreciated
+                unit_adjustment_multiplier=unit_adjustment_multiplier
             )
             yield ae
 
