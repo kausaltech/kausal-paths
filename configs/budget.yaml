@@ -41,7 +41,6 @@ action_efficiency_pairs:
   indicator_unit: '%'
   cost_unit: MEUR
   impact_unit: MEUR
-#  plot_limit_efficiency: 10
   label: Return of investment
 
 dimensions:

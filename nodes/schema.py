@@ -686,7 +686,8 @@ class ActionEfficiencyPairType(graphene.ObjectType):
     impact_unit = graphene.Field('paths.schema.UnitType', required=True)
     indicator_cutpoint = graphene.Float()  # For setting decision criterion on the indicator. Uses indicator units
     cost_cutpoint = graphene.Float()  # For setting decision criterion on the cost. Uses cost units
-    plot_limit_efficiency = graphene.Float()
+    plot_limit_efficiency = graphene.Float()  # FIXME depreciated
+    plot_limit_for_indicator = graphene.Float()
     invert_cost = graphene.Boolean(required=True)
     invert_impact = graphene.Boolean(required=True)
     label = graphene.String(required=True)
@@ -713,7 +714,7 @@ class ActionEfficiencyPairType(graphene.ObjectType):
         return out
 
     @staticmethod
-    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):  # FIXME depreciated
+    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):  # FIXME depreciated. Do we actually need these resolve functions??
         return root.indicator_unit
 
     @staticmethod

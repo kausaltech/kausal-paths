@@ -35,16 +35,45 @@ action_groups:
   name_en: Value profiles of traffic
 
 action_efficiency_pairs:
-- cost_node: gross_domestic_product_in_finland
+- graph_type: cost_efficiency
+  cost_node: gross_domestic_product_in_finland
   impact_node: net_emissions
   invert_cost: false
   invert_impact: true
-  efficiency_unit: EUR/t
   cost_unit: MEUR
   impact_unit: kt
-  plot_limit_efficiency: 10
+  indicator_unit: EUR/t
+  plot_limit_for_indicator: 10
+  cost_cutpoint: 100
+  indicator_cutpoint: 1
   label: Kasvihuonekaasusäästön marginaalikustannus
   label_en: Marginal cost in emissions savings
+- graph_type: return_of_investment
+  cost_node: net_cost_of_forests
+  impact_node: gross_domestic_product_in_finland
+  invert_cost: false
+  invert_impact: false
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: '%'
+#  plot_limit_for_indicator: 10
+  cost_cutpoint: 100
+  indicator_cutpoint: 1
+  label: Metsien hoidon tuottoprosentti
+  label_en: Return of investment from forests
+- graph_type: cost_benefit
+  cost_node: net_cost_of_forests
+  impact_node: gross_domestic_product_in_finland
+  invert_cost: false
+  invert_impact: false
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: MEUR
+#  plot_limit_for_indicator: 10
+  cost_cutpoint: 100
+  indicator_cutpoint: 1
+  label: Metsien hoidon kustannus-hyötyanalyysi
+  label_en: Cost-benefit analysis of forestry
 
 params:
 - id: municipality_name

@@ -629,11 +629,13 @@ class InstanceLoader:
                 cost_unit=aepc['cost_unit'],
                 impact_unit=aepc['impact_unit'],
                 indicator_unit=aepc.get('indicator_unit', None),
-                plot_limit_efficiency=aepc.get('plot_limit_efficiency', None),
+                plot_limit_for_indicator=aepc.get('plot_limit_for_indicator', None),
                 invert_cost=aepc.get('invert_cost', False),
                 invert_impact=aepc.get('invert_impact', False),
                 indicator_cutpoint=aepc.get('indicator_cutpoint', None),
                 cost_cutpoint=aepc.get('cost_cutpoint', None),
+                stakeholder_dimension=aepc.get('stakeholder_dimension', None),
+                outcome_dimension=aepc.get('outcome_dimension', None),
                 label=label,
             )
             self.context.action_efficiency_pairs.append(aep)

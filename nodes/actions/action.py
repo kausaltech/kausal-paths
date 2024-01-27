@@ -14,7 +14,7 @@ from common.perf import PerfCounter
 from nodes.node import Node, NodeError
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, SCENARIO_ACTION_GROUP,
-    VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, DecisionLevel
+    VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, UNCERTAINTY_COLUMN, DecisionLevel
 )
 from nodes.units import Quantity, Unit
 from params import BoolParameter
@@ -200,7 +200,7 @@ class ActionNode(Node):
         if not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
-    def compute_efficiency(self, cost_node: Node, impact_node: Node, unit: Unit) -> ppl.PathsDataFrame:
+    def compute_indicator(self, cost_node: Node, impact_node: Node, match_dims_i, match_dims_c) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
@@ -225,13 +225,12 @@ class ActionNode(Node):
                 impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
                 .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
             )
-
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
-        df = cost_df.paths.join_over_index(impact_df, how='left')
-        df = df.with_columns(Efficiency=pl.col('Cost') / pl.col('Impact'))
+
+        assert set(impact_df.dim_ids) == set(match_dims_i)
+        assert set(cost_df.dim_ids) == set(match_dims_c)
+        df = cost_df.paths.join_over_index(impact_df, how='left', index_from='union')
         df = df.drop_nulls()
-        df = df.set_unit('Efficiency', df.get_unit('Cost') / df.get_unit('Impact'))
-        df = df.ensure_unit('Efficiency', unit)
         return df
 
 
@@ -250,11 +249,14 @@ class ActionEfficiencyPair:
     cost_unit: Unit
     impact_unit: Unit
     indicator_unit: Unit
-    plot_limit_efficiency: float | None
+    plot_limit_efficiency: float | None  # FIXME depreciated, replace by plot_limit_for_indicator
+    plot_limit_for_indicator: float | None
     invert_cost: bool
     invert_impact: bool
     indicator_cutpoint: float | None
     cost_cutpoint: float | None
+    stakeholder_dimension: str | None
+    outcome_dimension: str | None
     label: TranslatedString | str | None
 
     @classmethod
@@ -269,9 +271,11 @@ class ActionEfficiencyPair:
         invert_cost: bool,
         invert_impact: bool,
         indicator_unit: str | None = None,
-        plot_limit_efficiency: float | None = None,
+        plot_limit_for_indicator: float | None = None,
         indicator_cutpoint: float | None = None,
         cost_cutpoint: float | None = None,
+        stakeholder_dimension: str | None = None,
+        outcome_dimension: str | None = None,
         label: TranslatedString | str | None = None
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
@@ -287,29 +291,40 @@ class ActionEfficiencyPair:
             cost_unit=cost_unit_obj,
             impact_unit=impact_unit_obj,
             indicator_unit=indicator_unit_obj,
-            plot_limit_efficiency=plot_limit_efficiency,  # FIXME Rename plot_limit_for_indicator
+            plot_limit_efficiency=plot_limit_for_indicator,  # FIXME depreciated
+            plot_limit_for_indicator=plot_limit_for_indicator,
             invert_cost=invert_cost,
             invert_impact=invert_impact,
             indicator_cutpoint=indicator_cutpoint,
             cost_cutpoint=cost_cutpoint,
+            stakeholder_dimension=stakeholder_dimension,
+            outcome_dimension=outcome_dimension,
             label=label)
         aep.validate()
         return aep
 
     def validate(self):
-        # Ensure units are compatible
+        # Ensure units and dimensions are compatible
         if self.cost_node.unit is None or self.impact_node.unit is None:
             raise Exception("Cost or impact node does not have a unit")
         if self.graph_type == 'cost_efficiency':
             div_unit = self.cost_node.unit / self.impact_node.unit
             if not self.indicator_unit.is_compatible_with(div_unit):
                 raise Exception("Indicator unit %s is not compatible with %s" % (self.indicator_unit, div_unit))
-        if self.graph_type in ['return_of_investment', 'cost_benefit']:
+            if self.stakeholder_dimension is not None:
+                raise Exception("Stakeholder dimension is not allowed for a cost-efficiency graph")
+        if self.graph_type == 'cost_benefit':
             if not self.cost_unit == self.impact_unit:
                 raise Exception("Units must be the same for cost %s and impact %s" % (self.cost_unit, self.impact_unit))
         if self.graph_type == 'return_of_investment':
             if not self.indicator_unit.dimensionless:
                 raise Exception("The indicator unit %s must be dimensionless" % (self.indicator_unit))
+            if not self.cost_unit == self.impact_unit:
+                raise Exception("Units must be the same for cost %s and impact %s" % (self.cost_unit, self.impact_unit))
+            if self.stakeholder_dimension is not None:
+                raise Exception("Stakeholder dimension is not allowed for a return-of-investment graph")
+            if self.outcome_dimension is not None:
+                raise Exception("Outcome indicator is not allowed in a return-of-investment graph")
 
     def calculate_iter(
         self, context: 'Context', actions: Iterable[ActionNode] | None = None
@@ -326,9 +341,27 @@ class ActionEfficiencyPair:
                 # Action is not connected to either cost or impact nodes, skip it
                 continue
 
+            # Dimensions that cost and impact nodes can have, and should if they are given:
+            # cba i_out i_sta c_out c_sta
+            # cea             c_out
+            # roi 
+            # voi i_out                   c_iter
+            match_dims_c = match_dims_i = [] # For cost and impact nodes, respectively
+            if self.graph_type=='cost_efficiency':
+                match_dims_c += [self.outcome_dimension]
+            if self.graph_type=='cost_benefit':
+                match_dims_c += [self.outcome_dimension, self.stakeholder_dimension]
+                match_dims_i += [self.outcome_dimension, self.stakeholder_dimension]
+            if self.graph_type=='value_of_information':
+                match_dims_i += [self.outcome_dimension]
+                match_dims_c += [UNCERTAINTY_COLUMN]
+            match_dims_i = set(match_dims_i) - set([None])
+            match_dims_c = set(match_dims_c) - set([None])
+
             with context.perf_context.exec_node(action):
                 # FIXME Does not work with CBA
-                df = action.compute_efficiency(self.cost_node, self.impact_node, self.indicator_unit)
+                df = action.compute_indicator(
+                    self.cost_node, self.impact_node, match_dims_i, match_dims_c)
             if not len(df):
                 # No impact for this action, skip it
                 continue
