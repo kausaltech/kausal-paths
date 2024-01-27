@@ -42,6 +42,17 @@ action_efficiency_pairs:
   cost_unit: MEUR
   impact_unit: MEUR
   label: Return of investment
+- graph_type: cost_benefit
+  cost_node: test_investments
+  impact_node: discounted_costs
+  invert_cost: true
+  invert_impact: true
+  indicator_unit: MEUR
+  cost_unit: MEUR
+  impact_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: outcome_of_interest
+  label: Cost-benefit analysis
 
 dimensions:
 
@@ -344,14 +355,12 @@ nodes:
   type: costs.ExponentialNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder]
-  output_dimensions: [stakeholder]
+  input_dimensions: [stakeholder, outcome_of_interest]
+  output_dimensions: [stakeholder, outcome_of_interest]
   input_nodes:
   - id: costs
     from_dimensions:
     - id: vehicle_type
-      flatten: true
-    - id: outcome_of_interest
       flatten: true
   params:
   - id: annual_change
@@ -361,6 +370,19 @@ nodes:
     max_value: 5.0
   - id: is_decreasing_rate
     value: true
+
+- id: test_investments
+  name: Test node for traffic investments
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, outcome_of_interest]
+  output_dimensions: [stakeholder, outcome_of_interest]
+  input_nodes:
+  - discounted_costs
+  params:
+  - id: multiplier
+    value: 0.2
 
 actions:
 

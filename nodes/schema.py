@@ -671,6 +671,8 @@ class ActionEfficiency(graphene.ObjectType):
     action = graphene.Field(ActionNodeType, required=True)
     cost_values = graphene.List(YearlyValue, required=True)
     impact_values = graphene.List(YearlyValue, required=True)
+    cost_dim = graphene.Field(DimensionalMetricType, required=True)
+    impact_dim = graphene.Field(DimensionalMetricType, required=True)
     efficiency_divisor = graphene.Float()  # FIXME AEP depreciated
     unit_adjustment_multiplier = graphene.Float()  # To replace efficiency_divisor
 
@@ -707,6 +709,8 @@ class ActionEfficiencyPairType(graphene.ObjectType):
                 action=ae.action,
                 cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']))],
                 impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']))],
+                cost_dim=DimensionalMetric.from_action_efficiency(ae, root, 'Cost'),
+                impact_dim=DimensionalMetric.from_action_efficiency(ae, root, 'Impact'),
                 efficiency_divisor=ae.efficiency_divisor,
                 unit_adjustment_multiplier=ae.unit_adjustment_multiplier
             )
@@ -714,20 +718,8 @@ class ActionEfficiencyPairType(graphene.ObjectType):
         return out
 
     @staticmethod
-    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):  # FIXME depreciated. Do we actually need these resolve functions??
+    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):  # FIXME depreciated.
         return root.indicator_unit
-
-    @staticmethod
-    def resolve_indicator_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
-        return root.indicator_unit
-
-    @staticmethod
-    def resolve_cost_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
-        return root.cost_unit
-
-    @staticmethod
-    def resolve_impact_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo):
-        return root.impact_unit
 
 
 class InstanceBasicConfiguration(graphene.ObjectType):

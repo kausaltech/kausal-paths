@@ -14,7 +14,7 @@ from common.perf import PerfCounter
 from nodes.node import Node, NodeError
 from nodes.constants import (
     FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, SCENARIO_ACTION_GROUP,
-    VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, UNCERTAINTY_COLUMN, DecisionLevel
+    VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, UNCERTAINTY_COLUMN, STACKABLE_QUANTITIES, DecisionLevel
 )
 from nodes.units import Quantity, Unit
 from params import BoolParameter
@@ -304,7 +304,9 @@ class ActionEfficiencyPair:
         return aep
 
     def validate(self):
-        # Ensure units and dimensions are compatible
+        # Ensure that quantities, units and dimensions are compatible
+        if not (self.cost_node.quantity in STACKABLE_QUANTITIES and self.impact_node.quantity in STACKABLE_QUANTITIES):
+            raise Exception("Cost and impact nodes must have stackable quantities")
         if self.cost_node.unit is None or self.impact_node.unit is None:
             raise Exception("Cost or impact node does not have a unit")
         if self.graph_type == 'cost_efficiency':
