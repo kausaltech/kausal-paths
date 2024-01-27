@@ -320,7 +320,7 @@ emission_sectors:
   name: Rakennusten lämmityksen päästöt
   name_en: Building heating emissions
   part_of: net_emissions
-  color: #ff4f57
+  color: '#ff4f57'
   historical_values: [[2015, 8200], [2022, 8200]]
   input_dataset_processors: [LinearInterpolation]
 
@@ -373,7 +373,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: emissions
   unit: kt/a
-  color: #014B30
+  color: '#014B30'
   historical_values: [[2015, 8500], [2022, 8500]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes: [transport_mileage]
@@ -1009,8 +1009,36 @@ nodes:
   output_nodes:
   - charging_supply
   - charging_station_jobs
+
+- id: effect_of_charging_stations_on_evs
+  name: Effect of charging stations on the number of EVs
+  type: simple.FixedMultiplierNode
+  quantity: number
+  unit: pcs
+  color: '#300505'
+  input_nodes:
+  - charging_stations
+  output_nodes:
   - number_of_evs
+  params:
+  - id: multiplier
+    value: 50
+    unit: pcs/pcs
+
+- id: effect_of_charging_stations_on_emissions
+  name: Effect of charging stations on emissions
+  type: simple.FixedMultiplierNode
+  quantity: number
+  unit: kt/a
+  color: '#300505'
+  input_nodes:
+  - charging_stations
+  output_nodes:
   - transportation_emissions
+  params:
+  - id: multiplier
+    value: 50
+    unit: ton/pcs/a
 
 - id: number_of_evs
   name_en: Number of EVs
@@ -1103,7 +1131,7 @@ nodes:
   description: The profit of a company that offers energy to the EV charging stations. The municipally-owned energy company earns revenue from charging points. (Costs are not included here.)
   quantity: currency
   type: simple.FixedMultiplierNode
-  unit: MEUR/a
+  unit: kEUR/a
   params:
   - id: multiplier
     value: 0.1  # price of electricity
@@ -1123,6 +1151,7 @@ nodes:
   - id: transportation_emissions
     tags: [emissions]
   - id: air_quality
+  - id: charging_station_jobs
   params:
   - id: impact_threshold
     ref: impact_threshold
@@ -1154,9 +1183,60 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - car_km
   - accessibility
   - behavioral_change
+
+- id: mm_station_effect_on_car_km
+  name_en: Effect of micro mobility stations on car km
+  type: simple.FixedMultiplierNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_nodes:
+  - city_mm_stations
+  output_nodes:
+  - car_km
+  params:
+  - id: multiplier
+    value: -50000
+    unit: vkm/pcs/a
+
+- id: safe_bike_parks
+  name: Number of safe bike parks
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 1000]]
+  output_nodes:
+  - accessibility
+  - transportation_service_level
+
+- id: safe_bike_parks_effect_on_car_km
+  name_en: Effect of safe bike parks on car km
+  type: simple.FixedMultiplierNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_nodes:
+  - safe_bike_parks
+  output_nodes:
+  - car_km
+  params:
+  - id: multiplier
+    value: -5000
+    unit: vkm/pcs/a
+
+- id: biodiesel_stations_effect_on_car_km
+  name_en: Effect of biodiesel stations on transportation emissions
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - biodiesel_stations
+  output_nodes:
+  - transportation_emissions
+  params:
+  - id: multiplier
+    value: -5000
+    unit: t/pcs/a
 
 - id: sponsor_money
   name_en: Money from sponsors
@@ -1182,7 +1262,7 @@ nodes:
   name_en: Car kilometers driven with trips inside the city
   Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling.
   quantity: vehicle_mileage
-  type: values.AssociationNode
+  type: values.AdditiveNode
   unit: Mvkm/a
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -1282,10 +1362,9 @@ nodes:
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
 
 - id: behavioral_change  # Is this measuring the amount of active transport?
-  name_en: Behavioral change to sustainable transportation
+  name_en: Sustainable transportation activity
   Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation.
   quantity: passenger_mileage  # NOTE! Use meaningful quantities when available.
   type: values.AssociationNode
@@ -1439,9 +1518,7 @@ actions:
   forecast_values: [[2022, 0], [2030, 500]]
   group: vp_traffic
   output_nodes:
-  - car_km
-  - accessibility
-  - transportation_service_level
+  - safe_bike_parks
 
 ############### Lauri's actions
 
