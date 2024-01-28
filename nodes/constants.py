@@ -63,7 +63,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
-    'energy_factor',
+    'energy_factor', 'effect'
 ])
 
 DEFAULT_METRIC = 'default'

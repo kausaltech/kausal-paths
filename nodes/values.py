@@ -27,7 +27,7 @@ class UtilityNode(AdditiveNode):
     where cost-effective scenarios show value < 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
     '''
-    allowed_parameters = SimpleNode.allowed_parameters + [
+    allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
             local_id='impact_threshold',
             is_customizable=True,
@@ -107,6 +107,7 @@ class UtilityNode(AdditiveNode):
             pl.col(VALUE_COLUMN) - pl.lit(th.m)).alias(VALUE_COLUMN)
         ])
 
+        df = self.maybe_drop_nulls(df)
         return df
 
 
@@ -158,6 +159,7 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
                     pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)
                     )).drop(m + '_right')
 
+        df = self.maybe_drop_nulls(df)
         return df
 
 

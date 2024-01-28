@@ -29,6 +29,11 @@ class SimpleNode(Node):
             local_id='replace_output_using_input_dataset',
             label=TranslatedString(en="Replace output using input dataset"),
             is_customizable=False
+        ),
+        BoolParameter(
+            local_id='drop_nulls',
+            description='At the end of compute() do you want to drop nulls?',
+            is_customizable=False
         )
     ]
 
@@ -78,17 +83,22 @@ class SimpleNode(Node):
             ])
         return df
 
+    def maybe_drop_nulls(self, df):
+        if self.get_parameter_value('drop_nulls', required=False):
+            df = df.drop_nulls()
+        return df
+
 
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = SimpleNode.allowed_parameters + [
         StringParameter(local_id='metric', is_customizable=False),
-    ] + SimpleNode.allowed_parameters + [
         BoolParameter(
             local_id='inventory_only',
             description='Node represents historical (inventory) values only',
             is_customizable=False,
-        )]
+        ),
+    ]
 
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
