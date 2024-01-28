@@ -48,7 +48,7 @@ action_efficiency_pairs:
 
 params:
 - id: municipality_name
-  value: Espoo
+  value: Tampere
 - id: impact_threshold
   label: Threshold for sum of impacts in utilities
   is_customizable: true
@@ -315,7 +315,8 @@ emission_sectors:
     Sdp Uusimaa</li> <li>HS.ymp.1 Kesk Savo</li> <li>HS.ymp.2 Kesk Savo</li></ul>
   is_outcome: true
   target_year_goal: 212
-  historical_values: [[2010, 100]]
+  historical_values: [[2010, 100], [2023, 100]]
+  input_dataset_processors: [LinearInterpolation]
 
 nodes:
 - id: population
@@ -351,9 +352,9 @@ nodes:
   - charging_station_jobs
 
 - id: effect_of_charging_stations_on_evs
-  name: Effect of charging stations on the number of EVs
+  name_en: Effect of charging stations on the number of EVs
   type: simple.FixedMultiplierNode
-  quantity: number
+  quantity: effect
   unit: pcs
   color: '#300505'
   input_nodes:
@@ -365,48 +366,41 @@ nodes:
     value: 50
     unit: pcs/pcs
 
-- id: effect_of_charging_stations_on_emissions
-  name: Effect of charging stations on emissions
-  type: simple.FixedMultiplierNode
-  quantity: number
-  unit: kt/a
-  color: '#300505'
-  input_nodes:
-  - charging_stations
-  output_nodes:
-  - transportation_emissions
-  params:
-  - id: multiplier
-    value: 50
-    unit: ton/pcs/a
-
 - id: number_of_evs
   name_en: Number of EVs
   description: More charging stations improves intention to purchase EVs as worry about charging availability decreases.
   quantity: number
   type: values.AssociationNode
   unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
+  historical_values: [[2010, 10000], [2023, 10000]]
   input_dataset_processors: [LinearInterpolation]
+
+- id: effect_of_ev_on_car_km
+  name_en: Effect of EVs on car km
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: Mvkm/a
+  input_nodes:
+  - number_of_evs
   output_nodes:
-  - id: transportation_emissions
-    tags: [emissions]
-  - id: air_quality
+  - car_km
+  params:
+  - id: multiplier
+    value: -20000
+    unit: vkm/a/pcs
 
 - id: air_quality
   name_en: Air quality
   description: Air quality improves if car driven trips decrease because of sustainable transportation. Air pollution decreases if people switch from combustion vehicles to EVs.
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
+  quantity: mass_concentration
+  type: values.AdditiveNode
+  unit: ug/m**3
+  historical_values: [[2010, 12], [2023, 10]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - health_benefits
 
-- id: charging_supply  # NOTE! I changed some node id's to be more specific.
+- id: charging_supply
   name_en: Energy supply for EV charging
-  description: Amount of electricity supplied for the EV charging stations. More people have EV’s because there is supply for charging in public places.  # NOTE! I add a sentence to description about what is the variable that this node estimates.
+  description: Amount of electricity supplied for the EV charging stations. More people have EV’s because there is supply for charging in public places.
   quantity: energy
   type: simple.FixedMultiplierNode
   unit: GWh/a
@@ -420,7 +414,7 @@ nodes:
   - energy_company_profit
 
 - id: charging_station_jobs
-  name_en: Value of jobs for building and maintaining EV charging infrastructure  # NOTE I changed some names so that they describe the variable estimated, NOT the change caused by an action. The change can be described in the description
+  name_en: Value of jobs for building and maintaining EV charging infrastructure
   description: Municipality B thinks that if municipalities build EV charging stations it creates jobs nationally.
   quantity: currency
   type: simple.FixedMultiplierNode
@@ -501,6 +495,8 @@ nodes:
     ref: legality_weight
   - id: emissions_weight
     ref: emissions_weight
+  - id: drop_nulls
+    value: true
 
 #
 # Shared micro mobility system / safe bike parking
@@ -511,7 +507,7 @@ nodes:
   quantity: fraction
   type: values.AdditiveNode
   unit: pcs
-  historical_values: [[2010, 30], [2023, 50]]
+  historical_values: [[2010, 0], [2023, 0]]
   input_dataset_processors: [LinearInterpolation]
   goals:
   - is_main_goal: true
@@ -524,12 +520,11 @@ nodes:
       value: 300
   output_nodes:
   - accessibility
-  - behavioral_change
 
 - id: mm_station_effect_on_car_km
   name_en: Effect of micro mobility stations on car km
   type: simple.FixedMultiplierNode
-  quantity: mileage
+  quantity: effect
   unit: Mvkm/a
   input_nodes:
   - city_mm_stations
@@ -540,20 +535,35 @@ nodes:
     value: -50000
     unit: vkm/pcs/a
 
+- id: effect_of_mm_stations_on_sustainable_transportation
+  name_en: Effect of micro mobility stations on sustainable transportation
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: Mvkm/a
+  input_nodes:
+  - city_mm_stations
+  output_nodes:
+  - sustainable_transportation
+  params:
+  - id: multiplier
+    value: 50000
+    unit: vkm/pcs/a
+
 - id: safe_bike_parks
-  name: Number of safe bike parks
+  name_en: Number of safe bike parks
   type: simple.AdditiveNode
   quantity: number
   unit: pcs
-  historical_values: [[2010, 1000]]
+  historical_values: [[2010, 1000], [2023, 1000]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - accessibility
   - transportation_service_level
 
-- id: safe_bike_parks_effect_on_car_km
+- id: effect_of_safe_bike_parks_on_car_km
   name_en: Effect of safe bike parks on car km
   type: simple.FixedMultiplierNode
-  quantity: mileage
+  quantity: effect
   unit: Mvkm/a
   input_nodes:
   - safe_bike_parks
@@ -561,13 +571,13 @@ nodes:
   - car_km
   params:
   - id: multiplier
-    value: -5000
+    value: -15000
     unit: vkm/pcs/a
 
 - id: biodiesel_stations_effect_on_car_km
   name_en: Effect of biodiesel stations on transportation emissions
   type: simple.FixedMultiplierNode
-  quantity: emissions
+  quantity: effect
   unit: kt/a
   input_nodes:
   - biodiesel_stations
@@ -575,42 +585,58 @@ nodes:
   - transportation_emissions
   params:
   - id: multiplier
-    value: -5000
+    value: -50
     unit: t/pcs/a
 
-- id: sponsor_money
-  name_en: Money from sponsors
-  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot.
-  quantity: currency
-  type: values.AdditiveNode
-  unit: pcs
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
-  goals:
-  - is_main_goal: true
-    default: true
-    label: Sponsor money
-    values:
-    - year: 2025
-      value: 300
-    - year: 2030
-      value: 300
-  output_nodes:
-  - city_mm_stations
+- id: vehicle_need
+  name_en: Need for personalisalized trips vehicle inside the city
+  Description: The potential need for car-like trips, as opposed to short trips by walking and without a need for a vehicle.
+  quantity: vehicle_mileage
+  type: simple.FixedMultiplierNode
+  unit: Mvkm/a
+  input_nodes:
+  - population
+  params:
+  - id: multiplier
+    value: 20
+    unit: vkm/cap/d
 
 - id: car_km
   name_en: Car kilometers driven with trips inside the city
   Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling.
   quantity: vehicle_mileage
-  type: values.AdditiveNode
+  type: simple.AdditiveNode
   unit: Mvkm/a
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - vehicle_need
+
+- id: effect_of_cars_on_air_quality
+  name_en: Effect of cars on air quality
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: ug/m**3
+  input_nodes:
+  - car_km
   output_nodes:
-  - id: health_benefits
-    tags: [decrease]
-  - id: transportation_emissions
-  - id: air_quality
+  - air_quality
+  params:
+  - id: multiplier
+    value: 3
+    unit: ng/m**3/(Mvkm/a)
+
+- id: effect_of_cars_on_emissions
+  name_en: Effect of cars on transportation emissions
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: kt/a
+  input_nodes:
+  - car_km
+  output_nodes:
+  - transportation_emissions
+  params:
+  - id: multiplier
+    value: 150
+    unit: g/vkm
 
 - id: public_transportation
   name_en: Public transportation
@@ -649,16 +675,41 @@ nodes:
     - year: 2030
       value: 300
 
+- id: effect_of_sustainable_transportation_on_health
+  name_en: Effect of sustainable transportation on health
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: DALY/a
+  input_nodes:
+  - sustainable_transportation
+  output_nodes:
+  - health_benefits
+  params:
+  - id: multiplier
+    value: 1
+    unit: DALY/Mvkm
+
+- id: effect_of_air_quality_on_health
+  name_en: Effect of air quality on health
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: DALY/a
+  input_nodes:
+  - air_quality
+  output_nodes:
+  - health_benefits
+  params:
+  - id: multiplier
+    value: -100
+    unit: DALY/a/(ug/m**3)
+
 - id: health_benefits
   name_en: Health benefits
   description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives. 
   quantity: disease_burden
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: DALY/a
-  historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - behavioral_change
   goals:
   - is_main_goal: true
     default: true
@@ -668,15 +719,16 @@ nodes:
       value: 300
     - year: 2030
       value: 300
+  params:
+  - id: drop_nulls
+    value: true
 
 - id: transportation_emissions
   name_en: Transportation emissions
   Description:  If people use sustainable forms of transportation, the municipality's transportation emissions decrease.
   quantity: emissions
-  type: values.AssociationNode
+  type: values.AdditiveNode
   unit: kt/a
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
   goals:
   - is_main_goal: true
     default: true
@@ -703,13 +755,13 @@ nodes:
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
 
-- id: behavioral_change  # Is this measuring the amount of active transport?
+- id: sustainable_transportation
   name_en: Sustainable transportation activity
   Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation.
-  quantity: passenger_mileage  # NOTE! Use meaningful quantities when available.
+  quantity: vehicle_mileage
   type: values.AssociationNode
   unit: Mvkm/a
-  historical_values: [[2010, 30], [2023, 50]]
+  historical_values: [[2010, 3], [2023, 5]]
   input_dataset_processors: [LinearInterpolation]
   goals:
   - is_main_goal: true
@@ -738,8 +790,10 @@ nodes:
     unit: Ut/pcs/a
   - id: health_weight
     ref: health_weight
+  - id: drop_nulls
+    value: true
   input_nodes:
-  - id: behavioral_change
+  - id: sustainable_transportation
     tags: [currency]
   - id: accessibility
     tags: [equity]
@@ -751,7 +805,7 @@ nodes:
   - id: transportation_service_level
 
 #- id: stakeholder_costs
-#  name: Costs according to stakeholders
+#  name_en: Costs according to stakeholders
 #  type: values.MatrixNode
 #  quantity: currency
 #  unit: MEUR/a
@@ -766,11 +820,11 @@ nodes:
 #   categories: [citizen]
 
 - id: total
-  name: Total
+  name_en: Total
   type: values.AssociationNode
   quantity: number
   unit: pcs
-  historical_values: [[2010, 0], [2022, 0]]
+  historical_values: [[2010, 0], [2023, 0]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - vp_change_behavior
@@ -840,13 +894,12 @@ actions:
   description: Why does municipality offer shared micro mobility system
   decision_level: nation
   quantity: number
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.CumulativeAdditiveAction
   unit: pcs
-  forecast_values: [[2022, 0], [2030, 500]]
+  forecast_values: [[2024, 100], [2027, 100]]
   group: vp_traffic
   output_nodes:
   - city_mm_stations
-  - sponsor_money
 
 - id:  safe_bike_parking
   name_en: Build safe parking space for bicycles
@@ -859,6 +912,16 @@ actions:
   group: vp_traffic
   output_nodes:
   - safe_bike_parks
+
+- id: sponsor_money
+  name_en: Money from sponsors
+  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot.
+  quantity: number
+  type: simple.CumulativeAdditiveAction
+  unit: pcs
+  forecast_values: [[2024, 200]]
+  output_nodes:
+  - city_mm_stations
 
 ############### Lauri's actions
 
