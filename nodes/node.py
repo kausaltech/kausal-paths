@@ -1278,7 +1278,7 @@ class Node:
 
     def add_nodes_pl(
         self, df: ppl.PathsDataFrame | None, nodes: List[Node], metric: str | None = None, keep_nodes: bool = False,
-        node_multipliers: List[float] | None = None,
+        node_multipliers: List[float] | None = None, unit: Unit | None = None,
     ) -> ppl.PathsDataFrame:
         if len(nodes) == 0:
             if df is None:
@@ -1318,8 +1318,9 @@ class Node:
         if FORECAST_COLUMN not in cols:
             raise NodeError(self, "Forecast column missing in data")
 
-        unit = self.unit
-        assert unit is not None
+        if unit is None:
+            unit = self.unit
+            assert unit is not None
 
         df = df.ensure_unit(VALUE_COLUMN, unit)
         meta = df.get_meta()

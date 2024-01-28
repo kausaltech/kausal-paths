@@ -127,9 +127,19 @@ class EmissionsWeight(NumberParameter):
     id = 'emissions_weight'
 
 
-class CostWeight(NumberParameter):
-    name = _('Weight for cost impacts in value profiles')
-    id = 'cost_weight'
+class EconomicWeight(NumberParameter):
+    name = _('Weight for economic impacts in value profiles')
+    id = 'economic_weight'
+
+
+class ProsperityWeight(NumberParameter):
+    name = _('Weight for prosperity impacts (e.g. jobs) in value profiles')
+    id = 'prosperity_weight'
+
+
+class PurityWeight(NumberParameter):
+    name = _('Weight for purity impacts (e.g. lack of pollution) in value profiles')
+    id = 'purity_weight'
 
 
 class HealthWeight(NumberParameter):
