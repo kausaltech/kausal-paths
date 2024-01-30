@@ -1,0 +1,316 @@
+id: saskatoon_gpc
+default_language: en
+supported_languages: []
+site_url: https://saskatoon-gpc.paths-test.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 046b9cf53121d48c814cbe483afee07a3a401722
+  dvc_remote: kausal-s3
+#  default_path: saskatoon
+name: Saskatoon Greenhouse Gas Inventory
+owner_en: City of Saskatoon
+theme_identifier: ca-saskatoon
+target_year: 2050
+model_end_year: 2051
+# reference_year: 2020
+minimum_historical_year: 2014
+maximum_historical_year: 2021
+emission_unit: t/a
+emission_forecast_from: 2022
+emission_dimensions: []
+emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
+emission_sector_dimension: emission_sectors
+# normalizations:
+# - normalizer_node: population
+#   quantities:
+#   - id: emissions
+#     unit: t/cap/a
+#   - id: energy
+#     unit: kWh/cap/a
+#   - id: mileage
+#     unit: miles/cap/a
+features:
+  baseline_visible_in_graphs: true
+
+
+# dimensions:
+# - id: emission_scope
+#   label: Emission Scopes
+#   categories:
+#   - id: scope1
+#     label: Scope 1
+#   - id: scope2
+#     label: Scope 2
+#   - id: scope3
+#     label: Scope 3
+
+# - id: emission_sectors
+#   label: Emission Sectors
+#   categories:
+#   - id: stationary_energy
+#     label: I Stationary Energy
+#   - id: residential
+#     label: I.1 Residential Buildings
+#   - id: commercial_institutional
+#     label: I.2 Commercial & Institutional Buildings
+#   - id: manufacturing_construction
+#     label: I.3 Manufacturing & Construction
+#   - id: energy_industries
+#     label: I.4 Energy Industries
+#   - id: streetlighting
+#     label: I.6 Streetlighting & Traffic Signals
+
+#   - id: transport
+#     label: II Transportation
+#   - id: on_road_transport
+#     label: II.1 On-Road Transportation
+#   - id: railways
+#     label: II.2 Railways
+#   - id: waterborne
+#     label: II.3 Waterborne Navigation
+#   - id: aviation
+#     label: II.4 Aviation
+
+#   - id: waste
+#     label: III Waste
+#   - id: solid_waste
+#     label: III.1 Solid Waste Disposal
+#   - id: biological_waste
+#     label: III.2 Biological Treatment of Waste
+#   - id: wastewater_treatment
+#     label: III.4 Wastewater Treatment & Discharge
+
+#   - id: ippu
+#     label: IV Industrial Processes & Product Use
+#   - id: industrial_processes
+#     label: IV.1 Industrial Processes
+
+#   - id: afolu
+#     label: V Agriculture, Forestry, & Other Land Use
+#   - id: livestock
+#     label: V.1 Livestock
+
+#   - id: fugitive
+#     label: Fugitive
+#   - id: municipal
+#     label: Municipal
+
+# - id: vehicle_type
+#   label: Vehicle Type
+#   categories:
+#   - id: retail
+#     label: Retail
+#   - id: cardlock
+#     label: Cardlock
+#   - id: fleet
+#     label: City Fleet
+#   - id: public_transit
+#     label: Public Transit
+#   - id: access_transit
+#     label: Access Transit
+#   - id: other
+#     label: Other Distributors
+#   - id: stc
+#     label: Saskatchewan Transportation Company
+#   - id: prairie_lily
+#     label: Prairie Lily
+#   - id: aviation_local
+#     label: Aviation (Local)
+#   - id: aviation_other
+#     label: Aviation (Domestic & International)
+
+# - id: greenhouse_gases
+#   label: Greenhouse Gases
+#   categories:
+#   - id: co2e
+#     label: CO2 Equivalent
+#   - id: co2
+#     label: CO2
+#   - id: ch4
+#     label: CH4
+#   - id: n2o
+#     label: N2O
+
+# - id: energy_carrier
+#   label: Energy Carrier
+#   categories:
+#   - id: electricity
+#     label: Electricity
+#   - id: aviation_gasoline
+#     label: Aviation (Gasoline)
+#   - id: aviation_turbo
+#     label: Aviation (Turbo Fuel)
+#   - id: diesel_heavy
+#     label: Diesel (Heavy-Duty)
+#   - id: diesel_light
+#     label: Diesel (Light-Duty)
+#   - id: gasoline_heavy
+#     label: Gasoline (Heavy-Duty)
+#   - id: gasoline_light
+#     label: Gasoline (Light-Duty)
+#   - id: natural_gas
+#     label: Natural Gas
+#   - id: propane_other
+#     label: Propane (Other)
+#   - id: propane_residential
+#     label: Propane (Residential)
+#   - id: waste
+#     label: Waste
+
+#   - id: diesel
+#     label: Diesel
+#   - id: fuel_oil
+#     label: Fuel Oil
+#   - id: fugitive
+#     label: Fugitive
+#   - id: gasoline
+#     label: Gasoline
+#   - id: other
+#     label: Other
+#   - id: propane
+#     label: Propane
+
+# - id: utility
+#   label: Electric Utility
+#   categories:
+#   - id: saskpower
+#     label: SaskPower
+#   - id: slp
+#     label: SL&P
+
+
+
+
+emission_sectors:
+- id: net_emissions
+  name: GPC BASIC Greenhouse Gas Emissions
+  input_node_dimension:
+    label: Emission Sectors
+  is_outcome: true
+
+# # ----- Sector Emissions -----
+
+# - id: stationary_energy_emissions
+#   name: Stationary Energy Emissions
+#   part_of: net_emissions
+#   color: '#4e79a7'
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: transportation_emissions
+#   name: Transportation Emissions
+#   part_of: net_emissions
+#   color: '#e15759'
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: waste_emissions
+#   name: Waste Emissions
+#   part_of: net_emissions
+#   color: '#59a14f'
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: ippu_emissions
+#   name: Industrial Processes & Product Use Emissions
+#   part_of: net_emissions
+#   color: '#b07aa1'
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: afolu_emissions
+#   name: Agriculture, Forestry, & Other Land Use Emissions
+#   part_of: net_emissions
+#   color: '#76b7b2'
+#   input_dataset_processors: [LinearInterpolation]
+
+# # ----- Subsector Emissions -----
+
+# - id: electricity_emissions
+#   name: Electricity Emissions
+#   part_of: stationary_energy_emissions
+#   input_dataset_processors: [LinearInterpolation]
+
+# # - id: generation_emissions
+# #   name: Landfill Gas Combustion Emissions
+# #   category: energy_industries
+# #   part_of: stationary_energy_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# # - id: solid_waste_emissions
+# #   name: Solid Waste Disposal Emissions
+# #   category: solid_waste
+# #   part_of: waste_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# # - id: biological_waste_emissions
+# #   name: Biological Waste Treatment Emissions
+# #   category: biological_waste
+# #   part_of: waste_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# # - id: wastewater_treatment_emissions
+# #   name: Wastewater Treatment Emissions
+# #   category: wastewater_treatment
+# #   part_of: waste_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# # - id: industrial_emissions
+# #   name: Industrial Process Emissions
+# #   category: industrial_processes
+# #   part_of: ippu_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# - id: onroad_emissions
+#   name: On-Road Transportation Emissions
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
+
+# # - id: railway_emissions
+# #   name: Railway Emissions
+# #   category: railways
+# #   part_of: transportation_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# - id: waterborne_emissions
+#   name: Waterborne Navigation Emissions
+#   part_of: transportation_emissions
+#   input_dataset_processors: [LinearInterpolation]
+
+# # - id: aviation_emissions
+# #   name: Aviation Emissions
+# #   category: aviation
+# #   part_of: transportation_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+# # - id: us_emissions
+# #   name: U of S Livestock & Fertilizer Emissions
+# #   category: livestock
+# #   part_of: afolu_emissions
+# #   input_dataset_processors: [LinearInterpolation]
+
+nodes:
+
+- id: gpc_inventory
+  type: gpc.EmissionsNode
+  name: GPC BASIC Inventory
+  unit: t/a
+  quantity: emissions
+  output_nodes:
+  - id: net_emissions
+
+
+pages:
+- id: home
+  name: Saskatoon Greenhouse Gas Inventory & Forecast
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Development Version
+  lead_paragraph: Greenhouse gas inventory (2014-2021) and forecast (2022-2050) for the City of
+                  Saskatoon.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Initiatives
+  all_actions_enabled: true
