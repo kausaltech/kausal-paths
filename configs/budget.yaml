@@ -56,6 +56,115 @@ action_efficiency_pairs:
 
 dimensions:
 
+- id: scope
+  label: Emission scope
+  label_fi: Päästöluokka
+  categories:
+  - id: scope1
+    label: Scope 1
+    label_fi: Scope 1
+  - id: scope2
+    label: Scope 2
+    label_fi: Scope 2
+  - id: scope3
+    label: Scope 3
+    label_fi: Scope 3
+
+- id: gpc
+  label: GPC framework
+  label_fi: GPC-viitekehys
+  categories:
+  - id: residential
+    label: I.1 Residential
+    label_fi: Asuinrakennukset
+  - id: commercial
+    label: I.2 Commercial
+    label_fi: Liikerakennukset
+  - id: manufacturing
+    label: I.3 Manufacturing
+    label_fi: Teollisuus
+  - id: energy
+    label: I.4 Energy
+    label_fi: Energiantuotanto
+  - id: agriculture
+    label: I.5 Agriculture, Forestry & Fishing
+    label_fi: Maa- ja metsätalous, kalastus
+  - id: nonspecified
+    label: I.6 Non-Specified
+    label_fi: Määrittelemätön
+  - id: fugitive
+    label: I.7,8 Fugitive
+    label_fi: Vuodot
+  - id: onroad
+    label: II.1 On-road Transport
+    label_fi: Tieliikenne
+  - id: railways
+    label: II.2 Railways
+    label_fi: Raideliikenne
+  - id: waterborne
+    label: II.3 Waterborne
+    label_fi: Vesiliikenne
+  - id: aviation
+    label: II.4 Aviation
+    label_fi: Lentoliikenne
+  - id: offroad
+    label: II.5 Off-Road Transport
+    label_fi: Maastoliikenne
+  - id: solidwaste
+    label: III.1 Solid Waste
+    label_fi: Kiinetä jäte
+  - id: biowaste
+    label: III.2 Biological Waste
+    label_fi: Biojäte
+  - id: incineration
+    label: III.3 Incineration
+    label_fi: Jätteenpoltto
+  - id: wastewater
+    label: III.4 Wastewater
+    label_fi: Jätevesi
+
+- id: greenhouse_gases
+  label: Greenhouse Gases
+  label_fi: Kasvihuonekaasu
+  categories:
+  - id: co2e
+    label: CO2 Equivalent
+  - id: co2
+    label: CO2
+  - id: ch4
+    label: CH4
+  - id: n2o
+    label: N2O
+
+- id: energy_carrier
+  label: Energy carrier
+  label_fi: Energialähde
+  categories:
+  - id: aviation_gasoline
+    label: Aviation gasoline
+    label_fi: Lentopolttoneste
+  - id: diesel
+    label: Diesel
+    label_fi: Diesel
+  - id: electricity
+    label: Electricity
+    label_fi: Sähkö
+  - id: fuel_oil
+    label: Fuel oil
+    label_fi: Polttoöljy
+  - id: gasoline
+    label: Gasoline
+    label_fi: Bensiini
+  - id: kerosene
+    label: Kerosene
+    label_fi: Kerosiini
+  - id: natural_gas
+    label: Natural gas
+    label_fi: Maakaasu
+  - id: propane
+    label: Propane
+    label_fi: Propaani
+
 - id: vehicle_type
   label: Vehicle type
   label_fi: Ajoneuvotyyppi
@@ -182,59 +291,59 @@ nodes:
 
 - id: residential_fuel
   name: I.1.1 Residential, Fuel Combustion
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_fuel_use, fuel_emission_factors]
   historical_values: [[2010, 1]]
 - id: residential_electricity
   name: I.1.2 Residential, Grid Energy
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_electricity_use, electricity_emission_factors]
   historical_values: [[2010, 1]]
 - id: commercial_fuel
   name: I.2.1 Commercial & Institutional, Fuel Combustion
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_fuel_use, fuel_emission_factors]
   historical_values: [[2010, 1]]
 - id: commercial_electricity
   name: I.2.2 Commercial & Institutional, Grid Energy
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_electricity_use, electricity_emission_factors]
   historical_values: [[2010, 1]]
 - id: manufacturing_fuel
   name: I.3.1 Manufacturing, Fuel Combustion
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_fuel_use, fuel_emission_factors]
   historical_values: [[2010, 1]]
 - id: manufacturing_electricity
   name: I.3.2 Manufacturing, Grid Energy
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_electricity_use, electricity_emission_factors]
   historical_values: [[2010, 1]]
 - id: energy_fuel
   name: I.4.1 Energy, Fuel Combustion
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_fuel_use, fuel_emission_factors]
   historical_values: [[2010, 1]]
 - id: energy_electricity
   name: I.4.2 Energy, Grid Energy
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: []
+  input_nodes: [building_electricity_use, electricity_emission_factors]
   historical_values: [[2010, 1]]
 - id: agriculture_fuel
   name: I.5.1 Ag, Forestry & Fishing, Fuel Combustion
@@ -538,6 +647,45 @@ nodes:
   input_nodes: [solidwaste, biowaste, incineration, wastewater]
   output_nodes: [net_emissions]
 
+########### OTHER
+
+- id: building_fuel_use
+  name: Building energy use
+  type: values.AssociationNode
+  quantity: energy
+  unit: l/a
+  historical_values: [[2010, 1]]
+
+- id: building_electricity_use
+  name: Building electricity use
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+
+- id: fuel_emission_factors
+  name: Fuel emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/l
+#  output_dimensions: [energy_carrier]
+  historical_values: [[2010, 1]]
+#  input_datasets:
+#  - id: saskatoon/fuel_emission_factor
+#    filters:
+#      - dimension: greenhouse_gases
+#        categories: co2
+#      - dimension: energy_carrier
+#        categories: aviation_gasoline
+#        flatten: false
+
+- id: electricity_emission_factors
+  name: Electricity emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/kWh
+  historical_values: [[2010, 1]]
+
 - id: investments
   name: Investments
   type: values.AssociationNode
@@ -773,9 +921,9 @@ actions:
   name: Change oil to geothermal heating
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
-  unit: kt/a
+  unit: GWh/a
   forecast_values: [[2024, 0], [2030, -100]]
-  output_nodes: [residential_fuel, investments]
+  output_nodes: [building_fuel_use, building_electricity_use, investments]
 
 - id: city_fleet_to_electric
   name: Replace city fleet with electric vehicles
