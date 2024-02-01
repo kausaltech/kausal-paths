@@ -165,3 +165,8 @@ class LegalityWeight(NumberParameter):
 class ImpactThreshold(NumberParameter):
     name = _('Threshold for sum of weighted impacts in value profiles')
     id = 'impact_threshold'
+
+
+class EffectOfEV(NumberParameter):
+    name = _('Effect of electric vehicles on car kilometers')
+    id = 'effect_of_ev'

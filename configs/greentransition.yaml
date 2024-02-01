@@ -111,6 +111,13 @@ params:
   min_value: 0
   max_value: 100
   unit: Ut/MEUR
+- id: effect_of_ev
+  label: 'Effect of EVs on car km (High: -20000, Low: -1000)'
+  value: -20000
+  min_value: -30000
+  max_value: 0
+  unit: vkm/a/pcs
+
 
 dimensions:
 - id: building_heat_source
@@ -365,8 +372,8 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - charging_supply
-  - charging_station_jobs
+  - id: charging_supply
+  - id: charging_station_jobs
 
 - id: effect_of_charging_stations_on_evs
   name: Latauspisteiden vaikutus sähköautojen määrään
@@ -406,8 +413,7 @@ nodes:
   - car_km
   params:
   - id: multiplier
-    value: -20000
-    unit: vkm/a/pcs
+    ref: effect_of_ev
 
 - id: air_quality
   name: Ilmanlaatu (PM2.5)
@@ -457,13 +463,12 @@ nodes:
   type: simple.FixedMultiplierNode
   unit: MEUR/a
   output_nodes:
-  - total_economic_benefit
+  - id: total_economic_benefit
+  - id: charging_stations
   params:
   - id: multiplier
     value: 10000
     unit: EUR/a/pcs
-  output_nodes:
-  - charging_stations
 
 - id: help_sustainable_transition
   name: Vihreän siirtymän edistäminen
@@ -813,11 +818,12 @@ nodes:
 - id: vp_general
   name: Yleinen arvoprofiili kaikista toimista ja vaikutuksista
   name_en: General value profiles about all actions and outcomes
-  description: <h4>Value profile of municipality A</h4>One of the goals of this action is to shift modes away from the single occupancy vehicles. Shared micro mobility systems make the city more accessible to those without cars. Municipality hired a consultant who found out that shared micro mobility is one of the best practices and their internal transportation planner is an expert in the subject. <h4>Value profile of municipality B</h4> High-quality and sustainable transportation options drive municipality’s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
-    <h4>Value profile of municipality A</h4> Municipality A thinks that building charging infrastructure may not be the use of the funds or the most effective but it is monitored to see if they should change their opinion in years to come. Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. Improving air quality and reducing greenhouse gas emissions are both equally important priorities for the municipality. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
+  description: '<h3>Micro mobility</h3><h4>Value profile of municipality A: Micro mobility</h4>One of the goals of this action is to shift modes away from the single occupancy vehicles. Shared micro mobility systems make the city more accessible to those without cars. Municipality hired a consultant who found out that shared micro mobility is one of the best practices and their internal transportation planner is an expert in the subject. <h4>Value profile of municipality B: Micro mobility</h4> High-quality and sustainable transportation options drive the municipality´s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C: Micro mobility</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
+    <h3>Charging stations</h3><h4>Value profile of municipality A: EV charging infrastructure</h4> Municipality A thinks that building charging infrastructure may not be the use of the funds or the most effective but it is monitored to see if they should change their opinion in years to come. Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. Improving air quality and reducing greenhouse gas emissions are both equally important priorities for the municipality. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company´s value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.'
   type: values.UtilityNode
   quantity: utility
   unit: Ut/a
+  is_outcome: true
   params:
   - id: impact_threshold
     ref: impact_threshold
@@ -850,6 +856,8 @@ nodes:
     tags: [equity]
   - id: energy_company_profit
     tags: [economic]
+  - id: total_economic_benefit
+    tags: [economic]
   - id: charging_station_jobs
     tags: [prosperity]
   - id: duty_of_municipality
@@ -879,36 +887,34 @@ actions:
 
 ############## Lauri's actions
 - id:  ev_charging_infrastructure
-  name: Latauspisteiden lisäys
-  name_en: Increase EV charging infrastructure
-  description: Why has municipality decided to increase EV charging infra
-  decision_level: nation
+  name: Kaupunki rakentaa latauspisteitä
+  name_en: The city builds EV charging infrastructure
+  description: The law may require cities to build the necessary infrastructure.
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
   forecast_values: [[2022, 0], [2030, 500]]
   group: vp_traffic
   output_nodes:
-  - charging_stations
+  - id: charging_stations
 
 - id:  ev_charging_policy
-  name: Politiikkatuki latauspisteille
+  name: Kaupunki tukee politiikalla yritysten latauspisteiden rakentamista
   name_en: Set policies to support EV charging
-  description: Why has municipality decided to set policies to support EV charging infrastructure
-  decision_level: nation
+  description: The municipality may decide to set policies to support EV charging infrastructure
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
   forecast_values: [[2022, 0], [2030, 500]]
   group: vp_traffic
   output_nodes:
-  - policies_demand
+  - id: policies_demand
+  - id: charging_stations
  
 - id:  biodiesel
   name: Biodieselasemien rakentaminen
   name_en: Build biodiesel stations
   description: Why has municipality decided to build biodiesel stations
-  decision_level: nation
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
@@ -921,7 +927,6 @@ actions:
   name: Kaupunkipyöräjärjestelmän perustaminen
   name_en: Offer shared micro mobility system
   description: Why does municipality offer shared micro mobility system
-  decision_level: nation
   quantity: number
   type: simple.CumulativeAdditiveAction
   unit: pcs
@@ -934,7 +939,6 @@ actions:
   name: Turvallisten pyöräparkkien rakentaminen
   name_en: Build safe parking space for bicycles
   description: Why would a municipality build safe parking space for bicycles?
-  decision_level: nation
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
@@ -950,6 +954,7 @@ actions:
   quantity: number
   type: simple.CumulativeAdditiveAction
   unit: pcs
+  group: vp_traffic
   forecast_values: [[2024, 200]]
   output_nodes:
   - city_mm_stations
@@ -967,9 +972,63 @@ scenarios:
   name_en: Active
   all_actions_enabled: true
 
-- id: municipality
-  name: Kunnan arvot
-  name_en: Values of the municipality
+- id: municipality_a
+  name: Kunnan A arvot
+  name_en: Values of municipality A
+  all_actions_enabled: true
+  params:
+  - id: impact_threshold
+    value: 0
+    unit: 1/a
+  - id: economic_weight
+    value: -1
+    unit: 1/EUR
+  - id: equity_weight
+    value: 10
+    unit: 1/a
+  - id: health_weight
+    value: 1
+  - id: purity_weight
+    value: 1
+  - id: legality_weight
+    value: 1
+  - id: emissions_weight
+    value: -1
+  - id: prosperity_weight
+    value: 1
+  - id: effect_of_ev
+    value: -20000
+
+- id: municipality_b
+  name: Kunnan B arvot
+  name_en: Values of municipality B
+  all_actions_enabled: true
+  params:
+  - id: impact_threshold
+    value: 5000000
+    unit: 1/a
+  - id: economic_weight
+    value: 1
+    unit: 1/EUR
+  - id: equity_weight
+    value: 0
+    unit: 1/a
+  - id: health_weight
+    value: 10
+  - id: purity_weight
+    value: 0
+  - id: legality_weight
+    value: 0
+  - id: emissions_weight
+    value: 0
+  - id: prosperity_weight
+    value: 0
+  - id: effect_of_ev
+    value: -20000
+
+- id: municipality_c
+  name: Kunnan C arvot
+  name_en: Values of municipality C
   all_actions_enabled: true
   params:
   - id: impact_threshold
@@ -981,6 +1040,18 @@ scenarios:
   - id: equity_weight
     value: 10000000
     unit: 1/a
+  - id: health_weight
+    value: 0
+  - id: purity_weight
+    value: 0
+  - id: legality_weight
+    value: 0
+  - id: emissions_weight
+    value: 0
+  - id: prosperity_weight
+    value: 0
+  - id: effect_of_ev
+    value: -1000
 
 - id: energy_company
   name: Energiayhtiön arvot
