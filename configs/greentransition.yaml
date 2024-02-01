@@ -356,7 +356,7 @@ nodes:
 - id: charging_stations  # NOTE! I removed the group and the decision level, because it is relevant only for actions.
   name: Latauspisteiden lukumäärä
   name_en: Number of charging stations
-  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A increases stations by setting policies. 
+  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A increases stations by setting policies.
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -372,6 +372,7 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
+  - id: tourism
   - id: charging_supply
   - id: charging_station_jobs
 
@@ -390,6 +391,30 @@ nodes:
   - id: multiplier
     value: 50
     unit: pcs/pcs
+
+- id: tourism
+  name: Turismin määrä
+  name_en: Number of tourists 
+  description: Tourism is an important business sector in Region D therefore the charging points matter whether tourists come to the area or not.
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 10000], [2023, 10000]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: local_business
+
+- id: local_business
+  name: Paikallisten yritysten liikevaihto
+  name_en: Turnover of local businesses. 
+  description: The number of tourists has an impact on how successful local businesses are.
+  quantity: currency
+  type: values.AssociationNode
+  unit: kEUR/a
+  historical_values: [[2010, 10000], [2023, 10000]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: total_economic_benefit
 
 - id: number_of_evs
   name: Sähköautojen määrä
@@ -739,7 +764,7 @@ nodes:
 - id: health_benefits
   name: Terveyshyödyt
   name_en: Health benefits
-  description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives. 
+  description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives.
   quantity: disease_burden
   type: simple.AdditiveNode
   unit: DALY/a
@@ -875,7 +900,7 @@ pages:
   lead_title: Vihreän siirtymän prioriteetit
   lead_title_en: Green transition priorities
   lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä.
-    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a 
+    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a
     href="https://www.lausuntopalvelu.fi/FI/Proposal/ShowAllProposalAnswers?proposalId=2e8c6721-4711-43d8-987b-deca2144eb4a">hallituksen
     esitykseen</a> eduskunnalle eräiden vihreän siirtymän hankkeiden väliaikaisesta
     etusijamenettelystä aluehallintovirastojen lupakäsittelyssä vuosina 2023—2025
@@ -934,6 +959,19 @@ actions:
   group: vp_traffic
   output_nodes:
   - city_mm_stations
+  - cost_mm_stations
+
+- id:  cost_mm_stations
+  name: Kaupunkipyöräjärjestelmän kustannukset
+  name_en: Cost of shared micro mobility system
+  description: How much shared micro mobility systems would impact a municipality's economic situation. Municipality D thinks offering would require investing in walking/cycling paths.
+  quantity: currency
+  type: simple.CumulativeAdditiveAction
+  unit: kEUR/a 
+  forecast_values: [[2024, 100], [2027, 100]]
+  group: vp_traffic
+  output_nodes:
+  - id: total_economic_benefit
 
 - id:  safe_bike_parking
   name: Turvallisten pyöräparkkien rakentaminen
@@ -950,7 +988,7 @@ actions:
 - id: sponsor_money
   name: Pyöräparkkien rakentaminen yritysten voimin
   name_en: Companies to sponsor micro mobility stations
-  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot.
+  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot. Municipality D would not offer a micro mobility system without third party involvement. 
   quantity: number
   type: simple.CumulativeAdditiveAction
   unit: pcs
