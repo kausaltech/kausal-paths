@@ -8,10 +8,12 @@ class CostNode(StringParameter):
 
 
 class ImpactNode(StringParameter):
+    name = _('Impact node')
     id = 'impact_node'
 
 
 class EfficiencyUnit(StringParameter):
+    name = _('Efficiency unit')
     id = 'efficiency_unit'
 
 

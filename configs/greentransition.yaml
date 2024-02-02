@@ -107,17 +107,18 @@ params:
   unit: Ut/a/(ug/m**3)
 - id: prosperity_weight
   label: Weight for long-term prosperity (e.g. jobs)
+  is_customizable: true
   value: 1
   min_value: 0
   max_value: 100
   unit: Ut/MEUR
 - id: effect_of_ev
   label: 'Effect of EVs on car km (High: -20000, Low: -1000)'
+  is_customizable: true
   value: -20000
   min_value: -30000
   max_value: 0
   unit: vkm/a/pcs
-
 
 dimensions:
 - id: building_heat_source
