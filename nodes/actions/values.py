@@ -75,3 +75,41 @@ class Hypothesis(AdditiveAction):
 
         df = ppl.to_ppdf(df, meta=meta)
         return df
+
+
+class BudgetingAction(AdditiveAction):
+    '''
+    A budgeting action is for giving both cost and effect information. It has two parameters for scaling and postponing the action.
+    '''
+    allowed_parameters: ClassVar[List[Parameter]] = AdditiveAction.allowed_parameters + [
+        NumberParameter(
+            local_id='scale_by',
+            label=TranslatedString(en='Scale the action by this number'),
+            is_customizable=True
+        ),
+        NumberParameter(
+            local_id='postpone_by',
+            label=TranslatedString(en='Postpone the action by this many years'),
+            is_customizable=True
+        ),
+    ]
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+        scale = self.get_parameter_value('scale_by',units=False, required=False)
+        postpone = self.get_parameter_value('postpone_by', units=False, required=False)
+
+        if not self.is_enabled():
+            scale = 0
+
+        if postpone is not None:
+            postpone = int(postpone)
+            forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min()
+            df = df.with_columns((pl.col(YEAR_COLUMN) + postpone).alias(YEAR_COLUMN))
+            df = df.with_columns((pl.col(YEAR_COLUMN) >= forecast_from).alias(FORECAST_COLUMN))
+
+        if scale is not None:
+            for m in df.metric_cols:
+                df = df.with_columns((pl.col(m) * scale).alias(m))
+
+        return df

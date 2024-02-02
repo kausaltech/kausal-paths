@@ -4,7 +4,7 @@ supported_languages: [fi]
 site_url: https://budget.paths.test.kausal.dev
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 11edf77441369173212c743019ee7c04a1ea2ca1
+  commit: 00f0a9789bde35ba32e8fa7c45717fcaeda2b18e
   dvc_remote: kausal-s3
   default_path: budget
 name: Climate budgeting sandbox
@@ -135,6 +135,32 @@ dimensions:
     label: CH4
   - id: n2o
     label: N2O
+
+- id: account
+  label: Account
+  label_fi: Tili
+  groups:
+  - id: costs
+    label: Costs
+    label_fi: Menot
+  categories:
+  - id: income
+    label: Income
+    label_fi: Tulot
+  - id: capex
+    label: Capital costs
+    label_fi: Investointikustannukset
+    group: costs
+  - id: opex
+    label: Operational costs
+    label_fi: Käyttökustannukset
+    group: costs
+  - id: savings
+    label: Savings
+    label_fi: Säästöt
+  - id: payments
+    label: Payments
+    label_fi: Maksut
 
 - id: energy_carrier
   label: Energy carrier
@@ -628,7 +654,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [residential, commercial, manufacturing, energy, agriculture, nonspecified, fugitive_coal, fugitive_oil]
+  input_nodes: [residential, commercial, manufacturing, energy, agriculture, nonspecified,
+    fugitive_coal, fugitive_oil]
   output_nodes: [net_emissions]
 
 - id: transport
@@ -891,15 +918,49 @@ nodes:
   - id: multiplier
     value: 0.2
 
+- id: streetlight_energy_saving
+  name: Energy saved by LED streetlights
+  type: simple.FixedMultiplierNode
+  quantity: energy
+  unit: MWh/a
+#  output_nodes: [energy_electricity]
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
+
 actions:
 
 - id: led_streetlights
   name: Change streetlights to LED
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  unit: kt/a
-  forecast_values: [[2024, 0], [2030, -100]]
-  output_nodes: [energy_electricity, investments]
+  type: values.BudgetingAction
+  quantity: number
+  unit: pcs
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+    column: number
+  output_nodes:
+  - id: streetlight_energy_saving
+    from_dimensions:
+    - id: account
+      flatten: true
+  output_dimensions: [account]
+  params:
+  - id: scale_by
+    value: 5
+    min_value: 0
+    max_value: 10
+    is_visible: true
+    is_customizable: true
+    label: Scale the action by this factor
+  - id: postpone_by
+    value: -1
+    min_value: -1
+    max_value: 10
+    is_visible: true
+    is_customizable: true
+    label: Postpone the action by this many years
 
 - id: pv_electricity
   name: Build renewable electricity production (PV)
@@ -907,7 +968,7 @@ actions:
   quantity: emissions
   unit: kt/a
   forecast_values: [[2024, 0], [2030, -100]]
-  output_nodes: [energy_electricity, investments]
+#  output_nodes: [energy_electricity, investments]
 
 - id: building_renovations
   name: Energy efficiency renovations in buildings
