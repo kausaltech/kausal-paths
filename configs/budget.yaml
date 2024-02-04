@@ -653,7 +653,7 @@ nodes:
 
 - id: stationary_activity
   name: Stationary activity
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   historical_values: [[2010, 1]]
@@ -661,7 +661,7 @@ nodes:
 
 - id: transport_activity
   name: Transport activity
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   historical_values: [[2010, 1]]
@@ -669,7 +669,7 @@ nodes:
 
 - id: waste_activity
   name: Waste activity
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: mass
   unit: m**3/a
   historical_values: [[2010, 1]]
@@ -683,21 +683,21 @@ nodes:
 
 - id: stationary_emission_factor
   name: Stationary emission_factor
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
   historical_values: [[2010, 1]]
 
 - id: transport_emission_factor
   name: Transport emission factor
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
   historical_values: [[2010, 1]]
 
 - id: waste_emission_factor
   name: Waste emission factor
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/m**3
   historical_values: [[2010, 1]]
@@ -711,7 +711,7 @@ nodes:
 
 - id: investments
   name: Investments
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
   historical_values: [[2010, 100]]
@@ -948,75 +948,75 @@ nodes:
 
 - id: streetlight_energy_saving
   name: Energy saved by LED streetlights
-  type: values.AssociationNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
   historical_values: [[2010, 100]]
-#  params:
-#  - id: multiplier
-#    value: -130
-#    unit: kWh/a/pcs
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
 
 - id: pv_energy_saving
   name: Energy saved by PV
-  type: values.AssociationNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
   historical_values: [[2010, 100]]
-#  params:
-#  - id: multiplier
-#    value: -130
-#    unit: kWh/a/pcs
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
 
 - id: renovation_energy_saving
   name: Energy saved by building renovations
-  type: values.AssociationNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
   historical_values: [[2010, 100]]
-#  params:
-#  - id: multiplier
-#    value: -130
-#    unit: kWh/a/pcs
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
 
 - id: oil_energy_saving
   name: Energy saved by removing oil heating
-  type: values.AssociationNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
   historical_values: [[2010, 100]]
-#  params:
-#  - id: multiplier
-#    value: -130
-#    unit: kWh/a/pcs
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
 
 - id: city_fleet_energy_saving
   name: Energy saved by electrifying city fleet
-  type: values.AssociationNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
   historical_values: [[2010, 100]]
-#  params:
-#  - id: multiplier
-#    value: -130
-#    unit: kWh/a/pcs
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
 
 - id: public_transport_energy_saving
   name: Energy saved by electrifying public transport
-  type: values.AssociationNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
   historical_values: [[2010, 100]]
-#  params:
-#  - id: multiplier
-#    value: -130
-#    unit: kWh/a/pcs
+  params:
+  - id: multiplier
+    value: -130
+    unit: kWh/a/pcs
 
 - id: action_costs
   name: Action costs
