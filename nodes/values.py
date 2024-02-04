@@ -132,7 +132,7 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
         for edge in self.edges:
             if edge.output_node is self:
                 node = edge.input_node
-                m = node.get_default_output_metric().column_id
+                m = VALUE_COLUMN # = node.get_default_output_metric().column_id
 
                 fraction = 0.1  # Default fraction of the output node's output
                 for fr in ['fraction1', 'fraction2', 'fraction3']:

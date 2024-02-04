@@ -1,7 +1,8 @@
 from nodes.calc import extend_last_historical_value_pl, nafill_all_forecast_years
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
 from typing import List, ClassVar, Tuple
-from nodes.constants import VALUE_COLUMN, FORECAST_COLUMN, YEAR_COLUMN
+from nodes.constants import VALUE_COLUMN, FORECAST_COLUMN, YEAR_COLUMN, DEFAULT_METRIC
+from nodes.node import NodeMetric
 import polars as pl
 import pandas as pd
 import pint
@@ -81,6 +82,10 @@ class BudgetingAction(AdditiveAction):
     '''
     A budgeting action is for giving both cost and effect information. It has two parameters for scaling and postponing the action.
     '''
+    output_metrics = {
+        DEFAULT_METRIC: NodeMetric(unit='pcs', quantity='number', column_id='number'),
+        'cost': NodeMetric(unit='kEUR/a', quantity='currency', column_id='currency')
+    }
     allowed_parameters: ClassVar[List[Parameter]] = AdditiveAction.allowed_parameters + [
         NumberParameter(
             local_id='scale_by',
@@ -111,5 +116,4 @@ class BudgetingAction(AdditiveAction):
         if scale is not None:
             for m in df.metric_cols:
                 df = df.with_columns((pl.col(m) * scale).alias(m))
-
         return df

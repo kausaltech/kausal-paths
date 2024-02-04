@@ -247,7 +247,7 @@ dimensions:
     label: Society
     label_fi: Yhteiskunta
 
-- id: outcome_of_interest
+- id: outcome_of_interest  # Outcome of interest and account are partially overlapping. How to streamline?
   label: Outcome of interest
   label_fi: Kiinnostava tulos
   categories:
@@ -715,7 +715,11 @@ nodes:
   quantity: currency
   unit: MEUR/a
   historical_values: [[2010, 100]]
-  output_nodes: [total_monetary_benefits]
+  output_nodes:
+  - id: total_monetary_benefits
+    to_dimensions:
+    - id: account
+      categories: [capex]
 
 - id: emission_costs
   name: Emission costs
@@ -723,7 +727,11 @@ nodes:
   quantity: currency
   unit: MEUR/a
   input_nodes: [net_emissions]
-  output_nodes: [total_monetary_benefits]
+  output_nodes:
+  - id: total_monetary_benefits
+    to_dimensions:
+    - id: account
+      categories: [payments]
   params:
   - id: multiplier
     value: -100
@@ -734,6 +742,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  input_dimensions: [account]
+  output_dimensions: [account]
 
 - id: total_discounted_monetary_benefits
   name: Total discounted monetary benefits
@@ -744,6 +754,8 @@ nodes:
   is_outcome: true
   input_nodes:
   - id: total_monetary_benefits
+  input_dimensions: [account]
+  output_dimensions: [account]
   params:
   - id: annual_change
     ref: discount_rate
@@ -936,69 +948,84 @@ nodes:
 
 - id: streetlight_energy_saving
   name: Energy saved by LED streetlights
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+  historical_values: [[2010, 100]]
+#  params:
+#  - id: multiplier
+#    value: -130
+#    unit: kWh/a/pcs
 
 - id: pv_energy_saving
   name: Energy saved by PV
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+  historical_values: [[2010, 100]]
+#  params:
+#  - id: multiplier
+#    value: -130
+#    unit: kWh/a/pcs
 
 - id: renovation_energy_saving
   name: Energy saved by building renovations
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+  historical_values: [[2010, 100]]
+#  params:
+#  - id: multiplier
+#    value: -130
+#    unit: kWh/a/pcs
 
 - id: oil_energy_saving
   name: Energy saved by removing oil heating
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: energy
   unit: MWh/a
   output_nodes: [stationary_activity]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+  historical_values: [[2010, 100]]
+#  params:
+#  - id: multiplier
+#    value: -130
+#    unit: kWh/a/pcs
 
 - id: city_fleet_energy_saving
   name: Energy saved by electrifying city fleet
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [transport_activity]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+  output_nodes: [stationary_activity]
+  historical_values: [[2010, 100]]
+#  params:
+#  - id: multiplier
+#    value: -130
+#    unit: kWh/a/pcs
 
 - id: public_transport_energy_saving
   name: Energy saved by electrifying public transport
-  type: simple.FixedMultiplierNode
+  type: values.AssociationNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [transport_activity]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+  output_nodes: [stationary_activity]
+  historical_values: [[2010, 100]]
+#  params:
+#  - id: multiplier
+#    value: -130
+#    unit: kWh/a/pcs
+
+- id: action_costs
+  name: Action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [account]
+  output_dimensions: [account]
+  output_nodes: [total_monetary_benefits]
 
 actions:
 
@@ -1011,12 +1038,14 @@ actions:
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
-    column: number
   output_nodes:
   - id: streetlight_energy_saving
+    metrics: [number]
     from_dimensions:
     - id: account
       flatten: true
+  - id: action_costs
+    metrics: [currency]
   output_dimensions: [account]
   params:
   - id: scale_by
@@ -1043,12 +1072,14 @@ actions:
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
-    column: number
   output_nodes:
   - id: pv_energy_saving
+    metrics: [number]
     from_dimensions:
     - id: account
       flatten: true
+  - id: action_costs
+    metrics: [currency]
   output_dimensions: [account]
   params:
   - id: scale_by
@@ -1075,12 +1106,14 @@ actions:
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
-    column: number
   output_nodes:
   - id: renovation_energy_saving
+    metrics: [number]
     from_dimensions:
     - id: account
       flatten: true
+  - id: action_costs
+    metrics: [currency]
   output_dimensions: [account]
   params:
   - id: scale_by
@@ -1107,12 +1140,14 @@ actions:
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
-    column: number
   output_nodes:
   - id: oil_energy_saving
+    metrics: [number]
     from_dimensions:
     - id: account
       flatten: true
+  - id: action_costs
+    metrics: [currency]
   output_dimensions: [account]
   params:
   - id: scale_by
@@ -1139,12 +1174,14 @@ actions:
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
-    column: number
   output_nodes:
   - id: city_fleet_energy_saving
+    metrics: [number]
     from_dimensions:
     - id: account
       flatten: true
+  - id: action_costs
+    metrics: [currency]
   output_dimensions: [account]
   params:
   - id: scale_by
@@ -1171,12 +1208,14 @@ actions:
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
-    column: number
   output_nodes:
   - id: public_transport_energy_saving
+    metrics: [number]
     from_dimensions:
     - id: account
       flatten: true
+  - id: action_costs
+    metrics: [currency]
   output_dimensions: [account]
   params:
   - id: scale_by
