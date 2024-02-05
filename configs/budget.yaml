@@ -43,20 +43,20 @@ params:
 action_groups:
 - id: energy
   name: Energy production
-  color: '#101005'  # FIXME Colors do not appear
+  color: '#29ab87'
 - id: stationary
   name: Stationary
-  color: '#051214'
+  color: '#32cd32'
 - id: transport
   name: Transport
-  color: '#121405'
+  color: '#93c572'
 - id: waste
   name: Waste
-  color: '#140512'
+  color: '#50c878'
 
 action_efficiency_pairs:
 - graph_type: return_of_investment
-  cost_node: investments
+  cost_node: test_investments
   impact_node: total_monetary_benefits
   invert_cost: false
   invert_impact: false
@@ -75,6 +75,15 @@ action_efficiency_pairs:
   stakeholder_dimension: stakeholder
   outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis
+- graph_type: cost_efficiency
+  cost_node: total_monetary_benefits
+  impact_node: discounted_costs
+  invert_cost: true
+  invert_impact: true
+  indicator_unit: dimensionless
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label: Cost-efficiency analysis
 
 dimensions:
 
@@ -307,41 +316,45 @@ emission_sectors:
 - id: net_emissions
   name: Net emissions
   is_outcome: true
-- id: stationary_emissions
-  name: I Stationary
+- id: building_emissions
+  name: I Building Emissions
+  part_of: net_emissions
+  color: '#ff4f57'
+- id: other_stationary_emissions
+  name: I Other Stationary Emissions
   part_of: net_emissions
   color: '#ff4f57'
 - id: transport_emissions
-  name: II Transport
+  name: II Transport Emissions
   part_of: net_emissions
   color: '#0047b6'
 - id: waste_emissions
-  name: III Waste
+  name: III Waste Emissions
   part_of: net_emissions
   color: '#014B30'
 
 ################## Emissions 2nd level
 - id: residential_emissions
   name: 'I.1 Residential Emissions'
-  part_of: stationary_emissions
+  part_of: building_emissions
 - id: commercial_emissions
   name: 'I.2 Commercial & Institutional Emissions'
-  part_of: stationary_emissions
+  part_of: building_emissions
 - id: manufacturing_emissions
   name: 'I.3 Manufacturing Emissions'
-  part_of: stationary_emissions
+  part_of: building_emissions
 - id: energy_emissions
   name: 'I.4 Energy Emissions'
-  part_of: stationary_emissions
+  part_of: other_stationary_emissions
 - id: agriculture_emissions
   name: 'I.5 Ag, Forestry & Fishing Emissions'
-  part_of: stationary_emissions
+  part_of: other_stationary_emissions
 - id: nonspecified_emissions
   name: 'I.6 Non-Specified Emissions'
-  part_of: stationary_emissions
+  part_of: other_stationary_emissions
 - id: fugitive_emissions
   name: 'I.7 Fugitive Emissions Emissions'
-  part_of: stationary_emissions
+  part_of: other_stationary_emissions
 - id: onroad_emissions
   name: 'II.1 On-Road Transport Emissions'
   part_of: transport_emissions
@@ -374,224 +387,224 @@ nodes:
 
 ################## Emissions 3rd level
 - id: residential_fuel
-  name: 'I.1.1 Residential: Fuel Combustion'
+  name: 'I.1.1 Residential: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [building_activity, building_emission_factor]
   output_nodes: [residential_emissions]
 - id: residential_grid
-  name: 'I.1.2 Residential: Grid Energy'
+  name: 'I.1.2 Residential: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [building_activity, building_emission_factor]
   output_nodes: [residential_emissions]
 - id: commercial_fuel
-  name: 'I.2.1 Commercial & Institutional: Fuel Combustion'
+  name: 'I.2.1 Commercial & Institutional: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [building_activity, building_emission_factor]
   output_nodes: [commercial_emissions]
 - id: commercial_grid
-  name: 'I.2.2 Commercial & Institutional: Grid Energy'
+  name: 'I.2.2 Commercial & Institutional: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [building_activity, building_emission_factor]
   output_nodes: [commercial_emissions]
 - id: manufacturing_fuel
-  name: 'I.3.1 Manufacturing: Fuel Combustion'
+  name: 'I.3.1 Manufacturing: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [building_activity, building_emission_factor]
   output_nodes: [manufacturing_emissions]
 - id: manufacturing_grid
-  name: 'I.3.2 Manufacturing: Grid Energy'
+  name: 'I.3.2 Manufacturing: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [building_activity, building_emission_factor]
   output_nodes: [manufacturing_emissions]
 - id: energy_fuel
-  name: 'I.4.1 Energy: Fuel Combustion'
+  name: 'I.4.1 Energy: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [energy_emissions]
 - id: energy_grid
-  name: 'I.4.2 Energy: Grid Energy'
+  name: 'I.4.2 Energy: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [energy_emissions]
 - id: agriculture_fuel
-  name: 'I.5.1 Ag, Forestry & Fishing: Fuel Combustion'
+  name: 'I.5.1 Ag, Forestry & Fishing: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [agriculture_emissions]
 - id: agriculture_grid
-  name: 'I.5.2 Ag, Forestry & Fishing: Grid Energy'
+  name: 'I.5.2 Ag, Forestry & Fishing: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [agriculture_emissions]
 - id: nonspecified_fuel
-  name: 'I.6.1 Non-Specified: Fuel Combustion'
+  name: 'I.6.1 Non-Specified: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [nonspecified_emissions]
 - id: nonspecified_grid
-  name: 'I.6.2 Non-Specified: Grid Energy'
+  name: 'I.6.2 Non-Specified: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [nonspecified_emissions]
 - id: fugitive_coal
-  name: 'I.7.1 Fugitive Emissions: Coal'
+  name: 'I.7.1 Fugitive Emissions: Coal Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [fugitive_emissions]
 - id: fugitive_oil
-  name: 'I.8.1 Fugitive Emissions: Oil & Natural Gas'
+  name: 'I.8.1 Fugitive Emissions: Oil & Natural Gas Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_nodes: [stationary_activity, stationary_emission_factor]
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
   output_nodes: [fugitive_emissions]
 - id: onroad_fuel
-  name: 'II.1.1 On-Road Transport: Fuel Combustion'
+  name: 'II.1.1 On-Road Transport: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [onroad_emissions]
 - id: onroad_grid
-  name: 'II.1.2 On-Road Transport: Grid Energy'
+  name: 'II.1.2 On-Road Transport: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [onroad_emissions]
 - id: railways_fuel
-  name: 'II.2.1 Railways: Fuel Combustion'
+  name: 'II.2.1 Railways: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [railways_emissions]
 - id: railways_grid
-  name: 'II.2.2 Railways: Grid Energy'
+  name: 'II.2.2 Railways: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [railways_emissions]
 - id: waterborne_fuel
-  name: 'II.3.1 Waterborne: Fuel Combustion'
+  name: 'II.3.1 Waterborne: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [waterborne_emissions]
 - id: waterborne_grid
-  name: 'II.3.2 Waterborne: Grid Energy'
+  name: 'II.3.2 Waterborne: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [waterborne_emissions]
 - id: aviation_fuel
-  name: 'II.4.1 Aviation: Fuel Combustion'
+  name: 'II.4.1 Aviation: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [aviation_emissions]
 - id: aviation_grid
-  name: 'II.4.2 Aviation: Grid Energy'
+  name: 'II.4.2 Aviation: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [aviation_emissions]
 - id: offroad_fuel
-  name: 'II.5.1 Off-Road Transport: Fuel Combustion'
+  name: 'II.5.1 Off-Road Transport: Fuel Combustion Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [offroad_emissions]
 - id: offroad_grid
-  name: 'II.5.2 Off-Road Transport: Grid Energy'
+  name: 'II.5.2 Off-Road Transport: Grid Energy Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [transport_activity, transport_emission_factor]
   output_nodes: [offroad_emissions]
 - id: solidwaste_within
-  name: 'III.1.1 Solid Waste: Disposed Within City'
+  name: 'III.1.1 Solid Waste: Disposed Within City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [solidwaste_emissions]
 - id: solidwaste_outside
-  name: 'III.1.2 Solid Waste: Disposed Outside City'
+  name: 'III.1.2 Solid Waste: Disposed Outside City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [solidwaste_emissions]
 - id: biowaste_within
-  name: 'III.2.1 Biological Waste: Treated Within City'
+  name: 'III.2.1 Biological Waste: Treated Within City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [biowaste_emissions]
 - id: biowaste_outside
-  name: 'III.2.2 Biological Waste: Treated Outside City'
+  name: 'III.2.2 Biological Waste: Treated Outside City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [biowaste_emissions]
 - id: incineration_within
-  name: 'III.3.1 Incineration: Treated Within City'
+  name: 'III.3.1 Incineration: Treated Within City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [incineration_emissions]
 - id: incineration_outside
-  name: 'III.3.2 Incineration: Treated Outside City'
+  name: 'III.3.2 Incineration: Treated Outside City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [incineration_emissions]
 - id: wastewater_within
-  name: 'III.4.1 Wastewater: Treated Within City'
+  name: 'III.4.1 Wastewater: Treated Within City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [wastewater_emissions]
 - id: wastewater_outside
-  name: 'III.4.2 Wastewater: Treated Outside City'
+  name: 'III.4.2 Wastewater: Treated Outside City Emissions'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -626,14 +639,14 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_nodes: [stationary_activity]  # FIXME Split more precisely when the data is there
+  input_nodes: [building_activity]  # FIXME Split more precisely when the data is there
 
 - id: building_electricity_use
   name: Building electricity use
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_nodes: [stationary_activity]  # FIXME Split more precisely when the data is there
+  input_nodes: [building_activity]  # FIXME Split more precisely when the data is there
 
 - id: fuel_emission_factors
   name: Fuel emission factors
@@ -651,8 +664,16 @@ nodes:
 #        categories: aviation_gasoline
 #        flatten: false
 
-- id: stationary_activity
-  name: Stationary activity
+- id: building_activity
+  name: Building activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+
+- id: other_stationary_activity
+  name: Other stationary activity
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -681,8 +702,15 @@ nodes:
   unit: GWh/a
   is_outcome: true
 
-- id: stationary_emission_factor
-  name: Stationary emission_factor
+- id: building_emission_factor
+  name: Building emission_factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+
+- id: other_stationary_emission_factor
+  name: Other stationary emission factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
@@ -708,18 +736,6 @@ nodes:
   quantity: emission_factor
   unit: kg/kWh
   historical_values: [[2010, 1]]
-
-- id: investments
-  name: Investments
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  historical_values: [[2010, 100]]
-  output_nodes:
-  - id: total_monetary_benefits
-    to_dimensions:
-    - id: account
-      categories: [capex]
 
 - id: emission_costs
   name: Emission costs
@@ -951,7 +967,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [stationary_activity]
+  output_nodes: [other_stationary_activity]
   historical_values: [[2010, 100]]
   params:
   - id: multiplier
@@ -963,7 +979,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [stationary_activity]
+  output_nodes: [other_stationary_activity]
   historical_values: [[2010, 100]]
   params:
   - id: multiplier
@@ -975,7 +991,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [stationary_activity]
+  output_nodes: [building_activity]
   historical_values: [[2010, 100]]
   params:
   - id: multiplier
@@ -987,7 +1003,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [stationary_activity]
+  output_nodes: [building_activity]
   historical_values: [[2010, 100]]
   params:
   - id: multiplier
@@ -999,7 +1015,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [stationary_activity]
+  output_nodes: [transport_activity]
   historical_values: [[2010, 100]]
   params:
   - id: multiplier
@@ -1011,7 +1027,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: MWh/a
-  output_nodes: [stationary_activity]
+  output_nodes: [transport_activity]
   historical_values: [[2010, 100]]
   params:
   - id: multiplier
