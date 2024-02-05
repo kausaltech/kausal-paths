@@ -556,9 +556,8 @@ nodes:
   type: simple.Activity
   quantity: mileage
   unit: Mvkm/a
-  historical_values: [[2020, 0]]
-  forecast_values: [[2021, 0], [2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026,
-      0], [2027, 0], [2028, 0], [2029, 0], [2030, 0]]
+  historical_values: [[2010, 0], [2022, 0]]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - tram_emissions
 
