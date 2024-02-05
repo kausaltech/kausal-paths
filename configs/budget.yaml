@@ -312,27 +312,6 @@ dimensions:
 
 emission_sectors:
 
-################### Emissions 1st level
-- id: net_emissions
-  name: Net emissions
-  is_outcome: true
-- id: building_emissions
-  name: I Building Emissions
-  part_of: net_emissions
-  color: '#ff4f57'
-- id: other_stationary_emissions
-  name: I Other Stationary Emissions
-  part_of: net_emissions
-  color: '#ff4f57'
-- id: transport_emissions
-  name: II Transport Emissions
-  part_of: net_emissions
-  color: '#0047b6'
-- id: waste_emissions
-  name: III Waste Emissions
-  part_of: net_emissions
-  color: '#014B30'
-
 ################## Emissions 2nd level
 - id: residential_emissions
   name: 'I.1 Residential Emissions'
@@ -384,6 +363,62 @@ emission_sectors:
   part_of: waste_emissions
 
 nodes:
+
+################### Emissions 1st level
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+- id: building_emissions
+  name: I Building Emissions
+  color: '#ff4f57'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: building_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+- id: other_stationary_emissions
+  name: I Other Stationary Emissions
+  color: '#ff5f67'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: other_stationary_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+- id: transport_emissions
+  name: II Transport Emissions
+  color: '#0047b6'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: transport_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+- id: waste_emissions
+  name: III Waste Emissions
+  color: '#014B30'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: waste_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
 
 ################## Emissions 3rd level
 - id: residential_fuel
@@ -611,6 +646,269 @@ nodes:
   input_nodes: [waste_activity, waste_emission_factor]
   output_nodes: [wastewater_emissions]
 
+################## Activity nodes
+
+- id: building_activity
+  name: building activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+- id: other_stationary_activity
+  name: other_stationary activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+- id: transport_activity
+  name: transport activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+
+- id: waste_activity
+  name: Waste activity
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: m**3/a
+  historical_values: [[2010, 1]]
+
+- id: total_energy_consumption
+  name: Total energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  is_outcome: true
+
+################## Emission factor nodes
+
+- id: building_emission_factor
+  name: building emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: electricity_emission_factor
+  name: electricity emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: other_stationary_emission_factor
+  name: other_stationary emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: transport_emission_factor
+  name: transport emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: waste_emission_factor
+  name: waste emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/m**3
+  historical_values: [[2010, 1]]
+
+################## Cost nodes
+
+- id: building_action_costs
+  name: building action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [building_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: building_emission_costs
+  name: building emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [building_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: building_costs
+  name: building costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [total_monetary_benefits]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: other_stationary_action_costs
+  name: other_stationary action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [other_stationary_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: other_stationary_emission_costs
+  name: other_stationary emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [other_stationary_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: other_stationary_costs
+  name: other_stationary costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [total_monetary_benefits]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: transport_action_costs
+  name: transport action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [transport_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: transport_emission_costs
+  name: transport emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [transport_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: transport_costs
+  name: transport costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [total_monetary_benefits]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: waste_action_costs
+  name: waste action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [waste_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: waste_emission_costs
+  name: waste emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [waste_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: waste_costs
+  name: waste costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [total_monetary_benefits]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: price_of_emissions
+  name: Price of emissions
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2010, 100]]
+
+############### Collection nodes
+
+- id: collect_building
+  name: Collect building nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: building_emissions
+  - id: building_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+- id: collect_other_stationary
+  name: Collect other_stationary nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: other_stationary_emissions
+  - id: other_stationary_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+- id: collect_transport
+  name: Collect transport nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: transport_emissions
+  - id: transport_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+- id: collect_waste
+  name: Collect waste nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: waste_emissions
+  - id: waste_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+
 ########### OTHER
 
 - id: population2
@@ -633,125 +931,6 @@ nodes:
   quantity: population
   unit: cap
   historical_values: [[2010, 250000]]
-
-- id: building_fuel_use
-  name: Building fuel use
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes: [building_activity]  # FIXME Split more precisely when the data is there
-
-- id: building_electricity_use
-  name: Building electricity use
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes: [building_activity]  # FIXME Split more precisely when the data is there
-
-- id: fuel_emission_factors
-  name: Fuel emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t/l
-#  output_dimensions: [energy_carrier]
-  historical_values: [[2010, 1]]
-#  input_datasets:
-#  - id: saskatoon/fuel_emission_factor
-#    filters:
-#      - dimension: greenhouse_gases
-#        categories: co2
-#      - dimension: energy_carrier
-#        categories: aviation_gasoline
-#        flatten: false
-
-- id: building_activity
-  name: Building activity
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2010, 1]]
-  output_nodes: [total_energy_consumption]
-
-- id: other_stationary_activity
-  name: Other stationary activity
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2010, 1]]
-  output_nodes: [total_energy_consumption]
-
-- id: transport_activity
-  name: Transport activity
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2010, 1]]
-  output_nodes: [total_energy_consumption]
-
-- id: waste_activity
-  name: Waste activity
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: m**3/a
-  historical_values: [[2010, 1]]
-
-- id: total_energy_consumption
-  name: Total energy consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  is_outcome: true
-
-- id: building_emission_factor
-  name: Building emission_factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-
-- id: other_stationary_emission_factor
-  name: Other stationary emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-
-- id: transport_emission_factor
-  name: Transport emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-
-- id: waste_emission_factor
-  name: Waste emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/m**3
-  historical_values: [[2010, 1]]
-
-- id: electricity_emission_factors
-  name: Electricity emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/kWh
-  historical_values: [[2010, 1]]
-
-- id: emission_costs
-  name: Emission costs
-  type: simple.FixedMultiplierNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes: [net_emissions]
-  output_nodes:
-  - id: total_monetary_benefits
-    to_dimensions:
-    - id: account
-      categories: [payments]
-  params:
-  - id: multiplier
-    value: -100
-    unit: EUR/t
 
 - id: total_monetary_benefits
   name: Total monetary benefits (non-discounted)
@@ -777,6 +956,8 @@ nodes:
     ref: discount_rate
   - id: is_decreasing_rate
     value: true
+
+#################### Transport model based on modal shares
 
 - id: walking
   name: Walking
@@ -1034,15 +1215,6 @@ nodes:
     value: -130
     unit: kWh/a/pcs
 
-- id: action_costs
-  name: Action costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
-  input_dimensions: [account]
-  output_dimensions: [account]
-  output_nodes: [total_monetary_benefits]
-
 actions:
 
 - id: led_streetlights
@@ -1060,7 +1232,7 @@ actions:
     from_dimensions:
     - id: account
       flatten: true
-  - id: action_costs
+  - id: other_stationary_action_costs
     metrics: [currency]
   output_dimensions: [account]
   params:
@@ -1094,7 +1266,7 @@ actions:
     from_dimensions:
     - id: account
       flatten: true
-  - id: action_costs
+  - id: other_stationary_action_costs
     metrics: [currency]
   output_dimensions: [account]
   params:
@@ -1128,7 +1300,7 @@ actions:
     from_dimensions:
     - id: account
       flatten: true
-  - id: action_costs
+  - id: building_action_costs
     metrics: [currency]
   output_dimensions: [account]
   params:
@@ -1162,7 +1334,7 @@ actions:
     from_dimensions:
     - id: account
       flatten: true
-  - id: action_costs
+  - id: building_action_costs
     metrics: [currency]
   output_dimensions: [account]
   params:
@@ -1196,7 +1368,7 @@ actions:
     from_dimensions:
     - id: account
       flatten: true
-  - id: action_costs
+  - id: transport_action_costs
     metrics: [currency]
   output_dimensions: [account]
   params:
@@ -1230,7 +1402,7 @@ actions:
     from_dimensions:
     - id: account
       flatten: true
-  - id: action_costs
+  - id: transport_action_costs
     metrics: [currency]
   output_dimensions: [account]
   params:
