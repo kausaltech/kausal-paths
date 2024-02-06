@@ -974,7 +974,9 @@ class TransportEmissions2kW(Node):
         edf = edf.paths.join_over_index(cdf)
 
         edf = edf.subtract_cols(['emissions_total', 'emissions'], 'emissions_2kw')
-        edf = edf.with_columns(emissions_2kw = pl.when(pl.col('emissions_2kw') < 0).then(0).otherwise(pl.col('emissions_2kw')))
+        edf = edf.with_columns(emissions_2kw = pl.when(pl.col('emissions_2kw') < 0).then(0)
+                                                 .when(pl.col('emissions_2kw').is_null()).then(0)
+                                                 .otherwise(pl.col('emissions_2kw')))
 
         # print('emissions: %s' % edf._units['emissions'])
         # print('consumption: %s' % edf._units['consumption'])
