@@ -1,59 +1,41 @@
-import numpy as np
 import pandas as pd
-from params import StringParameter, BoolParameter
-from nodes.node import Node
-from nodes.constants import (
-    VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
-)
+from params import StringParameter
+from nodes.calc import extend_last_historical_value
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
 from nodes.dimensions import Dimension
-from nodes.exceptions import NodeError
-from nodes.node import NodeMetric
+from nodes.node import Node
 
 
 class EmissionsNode(Node):
-    input_datasets = ['gpc/saskatoon']
-    # global_parameters = ['municipality_name']
-    # output_metrics = {
-    #     EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
-    #     ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
-    #     EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
-    # }
-    # output_dimensions = {
-    #     'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True)
-    # }
+    allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
+
+    qlookup = {'emissions': 'Emissions'}
 
     def compute(self) -> pd.DataFrame:
-        # muni_name = self.get_global_parameter_value('municipality_name')
+        sector = self.get_parameter_value('gpc_sector')
 
         df = self.get_input_dataset()
-        df = df[df['Sector'] == 'III.1.1']
-        # df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
-        # df = df.rename(columns={
-        #     'vuosi': YEAR_COLUMN,
-        #     'ktCO2e': EMISSION_QUANTITY,
-        #     'energiankulutus': ENERGY_QUANTITY,
-        # })
-        # df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
+        df = df[(df.index.get_level_values('Sector') == sector) &
+                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
-        # df['Sector'] = ''
-        # for i in range(1, 6):
-        #     if i > 1:
-        #         df['Sector'] += '|'
-        #     df['Sector'] += df['taso_%d' % i].astype(str)
-        # df.loc[df['hinku-laskenta'], 'Sector'] += ':HINKU'
-        # df.loc[df['päästökauppa'], 'Sector'] += ':ETS'
+        droplist = ['Quantity']
+        for i in df.index.names:
+            if df.index.get_level_values(i).all() == '.':
+                droplist.append(i)
 
-        # df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
-        # df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()
-        # if len(df) == 0:
-        #     raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        # for metric_id, metric in self.output_metrics.items():
-        #     if hasattr(df[metric_id], 'pint'):
-        #         df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
-        #     else:
-        #         df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+        df.index = df.index.droplevel(droplist)
 
-        # df[FORECAST_COLUMN] = False
+        unit = df['Unit'].unique()[0]
+        df['Value'] = df['Value'].astype('pint[' + unit + ']')
+        df = df.drop(columns = ['Unit'])
+
+        for i in list(set(df.index.names) - set(['Year'])):
+            self.output_dimensions[i] = Dimension(id = i.lower().replace(' ', '_'),
+                                                  label = {'en': i}, help_text = {'en': ''},
+                                                  is_internal = True)
+
+        df[FORECAST_COLUMN] = False
+#       df = extend_last_historical_value(df, self.get_end_year())
 
         return df
 

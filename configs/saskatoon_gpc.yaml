@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon-gpc.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 046b9cf53121d48c814cbe483afee07a3a401722
+  commit: 05bbc18353ec6b47b630b8da0482768d358df427
   dvc_remote: kausal-s3
 #  default_path: saskatoon
 name: Saskatoon Greenhouse Gas Inventory
@@ -18,8 +18,8 @@ maximum_historical_year: 2021
 emission_unit: t/a
 emission_forecast_from: 2022
 emission_dimensions: []
-emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
-emission_sector_dimension: emission_sectors
+# emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
+# emission_sector_dimension: emission_sectors
 # normalizations:
 # - normalizer_node: population
 #   quantities:
@@ -33,19 +33,19 @@ features:
   baseline_visible_in_graphs: true
 
 
-# dimensions:
-# - id: emission_scope
-#   label: Emission Scopes
-#   categories:
-#   - id: scope1
-#     label: Scope 1
-#   - id: scope2
-#     label: Scope 2
-#   - id: scope3
-#     label: Scope 3
+dimensions:
+- id: scope
+  label: Scope
+  categories:
+  - id: '1'
+    label: Scope 1
+  - id: '2'
+    label: Scope 2
+  - id: '3'
+    label: Scope 3
 
-# - id: emission_sectors
-#   label: Emission Sectors
+- id: sector
+  label: Sector
 #   categories:
 #   - id: stationary_energy
 #     label: I Stationary Energy
@@ -119,17 +119,17 @@ features:
 #   - id: aviation_other
 #     label: Aviation (Domestic & International)
 
-# - id: greenhouse_gases
-#   label: Greenhouse Gases
-#   categories:
-#   - id: co2e
-#     label: CO2 Equivalent
-#   - id: co2
-#     label: CO2
-#   - id: ch4
-#     label: CH4
-#   - id: n2o
-#     label: N2O
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2e
+    label: CO2 Equivalent
+  - id: co2
+    label: CO2
+  - id: ch4
+    label: CH4
+  - id: n2o
+    label: N2O
 
 # - id: energy_carrier
 #   label: Energy Carrier
@@ -188,123 +188,38 @@ emission_sectors:
     label: Emission Sectors
   is_outcome: true
 
-# # ----- Sector Emissions -----
-
-# - id: stationary_energy_emissions
-#   name: Stationary Energy Emissions
-#   part_of: net_emissions
-#   color: '#4e79a7'
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: transportation_emissions
-#   name: Transportation Emissions
-#   part_of: net_emissions
-#   color: '#e15759'
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: waste_emissions
-#   name: Waste Emissions
-#   part_of: net_emissions
-#   color: '#59a14f'
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: ippu_emissions
-#   name: Industrial Processes & Product Use Emissions
-#   part_of: net_emissions
-#   color: '#b07aa1'
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: afolu_emissions
-#   name: Agriculture, Forestry, & Other Land Use Emissions
-#   part_of: net_emissions
-#   color: '#76b7b2'
-#   input_dataset_processors: [LinearInterpolation]
-
-# # ----- Subsector Emissions -----
-
-# - id: electricity_emissions
-#   name: Electricity Emissions
-#   part_of: stationary_energy_emissions
-#   input_dataset_processors: [LinearInterpolation]
-
-# # - id: generation_emissions
-# #   name: Landfill Gas Combustion Emissions
-# #   category: energy_industries
-# #   part_of: stationary_energy_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# # - id: solid_waste_emissions
-# #   name: Solid Waste Disposal Emissions
-# #   category: solid_waste
-# #   part_of: waste_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# # - id: biological_waste_emissions
-# #   name: Biological Waste Treatment Emissions
-# #   category: biological_waste
-# #   part_of: waste_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# # - id: wastewater_treatment_emissions
-# #   name: Wastewater Treatment Emissions
-# #   category: wastewater_treatment
-# #   part_of: waste_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# # - id: industrial_emissions
-# #   name: Industrial Process Emissions
-# #   category: industrial_processes
-# #   part_of: ippu_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# - id: onroad_emissions
-#   name: On-Road Transportation Emissions
-#   part_of: transportation_emissions
-#   input_dataset_processors: [LinearInterpolation]
-
-# # - id: railway_emissions
-# #   name: Railway Emissions
-# #   category: railways
-# #   part_of: transportation_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# - id: waterborne_emissions
-#   name: Waterborne Navigation Emissions
-#   part_of: transportation_emissions
-#   input_dataset_processors: [LinearInterpolation]
-
-# # - id: aviation_emissions
-# #   name: Aviation Emissions
-# #   category: aviation
-# #   part_of: transportation_emissions
-# #   input_dataset_processors: [LinearInterpolation]
-
-# # - id: us_emissions
-# #   name: U of S Livestock & Fertilizer Emissions
-# #   category: livestock
-# #   part_of: afolu_emissions
-# #   input_dataset_processors: [LinearInterpolation]
 
 nodes:
-
-- id: gpc_inventory
+- id: emissions_221
   type: gpc.EmissionsNode
-  name: GPC BASIC Inventory
+  name: II.2.1 Railway Emissions
   unit: t/a
   quantity: emissions
-  output_nodes:
-  - id: net_emissions
+  params:
+    gpc_sector: II.2.1
+  input_datasets:
+  - id: gpc/saskatoon
+
+- id: emissions_311
+  type: gpc.EmissionsNode
+  name: III.1.1 Solid Waste Emissions
+  unit: t/a
+  quantity: emissions
+  params:
+    gpc_sector: III.1.1
+  input_datasets:
+  - id: gpc/saskatoon
+
 
 
 pages:
 - id: home
-  name: Saskatoon Greenhouse Gas Inventory & Forecast
+  name: Saskatoon Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
   lead_title: Development Version
-  lead_paragraph: Greenhouse gas inventory (2014-2021) and forecast (2022-2050) for the City of
-                  Saskatoon.
+  lead_paragraph: GPC BASIC greenhouse gas inventory (2014-2021) for the City of Saskatoon.
 
 scenarios:
 - id: baseline
