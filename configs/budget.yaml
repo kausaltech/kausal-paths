@@ -54,7 +54,15 @@ action_groups:
   name: Waste
   color: '#50c878'
 
-#action_efficiency_pairs:
+action_efficiency_pairs:
+- cost_node: total_discounted_monetary_benefits
+  impact_node: net_emissions
+  invert_cost: true
+  invert_impact: true
+  efficiency_unit: kEUR/t
+  cost_unit: MEUR
+  impact_unit: t
+  label: Cost efficiency
 #- graph_type: return_of_investment
 #  cost_node: test_investments
 #  impact_node: total_monetary_benefits
@@ -748,7 +756,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [total_monetary_benefits]
+  output_nodes:
+  - id: total_monetary_benefits
+    from_dimensions:
+    - id: account
+      flatten: true
   input_dimensions: [account]
   output_dimensions: [account]
 - id: other_stationary_action_costs
@@ -780,7 +792,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [total_monetary_benefits]
+  output_nodes:
+  - id: total_monetary_benefits
+    from_dimensions:
+    - id: account
+      flatten: true
   input_dimensions: [account]
   output_dimensions: [account]
 - id: transport_action_costs
@@ -812,7 +828,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [total_monetary_benefits]
+  output_nodes:
+  - id: total_monetary_benefits
+    from_dimensions:
+    - id: account
+      flatten: true
   input_dimensions: [account]
   output_dimensions: [account]
 - id: waste_action_costs
@@ -844,7 +864,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [total_monetary_benefits]
+  output_nodes:
+  - id: total_monetary_benefits
+    from_dimensions:
+    - id: account
+      flatten: true
   input_dimensions: [account]
   output_dimensions: [account]
 - id: price_of_emissions
@@ -937,8 +961,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [account]
-  output_dimensions: [account]
+#  input_dimensions: [account]
+#  output_dimensions: [account]
 
 - id: total_discounted_monetary_benefits
   name: Total discounted monetary benefits
@@ -949,8 +973,8 @@ nodes:
   is_outcome: true
   input_nodes:
   - id: total_monetary_benefits
-  input_dimensions: [account]
-  output_dimensions: [account]
+#  input_dimensions: [account]
+#  output_dimensions: [account]
   params:
   - id: annual_change
     ref: discount_rate
