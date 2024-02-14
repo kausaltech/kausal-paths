@@ -110,8 +110,8 @@ params:
 - id: purity_weight
   label: Weight for cleaniness and purity (e.g. pollution)
   is_customizable: true
-  value: 0.1
-  min_value: 0
+  value: -10
+  min_value: -100
   max_value: 10
   unit: Ut/a/(ug/m**3)
 - id: prosperity_weight
@@ -1173,21 +1173,18 @@ scenarios:
   params:
   - id: impact_threshold
     value: 0
-    unit: 1/a
   - id: economic_weight
-    value: -1
-    unit: 1/EUR
+    value: 1
   - id: equity_weight
-    value: 10
-    unit: 1/a
+    value: 0.1
   - id: health_weight
-    value: 1
+    value: 0.01
   - id: purity_weight
-    value: 1
+    value: -50
   - id: legality_weight
-    value: 1
+    value: 0
   - id: emissions_weight
-    value: -1
+    value: -0.5
   - id: prosperity_weight
     value: 1
   - id: effect_of_ev
@@ -1197,6 +1194,25 @@ scenarios:
   name: Kunnan B arvot
   name_en: Values of municipality B
   all_actions_enabled: true
+  params:
+  - id: impact_threshold
+    value: 0
+  - id: economic_weight
+    value: 1
+  - id: equity_weight
+    value: 0.1
+  - id: health_weight
+    value: 0.01
+  - id: purity_weight
+    value: -10
+  - id: legality_weight
+    value: 3
+  - id: emissions_weight
+    value: -0.05
+  - id: prosperity_weight
+    value: 1
+  - id: effect_of_ev
+    value: -20000
 
 - id: municipality_c
   name: Kunnan C arvot
@@ -1204,26 +1220,23 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: impact_threshold
-    value: 5000000
-    unit: 1/a
+    value: 0
   - id: economic_weight
     value: 1
-    unit: 1/EUR
   - id: equity_weight
-    value: 10000000
-    unit: 1/a
+    value: 0.1
   - id: health_weight
-    value: 0
+    value: 0.01
   - id: purity_weight
-    value: 0
+    value: -10
   - id: legality_weight
-    value: 0
+    value: 3
   - id: emissions_weight
-    value: 0
+    value: -0.05
   - id: prosperity_weight
-    value: 0
+    value: 1
   - id: effect_of_ev
-    value: -1000
+    value: -20000
 
 - id: municipality_d
   name: Kunnan D arvot
@@ -1231,28 +1244,23 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: impact_threshold
-    value: 5000000
-    unit: 1/a
+    value: 0
   - id: economic_weight
     value: 1
-    unit: 1/EUR
   - id: equity_weight
-    value: 10000000
-    unit: 1/a
+    value: 0.1
   - id: health_weight
-    value: 0
+    value: 0.01
   - id: purity_weight
-    value: 0
+    value: -10
   - id: legality_weight
-    value: 0
+    value: 3
   - id: emissions_weight
-    value: 0
+    value: -0.05
   - id: prosperity_weight
-    value: 0
+    value: 1
   - id: effect_of_ev
-    value: -1000
-  - id: cost_mm_stations.multiplier
-    value: 5000
+    value: -20000
 
 - id: energy_company
   name: Energiayhtiön arvot
