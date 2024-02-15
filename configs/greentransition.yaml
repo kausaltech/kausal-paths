@@ -383,6 +383,7 @@ nodes:
   - id: tourism
   - id: charging_supply
   - id: charging_station_jobs
+  - id: transportation_service_level
 
 - id: effect_of_charging_stations_on_evs
   name: Latauspisteiden vaikutus sähköautojen määrään
@@ -1171,6 +1172,8 @@ scenarios:
   name_en: Values of municipality A
   all_actions_enabled: true
   params:
+  - id: biodiesel.enabled
+    value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
@@ -1195,6 +1198,8 @@ scenarios:
   name_en: Values of municipality B
   all_actions_enabled: true
   params:
+  - id: ev_charging_policy.enabled
+    value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
@@ -1219,6 +1224,8 @@ scenarios:
   name_en: Values of municipality C
   all_actions_enabled: true
   params:
+  - id: biodiesel.enabled
+    value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
@@ -1243,6 +1250,8 @@ scenarios:
   name_en: Values of municipality D
   all_actions_enabled: true
   params:
+  - id: biodiesel.enabled
+    value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
