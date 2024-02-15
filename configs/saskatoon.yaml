@@ -280,6 +280,38 @@ emission_sectors:
   name: Greenhouse Gas Emissions
   input_node_dimension:
     label: Emission Sectors
+  goals:
+  - values: [{'year': 2022, 'value': 3475466},
+             {'year': 2023, 'value': 3408532},
+             {'year': 2024, 'value': 3380625},
+             {'year': 2025, 'value': 3322668},
+             {'year': 2026, 'value': 3399115},
+             {'year': 2027, 'value': 3207820},
+             {'year': 2028, 'value': 3114352},
+             {'year': 2029, 'value': 3014094},
+             {'year': 2030, 'value': 2682162},
+             {'year': 2031, 'value': 2333985},
+             {'year': 2032, 'value': 2353091},
+             {'year': 2033, 'value': 2310379},
+             {'year': 2034, 'value': 2266418},
+             {'year': 2035, 'value': 2180783},
+             {'year': 2036, 'value': 1725896},
+             {'year': 2037, 'value': 1412895},
+             {'year': 2038, 'value': 1383814},
+             {'year': 2039, 'value': 1363375},
+             {'year': 2040, 'value': 1210011},
+             {'year': 2041, 'value': 1167651},
+             {'year': 2042, 'value': 1141273},
+             {'year': 2043, 'value': 989351},
+             {'year': 2044, 'value': 982801},
+             {'year': 2045, 'value': 972646},
+             {'year': 2046, 'value': 891064},
+             {'year': 2047, 'value': 863382},
+             {'year': 2048, 'value': 832354},
+             {'year': 2049, 'value': 805016},
+             {'year': 2050, 'value': 783903}]
+    default: true
+    is_main_goal: true
   is_outcome: true
   description: <p>Greenhouse gas emissions</p><p><b>Unit:</b> t/yr. = metric tons
     per year</b></p>
@@ -1240,6 +1272,7 @@ nodes:
   minimum_year: 2022
   input_datasets:
   - id: saskatoon/forecasted_emissions
+    forecast_from: 2023
 
 - id: forecasted_energy_consumption
   name: Energy Consumption Forecast by SSG CityInSight
@@ -1251,6 +1284,7 @@ nodes:
   minimum_year: 2022
   input_datasets:
   - id: saskatoon/forecasted_energy_consumption
+    forecast_from: 2023
 
 - id: forecasted_emission_factors
   name: Effective Emission Factors Forecast by SSG CityInSight
