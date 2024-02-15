@@ -364,7 +364,7 @@ nodes:
 - id: charging_stations
   name: Latauspisteiden lukumäärä
   name_en: Number of charging stations
-  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A increases stations by setting policies.
+  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A & Local governmental area D increases stations by setting policies. 
   quantity: fraction
   type: values.AdditiveNode
   unit: pcs
@@ -416,7 +416,7 @@ nodes:
 - id: tourism
   name: Turismin määrä
   name_en: Number of tourists 
-  description: Tourism is an important business sector in Region D therefore the charging points matter whether tourists come to the area or not.
+  description: Tourism is an important business sector in local governmental area D therefore the charging points matter whether tourists come to the area or not.
   quantity: number
   type: values.AssociationNode
   unit: pcs
@@ -1145,7 +1145,7 @@ actions:
   - safe_bike_parks
 
 - id: sponsor_money
-  name: Pyöräparkkien rakentaminen yritysten voimin
+  name: Kaupunkipyöräjärjestelmän rakentaminen yritysten voimin
   name_en: Companies to sponsor micro mobility stations
   description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot. Municipality D would not offer a micro mobility system without third party involvement. 
   quantity: number
