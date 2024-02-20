@@ -1,25 +1,21 @@
 id: saskatoon_gpc
 default_language: en
 supported_languages: []
-site_url: https://saskatoon-gpc.paths-test.kausal.tech
+site_url: https://saskatoon-basic.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 05bbc18353ec6b47b630b8da0482768d358df427
+  commit: 2261c6af56a12ae4d2c5118c6b8465363ed49840
   dvc_remote: kausal-s3
-#  default_path: saskatoon
-name: Saskatoon Greenhouse Gas Inventory
+name: Saskatoon BASIC Greenhouse Gas Inventory
 owner_en: City of Saskatoon
 theme_identifier: ca-saskatoon
-target_year: 2050
-model_end_year: 2051
-# reference_year: 2020
+target_year: 2021
+model_end_year: 2021
 minimum_historical_year: 2014
 maximum_historical_year: 2021
 emission_unit: t/a
 emission_forecast_from: 2022
-emission_dimensions: []
-# emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
-# emission_sector_dimension: emission_sectors
+emission_dimensions: [scope, ghg]
 # normalizations:
 # - normalizer_node: population
 #   quantities:
@@ -34,93 +30,40 @@ features:
 
 
 dimensions:
-- id: scope
-  label: Scope
+- id: company
+  label: Company
   categories:
-  - id: '1'
-    label: Scope 1
-  - id: '2'
-    label: Scope 2
-  - id: '3'
-    label: Scope 3
+  - id: saskenergy
+    label: SaskEnergy
+  - id: saskpower
+    label: SaskPower
+  - id: slp
+    label: SL&P
 
-- id: sector
-  label: Sector
-#   categories:
-#   - id: stationary_energy
-#     label: I Stationary Energy
-#   - id: residential
-#     label: I.1 Residential Buildings
-#   - id: commercial_institutional
-#     label: I.2 Commercial & Institutional Buildings
-#   - id: manufacturing_construction
-#     label: I.3 Manufacturing & Construction
-#   - id: energy_industries
-#     label: I.4 Energy Industries
-#   - id: streetlighting
-#     label: I.6 Streetlighting & Traffic Signals
-
-#   - id: transport
-#     label: II Transportation
-#   - id: on_road_transport
-#     label: II.1 On-Road Transportation
-#   - id: railways
-#     label: II.2 Railways
-#   - id: waterborne
-#     label: II.3 Waterborne Navigation
-#   - id: aviation
-#     label: II.4 Aviation
-
-#   - id: waste
-#     label: III Waste
-#   - id: solid_waste
-#     label: III.1 Solid Waste Disposal
-#   - id: biological_waste
-#     label: III.2 Biological Treatment of Waste
-#   - id: wastewater_treatment
-#     label: III.4 Wastewater Treatment & Discharge
-
-#   - id: ippu
-#     label: IV Industrial Processes & Product Use
-#   - id: industrial_processes
-#     label: IV.1 Industrial Processes
-
-#   - id: afolu
-#     label: V Agriculture, Forestry, & Other Land Use
-#   - id: livestock
-#     label: V.1 Livestock
-
-#   - id: fugitive
-#     label: Fugitive
-#   - id: municipal
-#     label: Municipal
-
-# - id: vehicle_type
-#   label: Vehicle Type
-#   categories:
-#   - id: retail
-#     label: Retail
-#   - id: cardlock
-#     label: Cardlock
-#   - id: fleet
-#     label: City Fleet
-#   - id: public_transit
-#     label: Public Transit
-#   - id: access_transit
-#     label: Access Transit
-#   - id: other
-#     label: Other Distributors
-#   - id: stc
-#     label: Saskatchewan Transportation Company
-#   - id: prairie_lily
-#     label: Prairie Lily
-#   - id: aviation_local
-#     label: Aviation (Local)
-#   - id: aviation_other
-#     label: Aviation (Domestic & International)
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: aviation_gasoline
+    label: Aviation Gasoline
+  - id: diesel
+    label: Diesel
+  - id: district_heat
+    label: District Heat
+  - id: electricity
+    label: Electricity
+  - id: fuel_oil
+    label: Fuel Oil
+  - id: gasoline
+    label: Gasoline
+  - id: kerosene
+    label: Kerosene
+  - id: natural_gas
+    label: Natural Gas
+  - id: propane
+    label: Propane
 
 - id: ghg
-  label: GHG
+  label: Greenhouse Gas
   categories:
   - id: co2e
     label: CO2 Equivalent
@@ -131,94 +74,219 @@ dimensions:
   - id: n2o
     label: N2O
 
-# - id: energy_carrier
-#   label: Energy Carrier
-#   categories:
-#   - id: electricity
-#     label: Electricity
-#   - id: aviation_gasoline
-#     label: Aviation (Gasoline)
-#   - id: aviation_turbo
-#     label: Aviation (Turbo Fuel)
-#   - id: diesel_heavy
-#     label: Diesel (Heavy-Duty)
-#   - id: diesel_light
-#     label: Diesel (Light-Duty)
-#   - id: gasoline_heavy
-#     label: Gasoline (Heavy-Duty)
-#   - id: gasoline_light
-#     label: Gasoline (Light-Duty)
-#   - id: natural_gas
-#     label: Natural Gas
-#   - id: propane_other
-#     label: Propane (Other)
-#   - id: propane_residential
-#     label: Propane (Residential)
-#   - id: waste
-#     label: Waste
+- id: scope
+  label: Emissions Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+  - id: scope2
+    label: Scope 2
+  - id: scope3
+    label: Scope 3
 
-#   - id: diesel
-#     label: Diesel
-#   - id: fuel_oil
-#     label: Fuel Oil
-#   - id: fugitive
-#     label: Fugitive
-#   - id: gasoline
-#     label: Gasoline
-#   - id: other
-#     label: Other
-#   - id: propane
-#     label: Propane
-
-# - id: utility
-#   label: Electric Utility
-#   categories:
-#   - id: saskpower
-#     label: SaskPower
-#   - id: slp
-#     label: SL&P
-
-
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: light_duty
+    label: Light-Duty
+  - id: heavy_duty
+    label: Heavy-Duty
 
 
 emission_sectors:
 - id: net_emissions
   name: GPC BASIC Greenhouse Gas Emissions
-  input_node_dimension:
-    label: Emission Sectors
   is_outcome: true
+
+# - id: i_emissions
+#   name: I Stationary Emissions
+#   part_of: net_emissions
+
+# - id: ii_emissions
+#   name: II Transportation Emissions
+#   part_of: net_emissions
 
 
 nodes:
-- id: emissions_221
-  type: gpc.EmissionsNode
-  name: II.2.1 Railway Emissions
-  unit: t/a
+- id: i12_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [scope, energy_carrier, company]
+  output_dimensions: [scope, energy_carrier, company]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i12_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: company
+
+- id: i12_factors
+  name: I.1.2 Residential Grid Energy Emission Factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/kWh
+  input_dimensions: [scope, energy_carrier, ghg]
+  output_dimensions: [scope, energy_carrier, ghg]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i12_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i12_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
   quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, company, ghg]
+  output_dimensions: [scope, energy_carrier, company, ghg]
+  output_nodes:
+  - id: i12_total_emissions
+
+- id: i12_total_emissions
+  name: I.1.2 Residential Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, company, ghg]
+  output_dimensions: [scope, energy_carrier, company, ghg]
+  output_nodes:
+  - id: i1_emissions
+
+
+
+- id: i1_emissions
+  name: I.1 Residential Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, company, ghg]
+  output_dimensions: [scope, energy_carrier, company, ghg]
+  output_nodes:
+  - id: i_emissions
+    from_dimensions:
+    - id: company
+      flatten: true
+
+
+
+- id: i21_consumption
+  name: I.2.1 Commercial & Institutional Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: m**3/a
+  input_dimensions: [scope, energy_carrier]
+  output_dimensions: [scope, energy_carrier]
+  params:
+    gpc_sector: I.2.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i21_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i21_factors
+  name: I.2.1 Commercial & Institutional Fuel Emission Factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/m**3
+  input_dimensions: [scope, energy_carrier, ghg]
+  output_dimensions: [scope, energy_carrier, ghg]
+  params:
+    gpc_sector: I.2.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i21_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i21_consumption_emissions
+  name: I.2.1 Commercial & Institutional Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, ghg]
+  output_dimensions: [scope, energy_carrier, ghg]
+  output_nodes:
+  - id: i21_total_emissions
+
+- id: i21_total_emissions
+  name: I.2.1 Commercial & Institutional Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, ghg]
+  output_dimensions: [scope, energy_carrier, ghg]
+  output_nodes:
+  - id: i2_emissions
+
+
+
+- id: i2_emissions
+  name: I.2 Commercial & Institutional Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, ghg]
+  output_dimensions: [scope, energy_carrier, ghg]
+  output_nodes:
+  - id: i_emissions
+
+
+
+- id: i_emissions
+  name: I Stationary Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, energy_carrier, ghg]
+  output_dimensions: [scope, energy_carrier, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+
+
+- id: ii21_emissions
+  name: II.2.1 Railway Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   params:
     gpc_sector: II.2.1
   input_datasets:
   - id: gpc/saskatoon
-
-- id: emissions_311
-  type: gpc.EmissionsNode
-  name: III.1.1 Solid Waste Emissions
-  unit: t/a
-  quantity: emissions
-  params:
-    gpc_sector: III.1.1
-  input_datasets:
-  - id: gpc/saskatoon
-
+  output_nodes:
+  - id: net_emissions
 
 
 pages:
 - id: home
-  name: Saskatoon Greenhouse Gas Inventory
+  name: Saskatoon BASIC Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Development Version
+  lead_title: Climate-4-CAST Project
   lead_paragraph: GPC BASIC greenhouse gas inventory (2014-2021) for the City of Saskatoon.
 
 scenarios:

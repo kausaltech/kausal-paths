@@ -6,10 +6,13 @@ from nodes.dimensions import Dimension
 from nodes.node import Node
 
 
-class EmissionsNode(Node):
+class DatasetNode(Node):
     allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
 
-    qlookup = {'emissions': 'Emissions'}
+    qlookup = {'emission_factor': 'Emission Factor',
+               'emissions': 'Emissions',
+               'energy': 'Energy Consumption',
+               'fuel_consumption': 'Fuel Consumption'}
 
     def compute(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')
@@ -18,7 +21,7 @@ class EmissionsNode(Node):
         df = df[(df.index.get_level_values('Sector') == sector) &
                 (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
-        droplist = ['Quantity']
+        droplist = ['Sector', 'Quantity']
         for i in df.index.names:
             if df.index.get_level_values(i).all() == '.':
                 droplist.append(i)
@@ -29,10 +32,13 @@ class EmissionsNode(Node):
         df['Value'] = df['Value'].astype('pint[' + unit + ']')
         df = df.drop(columns = ['Unit'])
 
-        for i in list(set(df.index.names) - set(['Year'])):
-            self.output_dimensions[i] = Dimension(id = i.lower().replace(' ', '_'),
-                                                  label = {'en': i}, help_text = {'en': ''},
-                                                  is_internal = True)
+        dims = []
+        for i in list(df.index.names):
+            if i == 'Year':
+                dims.append(i)
+            else:
+                dims.append(i.lower().replace(' ', '_'))
+        df.index = df.index.set_names(dims)
 
         df[FORECAST_COLUMN] = False
 #       df = extend_last_historical_value(df, self.get_end_year())
