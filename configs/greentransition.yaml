@@ -37,11 +37,16 @@ action_groups:
 - id: traffic_energy_transition
   name: Liikenteen uudet energialähteet
   name_en: New energy carriers in traffic
-  color: '#fb9a99'
+  color: '#32cd32'
 - id: micro_mobility
   name: Aktiivinen liikkuminen
   name_en: Active mobility
-  color: '#e31a1c'
+  color: '#29ab87'
+- id: public_transit
+  name: Joukkoliikenne
+  name_en: Public transit
+  color: '#93c572'
+#  color: '#50c878'
 
 action_efficiency_pairs:
 - cost_node: action_costs
@@ -693,6 +698,19 @@ nodes:
   input_nodes:
   - vehicle_need
 
+- id: number_of_bus_trips
+  name: Bussimatkojen lukumäärä
+  name_en: Number of bus trips
+  type: simple.FixedMultiplierNode
+  quantity: number
+  unit: trips/d
+  params:
+  - id: multiplier
+    value: 100
+    unit: trips/d/pcs
+  output_nodes:
+  - public_transportation
+
 - id: effect_of_cars_on_air_quality
   name: Autokilometrien vaikutus ilmanlaatuun
   name_en: Effect of cars on air quality
@@ -898,6 +916,32 @@ nodes:
   params:
   - id: multiplier
     value: 500
+    unit: EUR/a/pcs
+
+- id: cost_ev_charging_infra_to_city
+  name: Latausjärjestelmän rakentamisekustannukset kaupungille
+  name_en: Building cost of EV charging infrastructure to the city
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [ev_charging_infrastructure]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 1000
+    unit: EUR/a/pcs
+
+- id: cost_bus_support_to_city
+  name: Bussiliikenteen tuen kustannus kaupungille
+  name_en: Bus support cost to the city
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [public_transit_support]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 300
     unit: EUR/a/pcs
 
 - id: cost_safe_bike_parks
@@ -1156,6 +1200,17 @@ actions:
   output_nodes:
   - city_mm_stations
 
+- id: public_transit_support
+  name: Kaupunki tukee bussijärjestelmää
+  name_en: City supports bus transportation
+  type: simple.CumulativeAdditiveAction
+  quantity: number
+  unit: pcs
+  group: public_transit
+  forecast_values: [[2024, 50]]
+  output_nodes:
+  - number_of_bus_trips
+
 scenarios:
 - id: baseline
   name: Tätä menoa
@@ -1174,6 +1229,8 @@ scenarios:
   params:
   - id: biodiesel.enabled
     value: false
+  - id: safe_bike_parking.enabled
+    value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
@@ -1181,7 +1238,7 @@ scenarios:
   - id: equity_weight
     value: 0.1
   - id: health_weight
-    value: 0.01
+    value: 0.2
   - id: purity_weight
     value: -50
   - id: legality_weight
@@ -1189,7 +1246,7 @@ scenarios:
   - id: emissions_weight
     value: -0.5
   - id: prosperity_weight
-    value: 1
+    value: 0
   - id: effect_of_ev
     value: -20000
 
@@ -1199,6 +1256,8 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: ev_charging_policy.enabled
+    value: false
+  - id: public_transit_support.enabled
     value: false
   - id: impact_threshold
     value: 0
@@ -1226,6 +1285,8 @@ scenarios:
   params:
   - id: biodiesel.enabled
     value: false
+  - id: public_transit_support.enabled
+    value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
@@ -1251,6 +1312,8 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: biodiesel.enabled
+    value: false
+  - id: public_transit_support.enabled
     value: false
   - id: impact_threshold
     value: 0
