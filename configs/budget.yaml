@@ -55,7 +55,7 @@ action_groups:
   color: '#50c878'
 
 action_efficiency_pairs:
-- cost_node: total_discounted_monetary_benefits
+- cost_node: total_discounted_economic_costs
   impact_node: net_emissions
   invert_cost: true
   invert_impact: true
@@ -65,7 +65,7 @@ action_efficiency_pairs:
   label: Cost efficiency
 #- graph_type: return_of_investment
 #  cost_node: test_investments
-#  impact_node: total_monetary_benefits
+#  impact_node: total_economic_costs
 #  invert_cost: false
 #  invert_impact: false
 #  indicator_unit: '%'
@@ -84,7 +84,7 @@ action_efficiency_pairs:
 #  outcome_dimension: outcome_of_interest
 #  label: Cost-benefit analysis
 #- graph_type: cost_efficiency
-#  cost_node: total_monetary_benefits
+#  cost_node: total_economic_costs
 #  impact_node: discounted_costs
 #  invert_cost: true
 #  invert_impact: true
@@ -757,7 +757,7 @@ nodes:
   quantity: currency
   unit: kEUR/a
   output_nodes:
-  - id: total_monetary_benefits
+  - id: total_economic_costs
     from_dimensions:
     - id: account
       flatten: true
@@ -793,7 +793,7 @@ nodes:
   quantity: currency
   unit: kEUR/a
   output_nodes:
-  - id: total_monetary_benefits
+  - id: total_economic_costs
     from_dimensions:
     - id: account
       flatten: true
@@ -829,7 +829,7 @@ nodes:
   quantity: currency
   unit: kEUR/a
   output_nodes:
-  - id: total_monetary_benefits
+  - id: total_economic_costs
     from_dimensions:
     - id: account
       flatten: true
@@ -865,7 +865,7 @@ nodes:
   quantity: currency
   unit: kEUR/a
   output_nodes:
-  - id: total_monetary_benefits
+  - id: total_economic_costs
     from_dimensions:
     - id: account
       flatten: true
@@ -933,6 +933,7 @@ nodes:
     - id: account
       flatten: true
 
+###### END OF GPC FRAMEWORK NODES
 ########### OTHER
 
 - id: population2
@@ -956,23 +957,23 @@ nodes:
   unit: cap
   historical_values: [[2010, 250000]]
 
-- id: total_monetary_benefits
-  name: Total monetary benefits (non-discounted)
+- id: total_economic_costs
+  name: Total economic costs (non-discounted)
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
 #  input_dimensions: [account]
 #  output_dimensions: [account]
 
-- id: total_discounted_monetary_benefits
-  name: Total discounted monetary benefits
-  name_fi: Diskontatut taloudelliset kokonaishyödyt
+- id: total_discounted_economic_costs
+  name: Total discounted economic costs
+  name_fi: Diskontatut taloudelliset kokonaiskustannukset
   type: costs.ExponentialNode
   quantity: currency
   unit: MEUR/a
   is_outcome: true
   input_nodes:
-  - id: total_monetary_benefits
+  - id: total_economic_costs
 #  input_dimensions: [account]
 #  output_dimensions: [account]
   params:
@@ -983,189 +984,191 @@ nodes:
 
 #################### Transport model based on modal shares
 
-- id: walking
-  name: Walking
-  name_fi: Kävely
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mpkm/a
-  historical_values: [[2005, 0]]
-#  input_nodes:
-#  - id: population
-#  - id: mode_activity
-
-- id: cycling
-  name: Cycling
-  name_fi: Pyöräily
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mpkm/a
-  historical_values: [[2005, 0]]
-#  input_nodes:
-#  - id: population
-#  - id: mode_activity
-
-- id: bus_transit
-  name: Bus transit
-  name_fi: Bussiliikenne
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mpkm/a
-  historical_values: [[2005, 0]]
-#  input_nodes:
-#  - id: population
-#  - id: mode_activity
-
-- id: tram_transit
-  name: Tram transit
-  name_fi: Ratikkaliikenne
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mpkm/a
-  historical_values: [[2005, 0]]
-
-- id: mode_activity
-  name: Mode activity
-  name_fi: Suorite liikkumismuodoittain
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: pkm/cap/d
-  historical_values: [[2010, 1.24], [2022, 1.24]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: person_mileage_car
-  name: Person mileage in cars
-  name_fi: Henkilökilometrit autolla
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mpkm/a
-  historical_values: [[2005, 0], [2023, 0]]
-  input_dataset_processors: [LinearInterpolation]
-
-#- id: vehicle_mileage_car
-#  name: Car vehicle mileage
-#  name_fi: Liikennesuorite henkilöautolla
-#  type: simple.MultiplicativeNode
+#- id: walking
+#  name: Walking
+#  name_fi: Kävely
+#  type: simple.AdditiveNode
 #  quantity: mileage
-#  unit: Mvkm/a
+#  unit: Mpkm/a
+#  historical_values: [[2005, 0]]
+##  input_nodes:
+##  - id: population
+##  - id: mode_activity
+
+#- id: cycling
+#  name: Cycling
+#  name_fi: Pyöräily
+#  type: simple.AdditiveNode
+#  quantity: mileage
+#  unit: Mpkm/a
+#  historical_values: [[2005, 0]]
+##  input_nodes:
+##  - id: population
+##  - id: mode_activity
+
+#- id: bus_transit
+#  name: Bus transit
+#  name_fi: Bussiliikenne
+#  type: simple.AdditiveNode
+#  quantity: mileage
+#  unit: Mpkm/a
+#  historical_values: [[2005, 0]]
+##  input_nodes:
+##  - id: population
+##  - id: mode_activity
+
+#- id: tram_transit
+#  name: Tram transit
+#  name_fi: Ratikkaliikenne
+#  type: simple.AdditiveNode
+#  quantity: mileage
+#  unit: Mpkm/a
+#  historical_values: [[2005, 0]]
+
+#- id: mode_activity
+#  name: Mode activity
+#  name_fi: Suorite liikkumismuodoittain
+#  type: simple.AdditiveNode
+#  quantity: mileage
+#  unit: pkm/cap/d
+#  historical_values: [[2010, 1.24], [2022, 1.24]]
+#  input_dataset_processors: [LinearInterpolation]
+
+#- id: person_mileage_car
+#  name: Person mileage in cars
+#  name_fi: Henkilökilometrit autolla
+#  type: simple.AdditiveNode
+#  quantity: mileage
+#  unit: Mpkm/a
+#  historical_values: [[2005, 0], [2023, 0]]
+#  input_dataset_processors: [LinearInterpolation]
+
+##- id: vehicle_mileage_car
+##  name: Car vehicle mileage
+##  name_fi: Liikennesuorite henkilöautolla
+##  type: simple.MultiplicativeNode
+##  quantity: mileage
+##  unit: Mvkm/a
+##  input_nodes:
+##  - id: person_mileage_car
+##  - id: vehicle_load
+##    metric: car
+
+#- id: vehicle_load
+#  name: Persons in vehicle
+#  name_fi: Keskikuormitus ajoneuvossa
+#  type: simple.AdditiveNode
+#  quantity: mileage
+#  unit: vkm/pkm
+#  historical_values: [[2010, 1.7]]
+
+#- id: unit_prices
+#  name: Unit prices
+#  name_fi: Yksikkökustannukset
+#  type: simple.AdditiveNode
+#  quantity: currency
+#  unit: EUR/pkm
+#  input_datasets:
+#  - id: budget/unit_prices_of_transportation
+#  input_dataset_processors: [LinearInterpolation]
+#  output_dimensions: [vehicle_type, outcome_of_interest]
+
+#- id: outcome_stakeholder_matrix
+#  name: Outcome stakeholder matrix
+#  type: simple.AdditiveNode
+#  quantity: fraction
+#  unit: dimensionless
+#  input_datasets:
+#  - id: budget/outcome_stakeholder_matrix
+#  input_dataset_processors: [LinearInterpolation]
+#  input_dimensions: [stakeholder, outcome_of_interest]
+#  output_dimensions: [stakeholder, outcome_of_interest]
+
+#- id: passenger_km
+#  name: Total passenger kilometers
+#  name_fi: Matkustajakilometrit yhteensä
+#  type: simple.RelativeNode
+#  quantity: mileage
+#  unit: Mpkm/a
 #  input_nodes:
+#  - id: walking
+#    to_dimensions:
+#    - id: vehicle_type
+#      categories: [walking]
+#  - id: cycling
+#    to_dimensions:
+#    - id: vehicle_type
+#      categories: [cycling]
+#  - id: bus_transit
+#    to_dimensions:
+#    - id: vehicle_type
+#      categories: [bus]
+#  - id: tram_transit
+#    to_dimensions:
+#    - id: vehicle_type
+#      categories: [tram]
 #  - id: person_mileage_car
-#  - id: vehicle_load
-#    metric: car
+#    to_dimensions:
+#    - id: vehicle_type
+#      categories: [car]
+#  input_dimensions: [vehicle_type]
+#  output_dimensions: [vehicle_type]
 
-- id: vehicle_load
-  name: Persons in vehicle
-  name_fi: Keskikuormitus ajoneuvossa
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: vkm/pkm
-  historical_values: [[2010, 1.7]]
+#- id: costs
+#  name: Costs of transportation
+#  name_fi: Liikenteen kustannukset
+#  type: simple.MultiplicativeNode
+#  quantity: currency
+#  unit: MEUR/a
+#  is_outcome: true
+#  input_nodes:
+#  - id: unit_prices
+#    to_dimensions:
+#    - id: outcome_of_interest
+#    - id: vehicle_type
+#  - id: passenger_km
+#    to_dimensions:
+#    - id: vehicle_type
+#  - id: outcome_stakeholder_matrix
+#    to_dimensions:
+#    - id: outcome_of_interest
+#    - id: stakeholder
+#  input_dimensions: [vehicle_type, outcome_of_interest, stakeholder]
+#  output_dimensions: [outcome_of_interest, stakeholder, vehicle_type]
 
-- id: unit_prices
-  name: Unit prices
-  name_fi: Yksikkökustannukset
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/pkm
-  input_datasets:
-  - id: budget/unit_prices_of_transportation
-  input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [vehicle_type, outcome_of_interest]
+#- id: discounted_costs
+#  name: Discounted costs
+#  name_fi: Diskontatut kustannukset
+#  type: costs.ExponentialNode
+#  quantity: currency
+#  unit: MEUR/a
+#  input_dimensions: [stakeholder, outcome_of_interest]
+#  output_dimensions: [stakeholder, outcome_of_interest]
+#  input_nodes:
+#  - id: costs
+#    from_dimensions:
+#    - id: vehicle_type
+#      flatten: true
+#  params:
+#  - id: annual_change
+#    ref: discount_rate
+#  - id: is_decreasing_rate
+#    value: true
 
-- id: outcome_stakeholder_matrix
-  name: Outcome stakeholder matrix
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: dimensionless
-  input_datasets:
-  - id: budget/outcome_stakeholder_matrix
-  input_dataset_processors: [LinearInterpolation]
-  input_dimensions: [stakeholder, outcome_of_interest]
-  output_dimensions: [stakeholder, outcome_of_interest]
+#- id: test_investments
+#  name: Test node for traffic investments
+#  type: simple.FixedMultiplierNode
+#  quantity: currency
+#  unit: MEUR/a
+#  input_dimensions: [stakeholder, outcome_of_interest]
+#  output_dimensions: [stakeholder, outcome_of_interest]
+#  input_nodes:
+#  - discounted_costs
+#  params:
+#  - id: multiplier
+#    value: 0.2
 
-- id: passenger_km
-  name: Total passenger kilometers
-  name_fi: Matkustajakilometrit yhteensä
-  type: simple.RelativeNode
-  quantity: mileage
-  unit: Mpkm/a
-  input_nodes:
-  - id: walking
-    to_dimensions:
-    - id: vehicle_type
-      categories: [walking]
-  - id: cycling
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cycling]
-  - id: bus_transit
-    to_dimensions:
-    - id: vehicle_type
-      categories: [bus]
-  - id: tram_transit
-    to_dimensions:
-    - id: vehicle_type
-      categories: [tram]
-  - id: person_mileage_car
-    to_dimensions:
-    - id: vehicle_type
-      categories: [car]
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-
-- id: costs
-  name: Costs of transportation
-  name_fi: Liikenteen kustannukset
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  is_outcome: true
-  input_nodes:
-  - id: unit_prices
-    to_dimensions:
-    - id: outcome_of_interest
-    - id: vehicle_type
-  - id: passenger_km
-    to_dimensions:
-    - id: vehicle_type
-  - id: outcome_stakeholder_matrix
-    to_dimensions:
-    - id: outcome_of_interest
-    - id: stakeholder
-  input_dimensions: [vehicle_type, outcome_of_interest, stakeholder]
-  output_dimensions: [outcome_of_interest, stakeholder, vehicle_type]
-
-- id: discounted_costs
-  name: Discounted costs
-  name_fi: Diskontatut kustannukset
-  type: costs.ExponentialNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, outcome_of_interest]
-  output_dimensions: [stakeholder, outcome_of_interest]
-  input_nodes:
-  - id: costs
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  params:
-  - id: annual_change
-    ref: discount_rate
-  - id: is_decreasing_rate
-    value: true
-
-- id: test_investments
-  name: Test node for traffic investments
-  type: simple.FixedMultiplierNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, outcome_of_interest]
-  output_dimensions: [stakeholder, outcome_of_interest]
-  input_nodes:
-  - discounted_costs
-  params:
-  - id: multiplier
-    value: 0.2
+################# END TRAFFIC MODEL
 
 - id: streetlight_energy_saving
   name: Energy saved by LED streetlights
@@ -1445,49 +1448,49 @@ actions:
     is_customizable: true
     label: Postpone the action by this many years
 
-- id: sustainable_transportation
-  name: Some sustainable transportation action
-  name_fi: Jokin toimenpide kestävän liikkumisen lisäämiseksi
-  type: simple.TrajectoryAction
-  quantity: mileage
-  unit: Mpkm/a
-  group: transport
-  input_datasets:
-  - id: budget/passenger_kilometers_by_action
-    column: mileage
-    forecast_from: 2024
-  params:
-  - id: dimension
-    value: action
-  - id: category
-    value: activity
-  output_dimensions: [vehicle_type]
-  output_nodes:
-  - id: walking
-    from_dimensions:
-    - id: vehicle_type
-      categories: [walking]
-      flatten: true
-  - id: cycling
-    from_dimensions:
-    - id: vehicle_type
-      categories: [cycling]
-      flatten: true
-  - id: bus_transit
-    from_dimensions:
-    - id: vehicle_type
-      categories: [bus]
-      flatten: true
-  - id: tram_transit
-    from_dimensions:
-    - id: vehicle_type
-      categories: [tram]
-      flatten: true
-  - id: person_mileage_car
-    from_dimensions:
-    - id: vehicle_type
-      categories: [car]
-      flatten: true
+#- id: sustainable_transportation
+#  name: Some sustainable transportation action
+#  name_fi: Jokin toimenpide kestävän liikkumisen lisäämiseksi
+#  type: simple.TrajectoryAction
+#  quantity: mileage
+#  unit: Mpkm/a
+#  group: transport
+#  input_datasets:
+#  - id: budget/passenger_kilometers_by_action
+#    column: mileage
+#    forecast_from: 2024
+#  params:
+#  - id: dimension
+#    value: action
+#  - id: category
+#    value: activity
+#  output_dimensions: [vehicle_type]
+#  output_nodes:
+#  - id: walking
+#    from_dimensions:
+#    - id: vehicle_type
+#      categories: [walking]
+#      flatten: true
+#  - id: cycling
+#    from_dimensions:
+#    - id: vehicle_type
+#      categories: [cycling]
+#      flatten: true
+#  - id: bus_transit
+#    from_dimensions:
+#    - id: vehicle_type
+#      categories: [bus]
+#      flatten: true
+#  - id: tram_transit
+#    from_dimensions:
+#    - id: vehicle_type
+#      categories: [tram]
+#      flatten: true
+#  - id: person_mileage_car
+#    from_dimensions:
+#    - id: vehicle_type
+#      categories: [car]
+#      flatten: true
 
 pages:
 - id: home
