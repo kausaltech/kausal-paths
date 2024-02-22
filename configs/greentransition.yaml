@@ -21,63 +21,49 @@ action_groups:
 - id: hs_voting_aid
   name: HS-vaalikone
   name_en: Voting Advice Application
+  color: '#a6cee3'
 - id: implicit
   name: Määrittelemättömät toimet
   name_en: Implicit actions
+  color: '#1f78b4'
 - id: green_transition
   name: Vihreä murros
   name_en: Green transition
+  color: '#b2df8a'
 - id: covid
   name: Koronapandemiaan liittyvät toimet
   name_en: Actions about covid-19 pandemic
-- id: vp_traffic
-  name: Liikenteen arvoprofiilit
-  name_en: Value profiles of traffic
+  color: '#33a02c'
+- id: traffic_energy_transition
+  name: Liikenteen uudet energialähteet
+  name_en: New energy carriers in traffic
+  color: '#32cd32'
+- id: micro_mobility
+  name: Aktiivinen liikkuminen
+  name_en: Active mobility
+  color: '#29ab87'
+- id: public_transit
+  name: Joukkoliikenne
+  name_en: Public transit
+  color: '#93c572'
+#  color: '#50c878'
 
 action_efficiency_pairs:
 - graph_type: cost_efficiency
-  cost_node: gross_domestic_product_in_finland
-  impact_node: net_emissions
-  invert_cost: false
-  invert_impact: true
-  cost_unit: MEUR
-  impact_unit: kt
-  indicator_unit: EUR/t
-  plot_limit_for_indicator: 10
-  cost_cutpoint: 100
-  indicator_cutpoint: 1
-  label: Kasvihuonekaasusäästön marginaalikustannus
-  label_en: Marginal cost in emissions savings
-- graph_type: return_of_investment
-  cost_node: net_cost_of_forests
-  impact_node: gross_domestic_product_in_finland
+  cost_node: action_costs
+  impact_node: value_profile
   invert_cost: false
   invert_impact: false
+  indicator_unit: kEUR/Ut
   cost_unit: MEUR
-  impact_unit: MEUR
-  indicator_unit: '%'
-#  plot_limit_for_indicator: 10
-  cost_cutpoint: 100
-  indicator_cutpoint: 1
-  label: Metsien hoidon tuottoprosentti
-  label_en: Return of investment from forests
-- graph_type: cost_benefit
-  cost_node: net_cost_of_forests
-  impact_node: gross_domestic_product_in_finland
-  invert_cost: false
-  invert_impact: false
-  cost_unit: MEUR
-  impact_unit: MEUR
-  indicator_unit: MEUR
-#  plot_limit_for_indicator: 10
-  cost_cutpoint: 100
-  indicator_cutpoint: 1
-  label: Metsien hoidon kustannus-hyötyanalyysi
-  label_en: Cost-benefit analysis of forestry
+  impact_unit: Ut
+#  plot_limit_efficiency: 10
+  label: Kokonaishyödyn marginaalikustannus
+  label_en: Marginal cost in total utility
 
 params:
 - id: municipality_name
-  value: Espoo
+  value: Tampere
 - id: impact_threshold
   label: Threshold for sum of impacts in utilities
   is_customizable: true
@@ -88,14 +74,14 @@ params:
 - id: emissions_weight
   label: Weight for emissions impacts in utilities
   is_customizable: true
-  value: -50
+  value: -0.05
   min_value: -100
   max_value: 0
   unit: Ut/kt
-- id: cost_weight
+- id: economic_weight
   label: Weight for cost impacts in utilities
   is_customizable: true
-  value: -1
+  value: 1
   min_value: -100
   max_value: 10
   unit: Ut/MEUR
@@ -109,24 +95,45 @@ params:
 - id: equity_weight
   label: Weight for equity impacts in utilities
   is_customizable: true
-  value: 1
+  value: 0.1
   min_value: 0
   max_value: 10000000
-  unit: Ut/a
+  unit: Ut/a/pcs
 - id: health_weight
   label: Weight for health impacts in utilities
   is_customizable: true
-  value: 1
+  value: 0.01
   min_value: 0
   max_value: 100
   unit: Ut/DALY
 - id: legality_weight
   label: Weight for legality of action in utilities
   is_customizable: true
-  value: 1000000
+  value: 3
   min_value: 0
   max_value: 10000000
   unit: Ut/a
+- id: purity_weight
+  label: Weight for cleaniness and purity (e.g. pollution)
+  is_customizable: true
+  value: -10
+  min_value: -100
+  max_value: 10
+  unit: Ut/a/(ug/m**3)
+- id: prosperity_weight
+  label: Weight for long-term prosperity (e.g. jobs)
+  is_customizable: true
+  value: 1
+  min_value: 0
+  max_value: 100
+  unit: Ut/MEUR
+- id: effect_of_ev
+  label: 'Effect of EVs on car km (High: -20000, Low: -1000)'
+  is_customizable: true
+  value: -20000
+  min_value: -30000
+  max_value: 0
+  unit: vkm/a/pcs
 
 dimensions:
 - id: building_heat_source
@@ -263,12 +270,16 @@ dimensions:
   categories:
   - id: municipality
     label: Kunta
+    label_en: Municipality
   - id: citizen
     label: Kansalainen
+    label_en: Citizen
   - id: ici
     label: Yrityselämä
+    label_en: Industry and commerce
   - id: mankind
     label: Ihmiskunta
+    label_en: Mankind
 
 - id: hypothesis
   label: Hypoteesi
@@ -344,13 +355,6 @@ emission_sectors:
     Sdp Uusimaa</li> <li>HS.ymp.1 Kesk Savo</li> <li>HS.ymp.2 Kesk Savo</li></ul>
   is_outcome: true
   target_year_goal: 212
-
-- id: building_heating_emissions
-  name: Rakennusten lämmityksen päästöt
-  name_en: Building heating emissions
-  part_of: net_emissions
-  color: #ff4f57
-  historical_values: [[2015, 8200], [2022, 8200]]
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -360,669 +364,15 @@ nodes:
   name_en: Population
   description: Population size of the imaginary city.
 
-- id: consumer_electricity_emissions
-  name: Kulutussähkön päästöt
-  name_en: Household electricity emissions
-  type: simple.TrajectoryNode
-  quantity: emissions
-  unit: kt/a
-  color: '#232323'
-  input_datasets:
-  - id: greentransition/consumer_electricity_emission_trajectory
-    forecast_from: 2020
-    column: emissions
-  output_dimensions: [hypothesis]
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: hypothesis
-      flatten: true
-  params:
-  - id: dimension
-    value: hypothesis
-  - id: category_number
-    value: 1
-    min_value: 0
-    max_value: 10
-  - id: keep_dimension
-    value: true
-
-- id: transport_mileage
-  name: Liikennemäärä
-  name_en: Traffic volume
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: Mkm/a
-  historical_values: [[2015, 30000], [2022, 31000]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: transport_emissions
-  name: Liikenteen päästöt
-  name_en: Emissions from traffic
-  type: simple.FixedMultiplierNode
-  quantity: emissions
-  unit: kt/a
-  color: #014B30
-  historical_values: [[2015, 8500], [2022, 8500]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes: [transport_mileage]
-  output_nodes: [net_emissions]
-  params:
-  - id: multiplier
-    value: 1
-    unit: kt/Mkm
-
-- id: biodiversity_in_finland
-  name: Luonnon monimuotoisuus Suomessa
-  name_en: Biodiversity in the state forests
-  description: Luonnon monimuotoisuus Suomessa kuvaa luonnon kokonaistilaa. Vaikka
-    tällaista kattavaa mittaria ei ole onnistuttu kehittämään, voidaan mallin seuraavassa
-    versiossa kuvata tätä esimerkiksi uhanalaisten lajien osuudella tai jollain muulla
-    kelvollisella suoraviivaisella mittarilla.
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 50], [2022, 40]]
-  input_dataset_processors: [LinearInterpolation]
-  is_outcome: true
-
-- id: logging_intensity_in_state_forests
-  name: Hakkuumäärä valtion metsissä
-  name_en: Logging amount in the state forests
-  description: Hakkuumäärä kuvaa Metsähallituksen hallinoiman metsän hakkuumääriä
-    vuodessa. Luvut ovat tällä hetkellä kuvitteellisia eivätkä vastaa mitään reaalimaailman
-    asiaa. <h3>Viitteet</h3> <ul><li>HS.ymp.1 Krist Savo</li> <li>HS.ymp.1 Vas Savo</li>
-    <li>HS.ymp.1 Kesk Savo</li></ul>
-  type: simple.AdditiveNode
-  quantity: consumption
-  unit: hm**3/a
-  historical_values: [[2010, 69], [2015, 70], [2022, 80]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - carbon_emissions_in_state_forests
-
-- id: wood_product_yield
-  name: Puutuotteiden saanto
-  name_en: Wood product yield
-  type: simple.FixedMultiplierNode
-  quantity: consumption
-  unit: Mt/a
-  input_nodes: [logging_intensity_in_state_forests]
-  params:
-  - id: multiplier
-    value: 0.5
-    unit: t/m**3
-
-- id: carbon_emissions_in_state_forests
-  name: Hiilipäästöt valtion metsissä
-  name_en: Carbon emissions in the state forests
-  description: Hiilnielut parantavat metsäpinta-alan kasvihuonekaasutasetta, kun huomioidaan
-    yhteyttämisessä sitoutuva ja lahoamisessa vapautuva hiilidioksidi sekä maaperästä
-    vapautuva metaani.
-  type: simple.FixedMultiplierNode
-  quantity: emissions
-  unit: kt/a
-  historical_values: [[2010, 10000], [2022, 4000]]
-  output_nodes: [net_emissions]
-  params:
-  - id: multiplier
-    value: 2
-    unit: t/m**3
-
-- id: average_wood_product_price
-  name: Keskimääräinen puutuotteiden hinta
-  name_en: Average wood product price
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/t
-  historical_values: [[2010, 700], [2022, 700]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: net_profit_from_state_forests
-  name: Puukaupan nettotulo valtion metsissä
-  name_en: Net income from forest industry in the state forests
-  description: <p>Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
-    ja hiilipäästöistä johtuvilla kustannuksilla.</p> <h3>Perustelut</h3> <h4>Nollahypoteesi</h4>
-    <h4>Backnäsin hypoteesi</h4> <p>Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini
-    pohjaiset tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun
-    tuottoon (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi
-    pienemmin hakkuin.</p><p>Tähän päättelyyn nojaten hypoteesi antaa puukaupalle
-    huomattavasti suuremman arvon, joka tässä harjoitusmallissa on merkitty välille
-    200-290 yksikköä (luvuilla ei ole toistaiseksi mitään vastinetta reaalimaailmassa.)</p>
-    <h3>Viitteet</h3> <p>Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.</p>
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - average_wood_product_price
-  - wood_product_yield
-
-- id: net_cost_of_forests
-  name: Metsien kokonaiskustannukset
-  name_en: Total costs of forests
-  is_outcome: true
-  type: simple.FixedMultiplierNode
-  quantity: currency
-  unit: MEUR/a
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-  input_nodes:
-  - net_profit_from_state_forests
-
-- id: biodiversity_in_state_forests
-  name: Luonnon monimuotoisuus valtion metsissä
-  name_en: Biodiversity in the state forests
-  description: Tämä solmu tarkastelee nimenomaan valtion metsien monimuotoisuutta
-    esimerkiksi uhanalaisten lajien osuutena.
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 50], [2022, 40]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - biodiversity_in_finland
-
-- id: societal_benefit_forest
-  name: Valtionmetsien yhteiskunnallinen hyöty
-  name_en: Societal net benefit of forests
-  type: values.AssociationNode
-  quantity: currency
-  unit: MEUR/a
-  historical_values: [[2010, 200], [2022, 200]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: biodiversity_in_state_forests
-    tags: [increase]
-  - id: net_profit_from_state_forests
-    tags: [increase, fraction1]
-  params:
-  - id: fraction1
-    value: 0.5
-
-- id: biodiversity_survival
-  name: Biodiversity survival
-  type: values.LogicalNode
-  quantity: probability
-  unit: dimensionless
-  input_nodes:
-  - id: biodiversity_in_state_forests
-    tags: [threshold1]
-  - id: biodiversity_in_finland
-    tags: [and, threshold2]
-  params:
-  - id: threshold1
-    value: 45
-    unit: pcs
-  - id: threshold2
-    value: 60
-    unit: pcs
-
-- id: global_net_emissions_average
-  name: Globaalit nettopäästöt keskimäärin
-  name_en: Global net emissions average
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/cap/a
-  historical_values: [[2010, 2], [2022, 2]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: gross_domestic_product_in_finland
-  name: Bruttokansantuote Suomessa
-  name_en: Gross domestic procuct in Finland
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  historical_values: [[2010, 200000], [2022, 220000]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - societal_benefit_forest
-
-- id: equity_performance
-  name: Oikeudenmukaisuuden toteutuminen
-  name_en: Equity performance
-  description: Oikeudenmukaisuuden toteutumisella tarkoitetaan esimerkiksi sitä, että
-    kukaan yksittäinen henkilö ei joudu kohtuuttomaan tilanteeseen yhteiskunnan toteuttamien
-    toimenpiteiden takia. <h4>Viitteet</h4> <ul><li>HS.ymp.2 Kesk Uusimaa</li> <li>HS.ymp.2
-    Vas Uusimaa</li> <li>HS.ymp.2 Vihr Savo</li> <li>HS.ymp.1 Vihr Savo</li> <li>HS.ymp.2
-    Vas Savo</li>
-  type: simple.AdditiveNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 2], [2022, 2]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: fossil_fuel_dependency
-  name: Riippuvuus fossiilisista polttoaineista
-  name_en: Fossi fuel dependency
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: implicit_action_to_promote_green_economy
-    tags: [decrease]
-
-- id: energy_crisis
-  name: Energiakriisi
-  name_en: Energy crisis
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: fossil_fuel_dependency
-    tags: [increase]
-
-- id: carbon_emissions_of_wood_products
-  name: Puutuotteiden hiilipäästöt
-  name_en: Carbon emissions of wood products
-  type: values.AssociationNode
-  quantity: emissions
-  unit: kt/a
-  historical_values: [[2010, 50000], [2022, 50000]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: implicit_action_to_promote_green_economy
-    tags: [decrease]
-  output_nodes:
-  - id: net_emissions
-
-- id: footprint_of_export_products
-  name: Vientituotteiden jalanjälki
-  name_en: Footprint of export products
-  type: values.AssociationNode
-  quantity: number
-  unit: kt/a
-  historical_values: [[2010, 10000], [2022, 10000]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: implicit_action_to_promote_green_economy
-    tags: [fraction1, decrease]
-  output_nodes:
-  - id: net_emissions
-  params:
-  - id: fraction1
-    value: 0.2
-
-- id: competitiveness_of_finnish_products
-  name: Suomalaisten tuotteiden kilpailukyky
-  name_en: Competitiveness of Finnish products
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: postpone_climate_targets
-    tags: [decrease]
-
-- id: profit_of_finnish_business
-  name: Suomalaisen yritystoiminnan liikevoitto
-  name_en: Profit of Finnish business
-  type: values.AssociationNode
-  quantity: number
-  unit: MEUR/a
-  historical_values: [[2010, 10000], [2022, 10000]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: implicit_action_to_promote_green_economy
-    tags: [increase]
-  - id: competitiveness_of_finnish_products
-    tags: [increase]
-  output_nodes:
-  - gross_domestic_product_in_finland
-
-- id: emission_trade_costs
-  name: Päästökauppamaksut
-  name_en: Emission trade costs
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: net_emissions
-    tags: [increase]
-
-- id: state_budget_balance
-  name: Valtion budjetin tasapaino
-  name_en: State budget balance
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: emission_trade_costs
-    tags: [decrease]
-
-- id: energy_price
-  name: Energian hinta
-  name_en: Energy price
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: energy_crisis
-    tags: [increase]
-
-- id: citizen_discomfort
-  name: Haitta kansalaisten elämälle
-  name_en: Citizen discomfort
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: energy_price
-    tags: [increase]
-
-- id: international_commitments_of_finland
-  name: Suomen kansainvälisten sitoutmusten toteutuminen
-  name_en: International commitments of Finland
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs/a
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: postpone_climate_targets
-    tags: [increase]
-
-- id: administrative_restrictions_to_companies
-  name: Yritysten lainsäädännölliset toimintaedellytysten rajoitteet
-  name_en: Administrative restrictions to companies
-  description: Toimintaedellytykset tarkoittavat tässä erilaisia lainsäädännöllisiä rajoituksia tai maksuja, joiden tavoitteena on ympäristöhaittojen ehkäisy. Toimintaedellytyksiä verrataan muihin maihin.
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [utility_finland_to_reduce_own_emissions_anyway]
-  params:
-  - id: fraction1
-    value: 0.001
-
-- id: carbon_sinks_in_finland
-  name: Hiilinielut Suomessa
-  name_en: Carbon sinks in Finland
-  description: <h3>Viitteet</h3>Kasvihuonekaasuinventaario 2021. Maataloussektorin ja maankäyttösektorin nettopäästöihin ei merkittäviä muutoksia verrattuna joulukuussa 2022 julkaistuihin ennakkotietoihin. <a href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaario-2021-maataloussektorin-ja-maankayttosektorin-nettopaastoihin-ei-merkittavia-muutoksia-verrattuna-joulukuussa-2022-julkaistuihin-ennakkotietoihin">Luken seurantajulkistus 15.3.2023</a>
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: Mt/a
-  historical_values: [[2010, -26.03], [2021, 0.49]]
-  output_nodes: [net_emissions]
-
-#
-### UTILITIES
-#
-
-- id: utility_forest
-  name: Metsänhoidon utiliteetti
-  name_en: Utility of forest management
-  description: '<h3>Puolueiden sanalliset selitykset</h3> <h4> Perussuomalaiset: Vähennetäänkö
-    metsähakkuita valtion mailla? Ei.</h4> <b>Jussi Wihonen, Perus­suomalaiset.</b>
-    Valtion metsiä tulee hoitaa vastuullisesti, kuten tähänkin asti. Toimet suomen
-    metsissä ei vaikuta gloobaalissa mittakaavassa kuin promilletasolla, se syytä
-    muistaa. <h4>Vihreät: Vähennetäänkö metsähakkuita valtion mailla? Kyllä.</h4>
-    <p><b>Krista Mikkonen, Vihreät.</b> Valtion omistamat vanhat ja luonnontilaiset
-    metsät tulee poistaa talouskäytöstä ja suojella. Hiilinielujen kasvattamiseksi
-    kiertoaikaa valtionmetsissä tulee pidentää ja turvemailla siirtyä avohakkuista
-    jatkuvaan kasvatukseen. Myös yksityisille metsänomistajille tulee luoda kannusteita
-    pidentää hakkuukiertoa, siirtyä jatkuvaan kasvatukseen ja lisätä luonnonhoitotoimia
-    metsissään. Lisäksi on varmistettava, että luonnonsuojelurahoja on riittävästi,
-    jotta halukkaat metsänomistajat voivat siirtää metsiään luonnonsuojelun piiriin
-    saaden siitä korvauksen.</p> <p>Krista Mikkonen, Vihreät. Ilmastoratkaisuja kysyy
-    nyt koko maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä
-    maailmalle, ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla.
-    Vaikka Suomen kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin
-    henkilöä kohden päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista
-    päästöistä kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan
-    paljon meidän käyttämiä tuotteita.</p> <h4>Demarit: Vähennetäänkö metsähakkuita
-    valtion mailla? Kyllä.</h4> <p><b>Teemu Backnäs, Sdp.</b> Iso osa Suomalaisesta
-    hyvinvoinnista tulee metsistämme, jotta jatkossakin on näin, on metsäteollisuuden
-    toimintaedellytykset varmistettava kestävällä metsänhoidolla. Luonnonvarakeskuksen
-    (LUKE) tutkimusten mukaan hiilinielut ovat pienetyneet, joten olisi fiksua olla
-    proaktiivinen hakkuiden suhteen. Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini
-    pohjaiset tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun
-    tuottoon (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi
-    pienemmin hakkuin. Todennäköisesti muutos hakkuiden vähentämisessä tapahtuu markkinaehtoisesti
-    ja metsäteollisuuden tuottama arvo kasvaa. Aikaisemmin metsäteollisuuden "jätteet"
-    (=ligniini) päätyi järjestään polttoon, jonka tuottama arvo on pieni suhteessa
-    uusiin sovelluksiin.</p> <h3>Tarkasteltavat päätökset</h3> <p>Päätökset on nimetty
-    hypoteeseiksi teknisistä syistä.</p> <ul><li>Hypothesis 1: Reduce logging in state
-    forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>'
-  description_en: "<h3>Verbal explanations of the parties</h3> <h4>True Finns: Will
-    deforestation be reduced on state lands? No.</h4> <b>Jussi Wihonen, Perussuomalaiset.</b>
-    State forests must be managed responsibly, as up to now. Actions in Finnish forests
-    have no global impact on a scale like a per mille level, that should be remembered.
-    <h4>The Greens: Will deforestation be reduced on state lands? Yes.</h4> <p><b>Krista
-    Mikkonen, The Greens.</b> State-owned old and natural estates forests should be
-    removed from economic use and protected. To grow carbon sinks the rotation period
-    in the state forests should be extended and peatlands should be switched from
-    open felling for continuous education. Incentives must also be created for private
-    forest owners extend the felling cycle, switch to continuous cultivation and increase
-    nature management activities in their forests. In addition, it must be ensured
-    that there is enough money for nature conservation, so that willing forest owners
-    can transfer their forests to nature conservation receiving compensation for it.</p>
-    <p>Krista Mikkonen, Vihreät. Climate solutions are being asked now the whole world.
-    We should be at the forefront of creating and selling them to the world, not waiting
-    and later buying other people's solutions with expensive money. Although Finland's
-    total emissions remain small due to the small population, yes our emissions per
-    person are at the top. In addition to this, part of those due to consumption emissions
-    are registered in other countries, such as China, because it is manufactured there
-    many products we use.</p> <h4>Demarit: Will deforestation be reduced on state
-    lands? Yes.</h4> <p><b>Teemu Backnäs, Sdp.</b> A big part of Finnish well-being
-    comes from our forests, so that this will continue to be the case, are the operating
-    conditions of the forest industry ensured by sustainable forest management. The
-    Natural Resources Center's (LUKE) studies according to the carbon sinks have decreased,
-    so it would be smart to be proactive when logging regarding. The value of new
-    products in the forest industry (e.g. lignin-based wind turbine platforms) is
-    more than 100 times compared to the traditional pulp yield (~€700/tn), so we can
-    probably create a bigger value chain with less logging. Likely the change in the
-    reduction of felling takes place according to market conditions and the forest
-    industry the value produced increases. Previously, the 'waste' (=lignin) of the
-    forest industry ended up I arrange for burning, the value produced is small in
-    relation to new applications.</p> <h3>Reviewed decisions</h3> <p>Decisions are
-    named hypotheses for technical reasons.</p> <ul><li>Hypothesis 1: Reduce logging
-    in state forests. </li><li>Hypothesis 2: Add logging in state forests.</li></ul>"
-  type: values.UtilityNode
-  quantity: utility
-  unit: Ut/a
-  input_nodes:
-#  - id: equity_performance
-#    tags: [equity]
-  - id: net_emissions
-    tags: [emissions]
-  - id: net_cost_of_forests
-    tags: [currency]
-  - id: biodiversity_in_finland
-    tags: biodiversity
-  params:
-  - id: impact_threshold
-    ref: impact_threshold
-#  - id: equity_weight
-#    ref: equity_weight
-  - id: emissions_weight
-    ref: emissions_weight
-  - id: cost_weight
-    ref: cost_weight
-  - id: biodiversity_weight
-    ref: biodiversity_weight
-
-- id: utility_climate
-  name: Ilmastotoimien utiliteetti
-  name_en: Utility of climate mitigation
-  description: '<h3>Puolueiden sanalliset kuvaukset</h3><h4>Vihreät: Lykätäänkö ilmastotavoitteita?
-    Ei.</h4> <p><b>Krista Mikkonen, Vihreät.</b> Ilmastoratkaisuja kysyy nyt koko
-    maailma. Meidän kannattaa olla etujoukoissa niitä luomassa ja myymässä maailmalle,
-    ei odotella ja ostaa myöhemmin muiden ratkaisuja kalliilla rahalla. Vaikka Suomen
-    kokonaispäästöt pienestä väkiluvusta johtuen jäävät pieneksi, niin henkilöä kohden
-    päästömme ovat kärkipäässä. Tämän lisäksi osa kulutuksesta johtuvista päästöistä
-    kirjautuu muihin maihin kuten esimerkiksi Kiinaan, koska siellä valmistetaan paljon
-    meidän käyttämiä tuotteita.</p> <h4>Demarit: Lykätäänkö ilmastotavoitteita? Ei.</h4>
-    <p><b>Teemu Backnäs, Sdp.</b> Ei. Suomi elää viennistä. Tämä on elinkeinoelämän
-    ja vientiteollisuuden toive ja jo nyt suuren pörssiyhtiöt tekevät tulosta kestävemmin
-    tuotetuista tuotteista. Suomi ei ilmastomuutosta yksin ratkaise, mutta viennin
-    kautta Suomella onkin iso ekologinen _kädenjälki_, tarkoittaen että vientituotteemme
-    vähentävät kasvihuonepäästöjä maailmalla. Me olemmekin kokoamme isompi ympäristötekijä
-    maailmalla. Tärkeää onkin kasvattaa tuotekehityspanoksia, jotta myös jatkossa
-    saamme hyvinvointia viennistä, jotta tutkijamme ja insinöörimme voivat kehittää
-    parempia tuotteita. On hyvä muistaa että hetkellisen monopoliaseman voidaan saavuttaa
-    tuotekehityksen kautta.</p> <h4>Perussuomalaiset: Lykätäänkö ilmastotavoitteita?
-    Kyllä.</h4> <p><b>Jussi Wihonen, Perus­suomalaiset.</b>Kannatamme EU:n yhteistä
-    tavoitetta, 2050. Teollisuuden kilpailukyky turvattava, emme voi asettaa tiukempia
-    normeja kuin kilpailijamaat, muuten teollisuus hakeutuu sinne. Suomi ei menetä
-    mitään, sitoutumalla EU:n hiilineutraalisuustavoitteeseen.</p>'
-  description_en: "<h3>Parties' verbal rationale</h3> <h4>The Greens: Will climate
-    goals be postponed? No.</h4> <p><b>Krista Mikkonen, The Greens.</b> The whole
-    world is now asking for climate solutions. We should be at the forefront of creating
-    and selling them to the world, not waiting and later buys other people's solutions
-    with expensive money. Although Finland's total emissions due to the small population
-    remain small, so are our emissions per person at the top. In addition to this,
-    some of the emissions resulting from consumption are recorded in others to countries
-    like, for example, China, because a lot of the ones we use are manufactured there
-    products.</p> <h4>Demarit: Will climate goals be postponed? No.</h4> <p><b>Teemu
-    Backnäs, Sdp.</b> No. Finland lives on exports. This is business life and the
-    desire of the export industry and already large listed companies to make results
-    more sustainably of the products produced. Finland will not solve climate change
-    alone, but export will through Finland has a big ecological _handprint_, meaning
-    that our export products reduce greenhouse emissions worldwide. We are an environmental
-    factor bigger than our size in the world. It is important to increase product
-    development investments so that also in the future we get prosperity from exports
-    so that our scientists and engineers can develop better products. It is good to
-    remember that a momentary monopoly position can be achieved through product development.</p>
-    <h4>True Finns: Should climate goals be postponed? Yes.</h4> <p><b>Jussi Wihonen,
-    Perussuomalaiset.</b>We support the common EU goal, 2050. The competitiveness
-    of industry must be secured, we cannot set stricter ones standards than competitor
-    countries, otherwise the industry will go there. Finland will lose nothing by
-    committing to the EU's carbon neutrality goal.</p>"
-  type: values.UtilityNode
-  quantity: utility
-  unit: Ut/a
-  input_nodes:
-  - id: net_emissions
-    tags: [emissions]
-  - id: net_cost_of_forests
-    tags: [currency]
-  params:
-  - id: impact_threshold
-    ref: impact_threshold
-  - id: emissions_weight
-    ref: emissions_weight
-  - id: cost_weight
-    ref: cost_weight
-
-- id: utility_finland_to_reduce_own_emissions_anyway
-  name: Suomen pitäisi vähentää omia päästöjään riippumatta siitä, mitä muut maat
-    tekevät
-  name_en: Finland should reduce its own actions irrespective of what other countries
-    do
-  references: HS.arv.10
-  description: '<h4>Pekka Niiranen: Jokseenkin eri mieltä (Kokoomus)</h4> Suomen on
-    oltava aktiivisesti mukana ilmastonmuutoksen torjumisessa ja päästöjen vähentämisessä,
-    mutta se on tehtävä koordinoidusti ja yhteistyössä muiden valtioiden kanssa. Meidän
-    ei pidä tässä(kään) asiassa ampua itseämme jalkaan, eli yritysten toimintaedellytyksiä
-    ei pidä säädellä enemmän kuin mitä kilpailijamme tekevät. <h4>Markku Siponen:
-    Jokseenkin samaa mieltä (Keskusta)</h4> Ei pidä ajatella, että en minäkään, kun
-    ei muutkaan. Suomi voi olla edelläkävijänä kehittämässä vähäpäästöisempiä ratkaisuja.
-    <h4>Krista Mikkonen: Täysin samaa mieltä (Vihreät)</h4> Suomella on osaamista
-    luoda ratkaisuja päästöjen vähentämiseksi ja niitä ratkaisuja voimme myydä maailmalle.
-    Elinkeinoelämämme on vahvasti sitoutunut päästöjen vähentämiseksi ja tässä työssä
-    onkin edistytty hyvin. Tänä päivänä uudet investoinnit syntyvät sinne, missä on
-    tarjolla puhdasta energiaa ja jossa yhteiskunta on sitoutunut päästöjen vähentämiseen
-    ja fossiilienergiasta luopumiseen. <h3Teemu Backnäs: Täysin samaa mieltä (Sdp)</h4>
-    Tämä luo kannusteen luoda parempia tuotteita, josta vientimmekin elää. Jatkuvasti
-    uutisoidaan uusista investoinneista vihreän siirtymän alueelle ja uskonkin, että
-    tapahtuu teollisuuden uusjakoa, jossa aikaiset mukautujat ovat voittajia. Jossain
-    asioissa uudet teknologiat asioiden tekemiseksi kestävemmin ovat jo olemassa,
-    mutta lainsäädäntö täytyy saada kuntoon, kuten pienydinvoiman mahdollistava lainsäädäntö,
-    jolla olisi hyvät kerrannaisvaikutukset puun käyttöön ja sitä kautta paine metsien
-    käytölle vähenisi.'
-  type: values.UtilityNode
-  quantity: utility
-  unit: Ut/a
-  input_nodes:
-#  - id: equity_performance
-#    tags: [equity]
-  - id: net_emissions
-    tags: [emissions]
-#  - id: global_net_emissions_average  # FIXME Should we use logical node here to check whether FI emissions are larger than global emissions per capita. If yes, it is bad for Kokoomus.
-#    tags: [emissions]
-  params:
-  - id: impact_threshold
-    ref: impact_threshold
-#  - id: equity_weight
-#    ref: equity_weight
-  - id: emissions_weight
-    ref: emissions_weight
-
-- id: value_profile_environment_first
-  name: Ympäristön etu tulisi asettaa talouskasvun ja työpaikkojen luomisen edelle,
-    jos ne ovat keskenään ristiriidassa
-  name_en: Environment should have the higher priority if it is in conflict with economic
-    growth or employment
-  description: '<h4>Pekka Niiranen: Jokseenkin eri mieltä (Kokoomus)</h4> Niiden ei
-    tarvitse olla keskenään ristiriidassa. Talouskasvu ja uudet työpaikat ovat yhteiskunnan
-    kehityksen kannalta välttämättömiä, mutta ne voidaan saavuttaa rasittamatta ympäristöä.
-    Talouskasvu ja työpaikkojen luominen ja ympäristöasiat eivät ole toisilleen vastakkaisia
-    asioita. Ympäristöasioihin panostaminen voi päinvastoin luoda lisää työpaikkoja
-    ja siten myös talouskasvua, sillä ekologisuus ja vihreä siirtymä ovat yhä tärkeämpiä
-    kilpailutekijöitä. <h4>Markku Siponen: Ei samaa eikä eri mieltä (Keskusta)</h4>
-    Ympäristövastuullisuus on tätä päivää, joka kulkee rinnakkain talouskasvun kanssa.
-    <h4>Teemu Backnäs: Jokseenkin samaa mieltä (Sdp)</h4> Väittäisin että nämä harvoin
-    ovat ristiriidassa keskenään ja yhä etenevissä määrin uusien puhtaiden investointien
-    merkitys korostuu. Kaikella ihmisen tekemisellä on aina impakti ympäröivään luontoon
-    ja sitä varten meillä on mm. ympäristövaikutusten arviointiprosessi erilaisissa
-    hankkeissa. Teollisissa investoinnista luvan saaminen on tärkein asia ja onkin
-    kaikkien etu, että niissä tehdään perusteellinen tutkimus ennen mahdollista investointipäätöstä.
-    <h4>Krista Mikkonen: Täysin samaa mieltä (Vihreät)</h4> Miltei jokaisella ihmisen
-    toimella on haitallisia vaikutuksia ympäristöön, niiden välttäminen ja minimoiminen
-    on kaikissa hankkeissa tärkeää. Ne ympäristöhaitat, joita ei voida välttää, tulisi
-    kompensoida toisaalla. Tämän vuoksi ekologinen kompensaatio tulisi ottaa käyttöön.
-    Elinkelpoinen planeetta on ainoa tapa taata kestävä tulevaisuus. Luontokato ja
-    ilmastokriisi ovat esimerkkejä siitä, kuinka olemme jo ylittäneet kestävyyden
-    rajat luodessamme hyvinvointia. Siksi enää emme voi laiminlyödä ympäristöä. <h3>Viitteet</h3>
-    Helsingin Sanomien vaalikone eduskuntavaaleissa 2023.'
-  references: HS.arv.12
-  type: values.LogicalNode
-  quantity: utility
-  unit: dimensionless
-  input_nodes:
-  - id: gross_domestic_product_in_finland
-    tags: [threshold1]
-  - id: net_emissions
-    tags: [and, threshold2]
-  - id: biodiversity_in_finland
-    tags: [and, threshold3]
-  params:
-  - id: threshold1
-    value: 0
-    unit: EUR/a
-  - id: threshold2
-    value: 0
-    unit: kt/a
-  - id: threshold3
-    value: 0
-    unit: pcs
-
-############# Lauri's nodes
 #
 # EV charging infrastructure  # Municipality A: infra increases EVs
 #
-- id: charging_stations  # NOTE! I removed the group and the decision level, because it is relevant only for actions.
+- id: charging_stations
+  name: Latauspisteiden lukumäärä
   name_en: Number of charging stations
-  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A increases stations by setting policies. 
+  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A & Local governmental area D increases stations by setting policies. 
   quantity: fraction
-  type: values.AssociationNode
+  type: values.AdditiveNode
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -1036,38 +386,101 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - charging_supply
-  - charging_station_jobs
+  - id: tourism
+  - id: charging_supply
+  - id: charging_station_jobs
+  - id: transportation_service_level
+
+- id: effect_of_charging_stations_on_evs
+  name: Latauspisteiden vaikutus sähköautojen määrään
+  name_en: Effect of charging stations on the number of EVs
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: pcs
+  color: '#300505'
+  input_nodes:
+  - charging_stations
+  output_nodes:
   - number_of_evs
-  - transportation_emissions
+  params:
+  - id: multiplier
+    value: 50
+    unit: pcs/pcs
+
+- id: need
+  name: Tarve sähköautojen latauspisteille
+  name_en: The need for EV charging
+  description: Local communities have expressed their need for charging points and the number of EV charging points fills that need.
+  quantity: fraction
+  type: values.AssociationNode
+  unit: pcs # Jouni does this make sense
+  historical_values: [[2010, 10000], [2023, 10000]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_service_level
+
+- id: tourism
+  name: Turismin määrä
+  name_en: Number of tourists 
+  description: Tourism is an important business sector in local governmental area D therefore the charging points matter whether tourists come to the area or not.
+  quantity: number
+  type: values.AssociationNode
+  unit: pcs
+  historical_values: [[2010, 10000], [2023, 10000]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: local_business
+
+- id: local_business
+  name: Paikallisten yritysten liikevaihto
+  name_en: Turnover of local businesses. 
+  description: The number of tourists has an impact on how successful local businesses are.
+  quantity: currency
+  type: values.AssociationNode
+  unit: kEUR/a
+  historical_values: [[2010, 10000], [2023, 10000]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: total_economic_benefit
 
 - id: number_of_evs
+  name: Sähköautojen määrä
   name_en: Number of EVs
   description: More charging stations improves intention to purchase EVs as worry about charging availability decreases.
   quantity: number
   type: values.AssociationNode
   unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
+  historical_values: [[2010, 10000], [2023, 10000]]
   input_dataset_processors: [LinearInterpolation]
+
+- id: effect_of_ev_on_car_km
+  name: Sähköautojen vaikutus autokilometreihin
+  name_en: Effect of EVs on car km
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: Mvkm/a
+  input_nodes:
+  - number_of_evs
   output_nodes:
-  - id: transportation_emissions
-    tags: [emissions]
-  - id: air_quality
+  - car_km
+  params:
+  - id: multiplier
+    ref: effect_of_ev
 
 - id: air_quality
-  name_en: Air quality
+  name: Ilmanlaatu (PM2.5)
+  name_en: Air quality (PM2.5)
   description: Air quality improves if car driven trips decrease because of sustainable transportation. Air pollution decreases if people switch from combustion vehicles to EVs.
-  quantity: number
-  type: values.AssociationNode
-  unit: pcs
-  historical_values: [[2010, 100], [2023, 100]]
+  quantity: mass_concentration
+  type: simple.AdditiveNode
+  unit: ug/m**3
+  historical_values: [[2010, 12], [2023, 10]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - health_benefits
 
-- id: charging_supply  # NOTE! I changed some node id's to be more specific.
+- id: charging_supply
+  name: Latauspisteiden sähkönkulutus
   name_en: Energy supply for EV charging
-  description: Amount of electricity supplied for the EV charging stations. More people have EV’s because there is supply for charging in public places.  # NOTE! I add a sentence to description about what is the variable that this node estimates.
+  description: Amount of electricity supplied for the EV charging stations. More people have EV’s because there is supply for charging in public places.
   quantity: energy
   type: simple.FixedMultiplierNode
   unit: GWh/a
@@ -1081,30 +494,46 @@ nodes:
   - energy_company_profit
 
 - id: charging_station_jobs
-  name_en: Value of jobs for building and maintaining EV charging infrastructure  # NOTE I changed some names so that they describe the variable estimated, NOT the change caused by an action. The change can be described in the description
+  name: Latauspisteiden rakentamistyön arvo
+  name_en: Value of jobs for building and maintaining EV charging infrastructure
   description: Municipality B thinks that if municipalities build EV charging stations it creates jobs nationally.
   quantity: currency
   type: simple.FixedMultiplierNode
-  unit: MEUR/a
+  unit: kEUR/a
+  output_nodes:
+  - total_economic_benefit
   params:
   - id: multiplier
-    value: 1
-    unit: MEUR/a/pcs
+    value: 10
+    unit: kEUR/a/pcs
 
 - id: policies_demand
+  name: Poliittinen vaatimus yrityksille latauspisteiden rakentamiseen
   name_en: Policies demand private companies to build EV charging infra
   description: If the policies demand private companies to build electric vehicle charging stations, the charging infrastructure expands. Some policies would also compel companies to build charging stations in multifamily homes etc., where individual residents cannot influence the existence of charging points compared to single family homes. (Costs are not included here.)
   quantity: currency
+  type: simple.AdditiveNode
+  unit: pcs
+  historical_values: [[2010, 100], [2023, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: effect_of_policy_on_charging_stations
+  - id: charging_stations
+
+- id: effect_of_policy_on_charging_stations
+  name: Politiikkavaatimuksen vaikutus yksityisiin latausasemiin
+  name_en: Effect of policy on private charging stations
   type: simple.FixedMultiplierNode
+  quantity: currency
   unit: MEUR/a
+  output_nodes: [total_economic_benefit]
   params:
   - id: multiplier
     value: 10000
     unit: EUR/a/pcs
-  output_nodes:
-  - charging_stations
 
 - id: help_sustainable_transition
+  name: Vihreän siirtymän edistäminen
   name_en: Help sustainable transition
   description: Help people to transition to sustainable living. WHAT IS ACTUALLY MEASURED HERE? The name implies that this is an action.
   quantity: number
@@ -1114,64 +543,53 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: duty_of_municipality
+  name: Kunnan velvollisuus latausinfran tuottamiseen
   name_en: Duty of municipality to offer infrastructure
-  description: Law requires municipalities to build necessary infrastructure. There must be at least 300 charging stations. The graph shows the year when the goal is reached.
+  description: Law requires municipalities to build necessary infrastructure. There must be at least a certain amount of charging stations. The graph shows the year when the goal is reached.
   quantity: fraction
   type: values.LogicalNode
   unit: dimensionless
   params:
   - id: threshold1
-    value: 300
+    value: 430
     unit: pcs
   input_nodes:
   - id: charging_stations
     tags: [threshold1]
 
 - id: energy_company_profit
+  name: Sähköyhtiön tuotot latauspisteistä
   name_en: Energy company’s profit
   description: The profit of a company that offers energy to the EV charging stations. The municipally-owned energy company earns revenue from charging points. (Costs are not included here.)
   quantity: currency
   type: simple.FixedMultiplierNode
-  unit: MEUR/a
+  unit: kEUR/a
   params:
   - id: multiplier
     value: 0.1  # price of electricity
     unit: EUR/kWh
+  output_nodes:
+  - total_economic_benefit
 
-- id: vp_earn_profit
-  name_en: Value profiles about EVs
-  description: <h4>Value profile of municipality A</h4> Municipality A thinks that building charging infrastructure may not be the use of the funds or the most effective but it is monitored to see if they should change their opinion in years to come. Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. Improving air quality and reducing greenhouse gas emissions are both equally important priorities for the municipality. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions. <h4>Energy company's value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.
-  type: values.UtilityNode
-  quantity: utility
-  unit: Ut/a
-  input_nodes:
-  - id: energy_company_profit
-    tags: [currency]
-  - id: duty_of_municipality
-    tags: [legality]
-  - id: transportation_emissions
-    tags: [emissions]
-  - id: air_quality
-  params:
-  - id: impact_threshold
-    ref: impact_threshold
-  - id: cost_weight
-    ref: cost_weight
-  - id: legality_weight
-    ref: legality_weight
-  - id: emissions_weight
-    ref: emissions_weight
+- id: total_economic_benefit
+  name: Taloudellinen kokonaishyöty
+  name_en: Total economic benefit
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+
 
 #
 # Shared micro mobility system / safe bike parking
 #
 - id: city_mm_stations
+  name: Kaupunkipyöräpisteiden määrä
   name_en: Number of micro mobility stations
   description:
-  quantity: fraction
-  type: values.AdditiveNode
+  quantity: number
+  type: simple.AdditiveNode
   unit: pcs
-  historical_values: [[2010, 30], [2023, 50]]
+  historical_values: [[2010, 0], [2023, 0]]
   input_dataset_processors: [LinearInterpolation]
   goals:
   - is_main_goal: true
@@ -1183,47 +601,151 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - car_km
   - accessibility
-  - behavioral_change
 
-- id: sponsor_money
-  name_en: Money from sponsors
-  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot.
-  quantity: currency
-  type: values.AdditiveNode
-  unit: pcs
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
-  goals:
-  - is_main_goal: true
-    default: true
-    label: Sponsor money
-    values:
-    - year: 2025
-      value: 300
-    - year: 2030
-      value: 300
-  output_nodes:
+- id: mm_station_effect_on_car_km
+  name: Kaupunkipyörien vaikutus autokilometreihin
+  name_en: Effect of micro mobility stations on car km
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: Mvkm/a
+  input_nodes:
   - city_mm_stations
+  output_nodes:
+  - car_km
+  params:
+  - id: multiplier
+    value: -50000
+    unit: vkm/pcs/a
+
+- id: effect_of_mm_stations_on_sustainable_transportation
+  name: Kaupunkipyörien vaikutus kestävään liikkumiseen
+  name_en: Effect of micro mobility stations on sustainable transportation
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: Mvkm/a
+  input_nodes:
+  - city_mm_stations
+  output_nodes:
+  - sustainable_transportation
+  params:
+  - id: multiplier
+    value: 50000
+    unit: vkm/pcs/a
+
+- id: safe_bike_parks
+  name: Turvallisten pyöräparkkien määrä
+  name_en: Number of safe bike parks
+  type: simple.AdditiveNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 1000], [2023, 1000]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - accessibility
+  - transportation_service_level
+
+- id: effect_of_safe_bike_parks_on_car_km
+  name: Pyöräparkkien vaikutus autokilometreihin
+  name_en: Effect of safe bike parks on car km
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: Mvkm/a
+  input_nodes:
+  - safe_bike_parks
+  output_nodes:
+  - car_km
+  params:
+  - id: multiplier
+    value: -15000
+    unit: vkm/pcs/a
+
+- id: biodiesel_stations_effect_on_emissions
+  name: Biodieselasemien vaikutus liikennepäästöihin
+  name_en: Effect of biodiesel stations on transportation emissions
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: kt/a
+  input_nodes:
+  - biodiesel_stations
+  output_nodes:
+  - transportation_emissions
+  params:
+  - id: multiplier
+    value: -500
+    unit: t/pcs/a
+
+- id: vehicle_need
+  name: Henkilöajoneuvomatkojen tarve kaupungissa
+  name_en: Need for personalisalized trips vehicle inside the city
+  Description: The potential need for car-like trips, as opposed to short trips by walking and without a need for a vehicle.
+  quantity: vehicle_mileage
+  type: simple.FixedMultiplierNode
+  unit: Mvkm/a
+  input_nodes:
+  - population
+  params:
+  - id: multiplier
+    value: 20
+    unit: vkm/cap/d
 
 - id: car_km
+  name: Autokilometrien määrä kaupungissa
   name_en: Car kilometers driven with trips inside the city
   Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling.
   quantity: vehicle_mileage
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: Mvkm/a
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - vehicle_need
+
+- id: number_of_bus_trips
+  name: Bussimatkojen lukumäärä
+  name_en: Number of bus trips
+  type: simple.FixedMultiplierNode
+  quantity: number
+  unit: trips/d
+  params:
+  - id: multiplier
+    value: 100
+    unit: trips/d/pcs
   output_nodes:
-  - id: health_benefits
-    tags: [decrease]
-  - id: transportation_emissions
-  - id: air_quality
+  - public_transportation
+
+- id: effect_of_cars_on_air_quality
+  name: Autokilometrien vaikutus ilmanlaatuun
+  name_en: Effect of cars on air quality
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: ug/m**3
+  input_nodes:
+  - car_km
+  output_nodes:
+  - air_quality
+  params:
+  - id: multiplier
+    value: 3
+    unit: ng/m**3/(Mvkm/a)
+
+- id: effect_of_cars_on_emissions
+  name: Autokilometrien vaikutus päästöihin
+  name_en: Effect of cars on transportation emissions
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: kt/a
+  input_nodes:
+  - car_km
+  output_nodes:
+  - transportation_emissions
+  params:
+  - id: multiplier
+    value: 150
+    unit: g/vkm
 
 - id: public_transportation
+  name: Julkisen liikenteen matkojen määrä
   name_en: Public transportation
-  type: values.AdditiveNode
+  type: simple.AdditiveNode
   quantity: number
   unit: trips/d
   historical_values: [[2010, 30], [2023, 50]]
@@ -1241,6 +763,7 @@ nodes:
   - id: accessibility
 
 - id: accessibility
+  name: Liikenteen saavutettavuus
   name_en: Accessibility of transportation
   Description: More people can access the city center. # What could be the quantity and unit?
   quantity: fraction
@@ -1258,16 +781,44 @@ nodes:
     - year: 2030
       value: 300
 
-- id: health_benefits
-  name_en: Health benefits
-  description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives. 
-  quantity: disease_burden
-  type: values.AssociationNode
+- id: effect_of_sustainable_transportation_on_health
+  name: Kestävän liikkumisen vaikutus terveyteen
+  name_en: Effect of sustainable transportation on health
+  type: simple.FixedMultiplierNode
+  quantity: effect
   unit: DALY/a
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
   input_nodes:
-  - behavioral_change
+  - sustainable_transportation
+  output_nodes:
+  - health_benefits
+  params:
+  - id: multiplier
+    value: 1
+    unit: DALY/Mvkm
+
+- id: effect_of_air_quality_on_health
+  name: Ilmanlaadun vaikutus terveyteen
+  name_en: Effect of air quality on health
+  type: simple.FixedMultiplierNode
+  quantity: effect
+  unit: DALY/a
+  input_nodes:
+  - air_quality
+  output_nodes:
+  - health_benefits
+  params:
+  - id: multiplier
+    value: -100
+    unit: DALY/a/(ug/m**3)
+
+- id: health_benefits
+  name: Terveyshyödyt
+  name_en: Health benefits
+  description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives.
+  quantity: disease_burden
+  type: simple.AdditiveNode
+  unit: DALY/a
+  input_dataset_processors: [LinearInterpolation]
   goals:
   - is_main_goal: true
     default: true
@@ -1277,15 +828,17 @@ nodes:
       value: 300
     - year: 2030
       value: 300
+  params:
+  - id: drop_nulls
+    value: true
 
 - id: transportation_emissions
+  name: Liikenteen päästöt
   name_en: Transportation emissions
   Description:  If people use sustainable forms of transportation, the municipality's transportation emissions decrease.
   quantity: emissions
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: kt/a
-  historical_values: [[2010, 30], [2023, 50]]
-  input_dataset_processors: [LinearInterpolation]
   goals:
   - is_main_goal: true
     default: true
@@ -1295,32 +848,38 @@ nodes:
       value: 300
     - year: 2030
       value: 300
+  output_nodes:
+  - net_emissions
 
 - id: transportation_service_level
+  name: Liikenteen palvelutaso
   name_en: Transportation service level
   type: values.AssociationNode
-  quantity: fraction
+  quantity: number
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: biodiesel_stations
+  name: Biodieselasemien määrä
   name_en: Biodiesel stations
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: fraction
   unit: pcs
-  historical_values: [[2010, 30], [2023, 50]]
+  historical_values: [[2010, 0], [2023, 0]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
 
-- id: behavioral_change  # Is this measuring the amount of active transport?
-  name_en: Behavioral change to sustainable transportation
+- id: sustainable_transportation
+  name: Kestävän liikkumisen määrä
+  name_en: Sustainable transportation activity
   Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation.
-  quantity: passenger_mileage  # NOTE! Use meaningful quantities when available.
+  quantity: vehicle_mileage
   type: values.AssociationNode
   unit: Mvkm/a
-  historical_values: [[2010, 30], [2023, 50]]
+  historical_values: [[2010, 3], [2023, 5]]
   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - transportation_service_level
   goals:
   - is_main_goal: true
     default: true
@@ -1331,62 +890,224 @@ nodes:
     - year: 2030
       value: 300
 
-- id: vp_change_behavior
-  name_en: Value profiles about micro mobility
-  description: <h4>Value profile of municipality A</h4>One of thegoals of this action is to shift modes away from the single occupancy vehicles. Shared micro mobility systems make the city more accessible to those without cars. Municipality hired a consultant who found out that shared micro mobility is one of the best practices and their internal transportation planner is an expert in the subject. <h4>Value profile of municipality B</h4> High-quality and sustainable transportation options drive municipality’s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.
-  type: values.UtilityNode
+- id:  cost_mm_stations
+  name: Kaupunkipyöräjärjestelmän kustannukset
+  name_en: Cost of shared micro mobility system
+  description: How much shared micro mobility systems would impact a municipality's economic situation. Municipality D thinks offering would require investing in walking/cycling paths.
+  quantity: currency
+  type: simple.FixedMultiplierNode
+  unit: kEUR/a 
+  input_nodes:
+  - id: city_mm_stations
+  output_nodes:
+  - id: action_costs
+  params:
+  - id: multiplier
+    value: 500
+    unit: EUR/a/pcs
+
+- id: cost_ev_charging_infrastructure
+  name: Latausjärjestelmän kustannukset
+  name_en: Cost of EV charging infrastructure
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [charging_stations]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 500
+    unit: EUR/a/pcs
+
+- id: cost_ev_charging_infra_to_city
+  name: Latausjärjestelmän rakentamisekustannukset kaupungille
+  name_en: Building cost of EV charging infrastructure to the city
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [ev_charging_infrastructure]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 1000
+    unit: EUR/a/pcs
+
+- id: cost_bus_support_to_city
+  name: Bussiliikenteen tuen kustannus kaupungille
+  name_en: Bus support cost to the city
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [public_transit_support]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 300
+    unit: EUR/a/pcs
+
+- id: cost_safe_bike_parks
+  name: Turvallisten pyöräparkkien kustannukset
+  name_en: Cost of safe bike stations
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [safe_bike_parks]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 100
+    unit: EUR/a/pcs
+
+- id: cost_biodiesel_stations
+  name: Biodieselasemien kustannukset
+  name_en: Cost of biodiesel stations
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [biodiesel_stations]
+  output_nodes: [action_costs]
+  params:
+  - id: multiplier
+    value: 5000
+    unit: EUR/a/pcs
+
+- id: action_costs
+  name: Toimenpiteiden toteuttamisen suorat kustannukset
+  name_en: Direct implementation costs of actions
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+
+- id: action_benefits
+  name: Toimenpiteiden toteuttamisen suorat hyödyt
+  name_en: Direct implementation benefits of actions
+  type: simple.FixedMultiplierNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes: [action_costs]
+  output_nodes:
+  - id: total_economic_benefit
+  params:
+  - id: multiplier
+    value: -1
+
+- id: utility_accessibility
+  name: Saavutettavuuden utiliteetti
+  name_en: Utility of accessibility
+  type: simple.FixedMultiplierNode
   quantity: utility
   unit: Ut/a
+  input_nodes: [accessibility]
+  output_nodes: [value_profile]
   params:
-  - id: impact_threshold
-    ref: impact_threshold
-  - id: cost_weight
-    value: 1
-    unit: Ut/Mvkm
-  - id: equity_weight
-    value: 1
-    unit: Ut/pcs/a
-  - id: health_weight
+  - id: multiplier
+    ref: equity_weight
+
+- id: utility_health
+  name: Terveyden utiliteetti
+  name_en: Utility of health
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [health_benefits]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
     ref: health_weight
-  input_nodes:
-  - id: behavioral_change
-    tags: [currency]
-  - id: accessibility
-    tags: [equity]
-  - id: health_benefits
-    tags: [disease_burden]
-  - id: transportation_emissions
-    tags: [emissions]
-  - id: air_quality
-  - id: transportation_service_level
 
-#- id: stakeholder_costs
-#  name: Costs according to stakeholders
-#  type: values.MatrixNode
-#  quantity: currency
-#  unit: MEUR/a
-#  input_nodes:
-#  - id: energy_company_profit
-#  params:
-#  - id: matrix
-# value: {year: 2023, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
-# - dimension: vehicle_type
-#   categories: [passenger_car]
-# - dimension: stakeholder
-#   categories: [citizen]
+- id: utility_emissions
+  name: Päästöjen utiliteetti
+  name_en: Utility of emissions
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [net_emissions]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: emissions_weight
 
-- id: total
-  name: Total
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 0], [2022, 0]]
-  input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - vp_change_behavior
-  - vp_earn_profit
+- id: utility_air_quality
+  name: Ilmanlaadun utiliteetti
+  name_en: Utility of air quality
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [air_quality]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: purity_weight
 
-############# Lauri's nodes
+- id: utility_service_level
+  name: Liikenteen palvelutason utiliteetti
+  name_en: Utility of service level
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [transportation_service_level]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: equity_weight
+
+- id: utility_energy_company_profit
+  name: Energiayhtiön utiliteetti
+  name_en: Utility of energy company profit
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [energy_company_profit]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: economic_weight
+
+- id: utility_economy
+  name: Taloushyödyn utiliteetti
+  name_en: Utility of economic outcome
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [total_economic_benefit]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: economic_weight
+
+- id: utility_jobs
+  name: Työn utiliteetti
+  name_en: Utility of jobs
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [charging_station_jobs]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: prosperity_weight
+
+- id: utility_duty
+  name: Kunnan velvollisuuksien utiliteetti
+  name_en: Utility of duty
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [duty_of_municipality]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: legality_weight
+
+- id: value_profile
+  name: Kokonaisutiliteetti
+  name_en: Total utility
+  type: simple.AdditiveNode
+  quantity: utility
+  unit: Ut/a
+  is_outcome: true
+  description: '<h3>Micro mobility</h3><h4>Value profile of municipality A: Micro mobility</h4>One of the goals of this action is to shift modes away from the single occupancy vehicles. Shared micro mobility systems make the city more accessible to those without cars. Municipality hired a consultant who found out that shared micro mobility is one of the best practices and their internal transportation planner is an expert in the subject. <h4>Value profile of municipality B: Micro mobility</h4> High-quality and sustainable transportation options drive the municipality´s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C: Micro mobility</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.<h4>Value profile of local government area D: Micro mobility</h4> Electrifying short trips do not reduce transportation emissions as much as electrifying longer trips. Costs are too high and it is difficult to get third parties to get involved. System does not attract tourists to the area. 
+    <h3>Charging stations</h3><h4>Value profile of municipality A: EV charging infrastructure</h4> Municipality A thinks that building charging infrastructure may not be the use of the funds or the most effective but it is monitored to see if they should change their opinion in years to come. Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. Improving air quality and reducing greenhouse gas emissions are both equally important priorities for the municipality. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions when people swift from petrol cars to EVs. Municipality sees charging infrastructure as basic service. <h4>Energy company´s value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.<h4>Value profile of local government area D: EV charging infrastructure</h4> Demand for the public charging points came from local NGOs and the state government funded the first charging point. Local government supports third parties to build charging infrastructure via policies and state government funding makes building charging infrastructure profitable for third parties. Tourism is an important line of business for the area and if the area does not have EV charging points they will choose another area to visit.'
 
 pages:
 - id: home
@@ -1398,7 +1119,7 @@ pages:
   lead_title: Vihreän siirtymän prioriteetit
   lead_title_en: Green transition priorities
   lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä.
-    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a 
+    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a
     href="https://www.lausuntopalvelu.fi/FI/Proposal/ShowAllProposalAnswers?proposalId=2e8c6721-4711-43d8-987b-deca2144eb4a">hallituksen
     esitykseen</a> eduskunnalle eräiden vihreän siirtymän hankkeiden väliaikaisesta
     etusijamenettelystä aluehallintovirastojen lupakäsittelyssä vuosina 2023—2025
@@ -1408,416 +1129,211 @@ pages:
 
 actions:
 
-############## Lauri's actions
 - id:  ev_charging_infrastructure
-  name_en: Increase EV charging infrastructure
-  description: Why has municipality decided to increase EV charging infra
-  decision_level: nation
+  name: Kaupunki rakentaa latauspisteitä
+  name_en: The city builds EV charging infrastructure
+  description: The law may require cities to build the necessary infrastructure.
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
-  forecast_values: [[2022, 0], [2030, 500]]
-  group: vp_traffic
+  forecast_values: [[2022, 0], [2030, 300]]
+  group: traffic_energy_transition
   output_nodes:
-  - charging_stations
+  - id: charging_stations
 
 - id:  ev_charging_policy
+  name: Kaupunki tukee politiikalla yritysten latauspisteiden rakentamista
   name_en: Set policies to support EV charging
-  description: Why has municipality decided to set policies to support EV charging infrastructure
-  decision_level: nation
+  description: The municipality may decide to set policies to support EV charging infrastructure
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
-  forecast_values: [[2022, 0], [2030, 500]]
-  group: vp_traffic
+  forecast_values: [[2022, 0], [2030, 200]]
+  group: traffic_energy_transition
   output_nodes:
-  - policies_demand
+  - id: policies_demand
  
 - id:  biodiesel
+  name: Biodieselasemien rakentaminen
   name_en: Build biodiesel stations
   description: Why has municipality decided to build biodiesel stations
-  decision_level: nation
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
-  forecast_values: [[2022, 0], [2030, 500]]
-  group: vp_traffic
+  forecast_values: [[2022, 0], [2030, 20]]
+  group: traffic_energy_transition
   output_nodes:
   - biodiesel_stations
 
 - id:  micromobility_sharing_system
+  name: Kaupunkipyöräjärjestelmän perustaminen
   name_en: Offer shared micro mobility system
   description: Why does municipality offer shared micro mobility system
-  decision_level: nation
   quantity: number
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.CumulativeAdditiveAction
   unit: pcs
-  forecast_values: [[2022, 0], [2030, 500]]
-  group: vp_traffic
+  forecast_values: [[2024, 100], [2027, 100]]
+  group: micro_mobility
   output_nodes:
   - city_mm_stations
-  - sponsor_money
 
 - id:  safe_bike_parking
+  name: Turvallisten pyöräparkkien rakentaminen
   name_en: Build safe parking space for bicycles
   description: Why would a municipality build safe parking space for bicycles?
-  decision_level: nation
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
   forecast_values: [[2022, 0], [2030, 500]]
-  group: vp_traffic
+  group: micro_mobility
   output_nodes:
-  - car_km
-  - accessibility
-  - transportation_service_level
+  - safe_bike_parks
 
-############### Lauri's actions
-
-- id: priority_to_green_transition_in_avi
-  name: Etusija vihreän siirtymän hankkeille AVI-käsittelyssä
-  description: <p>Aluehallintoviraston on käsittelyssä annettava etusija kestävää
-    sijoittamista helpottavasta kehyksestä ja asetuksen (EU) 2019/2088 muuttamisesta
-    annetun Euroopan parlamentin ja neuvoston asetuksen (EU) 2020/852 17 artiklan
-    1 kohdassa tarkoitetun ei merkittävää haittaa -periaatteen huomioon ottavan toiminnan
-    ympäristölupahakemukselle ja vesitaloushankkeen lupahakemukselle suhteessa muihin
-    vireille tulleisiin ympäristönsuojelulain ja vesilain mukaisiin lupahakemuksiin.
-    Hakijan on hakemuksen yhteydessä esitettävä riittävä selvitys oikeudesta etusijaan.</p>
-    <p>Edellä 1 momentissa tarkoitettuja lupahakemuksia, joille on annettava etusija,
-    ovat hakemukset, jotka koskevat</p> <ol><li>energiatuotantolaitosta, joka tuottaa
-    energiaa uusiutuvalla energialla, sekä merituulivoimalaa ja siihen liittyviä vesitaloushankkeita;</li>
-    <li>uusiutuvaan energiaan tai sähköistämiseen perustuvia fossiilisten polttoaineiden
-    tai raaka-aineiden käyttöä korvaavia teollisuuden hankkeita;</li> <li>vedyn valmistusta
-    ja hyödyntämistä, lukuun ottamatta vedyn valmistusta fossiilisista polttoaineista;</li>
-    <li>hiilidioksidin talteenottoa, hyödyntämistä ja varastointia;</li> <li>akkutehdasta
-    ja akkumateriaalien valmistusta, talteenottoa ja uudelleenkäyttöä.</li></ol>
-  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221144">Laki</a>
-    ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa annetun
-    lain väliaikaisesta muuttamisesta.
-  group: green_transition
-  type: simple.AdditiveAction
+- id: sponsor_money
+  name: Kaupunkipyöräjärjestelmän rakentaminen yritysten voimin
+  name_en: Companies to sponsor micro mobility stations
+  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot. Municipality D would not offer a micro mobility system without third party involvement. 
   quantity: number
-  unit: pcs
-  forecast_values: [[2023, 1], [2035, 1]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: priority_to_nature_water_in_avi
-  name: Etusija ympäristönsuojelu- ja vesiasioissa AVI-käsittelyssä
-  description: Ympäristönsuojelu- ja vesiasioiden käsittelystä aluehallintovirastossa
-    annetun lain (898/2009) 2 a §:ssä tarkoitettua lupahakemusta koskeva asia on muutoksenhakutuomioistuimessa
-    käsiteltävä kiireellisenä suhteessa muihin tämän lain mukaisiin lupa-asioihin.
-  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221145">Laki</a>
-    vesilain väliaikaisesta muuttamisesta. <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221146">Laki</a>
-    ympäristönsuojelulain väliaikaisesta muuttamisesta.
-  group: green_transition
-  type: simple.AdditiveAction
-  quantity: number
-  unit: pcs
-  forecast_values: [[2023, 1], [2035, 1]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: priority_to_planning_complaints_of_green_transition
-  name: Uusiutuvan energian kaavavalitukset käsiteltävä kiireellisenä
-  description: Uusiutuvan energiantuotannon kannalta merkittäväksi katsottavaa asemakaavaa
-    koskeva valitus ja 77 a §:ssä tarkoitettua tuulivoimarakentamista ohjaavaa yleiskaavaa
-    koskeva valitus on käsiteltävä hallintotuomioistuimessa kiireellisenä suhteessa
-    muihin tämän lain mukaisia kaava-asioita ja lupa-asioita koskeviin valituksiin.
-  references: <a href="https://www.finlex.fi/fi/laki/alkup/2022/20221147">Laki</a>
-    maankäyttö- ja rakennuslain väliaikaisesta muuttamisesta
-  group: green_transition
-  type: simple.AdditiveAction
-  quantity: number
-  unit: pcs
-  forecast_values: [[2023, 1], [2035, 1]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: reduce_logging_in_state_forests
-  name: Hakkuita pitää vähentää valtion metsissä luontokadon ja ilmastonmuutoksen
-    torjumiseksi
-  name_en: Forest logging must be reduced to mitigate biodiversity loss and climate
-    change
-  description: Maankäyttö on Suomessa muuttunut ilmastonmuutosta hillitsevästä hiilinielusta
-    päästöjen lähteeksi hakkuiden lisääntymisen ja puuston kasvun hidastumisen vuoksi.
-    Metsälajeista yhdeksän prosenttia on uhanalaisia. Valtio omistaa Suomen metsistä
-    noin neljänneksen. Hakkuiden vähentäminen vähentäisi valtion tuloja, teollisuuden
-    puunsaantia ja työpaikkoja.
-  description_en: Land use in Finland has changed from a carbon sink that moderates
-    climate change to a source of emissions due to the increase in logging and the
-    slowdown in tree growth. Nine percent of forest species are endangered. The state
-    owns about a quarter of Finland's forests. Reducing logging would reduce government
-    income, wood supply for industry and jobs.
-  references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
-    <a 
-    href="https://www.luke.fi/fi/seurannat/maatalous-ja-lulucfsektorin-kasvihuonekaasuinventaario/kasvihuonekaasuinventaarion-ennakkotiedot-vahvistavat-maankayttosektori-paastolahde-vuonna-2021-metsat-pysyivat-edelleen-nettonieluna">Kasvihuonekaasuinventaarion
-    ennakkotiedot vahvistavat, maankäyttösektori päästölähde vuonna 2021, metsät pysyivät
-    edelleen nettonieluna</a>
-  group: hs_voting_aid
   type: simple.CumulativeAdditiveAction
-  quantity: consumption
-  unit: hm**3/a
-  forecast_values: [[2023, 0], [2024, -10], [2030, 5]]
+  unit: pcs
+  group: micro_mobility
+  forecast_values: [[2024, 200]]
   output_nodes:
-  - id: logging_intensity_in_state_forests
-  - id: biodiversity_in_state_forests
-    tags: [increase]
+  - city_mm_stations
 
-- id: add_logging_in_state_forests
-  name: Lisää hakkuita metsissä
-  name_en: More forest logging
-  group: hs_voting_aid
-  type: simple.AdditiveAction
-  quantity: consumption
-  unit: hm**3/a
-  forecast_values: [[2023, 5], [2024, 5], [2025, 5], [2026, 5], [2027, 5], [2028,
-      5], [2029, 5], [2030, 5]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - logging_intensity_in_state_forests
-  - id: biodiversity_in_state_forests
-    tags: [decrease]
-
-- id: postpone_climate_targets
-  name: Suomen on lykättävä hiilineutraaliustavoitettaan kauemmaksi vuodesta 2035
-  name_en: Finland must postpone its climate emission target from 2035
-  description: Hiilineutraalius tarkoittaa, että ilmastoa lämmittäviä päästöjä tuotetaan
-    korkeintaan sen verran kuin niitä voidaan sitoa ilmakehästä esimerkiksi metsien
-    avulla. Suomi tavoittelee hiilineutraaliutta viimeistään vuonna 2035. EU:n tavoite
-    on vuodessa 2050. Hiilineutraaliustavoitteesta seuraa vaatimuksia useille yhteiskunnan
-    aloille ruuantuotannosta ja rakentamisesta liikenteeseen ja teollisuuteen.
-  references: <a href="https://julkaisut.valtioneuvosto.fi/handle/10024/164321">Hiilineutraali
-    Suomi 2035 – kansallinen ilmasto- ja energiastrategia</a>
-  group: hs_voting_aid
-  type: simple.AdditiveAction
-  quantity: emissions
-  unit: kt/a
-  forecast_values: [[2023, 20000], [2035, 30000]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: building_heating_emissions
-  - id: administrative_restrictions_to_companies
-    tags: [increase]
-
-- id: congestion_charge
-  name: Helsingissä ja muissa suurissa kaupungeissa on otettava käyttöön ruuhkamaksu
-  description: Ruuhkamaksu on teiden käytöstä perittävä maksu, jonka tarkoituksena
-    on hillitä ruuhkautumista ja liikenteen päästöjä. Nyt laki ei mahdollista ruuhkamaksujen
-    keräämistä. Pääkaupunkiseudun kehyskuntien tekemän selvityksen mukaan ruuhkamaksuista
-    olisi haittaa töihin tuleville pienituloisille autoilijoille, joilla ei ole mahdollisuutta
-    vaihtoehtoiseen kulkumuotoon.
-  references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
-  group: hs_voting_aid
-  type: simple.AdditiveAction
-  quantity: mileage
-  unit: Mkm/a
-  forecast_values: [[2023, 0], [2035, 0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - transport_mileage
-
-- id: ban_fur_animals
-  name: Turkistarhaus on kiellettävä Suomessa
-  description: Suomi on Euroopan kolmanneksi suurin turkistentuottajamaa. Suomessa
-    on noin 900 turkistarhaa, joista valtaosa sijaitsee Pohjanmaalla. Turkistarhaus
-    on kielletty osassa Euroopan maista. Turkistarhauksen kieltämistä EU:ssa vaativa
-    kansalaisaloite ylitti joulukuussa 2022 miljoonan allekirjoituksen rajan, ja se
-    etenee EU:n komission käsittelyyn.
-  references: <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>
-  group: hs_voting_aid
-  type: simple.AdditiveAction
+- id: public_transit_support
+  name: Kaupunki tukee bussijärjestelmää
+  name_en: City supports bus transportation
+  type: simple.CumulativeAdditiveAction
   quantity: number
   unit: pcs
-  forecast_values: [[2023, 0], [2035, 0]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: implicit_action_to_ensure_equity
-  name: Määrittelemätön toimenpide oikeudenmukaisuuden toteuttamiseksi
-  name_en: Implicit action to ensure equity
-  description: Vaikka toimenpiteen sisällöstä ei ole vielä kunnollista suunnitelmaa,
-    on jo tunnistettu tällaisen toimenpiteen tarpeellisuus.
-  type: simple.AdditiveAction
-  group: implicit
-  quantity: number
-  unit: pcs/a
-  forecast_values: [[2023, 1], [2035, 1]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [equity_performance]
-
-- id: implicit_action_to_promote_green_economy
-  name: Määrittelemätön toimenpide vihreän talouden edistämisestä
-  name_en: Implicit action to promote green economy
-  description: Vaikka vielä ei ole tarkkaan tiedossa, miten vihreää yritystoimintaa
-    pitäisi edistää, tällaisen toimenpiteen tarve on tunnistettu.
-  type: simple.AdditiveAction
-  group: implicit
-  quantity: number
-  unit: pcs/a
-  forecast_values: [[2023, 1], [2035, 1]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: implicit_action_to_increase_carbon_sinks
-  name: Määrittelemätön toimenpide hiilinielujen lisäämiseksi
-  name_en: Implicit action to increase carbon sinks
-  description: Useat kansanedustajaehdokkaat ehdottivat hiilinieluja lisääviä toimia.
-    Niitä on kerätty tähän. <h3>Vaihtoehdot</h3> <ul><li>Metsäntutkimus (1)</li> <li>Metsänomistajia
-    palkitaan hiilinieluista ja jatkuvapeitteisyydestä (2)</li> <li>Käytetään kestäviä
-    metsänhoitomenetelmiä talousmetsissä. (3)</li></ul> <h3>Viitteet</h3> <ul><li>(2)
-    HS.ymp.1 Vihr Uusimaa</li> <li>(1) HS.ymp.1 Liik Savo</li> <li>(3) HS.ymp.1 Kok
-    Uusimaa</li></ul>
-  type: simple.AdditiveAction
-  group: implicit
-  quantity: number
-  unit: Mt/a
-  forecast_values: [[2023, 0], [2035, -35.0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [carbon_sinks_in_finland]
-
-- id: increasing_wood_product_prices
-  name: Puunjalostuksen lisäarvon parantaminen (mm. Backnäs)
-  name_en: Increasing wood product prices by improved added value
-  description: <p>Puukaupan nettotulo tarkoittaa myyntituloja vähennettynä korjuukustannuksilla
-    ja hiilipäästöistä johtuvilla kustannuksilla.</p> <h3>Perustelut</h3> <h4>Nollahypoteesi</h4>
-    <h4>Backnäsin hypoteesi</h4> <p>Metsäteollisuuden uusien jalosteiden arvo (esim.ligniini
-    pohjaiset tuulivoimalavat) on yli 100-kertainen verrattuna perinteiseen sellun
-    tuottoon (~700€/tn), joten todennäköisesti saamme isomman arvoketjun aikaiseksi
-    pienemmin hakkuin.</p><p>Tähän päättelyyn nojaten hypoteesi antaa puukaupalle
-    huomattavasti suuremman arvon, joka tässä harjoitusmallissa on merkitty 50000 €/t varovasti perustuen Backnäsin arvioon satakertaisesta hinnasta.</p>
-    <h3>Viitteet</h3> <p>Teemu Backnäs, <a href="https://www.hs.fi/politiikka/art-2000009392020.html">HS-vaalikone</a>.</p>
-  type: simple.TrajectoryAction
-  quantity: unit_price
-  unit: EUR/t
-  group: hs_voting_aid
-  color: '#232323'
-  input_datasets:
-  - id: greentransition/wood_product_price_trajectories
-    column: price
-    forecast_from: 2023
-  input_dataset_processors: [LinearInterpolation]
+  group: public_transit
+  forecast_values: [[2024, 50]]
   output_nodes:
-  - average_wood_product_price
-  params:
-  - id: dimension
-    value: hypothesis
-  - id: category_number
-    value: 0
-    min_value: 0
-    max_value: 2
-    step: 3
-  - id: baseline_year
-    value: 2022
-  - id: baseline_year_level
-    value: 700
-    unit: EUR/t
-
-#
-####### COVID
-#
-- id: testing_tracking_isolation
-  name: Testaus, jäljitys, eristys
-  description: Testaus, jäljitys ja eristys on tehokas tapa vähentää sairastuneen
-    ihmisen kontakteja ja siten virusleviämistä, mikä hidastaa taudin leviämistä.
-    Toimenpidettä mitataan testauksen, jäljityksen ja eristyksen piiriin tulevien
-    osuutta sairastuneista.
-  type: simple.AdditiveAction
-  group: covid
-  quantity: fraction
-  unit: '%'
-  forecast_values: [[2022, 0], [2023, 50], [2035, 50]]
+  - number_of_bus_trips
 
 scenarios:
 - id: baseline
   name: Tätä menoa
   name_en: Business as usual
-  params:
-  - id: postpone_climate_targets.enabled
-    value: true
 
 - id: default
   default: true
   name: Aktiivinen
   name_en: Active
   all_actions_enabled: true
-  params:
-  - id: postpone_climate_targets.enabled
-    value: false
 
-- id: true_finns
-  name: Perussuomalaisten arvot
-  name_en: Values of the True Finns
+- id: municipality_a
+  name: Kunnan A arvot
+  name_en: Values of municipality A
   all_actions_enabled: true
   params:
-  - id: reduce_logging_in_state_forests.enabled
+  - id: biodiesel.enabled
     value: false
-  - id: postpone_climate_targets.enabled
-    value: true
-  - id: impact_threshold
-    value: 0
-  - id: emissions_weight
-    value: 0
-    unit: 1 / t
-  - id: cost_weight
-    value: -1
-    unit: 1 / EUR
-  - id: consumer_electricity_emissions.category_number
-    value: 0
-  - id: implicit_action_to_increase_carbon_sinks.enabled
-    value: false
-
-- id: social_democrats
-  name: Sosiaalidemokraattien arvot
-  name_en: Values of the Social Democrats
-  all_actions_enabled: true
-  params:
-  - id: reduce_logging_in_state_forests.enabled
-    value: true
-  - id: postpone_climate_targets.enabled
+  - id: safe_bike_parking.enabled
     value: false
   - id: impact_threshold
     value: 0
-  - id: emissions_weight
-    value: -50
-    unit: 1 / t
-  - id: cost_weight
-    value: -1
-    unit: 1 / EUR
-  - id: consumer_electricity_emissions.category_number
-    value: 0
-  - id: increasing_wood_product_prices.category_number
+  - id: economic_weight
     value: 1
-
-- id: greens
-  name: Vihreiden arvot
-  name_en: Values of the Greens
-  all_actions_enabled: true
-  params:
-  - id: reduce_logging_in_state_forests.enabled
-    value: true
-  - id: postpone_climate_targets.enabled
-    value: false
-  - id: impact_threshold
-    value: 0
-  - id: emissions_weight
-    value: -50
-    unit: 1 / t
-  - id: cost_weight
-    value: -1
-    unit: 1 / EUR
-  - id: consumer_electricity_emissions.category_number
-    value: 1
-
-- id: municipality
-  name: Kunnan arvot
-  name_en: Values of the municipality
-  all_actions_enabled: true
-  params:
-  - id: impact_threshold
-    value: 5000000
-    unit: 1/a
-  - id: cost_weight
-    value: 1
-    unit: 1/EUR
   - id: equity_weight
-    value: 10000000
-    unit: 1/a
+    value: 0.1
+  - id: health_weight
+    value: 0.2
+  - id: purity_weight
+    value: -50
+  - id: legality_weight
+    value: 0
+  - id: emissions_weight
+    value: -0.5
+  - id: prosperity_weight
+    value: 0
+  - id: effect_of_ev
+    value: -20000
+
+- id: municipality_b  # Default municipality
+  name: Kunnan B arvot
+  name_en: Values of municipality B
+  all_actions_enabled: true
+  params:
+  - id: ev_charging_policy.enabled
+    value: false
+  - id: public_transit_support.enabled
+    value: false
+  - id: impact_threshold
+    value: 0
+  - id: economic_weight
+    value: 1
+  - id: equity_weight
+    value: 0.1
+  - id: health_weight
+    value: 0.01
+  - id: purity_weight
+    value: -10
+  - id: legality_weight
+    value: 3
+  - id: emissions_weight
+    value: -0.05
+  - id: prosperity_weight
+    value: 1
+  - id: effect_of_ev
+    value: -20000
+
+- id: municipality_c
+  name: Kunnan C arvot
+  name_en: Values of municipality C
+  all_actions_enabled: true
+  params:
+  - id: biodiesel.enabled
+    value: false
+  - id: public_transit_support.enabled
+    value: false
+  - id: impact_threshold
+    value: 0
+  - id: economic_weight
+    value: 1
+  - id: equity_weight
+    value: 0.1
+  - id: health_weight
+    value: 0.01
+  - id: purity_weight
+    value: -10
+  - id: legality_weight
+    value: 3
+  - id: emissions_weight
+    value: -0.05
+  - id: prosperity_weight
+    value: 1
+  - id: effect_of_ev
+    value: -20000
+
+- id: municipality_d
+  name: Kunnan D arvot
+  name_en: Values of municipality D
+  all_actions_enabled: true
+  params:
+  - id: biodiesel.enabled
+    value: false
+  - id: public_transit_support.enabled
+    value: false
+  - id: impact_threshold
+    value: 0
+  - id: economic_weight
+    value: 1
+  - id: equity_weight
+    value: 0.1
+  - id: health_weight
+    value: 0.01
+  - id: purity_weight
+    value: -10
+  - id: legality_weight
+    value: 3
+  - id: emissions_weight
+    value: -0.05
+  - id: prosperity_weight
+    value: 1
+  - id: effect_of_ev
+    value: -20000
 
 - id: energy_company
   name: Energiayhtiön arvot
@@ -1827,7 +1343,7 @@ scenarios:
   - id: impact_threshold
     value: 500000
     unit: 1/a
-  - id: cost_weight
+  - id: economic_weight
     value: 1
     unit: 1/EUR
   - id: equity_weight

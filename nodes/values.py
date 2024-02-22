@@ -27,7 +27,7 @@ class UtilityNode(AdditiveNode):
     where cost-effective scenarios show value < 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
     '''
-    allowed_parameters = SimpleNode.allowed_parameters + [
+    allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
             local_id='impact_threshold',
             is_customizable=True,
@@ -37,7 +37,15 @@ class UtilityNode(AdditiveNode):
             is_customizable=True,
         ),
         NumberParameter(
-            local_id='cost_weight',
+            local_id='economic_weight',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='prosperity_weight',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='purity_weight',
             is_customizable=True,
         ),
         NumberParameter(
@@ -63,11 +71,14 @@ class UtilityNode(AdditiveNode):
         if w is None:
             return None
         nodes = self.get_input_nodes(quantity=quantity, tag=tag)
-        assert len(nodes) > 0
+        if not len(nodes):
+            raise NodeError(self, "Tag %s not found in the inputs nodes" % tag)
 
-        df = nodes[0].add_nodes_pl(None, nodes)
-        df = df.multiply_quantity(VALUE_COLUMN, w)
-        
+        df = self.add_nodes_pl(None, nodes, unit=nodes[0].unit)
+        df: ppl.PathsDataFrame = df.multiply_quantity(VALUE_COLUMN, w)
+        if not self.is_compatible_unit(df.get_unit(VALUE_COLUMN), self.unit):
+            raise NodeError(self, "Node(s) %s and their weight result in an incompatible unit %s, should be %s." % (
+                nodes, df.get_unit(VALUE_COLUMN), self.unit))
         return df
 
     def sum_dfs(self, dfs: list[ppl.PathsDataFrame | None]) -> ppl.PathsDataFrame:
@@ -93,9 +104,11 @@ class UtilityNode(AdditiveNode):
 
         dfs = [
             self.weighted_impact('emissions_weight', tag='emissions'),
-            self.weighted_impact('cost_weight', tag='currency'),
-            self.weighted_impact('health_weight', tag='disease_burden'),
+            self.weighted_impact('economic_weight', tag='economic'),
+            self.weighted_impact('prosperity_weight', tag='prosperity'),
+            self.weighted_impact('health_weight', tag='health'),
             self.weighted_impact('equity_weight', tag='equity'),
+            self.weighted_impact('purity_weight', tag='purity'),
             self.weighted_impact('biodiversity_weight', tag='biodiversity'),
             self.weighted_impact('legality_weight', tag='legality')
         ]
@@ -107,6 +120,7 @@ class UtilityNode(AdditiveNode):
             pl.col(VALUE_COLUMN) - pl.lit(th.m)).alias(VALUE_COLUMN)
         ])
 
+        df = self.maybe_drop_nulls(df)
         return df
 
 
@@ -158,6 +172,7 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
                     pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)
                     )).drop(m + '_right')
 
+        df = self.maybe_drop_nulls(df)
         return df
 
 
