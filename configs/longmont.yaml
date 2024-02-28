@@ -4,7 +4,7 @@ supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5076b171445c7f568612718d354322b91031b86c
+  commit: 5dfeac702efe8d3d28d8f98e9fd35f69a7ea3294
   dvc_remote: kausal-s3
 name: Longmont Greenhouse Gas Inventory
 owner_en: City of Longmont
@@ -1788,8 +1788,8 @@ actions:
     help Platte River reach 90% noncarbon by 2030.</p> <p>To model the 100% renewable
     electric energy supply goal, select this action and <a href=\"https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables_additional\"\
     >Additional 10% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
-    <ul><li><a href=\"https://indicators.longmontcolorado.gov/indicators/1674\"\
-    >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
+    <ul><li><a href=\"https://indicators.longmontcolorado.gov/indicators/1674\">Renewable
+    Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
     >Longmont Renewable Energy</a></li></ul></p>"
   type: simple.AdditiveAction
   quantity: emission_factor
@@ -1814,8 +1814,8 @@ actions:
     the 100% renewable electric energy supply goal, select this action and <a href=\"\
     https://longmont.paths.staging.kausal.tech/actions/longmont_power_renewables\"\
     >90% renewable electric energy supply by 2030</a>.</p> <p>Track Implementation:
-    <ul><li><a href=\"https://indicators.longmontcolorado.gov/indicators/1674\"\
-    >Renewable Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
+    <ul><li><a href=\"https://indicators.longmontcolorado.gov/indicators/1674\">Renewable
+    Energy Indicator</a></li> <li><a href=\"https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy\"\
     >Longmont Renewable Energy</a></li></ul></p>"
   type: linear.ReduceAction
   quantity: emission_factor
@@ -1945,8 +1945,8 @@ actions:
   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
     This action specifically models from actively reduce greenhouse gas emissions
     through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable
-    Carbon-Free Transportation Roadmap</a></li> <li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
     >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
     System</a></li></ul></p>"
   type: simple.AdditiveAction
@@ -1963,8 +1963,8 @@ actions:
   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
     This action specifically models from actively reduce greenhouse gas emissions
     through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable
-    Carbon-Free Transportation Roadmap</a></li> <ul><li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <ul><li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
     >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
     System</a></li></ul></p>"
   type: simple.AdditiveAction
