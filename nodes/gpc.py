@@ -9,10 +9,13 @@ from nodes.node import Node
 class DatasetNode(Node):
     allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
 
-    qlookup = {'emission_factor': 'Emission Factor',
+    qlookup = {'currency': 'Price',
+               'emission_factor': 'Emission Factor',
                'emissions': 'Emissions',
                'energy': 'Energy Consumption',
-               'fuel_consumption': 'Fuel Consumption'}
+               'fuel_consumption': 'Fuel Consumption',
+               'mileage': 'Mileage',
+               'unit_price': 'Unit Price'}
 
     def compute(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')

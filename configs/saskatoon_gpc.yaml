@@ -93,191 +93,1164 @@ dimensions:
     label: Heavy-Duty
 
 
+# --------------------------------------------------
 emission_sectors:
 - id: net_emissions
   name: GPC BASIC Greenhouse Gas Emissions
   is_outcome: true
 
-# - id: i_emissions
-#   name: I Stationary Emissions
-#   part_of: net_emissions
-
-# - id: ii_emissions
-#   name: II Transportation Emissions
-#   part_of: net_emissions
-
 
 nodes:
-- id: i12_consumption
-  name: I.1.2 Residential Grid Energy Consumption
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: [scope, energy_carrier, company]
-  output_dimensions: [scope, energy_carrier, company]
-  params:
-    gpc_sector: I.1.2
-  input_datasets:
-  - id: gpc/saskatoon
-  output_nodes:
-  - id: i12_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: company
 
-- id: i12_factors
-  name: I.1.2 Residential Grid Energy Emission Factors
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/kWh
-  input_dimensions: [scope, energy_carrier, ghg]
-  output_dimensions: [scope, energy_carrier, ghg]
-  params:
-    gpc_sector: I.1.2
-  input_datasets:
-  - id: gpc/saskatoon
-  output_nodes:
-  - id: i12_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
-
-- id: i12_consumption_emissions
-  name: I.1.2 Residential Grid Energy Consumption Emissions
-  type: simple.MultiplicativeNode
+# --------------------------------------------------
+- id: i_stationary_emissions
+  name: I Stationary Emissions
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: [scope, energy_carrier, company, ghg]
-  output_dimensions: [scope, energy_carrier, company, ghg]
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
   output_nodes:
-  - id: i12_total_emissions
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: ii_transportation_emissions
+  name: II Transportation Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: iii_waste_emissions
+  name: III Waste Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+# --------------------------------------------------
+- id: i1_residential_emissions
+  name: I.1 Residential Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+- id: i2_commercial_and_institutional_emissions
+  name: I.2 Commercial & Institutional Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+- id: i3_manufacturing_emissions
+  name: I.3 Manufacturing Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+- id: i6_nonspecified_emissions
+  name: I.6 Non-Specified Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_emissions
+    from_dimensions:
+    - id: company
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+- id: ii1_onroad_transport_emissions
+  name: II.1 On-Road Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: ii2_railway_emissions
+  name: II.2 Railway Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: ii_transportation_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: ii3_waterborne_emissions
+  name: II.3 Waterborne Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: ii4_aviation_emissions
+  name: II.4 Aviation Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: iii1_solid_waste_emissions
+  name: III.1 Solid Waste Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  output_nodes:
+  - id: iii_waste_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: iii2_biological_waste_emissions
+  name: III.2 Biological Waste Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii4_wastewater_emissions
+  name: III.4 Wastewater Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+# --------------------------------------------------
+- id: i11_total_emissions
+  name: I.1.1 Residential Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i1_residential_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
 
 - id: i12_total_emissions
   name: I.1.2 Residential Grid Energy Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: [scope, energy_carrier, company, ghg]
-  output_dimensions: [scope, energy_carrier, company, ghg]
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
   output_nodes:
-  - id: i1_emissions
-
-
-
-- id: i1_emissions
-  name: I.1 Residential Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [scope, energy_carrier, company, ghg]
-  output_dimensions: [scope, energy_carrier, company, ghg]
-  output_nodes:
-  - id: i_emissions
+  - id: i1_residential_emissions
     from_dimensions:
     - id: company
       flatten: true
-
-
-
-- id: i21_consumption
-  name: I.2.1 Commercial & Institutional Fuel Combustion
-  type: gpc.DatasetNode
-  quantity: fuel_consumption
-  unit: m**3/a
-  input_dimensions: [scope, energy_carrier]
-  output_dimensions: [scope, energy_carrier]
-  params:
-    gpc_sector: I.2.1
-  input_datasets:
-  - id: gpc/saskatoon
-  output_nodes:
-  - id: i21_consumption_emissions
     to_dimensions:
-    - id: scope
-    - id: energy_carrier
-
-- id: i21_factors
-  name: I.2.1 Commercial & Institutional Fuel Emission Factors
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/m**3
-  input_dimensions: [scope, energy_carrier, ghg]
-  output_dimensions: [scope, energy_carrier, ghg]
-  params:
-    gpc_sector: I.2.1
-  input_datasets:
-  - id: gpc/saskatoon
-  output_nodes:
-  - id: i21_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
     - id: ghg
-
-- id: i21_consumption_emissions
-  name: I.2.1 Commercial & Institutional Fuel Combustion Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [scope, energy_carrier, ghg]
-  output_dimensions: [scope, energy_carrier, ghg]
-  output_nodes:
-  - id: i21_total_emissions
+    - id: scope
+    - id: energy_carrier
 
 - id: i21_total_emissions
   name: I.2.1 Commercial & Institutional Fuel Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: [scope, energy_carrier, ghg]
-  output_dimensions: [scope, energy_carrier, ghg]
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
   output_nodes:
-  - id: i2_emissions
-
-
-
-- id: i2_emissions
-  name: I.2 Commercial & Institutional Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [scope, energy_carrier, ghg]
-  output_dimensions: [scope, energy_carrier, ghg]
-  output_nodes:
-  - id: i_emissions
-
-
-
-- id: i_emissions
-  name: I Stationary Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [scope, energy_carrier, ghg]
-  output_dimensions: [scope, energy_carrier, ghg]
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
+  - id: i2_commercial_and_institutional_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
     - id: energy_carrier
+
+- id: i22_total_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    from_dimensions:
+    - id: company
       flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
 
+- id: i31_total_emissions
+  name: I.3.1 Manufacturing Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i3_manufacturing_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
 
+- id: i62_total_emissions
+  name: I.6.2 Non-Specified Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_nodes:
+  - id: i6_nonspecified_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: company
+    - id: energy_carrier
+
+- id: ii11_total_emissions
+  name: II.1.1 On-Road Transport Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: ii21_total_emissions
+  name: II.2.1 Railway Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: ii2_railway_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: ii31_total_emissions
+  name: II.3.1 Waterborne Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii3_waterborne_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: ii41_total_emissions
+  name: II.4.1 Aviation Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: ii4_aviation_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+- id: iii11_total_emissions
+  name: III.1.1 Solid Waste Disposed in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii1_solid_waste_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii12_total_emissions
+  name: III.1.2 Solid Waste Disposed outside City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii1_solid_waste_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii21_total_emissions
+  name: III.2.1 Biological Waste Treated in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii2_biological_waste_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_total_emissions
+  name: III.4.1 Wastewater Treated in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii4_wastewater_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+# --------------------------------------------------
+- id: i11_combustion_emissions
+  name: I.1.1 Residential Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i11_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+- id: i12_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_nodes:
+  - id: i12_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: company
+    - id: energy_carrier
+
+- id: i21_combustion_emissions
+  name: I.2.1 Commercial & Institutional Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i21_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+- id: i22_consumption_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_nodes:
+  - id: i22_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: company
+    - id: energy_carrier
+
+- id: i31_combustion_emissions
+  name: I.3.1 Manufacturing Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i31_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+- id: i62_consumption_emissions
+  name: I.6.2 Non-Specified Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'company', 'energy_carrier']
+  output_nodes:
+  - id: i62_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: company
+    - id: energy_carrier
+
+- id: ii11_combustion_emissions
+  name: II.1.1 On-Road Transport Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii11_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: ii31_combustion_emissions
+  name: II.3.1 Waterborne Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii31_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: ii41_combustion_emissions
+  name: II.4.1 Aviation Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: ii41_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+
+# --------------------------------------------------
+- id: i11_emission_factor
+  name: I.1.1 Residential Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/m**3
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i11_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i11_combustion
+  name: I.1.1 Residential Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: m**3/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i11_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i12_emission_factor
+  name: I.1.2 Residential Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/kWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i12_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i12_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'company']
+  output_dimensions: ['scope', 'energy_carrier', 'company']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i12_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: company
+
+- id: i21_emission_factor
+  name: I.2.1 Commercial & Institutional Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/m**3
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.2.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i21_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i21_combustion
+  name: I.2.1 Commercial & Institutional Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: m**3/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.2.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i21_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i22_emission_factor
+  name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/kWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i22_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i22_consumption
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'company']
+  output_dimensions: ['scope', 'energy_carrier', 'company']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i22_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: company
+
+- id: i31_emission_factor
+  name: I.3.1 Manufacturing Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/m**3
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i31_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i31_combustion
+  name: I.3.1 Manufacturing Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: m**3/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i31_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i62_emission_factor
+  name: I.6.2 Non-Specified Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/kWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.6.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i62_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i62_consumption
+  name: I.6.2 Non-Specified Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'company']
+  output_dimensions: ['scope', 'energy_carrier', 'company']
+  params:
+    gpc_sector: I.6.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: i62_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: company
+
+- id: ii11_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/l
+  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: ii11_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii11_combustion
+  name: II.1.1 On-Road Transport Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: ii11_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: vehicle_type
 
 - id: ii21_emissions
   name: II.2.1 Railway Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
-  input_dimensions: [scope, ghg]
-  output_dimensions: [scope, ghg]
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
   params:
     gpc_sector: II.2.1
   input_datasets:
   - id: gpc/saskatoon
   output_nodes:
-  - id: net_emissions
+  - id: ii21_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: ii31_emission_factor
+  name: II.3.1 Waterborne Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/l
+  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'vehicle_type']
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: ii31_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii31_combustion
+  name: II.3.1 Waterborne Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: ii31_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii41_emission_factor
+  name: II.4.1 Aviation Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/l
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: II.4.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: ii41_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: ii41_combustion
+  name: II.4.1 Aviation Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: II.4.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: ii41_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: iii11_emissions
+  name: III.1.1 Solid Waste Disposed in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.1.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: iii11_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii12_emissions
+  name: III.1.2 Solid Waste Disposed outside City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.1.2
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: iii12_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii21_emissions
+  name: III.2.1 Biological Waste Treated in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.2.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: iii21_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_emissions
+  name: III.4.1 Wastewater Treated in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.4.1
+  input_datasets:
+  - id: gpc/saskatoon
+  output_nodes:
+  - id: iii41_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# emission_sectors:
+# - id: net_emissions
+#   name: GPC BASIC Greenhouse Gas Emissions
+#   is_outcome: true
+
+# # - id: i_emissions
+# #   name: I Stationary Emissions
+# #   part_of: net_emissions
+
+# # - id: ii_emissions
+# #   name: II Transportation Emissions
+# #   part_of: net_emissions
+
+
+# nodes:
+# - id: i12_consumption
+#   name: I.1.2 Residential Grid Energy Consumption
+#   type: gpc.DatasetNode
+#   quantity: energy
+#   unit: kWh/a
+#   input_dimensions: [scope, energy_carrier, company]
+#   output_dimensions: [scope, energy_carrier, company]
+#   params:
+#     gpc_sector: I.1.2
+#   input_datasets:
+#   - id: gpc/saskatoon
+#   output_nodes:
+#   - id: i12_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: company
+
+# - id: i12_factors
+#   name: I.1.2 Residential Grid Energy Emission Factors
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/kWh
+#   input_dimensions: [scope, energy_carrier, ghg]
+#   output_dimensions: [scope, energy_carrier, ghg]
+#   params:
+#     gpc_sector: I.1.2
+#   input_datasets:
+#   - id: gpc/saskatoon
+#   output_nodes:
+#   - id: i12_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: ghg
+
+# - id: i12_consumption_emissions
+#   name: I.1.2 Residential Grid Energy Consumption Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, company, ghg]
+#   output_dimensions: [scope, energy_carrier, company, ghg]
+#   output_nodes:
+#   - id: i12_total_emissions
+
+# - id: i12_total_emissions
+#   name: I.1.2 Residential Grid Energy Total Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, company, ghg]
+#   output_dimensions: [scope, energy_carrier, company, ghg]
+#   output_nodes:
+#   - id: i1_emissions
+
+
+
+# - id: i1_emissions
+#   name: I.1 Residential Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, company, ghg]
+#   output_dimensions: [scope, energy_carrier, company, ghg]
+#   output_nodes:
+#   - id: i_emissions
+#     from_dimensions:
+#     - id: company
+#       flatten: true
+
+
+
+# - id: i21_consumption
+#   name: I.2.1 Commercial & Institutional Fuel Combustion
+#   type: gpc.DatasetNode
+#   quantity: fuel_consumption
+#   unit: m**3/a
+#   input_dimensions: [scope, energy_carrier]
+#   output_dimensions: [scope, energy_carrier]
+#   params:
+#     gpc_sector: I.2.1
+#   input_datasets:
+#   - id: gpc/saskatoon
+#   output_nodes:
+#   - id: i21_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+
+# - id: i21_factors
+#   name: I.2.1 Commercial & Institutional Fuel Emission Factors
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/m**3
+#   input_dimensions: [scope, energy_carrier, ghg]
+#   output_dimensions: [scope, energy_carrier, ghg]
+#   params:
+#     gpc_sector: I.2.1
+#   input_datasets:
+#   - id: gpc/saskatoon
+#   output_nodes:
+#   - id: i21_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: ghg
+
+# - id: i21_consumption_emissions
+#   name: I.2.1 Commercial & Institutional Fuel Combustion Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, ghg]
+#   output_dimensions: [scope, energy_carrier, ghg]
+#   output_nodes:
+#   - id: i21_total_emissions
+
+# - id: i21_total_emissions
+#   name: I.2.1 Commercial & Institutional Fuel Total Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, ghg]
+#   output_dimensions: [scope, energy_carrier, ghg]
+#   output_nodes:
+#   - id: i2_emissions
+
+
+
+# - id: i2_emissions
+#   name: I.2 Commercial & Institutional Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, ghg]
+#   output_dimensions: [scope, energy_carrier, ghg]
+#   output_nodes:
+#   - id: i_emissions
+
+
+
+# - id: i_emissions
+#   name: I Stationary Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, energy_carrier, ghg]
+#   output_dimensions: [scope, energy_carrier, ghg]
+#   output_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+
+
+
+# - id: ii21_emissions
+#   name: II.2.1 Railway Fuel Emissions
+#   type: gpc.DatasetNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [scope, ghg]
+#   output_dimensions: [scope, ghg]
+#   params:
+#     gpc_sector: II.2.1
+#   input_datasets:
+#   - id: gpc/saskatoon
+#   output_nodes:
+#   - id: net_emissions
 
 
 pages:

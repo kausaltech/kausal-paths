@@ -1,0 +1,999 @@
+id: demonstration_c4c
+default_language: en
+supported_languages: []
+site_url: https://demonstration-c4c.paths.staging.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: ef4d79896d2f9d51efc7221a73561d3fc40f0570
+  dvc_remote: kausal-s3
+name: Demonstration BASIC+ Greenhouse Gas Inventory
+owner_en: City of Demonstration
+theme_identifier: tampere-ilmasto
+target_year: 2030
+model_end_year: 2030
+minimum_historical_year: 2010
+maximum_historical_year: 2022
+emission_unit: t/a
+emission_forecast_from: 2023
+emission_dimensions: ['scope']
+features:
+  baseline_visible_in_graphs: true
+
+dimensions:
+- id: heating
+  label: Heating
+  categories:
+  - id: direct_electric_heating
+    label: Direct Electric Heating
+  - id: district_heat
+    label: District Heat
+  - id: geothermal
+    label: Geothermal
+
+- id: cost_type
+  label: Cost type
+  categories:
+  - id: accidents
+    label: Accidents
+  - id: air_pollution
+    label: Air Pollution
+  - id: capex_infrastructure
+    label: Capex Infrastructure
+  - id: climate_change
+    label: Climate Change
+  - id: driving_and_vehicle_cost
+    label: Driving And Vehicle Cost
+  - id: health
+    label: Health
+  - id: health_care_system
+    label: Health Care System
+  - id: noise
+    label: Noise
+  - id: operations
+    label: Operations
+  - id: opex_infrastructure
+    label: Opex Infrastructure
+  - id: ticket_revenue
+    label: Ticket Revenue
+  - id: travel_time
+    label: Travel Time
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: buses
+    label: Buses
+  - id: local_trains
+    label: Local Trains
+  - id: motorcycles
+    label: Motorcycles
+  - id: passenger_cars
+    label: Passenger Cars
+  - id: trams
+    label: Trams
+  - id: trucks
+    label: Trucks
+  - id: vans
+    label: Vans
+
+- id: road_type
+  label: Road Type
+  categories:
+  - id: roads
+    label: Roads
+  - id: streets
+    label: Streets
+
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: Scope1
+  - id: scope2
+    label: Scope2
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2e
+    label: Co2E
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: Municipal
+  - id: private
+    label: Private
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: diesel
+    label: Diesel
+  - id: district_heat
+    label: District Heat
+  - id: electricity
+    label: Electricity
+  - id: fuel_oil
+    label: Fuel Oil
+  - id: gasoline
+    label: Gasoline
+  - id: natural_gas
+    label: Natural Gas
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+
+nodes:
+- id: net_price
+  name: Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['vehicle_type', 'cost_type', 'scope']
+  output_dimensions: ['vehicle_type', 'cost_type', 'scope']
+  is_outcome: true
+
+- id: i11_residential_fuel_consumption
+  name: I.1.1 Residential Fuel Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i11_residential_fuel_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i11_residential_fuel_consumption_emissions
+  name: I.1.1 Residential Fuel Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  output_nodes:
+  - id: i11_residential_fuel_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i11_residential_fuel_emission_factor
+  name: I.1.1 Residential Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i11_residential_fuel_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i11_residential_fuel_emissions
+  name: I.1.1 Residential Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i11_residential_fuel_total_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i12_residential_grid_energy_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: ['heating', 'scope', 'energy_carrier']
+  output_dimensions: ['heating', 'scope', 'energy_carrier']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: heating
+    - id: scope
+    - id: energy_carrier
+
+- id: i12_residential_grid_energy_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'heating', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'heating', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: i12_residential_grid_energy_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+
+- id: i12_residential_grid_energy_emission_factor
+  name: I.1.2 Residential Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i31_manufacturing_fuel_combustion
+  name: I.3.1 Manufacturing Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['scope', 'owner', 'energy_carrier']
+  output_dimensions: ['scope', 'owner', 'energy_carrier']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i31_manufacturing_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: owner
+    - id: energy_carrier
+
+- id: i31_manufacturing_fuel_combustion_emissions
+  name: I.3.1 Manufacturing Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['owner', 'ghg', 'scope', 'energy_carrier']
+  output_dimensions: ['owner', 'ghg', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i31_manufacturing_fuel_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: ghg
+    - id: scope
+
+- id: i31_manufacturing_fuel_emission_factor
+  name: I.3.1 Manufacturing Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/l
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i31_manufacturing_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i31_manufacturing_fuel_emissions
+  name: I.3.1 Manufacturing Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'owner']
+  output_dimensions: ['scope', 'ghg', 'owner']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i31_manufacturing_fuel_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: owner
+
+- id: ii11_onroad_transport_fuel_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/Gm
+  input_dimensions: ['vehicle_type', 'road_type', 'scope', 'ghg']
+  output_dimensions: ['vehicle_type', 'road_type', 'scope', 'ghg']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: scope
+    - id: ghg
+
+- id: ii11_onroad_transport_fuel_emissions
+  name: II.1.1 On-Road Transport Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: ghg
+
+- id: ii11_onroad_transport_fuel_mileage
+  name: II.1.1 On-Road Transport Fuel Mileage
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Gm/a
+  input_dimensions: ['vehicle_type', 'road_type', 'scope']
+  output_dimensions: ['vehicle_type', 'road_type', 'scope']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: scope
+  - id: ii11_onroad_transport_fuel_mileage_price
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_mileage_emissions
+  name: II.1.1 On-Road Transport Fuel Mileage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['road_type', 'ghg', 'vehicle_type', 'scope']
+  output_dimensions: ['road_type', 'ghg', 'vehicle_type', 'scope']
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_emissions
+    from_dimensions:
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: vehicle_type
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_mileage_price
+  name: II.1.1 On-Road Transport Fuel Mileage Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['road_type', 'vehicle_type', 'cost_type', 'scope']
+  output_dimensions: ['road_type', 'vehicle_type', 'cost_type', 'scope']
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_price
+    to_dimensions:
+    - id: road_type
+    - id: vehicle_type
+    - id: cost_type
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_unit_price
+  name: II.1.1 On-Road Transport Fuel Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/Gm
+  input_dimensions: ['cost_type', 'vehicle_type', 'scope']
+  output_dimensions: ['cost_type', 'vehicle_type', 'scope']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_price
+    to_dimensions:
+    - id: cost_type
+    - id: vehicle_type
+    - id: scope
+
+- id: ii22_railway_grid_energy_emission_factor
+  name: II.2.2 Railway Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/Gm
+  input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii22_railway_grid_energy_mileage_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: ii22_railway_grid_energy_mileage
+  name: II.2.2 Railway Grid Energy Mileage
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Gm/a
+  input_dimensions: ['vehicle_type', 'scope', 'energy_carrier']
+  output_dimensions: ['vehicle_type', 'scope', 'energy_carrier']
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii22_railway_grid_energy_mileage_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: energy_carrier
+  # - id: ii22_railway_grid_energy_mileage_price
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #   - id: scope
+  #   - id: energy_carrier
+
+- id: ii22_railway_grid_energy_mileage_emissions
+  name: II.2.2 Railway Grid Energy Mileage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['ghg', 'vehicle_type', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'vehicle_type', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: ii22_railway_grid_energy_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+
+# - id: ii22_railway_grid_energy_mileage_price
+#   name: II.2.2 Railway Grid Energy Mileage Price
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: EUR/a
+#   input_dimensions: ['vehicle_type', 'cost_type', 'energy_carrier', 'scope']
+#   output_dimensions: ['vehicle_type', 'cost_type', 'energy_carrier', 'scope']
+#   output_nodes:
+#   - id: ii22_railway_grid_energy_total_price
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: cost_type
+#     - id: energy_carrier
+#     - id: scope
+
+# - id: ii22_railway_grid_energy_unit_price
+#   name: II.2.2 Railway Grid Energy Unit Price
+#   type: gpc.DatasetNode
+#   quantity: unit_price
+#   unit: EUR/Gm
+#   input_dimensions: ['cost_type', 'vehicle_type', 'scope']
+#   output_dimensions: ['cost_type', 'vehicle_type', 'scope']
+#   params:
+#     gpc_sector: II.2.2
+#   input_datasets:
+#   - id: gpc/demonstration
+#   output_nodes:
+#   - id: ii22_railway_grid_energy_mileage_price
+#     to_dimensions:
+#     - id: cost_type
+#     - id: vehicle_type
+#     - id: scope
+
+- id: iii11_solid_waste_disposed_in_city_emissions
+  name: III.1.1 Solid Waste Disposed in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: iii11_solid_waste_disposed_in_city_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_wastewater_treated_in_city_emissions
+  name: III.4.1 Wastewater Treated in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.4.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: iii41_wastewater_treated_in_city_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v1_livestock_emissions
+  name: V.1 Livestock Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: v1_livestock_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v2_land_emissions
+  name: V.2 Land Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: v2_land_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v3_aggregate_sources_emissions
+  name: V.3 Aggregate Sources Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.3
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: v3_aggregate_sources_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i11_residential_fuel_total_emissions
+  name: I.1.1 Residential Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i12_residential_grid_energy_total_emissions
+  name: I.1.2 Residential Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'heating', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'heating', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i1_residential_total_emissions
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+
+- id: i31_manufacturing_fuel_total_emissions
+  name: I.3.1 Manufacturing Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['scope', 'ghg', 'owner']
+  output_dimensions: ['scope', 'ghg', 'owner']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: owner
+
+- id: i3_manufacturing_total_emissions
+  name: I.3 Manufacturing Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['scope', 'ghg', 'owner']
+  output_dimensions: ['scope', 'ghg', 'owner']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_total_emissions
+  name: II.1.1 On-Road Transport Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['vehicle_type', 'ghg', 'scope']
+  output_dimensions: ['vehicle_type', 'ghg', 'scope']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: ghg
+    - id: scope
+
+- id: ii1_onroad_transport_total_emissions
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['vehicle_type', 'ghg', 'scope']
+  output_dimensions: ['vehicle_type', 'ghg', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: ghg
+    - id: scope
+
+- id: ii22_railway_grid_energy_total_emissions
+  name: II.2.2 Railway Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['ghg', 'vehicle_type', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'vehicle_type', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: ii2_railway_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+
+- id: ii2_railway_total_emissions
+  name: II.2 Railway Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['ghg', 'vehicle_type', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'vehicle_type', 'energy_carrier', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: vehicle_type
+    - id: scope
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: g/a
+  input_dimensions: ['vehicle_type', 'ghg', 'scope']
+  output_dimensions: ['vehicle_type', 'ghg', 'scope']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+
+- id: iii11_solid_waste_disposed_in_city_total_emissions
+  name: III.1.1 Solid Waste Disposed in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii1_solid_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii1_solid_waste_total_emissions
+  name: III.1 Solid Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_wastewater_treated_in_city_total_emissions
+  name: III.4.1 Wastewater Treated in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii4_wastewater_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii4_wastewater_total_emissions
+  name: III.4 Wastewater Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+
+- id: v1_livestock_total_emissions
+  name: V.1 Livestock Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v2_land_total_emissions
+  name: V.2 Land Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v3_aggregate_sources_total_emissions
+  name: V.3 Aggregate Sources Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v_afolu_total_emissions
+  name: V AFOLU Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_total_price
+  name: II.1.1 On-Road Transport Fuel Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['road_type', 'vehicle_type', 'cost_type', 'scope']
+  output_dimensions: ['road_type', 'vehicle_type', 'cost_type', 'scope']
+  output_nodes:
+  - id: ii1_onroad_transport_total_price
+    to_dimensions:
+    - id: road_type
+    - id: vehicle_type
+    - id: cost_type
+    - id: scope
+
+- id: ii1_onroad_transport_total_price
+  name: II.1 On-Road Transport Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['road_type', 'vehicle_type', 'cost_type', 'scope']
+  output_dimensions: ['road_type', 'vehicle_type', 'cost_type', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_price
+    from_dimensions:
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: cost_type
+    - id: scope
+
+# - id: ii22_railway_grid_energy_total_price
+#   name: II.2.2 Railway Grid Energy Total Price
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: EUR/a
+#   input_dimensions: ['vehicle_type', 'cost_type', 'energy_carrier', 'scope']
+#   output_dimensions: ['vehicle_type', 'cost_type', 'energy_carrier', 'scope']
+#   output_nodes:
+#   - id: ii2_railway_total_price
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: cost_type
+#     - id: energy_carrier
+#     - id: scope
+
+# - id: ii2_railway_total_price
+#   name: II.2 Railway Total Price
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: EUR/a
+#   input_dimensions: ['vehicle_type', 'cost_type', 'energy_carrier', 'scope']
+#   output_dimensions: ['vehicle_type', 'cost_type', 'energy_carrier', 'scope']
+#   output_nodes:
+#   - id: ii_transportation_total_price
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: cost_type
+#     - id: scope
+
+- id: ii_transportation_total_price
+  name: II Transportation Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['vehicle_type', 'cost_type', 'scope']
+  output_dimensions: ['vehicle_type', 'cost_type', 'scope']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: vehicle_type
+    - id: cost_type
+    - id: scope
+
+pages:
+- id: home
+  name: Demonstration BASIC+ Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Climate-4-CAST Project
+  lead_paragraph: GPC BASIC+ greenhouse gas inventory (2010-2022) and forecast (2023-2030) for the City of Demonstration.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Plan
+  all_actions_enabled: true
