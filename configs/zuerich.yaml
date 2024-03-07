@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 13ad3b4c049c0f23970a529e90a30e3b7ddaef5d
+  commit: 1f5c51a92580e80e439330473ffc602f61c4d1d3
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -2599,16 +2599,52 @@ nodes:
   input_datasets:
   - id: zuerich/transport_fuel_primary_energy_factors
 
-- id: fuel_energy_density
-  name_de: Fuel energy density
-  name_en: Fuel energy density
+# - id: fuel_energy_density
+#   name_de: Fuel energy density
+#   name_en: Fuel energy density
+#   type: simple.AdditiveNode
+#   quantity: ratio
+#   unit: MJ/kg
+#   output_dimensions: [vehicle_type, energy_carrier]
+#   input_dimensions: [vehicle_type, energy_carrier]
+#   input_datasets:
+#   - id: zuerich/fuel_energy_density
+
+- id: fuel_lower_heating_value
+  name_de: Fuel lower heating value (LHV)
+  name_en: Fuel lower heating value (LHV)
   type: simple.AdditiveNode
   quantity: ratio
   unit: MJ/kg
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
   input_datasets:
-  - id: zuerich/fuel_energy_density
+  - id: zuerich/fuel_lower_heating_values
+
+- id: fuel_heating_value_ratio
+  name_de: Fuel heating value ratio
+  name_en: Fuel heating value ratio
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: '%'
+  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/fuel_heating_value_ratios
+
+- id: fuel_higher_heating_value
+  name_de: Fuel higher heating value (HHV)
+  name_en: Fuel higher heating value (HHV)
+  type: simple.MultiplicativeNode
+  quantity: ratio
+  unit: MJ/kg
+  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  input_nodes:
+  - id: fuel_lower_heating_value
+    tags: [non_additive]
+  - id: fuel_heating_value_ratio
+    tags: [non_additive]
 
 - id: transport_fuel_consumption
   name_de: Transport fuel consumption
@@ -2638,7 +2674,9 @@ nodes:
   unit: MJ/a
   input_nodes:
   - id: transport_fuel_consumption
-  - id: fuel_energy_density
+  - id: fuel_higher_heating_value
+    to_dimensions:
+    - id: energy_carrier
 
 - id: transport_end_energy_consumption
   name_de: Transportation total end energy consumption
