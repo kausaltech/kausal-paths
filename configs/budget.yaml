@@ -873,6 +873,7 @@ nodes:
   unit: kt/a
   input_dimensions: ['scope', 'ghg']
   output_dimensions: ['scope', 'ghg']
+  color: '#AD3963'
   output_nodes:
   - id: net_emissions
     to_dimensions:
@@ -946,6 +947,7 @@ nodes:
   unit: kt/a
   input_dimensions: ['scope', 'ghg', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  color: '#668EC9'
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1014,6 +1016,7 @@ nodes:
   unit: kt/a
   input_dimensions: ['scope', 'ghg']
   output_dimensions: ['scope', 'ghg']
+  color: '#397368'
   output_nodes:
   - id: net_emissions
     to_dimensions:
@@ -1066,6 +1069,7 @@ nodes:
   unit: kt/a
   input_dimensions: ['scope', 'ghg']
   output_dimensions: ['scope', 'ghg']
+  color: '#ABC872'
   output_nodes:
   - id: net_emissions
     to_dimensions:
