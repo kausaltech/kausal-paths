@@ -1,1512 +1,1214 @@
-id: budget
+id: demonstration_c4c
 default_language: en
-supported_languages: [fi]
-site_url: https://budget.paths.test.kausal.dev
+supported_languages: []
+site_url: https://demonstration-c4c.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 00f0a9789bde35ba32e8fa7c45717fcaeda2b18e
+  commit: 46f5f4983d2052718c7e38387edaa723774b309e
   dvc_remote: kausal-s3
-  default_path: budget
-name: Climate budgeting sandbox
-owner: Kausal Ltd
-theme_identifier: default
-target_year: 2040
-model_end_year: 2040
+name: Demonstration BASIC+ Greenhouse Gas Inventory
+owner_en: City of Demonstration
+theme_identifier: eu-climate-4-cast
+target_year: 2030
+model_end_year: 2030
 minimum_historical_year: 2010
-maximum_historical_year: 2023
+maximum_historical_year: 2022
 emission_unit: kt/a
 emission_forecast_from: 2023
-#emission_dimensions: [emission_scope]
-emission_dataset: tampere/scenarios/emissions/bau
-#emission_sector_dimension: emission_sectors
+emission_dimensions: ['scope', 'ghg']
 features:
   baseline_visible_in_graphs: true
-  show_accumulated_effects: true
-  show_significant_digits: 3
-terms:
-  enabled_label: Is implemented
-  action_group_label: Group
-
-params:
-- id: municipality_name
-  value: sunnydale
-- id: action_impact_from_baseline
-  value: true
-- id: discount_rate
-  value: 3.0
-  unit: '%'
-  min_value: 0.0
-  max_value: 5.0
-  is_visible: true
-  is_customizable: true
-
-action_groups:
-- id: energy
-  name: Energy production
-  color: '#29ab87'
-- id: stationary
-  name: Stationary
-  color: '#32cd32'
-- id: transport
-  name: Transport
-  color: '#93c572'
-- id: waste
-  name: Waste
-  color: '#50c878'
-
-action_efficiency_pairs:
-- cost_node: total_discounted_economic_costs
-  impact_node: net_emissions
-  invert_cost: true
-  invert_impact: true
-  efficiency_unit: kEUR/t
-  cost_unit: MEUR
-  impact_unit: t
-  label: Cost efficiency
-#- graph_type: return_of_investment
-#  cost_node: test_investments
-#  impact_node: total_economic_costs
-#  invert_cost: false
-#  invert_impact: false
-#  indicator_unit: '%'
-#  cost_unit: MEUR
-#  impact_unit: MEUR
-#  label: Return of investment
-#- graph_type: cost_benefit
-#  cost_node: test_investments
-#  impact_node: discounted_costs
-#  invert_cost: true
-#  invert_impact: true
-#  indicator_unit: MEUR
-#  cost_unit: MEUR
-#  impact_unit: MEUR
-#  stakeholder_dimension: stakeholder
-#  outcome_dimension: outcome_of_interest
-#  label: Cost-benefit analysis
-#- graph_type: cost_efficiency
-#  cost_node: total_economic_costs
-#  impact_node: discounted_costs
-#  invert_cost: true
-#  invert_impact: true
-#  indicator_unit: dimensionless
-#  cost_unit: MEUR
-#  impact_unit: MEUR
-#  label: Cost-efficiency analysis
 
 dimensions:
-
 - id: scope
-  label: Emission scope
-  label_fi: Päästöluokka
+  label: Scope
   categories:
   - id: scope1
     label: Scope 1
-    label_fi: Scope 1
   - id: scope2
     label: Scope 2
-    label_fi: Scope 2
-  - id: scope3
-    label: Scope 3
-    label_fi: Scope 3
 
-- id: gpc
-  label: GPC framework
-  label_fi: GPC-viitekehys
+- id: cost_type
+  label: Cost Type
   categories:
-  - id: residential
-    label: I.1 Residential
-    label_fi: Asuinrakennukset
-  - id: commercial
-    label: I.2 Commercial
-    label_fi: Liikerakennukset
-  - id: manufacturing
-    label: I.3 Manufacturing
-    label_fi: Teollisuus
-  - id: energy
-    label: I.4 Energy
-    label_fi: Energiantuotanto
-  - id: agriculture
-    label: I.5 Agriculture, Forestry & Fishing
-    label_fi: Maa- ja metsätalous, kalastus
-  - id: nonspecified
-    label: I.6 Non-Specified
-    label_fi: Määrittelemätön
-  - id: fugitive
-    label: I.7,8 Fugitive
-    label_fi: Vuodot
-  - id: onroad
-    label: II.1 On-road Transport
-    label_fi: Tieliikenne
-  - id: railways
-    label: II.2 Railways
-    label_fi: Raideliikenne
-  - id: waterborne
-    label: II.3 Waterborne
-    label_fi: Vesiliikenne
-  - id: aviation
-    label: II.4 Aviation
-    label_fi: Lentoliikenne
-  - id: offroad
-    label: II.5 Off-Road Transport
-    label_fi: Maastoliikenne
-  - id: solidwaste
-    label: III.1 Solid Waste
-    label_fi: Kiinetä jäte
-  - id: biowaste
-    label: III.2 Biological Waste
-    label_fi: Biojäte
-  - id: incineration
-    label: III.3 Incineration
-    label_fi: Jätteenpoltto
-  - id: wastewater
-    label: III.4 Wastewater
-    label_fi: Jätevesi
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: maintenance_costs
+    label: Maintenance Costs
 
-- id: greenhouse_gases
-  label: Greenhouse Gases
-  label_fi: Kasvihuonekaasu
+- id: ghg
+  label: GHG
   categories:
   - id: co2e
-    label: CO2 Equivalent
-  - id: co2
-    label: CO2
-  - id: ch4
-    label: CH4
-  - id: n2o
-    label: N2O
+    label: CO2e
 
-- id: account
-  label: Account
-  label_fi: Tili
-  groups:
-  - id: costs
-    label: Costs
-    label_fi: Menot
+- id: road_type
+  label: Road Type
   categories:
-  - id: income
-    label: Income
-    label_fi: Tulot
-  - id: capex
-    label: Capital costs
-    label_fi: Investointikustannukset
-    group: costs
-  - id: opex
-    label: Operational costs
-    label_fi: Käyttökustannukset
-    group: costs
-  - id: savings
-    label: Savings
-    label_fi: Säästöt
-  - id: payments
-    label: Payments
-    label_fi: Maksut
+  - id: roads
+    label: Roads
+  - id: streets
+    label: Streets
 
 - id: energy_carrier
-  label: Energy carrier
-  label_fi: Energialähde
+  label: Energy Carrier
   categories:
-  - id: aviation_gasoline
-    label: Aviation gasoline
-    label_fi: Lentopolttoneste
   - id: diesel
     label: Diesel
-    label_fi: Diesel
+  - id: district_heat
+    label: District Heat
   - id: electricity
     label: Electricity
-    label_fi: Sähkö
   - id: fuel_oil
-    label: Fuel oil
-    label_fi: Polttoöljy
+    label: Fuel Oil
   - id: gasoline
     label: Gasoline
-    label_fi: Bensiini
-  - id: kerosene
-    label: Kerosene
-    label_fi: Kerosiini
   - id: natural_gas
-    label: Natural gas
-    label_fi: Maakaasu
-  - id: propane
-    label: Propane
-    label_fi: Propaani
+    label: Natural Gas
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: Municipal
+  - id: private
+    label: Private
 
 - id: vehicle_type
-  label: Vehicle type
-  label_fi: Ajoneuvotyyppi
+  label: Vehicle Type
   categories:
-  - id: walking
-    label: Walking
-    label_fi: Kävely
-  - id: cycling
-    label: Cycling
-    label_fi: Pyöräily
-  - id: bus
-    label: Bus
-    label_fi: Bussi
-  - id: tram
-    label: Tram
-    label_fi: Ratikka
-  - id: car
-    label: Car
-    label_fi: Auto
+  - id: buses
+    label: Buses
+  - id: local_trains
+    label: Local Trains
+  - id: motorcycles
+    label: Motorcycles
+  - id: passenger_cars
+    label: Passenger Cars
+  - id: trams
+    label: Trams
+  - id: trucks
+    label: Trucks
+  - id: vans
+    label: Vans
 
-- id: stakeholder
-  label: Stakeholder
-  label_fi: Sidosryhmä
+- id: heating
+  label: Heating
   categories:
-  - id: city
-    label: City
-    label_fi: Kaupunki
-  - id: citizen
-    label: Citizen
-    label_fi: Kaupunkilaiinen
-  - id: society
-    label: Society
-    label_fi: Yhteiskunta
-
-- id: outcome_of_interest  # Outcome of interest and account are partially overlapping. How to streamline?
-  label: Outcome of interest
-  label_fi: Kiinnostava tulos
-  categories:
-  - id: infrastructure_investment
-    label: Infrastructure investment
-    label_fi: Infrastruktuuri-investointi
-  - id: infrastructure_maintenance
-    label: Infrastructure maintenance
-    label_fi: Infrastruktuurin ylläpito
-  - id: transit_operations
-    label: Transit operations
-    label_fi: Liikennöinti
-  - id: ticket_sales
-    label: Ticket sales
-    label_fi: Lipputulot
-  - id: vehicle_usage
-    label: Vehicle usage
-    label_fi: Ajoneuvon käyttö
-  - id: travel_time
-    label: Travel time
-    label_fi: Matka-aika
-  - id: health
-    label: Health
-    label_fi: Terveys
-  - id: healthcare_cost
-    label: Healthcare cost
-    label_fi: Terveydenhuollon kustannus
-  - id: accidents
-    label: Accidents
-    label_fi: Onnettomuudet
-  - id: climate_change
-    label: Climate change
-    label_fi: Ilmastonmuutos
-  - id: air_pollution
-    label: Air pollution
-    label_fi: Ilmansaaste
-  - id: noise
-    label: Noise
-    label_fi: Melu
-
-- id: action
-  label: Action
-  label_fi: Toimenpide
-  categories:
-  - id: baseline
-    label: Baseline
-    label_fi: Perusura
-  - id: activity
-    label: Activity
-    label_fi: Toiminto
-
-################### GPC Framework
+  - id: direct_electric_heat
+    label: Direct Electric Heat
+  - id: district_heat
+    label: District Heat
+  - id: geothermal
+    label: Geothermal
 
 emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
 
-################## Emissions 2nd level
-- id: residential_emissions
-  name: 'I.1 Residential Emissions'
-  part_of: building_emissions
-- id: commercial_emissions
-  name: 'I.2 Commercial & Institutional Emissions'
-  part_of: building_emissions
-- id: manufacturing_emissions
-  name: 'I.3 Manufacturing Emissions'
-  part_of: building_emissions
-- id: energy_emissions
-  name: 'I.4 Energy Emissions'
-  part_of: other_stationary_emissions
-- id: agriculture_emissions
-  name: 'I.5 Ag, Forestry & Fishing Emissions'
-  part_of: other_stationary_emissions
-- id: nonspecified_emissions
-  name: 'I.6 Non-Specified Emissions'
-  part_of: other_stationary_emissions
-- id: fugitive_emissions
-  name: 'I.7 Fugitive Emissions Emissions'
-  part_of: other_stationary_emissions
-- id: onroad_emissions
-  name: 'II.1 On-Road Transport Emissions'
-  part_of: transport_emissions
-- id: railways_emissions
-  name: 'II.2 Railways Emissions'
-  part_of: transport_emissions
-- id: waterborne_emissions
-  name: 'II.3 Waterborne Emissions'
-  part_of: transport_emissions
-- id: aviation_emissions
-  name: 'II.4 Aviation Emissions'
-  part_of: transport_emissions
-- id: offroad_emissions
-  name: 'II.5 Off-Road Transport Emissions'
-  part_of: transport_emissions
-- id: solidwaste_emissions
-  name: 'III.1 Solid Waste Emissions'
-  part_of: waste_emissions
-- id: biowaste_emissions
-  name: 'III.2 Biological Waste Emissions'
-  part_of: waste_emissions
-- id: incineration_emissions
-  name: 'III.3 Incineration Emissions'
-  part_of: waste_emissions
-- id: wastewater_emissions
-  name: 'III.4 Wastewater Emissions'
-  part_of: waste_emissions
 
 nodes:
-
-################### Emissions 1st level
-- id: net_emissions
-  name: Net emissions
-  is_outcome: true
+- id: net_price
+  name: Net Price
   type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-- id: building_emissions
-  name: I Building Emissions
-  color: '#ff4f57'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - id: net_emissions
-  - id: building_emission_costs
-    to_dimensions:
-    - id: account
-      categories: [payments]
-- id: other_stationary_emissions
-  name: I Other Stationary Emissions
-  color: '#ff5f67'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - id: net_emissions
-  - id: other_stationary_emission_costs
-    to_dimensions:
-    - id: account
-      categories: [payments]
-- id: transport_emissions
-  name: II Transport Emissions
-  color: '#0047b6'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - id: net_emissions
-  - id: transport_emission_costs
-    to_dimensions:
-    - id: account
-      categories: [payments]
-- id: waste_emissions
-  name: III Waste Emissions
-  color: '#014B30'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - id: net_emissions
-  - id: waste_emission_costs
-    to_dimensions:
-    - id: account
-      categories: [payments]
-
-################## Emissions 3rd level
-- id: residential_fuel
-  name: 'I.1.1 Residential: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [building_activity, building_emission_factor]
-  output_nodes: [residential_emissions]
-- id: residential_grid
-  name: 'I.1.2 Residential: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [building_activity, building_emission_factor]
-  output_nodes: [residential_emissions]
-- id: commercial_fuel
-  name: 'I.2.1 Commercial & Institutional: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [building_activity, building_emission_factor]
-  output_nodes: [commercial_emissions]
-- id: commercial_grid
-  name: 'I.2.2 Commercial & Institutional: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [building_activity, building_emission_factor]
-  output_nodes: [commercial_emissions]
-- id: manufacturing_fuel
-  name: 'I.3.1 Manufacturing: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [building_activity, building_emission_factor]
-  output_nodes: [manufacturing_emissions]
-- id: manufacturing_grid
-  name: 'I.3.2 Manufacturing: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [building_activity, building_emission_factor]
-  output_nodes: [manufacturing_emissions]
-- id: energy_fuel
-  name: 'I.4.1 Energy: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [energy_emissions]
-- id: energy_grid
-  name: 'I.4.2 Energy: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [energy_emissions]
-- id: agriculture_fuel
-  name: 'I.5.1 Ag, Forestry & Fishing: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [agriculture_emissions]
-- id: agriculture_grid
-  name: 'I.5.2 Ag, Forestry & Fishing: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [agriculture_emissions]
-- id: nonspecified_fuel
-  name: 'I.6.1 Non-Specified: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [nonspecified_emissions]
-- id: nonspecified_grid
-  name: 'I.6.2 Non-Specified: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [nonspecified_emissions]
-- id: fugitive_coal
-  name: 'I.7.1 Fugitive Emissions: Coal Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [fugitive_emissions]
-- id: fugitive_oil
-  name: 'I.8.1 Fugitive Emissions: Oil & Natural Gas Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
-  output_nodes: [fugitive_emissions]
-- id: onroad_fuel
-  name: 'II.1.1 On-Road Transport: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [onroad_emissions]
-- id: onroad_grid
-  name: 'II.1.2 On-Road Transport: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [onroad_emissions]
-- id: railways_fuel
-  name: 'II.2.1 Railways: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [railways_emissions]
-- id: railways_grid
-  name: 'II.2.2 Railways: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [railways_emissions]
-- id: waterborne_fuel
-  name: 'II.3.1 Waterborne: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [waterborne_emissions]
-- id: waterborne_grid
-  name: 'II.3.2 Waterborne: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [waterborne_emissions]
-- id: aviation_fuel
-  name: 'II.4.1 Aviation: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [aviation_emissions]
-- id: aviation_grid
-  name: 'II.4.2 Aviation: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [aviation_emissions]
-- id: offroad_fuel
-  name: 'II.5.1 Off-Road Transport: Fuel Combustion Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [offroad_emissions]
-- id: offroad_grid
-  name: 'II.5.2 Off-Road Transport: Grid Energy Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [transport_activity, transport_emission_factor]
-  output_nodes: [offroad_emissions]
-- id: solidwaste_within
-  name: 'III.1.1 Solid Waste: Disposed Within City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [solidwaste_emissions]
-- id: solidwaste_outside
-  name: 'III.1.2 Solid Waste: Disposed Outside City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [solidwaste_emissions]
-- id: biowaste_within
-  name: 'III.2.1 Biological Waste: Treated Within City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [biowaste_emissions]
-- id: biowaste_outside
-  name: 'III.2.2 Biological Waste: Treated Outside City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [biowaste_emissions]
-- id: incineration_within
-  name: 'III.3.1 Incineration: Treated Within City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [incineration_emissions]
-- id: incineration_outside
-  name: 'III.3.2 Incineration: Treated Outside City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [incineration_emissions]
-- id: wastewater_within
-  name: 'III.4.1 Wastewater: Treated Within City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [wastewater_emissions]
-- id: wastewater_outside
-  name: 'III.4.2 Wastewater: Treated Outside City Emissions'
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes: [waste_activity, waste_emission_factor]
-  output_nodes: [wastewater_emissions]
-
-################## Activity nodes
-
-- id: building_activity
-  name: building activity
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2010, 1]]
-  output_nodes: [total_energy_consumption]
-- id: other_stationary_activity
-  name: other_stationary activity
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2010, 1]]
-  output_nodes: [total_energy_consumption]
-- id: transport_activity
-  name: transport activity
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  historical_values: [[2010, 1]]
-  output_nodes: [total_energy_consumption]
-
-- id: waste_activity
-  name: Waste activity
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: m**3/a
-  historical_values: [[2010, 1]]
-
-- id: total_energy_consumption
-  name: Total energy consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
   is_outcome: true
 
-################## Emission factor nodes
+- id: i11_residential_fuel_consumption
+  name: I.1.1 Residential Fuel Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i11_residential_fuel_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
 
-- id: building_emission_factor
-  name: building emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-- id: electricity_emission_factor
-  name: electricity emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-- id: other_stationary_emission_factor
-  name: other_stationary emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-- id: transport_emission_factor
-  name: transport emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  historical_values: [[2010, 1]]
-- id: waste_emission_factor
-  name: waste emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/m**3
-  historical_values: [[2010, 1]]
+- id: i11_residential_fuel_consumption_emissions
+  name: I.1.1 Residential Fuel Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i11_residential_fuel_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
 
-################## Cost nodes
+- id: i11_residential_fuel_emission_factor
+  name: I.1.1 Residential Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i11_residential_fuel_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
 
-- id: building_action_costs
-  name: building action costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
-  output_nodes: [building_costs]
+- id: i11_residential_fuel_emissions
+  name: I.1.1 Residential Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
   input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: building_emission_costs
-  name: building emission costs
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i11_residential_fuel_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i12_residential_grid_energy_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'heating']
+  output_dimensions: ['scope', 'energy_carrier', 'heating']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: heating
+
+- id: i12_residential_grid_energy_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
+  output_nodes:
+  - id: i12_residential_grid_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: heating
+    - id: energy_carrier
+
+- id: i12_residential_grid_energy_emission_factor
+  name: I.1.2 Residential Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_consumption
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_simple
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_simple
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2021
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_price
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Price
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: kEUR/a
-  input_nodes:
-  - id: price_of_emissions
-    to_dimensions:
-    - id: account
-    - categories: [payments]
-  output_nodes: [building_costs]
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: building_costs
-  name: building costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
+  unit: EUR/a
+  input_dimensions: ['cost_type', 'scope', 'energy_carrier']
+  output_dimensions: ['cost_type', 'scope', 'energy_carrier']
   output_nodes:
-  - id: total_economic_costs
+  - id: i22_commercial_and_institutional_grid_energy_total_price
     from_dimensions:
-    - id: account
+    - id: energy_carrier
       flatten: true
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: other_stationary_action_costs
-  name: other_stationary action costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
-  output_nodes: [other_stationary_costs]
+    to_dimensions:
+    - id: cost_type
+    - id: scope
+
+- id: i22_commercial_and_institutional_grid_energy_emission_factor
+  name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/kWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.2.2
   input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: other_stationary_emission_costs
-  name: other_stationary emission costs
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: kEUR/a
-  input_nodes:
-  - id: price_of_emissions
-    to_dimensions:
-    - id: account
-    - categories: [payments]
-  output_nodes: [other_stationary_costs]
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: other_stationary_costs
-  name: other_stationary costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
+  - id: gpc/demonstration
   output_nodes:
-  - id: total_economic_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: transport_action_costs
-  name: transport action costs
-  type: simple.AdditiveNode
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_price
+  name: I.2.2 Commercial & Institutional Grid Energy Price
+  type: gpc.DatasetNode
   quantity: currency
-  unit: kEUR/a
-  output_nodes: [transport_costs]
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  params:
+    gpc_sector: I.2.2
   input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: transport_emission_costs
-  name: transport emission costs
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: kEUR/a
-  input_nodes:
-  - id: price_of_emissions
-    to_dimensions:
-    - id: account
-    - categories: [payments]
-  output_nodes: [transport_costs]
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: transport_costs
-  name: transport costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
+  - id: gpc/demonstration
   output_nodes:
-  - id: total_economic_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: waste_action_costs
-  name: waste action costs
+  - id: i22_commercial_and_institutional_grid_energy_price_simple
+
+
+- id: i22_commercial_and_institutional_grid_energy_price_simple
+  name: I.2.2 Commercial & Institutional Grid Energy Price
   type: simple.AdditiveNode
   quantity: currency
-  unit: kEUR/a
-  output_nodes: [waste_costs]
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: waste_emission_costs
-  name: waste emission costs
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: kEUR/a
-  input_nodes:
-  - id: price_of_emissions
-    to_dimensions:
-    - id: account
-    - categories: [payments]
-  output_nodes: [waste_costs]
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: waste_costs
-  name: waste costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  minimum_year: 2021
   output_nodes:
-  - id: total_economic_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-  input_dimensions: [account]
-  output_dimensions: [account]
-- id: price_of_emissions
-  name: Price of emissions
-  type: simple.AdditiveNode
+  - id: i22_commercial_and_institutional_grid_energy_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i22_commercial_and_institutional_grid_energy_unit_price
+  name: I.2.2 Commercial & Institutional Grid Energy Unit Price
+  type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/t
-  historical_values: [[2010, 100]]
-
-############### Collection nodes
-
-- id: collect_building
-  name: Collect building nodes
-  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 0]]
-  input_nodes:
-  - id: building_emissions
-  - id: building_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-- id: collect_other_stationary
-  name: Collect other_stationary nodes
-  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 0]]
-  input_nodes:
-  - id: other_stationary_emissions
-  - id: other_stationary_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-- id: collect_transport
-  name: Collect transport nodes
-  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 0]]
-  input_nodes:
-  - id: transport_emissions
-  - id: transport_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-- id: collect_waste
-  name: Collect waste nodes
-  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
-  quantity: number
-  unit: pcs
-  historical_values: [[2010, 0]]
-  input_nodes:
-  - id: waste_emissions
-  - id: waste_costs
-    from_dimensions:
-    - id: account
-      flatten: true
-
-###### END OF GPC FRAMEWORK NODES
-########### OTHER
-
-- id: population2
-  type: finland.population.Population
-  name: Population
+  unit: EUR/kWh
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  params:
+    gpc_sector: I.2.2
   input_datasets:
-  - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
-    filters:
-    - column: Alue
-      value: Espoo
-  - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
-    filters:
-    - column: Alue
-      value: Espoo
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
 
-- id: population
-  name: Population
-  name_fi: Väestö
+- id: i31_manufacturing_fuel_combustion
+  name: I.3.1 Manufacturing Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['scope', 'energy_carrier', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i31_manufacturing_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: owner
+
+- id: i31_manufacturing_fuel_combustion_emissions
+  name: I.3.1 Manufacturing Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['owner', 'scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['owner', 'scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i31_manufacturing_fuel_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: i31_manufacturing_fuel_emission_factor
+  name: I.3.1 Manufacturing Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/l
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i31_manufacturing_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i31_manufacturing_fuel_emissions
+  name: I.3.1 Manufacturing Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'owner']
+  output_dimensions: ['scope', 'ghg', 'owner']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i31_manufacturing_fuel_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: owner
+
+- id: i32_manufacturing_grid_energy_emissions
+  name: I.3.2 Manufacturing Grid Energy Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i62_nonspecified_grid_energy_consumption
+  name: I.6.2 Non-Specified Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.6.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i62_nonspecified_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i62_nonspecified_grid_energy_consumption_emissions
+  name: I.6.2 Non-Specified Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i62_nonspecified_grid_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i62_nonspecified_grid_energy_emission_factor
+  name: I.6.2 Non-Specified Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.6.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i62_nonspecified_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: ii11_onroad_transport_fuel_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/Gm
+  input_dimensions: ['scope', 'ghg', 'road_type', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'road_type', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: road_type
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_emissions
+  name: II.1.1 On-Road Transport Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_mileage
+  name: II.1.1 On-Road Transport Fuel Mileage
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Gm/a
+  input_dimensions: ['scope', 'road_type', 'vehicle_type']
+  output_dimensions: ['scope', 'road_type', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_emissions
+    to_dimensions:
+    - id: scope
+    - id: road_type
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_mileage_emissions
+  name: II.1.1 On-Road Transport Fuel Mileage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'road_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'road_type']
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_emissions
+    from_dimensions:
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii22_railway_grid_energy_emission_factor
+  name: II.2.2 Railway Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/Gm
+  input_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii22_railway_grid_energy_mileage_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii22_railway_grid_energy_mileage
+  name: II.2.2 Railway Grid Energy Mileage
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Gm/a
+  input_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: ii22_railway_grid_energy_mileage_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii22_railway_grid_energy_mileage_emissions
+  name: II.2.2 Railway Grid Energy Mileage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii22_railway_grid_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: iii11_solid_waste_disposed_in_city_emissions
+  name: III.1.1 Solid Waste Disposed in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.1.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: iii11_solid_waste_disposed_in_city_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_wastewater_treated_in_city_emissions
+  name: III.4.1 Wastewater Treated in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.4.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: iii41_wastewater_treated_in_city_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v1_livestock_emissions
+  name: V.1 Livestock Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.1
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: v1_livestock_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v2_land_emissions
+  name: V.2 Land Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: v2_land_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v3_aggregate_sources_emissions
+  name: V.3 Aggregate Sources Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.3
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: v3_aggregate_sources_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i11_residential_fuel_total_emissions
+  name: I.1.1 Residential Fuel Total Emissions
   type: simple.AdditiveNode
-  quantity: population
-  unit: cap
-  historical_values: [[2010, 250000]]
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
 
-- id: total_economic_costs
-  name: Total economic costs (non-discounted)
+- id: i12_residential_grid_energy_total_emissions
+  name: I.1.2 Residential Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i1_residential_total_emissions
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i22_commercial_and_institutional_grid_energy_total_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i2_commercial_and_institutional_total_emissions
+  name: I.2 Commercial & Institutional Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i31_manufacturing_fuel_total_emissions
+  name: I.3.1 Manufacturing Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i32_manufacturing_grid_energy_total_emissions
+  name: I.3.2 Manufacturing Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i3_manufacturing_total_emissions
+  name: I.3 Manufacturing Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i62_nonspecified_grid_energy_total_emissions
+  name: I.6.2 Non-Specified Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i6_nonspecified_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i6_nonspecified_total_emissions
+  name: I.6 Non-Specified Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: ii11_onroad_transport_fuel_total_emissions
+  name: II.1.1 On-Road Transport Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii1_onroad_transport_total_emissions
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii22_railway_grid_energy_total_emissions
+  name: II.2.2 Railway Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii2_railway_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: ii2_railway_total_emissions
+  name: II.2 Railway Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii11_solid_waste_disposed_in_city_total_emissions
+  name: III.1.1 Solid Waste Disposed in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii1_solid_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii1_solid_waste_total_emissions
+  name: III.1 Solid Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_wastewater_treated_in_city_total_emissions
+  name: III.4.1 Wastewater Treated in City Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii4_wastewater_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii4_wastewater_total_emissions
+  name: III.4 Wastewater Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v1_livestock_total_emissions
+  name: V.1 Livestock Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v2_land_total_emissions
+  name: V.2 Land Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v3_aggregate_sources_total_emissions
+  name: V.3 Aggregate Sources Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v_afolu_total_emissions
+  name: V AFOLU Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i22_commercial_and_institutional_grid_energy_total_price
+  name: I.2.2 Commercial & Institutional Grid Energy Total Price
   type: simple.AdditiveNode
   quantity: currency
-  unit: MEUR/a
-#  input_dimensions: [account]
-#  output_dimensions: [account]
+  unit: EUR/a
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_price
+    to_dimensions:
+    - id: cost_type
+    - id: scope
 
-- id: total_discounted_economic_costs
-  name: Total discounted economic costs
-  name_fi: Diskontatut taloudelliset kokonaiskustannukset
-  type: costs.ExponentialNode
+- id: i2_commercial_and_institutional_total_price
+  name: I.2 Commercial & Institutional Total Price
+  type: simple.AdditiveNode
   quantity: currency
-  unit: MEUR/a
-  is_outcome: true
-  input_nodes:
-  - id: total_economic_costs
-#  input_dimensions: [account]
-#  output_dimensions: [account]
-  params:
-  - id: annual_change
-    ref: discount_rate
-  - id: is_decreasing_rate
-    value: true
+  unit: EUR/a
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: cost_type
+    - id: scope
 
-#################### Transport model based on modal shares
-
-#- id: walking
-#  name: Walking
-#  name_fi: Kävely
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: Mpkm/a
-#  historical_values: [[2005, 0]]
-##  input_nodes:
-##  - id: population
-##  - id: mode_activity
-
-#- id: cycling
-#  name: Cycling
-#  name_fi: Pyöräily
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: Mpkm/a
-#  historical_values: [[2005, 0]]
-##  input_nodes:
-##  - id: population
-##  - id: mode_activity
-
-#- id: bus_transit
-#  name: Bus transit
-#  name_fi: Bussiliikenne
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: Mpkm/a
-#  historical_values: [[2005, 0]]
-##  input_nodes:
-##  - id: population
-##  - id: mode_activity
-
-#- id: tram_transit
-#  name: Tram transit
-#  name_fi: Ratikkaliikenne
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: Mpkm/a
-#  historical_values: [[2005, 0]]
-
-#- id: mode_activity
-#  name: Mode activity
-#  name_fi: Suorite liikkumismuodoittain
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: pkm/cap/d
-#  historical_values: [[2010, 1.24], [2022, 1.24]]
-#  input_dataset_processors: [LinearInterpolation]
-
-#- id: person_mileage_car
-#  name: Person mileage in cars
-#  name_fi: Henkilökilometrit autolla
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: Mpkm/a
-#  historical_values: [[2005, 0], [2023, 0]]
-#  input_dataset_processors: [LinearInterpolation]
-
-##- id: vehicle_mileage_car
-##  name: Car vehicle mileage
-##  name_fi: Liikennesuorite henkilöautolla
-##  type: simple.MultiplicativeNode
-##  quantity: mileage
-##  unit: Mvkm/a
-##  input_nodes:
-##  - id: person_mileage_car
-##  - id: vehicle_load
-##    metric: car
-
-#- id: vehicle_load
-#  name: Persons in vehicle
-#  name_fi: Keskikuormitus ajoneuvossa
-#  type: simple.AdditiveNode
-#  quantity: mileage
-#  unit: vkm/pkm
-#  historical_values: [[2010, 1.7]]
-
-#- id: unit_prices
-#  name: Unit prices
-#  name_fi: Yksikkökustannukset
-#  type: simple.AdditiveNode
-#  quantity: currency
-#  unit: EUR/pkm
-#  input_datasets:
-#  - id: budget/unit_prices_of_transportation
-#  input_dataset_processors: [LinearInterpolation]
-#  output_dimensions: [vehicle_type, outcome_of_interest]
-
-#- id: outcome_stakeholder_matrix
-#  name: Outcome stakeholder matrix
-#  type: simple.AdditiveNode
-#  quantity: fraction
-#  unit: dimensionless
-#  input_datasets:
-#  - id: budget/outcome_stakeholder_matrix
-#  input_dataset_processors: [LinearInterpolation]
-#  input_dimensions: [stakeholder, outcome_of_interest]
-#  output_dimensions: [stakeholder, outcome_of_interest]
-
-#- id: passenger_km
-#  name: Total passenger kilometers
-#  name_fi: Matkustajakilometrit yhteensä
-#  type: simple.RelativeNode
-#  quantity: mileage
-#  unit: Mpkm/a
-#  input_nodes:
-#  - id: walking
-#    to_dimensions:
-#    - id: vehicle_type
-#      categories: [walking]
-#  - id: cycling
-#    to_dimensions:
-#    - id: vehicle_type
-#      categories: [cycling]
-#  - id: bus_transit
-#    to_dimensions:
-#    - id: vehicle_type
-#      categories: [bus]
-#  - id: tram_transit
-#    to_dimensions:
-#    - id: vehicle_type
-#      categories: [tram]
-#  - id: person_mileage_car
-#    to_dimensions:
-#    - id: vehicle_type
-#      categories: [car]
-#  input_dimensions: [vehicle_type]
-#  output_dimensions: [vehicle_type]
-
-#- id: costs
-#  name: Costs of transportation
-#  name_fi: Liikenteen kustannukset
-#  type: simple.MultiplicativeNode
-#  quantity: currency
-#  unit: MEUR/a
-#  is_outcome: true
-#  input_nodes:
-#  - id: unit_prices
-#    to_dimensions:
-#    - id: outcome_of_interest
-#    - id: vehicle_type
-#  - id: passenger_km
-#    to_dimensions:
-#    - id: vehicle_type
-#  - id: outcome_stakeholder_matrix
-#    to_dimensions:
-#    - id: outcome_of_interest
-#    - id: stakeholder
-#  input_dimensions: [vehicle_type, outcome_of_interest, stakeholder]
-#  output_dimensions: [outcome_of_interest, stakeholder, vehicle_type]
-
-#- id: discounted_costs
-#  name: Discounted costs
-#  name_fi: Diskontatut kustannukset
-#  type: costs.ExponentialNode
-#  quantity: currency
-#  unit: MEUR/a
-#  input_dimensions: [stakeholder, outcome_of_interest]
-#  output_dimensions: [stakeholder, outcome_of_interest]
-#  input_nodes:
-#  - id: costs
-#    from_dimensions:
-#    - id: vehicle_type
-#      flatten: true
-#  params:
-#  - id: annual_change
-#    ref: discount_rate
-#  - id: is_decreasing_rate
-#    value: true
-
-#- id: test_investments
-#  name: Test node for traffic investments
-#  type: simple.FixedMultiplierNode
-#  quantity: currency
-#  unit: MEUR/a
-#  input_dimensions: [stakeholder, outcome_of_interest]
-#  output_dimensions: [stakeholder, outcome_of_interest]
-#  input_nodes:
-#  - discounted_costs
-#  params:
-#  - id: multiplier
-#    value: 0.2
-
-################# END TRAFFIC MODEL
-
-- id: streetlight_energy_saving
-  name: Energy saved by LED streetlights
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: MWh/a
-  output_nodes: [other_stationary_activity]
-  historical_values: [[2010, 100]]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
-
-- id: pv_energy_saving
-  name: Energy saved by PV
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: MWh/a
-  output_nodes: [other_stationary_activity]
-  historical_values: [[2010, 100]]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
-
-- id: renovation_energy_saving
-  name: Energy saved by building renovations
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: MWh/a
-  output_nodes: [building_activity]
-  historical_values: [[2010, 100]]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
-
-- id: oil_energy_saving
-  name: Energy saved by removing oil heating
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: MWh/a
-  output_nodes: [building_activity]
-  historical_values: [[2010, 100]]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
-
-- id: city_fleet_energy_saving
-  name: Energy saved by electrifying city fleet
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: MWh/a
-  output_nodes: [transport_activity]
-  historical_values: [[2010, 100]]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
-
-- id: public_transport_energy_saving
-  name: Energy saved by electrifying public transport
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: MWh/a
-  output_nodes: [transport_activity]
-  historical_values: [[2010, 100]]
-  params:
-  - id: multiplier
-    value: -130
-    unit: kWh/a/pcs
+- id: i_stationary_total_price
+  name: I Stationary Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: cost_type
+    - id: scope
 
 actions:
 
-- id: led_streetlights
-  name: Change streetlights to LED
-  type: values.BudgetingAction
-  quantity: number
-  unit: pcs
-  group: stationary
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  output_nodes:
-  - id: streetlight_energy_saving
-    metrics: [number]
-    from_dimensions:
-    - id: account
-      flatten: true
-  - id: other_stationary_action_costs
-    metrics: [currency]
-  output_dimensions: [account]
-  params:
-  - id: scale_by
-    value: 5
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Scale the action by this factor
-  - id: postpone_by
-    value: 0
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Postpone the action by this many years
+- id: led_action
+  name: Change Streetlights to LED
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [scope, ghg]
+  indicator_nodes:
+  - id: net_emissions
 
-- id: pv_electricity
-  name: Build renewable electricity production (PV)
-  type: values.BudgetingAction
-  quantity: number
-  unit: pcs
-  group: energy
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
+- id: led_i22_commercial_and_institutional_grid_energy_consumption
+  name: Change Streetlights to LED (Energy Consumption)
+  parent: led_action
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kWh/a
+  historical_values: [[2021, -1109182.92],
+                    [2022, -2218365.85],
+                    [2023, -3327548.77],
+                    [2024, -4436731.70],
+                    [2025, -5545914.62],
+                    [2026, -5299290.32],
+                    [2027, -5052666.02],
+                    [2028, -4806041.72],
+                    [2029, -4559417.42],
+                    [2030, -4312793.12]]
   output_nodes:
-  - id: pv_energy_saving
-    metrics: [number]
-    from_dimensions:
-    - id: account
-      flatten: true
-  - id: other_stationary_action_costs
-    metrics: [currency]
-  output_dimensions: [account]
-  params:
-  - id: scale_by
-    value: 5
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Scale the action by this factor
-  - id: postpone_by
-    value: 0
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Postpone the action by this many years
+  - id: i22_commercial_and_institutional_grid_energy_consumption_simple
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
 
-- id: building_renovations
-  name: Energy efficiency renovations in buildings
-  type: values.BudgetingAction
-  quantity: number
-  unit: pcs
-  group: stationary
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
+- id: led_i22_commercial_and_institutional_grid_energy_maintenance
+  name: Change Streetlights to LED (Maintenance Cost)
+  parent: led_action
+  type: simple.AdditiveAction
+  quantity: currency
+  unit: EUR/a
+  historical_values: [[2021, -101625.30],
+                      [2022, -195433.27],
+                      [2023, -281874.90],
+                      [2024, -361378.08],
+                      [2025, -434348.65],
+                      [2026, -399070.54],
+                      [2027, -365863.61],
+                      [2028, -334620.71],
+                      [2029, -305239.90],
+                      [2030, -277624.14]]
   output_nodes:
-  - id: renovation_energy_saving
-    metrics: [number]
-    from_dimensions:
-    - id: account
-      flatten: true
-  - id: building_action_costs
-    metrics: [currency]
-  output_dimensions: [account]
-  params:
-  - id: scale_by
-    value: 5
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Scale the action by this factor
-  - id: postpone_by
-    value: 0
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Postpone the action by this many years
+  - id: i22_commercial_and_institutional_grid_energy_price_simple
+    to_dimensions:
+    - id: cost_type
+      categories: [maintenance_costs]
+    - id: scope
+      categories: [scope2]
 
-- id: oil_to_geothermal
-  name: Change oil to geothermal heating
-  type: values.BudgetingAction
-  quantity: number
-  unit: pcs
-  group: stationary
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
+- id: led_i22_commercial_and_institutional_grid_energy_investment
+  name: Change Streetlights to LED (Investment Cost)
+  parent: led_action
+  type: simple.AdditiveAction
+  quantity: currency
+  unit: EUR/a
+  historical_values: [[2021, 1513568.27],
+                      [2022, 1455354.11],
+                      [2023, 1399378.95],
+                      [2024, 1345556.68],
+                      [2025, 1293804.50],
+                      [2026, -276610.08],
+                      [2027, -265971.23],
+                      [2028, -255741.57],
+                      [2029, -245905.36],
+                      [2030, -236447.46]]
   output_nodes:
-  - id: oil_energy_saving
-    metrics: [number]
-    from_dimensions:
-    - id: account
-      flatten: true
-  - id: building_action_costs
-    metrics: [currency]
-  output_dimensions: [account]
-  params:
-  - id: scale_by
-    value: 5
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Scale the action by this factor
-  - id: postpone_by
-    value: 0
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Postpone the action by this many years
+  - id: i22_commercial_and_institutional_grid_energy_price_simple
+    to_dimensions:
+    - id: cost_type
+      categories: [investment_costs]
+    - id: scope
+      categories: [scope2]
 
-- id: city_fleet_to_electric
-  name: Replace city fleet with electric vehicles
-  type: values.BudgetingAction
-  quantity: number
-  unit: pcs
-  group: transport
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  output_nodes:
-  - id: city_fleet_energy_saving
-    metrics: [number]
-    from_dimensions:
-    - id: account
-      flatten: true
-  - id: transport_action_costs
-    metrics: [currency]
-  output_dimensions: [account]
-  params:
-  - id: scale_by
-    value: 5
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Scale the action by this factor
-  - id: postpone_by
-    value: 0
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Postpone the action by this many years
-
-- id: electrify_public_transportation
-  name: Electrify public transportation
-  type: values.BudgetingAction
-  quantity: number
-  unit: pcs
-  group: transport
-  input_datasets:
-  - id: budget/action_costs
-    forecast_from: 2024
-  output_nodes:
-  - id: public_transport_energy_saving
-    metrics: [number]
-    from_dimensions:
-    - id: account
-      flatten: true
-  - id: transport_action_costs
-    metrics: [currency]
-  output_dimensions: [account]
-  params:
-  - id: scale_by
-    value: 5
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Scale the action by this factor
-  - id: postpone_by
-    value: 0
-    min_value: 0
-    max_value: 10
-    is_visible: true
-    is_customizable: true
-    label: Postpone the action by this many years
-
-#- id: sustainable_transportation
-#  name: Some sustainable transportation action
-#  name_fi: Jokin toimenpide kestävän liikkumisen lisäämiseksi
-#  type: simple.TrajectoryAction
-#  quantity: mileage
-#  unit: Mpkm/a
-#  group: transport
-#  input_datasets:
-#  - id: budget/passenger_kilometers_by_action
-#    column: mileage
-#    forecast_from: 2024
-#  params:
-#  - id: dimension
-#    value: action
-#  - id: category
-#    value: activity
-#  output_dimensions: [vehicle_type]
-#  output_nodes:
-#  - id: walking
-#    from_dimensions:
-#    - id: vehicle_type
-#      categories: [walking]
-#      flatten: true
-#  - id: cycling
-#    from_dimensions:
-#    - id: vehicle_type
-#      categories: [cycling]
-#      flatten: true
-#  - id: bus_transit
-#    from_dimensions:
-#    - id: vehicle_type
-#      categories: [bus]
-#      flatten: true
-#  - id: tram_transit
-#    from_dimensions:
-#    - id: vehicle_type
-#      categories: [tram]
-#      flatten: true
-#  - id: person_mileage_car
-#    from_dimensions:
-#    - id: vehicle_type
-#      categories: [car]
-#      flatten: true
 
 pages:
 - id: home
-  name: Budget sandbox
+  name: Demonstration BASIC+ Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Sandbox for budgeting
-  lead_paragraph: Testing budgeting functionalities
+  lead_title: Climate-4-CAST Project
+  lead_paragraph: GPC BASIC+ greenhouse gas inventory (2010-2022) and forecast (2023-2030) for the City of Demonstration.
 
 scenarios:
-
 - id: baseline
-  name: Baseline
+  name: Business as Usual
 
 - id: default
-  name: Default
   default: true
+  name: Climate Action Plan
   all_actions_enabled: true
