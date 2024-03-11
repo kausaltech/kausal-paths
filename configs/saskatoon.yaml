@@ -297,6 +297,58 @@ dimensions:
   - id: lec40
     label: LEC Action 40
 
+- id: costs
+  label: Costs & Returns
+  categories:
+  - id: commercial_buildings
+    label: Commercial Buildings
+  - id: commercial_equipment
+    label: Commercial Equipment
+  - id: commercial_use_vehicles
+    label: Commercial Use Vehicles
+  - id: commercial_use_vehicle_emissions
+    label: Commercial Use Vehicle Emissions
+  - id: commercial_use_vehicle_fuel
+    label: Commercial Use Vehicle Fuel
+  - id: commercial_use_vehicle_maintenance
+    label: Commercial Use Vehicle Maintenance
+  - id: energy_production
+    label: Energy Production
+  - id: energy_production_emissions
+    label: Energy Production Emissions
+  - id: energy_production_fuel
+    label: Energy Production Fuel
+  - id: energy_production_revenue
+    label: Energy Production Revenue
+  - id: municipal_capital
+    label: Municipal Capital
+  - id: municipal_emissions
+    label: Municipal Emissions
+  - id: municipal_fuel
+    label: Municipal Fuel
+  - id: nonresidential_emissions
+    label: Non-Residential Emissions
+  - id: nonresidential_fuel
+    label: Non-Residential Fuel
+  - id: personal_use_vehicles
+    label: Personal Use Vehicles
+  - id: personal_use_vehicle_emissions
+    label: Personal Use Vehicle Emissions
+  - id: personal_use_vehicle_fuel
+    label: Personal Use Vehicle Fuel
+  - id: personal_use_vehicle_maintenance
+    label: Personal Use Vehicle Maintenance
+  - id: residential_buildings
+    label: Residential Buildings
+  - id: residential_emissions
+    label: Residential Emissions
+  - id: residential_equipment
+    label: Residential Equipment
+  - id: residential_fuel
+    label: Residential Fuel
+  - id: transit_revenue
+    label: Transit Revenue
+
 
 params:
 - id: municipality_name
