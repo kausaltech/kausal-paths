@@ -99,6 +99,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     # Mega-kilometers is often used for mileage
     Mkm = gigameters
     EUR = [currency]
+    CAD = nan EUR
     USD = nan EUR
     SEK = 0.1 EUR
     pcs = [number] = pieces
