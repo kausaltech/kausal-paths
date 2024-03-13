@@ -314,7 +314,7 @@ class ActionEfficiencyPair:
             if not self.indicator_unit.is_compatible_with(div_unit):
                 raise Exception("Indicator unit %s is not compatible with %s" % (self.indicator_unit, div_unit))
             if self.stakeholder_dimension is not None:
-                raise Exception("Stakeholder dimension is not allowed for a cost-efficiency graph")
+                raise Exception("Stakeholder dimension is not allowed for a cost-effectiveness graph")
         if self.graph_type == 'cost_benefit':
             if not self.cost_unit == self.impact_unit:
                 raise Exception("Units must be the same for cost %s and impact %s" % (self.cost_unit, self.impact_unit))

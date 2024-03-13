@@ -92,7 +92,7 @@ action_efficiency_pairs:
 #  indicator_unit: dimensionless
 #  cost_unit: MEUR
 #  impact_unit: MEUR
-#  label: Cost-efficiency analysis
+#  label: cost-effectiveness analysis
 
 dimensions:
 

@@ -21,7 +21,7 @@ class UtilityNode(AdditiveNode):
     '''
     Utility nodes take in outcome nodes and value weight parameters.
     They produce a dataframe showing the value-weighted sums of outcomes.
-    Cost-efficiency can be implemented if a decision criterion is known, e.g. 50 €/t.
+    Cost-effectiveness can be implemented if a decision criterion is known, e.g. 50 €/t.
     Then, emissions and cost are put to an equal scale by multiplying
     cost by 0.02 1/EUR and emissions by 1 1/t, resulting in a scale
     where cost-effective scenarios show value < 0 when cumulated over the time span.
