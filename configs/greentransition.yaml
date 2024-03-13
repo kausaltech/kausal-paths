@@ -49,7 +49,7 @@ action_groups:
 #  color: '#50c878'
 
 action_efficiency_pairs:
-- graph_type: cost_efficiency
+- graph_type: cost_effectiveness
   cost_node: action_costs
   impact_node: value_profile
   invert_cost: false

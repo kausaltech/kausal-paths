@@ -309,7 +309,7 @@ class ActionEfficiencyPair:
             raise Exception("Cost and impact nodes must have stackable quantities")
         if self.cost_node.unit is None or self.impact_node.unit is None:
             raise Exception("Cost or impact node does not have a unit")
-        if self.graph_type == 'cost_efficiency':
+        if self.graph_type == 'cost_effectiveness':
             div_unit = self.cost_node.unit / self.impact_node.unit
             if not self.indicator_unit.is_compatible_with(div_unit):
                 raise Exception("Indicator unit %s is not compatible with %s" % (self.indicator_unit, div_unit))
@@ -349,7 +349,7 @@ class ActionEfficiencyPair:
             # roi 
             # voi i_out                   c_iter
             match_dims_c = match_dims_i = [] # For cost and impact nodes, respectively
-            if self.graph_type=='cost_efficiency':
+            if self.graph_type=='cost_effectiveness':
                 match_dims_c += [self.outcome_dimension]
             if self.graph_type=='cost_benefit':
                 match_dims_c += [self.outcome_dimension, self.stakeholder_dimension]
@@ -373,7 +373,7 @@ class ActionEfficiencyPair:
             df = df.ensure_unit('Cost', self.cost_unit)
             df = df.ensure_unit('Impact', self.impact_unit)
 
-            if self.graph_type == 'cost_efficiency':
+            if self.graph_type == 'cost_effectiveness':
                 unit_adjustment_multiplier = 1 * self.cost_unit / self.impact_unit / self.indicator_unit
             elif self.graph_type == 'return_of_investment':
                 unit_adjustment_multiplier = 1 * self.impact_unit / self.cost_unit / self.indicator_unit

@@ -55,7 +55,7 @@ action_groups:
   color: '#50c878'
 
 action_efficiency_pairs:
-- graph_type: cost_efficiency
+- graph_type: cost_effectiveness
   cost_node: total_discounted_economic_costs
   impact_node: net_emissions
   invert_cost: true
@@ -84,7 +84,7 @@ action_efficiency_pairs:
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest
 #  label: Cost-benefit analysis
-#- graph_type: cost_efficiency
+#- graph_type: cost_effectiveness
 #  cost_node: total_economic_costs
 #  impact_node: discounted_costs
 #  invert_cost: true
