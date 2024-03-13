@@ -785,6 +785,7 @@ class Query(graphene.ObjectType):
     )
     action = graphene.Field(ActionNodeType, id=graphene.ID(required=True))
     action_efficiency_pairs = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
+    impact_overviews = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
     active_scenario = graphene.Field(ScenarioType)
@@ -847,6 +848,10 @@ class Query(graphene.ObjectType):
 
     @pass_context
     def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo, context: Context):
+        return context.action_efficiency_pairs
+
+    @pass_context
+    def resolve_impact_overviews(root, info: GQLInstanceInfo, context: Context):
         return context.action_efficiency_pairs
 
     @pass_context
