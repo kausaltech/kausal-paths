@@ -49,11 +49,12 @@ action_groups:
 #  color: '#50c878'
 
 action_efficiency_pairs:
-- cost_node: action_costs
+- graph_type: cost_effectiveness
+  cost_node: action_costs
   impact_node: value_profile
   invert_cost: false
   invert_impact: false
-  efficiency_unit: kEUR/Ut
+  indicator_unit: kEUR/Ut
   cost_unit: MEUR
   impact_unit: Ut
 #  plot_limit_efficiency: 10
@@ -688,6 +689,42 @@ nodes:
     value: 20
     unit: vkm/cap/d
 
+- id: vehicle_number
+  name: Henkilöautojen määrä kaupungissa
+  name_en: Number of passenger cars
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 40000], [2022, 45000]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: vehicle_need
+    tags: [fraction1]
+  - id: number_of_evs
+    tags: [fraction2]
+  params:
+  - id: fraction1
+    value: 0.2
+  - id: fraction2
+    value: 0.1
+  - id: drop_nulls
+    value: true
+
+- id: urban_coziness
+  name: Kaupunkialueen viihtyisyys
+  name_en: Urban coziness
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: vehicle_number
+    tags: [decrease, fraction1]
+  params:
+  - id: fraction1
+    value: 0.3
+
 - id: car_km
   name: Autokilometrien määrä kaupungissa
   name_en: Car kilometers driven with trips inside the city
@@ -764,7 +801,7 @@ nodes:
 - id: accessibility
   name: Liikenteen saavutettavuus
   name_en: Accessibility of transportation
-  Description: More people can access the city center. # What could be the quantity and unit?
+  Description: More people can access the city center. This is important for people who don't own a car. It is also an important factor when tourists consider coming to the town (especially in municipality C, while in municipality D tourists find EV charging stations more important).
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -1098,6 +1135,18 @@ nodes:
   - id: multiplier
     ref: legality_weight
 
+- id: utility_urban_coziness
+  name: Kaupungin viihtyisyyden utiliteetti
+  name_en: Utility of urban coziness
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [urban_coziness]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: biodiversity_weight
+
 - id: value_profile
   name: Kokonaisutiliteetti
   name_en: Total utility
@@ -1237,6 +1286,8 @@ scenarios:
     value: 1
   - id: equity_weight
     value: 0.1
+  - id: biodiversity_weight
+    value: 1
   - id: health_weight
     value: 0.2
   - id: purity_weight
@@ -1257,6 +1308,8 @@ scenarios:
   params:
   - id: ev_charging_policy.enabled
     value: false
+  - id: safe_bike_parking.enabled
+    value: true
   - id: public_transit_support.enabled
     value: false
   - id: impact_threshold
@@ -1265,6 +1318,8 @@ scenarios:
     value: 1
   - id: equity_weight
     value: 0.1
+  - id: biodiversity_weight
+    value: 1
   - id: health_weight
     value: 0.01
   - id: purity_weight
@@ -1285,24 +1340,28 @@ scenarios:
   params:
   - id: biodiesel.enabled
     value: false
+  - id: safe_bike_parking.enabled
+    value: false
   - id: public_transit_support.enabled
     value: false
   - id: impact_threshold
     value: 0
   - id: economic_weight
-    value: 1
-  - id: equity_weight
     value: 0.1
+  - id: equity_weight
+    value: 1
+  - id: biodiversity_weight
+    value: 5
   - id: health_weight
-    value: 0.01
+    value: 0.1
   - id: purity_weight
     value: -10
   - id: legality_weight
-    value: 3
+    value: 0
   - id: emissions_weight
-    value: -0.05
+    value: -0.5
   - id: prosperity_weight
-    value: 1
+    value: 0
   - id: effect_of_ev
     value: -20000
 
@@ -1313,6 +1372,8 @@ scenarios:
   params:
   - id: biodiesel.enabled
     value: false
+  - id: safe_bike_parking.enabled
+    value: false
   - id: public_transit_support.enabled
     value: false
   - id: impact_threshold
@@ -1321,6 +1382,8 @@ scenarios:
     value: 1
   - id: equity_weight
     value: 0.1
+  - id: biodiversity_weight
+    value: 1
   - id: health_weight
     value: 0.01
   - id: purity_weight

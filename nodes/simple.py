@@ -451,29 +451,21 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
 class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
     allowed_parameters = [
         NumberParameter(local_id='multiplier'),
-        StringParameter(local_id='global_multiplier'),
     ] + AdditiveNode.allowed_parameters
 
-    def compute(self) -> ppl.PathsDataFrame:
-        df = super().compute()
-        multiplier = self.get_parameter_value('multiplier', required=True)
+    def compute(self) -> ppl.PathsDataFrame:  # FIXME Should we instead just use AdditiveNode first?
+        if len(self.input_nodes) == 0:
+            raise NodeError(self, "Node must have at least one input node.")
+        nodes = self.input_nodes
+        node = nodes.pop()
+        df = node.get_output_pl(self)
+        print(df)
+        unit = df.get_unit(VALUE_COLUMN)
+        df = self.add_nodes_pl(df, nodes, unit=unit)
 
-        # FIXME Use actual function from branch clean-nodes and  update it for unitless quantities
-        def multiply_quantity(df, col: str, quantity, out_unit: Unit | None = None):
-            if not isinstance(quantity, float):
-                res_unit = df._units[col] * quantity.units
-                quant = quantity.m
-            else:
-                res_unit = df._units[col]
-                quant = quantity
-            df = df.with_columns([pl.col(col) * pl.lit(quant)])
-            df._units[col] = res_unit
-            if out_unit:
-                df = df.ensure_unit(col, out_unit)
-            return df
-
-        df = multiply_quantity(df, VALUE_COLUMN, multiplier)
-
+        multiplier = self.get_parameter_value('multiplier', units=True, required=True)
+        df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 

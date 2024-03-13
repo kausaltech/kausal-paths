@@ -21,3 +21,6 @@ db.sqlite3
 /reset-db.sh
 /static
 /oidc.key
+/notebooks/.ipynb_checkpoints
+/notebooks/.virtual_documents
+/notebooks/nodes.txt

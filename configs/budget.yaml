@@ -55,14 +55,15 @@ action_groups:
   color: '#50c878'
 
 action_efficiency_pairs:
-- cost_node: total_discounted_economic_costs
+- graph_type: cost_effectiveness
+  cost_node: total_discounted_economic_costs
   impact_node: net_emissions
   invert_cost: true
   invert_impact: true
-  efficiency_unit: kEUR/t
+  indicator_unit: kEUR/t
   cost_unit: MEUR
   impact_unit: t
-  label: Cost efficiency
+  label: Cost effectiveness
 #- graph_type: return_of_investment
 #  cost_node: test_investments
 #  impact_node: total_economic_costs
@@ -83,7 +84,7 @@ action_efficiency_pairs:
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest
 #  label: Cost-benefit analysis
-#- graph_type: cost_efficiency
+#- graph_type: cost_effectiveness
 #  cost_node: total_economic_costs
 #  impact_node: discounted_costs
 #  invert_cost: true
@@ -91,7 +92,7 @@ action_efficiency_pairs:
 #  indicator_unit: dimensionless
 #  cost_unit: MEUR
 #  impact_unit: MEUR
-#  label: Cost-efficiency analysis
+#  label: cost-effectiveness analysis
 
 dimensions:
 
@@ -1498,8 +1499,8 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Sandbox for budgeting
-  lead_paragraph: Testing budgeting functionalities
+  lead_title: Climate Budgeting Tool
+  lead_paragraph: Climate budgeting is about including climate emissions systematically in the city's planning and budgeting. In the first phase, the Global Protocol for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing these emissions are considered. <a href="">C40 Network's</a> website describes <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area. They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a> to guide through the climate budgeting process. 
 
 scenarios:
 

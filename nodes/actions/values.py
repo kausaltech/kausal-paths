@@ -117,4 +117,3 @@ class BudgetingAction(AdditiveAction):
             for m in df.metric_cols:
                 df = df.with_columns((pl.col(m) * scale).alias(m))
         return df
-    
