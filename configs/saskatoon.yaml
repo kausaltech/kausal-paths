@@ -49,14 +49,15 @@ action_groups:
 
 
 action_efficiency_pairs:
-- cost_node: discounted_net_cost
+- graph_type: cost_effectiveness
+  cost_node: discounted_net_cost
   impact_node: net_emissions
   invert_cost: false
   invert_impact: true
-  efficiency_unit: CAD/t
+  indicator_unit: CAD/t
   cost_unit: CAD
   impact_unit: t
-  plot_limit_efficiency: 3000
+  plot_limit_for_indicator: 3000
   label: Marginal Abatement Cost
 
 
