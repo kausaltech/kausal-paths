@@ -14,6 +14,7 @@ class DatasetNode(Node):
                'emissions': 'Emissions',
                'energy': 'Energy Consumption',
                'fuel_consumption': 'Fuel Consumption',
+               'mass': 'Waste Disposal',
                'mileage': 'Mileage',
                'unit_price': 'Unit Price'}
 
