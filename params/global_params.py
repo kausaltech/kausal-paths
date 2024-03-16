@@ -157,3 +157,18 @@ class ImpactThreshold(NumberParameter):
 class EffectOfEV(NumberParameter):
     name = _('Effect of electric vehicles on car kilometers')
     id = 'effect_of_ev'
+
+
+class SelectedMunicipalities(StringParameter):
+    name = _('List of selected municipalities')
+    id = 'selected_municipalities'
+
+
+class SelectedNodes(StringParameter):
+    name = _('List of selected nodes')
+    id = 'selected_nodes'
+
+
+class SelectedFramework(StringParameter):
+    name = _('Selected computational framework')
+    id = 'selected_framework'

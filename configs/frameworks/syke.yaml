@@ -754,3 +754,11 @@ nodes:
       lähteet|Muut F-kaasujen lähteet:HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
+
+- id: wind_power_compensation
+  name: Tuulivoimakompensaatio
+  output_nodes: [net_emissions]
+  params:
+    sector: Kompensaatiot|Kompensaatiot|Tuulivoima|Tuulivoima|Tuulivoima:HINKU
+  input_nodes: [all_alas_emissions]
+  type: finland.syke.AlasEmissions

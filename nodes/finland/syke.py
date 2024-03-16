@@ -14,7 +14,7 @@ class AlasNode(Node):
     input_datasets = [
         'syke/alas_emissions',
     ]
-    global_parameters = ['municipality_name']
+    global_parameters = ['municipality_name', 'selected_framework']
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
@@ -29,6 +29,27 @@ class AlasNode(Node):
 
         df = self.get_input_dataset()
         df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
+        fw = self.get_global_parameter_value('selected_framework')
+        frameworks = [
+            'Hinku-laskenta ilman päästöhyvityksiä',
+            'Hinku-laskenta päästöhyvityksillä',
+            'Kaikki ALas-päästöt',
+            'Taakanjakosektorin kaikki ALas-päästöt',
+            'Päästökaupan alaiset ALas-päästöt'
+        ]
+        if fw in frameworks[0:2]:
+            print('vain hinku')
+            df = df[df['hinku-laskenta']]
+        if fw not in frameworks[1]:
+            print('ei kompensaatiota')
+            df = df[df['taso_1'] != 'Kompensaatiot']
+        if fw in frameworks[3]:
+            print('ei päästökauppaa')
+            df = df[~df['päästökauppa']]
+        if fw in frameworks[4]:
+            print('vain päästökauppa')
+            df = df[df['päästökauppa']]
+
         df = df.rename(columns={
             'vuosi': YEAR_COLUMN,
             'ktCO2e': EMISSION_QUANTITY,
