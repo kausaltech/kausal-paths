@@ -20,14 +20,15 @@ yamlparameters['forecastyear'] = '%i' % (int(yamlparameters['maxyear']) + 1)
 yamlparameters['Instance']     = yamlparameters['instance'].title()
 
 # -------------------------------------------------------------------------------------------------
-def nodeid(nodename):
-    return nodename.lower().replace('.', '').replace(',', '').replace('-', '').replace(' ', '_').replace('&', 'and')
+def makeid(name: str):
+    return (name.lower().replace('.', '').replace(',', '').replace(':', '').replace('-', '').replace(' ', '_')
+            .replace('&', 'and').replace('å', 'a').replace('ä', 'a').replace('ö', 'o'))
 
 def dimlist(df):
     dimlist = []
     for dim in list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year'])):
         if df.select(dim).unique().to_series(0).to_list() != [None]:
-            dimlist.append(dim.lower().replace(' ', '_'))
+            dimlist.append(makeid(dim))
 
     return dimlist
 
@@ -155,7 +156,7 @@ instanceyaml = ('id: [instance]_c4c\n' +
                 '  dvc_remote: kausal-s3\n' +
                 'name: [Instance] BASIC+ Greenhouse Gas Inventory\n' +
                 'owner_en: City of [Instance]\n' +
-                'theme_identifier: tampere-ilmasto\n' +
+                'theme_identifier: [theme]\n' +
                 'target_year: [targetyear]\n' +
                 'model_end_year: [endyear]\n' +
                 'minimum_historical_year: [minyear]\n' +
@@ -172,7 +173,7 @@ pageyaml = ('pages:\n' +
             '  path: /\n' +
             '  type: emission\n' +
             '  outcome_node: net_emissions\n' +
-            '  lead_title: Climate-4-CAST Project\n' +
+            '  lead_title: [title]\n' +
             '  lead_paragraph: GPC BASIC+ greenhouse gas inventory ([minyear]-[maxyear]) and forecast ([forecastyear]-[targetyear]) for the City of [Instance].\n\n' +
             'scenarios:\n' +
             '- id: baseline\n' +
@@ -186,10 +187,10 @@ pageyaml = ('pages:\n' +
 terminal = {'e': 'Net Emissions', 'p': 'Net Price'}
 suffix = {'e': 'Total Emissions', 'p': 'Total Price'}
 
-enodes = {nodeid(terminal['e']): {'template': 'emissions',
+enodes = {makeid(terminal['e']): {'template': 'emissions',
                                   'name': terminal['e'],
                                   'upstream': []}}
-pnodes = {nodeid(terminal['p']): {'template': 'simple',
+pnodes = {makeid(terminal['p']): {'template': 'simple',
                                   'name': terminal['p'],
                                   'nodetype': 'Additive',
                                   'quantity': quantitylookup['Price']['quantity'],
@@ -202,17 +203,17 @@ for level in [3, 2, 1]:
         prefix = levellookup[level][GPCID]
 
         enodename = '%s %s %s' % (GPCID, prefix, suffix['e'])
-        enodeid = nodeid(enodename)
+        enodeid = makeid(enodename)
         pnodename = '%s %s %s' % (GPCID, prefix, suffix['p'])
-        pnodeid = nodeid(pnodename)
+        pnodeid = makeid(pnodename)
 
         if level == 1:
-            edown = nodeid(terminal['e'])
-            pdown = nodeid(terminal['p'])
+            edown = makeid(terminal['e'])
+            pdown = makeid(terminal['p'])
         else:
             downid = GPCID.rsplit('.', 1)[0]
-            edown = nodeid('%s %s %s' % (downid, levellookup[level - 1][downid], suffix['e']))
-            pdown = nodeid('%s %s %s' % (downid, levellookup[level - 1][downid], suffix['p']))
+            edown = makeid('%s %s %s' % (downid, levellookup[level - 1][downid], suffix['e']))
+            pdown = makeid('%s %s %s' % (downid, levellookup[level - 1][downid], suffix['p']))
 
         enodes[enodeid] = {'template': 'simple',
                            'name': enodename,
@@ -240,8 +241,8 @@ for level in [3, 2, 1]:
 
         if not gpcdf.is_empty():
             prefix = levellookup[level][GPCID]
-            edown = nodeid('%s %s %s' % (GPCID, prefix, suffix['e']))
-            pdown = nodeid('%s %s %s' % (GPCID, prefix, suffix['p']))
+            edown = makeid('%s %s %s' % (GPCID, prefix, suffix['e']))
+            pdown = makeid('%s %s %s' % (GPCID, prefix, suffix['p']))
 
             frames = {}
             for quantity in quantitylookup:
@@ -256,11 +257,11 @@ for level in [3, 2, 1]:
                 activity = activities[0]
                 upstream = []
                 enodename = '%s %s %s Emissions' % (GPCID, prefix, quantitylookup[activity]['name'])
-                enodeid = nodeid(enodename)
+                enodeid = makeid(enodename)
 
                 for quantity in [activity, 'Emission Factor']:
                     qnodename = '%s %s %s' % (GPCID, prefix, quantitylookup[quantity]['name'])
-                    qnodeid = nodeid(qnodename)
+                    qnodeid = makeid(qnodename)
                     upstream.append(qnodeid)
 
                     leafnodes[qnodeid] = {'template': 'dataset',
@@ -288,7 +289,7 @@ for level in [3, 2, 1]:
             # -------------------------------------------------------------------------------------
             if ('Emissions' in list(frames.keys())):
                 enodename = '%s %s %s' % (GPCID, prefix, quantitylookup['Emissions']['name'])
-                enodeid = nodeid(enodename)
+                enodeid = makeid(enodename)
 
                 leafnodes[enodeid] = {'template': 'dataset',
                                       'name': enodename,
@@ -305,11 +306,11 @@ for level in [3, 2, 1]:
                 activity = activities[0]
                 upstream = []
                 pnodename = '%s %s %s Price' % (GPCID, prefix, quantitylookup[activity]['name'])
-                pnodeid = nodeid(pnodename)
+                pnodeid = makeid(pnodename)
 
                 for quantity in [activity, 'Unit Price']:
                     qnodename = '%s %s %s' % (GPCID, prefix, quantitylookup[quantity]['name'])
-                    qnodeid = nodeid(qnodename)
+                    qnodeid = makeid(qnodename)
                     upstream.append(qnodeid)
 
                     if qnodeid in leafnodes:
@@ -339,7 +340,7 @@ for level in [3, 2, 1]:
             # -------------------------------------------------------------------------------------
             if ('Price' in list(frames.keys())):
                 pnodename = '%s %s %s' % (GPCID, prefix, quantitylookup['Price']['name'])
-                pnodeid = nodeid(pnodename)
+                pnodeid = makeid(pnodename)
 
                 leafnodes[pnodeid] = {'template': 'dataset',
                                       'name': pnodename,
@@ -360,7 +361,7 @@ for level in [3, 2, 1]:
 
         for nodeset in [[enodes, 'e'], [pnodes, 'p']]:
             nname = '%s %s %s' % (GPCID, prefix, suffix[nodeset[1]])
-            nid = nodeid(nname)
+            nid = makeid(nname)
 
             if nodeset[0][nid]['upstream'] == []:
                 del nodeset[0][nid]
@@ -387,7 +388,7 @@ for level in [3, 2, 1]:
 
 # -------------------------------------------------------------------------------------------------
 for nodeset in [[enodes, 'e'], [pnodes, 'p']]:
-    nid = nodeid(terminal[nodeset[1]])
+    nid = makeid(terminal[nodeset[1]])
 
     if nodeset[0][nid]['upstream'] == []:
         del nodeset[0][nid]
@@ -406,7 +407,7 @@ for attribute in yamlparameters:
     yaml = yaml.replace('[%s]' % attribute, str(yamlparameters[attribute]))
 
 for attribute in ['unit', 'dimlist']:
-    yaml = yaml.replace('[%s]' % attribute, str(enodes[nodeid(terminal['e'])][attribute]))
+    yaml = yaml.replace('[%s]' % attribute, str(enodes[makeid(terminal['e'])][attribute]))
 
 yamlfile.write(yaml)
 
@@ -417,15 +418,15 @@ for dim in dims:
     cats = df.select(pl.col(dim)).filter(pl.col(dim).is_null().not_()).unique().to_series(0).to_list()
 
     if cats != []:
-        yamlfile.write('- id: %s\n  label: %s\n  categories:\n' % (dim.lower().replace(' ', '_'), dim))
+        yamlfile.write('- id: %s\n  label: %s\n  categories:\n' % (makeid(dim), dim))
 
         cats.sort()
         for cat in cats:
-            yamlfile.write('  - id: %s\n    label: %s\n' % (cat, cat.title().replace('_', ' ')))
+            yamlfile.write('  - id: %s\n    label: %s\n' % (makeid(cat), cat))
         yamlfile.write('\n')
 
 # -------------------------------------------------------------------------------------------------
-eid = nodeid(terminal['e'])
+eid = makeid(terminal['e'])
 
 yaml = nodetemplates['emissions'].replace('[nodeid]', eid)
 for attribute in enodes[eid]:
@@ -433,7 +434,7 @@ for attribute in enodes[eid]:
 
 yamlfile.write(yaml)
 
-pid = nodeid(terminal['p'])
+pid = makeid(terminal['p'])
 if pid in pnodes:
     yaml = nodetemplates[pnodes[pid]['template']].replace('[nodeid]', pid)
     for attribute in pnodes[pid]:
