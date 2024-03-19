@@ -5,9 +5,9 @@ import os, sys
 
 os.chdir('/Users/mechenich/Projects/Climate-4-CAST')
 
-incsvpath = 'Tampere-Sheet.csv'
-outcsvpath = 'Tampere-Parquet.csv'
-outdvcpath = 'gpc/demonstration'
+incsvpath = 'Data Importer - Potsdam - GPC Data Sheet.csv'
+outcsvpath = 'Potsdam-Parquet.csv'
+outdvcpath = 'gpc/potsdam'
 
 # incsvpath = sys.argv[1]
 # outcsvpath = sys.argv[2]
@@ -53,8 +53,10 @@ valueindex = df.dtypes.index(pl.Float64)
 context = df.columns[:valueindex]
 values = df.columns[valueindex:]
 
-dims = ['Sector', 'Scope', 'Energy Carrier', 'GHG']
-dims.extend(df.columns[6:valueindex])
+dims = ['Sector', 'Scope', 'Energiträger', 'GHG']
+#dims = ['Sector', 'Scope', 'Energy Carrier', 'GHG']
+
+dims.extend(df.columns[8:valueindex])
 
 df = df.with_columns(pl.when(pl.col('Quantity') == pl.lit('Emissions')).then(pl.lit('Emissions'))
                        .when(pl.col('Quantity') == pl.lit('Emission Factor')).then(pl.lit('Emission Factor'))
@@ -278,8 +280,8 @@ for i in range(len(dfaccum)):
 
         mframe = dfaccum.filter(pl.col('Index') == i).select(mcols).with_columns(pl.lit(y).cast(pl.Int64))
         mframe.columns = dfmain.columns
-
-        dfmain = pl.concat([dfmain, mframe])
+        if mframe['Value'][0] is not None:
+            dfmain = pl.concat([dfmain, mframe])
 
 dfmain = dfmain.unique(maintain_order = True)
 dfmain = dfmain.with_columns(pl.col('Scope').cast(pl.Utf8).alias('Scope'))

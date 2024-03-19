@@ -18,6 +18,10 @@ class DatasetNode(Node):
                'mileage': 'Mileage',
                'unit_price': 'Unit Price'}
 
+    def makeid(self, name: str):
+        return (name.lower().replace('.', '').replace(',', '').replace(':', '').replace('-', '').replace(' ', '_')
+                .replace('&', 'and').replace('å', 'a').replace('ä', 'a').replace('ö', 'o'))
+
     def compute(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')
 
@@ -38,13 +42,20 @@ class DatasetNode(Node):
 
         dims = []
         for i in list(df.index.names):
-            if i == 'Year':
+            if i == YEAR_COLUMN:
                 dims.append(i)
             else:
-                dims.append(i.lower().replace(' ', '_'))
+                dims.append(self.makeid(i))
         df.index = df.index.set_names(dims)
-
+        df = df.reset_index()
+        for i in list(set(dims) - {YEAR_COLUMN}):
+            if isinstance(df[i][0], str):
+                for j in range(len(df)):
+                    df[i][j] = self.makeid(df[i][j])
+        df = df.set_index(dims)
         df[FORECAST_COLUMN] = False
+        df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
+
 #       df = extend_last_historical_value(df, self.get_end_year())
 
         return df

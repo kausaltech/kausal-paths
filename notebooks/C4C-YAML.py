@@ -1,16 +1,20 @@
+# Language de gives an error
+
 import os
 import polars as pl
 
-os.chdir('/Users/mechenich/Projects/Climate-4-CAST')
+os.chdir('/Users/jouni/devel/climate4cast')
 
-yamlparameters = {'instance': 'demonstration',
-                  'language': 'en',
-                  'commit'  : '46f5f4983d2052718c7e38387edaa723774b309e',
-                  'maxyear' : '2022'}
+yamlparameters = {'instance': 'potsdam',
+                  'language': 'en',  # FIXME
+                  'commit'  : 'a34aed40faff06ea4062650c382443200bae8fe3',
+                  'maxyear' : '2022',
+                  'theme'   : 'default',
+                  'title'   : 'Potsdam Zielwerte Masterplan'}
 
 yamlfile = open('%s_c4c.yaml' % yamlparameters['instance'], 'w')
 
-df = pl.read_csv('Tampere-Parquet.csv')
+df = pl.read_csv('Potsdam-Parquet.csv')
 
 years = df.select('Year').unique().to_series(0).to_list()
 yamlparameters['targetyear']   = '%i' % max(years)
@@ -26,7 +30,7 @@ def makeid(name: str):
 
 def dimlist(df):
     dimlist = []
-    for dim in list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year'])):
+    for dim in list(set(df.columns) - set(['Sector', 'Sector name', 'Quantity', 'Unit', 'Value', 'Year'])):
         if df.select(dim).unique().to_series(0).to_list() != [None]:
             dimlist.append(makeid(dim))
 
@@ -413,7 +417,7 @@ yamlfile.write(yaml)
 
 # -------------------------------------------------------------------------------------------------
 yamlfile.write('dimensions:\n')
-dims = list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year']))
+dims = list(set(df.columns) - set(['Sector', 'Sector name', 'Quantity', 'Unit', 'Value', 'Year']))
 for dim in dims:
     cats = df.select(pl.col(dim)).filter(pl.col(dim).is_null().not_()).unique().to_series(0).to_list()
 
@@ -422,7 +426,7 @@ for dim in dims:
 
         cats.sort()
         for cat in cats:
-            yamlfile.write('  - id: %s\n    label: %s\n' % (makeid(cat), cat))
+            yamlfile.write("  - id: %s\n    label: '%s'\n" % (makeid(cat), cat))
         yamlfile.write('\n')
 
 # -------------------------------------------------------------------------------------------------
