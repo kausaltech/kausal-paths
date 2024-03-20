@@ -18,13 +18,17 @@ from .action import ActionNode
 
 class AdditiveAction(ActionNode):
     """Simple action that produces an additive change to a value."""
-    no_effect_value = 0
+    no_effect_value = 0.0
 
     def compute_effect(self):
-        df = self.get_input_dataset()
-        if not self.is_enabled():
-            df[VALUE_COLUMN] = 0.0
-            df[VALUE_COLUMN] = self.ensure_output_unit(df[VALUE_COLUMN])
+        df = self.get_input_dataset_pl()
+
+        for m in self.output_metrics.values():
+            if not self.is_enabled():
+                df = df.with_columns(pl.when(pl.col(m.column_id).is_null()).then(None)
+                                     .otherwise(self.no_effect_value).alias(m.column_id))
+            df = df.ensure_unit(m.column_id, m.unit)
+
         return df
 
 
