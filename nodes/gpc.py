@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from params import StringParameter
 from nodes.calc import extend_last_historical_value
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
@@ -31,7 +32,8 @@ class DatasetNode(Node):
 
         droplist = ['Sector', 'Quantity']
         for i in df.index.names:
-            if df.index.get_level_values(i).all() == '.':
+            empty = df.index.get_level_values(i).all()
+            if empty is np.nan or empty == '.':
                 droplist.append(i)
 
         df.index = df.index.droplevel(droplist)

@@ -1,12 +1,10 @@
-# Language de gives an error
-
 import os
 import polars as pl
 
 os.chdir('/Users/jouni/devel/climate4cast')
 
 yamlparameters = {'instance': 'potsdam',
-                  'language': 'en',  # FIXME
+                  'language': 'de',
                   'commit'  : 'a34aed40faff06ea4062650c382443200bae8fe3',
                   'maxyear' : '2022',
                   'theme'   : 'default',
@@ -159,7 +157,7 @@ instanceyaml = ('id: [instance]_c4c\n' +
                 '  commit: [commit]\n' +
                 '  dvc_remote: kausal-s3\n' +
                 'name: [Instance] BASIC+ Greenhouse Gas Inventory\n' +
-                'owner_en: City of [Instance]\n' +
+                'owner: City of [Instance]\n' +
                 'theme_identifier: [theme]\n' +
                 'target_year: [targetyear]\n' +
                 'model_end_year: [endyear]\n' +
