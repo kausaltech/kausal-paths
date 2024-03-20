@@ -1,13 +1,13 @@
-id: potsdam_c4c
-default_language: en
+id: potsdam_gpc
+default_language: de
 supported_languages: []
-site_url: https://potsdam-c4c.paths.staging.kausal.tech
+site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a34aed40faff06ea4062650c382443200bae8fe3
+  commit: 225590bd10735cb2ed99d1a969dc79064452d81c
   dvc_remote: kausal-s3
 name: Potsdam BASIC+ Greenhouse Gas Inventory
-owner_en: City of Potsdam
+owner: City of Potsdam
 theme_identifier: default
 target_year: 2050
 model_end_year: 2050
@@ -15,7 +15,7 @@ minimum_historical_year: 1995
 maximum_historical_year: 2022
 emission_unit: t/a
 emission_forecast_from: 2023
-emission_dimensions: ['energitrager', 'scope', 'ghg']
+emission_dimensions: [energitrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
 
@@ -24,57 +24,57 @@ dimensions:
   label: GHG
   categories:
   - id: co2e
-    label: 'co2e'
+    label: co2e
 
 - id: energitrager
   label: Energiträger
   categories:
   - id: benzin_biogen
-    label: 'benzin_biogen'
+    label: benzin_biogen
   - id: benzin_fossil
-    label: 'benzin_fossil'
+    label: benzin_fossil
   - id: biogas
-    label: 'biogas'
+    label: biogas
   - id: biomasse
-    label: 'biomasse'
+    label: biomasse
   - id: cng_fossil
-    label: 'cng_fossil'
+    label: cng_fossil
   - id: diesel_biogen
-    label: 'diesel_biogen'
+    label: diesel_biogen
   - id: diesel_fossil
-    label: 'diesel_fossil'
+    label: diesel_fossil
   - id: fahrstrom
-    label: 'fahrstrom'
+    label: fahrstrom
   - id: fernwarme
-    label: 'fernwärme'
+    label: fernwärme
   - id: gas
-    label: 'gas'
+    label: gas
   - id: heizstrom
-    label: 'heizstrom'
+    label: heizstrom
   - id: heizol
-    label: 'heizöl'
+    label: heizöl
   - id: kohle
-    label: 'kohle'
+    label: kohle
   - id: lpg
-    label: 'lpg'
+    label: lpg
   - id: nahwarme
-    label: 'nahwärme'
+    label: nahwärme
   - id: solarthermie
-    label: 'solarthermie'
+    label: solarthermie
   - id: strom
-    label: 'strom'
+    label: strom
   - id: umweltwarme
-    label: 'umweltwärme'
+    label: umweltwärme
   - id: wasserstoff
-    label: 'wasserstoff'
+    label: wasserstoff
 
 - id: scope
   label: Scope
   categories:
   - id: scope1
-    label: 'scope1'
+    label: scope1
   - id: scope2
-    label: 'scope2'
+    label: scope2
 
 emission_sectors:
 - id: net_emissions
@@ -88,8 +88,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['energitrager', 'scope']
-  output_dimensions: ['energitrager', 'scope']
+  input_dimensions: [energitrager, scope]
+  output_dimensions: [energitrager, scope]
   params:
     gpc_sector: I.1.1
   input_datasets:
@@ -105,8 +105,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i11_residential_fuel_total_emissions
     to_dimensions:
@@ -119,8 +119,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
-  input_dimensions: ['ghg', 'energitrager', 'scope']
-  output_dimensions: ['ghg', 'energitrager', 'scope']
+  input_dimensions: [ghg, energitrager, scope]
+  output_dimensions: [ghg, energitrager, scope]
   params:
     gpc_sector: I.1.1
   input_datasets:
@@ -137,8 +137,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['energitrager', 'scope']
-  output_dimensions: ['energitrager', 'scope']
+  input_dimensions: [energitrager, scope]
+  output_dimensions: [energitrager, scope]
   params:
     gpc_sector: I.1.2
   input_datasets:
@@ -154,8 +154,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i12_residential_grid_energy_total_emissions
     to_dimensions:
@@ -168,8 +168,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
-  input_dimensions: ['ghg', 'energitrager', 'scope']
-  output_dimensions: ['ghg', 'energitrager', 'scope']
+  input_dimensions: [ghg, energitrager, scope]
+  output_dimensions: [ghg, energitrager, scope]
   params:
     gpc_sector: I.1.2
   input_datasets:
@@ -186,8 +186,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['energitrager', 'scope']
-  output_dimensions: ['energitrager', 'scope']
+  input_dimensions: [energitrager, scope]
+  output_dimensions: [energitrager, scope]
   params:
     gpc_sector: I.4.2
   input_datasets:
@@ -203,8 +203,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i42_energy_grid_energy_total_emissions
     to_dimensions:
@@ -217,8 +217,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
-  input_dimensions: ['ghg', 'energitrager', 'scope']
-  output_dimensions: ['ghg', 'energitrager', 'scope']
+  input_dimensions: [ghg, energitrager, scope]
+  output_dimensions: [ghg, energitrager, scope]
   params:
     gpc_sector: I.4.2
   input_datasets:
@@ -235,8 +235,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['energitrager', 'scope']
-  output_dimensions: ['energitrager', 'scope']
+  input_dimensions: [energitrager, scope]
+  output_dimensions: [energitrager, scope]
   params:
     gpc_sector: II.1.1
   input_datasets:
@@ -252,8 +252,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: ii11_onroad_transport_fuel_total_emissions
     to_dimensions:
@@ -266,8 +266,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
-  input_dimensions: ['ghg', 'energitrager', 'scope']
-  output_dimensions: ['ghg', 'energitrager', 'scope']
+  input_dimensions: [ghg, energitrager, scope]
+  output_dimensions: [ghg, energitrager, scope]
   params:
     gpc_sector: II.1.1
   input_datasets:
@@ -284,8 +284,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['energitrager', 'scope']
-  output_dimensions: ['energitrager', 'scope']
+  input_dimensions: [energitrager, scope]
+  output_dimensions: [energitrager, scope]
   params:
     gpc_sector: II.1.2
   input_datasets:
@@ -301,8 +301,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: ii12_onroad_transport_grid_energy_total_emissions
     to_dimensions:
@@ -315,8 +315,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
-  input_dimensions: ['ghg', 'energitrager', 'scope']
-  output_dimensions: ['ghg', 'energitrager', 'scope']
+  input_dimensions: [ghg, energitrager, scope]
+  output_dimensions: [ghg, energitrager, scope]
   params:
     gpc_sector: II.1.2
   input_datasets:
@@ -333,8 +333,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i1_residential_total_emissions
     to_dimensions:
@@ -347,8 +347,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i1_residential_total_emissions
     to_dimensions:
@@ -361,8 +361,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i_stationary_total_emissions
     to_dimensions:
@@ -375,8 +375,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i4_energy_total_emissions
     to_dimensions:
@@ -389,8 +389,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: i_stationary_total_emissions
     to_dimensions:
@@ -403,8 +403,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: net_emissions
     to_dimensions:
@@ -417,8 +417,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
     to_dimensions:
@@ -431,8 +431,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
     to_dimensions:
@@ -445,8 +445,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: ii_transportation_total_emissions
     to_dimensions:
@@ -459,8 +459,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energitrager', 'scope', 'ghg']
-  output_dimensions: ['energitrager', 'scope', 'ghg']
+  input_dimensions: [energitrager, scope, ghg]
+  output_dimensions: [energitrager, scope, ghg]
   output_nodes:
   - id: net_emissions
     to_dimensions:
@@ -475,7 +475,8 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Potsdam Zielwerte Masterplan
-  lead_paragraph: GPC BASIC+ greenhouse gas inventory (1995-2022) and forecast (2023-2050) for the City of Potsdam.
+  lead_paragraph: GPC BASIC+ greenhouse gas inventory (1995-2022) and forecast (2023-2050)
+    for the City of Potsdam.
 
 scenarios:
 - id: baseline
