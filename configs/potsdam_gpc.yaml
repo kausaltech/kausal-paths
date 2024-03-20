@@ -468,6 +468,25 @@ nodes:
     - id: scope
     - id: ghg
 
+#actions:
+
+#- id: masterplan
+#  name: All actions as a part of masterplan
+#  type: gpc.DatasetAction
+#  quantity: energy
+#  unit: MWh/a
+#  input_datasets:
+#  - id: gpc/potsdam_master_plan_actions
+#    forecast_from: 2022
+##    filters:
+##    - dimension: sector
+##      categories: [I.1.1]
+#  output_dimensions: [energitrager, scope]
+##  input_dataset_processors: [LinearInterpolation]
+#  params:
+#  - id: gpc_sector
+#    value: I.1.1
+
 pages:
 - id: home
   name: Potsdam BASIC+ Greenhouse Gas Inventory
