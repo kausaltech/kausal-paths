@@ -10,6 +10,8 @@ from nodes.actions import ActionNode
 class DatasetAction(ActionNode):
     allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
 
+    no_effect_value = 0.0
+
     qlookup = {'currency': 'Price',
                'emission_factor': 'Emission Factor',
                'emissions': 'Emissions',
@@ -23,11 +25,10 @@ class DatasetAction(ActionNode):
         return (name.lower().replace('.', '').replace(',', '').replace(':', '').replace('-', '').replace(' ', '_')
                 .replace('&', 'and').replace('å', 'a').replace('ä', 'a').replace('ö', 'o'))
 
-    def compute(self) -> pd.DataFrame:
+    def compute_effect(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')
 
         df = self.get_input_dataset()
-        print(df)
         df = df[(df.index.get_level_values('Sector') == sector) &
                 (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
@@ -58,6 +59,9 @@ class DatasetAction(ActionNode):
         df = df.set_index(dims)
         df[FORECAST_COLUMN] = False
         df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
+
+        if not self.is_enabled():  # FIXME DataFrame is calculated correctly but still does not affect the model outcome?!?
+            df[VALUE_COLUMN] *= self.no_effect_value
 
 #       df = extend_last_historical_value(df, self.get_end_year())
 
