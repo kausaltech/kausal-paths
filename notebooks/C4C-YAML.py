@@ -8,7 +8,8 @@ yamlparameters = {'instance': 'potsdam',
                   'commit'  : 'a34aed40faff06ea4062650c382443200bae8fe3',
                   'maxyear' : '2022',
                   'theme'   : 'default',
-                  'title'   : 'Potsdam Zielwerte Masterplan'}
+                  'title'   : 'Potsdam Zielwerte Masterplan',
+                  'forecast_from': '2023'}
 
 yamlfile = open('%s_c4c.yaml' % yamlparameters['instance'], 'w')
 
@@ -130,7 +131,8 @@ nodetemplates = {
                              '  params:\n' +
                              '    gpc_sector: [gpcid]\n' +
                              '  input_datasets:\n' +
-                             '  - id: gpc/[instance]\n'),
+                             '  - id: gpc/[instance]\n' +
+                             '    forecast_from: [forecast_from]\n'),
 
                  'simple': ('- id: [nodeid]\n' +
                             '  name: [name]\n' +

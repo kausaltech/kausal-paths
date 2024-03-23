@@ -108,6 +108,7 @@ nodes:
     gpc_sector: I.1.1
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: i11_residential_fuel_consumption_emissions
     to_dimensions:
@@ -139,6 +140,7 @@ nodes:
     gpc_sector: I.1.1
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: i11_residential_fuel_consumption_emissions
     to_dimensions:
@@ -157,6 +159,7 @@ nodes:
     gpc_sector: I.1.2
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: i12_residential_grid_energy_consumption_emissions
     to_dimensions:
@@ -188,6 +191,7 @@ nodes:
     gpc_sector: I.1.2
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: i12_residential_grid_energy_consumption_emissions
     to_dimensions:
@@ -206,6 +210,7 @@ nodes:
     gpc_sector: I.4.2
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -237,6 +242,7 @@ nodes:
     gpc_sector: I.4.2
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -255,6 +261,7 @@ nodes:
     gpc_sector: II.1.1
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: ii11_onroad_transport_fuel_consumption_emissions
     to_dimensions:
@@ -286,6 +293,7 @@ nodes:
     gpc_sector: II.1.1
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: ii11_onroad_transport_fuel_consumption_emissions
     to_dimensions:
@@ -304,6 +312,7 @@ nodes:
     gpc_sector: II.1.2
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: ii12_onroad_transport_grid_energy_consumption_emissions
     to_dimensions:
@@ -335,6 +344,7 @@ nodes:
     gpc_sector: II.1.2
   input_datasets:
   - id: gpc/potsdam
+    forecast_from: 2023
   output_nodes:
   - id: ii12_onroad_transport_grid_energy_consumption_emissions
     to_dimensions:
