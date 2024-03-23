@@ -172,3 +172,8 @@ class SelectedNodes(StringParameter):
 class SelectedFramework(StringParameter):
     name = _('Selected computational framework')
     id = 'selected_framework'
+
+
+class WeatherNormalization(BoolParameter):
+    name = _('Annual weather normalization for energy consumption')
+    id = 'weather_normalization'

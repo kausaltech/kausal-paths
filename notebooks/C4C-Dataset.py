@@ -3,11 +3,14 @@ import pandas as pd
 import polars as pl
 import os, sys
 
-os.chdir('/Users/mechenich/Projects/Climate-4-CAST')
+os.chdir('/Users/jouni/devel/climate4cast')
 
 incsvpath = 'Data Importer - Potsdam - GPC Data Sheet.csv'
 outcsvpath = 'Potsdam-Parquet.csv'
 outdvcpath = 'gpc/potsdam'
+
+dims = ['Sector', 'Scope', 'Energieträger', 'GHG']
+#dims = ['Sector', 'Scope', 'Energy Carrier', 'GHG']
 
 # incsvpath = sys.argv[1]
 # outcsvpath = sys.argv[2]
@@ -52,9 +55,6 @@ df = df.drop(['Description', 'Action'])
 valueindex = df.dtypes.index(pl.Float64)
 context = df.columns[:valueindex]
 values = df.columns[valueindex:]
-
-dims = ['Sector', 'Scope', 'Energiträger', 'GHG']
-#dims = ['Sector', 'Scope', 'Energy Carrier', 'GHG']
 
 dims.extend(df.columns[8:valueindex])
 
