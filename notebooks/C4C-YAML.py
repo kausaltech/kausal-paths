@@ -108,6 +108,27 @@ levellookup = {
                    'IV' : 'IPPU',
                    'V'  : 'AFOLU'}
               }
+# German translations
+# 'Residential ' 'Wohn'
+# 'Fuel ' 'kraftstoff'
+# 'Grid Energy ' 'Netzenergie'
+# 'Energy' 'Energie'
+# ' Emissions' 'Emissionen'
+# 'Onroad transport' 'Straßentransport'
+# ' Consumption' 'verbrauch'
+# ' Emission factor' 'emissionsfaktor'
+# ' Action' 'aktion'
+# 'Net emissions', 'Nettoemissionen'
+# ' Total Emissions', 'gesamtemissionen'
+# 'Industrial ' 'Industrie'
+# 'Road transport ' 'Straßentransport'
+# 'Climate Action Plan' 'Klimaschutzplan'
+# 'Business as usual' 'Wie gewohnt'
+# 'Greenhouse Gas Inventory' 'Traibhausgasinventur'
+# 'Forecast' 'Prognose'
+# 'Stationary' 'Stationär'
+# 'Transport' 'Transport'
+# 'Waste' 'Abfall'
 
 quantitylookup = {'Emission Factor'   : {'name': 'Emission Factor', 'quantity': 'emission_factor'},
                   'Emissions'         : {'name': 'Emissions'      , 'quantity': 'emissions'},
