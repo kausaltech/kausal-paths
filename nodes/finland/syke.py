@@ -25,10 +25,12 @@ class AlasNode(Node):
     }
 
     def compute(self) -> pd.DataFrame:
-        muni_name = self.get_global_parameter_value('municipality_name')
-
         df = self.get_input_dataset()
+
+        muni_name = self.get_global_parameter_value('municipality_name')
         df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
+
+        emission_field = 'ktCO2e'
         fw = self.get_global_parameter_value('selected_framework')
         frameworks = [
             'Hinku-laskenta ilman päästöhyvityksiä',
@@ -37,22 +39,26 @@ class AlasNode(Node):
             'Taakanjakosektorin kaikki ALas-päästöt',
             'Päästökaupan alaiset ALas-päästöt'
         ]
+
         if fw in frameworks[0:2]:
             print('vain hinku')
             df = df[df['hinku-laskenta']]
-        if fw not in frameworks[1]:
-            print('ei kompensaatiota')
-            df = df[df['taso_1'] != 'Kompensaatiot']
-        if fw in frameworks[3]:
+            if fw == frameworks[0]:
+                print('ei kompensaatiota')
+                df = df[df['taso_1'] != 'Kompensaatiot']
+            else:
+                emission_field += '_tuuli'
+
+        elif fw == frameworks[3]:
             print('ei päästökauppaa')
             df = df[~df['päästökauppa']]
-        if fw in frameworks[4]:
+        elif fw == frameworks[4]:
             print('vain päästökauppa')
             df = df[df['päästökauppa']]
 
         df = df.rename(columns={
             'vuosi': YEAR_COLUMN,
-            'ktCO2e': EMISSION_QUANTITY,
+            emission_field: EMISSION_QUANTITY,
             'energiankulutus': ENERGY_QUANTITY,
         })
         df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
