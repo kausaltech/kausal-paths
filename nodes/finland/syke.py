@@ -28,7 +28,13 @@ class AlasNode(Node):
         df = self.get_input_dataset()
 
         muni_name = self.get_global_parameter_value('municipality_name')
-        df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
+        if muni_name == 'Suomi':
+            cats = ['taso_1', 'taso_2', 'taso_3', 'taso_4', 'taso_5', 'hinku-laskenta', 'päästökauppa', 'vuosi']
+            df = df.groupby(cats, observed=True).sum(numeric_only=True).reset_index()
+            print(df.columns)
+            print(df)
+        else:
+            df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
 
         emission_field = 'ktCO2e'
         fw = self.get_global_parameter_value('selected_framework')
@@ -82,6 +88,10 @@ class AlasNode(Node):
                 df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
 
         df[FORECAST_COLUMN] = False
+        print(df.columns)
+        print('tuplat')
+        print(df[df.duplicated()].reset_index())
+        exit()
 
         return df
 
