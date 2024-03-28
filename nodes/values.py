@@ -21,13 +21,13 @@ class UtilityNode(AdditiveNode):
     '''
     Utility nodes take in outcome nodes and value weight parameters.
     They produce a dataframe showing the value-weighted sums of outcomes.
-    Cost-efficiency can be implemented if a decision criterion is known, e.g. 50 €/t.
+    Cost-effectiveness can be implemented if a decision criterion is known, e.g. 50 €/t.
     Then, emissions and cost are put to an equal scale by multiplying
     cost by 0.02 1/EUR and emissions by 1 1/t, resulting in a scale
     where cost-effective scenarios show value < 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
     '''
-    allowed_parameters = SimpleNode.allowed_parameters + [
+    allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
             local_id='impact_threshold',
             is_customizable=True,
@@ -37,7 +37,15 @@ class UtilityNode(AdditiveNode):
             is_customizable=True,
         ),
         NumberParameter(
-            local_id='cost_weight',
+            local_id='economic_weight',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='prosperity_weight',
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='purity_weight',
             is_customizable=True,
         ),
         NumberParameter(
@@ -51,6 +59,10 @@ class UtilityNode(AdditiveNode):
         NumberParameter(
             local_id='biodiversity_weight',
             is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='legality_weight',
+            is_customizable=True,
         )
     ]
 
@@ -58,14 +70,15 @@ class UtilityNode(AdditiveNode):
         w = self.get_parameter_value(weight, required=False, units=True)
         if w is None:
             return None
-        if quantity is not None:
-            n = self.get_input_node(quantity=quantity)
-        else:
-            n = self.get_input_node(tag=tag)
+        nodes = self.get_input_nodes(quantity=quantity, tag=tag)
+        if not len(nodes):
+            raise NodeError(self, "Tag %s not found in the inputs nodes" % tag)
 
-        df = n.get_output_pl(target_node=self)  # Calculate output rather than impact.
-        df = df.multiply_quantity(VALUE_COLUMN, w)
-        
+        df = self.add_nodes_pl(None, nodes, unit=nodes[0].unit)
+        df: ppl.PathsDataFrame = df.multiply_quantity(VALUE_COLUMN, w)
+        if not self.is_compatible_unit(df.get_unit(VALUE_COLUMN), self.unit):
+            raise NodeError(self, "Node(s) %s and their weight result in an incompatible unit %s, should be %s." % (
+                nodes, df.get_unit(VALUE_COLUMN), self.unit))
         return df
 
     def sum_dfs(self, dfs: list[ppl.PathsDataFrame | None]) -> ppl.PathsDataFrame:
@@ -91,10 +104,13 @@ class UtilityNode(AdditiveNode):
 
         dfs = [
             self.weighted_impact('emissions_weight', tag='emissions'),
-            self.weighted_impact('cost_weight', tag='currency'),
-            self.weighted_impact('health_weight', tag='disease_burden'),
+            self.weighted_impact('economic_weight', tag='economic'),
+            self.weighted_impact('prosperity_weight', tag='prosperity'),
+            self.weighted_impact('health_weight', tag='health'),
             self.weighted_impact('equity_weight', tag='equity'),
-            self.weighted_impact('biodiversity_weight', tag='biodiversity')
+            self.weighted_impact('purity_weight', tag='purity'),
+            self.weighted_impact('biodiversity_weight', tag='biodiversity'),
+            self.weighted_impact('legality_weight', tag='legality')
         ]
         df = self.sum_dfs(dfs)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
@@ -104,6 +120,7 @@ class UtilityNode(AdditiveNode):
             pl.col(VALUE_COLUMN) - pl.lit(th.m)).alias(VALUE_COLUMN)
         ])
 
+        df = self.maybe_drop_nulls(df)
         return df
 
 
@@ -129,7 +146,7 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
         for edge in self.edges:
             if edge.output_node is self:
                 node = edge.input_node
-                m = node.get_default_output_metric().column_id
+                m = VALUE_COLUMN # = node.get_default_output_metric().column_id
 
                 fraction = 0.1  # Default fraction of the output node's output
                 for fr in ['fraction1', 'fraction2', 'fraction3']:
@@ -155,6 +172,7 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
                     pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)
                     )).drop(m + '_right')
 
+        df = self.maybe_drop_nulls(df)
         return df
 
 

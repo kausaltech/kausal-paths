@@ -273,7 +273,7 @@ class BuildingEnergySavingAction(ActionNode):
     """
 
     output_metrics = {
-        VALUE_COLUMN: NodeMetric('%', 'fraction'),
+        DEFAULT_METRIC: NodeMetric('%', 'fraction', column_id=VALUE_COLUMN),
         'RenovCost': NodeMetric('SEK/a/m**2', 'currency'),
         'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
         'Electricity': NodeMetric('kWh/a/m**2', 'energy_per_area')

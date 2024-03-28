@@ -860,28 +860,18 @@ pages:
   lead_title_sv: Esbo utsläppsscenarier
   lead_paragraph: '<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
     kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät ja
-    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on:</p>
-    <li> <ul><b>Suomi 2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla
-    toteutettavat ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen;</ul>
-    <ul><b>Hiilineutraali Espoo 2030-skenaario (HNE2030)</b>, jossa oletetaan, että
+    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on:
+    <ul><li><b>Suomi 2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla
+    toteutettavat ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen;</li>
+    <li><b>Hiilineutraali Espoo 2030-skenaario (HNE2030)</b>, jossa oletetaan, että
     kaupungin päästökehitykseen vaikuttavat kansallisten toimien lisäksi myös kaupungin
     ja sen yhteistyökumppaneiden, kuten Fortumin ja HSY:n, toteuttamat ilmastotoimet;
-    sekä</ul> <ul><b>pessimistinen skenaario</b> skenaario, jossa oletetaan, että
-    uusia päästövähennystoimia ei kaupungissa suunnitella tai toteuteta.</ul></li>
+    sekä</li> <li><b>pessimistinen skenaario</b> skenaario, jossa oletetaan, että
+    uusia päästövähennystoimia ei kaupungissa suunnitella tai toteuteta.</li></ul></p>
     <p>Espoon tavoitteena on olla hiilineutraali vuonna 2030. Ilmastotyönsä tueksi
     kaupunki kokoaa Hiilineutraali Espoo 2030 -tiekarttaa, joka kuvaa kaupungin oman
     sekä kumppaneiden ja asukkaiden kanssa tehtävän yhteistyön hiilineutraalisuustavoitteen
-    saavuttamiseksi.</p> <p>Osana Hiilineutraali Espoo 2030 -tiekarttatyötä kaupungin
-    päästökehitystä arvioitiiin kolmessa skenaariossa:</p> <p><b>Pessimistinen skenaario</b>,
-    jossa oletetaan, että uusia päästövähennystoimia ei kaupungissa suunnitella tai
-    toetuteta. Sekenaariossa kaupungin päästökehitykseen vaikuttaa esimerkiksi kaupungin
-    kasvava asukasmäärä.</p> <p><b>Suomi 2035 -skenaario</b>, jossa oletetaan, että
-    kansallisella tasolla toteutettavat ilmastopolitiikan toimet ja linjaukset vaikuttavat
-    Espoon päästökehitykseen. Kaupungin kasvu ja EU:n lainsäädännön vaikutukset otetaan
-    niin ikään skenaariossa huomioon.</p> <p><b>Hiilineutraali Espoo 2030 -skenaario
-    (HNE2030)</b>, jossa oletetaan, että kaupungin päästökehitykseen vaikuttavat kansallisten
-    toimien lisäksi myös kaupungin ja sen yhteistyökumppaneiden, kuten Fortumin, HSL:n
-    ja HSY:n, toteuttamat ilmastotoimet.</p> <p>Laskentojen pohjana on hyödynnetty
+    saavuttamiseksi.</p> <p>Laskentojen pohjana on hyödynnetty
     HSY:n tuottamia päästölaskentatietoja ja niiden taustalla käytettyjä energiankulutuksen
     tietoja. Kaupungin päästökehitys on kunkin skenaarion osalta arvioitu vuosille
     2025, 2030 ja 2035. Lisäksi välivuosien päästöt on arvioitu pääasiassa interpoloimalla.</p>
@@ -890,28 +880,17 @@ pages:
     avoimella lisenssillä CC-BY 4.0.</p> '
   lead_paragraph_en: '<p>Espoo emission scenarios visualise the development of Espoo’s
     greenhouse gas emissions. You can look at where emissions in the City of Espoo
-    come from and how they are predicted to change by 2030. Options available: The
-    <b>Finland 2035 scenario</b>, which assumes that the climate policy measures and
-    decisions taken at national level will affect Espoo’s emissions development; the
+    come from and how they are predicted to change by 2030. Options available: 
+    <ul><li><b>Finland 2035 scenario</b>, which assumes that the climate policy measures and
+    decisions taken at national level will affect Espoo’s emissions development;</li><li>the
     <b>Carbon-neutral Espoo 2030 scenario (HNE2030)</b>, which assumes that the city’s
     emissions development will be affected not only by national measures but also
     by climate measures taken by the city and its partners, such as Fortum and HSY;
-    and the <b>pessimistic scenario</b>, which assumes that no new emission reduction
-    measures will be planned or taken by the city.</p> <p>Espoo’s goal is to be carbon-neutral
+    and</li><li>the <b>pessimistic scenario</b>, which assumes that no new emission reduction
+    measures will be planned or taken by the city.</li></ul></p> <p>Espoo’s goal is to be carbon-neutral
     by 2030. In support of its climate work, the city is putting together the Carbon-neutral
     Espoo 2030 roadmap, which describes the city’s own measures and cooperation with
-    partners and residents to achieve the goal of carbon neutrality.</p> <p>As part
-    of the Carbon-neutral Espoo 2030 roadmap work, the city’s emissions development
-    was estimated in three scenarios:</p> <p>The <b>pessimistic scenario</b>, which
-    assumes that no new emission reduction measures will be planned or taken in the
-    city. In this scenario, the city’s emissions development is affected by the growing
-    population, for example.</p> <p>The <b>Finland 2035 scenario</b>, which assumes
-    that the climate policy measures and decisions taken at national level will affect
-    Espoo’s emissions development. The city’s growth and the impact of EU legislation
-    are also taken into account in the scenario.</p> <p>The <b>Carbon-neutral Espoo
-    2030 scenario (HNE2030)</b>, which assumes that the city’s emissions development
-    will be affected not only by national measures but also by climate measures taken
-    by the city and its partners, such as Fortum, HSL and HSY.</p> <p>The calculations
+    partners and residents to achieve the goal of carbon neutrality.</p> <p>The calculations
     are based on the emission calculation data produced by HSY and the energy consumption
     data used in the background. The city’s emissions development has been estimated
     for 2025, 2030 and 2035 for each scenario. In addition, emissions in the intervening
@@ -921,27 +900,17 @@ pages:
     use with open licence CC-BY 4.0.</p> '
   lead_paragraph_sv: '<p>Esbos utsläppsscenarier visualiserar utvecklingen av växthusgasutsläppen
     i Esbo. Du kan granska hur utsläppen i Esbo stads område uppstår och hur de förutspås
-    förändras fram till 2030. Du kan välja mellan: <B>scenariot Finland 2035</b>,
+    förändras fram till 2030. Du kan välja mellan: <ul><li><b>scenariot Finland 2035</b>,
     där man antar att de klimatpolitiska åtgärderna och linjedragningarna som genomförs
-    på nationell nivå påverkar utsläppsutvecklingen i Esbo; <b>Kolneutralt Esbo 2030
+    på nationell nivå påverkar utsläppsutvecklingen i Esbo;</li><li><b>Kolneutralt Esbo 2030
     (HNE2030)</b>, där man antar att stadens utsläppsutveckling påverkar inte bara
     nationella åtgärder utan också staden och dess samarbetspartners, såsom Fortums
-    och HRM:s klimatåtgärder; samt <b>det pessimistiska scenariot<b> ett scenario
+    och HRM:s klimatåtgärder;</li><li>samt <b>det pessimistiska scenariot</b> ett scenario
     där man antar att nya utsläppsminskningsåtgärder inte planeras eller genomförs
-    i staden.</p> <p>Esbo har som mål att vara kolneutralt 2030. För att stöda sitt
+    i staden.</li></ul></p> <p>Esbo har som mål att vara kolneutralt 2030. För att stöda sitt
     klimatarbete sammanställer staden färdplanen Kolneutralt Esbo 2030, som beskriver
     stadens egna och partnernas samarbete samt samarbetet med invånarna, för att uppnå
-    målet om kolneutralitet. <p>Som en del av arbetet med vägkartan Kolneutralt Esbo
-    2030 utvärderades stadens utsläppsutveckling i tre scenarier:</p> <p><b>Ett pessimistiskt
-    scenario</b> där man antar att inga nya utsläppsminskningsåtgärder planeras eller
-    förverkligas i staden. I scenariot påverkas stadens utsläppsutveckling av till
-    exempel stadens växande invånarantal. <p><b>Scenariot Finland 2035, där man antar
-    att de klimatpolitiska åtgärderna som genomförs på nationell nivå som genomförs
-    på nationell nivå påverkar utsläppsutvecklingen i Esbo. Stadens tillväxt och konsekvenserna
-    av EU-lagstiftningen beaktas också i scenariot. <p><b>Scenariot Kolneutralt Esbo
-    2030 (HNE2030)</b>, där man antar att stadens utsläppsutveckling påverkas förutom
-    av nationella åtgärder även av klimatåtgärder som genomförs av staden och dess
-    samarbetspartner såsom Fortum, HRT och HRM. <p>Som grund för beräkningarna har
+    målet om kolneutralitet.</p> <p>Som grund för beräkningarna har
     man utnyttjat de utsläppsberäkningar som HRM producerat och i deras bakgrund uppgifter
     om energiförbrukningen som använts i bakgrunden. Stadens utsläppsutveckling har
     för varje scenario uppskattas för 2025, 2030 och 2035. Dessutom har utsläppen

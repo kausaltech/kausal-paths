@@ -2,19 +2,6 @@ from .param import BoolParameter, NumberParameter, StringParameter
 from common.i18n import gettext_lazy as _
 
 
-class CostNode(StringParameter):
-    name = _('Cost node')
-    id = 'cost_node'
-
-
-class ImpactNode(StringParameter):
-    id = 'impact_node'
-
-
-class EfficiencyUnit(StringParameter):
-    id = 'efficiency_unit'
-
-
 class MunicipalityName(StringParameter):
     name = _('Municipality name')
     id = 'municipality_name'
@@ -127,9 +114,19 @@ class EmissionsWeight(NumberParameter):
     id = 'emissions_weight'
 
 
-class CostWeight(NumberParameter):
-    name = _('Weight for cost impacts in value profiles')
-    id = 'cost_weight'
+class EconomicWeight(NumberParameter):
+    name = _('Weight for economic impacts in value profiles')
+    id = 'economic_weight'
+
+
+class ProsperityWeight(NumberParameter):
+    name = _('Weight for prosperity impacts (e.g. jobs) in value profiles')
+    id = 'prosperity_weight'
+
+
+class PurityWeight(NumberParameter):
+    name = _('Weight for purity impacts (e.g. lack of pollution) in value profiles')
+    id = 'purity_weight'
 
 
 class HealthWeight(NumberParameter):
@@ -147,6 +144,36 @@ class BiodiversityWeight(NumberParameter):
     id = 'biodiversity_weight'
 
 
+class LegalityWeight(NumberParameter):
+    name = _('Weight for actions to be legal in value profiles')
+    id = 'legality_weight'
+
+
 class ImpactThreshold(NumberParameter):
     name = _('Threshold for sum of weighted impacts in value profiles')
     id = 'impact_threshold'
+
+
+class EffectOfEV(NumberParameter):
+    name = _('Effect of electric vehicles on car kilometers')
+    id = 'effect_of_ev'
+
+
+class SelectedMunicipalities(StringParameter):
+    name = _('List of selected municipalities')
+    id = 'selected_municipalities'
+
+
+class SelectedNodes(StringParameter):
+    name = _('List of selected nodes')
+    id = 'selected_nodes'
+
+
+class SelectedFramework(StringParameter):
+    name = _('Selected computational framework')
+    id = 'selected_framework'
+
+
+class WeatherNormalization(BoolParameter):
+    name = _('Annual weather normalization for energy consumption')
+    id = 'weather_normalization'

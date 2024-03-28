@@ -216,10 +216,11 @@ for node_id in (args.node or []):
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
         for n in output_nodes:
-            print("Impact of %s on %s" % (node, n))
+            print("Impact of %s on OUTPUT node %s" % (node, n))
             node.print_impact(n)
 
         for n in context.get_outcome_nodes():
+            print("Impact of action %s on OUTCOME node %s" % (node, n))
             node.print_impact(n)
 
         """

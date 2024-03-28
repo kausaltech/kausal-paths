@@ -46,47 +46,51 @@ action_groups:
   color: '#cccccc'
 
 action_efficiency_pairs:
-- cost_node: discounted_net_cost
+- graph_type: cost_effectiveness
+  cost_node: discounted_net_cost
   impact_node: net_energy_consumption
   invert_cost: false
   invert_impact: true
-  efficiency_unit: SEK/kWh
+  indicator_unit: SEK/kWh
   cost_unit: MSEK
   impact_unit: TWh
-  plot_limit_efficiency: 10
+  plot_limit_for_indicator: 10
   label_fi: Energiansäästön marginaalikustannus
   label_en: Marginal cost in energy savings
   label: Marginalnettokostnad för energibesparing
-- cost_node: discounted_net_cost
+- graph_type: cost_effectiveness
+  cost_node: discounted_net_cost
   impact_node: net_emissions
   invert_cost: false
   invert_impact: true
-  efficiency_unit: SEK/t
+  indicator_unit: SEK/t
   cost_unit: MSEK
   impact_unit: Mt
-  plot_limit_efficiency: 60000
+  plot_limit_for_indicator: 60000
   label_fi: Päästövähennysten marginaalikustannus
   label_en: Marginal cost in net emissions
   label: Marginalnettokostnad för utsläppsminskning
-- cost_node: discounted_net_cost
+- graph_type: cost_effectiveness
+  cost_node: discounted_net_cost
   impact_node: net_electricity_consumption
   invert_cost: false
   invert_impact: true
-  efficiency_unit: SEK/kWh
+  indicator_unit: SEK/kWh
   cost_unit: MSEK
   impact_unit: TWh
-  plot_limit_efficiency: 10
+  plot_limit_for_indicator: 10
   label_fi: Sähkönsäästön marginaalikustannus
   label_en: Marginal cost in electricity savings
   label: Marginalnettokostnad för elbesparing
-- cost_node: cost_per_area
+- graph_type: cost_effectiveness
+  cost_node: cost_per_area
   impact_node: net_electricity_consumption_per_area
   invert_cost: false
   invert_impact: true
-  efficiency_unit: SEK/kWh
+  indicator_unit: SEK/kWh
   cost_unit: SEK/m**2
   impact_unit: kWh/m**2
-  plot_limit_efficiency: 10
+  plot_limit_for_indicator: 10
   label_fi: Sähkönsäästön marginaalikustannus per ala
   label_en: Marginal cost in electricity savings per area
   label: Marginalnettokostnad för elbesparing per area

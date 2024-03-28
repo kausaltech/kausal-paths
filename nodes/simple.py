@@ -29,6 +29,11 @@ class SimpleNode(Node):
             local_id='replace_output_using_input_dataset',
             label=TranslatedString(en="Replace output using input dataset"),
             is_customizable=False
+        ),
+        BoolParameter(
+            local_id='drop_nulls',
+            description='At the end of compute() do you want to drop nulls?',
+            is_customizable=False
         )
     ]
 
@@ -78,17 +83,22 @@ class SimpleNode(Node):
             ])
         return df
 
+    def maybe_drop_nulls(self, df):
+        if self.get_parameter_value('drop_nulls', required=False):
+            df = df.drop_nulls()
+        return df
+
 
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter]] = SimpleNode.allowed_parameters + [
         StringParameter(local_id='metric', is_customizable=False),
-    ] + SimpleNode.allowed_parameters + [
         BoolParameter(
             local_id='inventory_only',
             description='Node represents historical (inventory) values only',
             is_customizable=False,
-        )]
+        ),
+    ]
 
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
@@ -441,29 +451,21 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
 class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
     allowed_parameters = [
         NumberParameter(local_id='multiplier'),
-        StringParameter(local_id='global_multiplier'),
     ] + AdditiveNode.allowed_parameters
 
-    def compute(self) -> ppl.PathsDataFrame:
-        df = super().compute()
-        multiplier = self.get_parameter_value('multiplier', required=True)
+    def compute(self) -> ppl.PathsDataFrame:  # FIXME Should we instead just use AdditiveNode first?
+        if len(self.input_nodes) == 0:
+            raise NodeError(self, "Node must have at least one input node.")
+        nodes = self.input_nodes
+        node = nodes.pop()
+        df = node.get_output_pl(self)
+        print(df)
+        unit = df.get_unit(VALUE_COLUMN)
+        df = self.add_nodes_pl(df, nodes, unit=unit)
 
-        # FIXME Use actual function from branch clean-nodes and  update it for unitless quantities
-        def multiply_quantity(df, col: str, quantity, out_unit: Unit | None = None):
-            if not isinstance(quantity, float):
-                res_unit = df._units[col] * quantity.units
-                quant = quantity.m
-            else:
-                res_unit = df._units[col]
-                quant = quantity
-            df = df.with_columns([pl.col(col) * pl.lit(quant)])
-            df._units[col] = res_unit
-            if out_unit:
-                df = df.ensure_unit(col, out_unit)
-            return df
-
-        df = multiply_quantity(df, VALUE_COLUMN, multiplier)
-
+        multiplier = self.get_parameter_value('multiplier', units=True, required=True)
+        df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 
@@ -669,20 +671,23 @@ class RelativeNode(AdditiveNode):
     The relative node is assumed to be the relative difference R = V / N - 1,
     where V is the expected output value and N is the comparison value from
     the other input nodes. So, the output value V = (R + 1)N.
+    If there is no "non-additive" node, it will behave like AdditiveNode except
+    it never creates a temporary dimension Sectors.
     '''
 
     def compute(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node(tag='non_additive')
+        n = self.get_input_node(tag='non_additive', required=False)
         df = super().compute()
-        dfn = n.get_output_pl(target_node=self)
-        if dfn.get_unit(VALUE_COLUMN).dimensionless:
-            dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
-        df = df.paths.join_over_index(dfn, how='outer', index_from='union')
-        rn = VALUE_COLUMN + '_right'
-        df = df.with_columns([pl.col(rn).fill_null(0)])
-        df = df.with_columns((pl.col(rn) + pl.lit(1)))
-        df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        if n is not None:
+            dfn = n.get_output_pl(target_node=self)
+            if dfn.get_unit(VALUE_COLUMN).dimensionless:
+                dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
+            df = df.paths.join_over_index(dfn, how='outer', index_from='union')
+            rn = VALUE_COLUMN + '_right'
+            df = df.with_columns([pl.col(rn).fill_null(0)])
+            df = df.with_columns((pl.col(rn) + pl.lit(1)))
+            df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 class TrajectoryNode(SimpleNode):

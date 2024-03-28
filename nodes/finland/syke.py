@@ -14,7 +14,10 @@ class AlasNode(Node):
     input_datasets = [
         'syke/alas_emissions',
     ]
-    global_parameters = ['municipality_name']
+    global_parameters = ['municipality_name', 'selected_framework']
+    allowed_parameters = [
+        StringParameter(local_id='region', label='Region to be included', is_customizable=False)
+    ]
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
@@ -25,13 +28,48 @@ class AlasNode(Node):
     }
 
     def compute(self) -> pd.DataFrame:
-        muni_name = self.get_global_parameter_value('municipality_name')
-
         df = self.get_input_dataset()
-        df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
+
+        muni_name = self.get_global_parameter_value('municipality_name')
+        region_name = self.get_parameter_value('region', required=False)
+        if region_name:
+            if region_name == 'Suomi':
+                cats = ['taso_1', 'taso_2', 'taso_3', 'taso_4', 'taso_5', 'hinku-laskenta', 'päästökauppa', 'vuosi']
+                df = df.groupby(cats, observed=True).sum(numeric_only=True).reset_index()
+            else:
+                raise Exception(self, 'Unknown region')
+        else:
+            df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
+
+        emission_field = 'ktCO2e'
+        fw = self.get_global_parameter_value('selected_framework')
+        frameworks = [
+            'Hinku-laskenta ilman päästöhyvityksiä',
+            'Hinku-laskenta päästöhyvityksillä',
+            'Kaikki ALas-päästöt',
+            'Taakanjakosektorin kaikki ALas-päästöt',
+            'Päästökaupan alaiset ALas-päästöt'
+        ]
+
+        if fw in frameworks[0:2]:
+            print('vain hinku')
+            df = df[df['hinku-laskenta']]
+            if fw == frameworks[0]:
+                print('ei kompensaatiota')
+                df = df[df['taso_1'] != 'Kompensaatiot']
+            else:
+                emission_field += '_tuuli'
+
+        elif fw == frameworks[3]:
+            print('ei päästökauppaa')
+            df = df[~df['päästökauppa']]
+        elif fw == frameworks[4]:
+            print('vain päästökauppa')
+            df = df[df['päästökauppa']]
+
         df = df.rename(columns={
             'vuosi': YEAR_COLUMN,
-            'ktCO2e': EMISSION_QUANTITY,
+            emission_field: EMISSION_QUANTITY,
             'energiankulutus': ENERGY_QUANTITY,
         })
         df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
@@ -41,8 +79,8 @@ class AlasNode(Node):
             if i > 1:
                 df['Sector'] += '|'
             df['Sector'] += df['taso_%d' % i].astype(str)
-        df.loc[df['hinku-laskenta'], 'Sector'] += ':HINKU'
-        df.loc[df['päästökauppa'], 'Sector'] += ':ETS'
+        df.loc[df['hinku-laskenta'], 'Sector'] += ':HINKU'  # FIXME ':' causes a duplicate error on terminal, but UI works. But if it replaced with '-' the subsector nodes do not match with Sector and remain empty.
+        df.loc[df['päästökauppa'], 'Sector'] += ':ETS'  # FIXME ':' causes a duplicate error
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
         df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()

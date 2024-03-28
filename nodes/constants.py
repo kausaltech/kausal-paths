@@ -8,6 +8,8 @@ NODE_COLUMN = 'Node'
 
 # Impact constants
 IMPACT_COLUMN = 'Impact'
+# Probability iterations for Monte Carlo
+UNCERTAINTY_COLUMN = 'Iteration'
 
 # Action as it is in the active scenario
 SCENARIO_ACTION_GROUP = 'Scenario'
@@ -48,7 +50,7 @@ GROUPED_MIX_QUANTITY = 'grouped_mix'
 UTILITY_QUANTITY = 'utility'
 ACTIVITY_QUANTITIES = set([
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
-    PASSENGER_MILEAGE_QUANTITY, 'mass'
+    PASSENGER_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'mass'
 ])
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | set([
@@ -63,7 +65,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     'exposure', 'exposure-response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
-    'energy_factor',
+    'energy_factor', 'effect'
 ])
 
 DEFAULT_METRIC = 'default'
