@@ -1,6 +1,7 @@
 id: greentransition
 default_language: fi
 supported_languages: [en]
+#framework: syke  # In case we wanted to show full GPC
 site_url: https://greentransition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -64,6 +65,8 @@ action_efficiency_pairs:
 params:
 - id: municipality_name
   value: Tampere
+- id: selected_framework
+  value: Kaikki ALas-päästöt
 - id: impact_threshold
   label: Threshold for sum of impacts in utilities
   is_customizable: true
@@ -338,7 +341,7 @@ dimensions:
     label: Action 10
 
 emission_sectors:
-- id: net_emissions
+- id: net_emissions2
   name: Kokonaispäästöt
   name_en: Net emissions
   description: Suomen kasvihuonekaasujen nettokokonaispäästöt, eli scope 1+2 ja hiilinielut.
@@ -363,6 +366,19 @@ nodes:
   name: Väestö
   name_en: Population
   description: Population size of the imaginary city.
+
+#- id: net_emissions
+#  name: kokonaispäästöt (ALas)
+#  type: simple.AdditiveNode
+#  quantity: emissions
+#  unit: kt/a
+
+#- id: all_alas_emissions  # In case we wanted to show all GPC nodes for Finland
+#  type: finland.syke.AlasNode
+#  name: SYKE:n ALas-päästöinventaario
+#  params:
+#  - id: region
+#    value: Suomi
 
 #
 # EV charging infrastructure  # Municipality A: infra increases EVs
@@ -885,7 +901,7 @@ nodes:
     - year: 2030
       value: 300
   output_nodes:
-  - net_emissions
+  - net_emissions2
 
 - id: transportation_service_level
   name: Liikenteen palvelutaso
@@ -1057,7 +1073,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: utility
   unit: Ut/a
-  input_nodes: [net_emissions]
+  input_nodes: [net_emissions2]
   output_nodes: [value_profile]
   params:
   - id: multiplier

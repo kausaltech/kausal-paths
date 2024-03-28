@@ -9,7 +9,7 @@ dataset_repo:
   default_path: budget
 name: Climate budgeting sandbox
 owner: Kausal Ltd
-theme_identifier: default
+theme_identifier: eu-climate-4-cast
 target_year: 2040
 model_end_year: 2040
 minimum_historical_year: 2010
