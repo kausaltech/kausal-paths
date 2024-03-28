@@ -1,0 +1,85 @@
+id: suomi2
+default_language: fi
+supported_languages: [en]
+site_url: https://suomi2.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: a7756e03df2e4ae18887bd2ca4dc83a3b98a89d4
+  dvc_remote: kausal-s3
+name: Suomen ilmastopolitiikka
+owner: Kausal Oy
+owner_en: Kausal Ltd
+theme_identifier: default
+emission_unit: kt/a
+model_end_year: 2035
+target_year: 2035
+reference_year: 2010
+minimum_historical_year: 2010
+maximum_historical_year: 2022
+action_groups:
+- id: green_transition
+  name: Vihreä murros
+  name_en: Green transition
+  color: '#b2df8a'
+#  color: '#33a02c'
+#  color: '#32cd32'
+ # color: '#29ab87'
+ # color: '#93c572'
+#  color: '#50c878'
+
+params:
+- id: municipality_name
+  value: Tampere
+- id: selected_framework
+  value: Kaikki ALas-päästöt
+
+emission_sectors:
+- id: net_emissions
+  name: Kokonaispäästöt
+  is_outcome: true
+
+nodes:
+
+- id: test
+  name: Test
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  historical_values: [[2010, 100]]
+  output_nodes: [net_emissions]
+
+#- id: all_alas_emissions
+#  type: finland.syke.AlasNode
+#  name: SYKE:n ALaS-päästöinventaario
+
+#- id: car_energy
+#  name: Henkilöautojen energiankulutus
+#  type: simple.AdditiveNode
+#  quantity: energy
+#  unit: GWh/a
+#  input_datasets:
+#  - id: espoo/traffic_energy_forecast
+#    filters:
+#    - column: vehicle
+#      value: passenger_cars
+
+pages:
+- id: home
+  name: Vihreän siirtymän prioriteetit
+  name_en: Green transition priotities
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Vihreän siirtymän prioriteetit
+
+scenarios:
+- id: baseline
+  name: Tätä menoa
+  name_en: Business as usual
+
+- id: default
+  default: true
+  name: Aktiivinen
+  name_en: Active
+  all_actions_enabled: true
+
