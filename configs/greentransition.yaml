@@ -17,7 +17,7 @@ model_end_year: 2035
 target_year: 2035
 reference_year: 2010
 minimum_historical_year: 2010
-maximum_historical_year: 2022
+maximum_historical_year: 2023
 action_groups:
 - id: hs_voting_aid
   name: HS-vaalikone
@@ -379,6 +379,133 @@ nodes:
 #  params:
 #  - id: region
 #    value: Suomi
+
+# ---------------------------- Suomen metsänielukeskustelu
+
+- id: pulp_production_capacity
+  name: Sellun valmistuskapasiteetti Suomessa
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  historical_values: [[2000, 100], [2023, 200]]
+  input_dataset_processsors: [LinearInterpolation]
+
+- id: pulp_production
+  name: Sellun valmistusmäärä Suomessa
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dataset_processsors: [LinearInterpolation]
+  input_nodes: [pulp_production_capacity]
+
+- id: high_price_wood_production
+  name: Korkean jalostusasteen puutuotteiden valmistusmäärä Suomessa
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  historical_values: [[2000, 100], [2023, 20]]
+  input_dataset_processsors: [LinearInterpolation]
+
+- id: pulp_price
+  name: Sellun hinta
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2000, 1000], [2023, 900]]
+  input_dataset_processsors: [LinearInterpolation]
+
+- id: high_price_wood_price
+  name: Korkean jalostusasteen puutuotteiden hinta
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2000, 4000], [2023, 4000]]
+  input_dataset_processsors: [LinearInterpolation]
+
+- id: pulp_sales
+  name: Sellun myyntivoitto
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_nodes: [pulp_production, pulp_price]
+
+- id: high_price_wood_sales
+  name: Korkean jalostusasteen puutuotteiden myyntivoitto
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_nodes: [high_price_wood_production, high_price_wood_price]
+
+- id: total_forest_sales
+  name: Metsäteollisuuden tuotto
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_nodes: [pulp_sales, high_price_wood_sales]
+
+- id: amount_of_wood_in_forest
+  name: Suomen metsien hiilinielu
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_nodes: [pulp_production, high_price_wood_production]
+  historical_values: [[2000, -5000], [2023, -4000]]
+
+- id: pulp_industry_emissions
+  name: Selluteollisuuden päästöt
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_nodes: [pulp_production]
+
+- id: high_price_wood_industry_emissions
+  name: Korkean jalostusasteen puuteollisuuden päästöt
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: t/a
+  input_nodes: [high_price_wood_production]
+  params:
+  - id: multiplier
+    value: 0.3
+
+- id: forest_industry_emissions
+  name: Metsäteollisuuden päästöt
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_nodes: [pulp_industry_emissions, high_price_wood_industry_emissions,
+    carbon_sequestration_and_storage]
+
+- id: biodiversity_in_forests
+  name: Suomen metsien biodiversiteetti
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_nodes: [amount_of_wood_in_forest]
+  historical_values: [[2000, 5000], [2023, 4000]]
+
+- id: carbon_sequestration_and_storage
+  name: Hiilidioksidin talteenotto
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  historical_values: [[2000, 0], [2023, 0]]
+
+- id: sequestration_price
+  name: Hiilidioksidin talteenoton hinta
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2000, 400], [2023, 200]]
+  input_dataset_processsors: [LinearInterpolation]
+
+- id: sequestration_cost
+  name: Hiilidioksidin talteenoton kustannus
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/a
+  input_nodes: [carbon_sequestration_and_storage, sequestration_price]
+  output_nodes: [pulp_sales]
 
 #
 # EV charging infrastructure  # Municipality A: infra increases EVs
@@ -1192,6 +1319,23 @@ pages:
     be promoted.
 
 actions:
+
+- id: block_the_pipes
+  name: Teollisuuden piippujen tulppaaminen
+  type: simple.CumulativeAdditiveAction
+  quantity: mass
+  unit: t/a
+  forecast_values: [[2024, 0], [2028, -20], [2031, -140]]
+  output_nodes: [carbon_sequestration_and_storage]
+
+- id: kajaani_pulp_mill
+  name: Rakennetaan Kajaanin sellutehdas
+  type: simple.CumulativeAdditiveAction
+  quantity: unit_price
+  unit: t/a
+  forecast_values: [[2024, 0], [2028, 0], [2029, 40]]
+  input_dataset_processsors: [LinearInterpolation]
+  output_nodes: [pulp_production_capacity]
 
 - id:  ev_charging_infrastructure
   name: Kaupunki rakentaa latauspisteitä
