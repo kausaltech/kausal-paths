@@ -280,7 +280,7 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(out_col, out_unit)
         return df
 
-    def cumulate(self, col: str) -> PathsDataFrame:
+    def cumulate(self, col: str) -> PathsDataFrame:  # FIXME Should we update the unit to unit * a?
         df = self.paths.to_wide()
         for df_col in df.columns:
             if col + '@' in df_col or col == df_col:

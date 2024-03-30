@@ -2,7 +2,7 @@ import functools
 
 import pandas as pd
 import polars as pl
-import pint_pandas
+from nodes.units import Unit, unit_registry
 
 from nodes.node import NodeMetric, Node, NodeError
 import common.polars as ppl
@@ -131,6 +131,66 @@ class ExponentialNode(AdditiveNode):
 
         return df
     
+
+class InternalGrowthNode(ExponentialNode):
+    '''
+    Calculates internal growth of e.g. a forest, accounting for forest cuts. Takes in additive and
+    non-additive nodes and a dataset.
+    Parameter annual_change is used where the rate node(s) have null values.
+    '''
+#    output_metrics = {  # FIXME Causes an unknown error but not critical yet.
+#        DEFAULT_METRIC: NodeMetric('Mt/a', 'mass', column_id=VALUE_COLUMN),
+#        'Reductions': NodeMetric('Mt/a', 'mass', column_id='Reductions'),
+#        'Annual_change': NodeMetric('', 'fraction', 'base_value')
+#    }
+
+    def compute(self):
+        df = self.get_input_dataset_pl()
+        current_value = self.get_parameter_value('current_value', required=False)  # FIXME Not used
+
+        nonadd = self.get_input_nodes(tag='non_additive')
+        if nonadd:
+            df_nonadd = self.add_nodes(None, nonadd)  # FIXME Not used
+        annual_change = self.get_parameter_value('annual_change', units=True, required=False)
+        base_value = 1 + annual_change.to('dimensionless').m
+
+        add = [node for node in self.input_nodes if node not in nonadd]
+        df_add = self.add_nodes_pl(None, add, unit=self.input_nodes[0].unit)
+        df_add = df_add.ensure_unit(VALUE_COLUMN, self.unit * unit_registry.parse_units('1/a'))
+        df = df.paths.join_over_index(df_add, how='outer')
+
+        df = df.with_columns([  # FIXME Fails if there are missing years
+            pl.lit(base_value).alias('base_value'),
+            pl.col('Value_right').shift(1).alias('Value_right'),
+            pl.col('Value').shift(1).alias('Previous')
+            ])
+        for year in df[YEAR_COLUMN]:  # FIXME Fails if multiple dimensions
+            if df.filter(pl.col(YEAR_COLUMN) == year)[VALUE_COLUMN].is_null()[0]:
+                df = df.with_columns([
+                    pl.when(pl.col(YEAR_COLUMN).eq(year))
+                    .then((pl.col('Previous') - pl.col('Value_right')) * pl.col('base_value'))
+                    .otherwise(pl.col('Value')).alias('Value')])
+                df = df.with_columns(
+                    pl.when(pl.col(YEAR_COLUMN).eq(year+1)).then(pl.col('Value').shift(1))
+                    .otherwise(pl.col('Previous')).alias('Previous'))
+
+#        df = df.drop(['Previous', 'Value_right', 'base_value'])
+#        df = df.rename({'Value_right': 'Reductions'})
+        return df
+
+
+class CumulativeNode(AdditiveNode):
+    def compute(self):
+        unit = self.unit
+        self.unit = unit * unit_registry.parse_units('1/a')
+        df = super().compute()
+        self.unit = unit
+        df = df.cumulate(VALUE_COLUMN)
+        unit = df.get_unit(VALUE_COLUMN) * unit_registry.parse_units('1 a') # FIXME Should this happen inside cumulate()?
+        df = df.set_unit(VALUE_COLUMN, unit, force=True)
+
+        return df
+
 
 class EnergyCostNode(AdditiveNode):
     output_metrics = {
