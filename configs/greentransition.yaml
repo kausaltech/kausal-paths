@@ -1,7 +1,7 @@
 id: greentransition
 default_language: fi
 supported_languages: [en]
-#framework: syke  # In case we wanted to show full GPC
+framework: syke  # In case we wanted to show full GPC
 site_url: https://greentransition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -370,18 +370,18 @@ nodes:
   name_en: Population
   description: Population size of the imaginary city.
 
-#- id: net_emissions
-#  name: kokonaispäästöt (ALas)
-#  type: simple.AdditiveNode
-#  quantity: emissions
-#  unit: kt/a
+- id: net_emissions
+  name: kokonaispäästöt (ALas)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
 
-#- id: all_alas_emissions  # In case we wanted to show all GPC nodes for Finland
-#  type: finland.syke.AlasNode
-#  name: SYKE:n ALas-päästöinventaario
-#  params:
-#  - id: region
-#    value: Suomi
+- id: all_alas_emissions  # In case we wanted to show all GPC nodes for Finland
+  type: finland.syke.AlasNode
+  name: SYKE:n ALas-päästöinventaario
+  params:
+  - id: region
+    value: Suomi
 
 # ---------------------------- Suomen metsänielukeskustelu
 

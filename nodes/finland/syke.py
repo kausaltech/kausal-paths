@@ -79,8 +79,8 @@ class AlasNode(Node):
             if i > 1:
                 df['Sector'] += '|'
             df['Sector'] += df['taso_%d' % i].astype(str)
-        df.loc[df['hinku-laskenta'], 'Sector'] += ':HINKU'  # FIXME ':' causes a duplicate error on terminal, but UI works. But if it replaced with '-' the subsector nodes do not match with Sector and remain empty.
-        df.loc[df['päästökauppa'], 'Sector'] += ':ETS'  # FIXME ':' causes a duplicate error
+        df.loc[df['hinku-laskenta'], 'Sector'] += '+HINKU'
+        df.loc[df['päästökauppa'], 'Sector'] += '+ETS'
 
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
         df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()
