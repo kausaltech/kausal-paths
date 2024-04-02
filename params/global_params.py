@@ -177,3 +177,8 @@ class SelectedFramework(StringParameter):
 class WeatherNormalization(BoolParameter):
     name = _('Annual weather normalization for energy consumption')
     id = 'weather_normalization'
+
+
+class ExtendHistoricalValues(BoolParameter):
+    name = _('Is the last historical value extended into the future?')
+    id = 'extend_historical_values'

@@ -8,6 +8,7 @@ from nodes.constants import (
 from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
 from nodes.node import NodeMetric
+from nodes.calc import extend_last_historical_value
 
 
 class AlasNode(Node):
@@ -103,6 +104,7 @@ class AlasEmissions(Node):
     allowed_input_classes = [
         AlasNode
     ]
+    global_parameters = ['extend_historical_values']
     allowed_parameters = [
         StringParameter(
             local_id='sector',
@@ -135,4 +137,7 @@ class AlasEmissions(Node):
             df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df[FORECAST_COLUMN] = False
+
+        if self.get_global_parameter_value('extend_historical_values'):
+            df = extend_last_historical_value(df, self.get_end_year())
         return df

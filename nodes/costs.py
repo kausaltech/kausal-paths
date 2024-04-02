@@ -168,7 +168,7 @@ class InternalGrowthNode(ExponentialNode):
             if df.filter(pl.col(YEAR_COLUMN) == year)[VALUE_COLUMN].is_null()[0]:
                 df = df.with_columns([
                     pl.when(pl.col(YEAR_COLUMN).eq(year))
-                    .then((pl.col('Previous') - pl.col('Value_right')) * pl.col('base_value'))
+                    .then((pl.col('Previous') + pl.col('Value_right')) * pl.col('base_value'))
                     .otherwise(pl.col('Value')).alias('Value')])
                 df = df.with_columns(
                     pl.when(pl.col(YEAR_COLUMN).eq(year+1)).then(pl.col('Value').shift(1))
