@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://hollywood-c4c.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 716e7981b46bf75aa3aa5bf8c2452bfebf1be67d
+  commit: 791d34a61e64f4cbf07a1c40c1efe13aad954a2c
   dvc_remote: kausal-s3
 name: Hollywood BASIC+ Greenhouse Gas Inventory
 owner_en: City of Hollywood
