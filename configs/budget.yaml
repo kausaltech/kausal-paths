@@ -74,15 +74,15 @@ action_efficiency_pairs:
   impact_unit: MEUR
   label: Return of investment
 - graph_type: cost_benefit
-  cost_node: test_investments
-  impact_node: discounted_costs_for_the_city
+  cost_node: test_investments_for_the_city
+  impact_node: discounted_costs
   invert_cost: true
   invert_impact: true
   indicator_unit: MEUR
   cost_unit: MEUR
   impact_unit: MEUR
-#  stakeholder_dimension: stakeholder
-#  outcome_dimension: outcome_of_interest
+  stakeholder_dimension: stakeholder
+  outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis
 #- graph_type: cost_effectiveness
 #  cost_node: total_economic_costs
@@ -1186,6 +1186,21 @@ nodes:
   - id: multiplier
     value: 0.2
     unit: EUR/pkm
+
+- id: test_investments_for_the_city
+  name: Test node for traffic investments for the city
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, outcome_of_interest]
+  output_dimensions: [stakeholder, outcome_of_interest]
+  input_nodes:
+  - id: test_investments
+    to_dimensions:
+    - id: stakeholder
+      categories: [city]
+    - id: outcome_of_interest
+      categories: [infrastructure_investment]
 
 ################# END TRAFFIC MODEL
 
