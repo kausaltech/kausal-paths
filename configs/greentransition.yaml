@@ -70,6 +70,8 @@ params:
   value: Tampere
 - id: selected_framework
   value: Kaikki ALas-päästöt
+- id: extend_historical_values
+  value: true
 - id: impact_threshold
   label: Threshold for sum of impacts in utilities
   is_customizable: true
@@ -377,28 +379,43 @@ nodes:
   - id: region
     value: Suomi
 
-- id: carbon_budget
-  name: Käytössä oleva hiilibudjetti
+# ---------------------------- Suomen metsänielukeskustelu
+
+- id: cumulative_carbon_emissions
+  name: Kumulatiivinen hiilipäästö
   type: costs.CumulativeNode
-  quantity: mass
+  quantity: emissions
   unit: Mt
   input_nodes: [net_emissions]
 
-# ---------------------------- Suomen metsänielukeskustelu
+- id: carbon_budget
+  name: Suomen hiilibudjetti
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: Mt
+  input_nodes:
+  - cumulative_carbon_emissions
+  - amount_of_wood_in_forests
+  goals:
+  - label: Hiilibudjetin tavoite
+    default: true
+    values:
+    - year: 2035
+      value: 1000
 
 - id: pulp_production_capacity
   name: Sellun valmistuskapasiteetti Suomessa
   type: simple.AdditiveNode
   quantity: mass
   unit: Mt/a
-  historical_values: [[2000, 50], [2023, 70]]
+  historical_values: [[2000, 29], [2023, 69.2]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: pulp_production
   name: Sellun valmistusmäärä Suomessa
   type: simple.AdditiveNode
   quantity: mass
-  unit: t/a
+  unit: Mt/a
   input_dataset_processors: [LinearInterpolation]
   input_nodes: [pulp_production_capacity]
   output_nodes: [forest_cuts_in_finland]
@@ -408,7 +425,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: Mt/a
-  historical_values: [[2000, 50], [2023, 10]]
+  historical_values: [[2000, 90], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes: [forest_cuts_in_finland]
 
@@ -416,7 +433,7 @@ nodes:
   name: Metsänhakkuut Suomessa
   type: simple.AdditiveNode
   quantity: mass
-  unit: t/a
+  unit: Mt/a
 
 - id: pulp_price
   name: Sellun hinta
@@ -430,7 +447,7 @@ nodes:
   name: Korkean jalostusasteen puutuotteiden hinta
   type: simple.AdditiveNode
   quantity: unit_price
-  unit: EUR/t
+  unit: MEUR/t
   historical_values: [[2000, 4000], [2023, 4000]]
   input_dataset_processors: [LinearInterpolation]
 
@@ -438,21 +455,21 @@ nodes:
   name: Sellun myyntivoitto
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: EUR/a
+  unit: MEUR/a
   input_nodes: [pulp_production, pulp_price]
 
 - id: high_price_wood_sales
   name: Korkean jalostusasteen puutuotteiden myyntivoitto
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: EUR/a
+  unit: MEUR/a
   input_nodes: [high_price_wood_production, high_price_wood_price]
 
 - id: total_forest_sales
   name: Metsäteollisuuden tuotto
   type: simple.AdditiveNode
   quantity: currency
-  unit: EUR/a
+  unit: MEUR/a
   input_nodes: [pulp_sales, high_price_wood_sales]
 
 - id: amount_of_wood_in_forests
@@ -461,25 +478,25 @@ nodes:
   quantity: mass
   unit: Mt
   input_nodes: [forest_cuts_in_finland]
-  historical_values: [[2000, 3500], [2023, 4000]]
+  historical_values: [[2000, -3000], [2023, -3200]]
   input_dataset_processors: [LinearInterpolation]
   params:
   - id: annual_change
-    value: 2
+    value: 4.1875  # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
     unit: '%'
 
 - id: pulp_industry_emissions
   name: Selluteollisuuden päästöt
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: Mt/a
   input_nodes: [pulp_production]
 
 - id: high_price_wood_industry_emissions
   name: Korkean jalostusasteen puuteollisuuden päästöt
   type: simple.FixedMultiplierNode
   quantity: emissions
-  unit: t/a
+  unit: Mt/a
   input_nodes: [high_price_wood_production]
   params:
   - id: multiplier
@@ -489,7 +506,7 @@ nodes:
   name: Metsien päästöt
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: Mt/a
   input_nodes: [pulp_industry_emissions, high_price_wood_industry_emissions,
     carbon_capture_and_storage]
   output_nodes: [agriculture_emissions]
@@ -506,7 +523,7 @@ nodes:
   name: Hiilidioksidin talteenotto
   type: simple.AdditiveNode
   quantity: mass
-  unit: t/a
+  unit: Mt/a
   historical_values: [[2000, 0], [2023, 0]]
 
 - id: carbon_capture_price
@@ -521,7 +538,7 @@ nodes:
   name: Hiilidioksidin talteenoton kustannus
   type: simple.MultiplicativeNode
   quantity: unit_price
-  unit: EUR/a
+  unit: MEUR/a
   input_nodes: [carbon_capture_and_storage, carbon_capture_price]
   output_nodes: [pulp_sales]
 
@@ -1383,18 +1400,18 @@ actions:
   name: Tulpataan teollisuuden piiput
   type: simple.CumulativeAdditiveAction
   quantity: mass
-  unit: Mt/a
+  unit: kt/a
   group: forestry
-  forecast_values: [[2024, 0], [2028, -20], [2031, -140]]
+  forecast_values: [[2024, 0], [2028, -70], [2031, -700]] # Government spends 140 M€, cost 200 EUR/t
   output_nodes: [carbon_capture_and_storage]
 
-- id: kajaani_pulp_mill
+- id: kajaani_pulp_mill  # 600 kt/a pulp https://www.hs.fi/talous/art-2000010325037.html
   name: Rakennetaan Kajaanin sellutehdas
   type: simple.CumulativeAdditiveAction
   quantity: unit_price
-  unit: Mt/a
+  unit: kt/a
   group: forestry
-  forecast_values: [[2024, 0], [2028, 0], [2029, 10]]
+  forecast_values: [[2024, 0], [2028, 0], [2029, 1760]]  # 50 % yield C6H12O6 180 g/mol in wood results in 6 CO2 264 g/mol --> 600 kt / 50 % * 264 / 180 = 1760 kt
   input_dataset_processors: [LinearInterpolation]
   output_nodes: [pulp_production_capacity]
 
