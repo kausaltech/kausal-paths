@@ -227,10 +227,17 @@ class ActionNode(Node):
             )
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
 
-        assert set(impact_df.dim_ids) == set(match_dims_i)
-        assert set(cost_df.dim_ids) == set(match_dims_c)
-        df = cost_df.paths.join_over_index(impact_df, how='left', index_from='union')
-        df = df.drop_nulls()
+        if not set(impact_df.dim_ids) == match_dims_i:
+            raise NodeError(self, 'Impact node %s dimensions %s do not match with expected for this impact overview: %s.' % (impact_node.id, impact_df.dim_ids, match_dims_i))
+
+        if not set(cost_df.dim_ids) == set(match_dims_c):
+            raise NodeError(self, 'Cost node %s dimensions %s do not match with expected for this impact overview: %s.' % (cost_node.id, cost_df.dim_ids, match_dims_c))
+
+        df = cost_df.paths.join_over_index(impact_df, how='outer', index_from='union')
+        df = df.with_columns([
+            pl.col('Cost').fill_null(0.0),
+            pl.col('Impact').fill_null(0.0)])
+
         return df
 
 
@@ -361,7 +368,6 @@ class ActionEfficiencyPair:
             match_dims_c = set(match_dims_c) - set([None])
 
             with context.perf_context.exec_node(action):
-                # FIXME Does not work with CBA
                 df = action.compute_indicator(
                     self.cost_node, self.impact_node, match_dims_i, match_dims_c)
             if not len(df):
