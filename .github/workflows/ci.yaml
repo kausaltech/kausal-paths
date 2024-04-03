@@ -5,8 +5,8 @@ jobs:
     name: Build Docker images, run tests and push to Docker registry
     runs-on: self-hosted
     env:
-      APP_IMAGE: docker.kausal.tech/paths
-      DB_IMAGE: docker.kausal.tech/paths-postgres
+      APP_IMAGE: ${{ secrets.KAUSAL_DOCKER_REGISTRY_HOSTNAME }}/paths
+      DB_IMAGE: ${{ secrets.KAUSAL_DOCKER_REGISTRY_HOSTNAME }}/paths-postgres
       POSTGRES_PASSWORD: foobar123
       DATABASE_URL: postgres://paths:foobar123@db/paths
       EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
@@ -39,7 +39,7 @@ jobs:
         if: env.DEPLOYMENT_TYPE
         uses: docker/login-action@v2
         with:
-          registry: docker.kausal.tech
+          registry: ${{ secrets.KAUSAL_DOCKER_HOSTNAME }}
           username: docker
           # FIXME: Instead of using the password, we should probably switch to token authentication with limited scope
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
