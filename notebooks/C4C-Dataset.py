@@ -1,32 +1,12 @@
 import itertools
 import pandas as pd
 import polars as pl
-import os, sys
+import sys
 
-os.chdir('/Users/jouni/devel/climate4cast')
-
-incsvpath = 'Data Importer - Potsdam - GPC Data Sheet.csv'
-outcsvpath = 'Potsdam-Parquet.csv'
-outdvcpath = 'gpc/potsdam'
-
-dims = ['Sector', 'Scope', 'Energieträger', 'GHG']
-#dims = ['Sector', 'Scope', 'Energy Carrier', 'GHG']
-
-# incsvpath = sys.argv[1]
-# outcsvpath = sys.argv[2]
-# outdvcpath = sys.argv[3]
-
-# ---------------------------------------------------------------------------------------
-from pint import UnitRegistry
-ureg = UnitRegistry()
-ureg.define('EUR = mass')
-
-def pconvert(value):
-    if value['Value']:
-        pquantity = value['Value'] * ureg(value['Unit'])
-        return pquantity.to(value['ToUnit'])._magnitude
-    else:
-        return float('nan')
+incsvpath = sys.argv[1]
+incsvsep = sys.argv[2]
+outcsvpath = sys.argv[3]
+outdvcpath = sys.argv[4]
 
 # ---------------------------------------------------------------------------------------
 sectors = ['I', 'II', 'III', 'IV', 'V',
@@ -49,224 +29,226 @@ sectors = ['I', 'II', 'III', 'IV', 'V',
            'IV.1', 'IV.2',
            'V.1', 'V.2', 'V.3']
 
-df = pl.read_csv(incsvpath, separator = ',')
+qtypelookup = {'Emissions': 'Emissions',
+               'Emission Factor': 'Emission Factor',
+               'Energy Consumption': 'Activity',
+               'Energy Factor': 'Activity Factor',
+               'Floor Area': 'Activity',
+               'Fuel Consumption': 'Activity',
+               'Fuel Factor': 'Activity Factor',
+               'Mileage': 'Activity',
+               'Mileage Factor': 'Activity Factor',
+               'Price': 'Price',
+               'Unit Price': 'Unit Price'}
+
+unitreplace = [['tCO2e', 't'],
+               ['vkm', 'km'], ['p-km', 'km'], ['Mkm', 'Gm'],
+               ['€', 'EUR']]
+
+# ---------------------------------------------------------------------------------------
+from pint import UnitRegistry
+ureg = UnitRegistry()
+ureg.define('EUR = [currency]')
+
+def pconvert(value):
+    if value['Value']:
+        pquantity = value['Value'] * ureg(value['Unit'])
+        return pquantity.to(value['ToUnit'])._magnitude
+    else:
+        return float('nan')
+
+# ---------------------------------------------------------------------------------------
+df = pl.read_csv(incsvpath, separator = incsvsep)
+
 df = df.drop(['Description', 'Action'])
+context = []
+values = []
+for c in df.columns:
+    if c.isdigit():
+        values.append(c)
+    else:
+        context.append(c)
 
-valueindex = df.dtypes.index(pl.Float64)
-context = df.columns[:valueindex]
-values = df.columns[valueindex:]
+dims = [c for c in context if c not in ['Quantity', 'Unit']]
 
-dims.extend(df.columns[8:valueindex])
-
-df = df.with_columns(pl.when(pl.col('Quantity') == pl.lit('Emissions')).then(pl.lit('Emissions'))
-                       .when(pl.col('Quantity') == pl.lit('Emission Factor')).then(pl.lit('Emission Factor'))
-                       .when(pl.col('Quantity') == pl.lit('Energy Consumption')).then(pl.lit('Activity'))
-                       .when(pl.col('Quantity') == pl.lit('Fuel Consumption')).then(pl.lit('Activity'))
-                       .when(pl.col('Quantity') == pl.lit('Mileage')).then(pl.lit('Activity'))
-                       .when(pl.col('Quantity') == pl.lit('Price')).then(pl.lit('Price'))
-                       .when(pl.col('Quantity') == pl.lit('Unit Price')).then(pl.lit('Unit Price'))
-                       .otherwise(pl.lit('Unknown'))
-                       .alias('Quantity Type'))
-
-# False = all zero values; true = one or more non-zero values; null = all null values.
-df = df.with_columns(pl.any_horizontal(values).alias('Status'))
-# df = df.filter(pl.col('Status').is_not_null())
+df = df.with_columns(pl.col('Quantity').map_dict(qtypelookup).alias('Quantity Type'))
 
 unitcol = df.select('Unit').to_series(0).to_list()
-df = df.with_columns(pl.Series(name = 'Unit', values = [x.replace('tCO2e', 't').replace('Mvkm', 'Gm').replace('vkm', 'km').replace('p-km', 'km').replace('€', 'EUR') for x in unitcol]))
+for ur in unitreplace:
+    unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
+df = df.with_columns(pl.Series(name = 'Unit', values = unitcol))
 
 scopecol = df.select('Scope').to_series(0).to_list()
-idvalues = []
+labels = []
 for x in scopecol:
     if x:
-        idvalues.append('scope%i' % x)
+        labels.append('Scope %i' % x)
     else:
-        idvalues.append(x)
-df = df.with_columns(pl.Series(name = 'Scope', values = idvalues))
+        labels.append(x)
+df = df.with_columns(pl.Series(name = 'Scope', values = labels))
 
-for dim in dims[2:]:
-    dimcol = df.select(dim).to_series(0).to_list()
-    idvalues = []
-    for x in dimcol:
-        if x:
-            idvalues.append(x.lower().replace(' ', '_').replace('-', '_').replace('&', '').replace(',', ''))
-        else:
-            idvalues.append(x)
-
-    df = df.with_columns(pl.Series(name = dim, values = idvalues))
+# False = all zero values; true = one or more non-zero values; null = one or more null values, with zero values.
+df = df.with_columns(pl.any_horizontal(values).alias('Status'))
 
 dfaccum = df.clear()
 
 # ---------------------------------------------------------------------------------------
 report = open('Report.txt', 'w')
 
-report.write('Emission Factors: ')
-dfef = df.filter(pl.col('Quantity Type') == 'Emission Factor')
-if len(dfef) == len(dfef.select(dims).unique()):
-    report.write('(%i)' % len(dfef))
-else:
-    report.write('ERROR! Factors not uniquely identified by dimension category combinations!')
+def uniqueidcheck(df, qtype, dlist, rfile):
+    text = '%s: ' % qtype
+    dff = df.filter(pl.col('Quantity Type') == qtype)
+    if len(dff) == len(dff.select(dlist).unique()):
+        text += '(%i)\n' % len(dff)
+    else:
+        text += "ERROR! Not uniquely identified by dimension category combinations!\n"
 
-report.write('\n\nUnit Prices: ')
-dfup = df.filter(pl.col('Quantity Type') == 'Unit Price')
-if len(dfup) == len(dfup.select(dims).unique()):
-    report.write('(%i)' % len(dfup))
-else:
-    report.write('ERROR! Prices not uniquely identified by dimension category combinations!')
+    rfile.write(text)
+    return dff
+
+factordf = {}
+for qtype in ['Activity Factor', 'Emission Factor', 'Unit Price']:
+    factordf[qtype] = uniqueidcheck(df, qtype, dims, report)
+
+# ---------------------------------------------------------------------------------------
+def factorfinder(df, dimcols, factorframe, accumcols, aunit, rfile):
+    dfa = df.select(accumcols).clear()
+
+    if not factorframe.is_empty():
+        # Create list of possible join dimensions for the sector's activity records. Begin with all non-null
+        # dimensions; never join on 'Scope'; reverse dimension order, so that for combinations of given length,
+        # custom dimensions are first considered, then 'Energy Carrier,' and 'Sector' only last.
+        joinkeys = list(dimcols)
+        joinkeys.remove('Scope')
+        joinkeys.reverse()
+
+        df = df.with_row_count(name = 'Index')
+        for i in range(len(df)):
+            dfi = df.filter(pl.col('Index') == i)
+            dfj = dfi.join(factorframe, on = joinkeys)
+
+            ijoinkeys = False
+            if not dfj.is_empty():
+                ijoinkeys = joinkeys
+            else:
+                keycount = len(joinkeys)
+                while dfj.is_empty() and keycount > 1:
+                    keycount -= 1
+                    for combo in list(itertools.combinations(joinkeys, keycount)):
+                        dfj = dfi.join(factorframe, on = combo)
+
+                        remainder = list(set(joinkeys) - set(combo))
+                        for r in remainder:
+                            dfj = dfj.filter(pl.col('%s_right' % r).is_null())
+
+                        if not dfj.is_empty():
+                            # Having found a set of dimension(s) on which to join, check units for compatibility.
+                            funits = dfj.select('Unit_right').unique(maintain_order = True).to_series(0).to_list()
+                            fseries = [funit.split('/')[1] == aunit.split('/')[0] for funit in funits]
+
+                            dfj = dfj.filter(pl.Series(fseries))
+                            if not dfj.is_empty():
+                                ijoinkeys = list(combo)
+                                break
+
+            if ijoinkeys:
+                rfile.write('\n\t\t%i: %s: %s (%i) ' % (i, dfi.select(dimcols).row(0), ijoinkeys, len(dfj)))
+
+                # Always take 'Sector' and 'Scope' values from activity records.
+                acols = [x if x in ijoinkeys else '%s_right' % x for x in accumcols]
+                acols[0] = 'Sector'
+                acols[1] = 'Scope'
+                aframe = dfj.select(acols)
+                aframe.columns = accumcols
+
+                aframe = unitcheck(aframe, values, rfile)
+
+                dfa = pl.concat([dfa, aframe])
+
+    dfa = dfa.unique(maintain_order = True)
+    return dfa
+
+# ---------------------------------------------------------------------------------------
+def unitcheck(df, vlist, rfile):
+    rfile.write('Units: ')
+    units = df.select('Unit').unique(maintain_order = True).to_series(0).to_list()
+    if units.count(None) == 1:
+        rfile.write('ERROR! One or more missing units!')
+    elif len(units) == 1:
+        rfile.write('%s' % units[0])
+    else:
+        rfile.write('%s -> %s' % (units, units[0]))
+
+        for y in vlist:
+            df = df.with_columns(pl.struct(pl.col(y).alias('Value'), pl.col('Unit'),
+                                           pl.lit(units[0]).alias('ToUnit')).map_elements(pconvert).alias(y))
+        df = df.with_columns(pl.lit(units[0]).alias('Unit'))
+
+    return df
+
+def dimensioncheck(df, dlist, rfile):
+    rfile.write('\n\t\tDimensions: ')
+    dimcats = df.select(dlist).unique()
+    if len(df) != len(dimcats):
+        rfile.write('\n\t\t\tERROR! Values not uniquely identified by dimension category combinations!')
+
+    for dim in dlist:
+        cats = dimcats.select(dim).unique().to_series(0).to_list()
+        if cats == [None]:
+            dimcats = dimcats.drop(dim)
+        elif None in cats:
+            report.write('\n\t\t\tERROR! One or more missing values in dimension "%s".' % dim)
+
+    rfile.write('%s' % dimcats.columns)
+    return dimcats.columns
 
 # ---------------------------------------------------------------------------------------
 for sector in sectors:
-    report.write('\n\nGPC Sector %s' % sector)
+    report.write('\nGPC Sector %s' % sector)
 
-    for quantity in ['Emissions', 'Activity', 'Price']:
+    for qtype in ['Emissions', 'Activity', 'Price']:
         dff = df.filter((pl.col('Sector') == sector) &
-                        (pl.col('Quantity Type') == quantity))
+                        (pl.col('Quantity Type') == qtype))
 
         if not dff.is_empty():
-            report.write('\n\t%s (%i, %i)\n\t\tUnits: ' % (quantity,
-                                                           len(dff.filter(pl.col('Status') == False)),
-                                                           len(dff.filter(pl.col('Status') == True))))
-
-            units = dff.select('Unit').unique(maintain_order = True).to_series(0).to_list()
-            if units.count(None) == 1:
-                report.write('ERROR! One or more missing units!')
-            elif len(units) == 1:
-                report.write('%s' % units[0])
-            else:
-                report.write('%s -> %s' % (units, units[0]))
-
-                for y in values:
-                    dff = dff.with_columns(pl.struct(pl.col(y).alias('Value'), pl.col('Unit'),
-                                                     pl.lit(units[0]).alias('ToUnit')).map_elements(pconvert).alias(y))
-                dff = dff.with_columns(pl.lit(units[0]).alias('Unit'))
-
-            # ---------------------------------------------------------------------------
-            report.write('\n\t\tDimensions: ')
-            dimcats = dff.select(dims).unique()
-            if len(dff) != len(dimcats):
-                report.write('\n\t\t\tERROR! Values not uniquely identified by dimension category combinations!')
-
-            for dim in dims:
-                cats = dimcats.select(dim).unique().to_series(0).to_list()
-                if cats == [None]:
-                    dimcats = dimcats.drop(dim)
-                elif None in cats:
-                    report.write('\n\t\t\tERROR! One or more missing values in dimension "%s".' % dim)
-
-            report.write('%s' % dimcats.columns)
+            report.write('\n\t%s (%i T, %i F, %i N):\n\t\t' % (qtype,
+                                                               len(dff.filter(pl.col('Status') == True)),
+                                                               len(dff.filter(pl.col('Status') == False)),
+                                                               len(dff.filter(pl.col('Status').is_null()))))
+            dff = unitcheck(dff, values, report)
+            qunit = dff.select('Unit').unique().to_series(0).to_list()[0]
+            qdims = dimensioncheck(dff, dims, report)
 
             dfaccum = pl.concat([dfaccum, dff.select(dfaccum.columns)])
 
-            if quantity == 'Activity':
-                dff = dff.with_row_count(name = 'Index')
+            # ---------------------------------------------------------------------------
+            if qtype == 'Activity':
+                afdf = factorfinder(dff, qdims, factordf['Activity Factor'], dfaccum.columns, qunit, report)
+                updf1 = factorfinder(dff, qdims, factordf['Unit Price'], dfaccum.columns, qunit, report)
 
-                # Create list of possible join dimensions for the sector's activity records. Begin with all non-null
-                # dimensions; never join on 'Scope'; reverse dimension order, so that for combinations of given length,
-                # custom dimensions are first considered, then 'Energy Carrier,' and 'Sector' only last.
-                joinkeys = dimcats.columns
-                joinkeys.remove('Scope')
-                joinkeys.reverse()
+                if not afdf.is_empty():
+                    report.write('\n\t\tConversion via Activity Factor')
+                    aunit = afdf.select('Unit').unique().to_series(0).to_list()[0]
+                    adims = dimensioncheck(afdf, dims, report)
 
-                for i in range(len(dff)):
-                    dfi = dff.filter(pl.col('Index') == i)
-                    dfj = dfi.join(dfef, on = joinkeys)
-
-                    if not dfj.is_empty():
-                        ijoinkeys = joinkeys
+                    if len(qdims) >= len(adims):
+                        tframe = dff.with_columns(pl.lit(aunit).alias('Unit'))
+                        efdf = factorfinder(tframe, qdims, factordf['Emission Factor'], dfaccum.columns, aunit, report)
+                        updf2 = factorfinder(tframe, qdims, factordf['Unit Price'], dfaccum.columns, aunit, report)
                     else:
-                        keycount = len(joinkeys)
-                        while dfj.is_empty():
-                            keycount -= 1
-                            for combo in list(itertools.combinations(joinkeys, keycount)):
-                                dfj = dfi.join(dfef, on = combo)
+                        efdf = factorfinder(afdf, adims, factordf['Emission Factor'], dfaccum.columns, aunit, report)
+                        updf2 = factorfinder(afdf, adims, factordf['Unit Price'], dfaccum.columns, aunit, report)
 
-                                remainder = list(set(joinkeys) - set(combo))
-                                for r in remainder:
-                                    dfj = dfj.filter(pl.col('%s_right' % r).is_null())
+                else:
+                    efdf = factorfinder(dff, qdims, factordf['Emission Factor'], dfaccum.columns, qunit, report)
+                    updf2 = dff.clear()
 
-                                if not dfj.is_empty():
-                                    ijoinkeys = list(combo)
-                                    break
+                if efdf.is_empty():
+                    report.write('\n\t\tERROR! No emission factor(s) found.')
 
-                    report.write('\n\t\t%i: %s: %s (%i)' % (i, dfi.select(dimcats.columns).row(0), ijoinkeys, len(dfj)))
-
-                    # -------------------------------------------------------------------
-                    # Always take 'Sector' and 'Scope' values from activity records.
-                    acols = [x if x in ijoinkeys else '%s_right' % x for x in dfaccum.columns]
-                    acols[0] = 'Sector'
-                    acols[1] = 'Scope'
-                    aframe = dfj.select(acols)
-                    aframe.columns = dfaccum.columns
-
-                    funits = aframe.select('Unit').unique(maintain_order = True).to_series(0).to_list()
-                    funit = '%s/%s' % (funits[0].split('/')[0], units[0].split('/')[0])
-
-                    report.write('\n\t\t\tFactors: ')
-                    if (len(funits) == 1) & (funits[0] == funit):
-                        report.write('%s' % funit)
-                    else:
-                        report.write('%s -> %s' % (funits, funit))
-
-                        for y in values:
-                            aframe = aframe.with_columns(pl.struct(pl.col(y).alias('Value'), pl.col('Unit'),
-                                                                   pl.lit(funit).alias('ToUnit')).map_elements(pconvert).alias(y))
-                        aframe = aframe.with_columns(pl.lit(funit).alias('Unit'))
-
-                    dfaccum = pl.concat([dfaccum, aframe])
-
-
-
-                # -----------------------------------------------------------------------
-                for i in range(len(dff)):
-                    dfi = dff.filter(pl.col('Index') == i)
-                    dfj = dfi.join(dfup, on = joinkeys)
-
-                    ijoinkeys = False
-                    if not dfj.is_empty():
-                        ijoinkeys = joinkeys
-                    else:
-                        keycount = len(joinkeys)
-                        while dfj.is_empty() and keycount > 1:
-                            keycount -= 1
-                            for combo in list(itertools.combinations(joinkeys, keycount)):
-                                dfj = dfi.join(dfup, on = combo)
-
-                                remainder = list(set(joinkeys) - set(combo))
-                                for r in remainder:
-                                    dfj = dfj.filter(pl.col('%s_right' % r).is_null())
-
-                                if not dfj.is_empty():
-                                    ijoinkeys = list(combo)
-                                    break
-
-                    if ijoinkeys:
-                        report.write('\n\t\t%i: %s: %s (%i)' % (i, dfi.select(dimcats.columns).row(0), ijoinkeys, len(dfj)))
-
-                        # ---------------------------------------------------------------
-                        # Always take 'Sector' and 'Scope' values from activity records.
-                        acols = [x if x in ijoinkeys else '%s_right' % x for x in dfaccum.columns]
-                        acols[0] = 'Sector'
-                        acols[1] = 'Scope'
-                        aframe = dfj.select(acols)
-                        aframe.columns = dfaccum.columns
-
-                        funits = aframe.select('Unit').unique(maintain_order = True).to_series(0).to_list()
-                        funit = '%s/%s' % (funits[0].split('/')[0], units[0].split('/')[0])
-
-                        report.write('\n\t\t\tPrices: ')
-                        if (len(funits) == 1) & (funits[0] == funit):
-                            report.write('%s' % funit)
-                        else:
-                            report.write('%s -> %s' % (funits, funit))
-
-                            for y in values:
-                                aframe = aframe.with_columns(pl.struct(pl.col(y).alias('Value'), pl.col('Unit'),
-                                                                       pl.lit(funit).alias('ToUnit')).map_elements(pconvert).alias(y))
-                            aframe = aframe.with_columns(pl.lit(funit).alias('Unit'))
-
-                        dfaccum = pl.concat([dfaccum, aframe])
-
-
+                for frame in [afdf, efdf, updf1, updf2]:
+                    if not frame.is_empty():
+                        dfaccum = pl.concat([dfaccum, frame])
 
 # ---------------------------------------------------------------------------------------
 dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
@@ -283,7 +265,7 @@ for i in range(len(dfaccum)):
         if mframe['Value'][0] is not None:
             dfmain = pl.concat([dfmain, mframe])
 
-dfmain = dfmain.unique(maintain_order = True)
+# dfmain = dfmain.unique(maintain_order = True)
 dfmain = dfmain.with_columns(pl.col('Scope').cast(pl.Utf8).alias('Scope'))
 
 report.close()
