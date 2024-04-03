@@ -23,13 +23,33 @@ yamlparameters['forecastyear'] = '%i' % (int(yamlparameters['maxyear']) + 1)
 yamlparameters['Instance']     = yamlparameters['instance'].title()
 
 # -------------------------------------------------------------------------------------------------
-def makeid(name: str):
-    return (name.lower().replace('.', '').replace(',', '').replace(':', '').replace('-', '').replace(' ', '_')
-            .replace('&', 'and').replace('å', 'a').replace('ä', 'a').replace('ö', 'o'))
+def makeid(label: str):
+    # Supported languages: Danish, English, Finnish, German, Polish, Swedish
+    idlookup = {'': ['.', ',', ':', '-'],
+                '_': [' '],
+                'and': ['&'],
+                'a': ['ä', 'å', 'ą'],
+                'c': ['ć'],
+                'e': ['ę'],
+                'l': ['ł'],
+                'n': ['ń'],
+                'o': ['ö', 'ø', 'ó'],
+                's': ['ś'],
+                'u': ['ü'],
+                'z': ['ź', 'ż'],
+                'ae': ['æ'],
+                'ss': ['ß']}
+
+    idtext = label.lower()
+    for tochar in idlookup:
+        for fromchar in idlookup[tochar]:
+            idtext = idtext.replace(fromchar, tochar)
+
+    return idtext
 
 def dimlist(df):
     dimlist = []
-    for dim in list(set(df.columns) - set(['Sector', 'Sector name', 'Quantity', 'Unit', 'Value', 'Year'])):
+    for dim in list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year'])):
         if df.select(dim).unique().to_series(0).to_list() != [None]:
             dimlist.append(makeid(dim))
 
@@ -108,27 +128,6 @@ levellookup = {
                    'IV' : 'IPPU',
                    'V'  : 'AFOLU'}
               }
-# German translations
-# 'Residential ' 'Wohn'
-# 'Fuel ' 'kraftstoff'
-# 'Grid Energy ' 'Netzenergie'
-# 'Energy' 'Energie'
-# ' Emissions' 'Emissionen'
-# 'Onroad transport' 'Straßentransport'
-# ' Consumption' 'verbrauch'
-# ' Emission factor' 'emissionsfaktor'
-# ' Action' 'aktion'
-# 'Net emissions', 'Nettoemissionen'
-# ' Total Emissions', 'gesamtemissionen'
-# 'Industrial ' 'Industrie'
-# 'Road transport ' 'Straßentransport'
-# 'Climate Action Plan' 'Klimaschutzplan'
-# 'Business as usual' 'Wie gewohnt'
-# 'Greenhouse Gas Inventory' 'Traibhausgasinventur'
-# 'Forecast' 'Prognose'
-# 'Stationary' 'Stationär'
-# 'Transport' 'Transport'
-# 'Waste' 'Abfall'
 
 quantitylookup = {'Emission Factor'   : {'name': 'Emission Factor', 'quantity': 'emission_factor'},
                   'Emissions'         : {'name': 'Emissions'      , 'quantity': 'emissions'},
@@ -438,7 +437,7 @@ yamlfile.write(yaml)
 
 # -------------------------------------------------------------------------------------------------
 yamlfile.write('dimensions:\n')
-dims = list(set(df.columns) - set(['Sector', 'Sector name', 'Quantity', 'Unit', 'Value', 'Year']))
+dims = list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year']))
 for dim in dims:
     cats = df.select(pl.col(dim)).filter(pl.col(dim).is_null().not_()).unique().to_series(0).to_list()
 
