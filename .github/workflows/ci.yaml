@@ -5,8 +5,8 @@ jobs:
     name: Build Docker images, run tests and push to Docker registry
     runs-on: self-hosted
     env:
-      APP_IMAGE: ${{ secrets.KAUSAL_DOCKER_REGISTRY_HOSTNAME }}/paths
-      DB_IMAGE: ${{ secrets.KAUSAL_DOCKER_REGISTRY_HOSTNAME }}/paths-postgres
+      APP_IMAGE_NAME: paths
+      DB_IMAGE_NAME: paths-postgres
       POSTGRES_PASSWORD: foobar123
       DATABASE_URL: postgres://paths:foobar123@db/paths
       EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
@@ -14,6 +14,7 @@ jobs:
       EXTRA_INSTALLED_APPS: kausal_paths_extensions
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
+      VAULT_PROJECT: paths-backend
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -22,6 +23,15 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/deployment/')
         run: |
           echo "DEPLOYMENT_TYPE=$(echo ${{ github.ref }} | cut -d / -f 4)" >> $GITHUB_ENV
+
+      - name: Import Secrets
+        id: secrets
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_URL }}
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+              common-dev/data/github-actions/${{ env.VAULT_PROJECT }} * | DOCKER_ ;
 
       - name: Install Docker-compose
         run: |
@@ -55,10 +65,9 @@ jobs:
         if: env.DEPLOYMENT_TYPE
         uses: docker/login-action@v2
         with:
-          registry: ${{ secrets.KAUSAL_DOCKER_HOSTNAME }}
-          username: docker
-          # FIXME: Instead of using the password, we should probably switch to token authentication with limited scope
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          registry: ${{ steps.secrets.outputs.DOCKER_REPO }}
+          username: ${{ steps.secrets.outputs.DOCKER_USERNAME }}
+          password: ${{ steps.secrets.outputs.DOCKER_PASSWORD }}
       # - name: Push latest tag to Docker registry
       #   if: github.ref == 'refs/heads/main'
       #   run: |
@@ -66,6 +75,9 @@ jobs:
       #     docker push ${{ env.DB_IMAGE }}:latest
       - name: Tag and push to registry
         if: env.DEPLOYMENT_TYPE
+        env:
+          APP_IMAGE: ${{ steps.secrets.outputs.DOCKER_REPO }}/${{ env.APP_IMAGE_NAME }}
+          DB_IMAGE: ${{ steps.secrets.outputs.DOCKER_REPO }}/${{ env.DB_IMAGE_NAME }}
         run: |
           docker tag ${{ env.APP_IMAGE }} ${{ env.APP_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-${{ github.run_number }}
           docker tag ${{ env.APP_IMAGE }} ${{ env.APP_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-latest
