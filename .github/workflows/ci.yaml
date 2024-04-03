@@ -26,15 +26,15 @@ jobs:
       # Clean up database volume left over from previous runs. If we don't do this, after a major version upgrade the db
       # container will refuse to start since it detects a existing incompatible database.
       - name: Remove existing containers and volumes
-        run: docker-compose down -v
+        run: docker compose down -v
       - name: Build Docker containers
-        run: docker-compose build
+        run: docker compose build
       - name: Start Postgres and Redis
-        run: docker-compose up -d db redis
+        run: docker compose up -d db redis
       - name: Run pytest unit tests
-        run: docker-compose run --rm --entrypoint '' app pytest
+        run: docker compose run --rm --entrypoint '' app pytest
       - name: Stop Postgres and Redis
-        run: docker-compose down
+        run: docker compose down
       - name: Log into Docker registry
         if: env.DEPLOYMENT_TYPE
         uses: docker/login-action@v2
