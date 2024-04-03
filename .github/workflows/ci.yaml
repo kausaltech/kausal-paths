@@ -14,7 +14,7 @@ jobs:
       EXTRA_INSTALLED_APPS: kausal_paths_extensions
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
-      VAULT_PROJECT: paths-backend
+      VAULT_KEY: common-dev/data/github-actions/project/paths-backend
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -31,7 +31,7 @@ jobs:
           url: ${{ secrets.VAULT_URL }}
           token: ${{ secrets.VAULT_TOKEN }}
           secrets: |
-              common-dev/data/github-actions/${{ env.VAULT_PROJECT }} * | DOCKER_ ;
+              ${{ env.VAULT_KEY }}/docker * | DOCKER_ ;
 
       - name: Install Docker-compose
         run: |
