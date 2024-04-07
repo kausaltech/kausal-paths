@@ -1,7 +1,7 @@
 id: pirkkala_hinku
 default_language: fi
 supported_languages: []
-framework: hinku
+frameworks: [hinku]
 site_url: https://pirkkala.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
