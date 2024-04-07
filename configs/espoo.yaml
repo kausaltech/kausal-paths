@@ -11,7 +11,7 @@
 id: espoo
 default_language: fi
 supported_languages: [sv, en]
-framework: hsy
+frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git

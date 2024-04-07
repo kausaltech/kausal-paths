@@ -652,7 +652,7 @@ class InstanceLoader:
         by_id = {d['id']: d for d in confs}
         for fwn in fw_confs:
             n = by_id.get(fwn['id'])
-            if n is None:
+            if n is None:  # NOTE! The checking of double node ids does not work if the id is once in nodes and once in emission_sectors
                 confs.append(fwn)
             else:
                 continue
@@ -667,8 +667,8 @@ class InstanceLoader:
         if 'instance' in data:
             data = data['instance']
 
-        framework = data.get('framework')
-        if framework:
+        frameworks = data.get('frameworks')
+        for framework in frameworks:
             base_dir = os.path.dirname(filename)
             framework_fn = os.path.join(base_dir, 'frameworks', framework + '.yaml')
             if not os.path.exists(framework_fn):
@@ -676,6 +676,7 @@ class InstanceLoader:
             fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
             cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
             cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
+            cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
 
         return cls(data, yaml_file_path=filename)
 
