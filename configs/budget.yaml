@@ -1,6 +1,7 @@
 id: budget
 default_language: en
 supported_languages: [fi]
+frameworks: [nzc_actions]
 site_url: https://budget.paths.test.kausal.dev
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -10,7 +11,7 @@ dataset_repo:
 name: Climate budgeting sandbox
 owner: Kausal Ltd
 theme_identifier: eu-climate-4-cast
-target_year: 2040
+target_year: 2030
 model_end_year: 2040
 minimum_historical_year: 2010
 maximum_historical_year: 2023
