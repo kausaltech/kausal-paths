@@ -231,7 +231,7 @@ class PathsDataFrame(pl.DataFrame):
 
     def multiply_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
         res_unit = self._units[col] * quantity.units
-        df = self.with_columns([pl.col(col) * pl.lit(quantity.m)])
+        df = self.with_columns((pl.col(col) * pl.lit(quantity.m)).alias(col))
         df._units[col] = res_unit
         if out_unit:
             df = df.ensure_unit(col, out_unit)
@@ -244,6 +244,14 @@ class PathsDataFrame(pl.DataFrame):
         df._units[out_col] = res_unit
         if out_unit:
             df = df.ensure_unit(out_col, out_unit)
+        return df
+
+    def divide_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
+        res_unit = quantity.units / self._units[col]
+        df = self.with_columns((pl.lit(quantity.m) / pl.col(col)).alias(col))
+        df._units[col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(col, out_unit)
         return df
 
     def sum_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None, skip_missing: bool = False) -> PathsDataFrame:

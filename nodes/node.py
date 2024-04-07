@@ -42,7 +42,7 @@ from .datasets import Dataset, JSONDataset
 from .dimensions import Dimension
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeHashingError
-from .units import Quantity, Unit
+from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
     from .processors import Processor
@@ -969,6 +969,19 @@ class Node:
                 raise NodeComputationError(self, "Error getting output") from e
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
+
+        if target_node is not None:
+            for edge in self.edges:
+                if edge.output_node == target_node:
+                    break
+            else:
+                raise NodeError(self, "No connection to target node %s" % target_node.id)
+            if 'arithmetic_inverse' in edge.tags:
+                res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+            if 'geometric_inverse' in edge.tags:
+                res = res.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+                print(res)
+
         return res
 
     def _get_output_pl(
