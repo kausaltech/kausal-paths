@@ -668,15 +668,16 @@ class InstanceLoader:
             data = data['instance']
 
         frameworks = data.get('frameworks')
-        for framework in frameworks:
-            base_dir = os.path.dirname(filename)
-            framework_fn = os.path.join(base_dir, 'frameworks', framework + '.yaml')
-            if not os.path.exists(framework_fn):
-                raise Exception("Config expects framework but %s does not exist" % framework_fn)
-            fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
-            cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
-            cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
-            cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
+        if frameworks:
+            for framework in frameworks:
+                base_dir = os.path.dirname(filename)
+                framework_fn = os.path.join(base_dir, 'frameworks', framework + '.yaml')
+                if not os.path.exists(framework_fn):
+                    raise Exception("Config expects framework but %s does not exist" % framework_fn)
+                fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
+                cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
+                cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
+                cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
 
         return cls(data, yaml_file_path=filename)
 
