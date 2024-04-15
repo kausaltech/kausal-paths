@@ -379,6 +379,13 @@ nodes:
   - id: region
     value: Suomi
 
+- id: net_emissions2  # Needed locally because it is stuck to the database
+  name: Empty placeholder
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  historical_values: [[2020, 0]]
+
 # ---------------------------- Suomen metsänielukeskustelu
 
 - id: cumulative_carbon_emissions

@@ -12,6 +12,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: fraction
   unit: '%'
+  group: transport
   forecast_values: [[2024, 0]]
   params:
   - id: target_year_level

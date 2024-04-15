@@ -66,8 +66,8 @@ action_efficiency_pairs:
   impact_unit: t
   label: Cost effectiveness
 - graph_type: return_of_investment
-  cost_node: test_investments
-  impact_node: discounted_costs_for_the_city
+  cost_node: total_discounted_action_costs
+  impact_node: total_discounted_economic_costs
   invert_cost: false
   invert_impact: false
   indicator_unit: '%'
@@ -85,15 +85,17 @@ action_efficiency_pairs:
   stakeholder_dimension: stakeholder
   outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis
-#- graph_type: cost_effectiveness
-#  cost_node: total_economic_costs
-#  impact_node: discounted_costs
-#  invert_cost: true
-#  invert_impact: true
-#  indicator_unit: dimensionless
-#  cost_unit: MEUR
-#  impact_unit: MEUR
-#  label: cost-effectiveness analysis
+- graph_type: cost_benefit
+  cost_node: total_discounted_action_costs
+  impact_node: total_economic_costs
+  invert_cost: true
+  invert_impact: true
+  indicator_unit: MEUR
+  cost_unit: MEUR
+  impact_unit: MEUR
+#  stakeholder_dimension: stakeholder
+#  outcome_dimension: outcome_of_interest
+  label: Cost-benefit analysis for the city
 
 dimensions:
 
@@ -740,6 +742,8 @@ nodes:
     forecast_from: 2024
   input_dimensions: [account]
   output_dimensions: [account]
+  output_nodes:
+  - id: total_action_costs
 - id: building_emission_costs
   name: building emission costs
   type: simple.MultiplicativeNode
@@ -776,6 +780,8 @@ nodes:
     forecast_from: 2024
   input_dimensions: [account]
   output_dimensions: [account]
+  output_nodes:
+  - id: total_action_costs
 - id: other_stationary_emission_costs
   name: other_stationary emission costs
   type: simple.MultiplicativeNode
@@ -812,6 +818,8 @@ nodes:
     forecast_from: 2024
   input_dimensions: [account]
   output_dimensions: [account]
+  output_nodes:
+  - id: total_action_costs
 - id: transport_emission_costs
   name: transport emission costs
   type: simple.MultiplicativeNode
@@ -848,6 +856,8 @@ nodes:
     forecast_from: 2024
   input_dimensions: [account]
   output_dimensions: [account]
+  output_nodes:
+  - id: total_action_costs
 - id: waste_emission_costs
   name: waste emission costs
   type: simple.MultiplicativeNode
@@ -880,6 +890,30 @@ nodes:
   unit: EUR/t
   historical_values: [[2010, 100]]
 
+- id: total_action_costs
+  name: Total action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [account]
+  output_dimensions: [account]
+
+- id: total_discounted_action_costs
+  name: Total discounted action costs
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: total_action_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
 ############### Collection nodes
 
 - id: collect_building
@@ -889,12 +923,12 @@ nodes:
   quantity: number
   unit: pcs
   historical_values: [[2010, 0]]
-  input_nodes:
-  - id: building_emissions
-  - id: building_costs
-    from_dimensions:
-    - id: account
-      flatten: true
+#  input_nodes:
+#  - id: building_emissions
+#  - id: building_costs
+#    from_dimensions:
+#    - id: account
+#      flatten: true
 - id: collect_other_stationary
   name: Collect other_stationary nodes
   description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
