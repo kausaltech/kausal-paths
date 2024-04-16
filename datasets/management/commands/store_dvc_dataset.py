@@ -1,16 +1,14 @@
-from dvc_pandas import Dataset as DVCDataset, Repository
-from rich.table import Table
-from rich.console import Console
+from django.core.management.base import BaseCommand
 
-from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from dvc_pandas import Dataset as DVCDataset, Repository
+from rich.console import Console
+from rich.table import Table
+
 from common.i18n import get_translated_string_from_modeltrans
-from datasets.models import Dataset, DatasetDimension, Dimension, DatasetMetric
-from common import polars as ppl
+from datasets.models import Dataset
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
 from nodes.node import Context
-from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 
 
 class Command(BaseCommand):
