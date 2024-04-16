@@ -1,0 +1,73 @@
+id: lappeenranta-syke
+default_language: fi
+supported_languages: [en]
+frameworks: [syke]
+site_url: https://lappeenranta-syke.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  dvc_remote: kausal-s3
+  commit: 791d34a61e64f4cbf07a1c40c1efe13aad954a2c
+theme_identifier: lpr-ilmasto
+name: Lappeenrannan ilmasto-ohjelma 2030
+name_en: Lappeenranta Climate Action Plan 2030
+owner: Lappeenrannan kaupunki
+owner_en: City of Lappeenranta
+emission_unit: kt/a
+target_year: 2030
+model_end_year: 2030
+reference_year: 2005
+minimum_historical_year: 2010
+params:
+- id: municipality_name
+  value: Lappeenranta
+- id: extend_historical_values
+  value: true
+- id: selected_framework
+  value: Hinku-laskenta päästöhyvityksillä
+  # Currently available options:
+  # Hinku-laskenta ilman päästöhyvityksiä
+  # Hinku-laskenta päästöhyvityksillä
+  # Kaikki ALas-päästöt
+  # Taakanjakosektorin kaikki ALas-päästöt
+  # Päästökaupan alaiset ALas-päästöt
+
+emission_sectors:
+- id: net_emissions
+  name: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  is_outcome: true
+  target_year_goal: 112.2
+
+nodes:
+- id: population
+  type: finland.Population
+  name: Väestö
+
+- id: all_alas_emissions
+  type: finland.syke.AlasNode
+  name: SYKE:n ALaS-päästöinventaario
+
+pages:
+- id: home
+  name: Hiilineutraali Lappeenranta -päästöskenaario
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Lappeenrannan päästöskenaariot
+  lead_title_en: Lappeenranta emission scenarios
+  lead_paragraph: Lappeenrannan päästöskenaariot visualisoi Lappeenrannan kasvihuonekaasupäästöjen
+    kehityksen. Voit tarkastella, mistä Lappeenrannan kaupungin alueen päästöt syntyvät
+    ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario,
+    Lappeenrannan ilmasto-ohjelman mukainen skenaario sekä skenaario, jota voit itse
+    muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
+    riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
+
+scenarios:
+- id: baseline
+  name: Nykykehitys
+  name_en: Baseline
+
+- id: default
+  default: true
+  name: Lappeenrannan ilmasto-ohjelma
+  name_en: Lappeenranta Climate Action Plan
