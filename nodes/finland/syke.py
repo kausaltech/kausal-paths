@@ -138,6 +138,6 @@ class AlasEmissions(Node):
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df[FORECAST_COLUMN] = False
 
-        if self.get_global_parameter_value('extend_historical_values'):
+        if self.get_global_parameter_value('extend_historical_values', required=False):
             df = extend_last_historical_value(df, self.get_end_year())
         return df
