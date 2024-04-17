@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-10-31 14:23+0200\n"
+"POT-Creation-Date: 2024-04-17 16:50+0300\n"
 "PO-Revision-Date: 2023-03-06 13:25+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,556 +18,688 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin_site/api.py
+#: admin_site/api.py:25 admin_site/api.py:30
 #, fuzzy
 #| msgid "email address"
 msgid "Invalid email address"
 msgstr "E-Mail Adresse"
 
-#: admin_site/api.py
+#: admin_site/api.py:34
 msgid ""
 "No user found with this email address. Ask your administrator to create an "
 "account for you."
 msgstr ""
 
-#: admin_site/api.py
+#: admin_site/api.py:38
 msgid "This user does not have access to admin."
 msgstr ""
 
-#: admin_site/perms.py
+#: admin_site/perms.py:124
 msgid "General admin"
 msgstr ""
 
-#: admin_site/templates/wagtailadmin/home.html
+#: admin_site/templates/wagtailadmin/home.html:4
 msgid "Welcome to Paths admin"
 msgstr ""
 
-#: admin_site/templates/wagtailadmin/login.html
+#: admin_site/templates/wagtailadmin/login.html:11
 msgid "Sign in to Kausal Paths admin"
 msgstr ""
 
-#: admin_site/templates/wagtailadmin/login.html
+#: admin_site/templates/wagtailadmin/login.html:20
 msgid "Our apologies, the server is temporarily experiencing difficulties."
 msgstr ""
 
-#: admin_site/wagtail_hooks.py
+#: admin_site/wagtail_hooks.py:71
 msgid "Choose instance"
 msgstr "Wähle Instanz"
 
-#: datasets/models.py
+#: datasets/models.py:53
 msgid "dataset"
 msgstr "Datensatz"
 
-#: datasets/models.py
+#: datasets/models.py:54
 msgid "datasets"
 msgstr "Datensätze"
 
-#: datasets/models.py
+#: datasets/models.py:184 datasets/models.py:271
 msgid "label"
 msgstr "Beschriftung"
 
-#: datasets/models.py
+#: datasets/models.py:220
 msgid "data source reference"
 msgstr ""
 
-#: datasets/models.py
+#: datasets/models.py:221
 msgid "data source references"
 msgstr ""
 
-#: datasets/models.py
+#: datasets/models.py:226
 msgid "Review comment"
 msgstr ""
 
-#: datasets/models.py
+#: datasets/models.py:227
 msgid "Sticky comment"
 msgstr ""
 
-#: datasets/models.py
+#: datasets/models.py:230
 #, fuzzy
 #| msgid "resolved at"
 msgid "Resolved"
 msgstr "gelöst am"
 
-#: datasets/models.py
+#: datasets/models.py:231
 #, fuzzy
 #| msgid "resolved at"
 msgid "Unresolved"
 msgstr "gelöst am"
 
-#: datasets/models.py
+#: datasets/models.py:248
 msgid "resolved at"
 msgstr "gelöst am"
 
-#: datasets/models.py
+#: datasets/models.py:259
 msgid "comment"
 msgstr ""
 
-#: datasets/models.py
+#: datasets/models.py:260
 msgid "comments"
 msgstr ""
 
-#: datasets/wagtail_hooks.py
+#: datasets/wagtail_hooks.py:12
 #, fuzzy
 #| msgid "Dimensions"
 msgid "Data dimensions"
 msgstr "Dimensionen"
 
-#: datasets/wagtail_hooks.py nodes/models.py
+#: datasets/wagtail_hooks.py:26 nodes/models.py:479
 msgid "Data sources"
 msgstr "Datenquellen"
 
-#: nodes/actions/action.py
+#: mysite/home/templates/home/welcome_page.html:6
+msgid "Visit the Wagtail website"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:15
+msgid "View the release notes"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:27
+msgid "Welcome to your new Wagtail site!"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:28
+msgid ""
+"Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">join our community on Slack</a>, or get started with one of the links "
+"below."
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:35
+msgid "Wagtail Documentation"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:36
+msgid "Topics, references, & how-tos"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:42
+msgid "Tutorial"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:43
+msgid "Build your first Wagtail site"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:49
+msgid "Admin Interface"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:50
+msgid "Create your superuser first!"
+msgstr ""
+
+#: nodes/actions/action.py:50
 msgid "Is implemented"
 msgstr "Wird umgesetzt"
 
-#: nodes/actions/action.py
+#: nodes/actions/action.py:50
 msgid "Is the action included in the scenario"
 msgstr ""
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:51
 msgid "Number of LED bulbs changed per year (baseline)"
 msgstr "Anzahl jährlich gewechselter LED-Lampen (Basis)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:57
 msgid "Number of additional LED bulbs changed per year"
 msgstr "Anzahl jährlich zusätzlich gewechselter LED-Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:62
 msgid "Yearly increase in total number of luminaires"
 msgstr "Jährliche Erhöhung der Gesamtzahl der Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:67
 msgid "Yearly maintenance cost of traditional luminaires"
 msgstr "Jährliche Betriebskosten herkömmlicher Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:73 nodes/actions/energy_saving.py:103
 msgid "Yearly maintenance cost of LED luminaires"
 msgstr "Jährliche Betriebskosten von LED-Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:79
 msgid "Traditional luminaire power consumption"
 msgstr "Stromverbrauch herkömmlicher Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:85
 msgid "LED luminaire power consumption"
 msgstr "Stromverbrauch von LED-Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:91
 msgid "Traditional luminaire yearly active time"
 msgstr "Jährliche aktive Zeit traditioneller Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:97
 msgid "LED luminaire yearly active time"
 msgstr "Jährliche aktive Zeit von LED-Lampen"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:109
 msgid "Investment cost of one LED retrofit"
 msgstr "Investitionskosten für eine LED-Nachrüstung"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:284 nodes/actions/energy_saving.py:442
 msgid "Investment lifetime (a)"
 msgstr "Lebensdauer der Investition (a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:290
 #, fuzzy
 #| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Investment cost (SEK/m2)"
 msgstr "Betriebskosten (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:296
 msgid "Maintenance cost (SEK/m2/a)"
 msgstr "Betriebskosten (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:302
 msgid "Heat saving (kWh/m2/a)"
 msgstr "Wärmeeinsparung (kWh/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:308
 msgid "Electricity saving (kWh/m2/a)"
 msgstr "Stromeinsparung (kWh/m2/a)"
 
-#: nodes/actions/energy_saving.py
-#, python-format
+#: nodes/actions/energy_saving.py:314 nodes/actions/energy_saving.py:472
 msgid "Renovation potential (% of floor area)"
 msgstr "Renovierungspotential (% der Grundfläche)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:448
 #, fuzzy
 #| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Investment cost (USD/square foot)"
 msgstr "Betriebskosten (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:454
 #, fuzzy
 #| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Maintenance cost (USD/square foot/a)"
 msgstr "Betriebskosten (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:460
 msgid "Natural gas saving (thm/square foot/a)"
 msgstr ""
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:466
 #, fuzzy
 #| msgid "Electricity saving (kWh/m2/a)"
 msgid "Electricity saving (kWh/square foot/a)"
 msgstr "Stromeinsparung (kWh/m2/a)"
 
-#: nodes/blocks.py nodes/models.py
+#: nodes/blocks.py:8 nodes/models.py:537
 msgid "Node"
 msgstr "Knoten"
 
-#: nodes/blocks.py
+#: nodes/blocks.py:25
 #, fuzzy
 #| msgid "Outcome page"
 msgid "Outcome node"
 msgstr "Ergebnisseite"
 
-#: nodes/choosers.py
+#: nodes/choosers.py:33 nodes/choosers.py:39
 #, fuzzy
 #| msgid "Cost node"
 msgid "Choose a node"
 msgstr "Kostenknoten"
 
-#: nodes/choosers.py
+#: nodes/choosers.py:40
 #, fuzzy
 #| msgid "Choose instance"
 msgid "Choose another node"
 msgstr "Wähle Instanz"
 
-#: nodes/instance.py
+#: nodes/instance.py:587
 msgid "Custom"
 msgstr "Angepasst"
 
-#: nodes/metric.py
+#: nodes/metric.py:321
 msgid "Sectors"
 msgstr "Sektoren"
 
-#: nodes/models.py
+#: nodes/models.py:101 nodes/models.py:487
 msgid "UUID"
 msgstr ""
 
-#: nodes/models.py
+#: nodes/models.py:102 nodes/models.py:460
 msgid "name"
 msgstr "Name"
 
-#: nodes/models.py pages/models.py
+#: nodes/models.py:103 pages/models.py:134 pages/models.py:166
 msgid "Lead title"
 msgstr "Leittitel"
 
-#: nodes/models.py pages/models.py
+#: nodes/models.py:104 pages/models.py:135 pages/models.py:167
 msgid "Lead paragraph"
 msgstr "Leitabsatz"
 
-#: nodes/models.py
+#: nodes/models.py:105
 msgid "Site URL"
 msgstr "Seiten-URL"
 
-#: nodes/models.py
+#: nodes/models.py:145
 msgid "Instance"
 msgstr "Instanz"
 
-#: nodes/models.py
+#: nodes/models.py:146
 msgid "Instances"
 msgstr "Instanzen"
 
-#: nodes/models.py
+#: nodes/models.py:347
 msgid "Actions"
 msgstr "Maßnahmen"
 
-#: nodes/models.py
+#: nodes/models.py:430
 msgid "Instance hostname"
 msgstr "Instanz-Hostname"
 
-#: nodes/models.py
+#: nodes/models.py:431
 msgid "Instance hostnames"
 msgstr "Instanz-Hostnamen"
 
-#: nodes/models.py
+#: nodes/models.py:446
 #, fuzzy
 #| msgid "Instance"
 msgid "Instance token"
 msgstr "Instanz"
 
-#: nodes/models.py
+#: nodes/models.py:447
 #, fuzzy
 #| msgid "Instances"
 msgid "Instance tokens"
 msgstr "Instanzen"
 
-#: nodes/models.py
+#: nodes/models.py:457
 msgid "instance"
 msgstr "Instanz"
 
-#: nodes/models.py
+#: nodes/models.py:461
 msgid "edition"
 msgstr "Fassung"
 
-#: nodes/models.py
+#: nodes/models.py:464
 msgid "authority"
 msgstr "Herausgeber"
 
-#: nodes/models.py
+#: nodes/models.py:464
 msgid "The organization responsible for the data source"
 msgstr "Die Organisation, die für die Datenquelle verantwortlich ist"
 
-#: nodes/models.py
+#: nodes/models.py:467
 msgid "description"
 msgstr "Beschreibung"
 
-#: nodes/models.py
+#: nodes/models.py:468
 msgid "URL"
 msgstr "URL"
 
-#: nodes/models.py
+#: nodes/models.py:478
 msgid "Data source"
 msgstr "Datenquelle"
 
-#: nodes/models.py
+#: nodes/models.py:490
 msgid "Order"
 msgstr "Sortierung"
 
-#: nodes/models.py
+#: nodes/models.py:494
+msgid "Goal"
+msgstr ""
+
+#: nodes/models.py:498
 msgid "Short description"
 msgstr "Kurze Beschreibung"
 
-#: nodes/models.py
+#: nodes/models.py:501
 msgid "Description"
 msgstr "Beschreibung"
 
-#: nodes/models.py
+#: nodes/models.py:538
 msgid "Nodes"
 msgstr "Knoten"
 
-#: nodes/processors.py
+#: nodes/processors.py:81
 msgid "Multiplier"
 msgstr "Multiplikator"
 
-#: nodes/units.py
+#: nodes/units.py:182
 msgid "capita"
 msgstr "Einwohner"
 
-#: nodes/units.py
+#: nodes/units.py:183
 msgctxt "capita short"
 msgid "cap"
 msgstr "Einw."
 
-#: nodes/units.py
+#: nodes/units.py:184
 msgctxt "kilotonne short"
 msgid "kt"
 msgstr "kt"
 
-#: nodes/units.py
+#: nodes/units.py:185
 msgctxt "year short"
 msgid "yr."
 msgstr "a"
 
-#: nodes/units.py
+#: nodes/units.py:186
 msgctxt "percent"
 msgid "percent"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:52
 msgid "show in footer"
 msgstr "in Fußzeile anzeigen"
 
-#: pages/models.py
+#: pages/models.py:53
 msgid "Should the page be shown in the footer?"
 msgstr "Soll die Seite in der Fußzeile angezeigt werden?"
 
-#: pages/models.py
+#: pages/models.py:68
 msgid "Common page configuration"
 msgstr "Allgemeine Seitenkonfiguration"
 
-#: pages/models.py
+#: pages/models.py:120
 #, fuzzy
 #| msgid "Lead paragraph"
 msgid "Paragraph"
 msgstr "Leitabsatz"
 
-#: pages/models.py
+#: pages/models.py:150
 msgid "Outcome page"
 msgstr "Ergebnisseite"
 
-#: pages/models.py
+#: pages/models.py:151
 msgid "Outcome pages"
 msgstr "Ergebnisseiten"
 
-#: pages/models.py
+#: pages/models.py:162
 msgid "Standard"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:163
 msgid "Impact"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:164
 msgid "Cumulative impact"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:170
 msgid "Show cumulative impact"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:171
 msgid "Show action comparison"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:172
 msgid "Show only municipal actions"
 msgstr ""
 
-#: pages/models.py
+#: pages/models.py:197
 msgid "Action list page"
 msgstr "Maßnahmenlistenseite"
 
-#: pages/models.py
+#: pages/models.py:198
 msgid "Action list pages"
 msgstr "Maßnahmenlistenseiten"
 
-#: params/global_params.py
-msgid "Cost node"
-msgstr "Kostenknoten"
-
-#: params/global_params.py
+#: params/global_params.py:6
 msgid "Municipality name"
 msgstr "Gemeindename"
 
-#: params/global_params.py
-#, fuzzy
-#| msgid "Discount rate"
-msgid "Discount node name"
-msgstr "Diskontrate"
-
-#: params/global_params.py
+#: params/global_params.py:11
 msgid "Discount rate"
 msgstr "Diskontrate"
 
-#: params/global_params.py
+#: params/global_params.py:16
 msgid "Avoided electricity capacity price"
 msgstr "Vermiedener Stromleistungspreis"
 
-#: params/global_params.py
+#: params/global_params.py:21
 msgid "Health impacts per kWh"
 msgstr "Gesundheitsauswirkungen pro kWh"
 
-#: params/global_params.py
+#: params/global_params.py:26
 msgid "Heat CO2 emission factor"
 msgstr "Wärme CO2-Emissionsfaktor"
 
-#: params/global_params.py
+#: params/global_params.py:31
 msgid "Electricity CO2 emission factor"
 msgstr "Strom CO2-Emissionsfaktor"
 
-#: params/global_params.py
+#: params/global_params.py:36
 msgid "Renovation rate baseline"
 msgstr "Renovierungsrate Basis"
 
-#: params/global_params.py
+#: params/global_params.py:41
 #, fuzzy
 #| msgid "Include CO2 cost variable in calculations?"
 msgid "Include energy taxes in calculations?"
 msgstr "CO2-Kostenvariable in Berechnungen einbeziehen?"
 
-#: params/global_params.py
+#: params/global_params.py:46
 msgid "Include CO2 cost variable in calculations?"
 msgstr "CO2-Kostenvariable in Berechnungen einbeziehen?"
 
-#: params/global_params.py
+#: params/global_params.py:51
 msgid "Include health impact variable in calculations?"
 msgstr "Gesundheitsauswirkungsvariable in Berechnungen einbeziehen?"
 
-#: params/global_params.py
+#: params/global_params.py:56
 msgid "Include avoided electricity capacity variable in calculations?"
 msgstr "Variable für vermiedene Stromkapazität in Berechnungen einbeziehen?"
 
-#: params/global_params.py
+#: params/global_params.py:61
 msgid "Price of CO2"
 msgstr "CO2-Preis"
 
-#: params/global_params.py
+#: params/global_params.py:66
 msgid "Price of CO2 annual change"
 msgstr "CO2-Preis jährliche Veränderung"
 
-#: params/global_params.py
+#: params/global_params.py:71
 msgid "Price of electricity"
 msgstr "Strompreis"
 
-#: params/global_params.py
+#: params/global_params.py:76
 msgid "Price of electricity annual change"
 msgstr "Strompreis jährliche Veränderung"
 
-#: params/global_params.py
+#: params/global_params.py:81
 msgid "Price of Heat"
 msgstr "Wärmepreis"
 
-#: params/global_params.py
+#: params/global_params.py:86
 msgid "Price of heat annual change"
 msgstr "Wärmepreis jährliche Veränderung"
 
-#: params/global_params.py
+#: params/global_params.py:91
 msgid "Invest all on the first year (in contrast to continuous investing)?"
 msgstr ""
 
-#: params/global_params.py
+#: params/global_params.py:96
 msgid "Placeholder for updated_building_code_residential"
 msgstr ""
 
-#: paths/authentication.py
+#: params/global_params.py:101
+#, fuzzy
+#| msgid "Renovation rate baseline"
+msgid "Action impact based on baseline"
+msgstr "Renovierungsrate Basis"
+
+#: params/global_params.py:102
+msgid ""
+"Compute action impact based on the baseline scenario instead of the default "
+"one"
+msgstr ""
+
+#: params/global_params.py:108
+msgid "Scanario name"
+msgstr ""
+
+#: params/global_params.py:113
+msgid "Weight for emission impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:118
+msgid "Weight for economic impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:123
+msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
+msgstr ""
+
+#: params/global_params.py:128
+msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
+msgstr ""
+
+#: params/global_params.py:133
+msgid "Weight for health impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:138
+msgid "Weight for equity impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:143
+msgid "Weight for biodiversity impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:148
+msgid "Weight for actions to be legal in value profiles"
+msgstr ""
+
+#: params/global_params.py:153
+msgid "Threshold for sum of weighted impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:158
+msgid "Effect of electric vehicles on car kilometers"
+msgstr ""
+
+#: params/global_params.py:163
+msgid "List of selected municipalities"
+msgstr ""
+
+#: params/global_params.py:168
+msgid "List of selected nodes"
+msgstr ""
+
+#: params/global_params.py:173
+msgid "Selected computational framework"
+msgstr ""
+
+#: params/global_params.py:178
+msgid "Annual weather normalization for energy consumption"
+msgstr ""
+
+#: params/global_params.py:183
+msgid "Is the last historical value extended into the future?"
+msgstr ""
+
+#: paths/authentication.py:21
 msgid "Invalid token."
 msgstr "Ungültiger Token"
 
-#: paths/schema.py paths/utils.py
+#: paths/schema.py:80 paths/utils.py:61 paths/utils.py:63
 msgid "Invalid unit"
 msgstr "Ungültige Einheit"
 
-#: paths/settings.py
+#: paths/settings.py:316
 msgid "English"
 msgstr "Englisch"
 
-#: paths/settings.py
+#: paths/settings.py:317
 msgid "Finnish"
 msgstr "Finnisch"
 
-#: paths/settings.py
+#: paths/settings.py:318
 msgid "Swedish"
 msgstr "Schwedisch"
 
-#: paths/settings.py
+#: paths/settings.py:319
 msgid "German"
 msgstr "Deutsch"
 
-#: paths/settings.py
+#: paths/settings.py:320
 msgid "German (Switzerland)"
 msgstr "Deutsch (Schweiz)"
 
-#: paths/utils.py
+#: paths/settings.py:321
+msgid "Czech"
+msgstr "Tschechisch"
+
+#: paths/settings.py:322
+msgid "Danish"
+msgstr "Dänisch"
+
+#: paths/settings.py:323
+msgid "Polish"
+msgstr "Polnisch"
+
+#: paths/utils.py:27
 msgid "identifier"
 msgstr "Kennung"
 
-#: paths/utils.py
+#: paths/utils.py:71
 msgid "unit"
 msgstr "Einheit"
 
-#: paths/utils.py
+#: paths/utils.py:85
 msgid "uuid"
 msgstr "UUID"
 
-#: paths/utils.py
+#: paths/utils.py:96
 msgid "created at"
 msgstr "erstellt am"
 
-#: paths/utils.py
+#: paths/utils.py:98
 msgid "updated at"
 msgstr "aktualisiert am"
 
-#: paths/utils.py
+#: paths/utils.py:106
 msgid "order"
 msgstr "Sortierung"
 
-#: users/models.py
+#: users/models.py:11
 msgid "email address"
 msgstr "E-Mail Adresse"
+
+#~ msgid "Cost node"
+#~ msgstr "Kostenknoten"
+
+#, fuzzy
+#~| msgid "Discount rate"
+#~ msgid "Discount node name"
+#~ msgstr "Diskontrate"
 
 #~ msgid "Change in carbon emission price"
 #~ msgstr "Änderung des Kohlenstoffemissionspreises"

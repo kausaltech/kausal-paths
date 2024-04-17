@@ -1,6 +1,6 @@
 id: budget
 default_language: en
-supported_languages: [fi]
+supported_languages: [fi, sv, cs, da, de, pl]
 frameworks: [nzc_actions]
 site_url: https://budget.paths.test.kausal.dev
 dataset_repo:
