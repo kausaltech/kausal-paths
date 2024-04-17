@@ -13,8 +13,11 @@ from wagtail.admin.panels import FieldPanel, InlinePanel
 import pandas as pd
 import pint_pandas
 import polars as pl
+from dvc_pandas import Dataset as DVCDataset, Repository
 
-from common.i18n import get_modeltrans_attrs_from_str
+from common.i18n import (
+    get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+)
 from nodes.constants import YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.dimensions import Dimension as NodeDimension
@@ -161,6 +164,47 @@ class Dataset(ClusterableModel, UserModifiableModel):
             for dim_id, cats in val.items():
                 ds = self.dimension_selections.get(dimension__identifier=dim_id)
                 ds.set_categories(cats)
+
+    def store_to_dvc(
+        self,
+        dvc_path: str | None = None,
+        repo_url: str | None = None
+    ):
+        """Store the dataset to DVC."""
+        ctx = self.instance.get_instance().context
+
+        if dvc_path is None:
+            if not self.dvc_identifier:
+                if ctx.dataset_repo_default_path:
+                    self.dvc_identifier = '%s/%s' % (ctx.dataset_repo_default_path, self.identifier)
+                else:
+                    raise Exception("No DVC path provided but Dataset objects does not have dvc_identifier set")
+            ds_dvc_id: str = self.dvc_identifier
+            dvc_path = ds_dvc_id
+
+        assert self.table is not None
+        df = JSONDataset.deserialize_df(self.table)
+        if 'uuid' in df.columns:
+            df = df.drop(columns=['uuid'])
+        df = df.dropna(how='all')
+
+        r = ctx.dataset_repo
+        repo = Repository(repo_url=repo_url or r.repo_url, dvc_remote=r.dvc_remote)
+        repo.set_target_commit(None)
+        name = get_translated_string_from_modeltrans(self, 'name', ctx.instance.default_language).i18n
+        metrics = [dict(
+            id=m.identifier,
+            label=get_translated_string_from_modeltrans(m, 'label', ctx.instance.default_language).i18n,
+        ) for m in self.metrics.all()]
+        metadata = dict(name=name, identifier=self.identifier, metrics=metrics)
+        dvc_ds = DVCDataset(
+            df, identifier=dvc_path, modified_at=self.updated_at, metadata=metadata
+        )
+        repo.push_dataset(dvc_ds)
+
+        if self.dvc_identifier != dvc_path:
+            self.dvc_identifier = dvc_path
+            self.save(update_fields=['dvc_identifier'])
 
     @classmethod
     def annotate_nr_unresolved_comments(cls, qs: models.QuerySet[Dataset]):
