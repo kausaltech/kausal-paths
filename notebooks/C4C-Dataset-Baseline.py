@@ -3,6 +3,9 @@ import pandas as pd
 import polars as pl
 import sys
 
+from dotenv import load_dotenv
+load_dotenv()
+
 incsvpath = sys.argv[1]
 incsvsep = sys.argv[2]
 outcsvpath = sys.argv[3]
