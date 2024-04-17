@@ -20,340 +20,340 @@ msgstr ""
 
 #: datasets/models.py
 msgid "dataset"
-msgstr ""
+msgstr "datová sada"
 
 #: datasets/models.py
 msgid "datasets"
-msgstr ""
+msgstr "datové sady"
 
 #: datasets/models.py
 msgid "label"
-msgstr ""
+msgstr "štítek"
 
 #: datasets/models.py
 msgid "resolved at"
-msgstr ""
+msgstr "vyřešeno v"
 
 #: datasets/wagtail_hooks.py
 msgid "Dimensions"
-msgstr ""
+msgstr "Rozměry"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
-msgstr ""
+msgstr "Počet LED žárovek vyměněných za rok (výchozí)"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of additional LED bulbs changed per year"
-msgstr ""
+msgstr "Počet dalších LED žárovek vyměněných za rok"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly increase in total number of luminaires"
-msgstr ""
+msgstr "Roční nárůst celkového počtu svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of traditional luminaires"
-msgstr ""
+msgstr "Roční náklady na údržbu tradičních svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of LED luminaires"
-msgstr ""
+msgstr "Roční náklady na údržbu LED svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire power consumption"
-msgstr ""
+msgstr "Spotřeba energie tradičních svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire power consumption"
-msgstr ""
+msgstr "Spotřeba energie LED svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire yearly active time"
-msgstr ""
+msgstr "Roční aktivní doba tradičních svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire yearly active time"
-msgstr ""
+msgstr "Roční aktivní doba LED svítidel"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost of one LED retrofit"
-msgstr ""
+msgstr "Investiční náklady na jednu modernizaci LED"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
-msgstr ""
+msgstr "Životnost investice (a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost (SEK/m2)"
-msgstr ""
+msgstr "Investiční náklady (SEK/m2)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr ""
+msgstr "Náklady na údržbu (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
-msgstr ""
+msgstr "Úspora tepla (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Electricity saving (kWh/m2/a)"
-msgstr ""
+msgstr "Úspora elektřiny (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 #, python-format
 msgid "Renovation potential (% of floor area)"
-msgstr ""
+msgstr "Potenciál renovace (% podlahové plochy)"
 
 #: nodes/instance.py
 msgid "Custom"
-msgstr ""
+msgstr "Vlastní"
 
 #: nodes/models.py
 msgid "name"
-msgstr ""
+msgstr "název"
 
 #: nodes/models.py pages/models.py
 msgid "Lead title"
-msgstr ""
+msgstr "Hlavní nadpis"
 
 #: nodes/models.py pages/models.py
 msgid "Lead paragraph"
-msgstr ""
+msgstr "Úvodní odstavec"
 
 #: nodes/models.py
 msgid "Site URL"
-msgstr ""
+msgstr "URL webu"
 
 #: nodes/models.py
 msgid "Instance"
-msgstr ""
+msgstr "Instance"
 
 #: nodes/models.py
 msgid "Instances"
-msgstr ""
+msgstr "Instance"
 
 #: nodes/models.py
 msgid "Actions"
-msgstr ""
+msgstr "Akce"
 
 #: nodes/models.py
 msgid "Instance hostname"
-msgstr ""
+msgstr "Název hostitele instance"
 
 #: nodes/models.py
 msgid "Instance hostnames"
-msgstr ""
+msgstr "Názvy hostitelů instancí"
 
 #: nodes/models.py
 msgid "Instance token"
-msgstr ""
+msgstr "Token instance"
 
 #: nodes/models.py
 msgid "Instance tokens"
-msgstr ""
+msgstr "Tokeny instancí"
 
 #: nodes/models.py
 msgid "Order"
-msgstr ""
+msgstr "Pořadí"
 
 #: nodes/models.py
 msgid "Short description"
-msgstr ""
+msgstr "Krátký popis"
 
 #: nodes/models.py
 msgid "Description"
-msgstr ""
+msgstr "Popis"
 
 #: nodes/models.py
 msgid "Node"
-msgstr ""
+msgstr "Uzel"
 
 #: nodes/models.py
 msgid "Nodes"
-msgstr ""
+msgstr "Uzly"
 
 #: nodes/processors.py
 msgid "Multiplier"
-msgstr ""
+msgstr "Násobitel"
 
 #: nodes/units.py
 msgid "capita"
-msgstr ""
+msgstr "obyvatel"
 
 #: nodes/units.py
 msgctxt "capita short"
 msgid "cap"
-msgstr ""
+msgstr "obyv."
 
 #: nodes/units.py
 msgctxt "kilotonne short"
 msgid "kt"
-msgstr ""
+msgstr "kt"
 
 #: nodes/units.py
 msgctxt "year short"
 msgid "yr."
-msgstr ""
+msgstr "r."
 
 #: pages/models.py
 msgid "show in footer"
-msgstr ""
+msgstr "zobrazit v zápatí"
 
 #: pages/models.py
 msgid "Should the page be shown in the footer?"
-msgstr ""
+msgstr "Má se stránka zobrazovat v zápatí?"
 
 #: pages/models.py
 msgid "Common page configuration"
-msgstr ""
+msgstr "Společná konfigurace stránky"
 
 #: pages/models.py
 msgid "Outcome page"
-msgstr ""
+msgstr "Stránka s výsledky"
 
 #: pages/models.py
 msgid "Outcome pages"
-msgstr ""
+msgstr "Stránky s výsledky"
 
 #: pages/models.py
 msgid "Action list page"
-msgstr ""
+msgstr "Stránka se seznamem akcí"
 
 #: pages/models.py
 msgid "Action list pages"
-msgstr ""
+msgstr "Stránky se seznamy akcí"
 
 #: pages/wagtail_hooks.py
 msgid "Choose instance"
-msgstr ""
+msgstr "Vyberte instanci"
 
 #: params/global_params.py
 msgid "Cost node"
-msgstr ""
+msgstr "Uzel nákladů"
 
 #: params/global_params.py
 msgid "Municipality name"
-msgstr ""
+msgstr "Název obce"
 
 #: params/global_params.py
 msgid "Discount node name"
-msgstr ""
+msgstr "Název uzlu slevy"
 
 #: params/global_params.py
 msgid "Discount rate"
-msgstr ""
+msgstr "Diskontní sazba"
 
 #: params/global_params.py
 msgid "Avoided electricity capacity price"
-msgstr ""
+msgstr "Cena ušetřené kapacity elektřiny"
 
 #: params/global_params.py
 msgid "Health impacts per kWh"
-msgstr ""
+msgstr "Dopady na zdraví na kWh"
 
 #: params/global_params.py
 msgid "Heat CO2 emission factor"
-msgstr ""
+msgstr "Emisní faktor CO2 pro teplo"
 
 #: params/global_params.py
 msgid "Electricity CO2 emission factor"
-msgstr ""
+msgstr "Emisní faktor CO2 pro elektřinu"
 
 #: params/global_params.py
 msgid "Renovation rate baseline"
-msgstr ""
+msgstr "Výchozí míra renovace"
 
 #: params/global_params.py
 msgid "Include energy taxes in calculations?"
-msgstr ""
+msgstr "Zahrnout energetické daně do výpočtů?"
 
 #: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
-msgstr ""
+msgstr "Zahrnout proměnnou nákladů na CO2 do výpočtů?"
 
 #: params/global_params.py
 msgid "Include health impact variable in calculations?"
-msgstr ""
+msgstr "Zahrnout proměnnou dopadu na zdraví do výpočtů?"
 
 #: params/global_params.py
 msgid "Include avoided electricity capacity variable in calculations?"
-msgstr ""
+msgstr "Zahrnout proměnnou ušetřené kapacity elektřiny do výpočtů?"
 
 #: params/global_params.py
 msgid "Price of CO2"
-msgstr ""
+msgstr "Cena CO2"
 
 #: params/global_params.py
 msgid "Price of CO2 annual change"
-msgstr ""
+msgstr "Roční změna ceny CO2"
 
 #: params/global_params.py
 msgid "Price of electricity"
-msgstr ""
+msgstr "Cena elektřiny"
 
 #: params/global_params.py
 msgid "Price of electricity annual change"
-msgstr ""
+msgstr "Roční změna ceny elektřiny"
 
 #: params/global_params.py
 msgid "Price of Heat"
-msgstr ""
+msgstr "Cena tepla"
 
 #: params/global_params.py
 msgid "Price of heat annual change"
-msgstr ""
+msgstr "Roční změna ceny tepla"
 
 #: paths/authentication.py
 msgid "Invalid token."
-msgstr ""
+msgstr "Neplatný token."
 
 #: paths/schema.py paths/utils.py
 msgid "Invalid unit"
-msgstr ""
+msgstr "Neplatná jednotka"
 
 #: paths/settings.py
 msgid "Finnish"
-msgstr ""
+msgstr "Finština"
 
 #: paths/settings.py
 msgid "English"
-msgstr ""
+msgstr "Angličtina"
 
 #: paths/settings.py
 msgid "Swedish"
-msgstr ""
+msgstr "Švédština"
 
 #: paths/settings.py
 msgid "German"
-msgstr ""
+msgstr "Němčina"
 
 #: paths/settings.py
 msgid "German (Switzerland)"
-msgstr ""
+msgstr "Němčina (Švýcarsko)"
 
 #: paths/utils.py
 msgid "identifier"
-msgstr ""
+msgstr "identifikátor"
 
 #: paths/utils.py
 msgid "unit"
-msgstr ""
+msgstr "jednotka"
 
 #: paths/utils.py
 msgid "uuid"
-msgstr ""
+msgstr "uuid"
 
 #: paths/utils.py
 msgid "created at"
-msgstr ""
+msgstr "vytvořeno v"
 
 #: paths/utils.py
 msgid "updated at"
-msgstr ""
+msgstr "aktualizováno v"
 
 #: paths/utils.py
 msgid "order"
-msgstr ""
+msgstr "pořadí"
 
 #: users/models.py
 msgid "email address"
-msgstr ""
+msgstr "e-mailová adresa"

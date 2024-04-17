@@ -20,340 +20,340 @@ msgstr ""
 
 #: datasets/models.py
 msgid "dataset"
-msgstr ""
+msgstr "datasæt"
 
 #: datasets/models.py
 msgid "datasets"
-msgstr ""
+msgstr "datasæt"
 
 #: datasets/models.py
 msgid "label"
-msgstr ""
+msgstr "etiket"
 
 #: datasets/models.py
 msgid "resolved at"
-msgstr ""
+msgstr "løst den"
 
 #: datasets/wagtail_hooks.py
 msgid "Dimensions"
-msgstr ""
+msgstr "Dimensioner"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
-msgstr ""
+msgstr "Antal LED-pærer udskiftet pr. år (baseline)"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of additional LED bulbs changed per year"
-msgstr ""
+msgstr "Antal yderligere LED-pærer udskiftet pr. år"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly increase in total number of luminaires"
-msgstr ""
+msgstr "Årlig stigning i det samlede antal armaturer"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of traditional luminaires"
-msgstr ""
+msgstr "Årlige vedligeholdelsesomkostninger for traditionelle armaturer"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of LED luminaires"
-msgstr ""
+msgstr "Årlige vedligeholdelsesomkostninger for LED-armaturer"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire power consumption"
-msgstr ""
+msgstr "Traditionel armatur strømforbrug"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire power consumption"
-msgstr ""
+msgstr "LED-armatur strømforbrug"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire yearly active time"
-msgstr ""
+msgstr "Traditionel armatur årlig aktiv tid"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire yearly active time"
-msgstr ""
+msgstr "LED-armatur årlig aktiv tid"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost of one LED retrofit"
-msgstr ""
+msgstr "Investeringsomkostninger for én LED-renovering"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
-msgstr ""
+msgstr "Investeringens levetid (a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost (SEK/m2)"
-msgstr ""
+msgstr "Investeringsomkostninger (SEK/m2)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr ""
+msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
-msgstr ""
+msgstr "Varmebesparelse (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Electricity saving (kWh/m2/a)"
-msgstr ""
+msgstr "Elbesparelse (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 #, python-format
 msgid "Renovation potential (% of floor area)"
-msgstr ""
+msgstr "Renoveringspotentiale (% af gulvareal)"
 
 #: nodes/instance.py
 msgid "Custom"
-msgstr ""
+msgstr "Brugerdefineret"
 
 #: nodes/models.py
 msgid "name"
-msgstr ""
+msgstr "navn"
 
 #: nodes/models.py pages/models.py
 msgid "Lead title"
-msgstr ""
+msgstr "Hovedtitel"
 
 #: nodes/models.py pages/models.py
 msgid "Lead paragraph"
-msgstr ""
+msgstr "Hovedafsnit"
 
 #: nodes/models.py
 msgid "Site URL"
-msgstr ""
+msgstr "Webstedets URL"
 
 #: nodes/models.py
 msgid "Instance"
-msgstr ""
+msgstr "Instans"
 
 #: nodes/models.py
 msgid "Instances"
-msgstr ""
+msgstr "Instanser"
 
 #: nodes/models.py
 msgid "Actions"
-msgstr ""
+msgstr "Handlinger"
 
 #: nodes/models.py
 msgid "Instance hostname"
-msgstr ""
+msgstr "Instansens værtsnavn"
 
 #: nodes/models.py
 msgid "Instance hostnames"
-msgstr ""
+msgstr "Instansens værtsnavne"
 
 #: nodes/models.py
 msgid "Instance token"
-msgstr ""
+msgstr "Instanstoken"
 
 #: nodes/models.py
 msgid "Instance tokens"
-msgstr ""
+msgstr "Instanstokens"
 
 #: nodes/models.py
 msgid "Order"
-msgstr ""
+msgstr "Rækkefølge"
 
 #: nodes/models.py
 msgid "Short description"
-msgstr ""
+msgstr "Kort beskrivelse"
 
 #: nodes/models.py
 msgid "Description"
-msgstr ""
+msgstr "Beskrivelse"
 
 #: nodes/models.py
 msgid "Node"
-msgstr ""
+msgstr "Knudepunkt"
 
 #: nodes/models.py
 msgid "Nodes"
-msgstr ""
+msgstr "Knudepunkter"
 
 #: nodes/processors.py
 msgid "Multiplier"
-msgstr ""
+msgstr "Multiplikator"
 
 #: nodes/units.py
 msgid "capita"
-msgstr ""
+msgstr "indbyggere"
 
 #: nodes/units.py
 msgctxt "capita short"
 msgid "cap"
-msgstr ""
+msgstr "indb."
 
 #: nodes/units.py
 msgctxt "kilotonne short"
 msgid "kt"
-msgstr ""
+msgstr "kt"
 
 #: nodes/units.py
 msgctxt "year short"
 msgid "yr."
-msgstr ""
+msgstr "år"
 
 #: pages/models.py
 msgid "show in footer"
-msgstr ""
+msgstr "vis i sidefod"
 
 #: pages/models.py
 msgid "Should the page be shown in the footer?"
-msgstr ""
+msgstr "Skal siden vises i sidefoden?"
 
 #: pages/models.py
 msgid "Common page configuration"
-msgstr ""
+msgstr "Fælles sidekonfiguration"
 
 #: pages/models.py
 msgid "Outcome page"
-msgstr ""
+msgstr "Resultatside"
 
 #: pages/models.py
 msgid "Outcome pages"
-msgstr ""
+msgstr "Resultatsider"
 
 #: pages/models.py
 msgid "Action list page"
-msgstr ""
+msgstr "Handlingslisteside"
 
 #: pages/models.py
 msgid "Action list pages"
-msgstr ""
+msgstr "Handlingslistesider"
 
 #: pages/wagtail_hooks.py
 msgid "Choose instance"
-msgstr ""
+msgstr "Vælg instans"
 
 #: params/global_params.py
 msgid "Cost node"
-msgstr ""
+msgstr "Omkostningsknudepunkt"
 
 #: params/global_params.py
 msgid "Municipality name"
-msgstr ""
+msgstr "Kommunens navn"
 
 #: params/global_params.py
 msgid "Discount node name"
-msgstr ""
+msgstr "Rabatknudepunktets navn"
 
 #: params/global_params.py
 msgid "Discount rate"
-msgstr ""
+msgstr "Diskonteringsrente"
 
 #: params/global_params.py
 msgid "Avoided electricity capacity price"
-msgstr ""
+msgstr "Undgået elpriskapacitet"
 
 #: params/global_params.py
 msgid "Health impacts per kWh"
-msgstr ""
+msgstr "Sundhedspåvirkninger pr. kWh"
 
 #: params/global_params.py
 msgid "Heat CO2 emission factor"
-msgstr ""
+msgstr "Varme CO2-emissionsfaktor"
 
 #: params/global_params.py
 msgid "Electricity CO2 emission factor"
-msgstr ""
+msgstr "El CO2-emissionsfaktor"
 
 #: params/global_params.py
 msgid "Renovation rate baseline"
-msgstr ""
+msgstr "Renoveringsrate baseline"
 
 #: params/global_params.py
 msgid "Include energy taxes in calculations?"
-msgstr ""
+msgstr "Medtag energiafgifter i beregningerne?"
 
 #: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
-msgstr ""
+msgstr "Medtag CO2-omkostningsvariabel i beregningerne?"
 
 #: params/global_params.py
 msgid "Include health impact variable in calculations?"
-msgstr ""
+msgstr "Medtag sundhedspåvirkningsvariabel i beregningerne?"
 
 #: params/global_params.py
 msgid "Include avoided electricity capacity variable in calculations?"
-msgstr ""
+msgstr "Medtag undgået elkapacitetsvariabel i beregningerne?"
 
 #: params/global_params.py
 msgid "Price of CO2"
-msgstr ""
+msgstr "Pris på CO2"
 
 #: params/global_params.py
 msgid "Price of CO2 annual change"
-msgstr ""
+msgstr "Pris på CO2 årlig ændring"
 
 #: params/global_params.py
 msgid "Price of electricity"
-msgstr ""
+msgstr "Pris på elektricitet"
 
 #: params/global_params.py
 msgid "Price of electricity annual change"
-msgstr ""
+msgstr "Pris på elektricitet årlig ændring"
 
 #: params/global_params.py
 msgid "Price of Heat"
-msgstr ""
+msgstr "Pris på varme"
 
 #: params/global_params.py
 msgid "Price of heat annual change"
-msgstr ""
+msgstr "Pris på varme årlig ændring"
 
 #: paths/authentication.py
 msgid "Invalid token."
-msgstr ""
+msgstr "Ugyldigt token."
 
 #: paths/schema.py paths/utils.py
 msgid "Invalid unit"
-msgstr ""
+msgstr "Ugyldig enhed"
 
 #: paths/settings.py
 msgid "Finnish"
-msgstr ""
+msgstr "Finsk"
 
 #: paths/settings.py
 msgid "English"
-msgstr ""
+msgstr "Engelsk"
 
 #: paths/settings.py
 msgid "Swedish"
-msgstr ""
+msgstr "Svensk"
 
 #: paths/settings.py
 msgid "German"
-msgstr ""
+msgstr "Tysk"
 
 #: paths/settings.py
 msgid "German (Switzerland)"
-msgstr ""
+msgstr "Tysk (Schweiz)"
 
 #: paths/utils.py
 msgid "identifier"
-msgstr ""
+msgstr "identifikator"
 
 #: paths/utils.py
 msgid "unit"
-msgstr ""
+msgstr "enhed"
 
 #: paths/utils.py
 msgid "uuid"
-msgstr ""
+msgstr "uuid"
 
 #: paths/utils.py
 msgid "created at"
-msgstr ""
+msgstr "oprettet den"
 
 #: paths/utils.py
 msgid "updated at"
-msgstr ""
+msgstr "opdateret den"
 
 #: paths/utils.py
 msgid "order"
-msgstr ""
+msgstr "rækkefølge"
 
 #: users/models.py
 msgid "email address"
-msgstr ""
+msgstr "e-mailadresse"

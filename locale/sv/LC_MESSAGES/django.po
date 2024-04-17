@@ -9,8 +9,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-29 22:41+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"PO-Revision-Date: 2024-04-17 14:45+0000\n"
+"Last-Translator: Claude <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -40,68 +40,68 @@ msgstr "Mått"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
-msgstr ""
+msgstr "Antal LED-lampor som byts per år (baslinje)"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of additional LED bulbs changed per year"
-msgstr ""
+msgstr "Antal ytterligare LED-lampor som byts per år"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly increase in total number of luminaires"
-msgstr ""
+msgstr "Årlig ökning av det totala antalet armaturer"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of traditional luminaires"
-msgstr ""
+msgstr "Årlig underhållskostnad för traditionella armaturer"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of LED luminaires"
-msgstr ""
+msgstr "Årlig underhållskostnad för LED-armaturer"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire power consumption"
-msgstr ""
+msgstr "Traditionell armatur strömförbrukning"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire power consumption"
-msgstr ""
+msgstr "LED-armatur strömförbrukning"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire yearly active time"
-msgstr ""
+msgstr "Traditionell armatur årlig aktiv tid"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire yearly active time"
-msgstr ""
+msgstr "LED-armatur årlig aktiv tid"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost of one LED retrofit"
-msgstr ""
+msgstr "Investeringskostnad för en LED-ombyggnad"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
-msgstr ""
+msgstr "Investeringens livslängd (a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost (SEK/m2)"
-msgstr ""
+msgstr "Investeringskostnad (SEK/m2)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr ""
+msgstr "Underhållskostnad (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
-msgstr ""
+msgstr "Värmebesparing (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Electricity saving (kWh/m2/a)"
-msgstr ""
+msgstr "Elbesparing (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 #, python-format
 msgid "Renovation potential (% of floor area)"
-msgstr ""
+msgstr "Renoveringspotential (% av golvyta)"
 
 #: nodes/instance.py
 msgid "Custom"
@@ -141,19 +141,19 @@ msgstr "Instansvärdnamn"
 
 #: nodes/models.py
 msgid "Instance hostnames"
-msgstr ""
+msgstr "Instansvärdnamn"
 
 #: nodes/models.py
 msgid "Instance token"
-msgstr ""
+msgstr "Instanstoken"
 
 #: nodes/models.py
 msgid "Instance tokens"
-msgstr ""
+msgstr "Instanstokens"
 
 #: nodes/models.py
 msgid "Order"
-msgstr ""
+msgstr "Ordning"
 
 #: nodes/models.py
 msgid "Short description"
@@ -236,79 +236,79 @@ msgstr "Kommunens namn"
 
 #: params/global_params.py
 msgid "Discount node name"
-msgstr ""
+msgstr "Rabattnodnamn"
 
 #: params/global_params.py
 msgid "Discount rate"
-msgstr ""
+msgstr "Diskonteringsränta"
 
 #: params/global_params.py
 msgid "Avoided electricity capacity price"
-msgstr ""
+msgstr "Undviken elpriskapacitet"
 
 #: params/global_params.py
 msgid "Health impacts per kWh"
-msgstr ""
+msgstr "Hälsoeffekter per kWh"
 
 #: params/global_params.py
 msgid "Heat CO2 emission factor"
-msgstr ""
+msgstr "Värme CO2-utsläppsfaktor"
 
 #: params/global_params.py
 msgid "Electricity CO2 emission factor"
-msgstr ""
+msgstr "El CO2-utsläppsfaktor"
 
 #: params/global_params.py
 msgid "Renovation rate baseline"
-msgstr ""
+msgstr "Renoveringsfrekvens baslinje"
 
 #: params/global_params.py
 msgid "Include energy taxes in calculations?"
-msgstr ""
+msgstr "Inkludera energiskatter i beräkningar?"
 
 #: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
-msgstr ""
+msgstr "Inkludera CO2-kostnadsvariabel i beräkningar?"
 
 #: params/global_params.py
 msgid "Include health impact variable in calculations?"
-msgstr ""
+msgstr "Inkludera hälsoeffektvariabel i beräkningar?"
 
 #: params/global_params.py
 msgid "Include avoided electricity capacity variable in calculations?"
-msgstr ""
+msgstr "Inkludera undviken elkapacitetsvariabel i beräkningar?"
 
 #: params/global_params.py
 msgid "Price of CO2"
-msgstr ""
+msgstr "Pris på CO2"
 
 #: params/global_params.py
 msgid "Price of CO2 annual change"
-msgstr ""
+msgstr "Pris på CO2 årlig förändring"
 
 #: params/global_params.py
 msgid "Price of electricity"
-msgstr ""
+msgstr "Elpris"
 
 #: params/global_params.py
 msgid "Price of electricity annual change"
-msgstr ""
+msgstr "Elpris årlig förändring"
 
 #: params/global_params.py
 msgid "Price of Heat"
-msgstr ""
+msgstr "Värmepris"
 
 #: params/global_params.py
 msgid "Price of heat annual change"
-msgstr ""
+msgstr "Värmepris årlig förändring"
 
 #: paths/authentication.py
 msgid "Invalid token."
-msgstr ""
+msgstr "Ogiltig token."
 
 #: paths/schema.py paths/utils.py
 msgid "Invalid unit"
-msgstr ""
+msgstr "Ogiltig enhet"
 
 #: paths/settings.py
 msgid "Finnish"
@@ -340,7 +340,7 @@ msgstr "enhet"
 
 #: paths/utils.py
 msgid "uuid"
-msgstr ""
+msgstr "uuid"
 
 #: paths/utils.py
 msgid "created at"
