@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-17 14:45:41+0000\n"
+"POT-Creation-Date: 2024-04-17 16:50+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Claude <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,342 +18,678 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: datasets/models.py
+#: admin_site/api.py:25 admin_site/api.py:30
+#, fuzzy
+#| msgid "email address"
+msgid "Invalid email address"
+msgstr "e-mailadresse"
+
+#: admin_site/api.py:34
+msgid ""
+"No user found with this email address. Ask your administrator to create an "
+"account for you."
+msgstr ""
+
+#: admin_site/api.py:38
+msgid "This user does not have access to admin."
+msgstr ""
+
+#: admin_site/perms.py:124
+msgid "General admin"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/home.html:4
+msgid "Welcome to Paths admin"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html:11
+msgid "Sign in to Kausal Paths admin"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html:20
+msgid "Our apologies, the server is temporarily experiencing difficulties."
+msgstr ""
+
+#: admin_site/wagtail_hooks.py:71
+msgid "Choose instance"
+msgstr "Vælg instans"
+
+#: datasets/models.py:53
 msgid "dataset"
 msgstr "datasæt"
 
-#: datasets/models.py
+#: datasets/models.py:54
 msgid "datasets"
 msgstr "datasæt"
 
-#: datasets/models.py
+#: datasets/models.py:184 datasets/models.py:271
 msgid "label"
 msgstr "etiket"
 
-#: datasets/models.py
+#: datasets/models.py:220
+msgid "data source reference"
+msgstr ""
+
+#: datasets/models.py:221
+msgid "data source references"
+msgstr ""
+
+#: datasets/models.py:226
+msgid "Review comment"
+msgstr ""
+
+#: datasets/models.py:227
+msgid "Sticky comment"
+msgstr ""
+
+#: datasets/models.py:230
+#, fuzzy
+#| msgid "resolved at"
+msgid "Resolved"
+msgstr "løst den"
+
+#: datasets/models.py:231
+#, fuzzy
+#| msgid "resolved at"
+msgid "Unresolved"
+msgstr "løst den"
+
+#: datasets/models.py:248
 msgid "resolved at"
 msgstr "løst den"
 
-#: datasets/wagtail_hooks.py
-msgid "Dimensions"
+#: datasets/models.py:259
+msgid "comment"
+msgstr ""
+
+#: datasets/models.py:260
+msgid "comments"
+msgstr ""
+
+#: datasets/wagtail_hooks.py:12
+#, fuzzy
+#| msgid "Dimensions"
+msgid "Data dimensions"
 msgstr "Dimensioner"
 
-#: nodes/actions/energy_saving.py
+#: datasets/wagtail_hooks.py:26 nodes/models.py:479
+msgid "Data sources"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:6
+msgid "Visit the Wagtail website"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:15
+msgid "View the release notes"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:27
+msgid "Welcome to your new Wagtail site!"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:28
+msgid ""
+"Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">join our community on Slack</a>, or get started with one of the links "
+"below."
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:35
+msgid "Wagtail Documentation"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:36
+msgid "Topics, references, & how-tos"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:42
+msgid "Tutorial"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:43
+msgid "Build your first Wagtail site"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:49
+msgid "Admin Interface"
+msgstr ""
+
+#: mysite/home/templates/home/welcome_page.html:50
+msgid "Create your superuser first!"
+msgstr ""
+
+#: nodes/actions/action.py:50
+msgid "Is implemented"
+msgstr ""
+
+#: nodes/actions/action.py:50
+msgid "Is the action included in the scenario"
+msgstr ""
+
+#: nodes/actions/energy_saving.py:51
 msgid "Number of LED bulbs changed per year (baseline)"
 msgstr "Antal LED-pærer udskiftet pr. år (baseline)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:57
 msgid "Number of additional LED bulbs changed per year"
 msgstr "Antal yderligere LED-pærer udskiftet pr. år"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:62
 msgid "Yearly increase in total number of luminaires"
 msgstr "Årlig stigning i det samlede antal armaturer"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:67
 msgid "Yearly maintenance cost of traditional luminaires"
 msgstr "Årlige vedligeholdelsesomkostninger for traditionelle armaturer"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:73 nodes/actions/energy_saving.py:103
 msgid "Yearly maintenance cost of LED luminaires"
 msgstr "Årlige vedligeholdelsesomkostninger for LED-armaturer"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:79
 msgid "Traditional luminaire power consumption"
 msgstr "Traditionel armatur strømforbrug"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:85
 msgid "LED luminaire power consumption"
 msgstr "LED-armatur strømforbrug"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:91
 msgid "Traditional luminaire yearly active time"
 msgstr "Traditionel armatur årlig aktiv tid"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:97
 msgid "LED luminaire yearly active time"
 msgstr "LED-armatur årlig aktiv tid"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:109
 msgid "Investment cost of one LED retrofit"
 msgstr "Investeringsomkostninger for én LED-renovering"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:284 nodes/actions/energy_saving.py:442
 msgid "Investment lifetime (a)"
 msgstr "Investeringens levetid (a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:290
 msgid "Investment cost (SEK/m2)"
 msgstr "Investeringsomkostninger (SEK/m2)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:296
 msgid "Maintenance cost (SEK/m2/a)"
 msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:302
 msgid "Heat saving (kWh/m2/a)"
 msgstr "Varmebesparelse (kWh/m2/a)"
 
-#: nodes/actions/energy_saving.py
+#: nodes/actions/energy_saving.py:308
 msgid "Electricity saving (kWh/m2/a)"
 msgstr "Elbesparelse (kWh/m2/a)"
 
-#: nodes/actions/energy_saving.py
-#, python-format
+#: nodes/actions/energy_saving.py:314 nodes/actions/energy_saving.py:472
 msgid "Renovation potential (% of floor area)"
 msgstr "Renoveringspotentiale (% af gulvareal)"
 
-#: nodes/instance.py
-msgid "Custom"
-msgstr "Brugerdefineret"
+#: nodes/actions/energy_saving.py:448
+#, fuzzy
+#| msgid "Investment cost (SEK/m2)"
+msgid "Investment cost (USD/square foot)"
+msgstr "Investeringsomkostninger (SEK/m2)"
 
-#: nodes/models.py
-msgid "name"
-msgstr "navn"
+#: nodes/actions/energy_saving.py:454
+#, fuzzy
+#| msgid "Maintenance cost (SEK/m2/a)"
+msgid "Maintenance cost (USD/square foot/a)"
+msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
 
-#: nodes/models.py pages/models.py
-msgid "Lead title"
-msgstr "Hovedtitel"
+#: nodes/actions/energy_saving.py:460
+msgid "Natural gas saving (thm/square foot/a)"
+msgstr ""
 
-#: nodes/models.py pages/models.py
-msgid "Lead paragraph"
-msgstr "Hovedafsnit"
+#: nodes/actions/energy_saving.py:466
+#, fuzzy
+#| msgid "Electricity saving (kWh/m2/a)"
+msgid "Electricity saving (kWh/square foot/a)"
+msgstr "Elbesparelse (kWh/m2/a)"
 
-#: nodes/models.py
-msgid "Site URL"
-msgstr "Webstedets URL"
-
-#: nodes/models.py
-msgid "Instance"
-msgstr "Instans"
-
-#: nodes/models.py
-msgid "Instances"
-msgstr "Instanser"
-
-#: nodes/models.py
-msgid "Actions"
-msgstr "Handlinger"
-
-#: nodes/models.py
-msgid "Instance hostname"
-msgstr "Instansens værtsnavn"
-
-#: nodes/models.py
-msgid "Instance hostnames"
-msgstr "Instansens værtsnavne"
-
-#: nodes/models.py
-msgid "Instance token"
-msgstr "Instanstoken"
-
-#: nodes/models.py
-msgid "Instance tokens"
-msgstr "Instanstokens"
-
-#: nodes/models.py
-msgid "Order"
-msgstr "Rækkefølge"
-
-#: nodes/models.py
-msgid "Short description"
-msgstr "Kort beskrivelse"
-
-#: nodes/models.py
-msgid "Description"
-msgstr "Beskrivelse"
-
-#: nodes/models.py
+#: nodes/blocks.py:8 nodes/models.py:537
 msgid "Node"
 msgstr "Knudepunkt"
 
-#: nodes/models.py
+#: nodes/blocks.py:25
+#, fuzzy
+#| msgid "Outcome page"
+msgid "Outcome node"
+msgstr "Resultatside"
+
+#: nodes/choosers.py:33 nodes/choosers.py:39
+#, fuzzy
+#| msgid "Cost node"
+msgid "Choose a node"
+msgstr "Omkostningsknudepunkt"
+
+#: nodes/choosers.py:40
+#, fuzzy
+#| msgid "Choose instance"
+msgid "Choose another node"
+msgstr "Vælg instans"
+
+#: nodes/instance.py:587
+msgid "Custom"
+msgstr "Brugerdefineret"
+
+#: nodes/metric.py:321
+msgid "Sectors"
+msgstr ""
+
+#: nodes/models.py:101 nodes/models.py:487
+msgid "UUID"
+msgstr ""
+
+#: nodes/models.py:102 nodes/models.py:460
+msgid "name"
+msgstr "navn"
+
+#: nodes/models.py:103 pages/models.py:134 pages/models.py:166
+msgid "Lead title"
+msgstr "Hovedtitel"
+
+#: nodes/models.py:104 pages/models.py:135 pages/models.py:167
+msgid "Lead paragraph"
+msgstr "Hovedafsnit"
+
+#: nodes/models.py:105
+msgid "Site URL"
+msgstr "Webstedets URL"
+
+#: nodes/models.py:145
+msgid "Instance"
+msgstr "Instans"
+
+#: nodes/models.py:146
+msgid "Instances"
+msgstr "Instanser"
+
+#: nodes/models.py:347
+msgid "Actions"
+msgstr "Handlinger"
+
+#: nodes/models.py:430
+msgid "Instance hostname"
+msgstr "Instansens værtsnavn"
+
+#: nodes/models.py:431
+msgid "Instance hostnames"
+msgstr "Instansens værtsnavne"
+
+#: nodes/models.py:446
+msgid "Instance token"
+msgstr "Instanstoken"
+
+#: nodes/models.py:447
+msgid "Instance tokens"
+msgstr "Instanstokens"
+
+#: nodes/models.py:457
+#, fuzzy
+#| msgid "Instance"
+msgid "instance"
+msgstr "Instans"
+
+#: nodes/models.py:461
+#, fuzzy
+#| msgid "Description"
+msgid "edition"
+msgstr "Beskrivelse"
+
+#: nodes/models.py:464
+msgid "authority"
+msgstr ""
+
+#: nodes/models.py:464
+msgid "The organization responsible for the data source"
+msgstr ""
+
+#: nodes/models.py:467
+#, fuzzy
+#| msgid "Description"
+msgid "description"
+msgstr "Beskrivelse"
+
+#: nodes/models.py:468
+msgid "URL"
+msgstr ""
+
+#: nodes/models.py:478
+msgid "Data source"
+msgstr ""
+
+#: nodes/models.py:490
+msgid "Order"
+msgstr "Rækkefølge"
+
+#: nodes/models.py:494
+msgid "Goal"
+msgstr ""
+
+#: nodes/models.py:498
+msgid "Short description"
+msgstr "Kort beskrivelse"
+
+#: nodes/models.py:501
+msgid "Description"
+msgstr "Beskrivelse"
+
+#: nodes/models.py:538
 msgid "Nodes"
 msgstr "Knudepunkter"
 
-#: nodes/processors.py
+#: nodes/processors.py:81
 msgid "Multiplier"
 msgstr "Multiplikator"
 
-#: nodes/units.py
+#: nodes/units.py:182
 msgid "capita"
 msgstr "indbyggere"
 
-#: nodes/units.py
+#: nodes/units.py:183
 msgctxt "capita short"
 msgid "cap"
 msgstr "indb."
 
-#: nodes/units.py
+#: nodes/units.py:184
 msgctxt "kilotonne short"
 msgid "kt"
 msgstr "kt"
 
-#: nodes/units.py
+#: nodes/units.py:185
 msgctxt "year short"
 msgid "yr."
 msgstr "år"
 
-#: pages/models.py
+#: nodes/units.py:186
+msgctxt "percent"
+msgid "percent"
+msgstr ""
+
+#: pages/models.py:52
 msgid "show in footer"
 msgstr "vis i sidefod"
 
-#: pages/models.py
+#: pages/models.py:53
 msgid "Should the page be shown in the footer?"
 msgstr "Skal siden vises i sidefoden?"
 
-#: pages/models.py
+#: pages/models.py:68
 msgid "Common page configuration"
 msgstr "Fælles sidekonfiguration"
 
-#: pages/models.py
+#: pages/models.py:120
+#, fuzzy
+#| msgid "Lead paragraph"
+msgid "Paragraph"
+msgstr "Hovedafsnit"
+
+#: pages/models.py:150
 msgid "Outcome page"
 msgstr "Resultatside"
 
-#: pages/models.py
+#: pages/models.py:151
 msgid "Outcome pages"
 msgstr "Resultatsider"
 
-#: pages/models.py
+#: pages/models.py:162
+msgid "Standard"
+msgstr ""
+
+#: pages/models.py:163
+msgid "Impact"
+msgstr ""
+
+#: pages/models.py:164
+msgid "Cumulative impact"
+msgstr ""
+
+#: pages/models.py:170
+msgid "Show cumulative impact"
+msgstr ""
+
+#: pages/models.py:171
+msgid "Show action comparison"
+msgstr ""
+
+#: pages/models.py:172
+msgid "Show only municipal actions"
+msgstr ""
+
+#: pages/models.py:197
 msgid "Action list page"
 msgstr "Handlingslisteside"
 
-#: pages/models.py
+#: pages/models.py:198
 msgid "Action list pages"
 msgstr "Handlingslistesider"
 
-#: pages/wagtail_hooks.py
-msgid "Choose instance"
-msgstr "Vælg instans"
-
-#: params/global_params.py
-msgid "Cost node"
-msgstr "Omkostningsknudepunkt"
-
-#: params/global_params.py
+#: params/global_params.py:6
 msgid "Municipality name"
 msgstr "Kommunens navn"
 
-#: params/global_params.py
-msgid "Discount node name"
-msgstr "Rabatknudepunktets navn"
-
-#: params/global_params.py
+#: params/global_params.py:11
 msgid "Discount rate"
 msgstr "Diskonteringsrente"
 
-#: params/global_params.py
+#: params/global_params.py:16
 msgid "Avoided electricity capacity price"
 msgstr "Undgået elpriskapacitet"
 
-#: params/global_params.py
+#: params/global_params.py:21
 msgid "Health impacts per kWh"
 msgstr "Sundhedspåvirkninger pr. kWh"
 
-#: params/global_params.py
+#: params/global_params.py:26
 msgid "Heat CO2 emission factor"
 msgstr "Varme CO2-emissionsfaktor"
 
-#: params/global_params.py
+#: params/global_params.py:31
 msgid "Electricity CO2 emission factor"
 msgstr "El CO2-emissionsfaktor"
 
-#: params/global_params.py
+#: params/global_params.py:36
 msgid "Renovation rate baseline"
 msgstr "Renoveringsrate baseline"
 
-#: params/global_params.py
+#: params/global_params.py:41
 msgid "Include energy taxes in calculations?"
 msgstr "Medtag energiafgifter i beregningerne?"
 
-#: params/global_params.py
+#: params/global_params.py:46
 msgid "Include CO2 cost variable in calculations?"
 msgstr "Medtag CO2-omkostningsvariabel i beregningerne?"
 
-#: params/global_params.py
+#: params/global_params.py:51
 msgid "Include health impact variable in calculations?"
 msgstr "Medtag sundhedspåvirkningsvariabel i beregningerne?"
 
-#: params/global_params.py
+#: params/global_params.py:56
 msgid "Include avoided electricity capacity variable in calculations?"
 msgstr "Medtag undgået elkapacitetsvariabel i beregningerne?"
 
-#: params/global_params.py
+#: params/global_params.py:61
 msgid "Price of CO2"
 msgstr "Pris på CO2"
 
-#: params/global_params.py
+#: params/global_params.py:66
 msgid "Price of CO2 annual change"
 msgstr "Pris på CO2 årlig ændring"
 
-#: params/global_params.py
+#: params/global_params.py:71
 msgid "Price of electricity"
 msgstr "Pris på elektricitet"
 
-#: params/global_params.py
+#: params/global_params.py:76
 msgid "Price of electricity annual change"
 msgstr "Pris på elektricitet årlig ændring"
 
-#: params/global_params.py
+#: params/global_params.py:81
 msgid "Price of Heat"
 msgstr "Pris på varme"
 
-#: params/global_params.py
+#: params/global_params.py:86
 msgid "Price of heat annual change"
 msgstr "Pris på varme årlig ændring"
 
-#: paths/authentication.py
+#: params/global_params.py:91
+msgid "Invest all on the first year (in contrast to continuous investing)?"
+msgstr ""
+
+#: params/global_params.py:96
+msgid "Placeholder for updated_building_code_residential"
+msgstr ""
+
+#: params/global_params.py:101
+#, fuzzy
+#| msgid "Renovation rate baseline"
+msgid "Action impact based on baseline"
+msgstr "Renoveringsrate baseline"
+
+#: params/global_params.py:102
+msgid ""
+"Compute action impact based on the baseline scenario instead of the default "
+"one"
+msgstr ""
+
+#: params/global_params.py:108
+msgid "Scanario name"
+msgstr ""
+
+#: params/global_params.py:113
+msgid "Weight for emission impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:118
+msgid "Weight for economic impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:123
+msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
+msgstr ""
+
+#: params/global_params.py:128
+msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
+msgstr ""
+
+#: params/global_params.py:133
+msgid "Weight for health impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:138
+msgid "Weight for equity impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:143
+msgid "Weight for biodiversity impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:148
+msgid "Weight for actions to be legal in value profiles"
+msgstr ""
+
+#: params/global_params.py:153
+msgid "Threshold for sum of weighted impacts in value profiles"
+msgstr ""
+
+#: params/global_params.py:158
+msgid "Effect of electric vehicles on car kilometers"
+msgstr ""
+
+#: params/global_params.py:163
+msgid "List of selected municipalities"
+msgstr ""
+
+#: params/global_params.py:168
+msgid "List of selected nodes"
+msgstr ""
+
+#: params/global_params.py:173
+msgid "Selected computational framework"
+msgstr ""
+
+#: params/global_params.py:178
+msgid "Annual weather normalization for energy consumption"
+msgstr ""
+
+#: params/global_params.py:183
+msgid "Is the last historical value extended into the future?"
+msgstr ""
+
+#: paths/authentication.py:21
 msgid "Invalid token."
 msgstr "Ugyldigt token."
 
-#: paths/schema.py paths/utils.py
+#: paths/schema.py:80 paths/utils.py:61 paths/utils.py:63
 msgid "Invalid unit"
 msgstr "Ugyldig enhed"
 
-#: paths/settings.py
-msgid "Finnish"
-msgstr "Finsk"
-
-#: paths/settings.py
+#: paths/settings.py:316
 msgid "English"
 msgstr "Engelsk"
 
-#: paths/settings.py
+#: paths/settings.py:317
+msgid "Finnish"
+msgstr "Finsk"
+
+#: paths/settings.py:318
 msgid "Swedish"
 msgstr "Svensk"
 
-#: paths/settings.py
+#: paths/settings.py:319
 msgid "German"
 msgstr "Tysk"
 
-#: paths/settings.py
+#: paths/settings.py:320
 msgid "German (Switzerland)"
 msgstr "Tysk (Schweiz)"
 
-#: paths/utils.py
+#: paths/settings.py:321
+msgid "Czech"
+msgstr "Tjekkisk"
+
+#: paths/settings.py:322
+msgid "Danish"
+msgstr "Dansk"
+
+#: paths/settings.py:323
+msgid "Polish"
+msgstr "Polsk"
+
+#: paths/utils.py:27
 msgid "identifier"
 msgstr "identifikator"
 
-#: paths/utils.py
+#: paths/utils.py:71
 msgid "unit"
 msgstr "enhed"
 
-#: paths/utils.py
+#: paths/utils.py:85
 msgid "uuid"
 msgstr "uuid"
 
-#: paths/utils.py
+#: paths/utils.py:96
 msgid "created at"
 msgstr "oprettet den"
 
-#: paths/utils.py
+#: paths/utils.py:98
 msgid "updated at"
 msgstr "opdateret den"
 
-#: paths/utils.py
+#: paths/utils.py:106
 msgid "order"
 msgstr "rækkefølge"
 
-#: users/models.py
+#: users/models.py:11
 msgid "email address"
 msgstr "e-mailadresse"
+
+#~ msgid "Discount node name"
+#~ msgstr "Rabatknudepunktets navn"
