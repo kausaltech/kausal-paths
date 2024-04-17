@@ -173,6 +173,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
         """Store the dataset to DVC."""
         ctx = self.instance.get_instance().context
 
+        # Resolve DVC path
         if dvc_path is None:
             if not self.dvc_identifier:
                 if ctx.dataset_repo_default_path:
@@ -182,12 +183,14 @@ class Dataset(ClusterableModel, UserModifiableModel):
             ds_dvc_id: str = self.dvc_identifier
             dvc_path = ds_dvc_id
 
+        # Convert dataset to dataframe
         assert self.table is not None
         df = JSONDataset.deserialize_df(self.table)
         if 'uuid' in df.columns:
             df = df.drop(columns=['uuid'])
         df = df.dropna(how='all')
 
+        # Configure and push to the DVC repo
         r = ctx.dataset_repo
         repo = Repository(repo_url=repo_url or r.repo_url, dvc_remote=r.dvc_remote)
         repo.set_target_commit(None)
@@ -202,6 +205,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
         )
         repo.push_dataset(dvc_ds)
 
+        # Update DVC identifier
         if self.dvc_identifier != dvc_path:
             self.dvc_identifier = dvc_path
             self.save(update_fields=['dvc_identifier'])
