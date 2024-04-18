@@ -67,3 +67,83 @@ class DatasetAction(ActionNode):
 
         return df
 
+class DatasetActionMFM(ActionNode):
+    allowed_parameters = [StringParameter('action', description = 'Action Name', is_customizable = False)]
+
+    no_effect_value = 0.0
+
+    qlookup = {'Emission Factor': 'emission_factor',
+               'Emissions': 'emissions',
+               'Energy Consumption': 'energy',
+               'Fuel Consumption': 'fuel_consumption',
+               'Mileage': 'mileage',
+               'Price': 'currency',
+               'Unit Price': 'unit_price',
+               'Waste Disposal': 'mass'}
+
+    # -----------------------------------------------------------------------------------
+    def makeid(self, label: str):
+        # Supported languages: Danish, English, Finnish, German, Polish, Swedish
+        idlookup = {'': ['.', ',', ':', '-'],
+                    '_': [' '],
+                    'and': ['&'],
+                    'a': ['ä', 'å', 'ą'],
+                    'c': ['ć'],
+                    'e': ['ę'],
+                    'l': ['ł'],
+                    'n': ['ń'],
+                    'o': ['ö', 'ø', 'ó'],
+                    's': ['ś'],
+                    'u': ['ü'],
+                    'z': ['ź', 'ż'],
+                    'ae': ['æ'],
+                    'ss': ['ß']}
+
+        idtext = label.lower()
+        if idtext[:5] == 'scope':
+            idtext = idtext.replace(' ', '')
+
+        for tochar in idlookup:
+            for fromchar in idlookup[tochar]:
+                idtext = idtext.replace(fromchar, tochar)
+
+        return idtext
+
+    # -----------------------------------------------------------------------------------
+    def compute_effect(self) -> pd.DataFrame:
+        df = self.get_input_dataset()
+        df = df[df.index.get_level_values('Action') == self.get_parameter_value('action')]
+
+        if not self.is_enabled():
+            df['Value'] = self.no_effect_value
+
+        df.index = df.index.droplevel(['Sector', 'Action'])
+        df.index = df.index.set_names([self.makeid(i) for i in df.index.names])
+        df.index = df.index.set_names({'year': 'Year'})
+
+        dfi = df.index.to_frame(index = False)
+        for col in list(set(df.index.names) - set(['quantity', 'Year'])):
+            for cat in dfi[col].unique():
+                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
+
+        df.index = pd.MultiIndex.from_frame(dfi)
+        qdfs = []
+        for quantity in df.index.get_level_values('quantity').unique().to_list():
+            qdf = df[df.index.get_level_values('quantity') == quantity]
+            qdf.index = qdf.index.droplevel('quantity')
+
+            qdf['Value'] = qdf['Value'].astype('pint[' + qdf['Unit'].unique()[0] + ']')
+            qdf = qdf.drop(columns = ['Unit'])
+
+            qdf = qdf.rename(columns = {'Value': self.qlookup[quantity]})
+            qdfs.append(qdf)
+
+        jdf = qdfs[0]
+        for qdf in qdfs[1:]:
+            jdf = jdf.join(qdf, how = 'outer')
+
+        for dim in self.output_dimensions:
+            self.output_dimensions[dim].is_internal = True
+
+        jdf[FORECAST_COLUMN] = False
+        return(jdf)
