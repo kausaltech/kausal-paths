@@ -129,7 +129,7 @@ class DatasetActionMFM(ActionNode):
         df.index = pd.MultiIndex.from_frame(dfi)
         qdfs = []
         for quantity in df.index.get_level_values('quantity').unique().to_list():
-            qdf = df[df.index.get_level_values('quantity') == quantity]
+            qdf = df[df.index.get_level_values('quantity') == quantity].copy()
             qdf.index = qdf.index.droplevel('quantity')
 
             qdf['Value'] = qdf['Value'].astype('pint[' + qdf['Unit'].unique()[0] + ']')
