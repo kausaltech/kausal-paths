@@ -45,19 +45,23 @@ class DatasetNode(AdditiveNode):
         df['Value'] = df['Value'].astype('pint[' + unit + ']')
         df = df.drop(columns = ['Unit'])
 
+        # Convert index level names from labels to IDs.
         dims = []
-        for i in list(df.index.names):
+        for i in df.index.names:
             if i == YEAR_COLUMN:
                 dims.append(i)
             else:
                 dims.append(self.makeid(i))
         df.index = df.index.set_names(dims)
-        df = df.reset_index()
-        for i in list(set(dims) - {YEAR_COLUMN}):
-            if isinstance(df[i][0], str):
-                for j in range(len(df)):
-                    df[i][j] = self.makeid(df[i][j])
-        df = df.set_index(dims)
+
+        # Convert levels within each index level from labels to IDs.
+        dfi = df.index.to_frame(index = False)
+        for col in list(set(dims) - {YEAR_COLUMN}):
+            for cat in dfi[col].unique():
+                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
+
+        df.index = pd.MultiIndex.from_frame(dfi)
+
         if FORECAST_COLUMN not in df.columns:
             df[FORECAST_COLUMN] = False
         df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
