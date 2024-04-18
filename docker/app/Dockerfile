@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:23.04 AS base
+FROM ubuntu:24.04 AS base
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Helsinki"
-ENV PYTHON_VERSION=3.11
+ENV PYTHON_VERSION=3.12
 
 RUN mkdir /code
 
@@ -12,7 +12,7 @@ RUN apt-get update
 RUN apt-get install -y wget
 
 # Add the postgres repo
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt lunar-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc > /etc/apt/trusted.gpg.d/pgdg.asc
 
 # Set up APT package caching
