@@ -1,10 +1,10 @@
 id: c4cdemo
 default_language: en
 supported_languages: []
-site_url: https://demonstration-c4c.paths.staging.kausal.tech
+site_url: https://c4cdemo.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 46f5f4983d2052718c7e38387edaa723774b309e
+  commit: d7b0e374a834ff16de4b11d0bda5cccc3f39edd3
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner_en: City of Demonstration
@@ -1112,87 +1112,121 @@ nodes:
     - id: scope
 
 actions:
-
-- id: led_action
+- id: change_streetlights_to_led
   name: Change Streetlights to LED
-  type: parent.ParentActionNode
-  quantity: emissions
-  unit: kt/a
-  output_dimensions: [scope, ghg]
-  indicator_nodes:
-  - id: net_emissions
-
-- id: led_i22_commercial_and_institutional_grid_energy_consumption
-  name: Change Streetlights to LED (Energy Consumption)
-  parent: led_action
-  type: simple.AdditiveAction
-  quantity: energy
-  unit: kWh/a
-  historical_values: [[2021, -1109182.92],
-                    [2022, -2218365.85],
-                    [2023, -3327548.77],
-                    [2024, -4436731.70],
-                    [2025, -5545914.62],
-                    [2026, -5299290.32],
-                    [2027, -5052666.02],
-                    [2028, -4806041.72],
-                    [2029, -4559417.42],
-                    [2030, -4312793.12]]
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  params:
+    action: Change Streetlights to LED
+  input_datasets:
+  - id: gpc/demonstration_simple_actions
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: energy
+    unit: kWh/a
+    quantity: energy
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_simple
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
     to_dimensions:
+    - id: scope
     - id: energy_carrier
-      categories: [electricity]
-    - id: scope
-      categories: [scope2]
-
-- id: led_i22_commercial_and_institutional_grid_energy_maintenance
-  name: Change Streetlights to LED (Maintenance Cost)
-  parent: led_action
-  type: simple.AdditiveAction
-  quantity: currency
-  unit: EUR/a
-  historical_values: [[2021, -101625.30],
-                      [2022, -195433.27],
-                      [2023, -281874.90],
-                      [2024, -361378.08],
-                      [2025, -434348.65],
-                      [2026, -399070.54],
-                      [2027, -365863.61],
-                      [2028, -334620.71],
-                      [2029, -305239.90],
-                      [2030, -277624.14]]
-  output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_price_simple
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
-    - id: cost_type
-      categories: [maintenance_costs]
     - id: scope
-      categories: [scope2]
+    - id: cost_type
 
-- id: led_i22_commercial_and_institutional_grid_energy_investment
-  name: Change Streetlights to LED (Investment Cost)
-  parent: led_action
-  type: simple.AdditiveAction
-  quantity: currency
-  unit: EUR/a
-  historical_values: [[2021, 1513568.27],
-                      [2022, 1455354.11],
-                      [2023, 1399378.95],
-                      [2024, 1345556.68],
-                      [2025, 1293804.50],
-                      [2026, -276610.08],
-                      [2027, -265971.23],
-                      [2028, -255741.57],
-                      [2029, -245905.36],
-                      [2030, -236447.46]]
-  output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_price_simple
-    to_dimensions:
-    - id: cost_type
-      categories: [investment_costs]
-    - id: scope
-      categories: [scope2]
+
+# - id: led_action
+#   name: Change Streetlights to LED
+#   type: parent.ParentActionNode
+#   quantity: emissions
+#   unit: kt/a
+#   output_dimensions: [scope, ghg]
+#   indicator_nodes:
+#   - id: net_emissions
+
+# - id: led_i22_commercial_and_institutional_grid_energy_consumption
+#   name: Change Streetlights to LED (Energy Consumption)
+#   parent: led_action
+#   type: simple.AdditiveAction
+#   quantity: energy
+#   unit: kWh/a
+#   historical_values: [[2021, -1109182.92],
+#                     [2022, -2218365.85],
+#                     [2023, -3327548.77],
+#                     [2024, -4436731.70],
+#                     [2025, -5545914.62],
+#                     [2026, -5299290.32],
+#                     [2027, -5052666.02],
+#                     [2028, -4806041.72],
+#                     [2029, -4559417.42],
+#                     [2030, -4312793.12]]
+#   output_nodes:
+#   - id: i22_commercial_and_institutional_grid_energy_consumption_simple
+#     to_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
+#     - id: scope
+#       categories: [scope2]
+
+# - id: led_i22_commercial_and_institutional_grid_energy_maintenance
+#   name: Change Streetlights to LED (Maintenance Cost)
+#   parent: led_action
+#   type: simple.AdditiveAction
+#   quantity: currency
+#   unit: EUR/a
+#   historical_values: [[2021, -101625.30],
+#                       [2022, -195433.27],
+#                       [2023, -281874.90],
+#                       [2024, -361378.08],
+#                       [2025, -434348.65],
+#                       [2026, -399070.54],
+#                       [2027, -365863.61],
+#                       [2028, -334620.71],
+#                       [2029, -305239.90],
+#                       [2030, -277624.14]]
+#   output_nodes:
+#   - id: i22_commercial_and_institutional_grid_energy_price_simple
+#     to_dimensions:
+#     - id: cost_type
+#       categories: [maintenance_costs]
+#     - id: scope
+#       categories: [scope2]
+
+# - id: led_i22_commercial_and_institutional_grid_energy_investment
+#   name: Change Streetlights to LED (Investment Cost)
+#   parent: led_action
+#   type: simple.AdditiveAction
+#   quantity: currency
+#   unit: EUR/a
+#   historical_values: [[2021, 1513568.27],
+#                       [2022, 1455354.11],
+#                       [2023, 1399378.95],
+#                       [2024, 1345556.68],
+#                       [2025, 1293804.50],
+#                       [2026, -276610.08],
+#                       [2027, -265971.23],
+#                       [2028, -255741.57],
+#                       [2029, -245905.36],
+#                       [2030, -236447.46]]
+#   output_nodes:
+#   - id: i22_commercial_and_institutional_grid_energy_price_simple
+#     to_dimensions:
+#     - id: cost_type
+#       categories: [investment_costs]
+#     - id: scope
+#       categories: [scope2]
 
 
 pages:
