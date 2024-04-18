@@ -3,6 +3,9 @@
 # This file is distributed under the same license as the PACKAGE package.
 # Claude <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
+msgid ""
+msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-17 16:48+0300\n"
@@ -662,41 +665,6 @@ msgstr "päivitetty"
 msgid "order"
 msgstr "järjestys"
 
-#: nodes/models.py:103 pages/models.py:134 pages/models.py:166
-msgid "Lead title"
-msgstr "Johdanto-otsikko"
-
-#: nodes/models.py:104 pages/models.py:135 pages/models.py:167
-msgid "Lead paragraph"
-msgstr "Johdantokappale"
-
-#: nodes/units.py:182
-msgid "capita"
-msgstr "asukas"
-
-#: nodes/units.py:183
-msgctxt "capita short"
-msgid "cap"
-msgstr "as."
-
-#: nodes/units.py:184
-msgctxt "kilotonne short"
-msgid "kt"
-msgstr "kt"
-
-#: nodes/units.py:185
-msgctxt "year short"
-msgid "yr."
-msgstr "v."
-
-#: pages/models.py:150
-msgid "Outcome page"
-msgstr "Tulossivu"
-
-#: pages/models.py:151
-msgid "Outcome pages"
-msgstr "Tulossivut"
-
 #: paths/settings.py:316
 msgid "English"
 msgstr "englanti"
@@ -728,30 +696,6 @@ msgstr "tanska"
 #: paths/settings.py:323
 msgid "Polish"
 msgstr "puola"
-
-#: paths/utils.py:27
-msgid "identifier"
-msgstr "tunniste"
-
-#: paths/utils.py:71
-msgid "unit"
-msgstr "yksikkö"
-
-#: paths/utils.py:85
-msgid "uuid"
-msgstr "uuid"
-
-#: paths/utils.py:96
-msgid "created at"
-msgstr "luotu"
-
-#: paths/utils.py:98
-msgid "updated at"
-msgstr "päivitetty"
-
-#: paths/utils.py:106
-msgid "order"
-msgstr "järjestys"
 
 #: users/models.py:11
 msgid "email address"
