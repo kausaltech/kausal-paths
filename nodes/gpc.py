@@ -22,10 +22,42 @@ class DatasetNode(AdditiveNode):
                'mileage': 'Mileage',
                'unit_price': 'Unit Price'}
 
-    def makeid(self, name: str):
-        return (name.lower().replace('.', '').replace(',', '').replace(':', '').replace('-', '').replace(' ', '_')
-                .replace('&', 'and').replace('å', 'a').replace('ä', 'a').replace('ö', 'o'))
+    # -----------------------------------------------------------------------------------
+    def makeid(self, label: str):
+        # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
+        idlookup = {'': ['.', ',', ':', '-'],
+                    '_': [' '],
+                    'and': ['&'],
+                    'a': ['ä', 'å', 'ą', 'á', 'ā'],
+                    'c': ['ć', 'č'],
+                    'd': ['ď'],
+                    'e': ['ę', 'é', 'ě', 'ē'],
+                    'g': ['ģ'],
+                    'i': ['í', 'ī'],
+                    'k': ['ķ'],
+                    'l': ['ł', 'ļ'],
+                    'n': ['ń', 'ň', 'ņ'],
+                    'o': ['ö', 'ø', 'ó'],
+                    'r': ['ř'],
+                    's': ['ś', 'š'],
+                    't': ['ť'],
+                    'u': ['ü', 'ú', 'ů', 'ū'],
+                    'y': ['ý'],
+                    'z': ['ź', 'ż', 'ž'],
+                    'ae': ['æ'],
+                    'ss': ['ß']}
 
+        idtext = label.lower()
+        if idtext[:5] == 'scope':
+            idtext = idtext.replace(' ', '')
+
+        for tochar in idlookup:
+            for fromchar in idlookup[tochar]:
+                idtext = idtext.replace(fromchar, tochar)
+
+        return idtext
+
+    # -----------------------------------------------------------------------------------
     def compute(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')
 

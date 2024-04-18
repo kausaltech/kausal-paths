@@ -24,23 +24,33 @@ yamlparameters['Instance']     = yamlparameters['instance'].title()
 
 # -------------------------------------------------------------------------------------------------
 def makeid(label: str):
-    # Supported languages: Danish, English, Finnish, German, Polish, Swedish
+    # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
     idlookup = {'': ['.', ',', ':', '-'],
                 '_': [' '],
                 'and': ['&'],
-                'a': ['ä', 'å', 'ą'],
-                'c': ['ć'],
-                'e': ['ę'],
-                'l': ['ł'],
-                'n': ['ń'],
+                'a': ['ä', 'å', 'ą', 'á', 'ā'],
+                'c': ['ć', 'č'],
+                'd': ['ď'],
+                'e': ['ę', 'é', 'ě', 'ē'],
+                'g': ['ģ'],
+                'i': ['í', 'ī'],
+                'k': ['ķ'],
+                'l': ['ł', 'ļ'],
+                'n': ['ń', 'ň', 'ņ'],
                 'o': ['ö', 'ø', 'ó'],
-                's': ['ś'],
-                'u': ['ü'],
-                'z': ['ź', 'ż'],
+                'r': ['ř'],
+                's': ['ś', 'š'],
+                't': ['ť'],
+                'u': ['ü', 'ú', 'ů', 'ū'],
+                'y': ['ý'],
+                'z': ['ź', 'ż', 'ž'],
                 'ae': ['æ'],
                 'ss': ['ß']}
 
     idtext = label.lower()
+    if idtext[:5] == 'scope':
+        idtext = idtext.replace(' ', '')
+
     for tochar in idlookup:
         for fromchar in idlookup[tochar]:
             idtext = idtext.replace(fromchar, tochar)
