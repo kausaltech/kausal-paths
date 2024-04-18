@@ -141,6 +141,7 @@ class InstanceType(graphene.ObjectType):
     features = graphene.Field(InstanceFeaturesType, required=True)
     goals = graphene.List(graphene.NonNull(InstanceGoalEntry), id=graphene.ID(required=False), required=True)
     action_list_page = graphene.Field(get_action_list_page_node, required=False)
+    intro_content = graphene.List(graphene.NonNull(StreamFieldInterface))
 
     @staticmethod
     def resolve_lead_title(root: Instance, info):
@@ -183,6 +184,10 @@ class InstanceType(graphene.ObjectType):
             ret.append(out)
         return ret
 
+    @staticmethod
+    def resolve_intro_content(root: Instance, info):
+        intro_content = root.config.site_content.intro_content
+        return intro_content
 
 class YearlyValue(graphene.ObjectType):
     year = graphene.Int(required=True)

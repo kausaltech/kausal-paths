@@ -196,3 +196,27 @@ class ActionListPage(PathsPage):
     class Meta:
         verbose_name = _('Action list page')
         verbose_name_plural = _('Action list pages')
+
+
+class InstanceSiteContent(models.Model):
+    instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
+
+    intro_content = StreamField([
+        ('title', blocks.RichTextBlock(label=_('Title'))),
+        ('paragraph', blocks.RichTextBlock(label=_("Introductory content to show in the UI"))),
+        ],
+        block_counts={
+            'title': {'max_num': 1},
+            'paragraph': {'max_num': 1}
+        },
+        use_json_field=True, blank=True, verbose_name=_('Introductory content'))
+
+    graphql_fields = [GraphQLStreamfield('intro_content')]
+
+
+    class Meta:
+        verbose_name = _('Site content')
+        verbose_name_plural = _('Site contents')
+
+    def __str__(self) -> str:
+        return "Site contents for %s" % self.instance.name
