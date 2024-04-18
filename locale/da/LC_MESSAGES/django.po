@@ -1,11 +1,8 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# Translated content of the Kausal Paths scenario tool.
+# Copyright (C) 2024 Kausal Ltd
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Claude <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
-msgid ""
-msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-17 16:50+0300\n"
@@ -29,26 +26,28 @@ msgid ""
 "No user found with this email address. Ask your administrator to create an "
 "account for you."
 msgstr ""
+"Ingen bruger fundet med denne e-mailadresse. Bed din administrator om at oprette en "
+"konto til dig."
 
 #: admin_site/api.py:38
 msgid "This user does not have access to admin."
-msgstr ""
+msgstr "Denne bruger har ikke adgang til admin."
 
 #: admin_site/perms.py:124
 msgid "General admin"
-msgstr ""
+msgstr "Generel admin"
 
 #: admin_site/templates/wagtailadmin/home.html:4
 msgid "Welcome to Paths admin"
-msgstr ""
+msgstr "Velkommen til Paths admin"
 
 #: admin_site/templates/wagtailadmin/login.html:11
 msgid "Sign in to Kausal Paths admin"
-msgstr ""
+msgstr "Log ind på Kausal Paths admin"
 
 #: admin_site/templates/wagtailadmin/login.html:20
 msgid "Our apologies, the server is temporarily experiencing difficulties."
-msgstr ""
+msgstr "Vi beklager, serveren har midlertidigt problemer."
 
 #: admin_site/wagtail_hooks.py:71
 msgid "Choose instance"
@@ -68,19 +67,19 @@ msgstr "etiket"
 
 #: datasets/models.py:220
 msgid "data source reference"
-msgstr ""
+msgstr "datakildehenvisning"
 
 #: datasets/models.py:221
 msgid "data source references"
-msgstr ""
+msgstr "datakildehenvisninger"
 
 #: datasets/models.py:226
 msgid "Review comment"
-msgstr ""
+msgstr "Anmeldelseskommentar"
 
 #: datasets/models.py:227
 msgid "Sticky comment"
-msgstr ""
+msgstr "Fastgjort kommentar"
 
 #: datasets/models.py:230
 #, fuzzy
@@ -100,11 +99,11 @@ msgstr "løst den"
 
 #: datasets/models.py:259
 msgid "comment"
-msgstr ""
+msgstr "kommentar"
 
 #: datasets/models.py:260
 msgid "comments"
-msgstr ""
+msgstr "kommentarer"
 
 #: datasets/wagtail_hooks.py:12
 #, fuzzy
@@ -114,19 +113,19 @@ msgstr "Dimensioner"
 
 #: datasets/wagtail_hooks.py:26 nodes/models.py:479
 msgid "Data sources"
-msgstr ""
+msgstr "Datakilder"
 
 #: mysite/home/templates/home/welcome_page.html:6
 msgid "Visit the Wagtail website"
-msgstr ""
+msgstr "Besøg Wagtail-webstedet"
 
 #: mysite/home/templates/home/welcome_page.html:15
 msgid "View the release notes"
-msgstr ""
+msgstr "Se udgivelsesnoterne"
 
 #: mysite/home/templates/home/welcome_page.html:27
 msgid "Welcome to your new Wagtail site!"
-msgstr ""
+msgstr "Velkommen til dit nye Wagtail-websted!"
 
 #: mysite/home/templates/home/welcome_page.html:28
 msgid ""
@@ -134,38 +133,40 @@ msgid ""
 "\">join our community on Slack</a>, or get started with one of the links "
 "below."
 msgstr ""
+"Du er velkommen til at <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">deltage i vores fællesskab på Slack</a> eller komme i gang med et af nedenstående links."
 
 #: mysite/home/templates/home/welcome_page.html:35
 msgid "Wagtail Documentation"
-msgstr ""
+msgstr "Wagtail-dokumentation"
 
 #: mysite/home/templates/home/welcome_page.html:36
 msgid "Topics, references, & how-tos"
-msgstr ""
+msgstr "Emner, referencer og vejledninger"
 
 #: mysite/home/templates/home/welcome_page.html:42
 msgid "Tutorial"
-msgstr ""
+msgstr "Vejledning"
 
 #: mysite/home/templates/home/welcome_page.html:43
 msgid "Build your first Wagtail site"
-msgstr ""
+msgstr "Byg dit første Wagtail-websted"
 
 #: mysite/home/templates/home/welcome_page.html:49
 msgid "Admin Interface"
-msgstr ""
+msgstr "Administrationsgrænseflade"
 
 #: mysite/home/templates/home/welcome_page.html:50
 msgid "Create your superuser first!"
-msgstr ""
+msgstr "Opret først din superbruger!"
 
 #: nodes/actions/action.py:50
 msgid "Is implemented"
-msgstr ""
+msgstr "Er implementeret"
 
 #: nodes/actions/action.py:50
 msgid "Is the action included in the scenario"
-msgstr ""
+msgstr "Er handlingen inkluderet i scenariet"
 
 #: nodes/actions/energy_saving.py:51
 msgid "Number of LED bulbs changed per year (baseline)"
@@ -281,11 +282,11 @@ msgstr "Brugerdefineret"
 
 #: nodes/metric.py:321
 msgid "Sectors"
-msgstr ""
+msgstr "Sektorer"
 
 #: nodes/models.py:101 nodes/models.py:487
 msgid "UUID"
-msgstr ""
+msgstr "UUID"
 
 #: nodes/models.py:102 nodes/models.py:460
 msgid "name"
@@ -345,11 +346,11 @@ msgstr "Beskrivelse"
 
 #: nodes/models.py:464
 msgid "authority"
-msgstr ""
+msgstr "myndighed"
 
 #: nodes/models.py:464
 msgid "The organization responsible for the data source"
-msgstr ""
+msgstr "Organisationen ansvarlig for datakilden"
 
 #: nodes/models.py:467
 #, fuzzy
@@ -359,11 +360,11 @@ msgstr "Beskrivelse"
 
 #: nodes/models.py:468
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 #: nodes/models.py:478
 msgid "Data source"
-msgstr ""
+msgstr "Datakilde"
 
 #: nodes/models.py:490
 msgid "Order"
@@ -371,7 +372,7 @@ msgstr "Rækkefølge"
 
 #: nodes/models.py:494
 msgid "Goal"
-msgstr ""
+msgstr "Mål"
 
 #: nodes/models.py:498
 msgid "Short description"
@@ -411,7 +412,7 @@ msgstr "år"
 #: nodes/units.py:186
 msgctxt "percent"
 msgid "percent"
-msgstr ""
+msgstr "procent"
 
 #: pages/models.py:52
 msgid "show in footer"
@@ -441,27 +442,27 @@ msgstr "Resultatsider"
 
 #: pages/models.py:162
 msgid "Standard"
-msgstr ""
+msgstr "Standard"
 
 #: pages/models.py:163
 msgid "Impact"
-msgstr ""
+msgstr "Påvirkning"
 
 #: pages/models.py:164
 msgid "Cumulative impact"
-msgstr ""
+msgstr "Kumulativ påvirkning"
 
 #: pages/models.py:170
 msgid "Show cumulative impact"
-msgstr ""
+msgstr "Vis kumulativ påvirkning"
 
 #: pages/models.py:171
 msgid "Show action comparison"
-msgstr ""
+msgstr "Vis handlingssammenligning"
 
 #: pages/models.py:172
 msgid "Show only municipal actions"
-msgstr ""
+msgstr "Vis kun kommunale handlinger"
 
 #: pages/models.py:197
 msgid "Action list page"
@@ -541,11 +542,11 @@ msgstr "Pris på varme årlig ændring"
 
 #: params/global_params.py:91
 msgid "Invest all on the first year (in contrast to continuous investing)?"
-msgstr ""
+msgstr "Investér alt det første år (i modsætning til løbende investering)?"
 
 #: params/global_params.py:96
 msgid "Placeholder for updated_building_code_residential"
-msgstr ""
+msgstr "Pladsholder for opdateret_bygningsreglement_bolig"
 
 #: params/global_params.py:101
 #, fuzzy
@@ -558,70 +559,72 @@ msgid ""
 "Compute action impact based on the baseline scenario instead of the default "
 "one"
 msgstr ""
+"Beregn handlingens påvirkning baseret på baseline-scenariet i stedet for standard"
+"scenariet"
 
 #: params/global_params.py:108
 msgid "Scanario name"
-msgstr ""
+msgstr "Scenarienavn"
 
 #: params/global_params.py:113
 msgid "Weight for emission impacts in value profiles"
-msgstr ""
+msgstr "Vægt for emissionspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:118
 msgid "Weight for economic impacts in value profiles"
-msgstr ""
+msgstr "Vægt for økonomiske påvirkninger i værdiprofiler"
 
 #: params/global_params.py:123
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
-msgstr ""
+msgstr "Vægt for velfærdspåvirkninger (f.eks. jobs) i værdiprofiler"
 
 #: params/global_params.py:128
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
-msgstr ""
+msgstr "Vægt for renhedspåvirkninger (f.eks. mangel på forurening) i værdiprofiler"
 
 #: params/global_params.py:133
 msgid "Weight for health impacts in value profiles"
-msgstr ""
+msgstr "Vægt for sundhedspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:138
 msgid "Weight for equity impacts in value profiles"
-msgstr ""
+msgstr "Vægt for lighedspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:143
 msgid "Weight for biodiversity impacts in value profiles"
-msgstr ""
+msgstr "Vægt for biodiversitetspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:148
 msgid "Weight for actions to be legal in value profiles"
-msgstr ""
+msgstr "Vægt for at handlinger skal være lovlige i værdiprofiler"
 
 #: params/global_params.py:153
 msgid "Threshold for sum of weighted impacts in value profiles"
-msgstr ""
+msgstr "Tærskel for summen af vægtede påvirkninger i værdiprofiler"
 
 #: params/global_params.py:158
 msgid "Effect of electric vehicles on car kilometers"
-msgstr ""
+msgstr "Effekt af elbiler på bilkilometer"
 
 #: params/global_params.py:163
 msgid "List of selected municipalities"
-msgstr ""
+msgstr "Liste over udvalgte kommuner"
 
 #: params/global_params.py:168
 msgid "List of selected nodes"
-msgstr ""
+msgstr "Liste over udvalgte knudepunkter"
 
 #: params/global_params.py:173
 msgid "Selected computational framework"
-msgstr ""
+msgstr "Valgt beregningsramme"
 
 #: params/global_params.py:178
 msgid "Annual weather normalization for energy consumption"
-msgstr ""
+msgstr "Årlig vejrnormalisering for energiforbrug"
 
 #: params/global_params.py:183
 msgid "Is the last historical value extended into the future?"
-msgstr ""
+msgstr "Er den sidste historiske værdi udvidet ind i fremtiden?"
 
 #: paths/authentication.py:21
 msgid "Invalid token."

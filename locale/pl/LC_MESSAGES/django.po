@@ -1,11 +1,8 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# Translated content of the Kausal Paths scenario tool.
+# Copyright (C) 2024 Kausal Ltd
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Claude <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
-msgid ""
-msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-17 16:50+0300\n"
@@ -29,26 +26,28 @@ msgid ""
 "No user found with this email address. Ask your administrator to create an "
 "account for you."
 msgstr ""
+"Nie znaleziono użytkownika o tym adresie e-mail. Poproś administratora o utworzenie "
+"konta dla Ciebie."
 
 #: admin_site/api.py:38
 msgid "This user does not have access to admin."
-msgstr ""
+msgstr "Ten użytkownik nie ma dostępu do panelu administracyjnego."
 
 #: admin_site/perms.py:124
 msgid "General admin"
-msgstr ""
+msgstr "Ogólny administrator"
 
 #: admin_site/templates/wagtailadmin/home.html:4
 msgid "Welcome to Paths admin"
-msgstr ""
+msgstr "Witaj w panelu administracyjnym Paths"
 
 #: admin_site/templates/wagtailadmin/login.html:11
 msgid "Sign in to Kausal Paths admin"
-msgstr ""
+msgstr "Zaloguj się do panelu administracyjnego Kausal Paths"
 
 #: admin_site/templates/wagtailadmin/login.html:20
 msgid "Our apologies, the server is temporarily experiencing difficulties."
-msgstr ""
+msgstr "Przepraszamy, serwer tymczasowo napotyka trudności."
 
 #: admin_site/wagtail_hooks.py:71
 msgid "Choose instance"
@@ -68,19 +67,19 @@ msgstr "etykieta"
 
 #: datasets/models.py:220
 msgid "data source reference"
-msgstr ""
+msgstr "odniesienie do źródła danych"
 
 #: datasets/models.py:221
 msgid "data source references"
-msgstr ""
+msgstr "odniesienia do źródeł danych"
 
 #: datasets/models.py:226
 msgid "Review comment"
-msgstr ""
+msgstr "Komentarz do przeglądu"
 
 #: datasets/models.py:227
 msgid "Sticky comment"
-msgstr ""
+msgstr "Przypięty komentarz"
 
 #: datasets/models.py:230
 #, fuzzy
@@ -100,11 +99,11 @@ msgstr "rozwiązane w"
 
 #: datasets/models.py:259
 msgid "comment"
-msgstr ""
+msgstr "komentarz"
 
 #: datasets/models.py:260
 msgid "comments"
-msgstr ""
+msgstr "komentarze"
 
 #: datasets/wagtail_hooks.py:12
 #, fuzzy
@@ -114,19 +113,19 @@ msgstr "Wymiary"
 
 #: datasets/wagtail_hooks.py:26 nodes/models.py:479
 msgid "Data sources"
-msgstr ""
+msgstr "Źródła danych"
 
 #: mysite/home/templates/home/welcome_page.html:6
 msgid "Visit the Wagtail website"
-msgstr ""
+msgstr "Odwiedź stronę Wagtail"
 
 #: mysite/home/templates/home/welcome_page.html:15
 msgid "View the release notes"
-msgstr ""
+msgstr "Zobacz informacje o wydaniu"
 
 #: mysite/home/templates/home/welcome_page.html:27
 msgid "Welcome to your new Wagtail site!"
-msgstr ""
+msgstr "Witaj na swojej nowej stronie Wagtail!"
 
 #: mysite/home/templates/home/welcome_page.html:28
 msgid ""
@@ -134,38 +133,40 @@ msgid ""
 "\">join our community on Slack</a>, or get started with one of the links "
 "below."
 msgstr ""
+"Zapraszamy do <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">dołączenia do naszej społeczności na Slacku</a> lub rozpoczęcia od jednego z poniższych linków."
 
 #: mysite/home/templates/home/welcome_page.html:35
 msgid "Wagtail Documentation"
-msgstr ""
+msgstr "Dokumentacja Wagtail"
 
 #: mysite/home/templates/home/welcome_page.html:36
 msgid "Topics, references, & how-tos"
-msgstr ""
+msgstr "Tematy, odniesienia i poradniki"
 
 #: mysite/home/templates/home/welcome_page.html:42
 msgid "Tutorial"
-msgstr ""
+msgstr "Samouczek"
 
 #: mysite/home/templates/home/welcome_page.html:43
 msgid "Build your first Wagtail site"
-msgstr ""
+msgstr "Zbuduj swoją pierwszą stronę Wagtail"
 
 #: mysite/home/templates/home/welcome_page.html:49
 msgid "Admin Interface"
-msgstr ""
+msgstr "Interfejs administracyjny"
 
 #: mysite/home/templates/home/welcome_page.html:50
 msgid "Create your superuser first!"
-msgstr ""
+msgstr "Najpierw utwórz superużytkownika!"
 
 #: nodes/actions/action.py:50
 msgid "Is implemented"
-msgstr ""
+msgstr "Jest zaimplementowane"
 
 #: nodes/actions/action.py:50
 msgid "Is the action included in the scenario"
-msgstr ""
+msgstr "Czy działanie jest uwzględnione w scenariuszu"
 
 #: nodes/actions/energy_saving.py:51
 msgid "Number of LED bulbs changed per year (baseline)"
@@ -245,7 +246,7 @@ msgstr "Koszt konserwacji (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py:460
 msgid "Natural gas saving (thm/square foot/a)"
-msgstr ""
+msgstr "Oszczędność gazu ziemnego (thm/stopa kwadratowa/a)"
 
 #: nodes/actions/energy_saving.py:466
 #, fuzzy
@@ -281,11 +282,11 @@ msgstr "Niestandardowe"
 
 #: nodes/metric.py:321
 msgid "Sectors"
-msgstr ""
+msgstr "Sektory"
 
 #: nodes/models.py:101 nodes/models.py:487
 msgid "UUID"
-msgstr ""
+msgstr "UUID"
 
 #: nodes/models.py:102 nodes/models.py:460
 msgid "name"
@@ -345,11 +346,11 @@ msgstr "Opis"
 
 #: nodes/models.py:464
 msgid "authority"
-msgstr ""
+msgstr "organ"
 
 #: nodes/models.py:464
 msgid "The organization responsible for the data source"
-msgstr ""
+msgstr "Organizacja odpowiedzialna za źródło danych"
 
 #: nodes/models.py:467
 #, fuzzy
@@ -359,11 +360,11 @@ msgstr "Opis"
 
 #: nodes/models.py:468
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 #: nodes/models.py:478
 msgid "Data source"
-msgstr ""
+msgstr "Źródło danych"
 
 #: nodes/models.py:490
 msgid "Order"
@@ -371,7 +372,7 @@ msgstr "Kolejność"
 
 #: nodes/models.py:494
 msgid "Goal"
-msgstr ""
+msgstr "Cel"
 
 #: nodes/models.py:498
 msgid "Short description"
@@ -411,7 +412,7 @@ msgstr "r."
 #: nodes/units.py:186
 msgctxt "percent"
 msgid "percent"
-msgstr ""
+msgstr "procent"
 
 #: pages/models.py:52
 msgid "show in footer"
@@ -441,27 +442,27 @@ msgstr "Strony wyników"
 
 #: pages/models.py:162
 msgid "Standard"
-msgstr ""
+msgstr "Standard"
 
 #: pages/models.py:163
 msgid "Impact"
-msgstr ""
+msgstr "Wpływ"
 
 #: pages/models.py:164
 msgid "Cumulative impact"
-msgstr ""
+msgstr "Skumulowany wpływ"
 
 #: pages/models.py:170
 msgid "Show cumulative impact"
-msgstr ""
+msgstr "Pokaż skumulowany wpływ"
 
 #: pages/models.py:171
 msgid "Show action comparison"
-msgstr ""
+msgstr "Pokaż porównanie działań"
 
 #: pages/models.py:172
 msgid "Show only municipal actions"
-msgstr ""
+msgstr "Pokaż tylko działania gminne"
 
 #: pages/models.py:197
 msgid "Action list page"
@@ -542,11 +543,11 @@ msgstr "Roczna zmiana ceny ciepła"
 
 #: params/global_params.py:91
 msgid "Invest all on the first year (in contrast to continuous investing)?"
-msgstr ""
+msgstr "Zainwestować wszystko w pierwszym roku (w przeciwieństwie do ciągłego inwestowania)?"
 
 #: params/global_params.py:96
 msgid "Placeholder for updated_building_code_residential"
-msgstr ""
+msgstr "Symbol zastępczy dla zaktualizowanego_kodu_budowlanego_mieszkaniowego"
 
 #: params/global_params.py:101
 #, fuzzy
@@ -559,70 +560,71 @@ msgid ""
 "Compute action impact based on the baseline scenario instead of the default "
 "one"
 msgstr ""
+"Oblicz wpływ działania na podstawie scenariusza bazowego zamiast domyślnego"
 
 #: params/global_params.py:108
 msgid "Scanario name"
-msgstr ""
+msgstr "Nazwa scenariusza"
 
 #: params/global_params.py:113
 msgid "Weight for emission impacts in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów emisji w profilach wartości"
 
 #: params/global_params.py:118
 msgid "Weight for economic impacts in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów ekonomicznych w profilach wartości"
 
 #: params/global_params.py:123
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów na dobrobyt (np. miejsca pracy) w profilach wartości"
 
 #: params/global_params.py:128
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów czystości (np. brak zanieczyszczeń) w profilach wartości"
 
 #: params/global_params.py:133
 msgid "Weight for health impacts in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów na zdrowie w profilach wartości"
 
 #: params/global_params.py:138
 msgid "Weight for equity impacts in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów na równość w profilach wartości"
 
 #: params/global_params.py:143
 msgid "Weight for biodiversity impacts in value profiles"
-msgstr ""
+msgstr "Waga dla wpływów na bioróżnorodność w profilach wartości"
 
 #: params/global_params.py:148
 msgid "Weight for actions to be legal in value profiles"
-msgstr ""
+msgstr "Waga dla legalności działań w profilach wartości"
 
 #: params/global_params.py:153
 msgid "Threshold for sum of weighted impacts in value profiles"
-msgstr ""
+msgstr "Próg dla sumy ważonych wpływów w profilach wartości"
 
 #: params/global_params.py:158
 msgid "Effect of electric vehicles on car kilometers"
-msgstr ""
+msgstr "Wpływ pojazdów elektrycznych na przebieg samochodów"
 
 #: params/global_params.py:163
 msgid "List of selected municipalities"
-msgstr ""
+msgstr "Lista wybranych gmin"
 
 #: params/global_params.py:168
 msgid "List of selected nodes"
-msgstr ""
+msgstr "Lista wybranych węzłów"
 
 #: params/global_params.py:173
 msgid "Selected computational framework"
-msgstr ""
+msgstr "Wybrane ramy obliczeniowe"
 
 #: params/global_params.py:178
 msgid "Annual weather normalization for energy consumption"
-msgstr ""
+msgstr "Roczna normalizacja pogodowa dla zużycia energii"
 
 #: params/global_params.py:183
 msgid "Is the last historical value extended into the future?"
-msgstr ""
+msgstr "Czy ostatnia wartość historyczna jest rozszerzona na przyszłość?"
 
 #: paths/authentication.py:21
 msgid "Invalid token."

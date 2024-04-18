@@ -1,11 +1,8 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# Translated content of the Kausal Paths scenario tool.
+# Copyright (C) 2024 Kausal Ltd
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Claude <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
-msgid ""
-msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-17 16:48+0300\n"
@@ -29,26 +26,28 @@ msgid ""
 "No user found with this email address. Ask your administrator to create an "
 "account for you."
 msgstr ""
+"Tällä sähköpostiosoitteella ei löytynyt käyttäjää. Pyydä ylläpitäjää luomaan "
+"sinulle tili."
 
 #: admin_site/api.py:38
 msgid "This user does not have access to admin."
-msgstr ""
+msgstr "Tällä käyttäjällä ei ole pääsyä ylläpitoon."
 
 #: admin_site/perms.py:124
 msgid "General admin"
-msgstr ""
+msgstr "Yleinen ylläpito"
 
 #: admin_site/templates/wagtailadmin/home.html:4
 msgid "Welcome to Paths admin"
-msgstr ""
+msgstr "Tervetuloa Paths-ylläpitoon"
 
 #: admin_site/templates/wagtailadmin/login.html:11
 msgid "Sign in to Kausal Paths admin"
-msgstr ""
+msgstr "Kirjaudu sisään Kausal Paths -ylläpitoon"
 
 #: admin_site/templates/wagtailadmin/login.html:20
 msgid "Our apologies, the server is temporarily experiencing difficulties."
-msgstr ""
+msgstr "Pahoittelemme, palvelimella on tilapäisiä vaikeuksia."
 
 #: admin_site/wagtail_hooks.py:71
 msgid "Choose instance"
@@ -68,19 +67,19 @@ msgstr "selite"
 
 #: datasets/models.py:220
 msgid "data source reference"
-msgstr ""
+msgstr "tietolähdeviite"
 
 #: datasets/models.py:221
 msgid "data source references"
-msgstr ""
+msgstr "tietolähdeviitteet"
 
 #: datasets/models.py:226
 msgid "Review comment"
-msgstr ""
+msgstr "Tarkistuskommentti"
 
 #: datasets/models.py:227
 msgid "Sticky comment"
-msgstr ""
+msgstr "Kiinnitetty kommentti"
 
 #: datasets/models.py:230
 #, fuzzy
@@ -100,11 +99,11 @@ msgstr "ratkaistu"
 
 #: datasets/models.py:259
 msgid "comment"
-msgstr ""
+msgstr "kommentti"
 
 #: datasets/models.py:260
 msgid "comments"
-msgstr ""
+msgstr "kommentit"
 
 #: datasets/wagtail_hooks.py:12
 #, fuzzy
@@ -114,19 +113,19 @@ msgstr "Ulottuvuudet"
 
 #: datasets/wagtail_hooks.py:26 nodes/models.py:479
 msgid "Data sources"
-msgstr ""
+msgstr "Tietolähteet"
 
 #: mysite/home/templates/home/welcome_page.html:6
 msgid "Visit the Wagtail website"
-msgstr ""
+msgstr "Vieraile Wagtail-verkkosivustolla"
 
 #: mysite/home/templates/home/welcome_page.html:15
 msgid "View the release notes"
-msgstr ""
+msgstr "Katso julkaisutiedot"
 
 #: mysite/home/templates/home/welcome_page.html:27
 msgid "Welcome to your new Wagtail site!"
-msgstr ""
+msgstr "Tervetuloa uudelle Wagtail-sivustollesi!"
 
 #: mysite/home/templates/home/welcome_page.html:28
 msgid ""
@@ -134,34 +133,36 @@ msgid ""
 "\">join our community on Slack</a>, or get started with one of the links "
 "below."
 msgstr ""
+"Liity vapaasti <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">yhteisöömme Slackissa</a> tai aloita yhdellä alla olevista linkeistä."
 
 #: mysite/home/templates/home/welcome_page.html:35
 msgid "Wagtail Documentation"
-msgstr ""
+msgstr "Wagtail-dokumentaatio"
 
 #: mysite/home/templates/home/welcome_page.html:36
 msgid "Topics, references, & how-tos"
-msgstr ""
+msgstr "Aiheet, viitteet ja ohjeet"
 
 #: mysite/home/templates/home/welcome_page.html:42
 msgid "Tutorial"
-msgstr ""
+msgstr "Opetusohjelma"
 
 #: mysite/home/templates/home/welcome_page.html:43
 msgid "Build your first Wagtail site"
-msgstr ""
+msgstr "Rakenna ensimmäinen Wagtail-sivustosi"
 
 #: mysite/home/templates/home/welcome_page.html:49
 msgid "Admin Interface"
-msgstr ""
+msgstr "Ylläpitokäyttöliittymä"
 
 #: mysite/home/templates/home/welcome_page.html:50
 msgid "Create your superuser first!"
-msgstr ""
+msgstr "Luo ensin superkäyttäjäsi!"
 
 #: nodes/actions/action.py:50
 msgid "Is implemented"
-msgstr ""
+msgstr "On toteutettu"
 
 #: nodes/actions/action.py:50
 msgid "Is the action included in the scenario"
@@ -281,11 +282,11 @@ msgstr "Räätälöity"
 
 #: nodes/metric.py:321
 msgid "Sectors"
-msgstr ""
+msgstr "Sektorit"
 
 #: nodes/models.py:101 nodes/models.py:487
 msgid "UUID"
-msgstr ""
+msgstr "UUID"
 
 #: nodes/models.py:102 nodes/models.py:460
 msgid "name"
@@ -349,11 +350,11 @@ msgstr "Kuvaus"
 
 #: nodes/models.py:464
 msgid "authority"
-msgstr ""
+msgstr "viranomainen"
 
 #: nodes/models.py:464
 msgid "The organization responsible for the data source"
-msgstr ""
+msgstr "Tietolähteestä vastaava organisaatio"
 
 #: nodes/models.py:467
 #, fuzzy
@@ -363,11 +364,11 @@ msgstr "Kuvaus"
 
 #: nodes/models.py:468
 msgid "URL"
-msgstr ""
+msgstr "URL-osoite"
 
 #: nodes/models.py:478
 msgid "Data source"
-msgstr ""
+msgstr "Tietolähde"
 
 #: nodes/models.py:490
 msgid "Order"
@@ -375,7 +376,7 @@ msgstr "Järjestys"
 
 #: nodes/models.py:494
 msgid "Goal"
-msgstr ""
+msgstr "Tavoite"
 
 #: nodes/models.py:498
 msgid "Short description"
@@ -415,7 +416,7 @@ msgstr "v."
 #: nodes/units.py:186
 msgctxt "percent"
 msgid "percent"
-msgstr ""
+msgstr "prosentti"
 
 #: pages/models.py:52
 msgid "show in footer"
@@ -445,27 +446,27 @@ msgstr "Tulossivut"
 
 #: pages/models.py:162
 msgid "Standard"
-msgstr ""
+msgstr "Vakio"
 
 #: pages/models.py:163
 msgid "Impact"
-msgstr ""
+msgstr "Vaikutus"
 
 #: pages/models.py:164
 msgid "Cumulative impact"
-msgstr ""
+msgstr "Kumulatiivinen vaikutus"
 
 #: pages/models.py:170
 msgid "Show cumulative impact"
-msgstr ""
+msgstr "Näytä kumulatiivinen vaikutus"
 
 #: pages/models.py:171
 msgid "Show action comparison"
-msgstr ""
+msgstr "Näytä toimenpiteiden vertailu"
 
 #: pages/models.py:172
 msgid "Show only municipal actions"
-msgstr ""
+msgstr "Näytä vain kunnalliset toimenpiteet"
 
 #: pages/models.py:197
 msgid "Action list page"
@@ -545,11 +546,11 @@ msgstr "Lämmön hinnan vuosittainen muutos"
 
 #: params/global_params.py:91
 msgid "Invest all on the first year (in contrast to continuous investing)?"
-msgstr ""
+msgstr "Sijoitetaanko kaikki ensimmäisenä vuonna (jatkuvan sijoittamisen sijaan)?"
 
 #: params/global_params.py:96
 msgid "Placeholder for updated_building_code_residential"
-msgstr ""
+msgstr "Paikkamerkki päivitetylle rakennuskoodille asuinrakennukset"
 
 #: params/global_params.py:101
 #, fuzzy
@@ -562,70 +563,72 @@ msgid ""
 "Compute action impact based on the baseline scenario instead of the default "
 "one"
 msgstr ""
+"Laske toimenpiteen vaikutus perustuen perusskenaarioon oletusskenaarion "
+"sijaan"
 
 #: params/global_params.py:108
 msgid "Scanario name"
-msgstr ""
+msgstr "Skenaarion nimi"
 
 #: params/global_params.py:113
 msgid "Weight for emission impacts in value profiles"
-msgstr ""
+msgstr "Päästövaikutusten painoarvo arvoprofiileissa"
 
 #: params/global_params.py:118
 msgid "Weight for economic impacts in value profiles"
-msgstr ""
+msgstr "Taloudellisten vaikutusten painoarvo arvoprofiileissa"
 
 #: params/global_params.py:123
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
-msgstr ""
+msgstr "Hyvinvointivaikutusten (esim. työpaikat) painoarvo arvoprofiileissa"
 
 #: params/global_params.py:128
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
-msgstr ""
+msgstr "Puhtausvaikutusten (esim. saasteettomuus) painoarvo arvoprofiileissa"
 
 #: params/global_params.py:133
 msgid "Weight for health impacts in value profiles"
-msgstr ""
+msgstr "Terveysvaikutusten painoarvo arvoprofiileissa"
 
 #: params/global_params.py:138
 msgid "Weight for equity impacts in value profiles"
-msgstr ""
+msgstr "Oikeudenmukaisuusvaikutusten painoarvo arvoprofiileissa"
 
 #: params/global_params.py:143
 msgid "Weight for biodiversity impacts in value profiles"
-msgstr ""
+msgstr "Biodiversiteettivaikutusten painoarvo arvoprofiileissa"
 
 #: params/global_params.py:148
 msgid "Weight for actions to be legal in value profiles"
-msgstr ""
+msgstr "Toimenpiteiden laillisuuden painoarvo arvoprofiileissa"
 
 #: params/global_params.py:153
 msgid "Threshold for sum of weighted impacts in value profiles"
-msgstr ""
+msgstr "Painotettujen vaikutusten summan kynnysarvo arvoprofiileissa"
 
 #: params/global_params.py:158
 msgid "Effect of electric vehicles on car kilometers"
-msgstr ""
+msgstr "Sähköautojen vaikutus autokilometreihin"
 
 #: params/global_params.py:163
 msgid "List of selected municipalities"
-msgstr ""
+msgstr "Luettelo valituista kunnista"
 
 #: params/global_params.py:168
 msgid "List of selected nodes"
-msgstr ""
+msgstr "Luettelo valituista solmuista"
 
 #: params/global_params.py:173
 msgid "Selected computational framework"
-msgstr ""
+msgstr "Valittu laskentakehys"
 
 #: params/global_params.py:178
 msgid "Annual weather normalization for energy consumption"
-msgstr ""
+msgstr "Energiankulutuksen vuosittainen sääkorjaus"
 
 #: params/global_params.py:183
 msgid "Is the last historical value extended into the future?"
-msgstr ""
+msgstr "Jatketaanko viimeistä historiallista arvoa tulevaisuuteen?"
 
 #: paths/authentication.py:21
 msgid "Invalid token."
@@ -634,6 +637,65 @@ msgstr "Virheellinen tunnus."
 #: paths/schema.py:80 paths/utils.py:61 paths/utils.py:63
 msgid "Invalid unit"
 msgstr "Virheellinen yksikkö"
+
+#: paths/utils.py:27
+msgid "identifier"
+msgstr "tunniste"
+
+#: paths/utils.py:71
+msgid "unit"
+msgstr ""
+
+#: paths/utils.py:85
+msgid "uuid"
+msgstr "uuid"
+
+#: paths/utils.py:96
+msgid "created at"
+msgstr "luotu"
+
+#: paths/utils.py:98
+msgid "updated at"
+msgstr "päivitetty"
+
+#: paths/utils.py:106
+msgid "order"
+msgstr "järjestys"
+
+#: nodes/models.py:103 pages/models.py:134 pages/models.py:166
+msgid "Lead title"
+msgstr "Johdanto-otsikko"
+
+#: nodes/models.py:104 pages/models.py:135 pages/models.py:167
+msgid "Lead paragraph"
+msgstr "Johdantokappale"
+
+#: nodes/units.py:182
+msgid "capita"
+msgstr "asukas"
+
+#: nodes/units.py:183
+msgctxt "capita short"
+msgid "cap"
+msgstr "as."
+
+#: nodes/units.py:184
+msgctxt "kilotonne short"
+msgid "kt"
+msgstr "kt"
+
+#: nodes/units.py:185
+msgctxt "year short"
+msgid "yr."
+msgstr "v."
+
+#: pages/models.py:150
+msgid "Outcome page"
+msgstr "Tulossivu"
+
+#: pages/models.py:151
+msgid "Outcome pages"
+msgstr "Tulossivut"
 
 #: paths/settings.py:316
 msgid "English"
