@@ -121,6 +121,12 @@ class DatasetActionMFM(ActionNode):
         df = self.get_input_dataset()
         df = df[df.index.get_level_values('Action') == self.get_parameter_value('action')]
 
+        fc = pd.DataFrame()
+        if 'Forecast' in df.columns:
+            fc = df.reset_index()
+            fc = fc[['Year', 'Forecast']].drop_duplicates()
+            df = df.drop(columns = ['Forecast'])
+
         if not self.is_enabled():
             df['Value'] = self.no_effect_value
 
@@ -149,8 +155,12 @@ class DatasetActionMFM(ActionNode):
         for qdf in qdfs[1:]:
             jdf = jdf.join(qdf, how = 'outer')
 
+        if len(fc):
+            jdf = jdf.join(fc.set_index('Year'))
+        else:
+            jdf['Forecast'] = False
+
         for dim in self.output_dimensions:
             self.output_dimensions[dim].is_internal = True
 
-        jdf[FORECAST_COLUMN] = False
         return(jdf)
