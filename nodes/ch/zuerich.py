@@ -953,6 +953,7 @@ class TransportEmissions2kW(Node):
     def compute(self):
         enode = self.get_input_node(tag='emissions')
         edf = enode.get_output_pl(target_node=self)
+        edf = edf.with_columns(emission_scope = pl.col('emission_scope').cast(pl.Categorical))
         edf = edf.rename({VALUE_COLUMN: 'emissions'})
 
         cnode = self.get_input_node(tag='consumption')
