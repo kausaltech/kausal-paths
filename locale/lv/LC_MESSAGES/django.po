@@ -10,9 +10,9 @@ msgstr ""
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-20 09:26+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Last-Translator: Claude <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: lv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -21,105 +21,107 @@ msgstr ""
 
 #: admin_site/api.py:25 admin_site/api.py:30
 msgid "Invalid email address"
-msgstr ""
+msgstr "Nederīga e-pasta adrese"
 
 #: admin_site/api.py:34
 msgid ""
 "No user found with this email address. Ask your administrator to create an "
 "account for you."
 msgstr ""
+"Lietotājs ar šo e-pasta adresi nav atrasts. Lūdziet administratoram izveidot "
+"jums kontu."
 
 #: admin_site/api.py:38
 msgid "This user does not have access to admin."
-msgstr ""
+msgstr "Šim lietotājam nav piekļuves administratora panelim."
 
 #: admin_site/perms.py:124
 msgid "General admin"
-msgstr ""
+msgstr "Galvenais administrators"
 
 #: admin_site/templates/wagtailadmin/home.html:4
 msgid "Welcome to Paths admin"
-msgstr ""
+msgstr "Laipni lūdzam Paths administrācijā"
 
 #: admin_site/templates/wagtailadmin/login.html:11
 msgid "Sign in to Kausal Paths admin"
-msgstr ""
+msgstr "Pierakstīties Kausal Paths administrācijā"
 
 #: admin_site/templates/wagtailadmin/login.html:20
 msgid "Our apologies, the server is temporarily experiencing difficulties."
-msgstr ""
+msgstr "Atvainojiet, serverim īslaicīgi ir problēmas."
 
 #: admin_site/wagtail_hooks.py:71
 msgid "Choose instance"
-msgstr ""
+msgstr "Izvēlieties instanci"
 
 #: datasets/models.py:53
 msgid "dataset"
-msgstr ""
+msgstr "datu kopa"
 
 #: datasets/models.py:54
 msgid "datasets"
-msgstr ""
+msgstr "datu kopas"
 
 #: datasets/models.py:184 datasets/models.py:271
 msgid "label"
-msgstr ""
+msgstr "etiķete"
 
 #: datasets/models.py:220
 msgid "data source reference"
-msgstr ""
+msgstr "datu avota atsauce"
 
 #: datasets/models.py:221
 msgid "data source references"
-msgstr ""
+msgstr "datu avotu atsauces"
 
 #: datasets/models.py:226
 msgid "Review comment"
-msgstr ""
+msgstr "Pārskata komentārs"
 
 #: datasets/models.py:227
 msgid "Sticky comment"
-msgstr ""
+msgstr "Pielipušais komentārs"
 
 #: datasets/models.py:230
 msgid "Resolved"
-msgstr ""
+msgstr "Atrisināts"
 
 #: datasets/models.py:231
 msgid "Unresolved"
-msgstr ""
+msgstr "Neatrisināts"
 
 #: datasets/models.py:248
 msgid "resolved at"
-msgstr ""
+msgstr "atrisināts"
 
 #: datasets/models.py:259
 msgid "comment"
-msgstr ""
+msgstr "komentārs"
 
 #: datasets/models.py:260
 msgid "comments"
-msgstr ""
+msgstr "komentāri"
 
 #: datasets/wagtail_hooks.py:12
 msgid "Data dimensions"
-msgstr ""
+msgstr "Datu dimensijas"
 
 #: datasets/wagtail_hooks.py:26 nodes/models.py:480
 msgid "Data sources"
-msgstr ""
+msgstr "Datu avoti"
 
 #: mysite/home/templates/home/welcome_page.html:6
 msgid "Visit the Wagtail website"
-msgstr ""
+msgstr "Apmeklējiet Wagtail tīmekļa vietni"
 
 #: mysite/home/templates/home/welcome_page.html:15
 msgid "View the release notes"
-msgstr ""
+msgstr "Skatīt izlaišanas piezīmes"
 
 #: mysite/home/templates/home/welcome_page.html:27
 msgid "Welcome to your new Wagtail site!"
-msgstr ""
+msgstr "Laipni lūdzam jūsu jaunajā Wagtail vietnē!"
 
 #: mysite/home/templates/home/welcome_page.html:28
 msgid ""
@@ -127,542 +129,547 @@ msgid ""
 "\">join our community on Slack</a>, or get started with one of the links "
 "below."
 msgstr ""
+"Jūs laipni aicināti <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">pievienoties mūsu kopienai Slack</a> vai sākt ar kādu no zemāk esošajām "
+"saitēm."
 
 #: mysite/home/templates/home/welcome_page.html:35
 msgid "Wagtail Documentation"
-msgstr ""
+msgstr "Wagtail dokumentācija"
 
 #: mysite/home/templates/home/welcome_page.html:36
 msgid "Topics, references, & how-tos"
-msgstr ""
+msgstr "Tēmas, atsauces un pamācības"
 
 #: mysite/home/templates/home/welcome_page.html:42
 msgid "Tutorial"
-msgstr ""
+msgstr "Apmācība"
 
 #: mysite/home/templates/home/welcome_page.html:43
 msgid "Build your first Wagtail site"
-msgstr ""
+msgstr "Izveidojiet savu pirmo Wagtail vietni"
 
 #: mysite/home/templates/home/welcome_page.html:49
 msgid "Admin Interface"
-msgstr ""
+msgstr "Administratora saskarne"
 
 #: mysite/home/templates/home/welcome_page.html:50
 msgid "Create your superuser first!"
-msgstr ""
+msgstr "Vispirms izveidojiet savu superlietotāju!"
 
 #: nodes/actions/action.py:50
 msgid "Is implemented"
-msgstr ""
+msgstr "Ir ieviests"
 
 #: nodes/actions/action.py:50
 msgid "Is the action included in the scenario"
-msgstr ""
+msgstr "Vai darbība ir iekļauta scenārijā"
 
 #: nodes/actions/energy_saving.py:51
 msgid "Number of LED bulbs changed per year (baseline)"
-msgstr ""
+msgstr "LED spuldžu skaits, kas tiek nomainīts gadā (bāzes līnija)"
 
 #: nodes/actions/energy_saving.py:57
 msgid "Number of additional LED bulbs changed per year"
-msgstr ""
+msgstr "Papildu LED spuldžu skaits, kas tiek nomainīts gadā"
 
 #: nodes/actions/energy_saving.py:62
 msgid "Yearly increase in total number of luminaires"
-msgstr ""
+msgstr "Gaismekļu kopējā skaita ikgadējais pieaugums"
 
 #: nodes/actions/energy_saving.py:67
 msgid "Yearly maintenance cost of traditional luminaires"
-msgstr ""
+msgstr "Tradicionālo gaismekļu ikgadējās uzturēšanas izmaksas"
 
 #: nodes/actions/energy_saving.py:73 nodes/actions/energy_saving.py:103
 msgid "Yearly maintenance cost of LED luminaires"
-msgstr ""
+msgstr "LED gaismekļu ikgadējās uzturēšanas izmaksas"
 
 #: nodes/actions/energy_saving.py:79
 msgid "Traditional luminaire power consumption"
-msgstr ""
+msgstr "Tradicionālā gaismekļa enerģijas patēriņš"
 
 #: nodes/actions/energy_saving.py:85
 msgid "LED luminaire power consumption"
-msgstr ""
+msgstr "LED gaismekļa enerģijas patēriņš"
 
 #: nodes/actions/energy_saving.py:91
 msgid "Traditional luminaire yearly active time"
-msgstr ""
+msgstr "Tradicionālā gaismekļa ikgadējais aktīvais laiks"
 
 #: nodes/actions/energy_saving.py:97
 msgid "LED luminaire yearly active time"
-msgstr ""
+msgstr "LED gaismekļa ikgadējais aktīvais laiks"
 
 #: nodes/actions/energy_saving.py:109
 msgid "Investment cost of one LED retrofit"
-msgstr ""
+msgstr "Vienas LED pārbūves ieguldījumu izmaksas"
 
 #: nodes/actions/energy_saving.py:284 nodes/actions/energy_saving.py:442
 msgid "Investment lifetime (a)"
-msgstr ""
+msgstr "Ieguldījuma dzīves ilgums (gadi)"
 
 #: nodes/actions/energy_saving.py:290
 msgid "Investment cost (SEK/m2)"
-msgstr ""
+msgstr "Ieguldījumu izmaksas (SEK/m2)"
 
 #: nodes/actions/energy_saving.py:296
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr ""
+msgstr "Uzturēšanas izmaksas (SEK/m2/gadā)"
 
 #: nodes/actions/energy_saving.py:302
 msgid "Heat saving (kWh/m2/a)"
-msgstr ""
+msgstr "Siltuma ietaupījums (kWh/m2/gadā)"
 
 #: nodes/actions/energy_saving.py:308
 msgid "Electricity saving (kWh/m2/a)"
-msgstr ""
+msgstr "Elektroenerģijas ietaupījums (kWh/m2/gadā)"
 
 #: nodes/actions/energy_saving.py:314 nodes/actions/energy_saving.py:472
-#, python-format
 msgid "Renovation potential (% of floor area)"
-msgstr ""
+msgstr "Atjaunošanas potenciāls (% no grīdas platības)"
 
 #: nodes/actions/energy_saving.py:448
 msgid "Investment cost (USD/square foot)"
-msgstr ""
+msgstr "Ieguldījumu izmaksas (USD/kvadrātpēda)"
 
 #: nodes/actions/energy_saving.py:454
 msgid "Maintenance cost (USD/square foot/a)"
-msgstr ""
+msgstr "Uzturēšanas izmaksas (USD/kvadrātpēda/gadā)"
 
 #: nodes/actions/energy_saving.py:460
 msgid "Natural gas saving (thm/square foot/a)"
-msgstr ""
+msgstr "Dabasgāzes ietaupījums (thm/kvadrātpēda/gadā)"
 
 #: nodes/actions/energy_saving.py:466
 msgid "Electricity saving (kWh/square foot/a)"
-msgstr ""
+msgstr "Elektroenerģijas ietaupījums (kWh/kvadrātpēda/gadā)"
 
 #: nodes/blocks.py:8 nodes/models.py:538
 msgid "Node"
-msgstr ""
+msgstr "Mezgls"
 
 #: nodes/blocks.py:25
 msgid "Outcome node"
-msgstr ""
+msgstr "Rezultāta mezgls"
 
 #: nodes/choosers.py:33 nodes/choosers.py:39
 msgid "Choose a node"
-msgstr ""
+msgstr "Izvēlieties mezglu"
 
 #: nodes/choosers.py:40
 msgid "Choose another node"
-msgstr ""
+msgstr "Izvēlieties citu mezglu"
 
 #: nodes/instance.py:587
 msgid "Custom"
-msgstr ""
+msgstr "Pielāgots"
 
 #: nodes/metric.py:321
 msgid "Sectors"
-msgstr ""
+msgstr "Sektori"
 
 #: nodes/models.py:101 nodes/models.py:488
 msgid "UUID"
-msgstr ""
+msgstr "UUID"
 
 #: nodes/models.py:102 nodes/models.py:461
 msgid "name"
-msgstr ""
+msgstr "nosaukums"
 
 #: nodes/models.py:103 pages/models.py:134 pages/models.py:166
 msgid "Lead title"
-msgstr ""
+msgstr "Galvenais virsraksts"
 
 #: nodes/models.py:104 pages/models.py:135 pages/models.py:167
 msgid "Lead paragraph"
-msgstr ""
+msgstr "Ievada rindkopa"
 
 #: nodes/models.py:105
 msgid "Site URL"
-msgstr ""
+msgstr "Vietnes URL"
 
 #: nodes/models.py:145
 msgid "Instance"
-msgstr ""
+msgstr "Instance"
 
 #: nodes/models.py:146
 msgid "Instances"
-msgstr ""
+msgstr "Instances"
 
 #: nodes/models.py:348
 msgid "Actions"
-msgstr ""
+msgstr "Darbības"
 
 #: nodes/models.py:431
 msgid "Instance hostname"
-msgstr ""
+msgstr "Instances resursdatora nosaukums"
 
 #: nodes/models.py:432
 msgid "Instance hostnames"
-msgstr ""
+msgstr "Instances resursdatoru nosaukumi"
 
 #: nodes/models.py:447
 msgid "Instance token"
-msgstr ""
+msgstr "Instances žetons"
 
 #: nodes/models.py:448
 msgid "Instance tokens"
-msgstr ""
+msgstr "Instances žetoni"
 
 #: nodes/models.py:458
 msgid "instance"
-msgstr ""
+msgstr "instance"
 
 #: nodes/models.py:462
 msgid "edition"
-msgstr ""
+msgstr "izdevums"
 
 #: nodes/models.py:465
 msgid "authority"
-msgstr ""
+msgstr "iestāde"
 
 #: nodes/models.py:465
 msgid "The organization responsible for the data source"
-msgstr ""
+msgstr "Organizācija, kas atbild par datu avotu"
 
 #: nodes/models.py:468
 msgid "description"
-msgstr ""
+msgstr "apraksts"
 
 #: nodes/models.py:469
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 #: nodes/models.py:479
 msgid "Data source"
-msgstr ""
+msgstr "Datu avots"
 
 #: nodes/models.py:491
 msgid "Order"
-msgstr ""
+msgstr "Secība"
 
 #: nodes/models.py:495
 msgid "Goal"
-msgstr ""
+msgstr "Mērķis"
 
 #: nodes/models.py:499
 msgid "Short description"
-msgstr ""
+msgstr "Īss apraksts"
 
 #: nodes/models.py:502
 msgid "Description"
-msgstr ""
+msgstr "Apraksts"
 
 #: nodes/models.py:539
 msgid "Nodes"
-msgstr ""
+msgstr "Mezgli"
 
 #: nodes/processors.py:81
 msgid "Multiplier"
-msgstr ""
+msgstr "Reizinātājs"
 
 #: nodes/units.py:182
 msgid "capita"
-msgstr ""
+msgstr "iedzīvotāji"
 
 #: nodes/units.py:183
 msgctxt "capita short"
 msgid "cap"
-msgstr ""
+msgstr "iedz."
 
 #: nodes/units.py:184
 msgctxt "kilotonne short"
 msgid "kt"
-msgstr ""
+msgstr "kt"
 
 #: nodes/units.py:185
 msgctxt "year short"
 msgid "yr."
-msgstr ""
+msgstr "g."
 
 #: nodes/units.py:186
 msgctxt "percent"
 msgid "percent"
-msgstr ""
+msgstr "procenti"
 
 #: pages/models.py:52
 msgid "show in footer"
-msgstr ""
+msgstr "rādīt kājenē"
 
 #: pages/models.py:53
 msgid "Should the page be shown in the footer?"
-msgstr ""
+msgstr "Vai lapa jārāda kājenē?"
+
 
 #: pages/models.py:68
 msgid "Common page configuration"
-msgstr ""
+msgstr "Vispārīgā lapas konfigurācija"
 
 #: pages/models.py:120
 msgid "Paragraph"
-msgstr ""
+msgstr "Rindkopa"
 
 #: pages/models.py:150
 msgid "Outcome page"
-msgstr ""
+msgstr "Rezultātu lapa"
 
 #: pages/models.py:151
 msgid "Outcome pages"
-msgstr ""
+msgstr "Rezultātu lapas"
 
 #: pages/models.py:162
 msgid "Standard"
-msgstr ""
+msgstr "Standarta"
 
 #: pages/models.py:163
 msgid "Impact"
-msgstr ""
+msgstr "Ietekme"
 
 #: pages/models.py:164
 msgid "Cumulative impact"
-msgstr ""
+msgstr "Kumulatīvā ietekme"
 
 #: pages/models.py:170
 msgid "Show cumulative impact"
-msgstr ""
+msgstr "Rādīt kumulatīvo ietekmi"
 
 #: pages/models.py:171
 msgid "Show action comparison"
-msgstr ""
+msgstr "Rādīt darbību salīdzinājumu"
 
 #: pages/models.py:172
 msgid "Show only municipal actions"
-msgstr ""
+msgstr "Rādīt tikai pašvaldības darbības"
 
 #: pages/models.py:197
 msgid "Action list page"
-msgstr ""
+msgstr "Darbību saraksta lapa"
 
 #: pages/models.py:198
 msgid "Action list pages"
-msgstr ""
+msgstr "Darbību saraksta lapas"
 
 #: params/global_params.py:6
 msgid "Municipality name"
-msgstr ""
+msgstr "Pašvaldības nosaukums"
 
 #: params/global_params.py:11
 msgid "Discount rate"
-msgstr ""
+msgstr "Diskonta likme"
 
 #: params/global_params.py:16
 msgid "Avoided electricity capacity price"
-msgstr ""
+msgstr "Izvairītā elektroenerģijas jaudas cena"
 
 #: params/global_params.py:21
 msgid "Health impacts per kWh"
-msgstr ""
+msgstr "Ietekme uz veselību uz kWh"
 
 #: params/global_params.py:26
 msgid "Heat CO2 emission factor"
-msgstr ""
+msgstr "Siltuma CO2 emisiju faktors"
 
 #: params/global_params.py:31
 msgid "Electricity CO2 emission factor"
-msgstr ""
+msgstr "Elektroenerģijas CO2 emisiju faktors"
 
 #: params/global_params.py:36
 msgid "Renovation rate baseline"
-msgstr ""
+msgstr "Atjaunošanas ātruma bāzes līnija"
 
 #: params/global_params.py:41
 msgid "Include energy taxes in calculations?"
-msgstr ""
+msgstr "Vai iekļaut enerģijas nodokļus aprēķinos?"
 
 #: params/global_params.py:46
 msgid "Include CO2 cost variable in calculations?"
-msgstr ""
+msgstr "Vai iekļaut CO2 izmaksu mainīgo aprēķinos?"
 
 #: params/global_params.py:51
 msgid "Include health impact variable in calculations?"
-msgstr ""
+msgstr "Vai iekļaut ietekmes uz veselību mainīgo aprēķinos?"
 
 #: params/global_params.py:56
 msgid "Include avoided electricity capacity variable in calculations?"
-msgstr ""
+msgstr "Vai iekļaut izvairītās elektroenerģijas jaudas mainīgo aprēķinos?"
 
 #: params/global_params.py:61
 msgid "Price of CO2"
-msgstr ""
+msgstr "CO2 cena"
 
 #: params/global_params.py:66
 msgid "Price of CO2 annual change"
-msgstr ""
+msgstr "CO2 cenas ikgadējās izmaiņas"
 
 #: params/global_params.py:71
 msgid "Price of electricity"
-msgstr ""
+msgstr "Elektroenerģijas cena"
 
 #: params/global_params.py:76
 msgid "Price of electricity annual change"
-msgstr ""
+msgstr "Elektroenerģijas cenas ikgadējās izmaiņas"
 
 #: params/global_params.py:81
 msgid "Price of Heat"
-msgstr ""
+msgstr "Siltuma cena"
 
 #: params/global_params.py:86
 msgid "Price of heat annual change"
-msgstr ""
+msgstr "Siltuma cenas ikgadējās izmaiņas"
 
 #: params/global_params.py:91
 msgid "Invest all on the first year (in contrast to continuous investing)?"
-msgstr ""
+msgstr "Vai ieguldīt visu pirmajā gadā (pretstatā nepārtrauktai ieguldīšanai)?"
 
 #: params/global_params.py:96
 msgid "Placeholder for updated_building_code_residential"
-msgstr ""
+msgstr "Vietturis atjauninātajam_ēku_kodam_dzīvojamām_ēkām"
 
 #: params/global_params.py:101
 msgid "Action impact based on baseline"
-msgstr ""
+msgstr "Darbības ietekme, pamatojoties uz bāzes līniju"
 
 #: params/global_params.py:102
 msgid ""
 "Compute action impact based on the baseline scenario instead of the default "
 "one"
 msgstr ""
+"Aprēķināt darbības ietekmi, pamatojoties uz bāzes līnijas scenāriju, nevis "
+"noklusējuma scenāriju"
 
 #: params/global_params.py:108
 msgid "Scanario name"
-msgstr ""
+msgstr "Scenārija nosaukums"
 
 #: params/global_params.py:113
 msgid "Weight for emission impacts in value profiles"
-msgstr ""
+msgstr "Emisiju ietekmes svars vērtību profilos"
 
 #: params/global_params.py:118
 msgid "Weight for economic impacts in value profiles"
-msgstr ""
+msgstr "Ekonomiskās ietekmes svars vērtību profilos"
 
 #: params/global_params.py:123
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
-msgstr ""
+msgstr "Labklājības ietekmes (piem., darbavietas) svars vērtību profilos"
 
 #: params/global_params.py:128
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
-msgstr ""
+msgstr "Tīrības ietekmes (piem., piesārņojuma trūkums) svars vērtību profilos"
 
 #: params/global_params.py:133
 msgid "Weight for health impacts in value profiles"
-msgstr ""
+msgstr "Ietekmes uz veselību svars vērtību profilos"
 
 #: params/global_params.py:138
 msgid "Weight for equity impacts in value profiles"
-msgstr ""
+msgstr "Taisnīguma ietekmes svars vērtību profilos"
 
 #: params/global_params.py:143
 msgid "Weight for biodiversity impacts in value profiles"
-msgstr ""
+msgstr "Bioloģiskās daudzveidības ietekmes svars vērtību profilos"
 
 #: params/global_params.py:148
 msgid "Weight for actions to be legal in value profiles"
-msgstr ""
+msgstr "Darbību likumības svars vērtību profilos"
 
 #: params/global_params.py:153
 msgid "Threshold for sum of weighted impacts in value profiles"
-msgstr ""
+msgstr "Svērto ietekmju summas slieksnis vērtību profilos"
 
 #: params/global_params.py:158
 msgid "Effect of electric vehicles on car kilometers"
-msgstr ""
+msgstr "Elektromobiļu ietekme uz nobrauktajiem kilometriem"
 
 #: params/global_params.py:163
 msgid "List of selected municipalities"
-msgstr ""
+msgstr "Atlasīto pašvaldību saraksts"
 
 #: params/global_params.py:168
 msgid "List of selected nodes"
-msgstr ""
+msgstr "Atlasīto mezglu saraksts"
 
 #: params/global_params.py:173
 msgid "Selected computational framework"
-msgstr ""
+msgstr "Atlasītā skaitļošanas sistēma"
 
 #: params/global_params.py:178
 msgid "Annual weather normalization for energy consumption"
-msgstr ""
+msgstr "Ikgadējā laika apstākļu normalizācija enerģijas patēriņam"
 
 #: params/global_params.py:183
 msgid "Is the last historical value extended into the future?"
-msgstr ""
+msgstr "Vai pēdējā vēsturiskā vērtība ir pagarināta nākotnē?"
 
 #: paths/authentication.py:21
 msgid "Invalid token."
-msgstr ""
+msgstr "Nederīgs žetons."
 
 #: paths/schema.py:80 paths/utils.py:61 paths/utils.py:63
 msgid "Invalid unit"
-msgstr ""
+msgstr "Nederīga mērvienība"
 
 #: paths/settings.py:316
 msgid "English"
-msgstr ""
+msgstr "Angļu"
 
 #: paths/settings.py:317
 msgid "Finnish"
-msgstr ""
+msgstr "Somu"
 
 #: paths/settings.py:318
 msgid "Swedish"
-msgstr ""
+msgstr "Zviedru"
 
 #: paths/settings.py:319
 msgid "German"
-msgstr ""
+msgstr "Vācu"
 
 #: paths/settings.py:320
 msgid "German (Switzerland)"
-msgstr ""
+msgstr "Vācu (Šveice)"
 
 #: paths/settings.py:321
 msgid "Czech"
-msgstr ""
+msgstr "Čehu"
 
 #: paths/settings.py:322
 msgid "Danish"
-msgstr ""
+msgstr "Dāņu"
 
 #: paths/settings.py:323
 msgid "Polish"
-msgstr ""
+msgstr "Poļu"
 
 #: paths/settings.py:324
 msgid "Latvian"
-msgstr ""
+msgstr "Latviešu"
 
 #: paths/utils.py:27
 msgid "identifier"
-msgstr ""
+msgstr "identifikators"
 
 #: paths/utils.py:71
 msgid "unit"
-msgstr ""
+msgstr "mērvienība"
 
 #: paths/utils.py:85
 msgid "uuid"
-msgstr ""
+msgstr "uuid"
 
 #: paths/utils.py:96
 msgid "created at"
-msgstr ""
+msgstr "izveidots"
 
 #: paths/utils.py:98
 msgid "updated at"
-msgstr ""
+msgstr "atjaunināts"
 
 #: paths/utils.py:106
 msgid "order"
-msgstr ""
+msgstr "secība"
 
 #: users/models.py:11
 msgid "email address"
-msgstr ""
+msgstr "e-pasta adrese"
