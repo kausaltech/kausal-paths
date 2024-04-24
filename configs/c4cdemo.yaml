@@ -18,6 +18,54 @@ emission_forecast_from: 2023
 emission_dimensions: ['scope', 'ghg']
 features:
   baseline_visible_in_graphs: true
+action_efficiency_pairs:
+- graph_type: cost_effectiveness
+  cost_node: discounted_net_costs
+  impact_node: total_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: kt
+  label: Cost effectiveness
+- graph_type: return_of_investment
+  cost_node: discounted_investment_costs
+  impact_node: discounted_net_costs
+  invert_cost: false
+  invert_impact: false
+  indicator_unit: '%'
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label: Return on investment
+#- graph_type: cost_benefit
+#  cost_node: test_investments_for_the_city
+#  impact_node: discounted_costs
+#  invert_cost: true
+#  invert_impact: true
+#  indicator_unit: MEUR
+#  cost_unit: MEUR
+#  impact_unit: MEUR
+#  stakeholder_dimension: stakeholder
+#  outcome_dimension: outcome_of_interest
+#  label: Cost-benefit analysis
+#- graph_type: cost_benefit
+#  cost_node: total_discounted_action_costs
+#  impact_node: total_economic_costs
+#  invert_cost: true
+#  invert_impact: true
+#  indicator_unit: MEUR
+#  cost_unit: MEUR
+#  impact_unit: MEUR
+#  label: Cost-benefit analysis for the city
+
+params:
+- id: municipality_name
+  value: example
+- id: discount_rate
+  value: 3.5
+  unit: '%'
+  is_visible: true
+  is_customizable: true
 
 dimensions:
 - id: scope
@@ -955,6 +1003,55 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: scope
+
+- id: total_emissions
+  name: Total emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: discounted_net_costs
+  name: Discounted net costs
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: net_price
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: discounted_investment_costs
+  name: Discounted investment costs
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_price
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
 
 actions:
 - id: change_streetlights_to_led
