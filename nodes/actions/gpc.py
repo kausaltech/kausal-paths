@@ -119,6 +119,7 @@ class DatasetActionMFM(ActionNode):
     # -----------------------------------------------------------------------------------
     def compute_effect(self) -> pd.DataFrame:
         df = self.get_input_dataset()
+        df = df[df['Value'].notnull()]
         df = df[df.index.get_level_values('Action') == self.get_parameter_value('action')]
 
         fc = pd.DataFrame()

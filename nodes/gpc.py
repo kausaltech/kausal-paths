@@ -62,6 +62,7 @@ class DatasetNode(AdditiveNode):
         sector = self.get_parameter_value('gpc_sector')
 
         df = self.get_input_dataset()
+        df = df[df['Value'].notnull()]
         df = df[(df.index.get_level_values('Sector') == sector) &
                 (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
