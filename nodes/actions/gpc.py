@@ -131,7 +131,13 @@ class DatasetActionMFM(ActionNode):
         if not self.is_enabled():
             df['Value'] = self.no_effect_value
 
-        df.index = df.index.droplevel(['Sector', 'Action'])
+        droplist = ['Sector', 'Action']
+        for col in df.index.names:
+            vals = df.index.get_level_values(col).unique().to_list()
+            if vals == ['.']:
+                droplist.append(col)
+        df.index = df.index.droplevel(droplist)
+
         df.index = df.index.set_names([self.makeid(i) for i in df.index.names])
         df.index = df.index.set_names({'year': 'Year'})
 

@@ -67,11 +67,10 @@ class DatasetNode(AdditiveNode):
                 (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
         droplist = ['Sector', 'Quantity']
-        for i in df.index.names:
-            empty = df.index.get_level_values(i).all()
-            if empty is np.nan or empty == '.':
-                droplist.append(i)
-
+        for col in df.index.names:
+            vals = df.index.get_level_values(col).unique().to_list()
+            if vals == ['.']:
+                droplist.append(col)
         df.index = df.index.droplevel(droplist)
 
         unit = df['Unit'].unique()[0]

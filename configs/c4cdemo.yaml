@@ -4,7 +4,7 @@ supported_languages: [fi, sv, da, lv, pl, de, cs]
 site_url: https://c4cdemo.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d7b0e374a834ff16de4b11d0bda5cccc3f39edd3
+  commit: b1dfff9c6472b1c4fcc96bb5f7df7cd6b9bba71a
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner_en: City of Demonstration
@@ -152,11 +152,18 @@ dimensions:
   - id: geothermal
     label: Geothermal
 
+- id: energy_source
+  label: Energy Source
+  categories:
+  - id: grid
+    label: Grid
+  - id: photovoltaics
+    label: Photovoltaics
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
-
 
 nodes:
 - id: net_price
@@ -474,12 +481,10 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: i3_manufacturing_total_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
+  - id: i32_manufacturing_grid_energy_total_emissions
     to_dimensions:
     - id: scope
+    - id: energy_carrier
     - id: ghg
 
 - id: i62_nonspecified_grid_energy_consumption
@@ -535,7 +540,7 @@ nodes:
   name: II.1.1 On-Road Transport Fuel Emission Factor
   type: gpc.DatasetNode
   quantity: emission_factor
-  unit: g/Gm
+  unit: g/km
   input_dimensions: ['scope', 'ghg', 'road_type', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'road_type', 'vehicle_type']
   params:
@@ -610,7 +615,7 @@ nodes:
   name: II.2.2 Railway Grid Energy Emission Factor
   type: gpc.DatasetNode
   quantity: emission_factor
-  unit: g/Gm
+  unit: g/km
   input_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
   params:
@@ -1053,6 +1058,161 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
+- id: i32_manufacturing_grid_energy_consumption
+  name: I.3.2 Manufacturing Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'energy_source']
+  output_dimensions: ['scope', 'energy_carrier', 'energy_source']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+  - id: i32_manufacturing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+
+- id: i32_manufacturing_grid_energy_consumption_emissions
+  name: I.3.2 Manufacturing Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kg/a
+  input_dimensions: ['energy_source', 'scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['energy_source', 'scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_emissions
+    from_dimensions:
+    - id: energy_source
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i32_manufacturing_grid_energy_consumption_price
+  name: I.3.2 Manufacturing Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_source', 'scope', 'cost_type', 'energy_carrier']
+  output_dimensions: ['energy_source', 'scope', 'cost_type', 'energy_carrier']
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_price
+    from_dimensions:
+    - id: energy_source
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i32_manufacturing_grid_energy_emission_factor
+  name: I.3.2 Manufacturing Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/kWh
+  input_dimensions: ['ghg', 'scope', 'energy_carrier', 'energy_source']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier', 'energy_source']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+
+- id: i32_manufacturing_grid_energy_price
+  name: I.3.2 Manufacturing Grid Energy Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i32_manufacturing_grid_energy_unit_price
+  name: I.3.2 Manufacturing Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: ['scope', 'energy_carrier', 'energy_source', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'energy_source', 'cost_type']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+    - id: cost_type
+
+- id: i32_manufacturing_grid_energy_total_emissions
+  name: I.3.2 Manufacturing Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kg/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i32_manufacturing_grid_energy_total_price
+  name: I.3.2 Manufacturing Grid Energy Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  output_nodes:
+  - id: i3_manufacturing_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i3_manufacturing_total_price
+  name: I.3 Manufacturing Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
 actions:
 - id: change_streetlights_to_led
   name: Change Streetlights to LED
@@ -1088,6 +1248,42 @@ actions:
     - id: scope
     - id: cost_type
 
+- id: build_renewable_electricity_production
+  name: Build Renewable Electricity Production (PV)
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type', 'energy_source']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type', 'energy_source']
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/demonstration_simple_actions
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+  - id: i32_manufacturing_grid_energy_price
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_source
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: cost_type
 
 # - id: led_action
 #   name: Change Streetlights to LED
