@@ -43,30 +43,31 @@ class AlasNode(Node):
             df = df[df['kunta'] == muni_name].drop(columns=['kunta'])
 
         emission_field = 'ktCO2e'
-        fw = self.get_global_parameter_value('selected_framework')
-        frameworks = [
-            'Hinku-laskenta ilman päästöhyvityksiä',
-            'Hinku-laskenta päästöhyvityksillä',
-            'Kaikki ALas-päästöt',
-            'Taakanjakosektorin kaikki ALas-päästöt',
-            'Päästökaupan alaiset ALas-päästöt'
-        ]
+        fw = self.get_global_parameter_value('selected_framework', required=False)
+        if fw:
+            frameworks = [
+                'Hinku-laskenta ilman päästöhyvityksiä',
+                'Hinku-laskenta päästöhyvityksillä',
+                'Kaikki ALas-päästöt',
+                'Taakanjakosektorin kaikki ALas-päästöt',
+                'Päästökaupan alaiset ALas-päästöt'
+            ]
 
-        if fw in frameworks[0:2]:
-            print('vain hinku')
-            df = df[df['hinku-laskenta']]
-            if fw == frameworks[0]:
-                print('ei kompensaatiota')
-                df = df[df['taso_1'] != 'Kompensaatiot']
-            else:
-                emission_field += '_tuuli'
+            if fw in frameworks[0:2]:
+                print('vain hinku')
+                df = df[df['hinku-laskenta']]
+                if fw == frameworks[0]:
+                    print('ei kompensaatiota')
+                    df = df[df['taso_1'] != 'Kompensaatiot']
+                else:
+                    emission_field += '_tuuli'
 
-        elif fw == frameworks[3]:
-            print('ei päästökauppaa')
-            df = df[~df['päästökauppa']]
-        elif fw == frameworks[4]:
-            print('vain päästökauppa')
-            df = df[df['päästökauppa']]
+            elif fw == frameworks[3]:
+                print('ei päästökauppaa')
+                df = df[~df['päästökauppa']]
+            elif fw == frameworks[4]:
+                print('vain päästökauppa')
+                df = df[df['päästökauppa']]
 
         df = df.rename(columns={
             'vuosi': YEAR_COLUMN,
