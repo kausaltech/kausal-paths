@@ -1,7 +1,7 @@
 id: greentransition
 default_language: fi
 supported_languages: [en]
-framework: syke  # In case we want to show full GPC
+frameworks: [syke]  # In case we want to show full GPC
 site_url: https://greentransition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -378,6 +378,13 @@ nodes:
   params:
   - id: region
     value: Suomi
+
+- id: net_emissions2  # Needed locally because it is stuck to the database
+  name: Empty placeholder
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  historical_values: [[2020, 0]]
 
 # ---------------------------- Suomen metsänielukeskustelu
 

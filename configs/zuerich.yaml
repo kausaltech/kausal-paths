@@ -2769,20 +2769,6 @@ nodes:
   output_dimensions: [energy_carrier, emission_scope]
   output_nodes: [net_emissions_2kw]
 
-# - id: non_road_machinery_end_energy_consumption
-#   name_de: Non-road machinery end energy consumption
-#   name_en: Non-road machinery end energy consumption
-#   short_name_de: Non-Road Maschinen
-#   short_name_en: Non-road machinery
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   input_dimensions: [energy_carrier, non_road_machinery]
-#   output_dimensions: [energy_carrier, non_road_machinery]
-#   unit: MJ/a
-#   input_nodes:
-#   - id: non_road_machinery_fuel_consumption
-#   - id: fuel_energy_density
-
 - id: transport_emission_factor_2kw
   name_de: Verkehr Emissionsfaktor (2000-Watt)
   name_en: Transport emission factors (2000-Watt)
@@ -2885,31 +2871,33 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
-# - id: non_road_machinery_emissions_2kw
-#   name_de: Treibhausgasemissionen Non-Road Maschinen (2000-Watt)
-#   name_en: Fuel consumption of non-road machinery (2000-Watt)
-#   short_name_de: Non-Road Maschinen
-#   short_name_en: Non-road machinery
-#   type: ch.zuerich.TransportEmissions2kW
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
-#   output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
-#   input_nodes:
-#   - id: non_road_machinery_emissions
-#     tags: [emissions]
-#     to_dimensions:
-#     - id: emission_scope
-#       categories: [scope1]
-#   - id: non_road_machinery_end_energy_consumption
-#     tags: [consumption]
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: non_road_machinery
-#   - id: transport_emission_factor_2kw
-#     tags: [emission_factors]
-#     to_dimensions:
-#     - id: energy_carrier
+- id: non_road_machinery_emissions_2kw
+  name_de: Treibhausgasemissionen Non-Road Maschinen (2000-Watt)
+  name_en: Non-road machinery emissions (2000-Watt)
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  input_nodes:
+  - id: non_road_machinery_emissions
+    tags: [emissions]
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: non_road_machinery_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
 
 - id: transportation_emissions_2kw
   name_de: Treibhausgasemissionen Verkehr (2000-Watt)
@@ -2938,14 +2926,10 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  - id: non_road_machinery_emissions
+  - id: non_road_machinery_emissions_2kw
     from_dimensions:
     - id: non_road_machinery
       flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-    - id: energy_carrier
   - id: aviation_emissions
     from_dimensions:
     - id: greenhouse_gases
@@ -3246,6 +3230,27 @@ nodes:
     - id: greenhouse_gases
       flatten: true
     - id: energy_carrier
+      flatten: true
+
+- id: non_road_machinery_end_energy_consumption
+  name_de: Non-road machinery end energy consumption
+  name_en: Non-road machinery end energy consumption
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [energy_carrier, non_road_machinery]
+  unit: GWh/a
+  input_nodes:
+  - id: non_road_machinery_fuel_consumption
+  - id: fuel_higher_heating_value
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: end_energy_consumption
+    from_dimensions:
+    - id: non_road_machinery
       flatten: true
 
 #

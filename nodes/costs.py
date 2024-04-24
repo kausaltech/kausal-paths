@@ -108,7 +108,9 @@ class ExponentialNode(AdditiveNode):
 
         else:
             df = super().compute()
-            current_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+            current_year = self.get_last_historical_year()
+            if current_year is None:
+                current_year = df[YEAR_COLUMN].min() - 1
 
         annual_change = self.get_parameter_value('annual_change', required=True, units=True)
         base_value = 1 + annual_change.to('dimensionless').m

@@ -1,10 +1,10 @@
 id: c4cdemo
 default_language: en
 supported_languages: []
-site_url: https://demonstration-c4c.paths.staging.kausal.tech
+site_url: https://c4cdemo.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 46f5f4983d2052718c7e38387edaa723774b309e
+  commit: d7b0e374a834ff16de4b11d0bda5cccc3f39edd3
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner_en: City of Demonstration
@@ -213,11 +213,13 @@ nodes:
   input_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
   output_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
   output_nodes:
-  - id: i12_residential_grid_energy_total_emissions
+  - id: i1_residential_total_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
     to_dimensions:
     - id: scope
     - id: ghg
-    - id: heating
     - id: energy_carrier
 
 - id: i12_residential_grid_energy_emission_factor
@@ -250,17 +252,6 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_consumption_simple
-
-- id: i22_commercial_and_institutional_grid_energy_consumption_simple
-  name: I.2.2 Commercial & Institutional Grid Energy Consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: ['scope', 'energy_carrier']
-  output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2021
-  output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
     to_dimensions:
     - id: scope
@@ -278,7 +269,7 @@ nodes:
   input_dimensions: ['scope', 'ghg', 'energy_carrier']
   output_dimensions: ['scope', 'ghg', 'energy_carrier']
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_total_emissions
+  - id: i2_commercial_and_institutional_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -329,18 +320,6 @@ nodes:
     gpc_sector: I.2.2
   input_datasets:
   - id: gpc/demonstration
-  output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_price_simple
-
-
-- id: i22_commercial_and_institutional_grid_energy_price_simple
-  name: I.2.2 Commercial & Institutional Grid Energy Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: ['scope', 'cost_type']
-  output_dimensions: ['scope', 'cost_type']
-  minimum_year: 2021
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_total_price
     to_dimensions:
@@ -447,10 +426,12 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: i32_manufacturing_grid_energy_total_emissions
+  - id: i3_manufacturing_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: scope
-    - id: energy_carrier
     - id: ghg
 
 - id: i62_nonspecified_grid_energy_consumption
@@ -478,7 +459,7 @@ nodes:
   input_dimensions: ['scope', 'ghg', 'energy_carrier']
   output_dimensions: ['scope', 'ghg', 'energy_carrier']
   output_nodes:
-  - id: i62_nonspecified_grid_energy_total_emissions
+  - id: i6_nonspecified_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -622,7 +603,7 @@ nodes:
   input_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
   output_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
   output_nodes:
-  - id: ii22_railway_grid_energy_total_emissions
+  - id: ii2_railway_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -641,7 +622,7 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: iii11_solid_waste_disposed_in_city_total_emissions
+  - id: iii1_solid_waste_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -658,7 +639,7 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: iii41_wastewater_treated_in_city_total_emissions
+  - id: iii4_wastewater_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -675,7 +656,7 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: v1_livestock_total_emissions
+  - id: v_afolu_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -692,7 +673,7 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: v2_land_total_emissions
+  - id: v_afolu_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -709,7 +690,7 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: v3_aggregate_sources_total_emissions
+  - id: v_afolu_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -728,23 +709,6 @@ nodes:
     - id: energy_carrier
     - id: ghg
 
-- id: i12_residential_grid_energy_total_emissions
-  name: I.1.2 Residential Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'heating', 'energy_carrier']
-  output_nodes:
-  - id: i1_residential_total_emissions
-    from_dimensions:
-    - id: heating
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
-
 - id: i1_residential_total_emissions
   name: I.1 Residential Total Emissions
   type: simple.AdditiveNode
@@ -760,20 +724,6 @@ nodes:
     to_dimensions:
     - id: scope
     - id: ghg
-
-- id: i22_commercial_and_institutional_grid_energy_total_emissions
-  name: I.2.2 Commercial & Institutional Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_nodes:
-  - id: i2_commercial_and_institutional_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
 
 - id: i2_commercial_and_institutional_total_emissions
   name: I.2 Commercial & Institutional Total Emissions
@@ -807,22 +757,6 @@ nodes:
     - id: scope
     - id: ghg
 
-- id: i32_manufacturing_grid_energy_total_emissions
-  name: I.3.2 Manufacturing Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg']
-  output_nodes:
-  - id: i3_manufacturing_total_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
 - id: i3_manufacturing_total_emissions
   name: I.3 Manufacturing Total Emissions
   type: simple.AdditiveNode
@@ -835,20 +769,6 @@ nodes:
     to_dimensions:
     - id: scope
     - id: ghg
-
-- id: i62_nonspecified_grid_energy_total_emissions
-  name: I.6.2 Non-Specified Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_nodes:
-  - id: i6_nonspecified_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
 
 - id: i6_nonspecified_total_emissions
   name: I.6 Non-Specified Total Emissions
@@ -868,6 +788,7 @@ nodes:
 
 - id: i_stationary_total_emissions
   name: I Stationary Total Emissions
+  color: '#4e79a7'
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -907,21 +828,6 @@ nodes:
     - id: ghg
     - id: vehicle_type
 
-- id: ii22_railway_grid_energy_total_emissions
-  name: II.2.2 Railway Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'energy_carrier']
-  output_nodes:
-  - id: ii2_railway_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: vehicle_type
-    - id: energy_carrier
-
 - id: ii2_railway_total_emissions
   name: II.2 Railway Total Emissions
   type: simple.AdditiveNode
@@ -941,6 +847,7 @@ nodes:
 
 - id: ii_transportation_total_emissions
   name: II Transportation Total Emissions
+  color: '#e15759'
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -955,19 +862,6 @@ nodes:
     - id: scope
     - id: ghg
 
-- id: iii11_solid_waste_disposed_in_city_total_emissions
-  name: III.1.1 Solid Waste Disposed in City Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: iii1_solid_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
 - id: iii1_solid_waste_total_emissions
   name: III.1 Solid Waste Total Emissions
   type: simple.AdditiveNode
@@ -977,19 +871,6 @@ nodes:
   output_dimensions: ['scope', 'ghg']
   output_nodes:
   - id: iii_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii41_wastewater_treated_in_city_total_emissions
-  name: III.4.1 Wastewater Treated in City Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: iii4_wastewater_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -1009,6 +890,7 @@ nodes:
 
 - id: iii_waste_total_emissions
   name: III Waste Total Emissions
+  color: '#59a14f'
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -1020,47 +902,9 @@ nodes:
     - id: scope
     - id: ghg
 
-- id: v1_livestock_total_emissions
-  name: V.1 Livestock Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: v_afolu_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: v2_land_total_emissions
-  name: V.2 Land Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: v_afolu_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: v3_aggregate_sources_total_emissions
-  name: V.3 Aggregate Sources Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: v_afolu_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
 - id: v_afolu_total_emissions
   name: V AFOLU Total Emissions
+  color: '#b07aa1'
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -1100,6 +944,7 @@ nodes:
 
 - id: i_stationary_total_price
   name: I Stationary Total Price
+  color: '#4e79a7'
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -1112,87 +957,121 @@ nodes:
     - id: scope
 
 actions:
-
-- id: led_action
+- id: change_streetlights_to_led
   name: Change Streetlights to LED
-  type: parent.ParentActionNode
-  quantity: emissions
-  unit: kt/a
-  output_dimensions: [scope, ghg]
-  indicator_nodes:
-  - id: net_emissions
-
-- id: led_i22_commercial_and_institutional_grid_energy_consumption
-  name: Change Streetlights to LED (Energy Consumption)
-  parent: led_action
-  type: simple.AdditiveAction
-  quantity: energy
-  unit: kWh/a
-  historical_values: [[2021, -1109182.92],
-                    [2022, -2218365.85],
-                    [2023, -3327548.77],
-                    [2024, -4436731.70],
-                    [2025, -5545914.62],
-                    [2026, -5299290.32],
-                    [2027, -5052666.02],
-                    [2028, -4806041.72],
-                    [2029, -4559417.42],
-                    [2030, -4312793.12]]
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  params:
+    action: Change Streetlights to LED
+  input_datasets:
+  - id: gpc/demonstration_simple_actions
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: energy
+    unit: kWh/a
+    quantity: energy
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_consumption_simple
+  - id: i22_commercial_and_institutional_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
     to_dimensions:
+    - id: scope
     - id: energy_carrier
-      categories: [electricity]
-    - id: scope
-      categories: [scope2]
-
-- id: led_i22_commercial_and_institutional_grid_energy_maintenance
-  name: Change Streetlights to LED (Maintenance Cost)
-  parent: led_action
-  type: simple.AdditiveAction
-  quantity: currency
-  unit: EUR/a
-  historical_values: [[2021, -101625.30],
-                      [2022, -195433.27],
-                      [2023, -281874.90],
-                      [2024, -361378.08],
-                      [2025, -434348.65],
-                      [2026, -399070.54],
-                      [2027, -365863.61],
-                      [2028, -334620.71],
-                      [2029, -305239.90],
-                      [2030, -277624.14]]
-  output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_price_simple
+  - id: i22_commercial_and_institutional_grid_energy_price
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
-    - id: cost_type
-      categories: [maintenance_costs]
     - id: scope
-      categories: [scope2]
+    - id: cost_type
 
-- id: led_i22_commercial_and_institutional_grid_energy_investment
-  name: Change Streetlights to LED (Investment Cost)
-  parent: led_action
-  type: simple.AdditiveAction
-  quantity: currency
-  unit: EUR/a
-  historical_values: [[2021, 1513568.27],
-                      [2022, 1455354.11],
-                      [2023, 1399378.95],
-                      [2024, 1345556.68],
-                      [2025, 1293804.50],
-                      [2026, -276610.08],
-                      [2027, -265971.23],
-                      [2028, -255741.57],
-                      [2029, -245905.36],
-                      [2030, -236447.46]]
-  output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_price_simple
-    to_dimensions:
-    - id: cost_type
-      categories: [investment_costs]
-    - id: scope
-      categories: [scope2]
+
+# - id: led_action
+#   name: Change Streetlights to LED
+#   type: parent.ParentActionNode
+#   quantity: emissions
+#   unit: kt/a
+#   output_dimensions: [scope, ghg]
+#   indicator_nodes:
+#   - id: net_emissions
+
+# - id: led_i22_commercial_and_institutional_grid_energy_consumption
+#   name: Change Streetlights to LED (Energy Consumption)
+#   parent: led_action
+#   type: simple.AdditiveAction
+#   quantity: energy
+#   unit: kWh/a
+#   historical_values: [[2021, -1109182.92],
+#                     [2022, -2218365.85],
+#                     [2023, -3327548.77],
+#                     [2024, -4436731.70],
+#                     [2025, -5545914.62],
+#                     [2026, -5299290.32],
+#                     [2027, -5052666.02],
+#                     [2028, -4806041.72],
+#                     [2029, -4559417.42],
+#                     [2030, -4312793.12]]
+#   output_nodes:
+#   - id: i22_commercial_and_institutional_grid_energy_consumption_simple
+#     to_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
+#     - id: scope
+#       categories: [scope2]
+
+# - id: led_i22_commercial_and_institutional_grid_energy_maintenance
+#   name: Change Streetlights to LED (Maintenance Cost)
+#   parent: led_action
+#   type: simple.AdditiveAction
+#   quantity: currency
+#   unit: EUR/a
+#   historical_values: [[2021, -101625.30],
+#                       [2022, -195433.27],
+#                       [2023, -281874.90],
+#                       [2024, -361378.08],
+#                       [2025, -434348.65],
+#                       [2026, -399070.54],
+#                       [2027, -365863.61],
+#                       [2028, -334620.71],
+#                       [2029, -305239.90],
+#                       [2030, -277624.14]]
+#   output_nodes:
+#   - id: i22_commercial_and_institutional_grid_energy_price_simple
+#     to_dimensions:
+#     - id: cost_type
+#       categories: [maintenance_costs]
+#     - id: scope
+#       categories: [scope2]
+
+# - id: led_i22_commercial_and_institutional_grid_energy_investment
+#   name: Change Streetlights to LED (Investment Cost)
+#   parent: led_action
+#   type: simple.AdditiveAction
+#   quantity: currency
+#   unit: EUR/a
+#   historical_values: [[2021, 1513568.27],
+#                       [2022, 1455354.11],
+#                       [2023, 1399378.95],
+#                       [2024, 1345556.68],
+#                       [2025, 1293804.50],
+#                       [2026, -276610.08],
+#                       [2027, -265971.23],
+#                       [2028, -255741.57],
+#                       [2029, -245905.36],
+#                       [2030, -236447.46]]
+#   output_nodes:
+#   - id: i22_commercial_and_institutional_grid_energy_price_simple
+#     to_dimensions:
+#     - id: cost_type
+#       categories: [investment_costs]
+#     - id: scope
+#       categories: [scope2]
 
 
 pages:

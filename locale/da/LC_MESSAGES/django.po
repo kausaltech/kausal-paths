@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-17 16:48+0300\n"
-"PO-Revision-Date: 2024-04-17 14:45+0000\n"
+"POT-Creation-Date: 2024-04-17 16:50+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Claude <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -22,113 +22,113 @@ msgstr ""
 #, fuzzy
 #| msgid "email address"
 msgid "Invalid email address"
-msgstr "sähköpostiosoite"
+msgstr "e-mailadresse"
 
 #: admin_site/api.py:34
 msgid ""
 "No user found with this email address. Ask your administrator to create an "
 "account for you."
 msgstr ""
-"Tällä sähköpostiosoitteella ei löytynyt käyttäjää. Pyydä ylläpitäjää luomaan "
-"sinulle tili."
+"Ingen bruger fundet med denne e-mailadresse. Bed din administrator om at oprette en "
+"konto til dig."
 
 #: admin_site/api.py:38
 msgid "This user does not have access to admin."
-msgstr "Tällä käyttäjällä ei ole pääsyä ylläpitoon."
+msgstr "Denne bruger har ikke adgang til admin."
 
 #: admin_site/perms.py:124
 msgid "General admin"
-msgstr "Yleinen ylläpito"
+msgstr "Generel admin"
 
 #: admin_site/templates/wagtailadmin/home.html:4
 msgid "Welcome to Paths admin"
-msgstr "Tervetuloa Paths-ylläpitoon"
+msgstr "Velkommen til Paths admin"
 
 #: admin_site/templates/wagtailadmin/login.html:11
 msgid "Sign in to Kausal Paths admin"
-msgstr "Kirjaudu sisään Kausal Paths -ylläpitoon"
+msgstr "Log ind på Kausal Paths admin"
 
 #: admin_site/templates/wagtailadmin/login.html:20
 msgid "Our apologies, the server is temporarily experiencing difficulties."
-msgstr "Pahoittelemme, palvelimella on tilapäisiä vaikeuksia."
+msgstr "Vi beklager, serveren har midlertidigt problemer."
 
 #: admin_site/wagtail_hooks.py:71
 msgid "Choose instance"
-msgstr "Valitse instanssi"
+msgstr "Vælg instans"
 
 #: datasets/models.py:53
 msgid "dataset"
-msgstr "tietoaineisto"
+msgstr "datasæt"
 
 #: datasets/models.py:54
 msgid "datasets"
-msgstr "tietoaineistot"
+msgstr "datasæt"
 
 #: datasets/models.py:184 datasets/models.py:271
 msgid "label"
-msgstr "selite"
+msgstr "etiket"
 
 #: datasets/models.py:220
 msgid "data source reference"
-msgstr "tietolähdeviite"
+msgstr "datakildehenvisning"
 
 #: datasets/models.py:221
 msgid "data source references"
-msgstr "tietolähdeviitteet"
+msgstr "datakildehenvisninger"
 
 #: datasets/models.py:226
 msgid "Review comment"
-msgstr "Tarkistuskommentti"
+msgstr "Anmeldelseskommentar"
 
 #: datasets/models.py:227
 msgid "Sticky comment"
-msgstr "Kiinnitetty kommentti"
+msgstr "Fastgjort kommentar"
 
 #: datasets/models.py:230
 #, fuzzy
 #| msgid "resolved at"
 msgid "Resolved"
-msgstr "ratkaistu"
+msgstr "løst den"
 
 #: datasets/models.py:231
 #, fuzzy
 #| msgid "resolved at"
 msgid "Unresolved"
-msgstr "ratkaistu"
+msgstr "løst den"
 
 #: datasets/models.py:248
 msgid "resolved at"
-msgstr "ratkaistu"
+msgstr "løst den"
 
 #: datasets/models.py:259
 msgid "comment"
-msgstr "kommentti"
+msgstr "kommentar"
 
 #: datasets/models.py:260
 msgid "comments"
-msgstr "kommentit"
+msgstr "kommentarer"
 
 #: datasets/wagtail_hooks.py:12
 #, fuzzy
 #| msgid "Dimensions"
 msgid "Data dimensions"
-msgstr "Ulottuvuudet"
+msgstr "Dimensioner"
 
 #: datasets/wagtail_hooks.py:26 nodes/models.py:479
 msgid "Data sources"
-msgstr "Tietolähteet"
+msgstr "Datakilder"
 
 #: mysite/home/templates/home/welcome_page.html:6
 msgid "Visit the Wagtail website"
-msgstr "Vieraile Wagtail-verkkosivustolla"
+msgstr "Besøg Wagtail-webstedet"
 
 #: mysite/home/templates/home/welcome_page.html:15
 msgid "View the release notes"
-msgstr "Katso julkaisutiedot"
+msgstr "Se udgivelsesnoterne"
 
 #: mysite/home/templates/home/welcome_page.html:27
 msgid "Welcome to your new Wagtail site!"
-msgstr "Tervetuloa uudelle Wagtail-sivustollesi!"
+msgstr "Velkommen til dit nye Wagtail-websted!"
 
 #: mysite/home/templates/home/welcome_page.html:28
 msgid ""
@@ -136,116 +136,116 @@ msgid ""
 "\">join our community on Slack</a>, or get started with one of the links "
 "below."
 msgstr ""
-"Liity vapaasti <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
-"\">yhteisöömme Slackissa</a> tai aloita yhdellä alla olevista linkeistä."
+"Du er velkommen til at <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
+"\">deltage i vores fællesskab på Slack</a> eller komme i gang med et af nedenstående links."
 
 #: mysite/home/templates/home/welcome_page.html:35
 msgid "Wagtail Documentation"
-msgstr "Wagtail-dokumentaatio"
+msgstr "Wagtail-dokumentation"
 
 #: mysite/home/templates/home/welcome_page.html:36
 msgid "Topics, references, & how-tos"
-msgstr "Aiheet, viitteet ja ohjeet"
+msgstr "Emner, referencer og vejledninger"
 
 #: mysite/home/templates/home/welcome_page.html:42
 msgid "Tutorial"
-msgstr "Opetusohjelma"
+msgstr "Vejledning"
 
 #: mysite/home/templates/home/welcome_page.html:43
 msgid "Build your first Wagtail site"
-msgstr "Rakenna ensimmäinen Wagtail-sivustosi"
+msgstr "Byg dit første Wagtail-websted"
 
 #: mysite/home/templates/home/welcome_page.html:49
 msgid "Admin Interface"
-msgstr "Ylläpitokäyttöliittymä"
+msgstr "Administrationsgrænseflade"
 
 #: mysite/home/templates/home/welcome_page.html:50
 msgid "Create your superuser first!"
-msgstr "Luo ensin superkäyttäjäsi!"
+msgstr "Opret først din superbruger!"
 
 #: nodes/actions/action.py:50
 msgid "Is implemented"
-msgstr "On toteutettu"
+msgstr "Er implementeret"
 
 #: nodes/actions/action.py:50
 msgid "Is the action included in the scenario"
-msgstr ""
+msgstr "Er handlingen inkluderet i scenariet"
 
 #: nodes/actions/energy_saving.py:51
 msgid "Number of LED bulbs changed per year (baseline)"
-msgstr "Vuosittain vaihdettujen LED-lamppujen määrä (lähtötaso)"
+msgstr "Antal LED-pærer udskiftet pr. år (baseline)"
 
 #: nodes/actions/energy_saving.py:57
 msgid "Number of additional LED bulbs changed per year"
-msgstr "Vuosittain vaihdettujen lisä-LED-lamppujen määrä"
+msgstr "Antal yderligere LED-pærer udskiftet pr. år"
 
 #: nodes/actions/energy_saving.py:62
 msgid "Yearly increase in total number of luminaires"
-msgstr "Valaisimien kokonaismäärän vuosittainen kasvu"
+msgstr "Årlig stigning i det samlede antal armaturer"
 
 #: nodes/actions/energy_saving.py:67
 msgid "Yearly maintenance cost of traditional luminaires"
-msgstr "Perinteisten valaisimien vuosittaiset huoltokustannukset"
+msgstr "Årlige vedligeholdelsesomkostninger for traditionelle armaturer"
 
 #: nodes/actions/energy_saving.py:73 nodes/actions/energy_saving.py:103
 msgid "Yearly maintenance cost of LED luminaires"
-msgstr "LED-valaisimien vuosittaiset huoltokustannukset"
+msgstr "Årlige vedligeholdelsesomkostninger for LED-armaturer"
 
 #: nodes/actions/energy_saving.py:79
 msgid "Traditional luminaire power consumption"
-msgstr "Perinteisen valaisimen tehonkulutus"
+msgstr "Traditionel armatur strømforbrug"
 
 #: nodes/actions/energy_saving.py:85
 msgid "LED luminaire power consumption"
-msgstr "LED-valaisimen tehonkulutus"
+msgstr "LED-armatur strømforbrug"
 
 #: nodes/actions/energy_saving.py:91
 msgid "Traditional luminaire yearly active time"
-msgstr "Perinteisen valaisimen vuosittainen aktiiviaika"
+msgstr "Traditionel armatur årlig aktiv tid"
 
 #: nodes/actions/energy_saving.py:97
 msgid "LED luminaire yearly active time"
-msgstr "LED-valaisimen vuosittainen aktiiviaika"
+msgstr "LED-armatur årlig aktiv tid"
 
 #: nodes/actions/energy_saving.py:109
 msgid "Investment cost of one LED retrofit"
-msgstr "Yhden LED-saneerauksen investointikustannus"
+msgstr "Investeringsomkostninger for én LED-renovering"
 
 #: nodes/actions/energy_saving.py:284 nodes/actions/energy_saving.py:442
 msgid "Investment lifetime (a)"
-msgstr "Investoinnin elinikä (a)"
+msgstr "Investeringens levetid (a)"
 
 #: nodes/actions/energy_saving.py:290
 msgid "Investment cost (SEK/m2)"
-msgstr "Investointikustannus (SEK/m2)"
+msgstr "Investeringsomkostninger (SEK/m2)"
 
 #: nodes/actions/energy_saving.py:296
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr "Huoltokustannus (SEK/m2/a)"
+msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py:302
 msgid "Heat saving (kWh/m2/a)"
-msgstr "Lämmön säästö (kWh/m2/a)"
+msgstr "Varmebesparelse (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py:308
 msgid "Electricity saving (kWh/m2/a)"
-msgstr "Sähkön säästö (kWh/m2/a)"
+msgstr "Elbesparelse (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py:314 nodes/actions/energy_saving.py:472
 msgid "Renovation potential (% of floor area)"
-msgstr "Saneerauspotentiaali (% lattiapinta-alasta)"
+msgstr "Renoveringspotentiale (% af gulvareal)"
 
 #: nodes/actions/energy_saving.py:448
 #, fuzzy
 #| msgid "Investment cost (SEK/m2)"
 msgid "Investment cost (USD/square foot)"
-msgstr "Investointikustannus (SEK/m2)"
+msgstr "Investeringsomkostninger (SEK/m2)"
 
 #: nodes/actions/energy_saving.py:454
 #, fuzzy
 #| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Maintenance cost (USD/square foot/a)"
-msgstr "Huoltokustannus (SEK/m2/a)"
+msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py:460
 msgid "Natural gas saving (thm/square foot/a)"
@@ -255,37 +255,37 @@ msgstr ""
 #, fuzzy
 #| msgid "Electricity saving (kWh/m2/a)"
 msgid "Electricity saving (kWh/square foot/a)"
-msgstr "Sähkön säästö (kWh/m2/a)"
+msgstr "Elbesparelse (kWh/m2/a)"
 
 #: nodes/blocks.py:8 nodes/models.py:537
 msgid "Node"
-msgstr "Solmu"
+msgstr "Knudepunkt"
 
 #: nodes/blocks.py:25
 #, fuzzy
 #| msgid "Outcome page"
 msgid "Outcome node"
-msgstr "Tulossivu"
+msgstr "Resultatside"
 
 #: nodes/choosers.py:33 nodes/choosers.py:39
 #, fuzzy
 #| msgid "Cost node"
 msgid "Choose a node"
-msgstr "Kustannussolmu"
+msgstr "Omkostningsknudepunkt"
 
 #: nodes/choosers.py:40
 #, fuzzy
 #| msgid "Choose instance"
 msgid "Choose another node"
-msgstr "Valitse instanssi"
+msgstr "Vælg instans"
 
 #: nodes/instance.py:587
 msgid "Custom"
-msgstr "Räätälöity"
+msgstr "Brugerdefineret"
 
 #: nodes/metric.py:321
 msgid "Sectors"
-msgstr "Sektorit"
+msgstr "Sektorer"
 
 #: nodes/models.py:101 nodes/models.py:487
 msgid "UUID"
@@ -293,118 +293,114 @@ msgstr "UUID"
 
 #: nodes/models.py:102 nodes/models.py:460
 msgid "name"
-msgstr "nimi"
+msgstr "navn"
 
 #: nodes/models.py:103 pages/models.py:134 pages/models.py:166
 msgid "Lead title"
-msgstr "Johdanto-otsikko"
+msgstr "Hovedtitel"
 
 #: nodes/models.py:104 pages/models.py:135 pages/models.py:167
 msgid "Lead paragraph"
-msgstr "Johdantokappale"
+msgstr "Hovedafsnit"
 
 #: nodes/models.py:105
 msgid "Site URL"
-msgstr "Sivuston URL-osoite"
+msgstr "Webstedets URL"
 
 #: nodes/models.py:145
 msgid "Instance"
-msgstr "Instanssi"
+msgstr "Instans"
 
 #: nodes/models.py:146
 msgid "Instances"
-msgstr "Instanssit"
+msgstr "Instanser"
 
 #: nodes/models.py:347
 msgid "Actions"
-msgstr "Toimenpiteet"
+msgstr "Handlinger"
 
 #: nodes/models.py:430
 msgid "Instance hostname"
-msgstr "Instanssin DNS-nimi"
+msgstr "Instansens værtsnavn"
 
 #: nodes/models.py:431
 msgid "Instance hostnames"
-msgstr "Instanssin DNS-nimet"
+msgstr "Instansens værtsnavne"
 
 #: nodes/models.py:446
-#, fuzzy
-#| msgid "Instance"
 msgid "Instance token"
-msgstr "Instanssi"
+msgstr "Instanstoken"
 
 #: nodes/models.py:447
-#, fuzzy
-#| msgid "Instances"
 msgid "Instance tokens"
-msgstr "Instanssit"
+msgstr "Instanstokens"
 
 #: nodes/models.py:457
 #, fuzzy
 #| msgid "Instance"
 msgid "instance"
-msgstr "Instanssi"
+msgstr "Instans"
 
 #: nodes/models.py:461
 #, fuzzy
 #| msgid "Description"
 msgid "edition"
-msgstr "Kuvaus"
+msgstr "Beskrivelse"
 
 #: nodes/models.py:464
 msgid "authority"
-msgstr "viranomainen"
+msgstr "myndighed"
 
 #: nodes/models.py:464
 msgid "The organization responsible for the data source"
-msgstr "Tietolähteestä vastaava organisaatio"
+msgstr "Organisationen ansvarlig for datakilden"
 
 #: nodes/models.py:467
 #, fuzzy
 #| msgid "Description"
 msgid "description"
-msgstr "Kuvaus"
+msgstr "Beskrivelse"
 
 #: nodes/models.py:468
 msgid "URL"
-msgstr "URL-osoite"
+msgstr "URL"
 
 #: nodes/models.py:478
 msgid "Data source"
-msgstr "Tietolähde"
+msgstr "Datakilde"
 
 #: nodes/models.py:490
 msgid "Order"
-msgstr "Järjestys"
+msgstr "Rækkefølge"
 
 #: nodes/models.py:494
 msgid "Goal"
-msgstr "Tavoite"
+msgstr "Mål"
 
 #: nodes/models.py:498
 msgid "Short description"
-msgstr "Lyhyt kuvaus"
+msgstr "Kort beskrivelse"
 
 #: nodes/models.py:501
 msgid "Description"
-msgstr "Kuvaus"
+msgstr "Beskrivelse"
 
 #: nodes/models.py:538
 msgid "Nodes"
-msgstr "Solmut"
+msgstr "Knudepunkter"
 
 #: nodes/processors.py:81
 msgid "Multiplier"
-msgstr "Kerroin"
+msgstr "Multiplikator"
 
 #: nodes/units.py:182
 msgid "capita"
-msgstr "asukas"
+msgstr "indbyggere"
 
 #: nodes/units.py:183
 msgctxt "capita short"
 msgid "cap"
-msgstr "as."
+msgstr "indb."
 
 #: nodes/units.py:184
 msgctxt "kilotonne short"
@@ -414,240 +410,272 @@ msgstr "kt"
 #: nodes/units.py:185
 msgctxt "year short"
 msgid "yr."
-msgstr "v."
+msgstr "år"
 
 #: nodes/units.py:186
 msgctxt "percent"
 msgid "percent"
-msgstr "prosentti"
+msgstr "procent"
 
 #: pages/models.py:52
 msgid "show in footer"
-msgstr "näytä alatunnisteessa"
+msgstr "vis i sidefod"
 
 #: pages/models.py:53
 msgid "Should the page be shown in the footer?"
-msgstr "Pitäisikö sivu näyttää alatunnisteessa?"
+msgstr "Skal siden vises i sidefoden?"
 
 #: pages/models.py:68
 msgid "Common page configuration"
-msgstr "Yleinen sivun konfiguraatio"
+msgstr "Fælles sidekonfiguration"
 
 #: pages/models.py:120
 #, fuzzy
 #| msgid "Lead paragraph"
 msgid "Paragraph"
-msgstr "Johdantokappale"
+msgstr "Hovedafsnit"
 
 #: pages/models.py:150
 msgid "Outcome page"
-msgstr "Tulossivu"
+msgstr "Resultatside"
 
 #: pages/models.py:151
 msgid "Outcome pages"
-msgstr "Tulossivut"
+msgstr "Resultatsider"
 
 #: pages/models.py:162
 msgid "Standard"
-msgstr "Vakio"
+msgstr "Standard"
 
 #: pages/models.py:163
 msgid "Impact"
-msgstr "Vaikutus"
+msgstr "Påvirkning"
 
 #: pages/models.py:164
 msgid "Cumulative impact"
-msgstr "Kumulatiivinen vaikutus"
+msgstr "Kumulativ påvirkning"
 
 #: pages/models.py:170
 msgid "Show cumulative impact"
-msgstr "Näytä kumulatiivinen vaikutus"
+msgstr "Vis kumulativ påvirkning"
 
 #: pages/models.py:171
 msgid "Show action comparison"
-msgstr "Näytä toimenpiteiden vertailu"
+msgstr "Vis handlingssammenligning"
 
 #: pages/models.py:172
 msgid "Show only municipal actions"
-msgstr "Näytä vain kunnalliset toimenpiteet"
+msgstr "Vis kun kommunale handlinger"
 
 #: pages/models.py:197
 msgid "Action list page"
-msgstr "Toimintoluettelosivu"
+msgstr "Handlingslisteside"
 
 #: pages/models.py:198
 msgid "Action list pages"
-msgstr "Toimintoluettelosivut"
+msgstr "Handlingslistesider"
 
 #: params/global_params.py:6
 msgid "Municipality name"
-msgstr "Kunnan nimi"
+msgstr "Kommunens navn"
 
 #: params/global_params.py:11
 msgid "Discount rate"
-msgstr "Diskonttokorko"
+msgstr "Diskonteringsrente"
 
 #: params/global_params.py:16
 msgid "Avoided electricity capacity price"
-msgstr "Vältetty sähkökapasiteetin hinta"
+msgstr "Undgået elpriskapacitet"
 
 #: params/global_params.py:21
 msgid "Health impacts per kWh"
-msgstr "Terveysvaikutukset per kWh"
+msgstr "Sundhedspåvirkninger pr. kWh"
 
 #: params/global_params.py:26
 msgid "Heat CO2 emission factor"
-msgstr "Lämmön CO2-päästökerroin"
+msgstr "Varme CO2-emissionsfaktor"
 
 #: params/global_params.py:31
 msgid "Electricity CO2 emission factor"
-msgstr "Sähkön CO2-päästökerroin"
+msgstr "El CO2-emissionsfaktor"
 
 #: params/global_params.py:36
 msgid "Renovation rate baseline"
-msgstr "Saneerausasteen lähtötaso"
+msgstr "Renoveringsrate baseline"
 
 #: params/global_params.py:41
 msgid "Include energy taxes in calculations?"
-msgstr "Sisällytetäänkö energiaverot laskelmiin?"
+msgstr "Medtag energiafgifter i beregningerne?"
 
 #: params/global_params.py:46
 msgid "Include CO2 cost variable in calculations?"
-msgstr "Sisällytetäänkö CO2-kustannusmuuttuja laskelmiin?"
+msgstr "Medtag CO2-omkostningsvariabel i beregningerne?"
 
 #: params/global_params.py:51
 msgid "Include health impact variable in calculations?"
-msgstr "Sisällytetäänkö terveysvaikutusmuuttuja laskelmiin?"
+msgstr "Medtag sundhedspåvirkningsvariabel i beregningerne?"
 
 #: params/global_params.py:56
 msgid "Include avoided electricity capacity variable in calculations?"
-msgstr "Sisällytetäänkö vältetty sähkökapasiteettimuuttuja laskelmiin?"
+msgstr "Medtag undgået elkapacitetsvariabel i beregningerne?"
 
 #: params/global_params.py:61
 msgid "Price of CO2"
-msgstr "CO2:n hinta"
+msgstr "Pris på CO2"
 
 #: params/global_params.py:66
 msgid "Price of CO2 annual change"
-msgstr "CO2:n hinnan vuosittainen muutos"
+msgstr "Pris på CO2 årlig ændring"
 
 #: params/global_params.py:71
 msgid "Price of electricity"
-msgstr "Sähkön hinta"
+msgstr "Pris på elektricitet"
 
 #: params/global_params.py:76
 msgid "Price of electricity annual change"
-msgstr "Sähkön hinnan vuosittainen muutos"
+msgstr "Pris på elektricitet årlig ændring"
 
 #: params/global_params.py:81
 msgid "Price of Heat"
-msgstr "Lämmön hinta"
+msgstr "Pris på varme"
 
 #: params/global_params.py:86
 msgid "Price of heat annual change"
-msgstr "Lämmön hinnan vuosittainen muutos"
+msgstr "Pris på varme årlig ændring"
 
 #: params/global_params.py:91
 msgid "Invest all on the first year (in contrast to continuous investing)?"
-msgstr "Sijoitetaanko kaikki ensimmäisenä vuonna (jatkuvan sijoittamisen sijaan)?"
+msgstr "Investér alt det første år (i modsætning til løbende investering)?"
 
 #: params/global_params.py:96
 msgid "Placeholder for updated_building_code_residential"
-msgstr "Paikkamerkki päivitetylle rakennuskoodille asuinrakennukset"
+msgstr "Pladsholder for opdateret_bygningsreglement_bolig"
 
 #: params/global_params.py:101
 #, fuzzy
 #| msgid "Renovation rate baseline"
 msgid "Action impact based on baseline"
-msgstr "Saneerausasteen lähtötaso"
+msgstr "Renoveringsrate baseline"
 
 #: params/global_params.py:102
 msgid ""
 "Compute action impact based on the baseline scenario instead of the default "
 "one"
 msgstr ""
-"Laske toimenpiteen vaikutus perustuen perusskenaarioon oletusskenaarion "
-"sijaan"
+"Beregn handlingens påvirkning baseret på baseline-scenariet i stedet for standard"
+"scenariet"
 
 #: params/global_params.py:108
 msgid "Scanario name"
-msgstr "Skenaarion nimi"
+msgstr "Scenarienavn"
 
 #: params/global_params.py:113
 msgid "Weight for emission impacts in value profiles"
-msgstr "Päästövaikutusten painoarvo arvoprofiileissa"
+msgstr "Vægt for emissionspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:118
 msgid "Weight for economic impacts in value profiles"
-msgstr "Taloudellisten vaikutusten painoarvo arvoprofiileissa"
+msgstr "Vægt for økonomiske påvirkninger i værdiprofiler"
 
 #: params/global_params.py:123
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
-msgstr "Hyvinvointivaikutusten (esim. työpaikat) painoarvo arvoprofiileissa"
+msgstr "Vægt for velfærdspåvirkninger (f.eks. jobs) i værdiprofiler"
 
 #: params/global_params.py:128
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
-msgstr "Puhtausvaikutusten (esim. saasteettomuus) painoarvo arvoprofiileissa"
+msgstr "Vægt for renhedspåvirkninger (f.eks. mangel på forurening) i værdiprofiler"
 
 #: params/global_params.py:133
 msgid "Weight for health impacts in value profiles"
-msgstr "Terveysvaikutusten painoarvo arvoprofiileissa"
+msgstr "Vægt for sundhedspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:138
 msgid "Weight for equity impacts in value profiles"
-msgstr "Oikeudenmukaisuusvaikutusten painoarvo arvoprofiileissa"
+msgstr "Vægt for lighedspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:143
 msgid "Weight for biodiversity impacts in value profiles"
-msgstr "Biodiversiteettivaikutusten painoarvo arvoprofiileissa"
+msgstr "Vægt for biodiversitetspåvirkninger i værdiprofiler"
 
 #: params/global_params.py:148
 msgid "Weight for actions to be legal in value profiles"
-msgstr "Toimenpiteiden laillisuuden painoarvo arvoprofiileissa"
+msgstr "Vægt for at handlinger skal være lovlige i værdiprofiler"
 
 #: params/global_params.py:153
 msgid "Threshold for sum of weighted impacts in value profiles"
-msgstr "Painotettujen vaikutusten summan kynnysarvo arvoprofiileissa"
+msgstr "Tærskel for summen af vægtede påvirkninger i værdiprofiler"
 
 #: params/global_params.py:158
 msgid "Effect of electric vehicles on car kilometers"
-msgstr "Sähköautojen vaikutus autokilometreihin"
+msgstr "Effekt af elbiler på bilkilometer"
 
 #: params/global_params.py:163
 msgid "List of selected municipalities"
-msgstr "Luettelo valituista kunnista"
+msgstr "Liste over udvalgte kommuner"
 
 #: params/global_params.py:168
 msgid "List of selected nodes"
-msgstr "Luettelo valituista solmuista"
+msgstr "Liste over udvalgte knudepunkter"
 
 #: params/global_params.py:173
 msgid "Selected computational framework"
-msgstr "Valittu laskentakehys"
+msgstr "Valgt beregningsramme"
 
 #: params/global_params.py:178
 msgid "Annual weather normalization for energy consumption"
-msgstr "Energiankulutuksen vuosittainen sääkorjaus"
+msgstr "Årlig vejrnormalisering for energiforbrug"
 
 #: params/global_params.py:183
 msgid "Is the last historical value extended into the future?"
-msgstr "Jatketaanko viimeistä historiallista arvoa tulevaisuuteen?"
+msgstr "Er den sidste historiske værdi udvidet ind i fremtiden?"
 
 #: paths/authentication.py:21
 msgid "Invalid token."
-msgstr "Virheellinen tunnus."
+msgstr "Ugyldigt token."
 
 #: paths/schema.py:80 paths/utils.py:61 paths/utils.py:63
 msgid "Invalid unit"
-msgstr "Virheellinen yksikkö"
+msgstr "Ugyldig enhed"
+
+#: paths/settings.py:316
+msgid "English"
+msgstr "Engelsk"
+
+#: paths/settings.py:317
+msgid "Finnish"
+msgstr "Finsk"
+
+#: paths/settings.py:318
+msgid "Swedish"
+msgstr "Svensk"
+
+#: paths/settings.py:319
+msgid "German"
+msgstr "Tysk"
+
+#: paths/settings.py:320
+msgid "German (Switzerland)"
+msgstr "Tysk (Schweiz)"
+
+#: paths/settings.py:321
+msgid "Czech"
+msgstr "Tjekkisk"
+
+#: paths/settings.py:322
+msgid "Danish"
+msgstr "Dansk"
+
+#: paths/settings.py:323
+msgid "Polish"
+msgstr "Polsk"
 
 #: paths/utils.py:27
 msgid "identifier"
-msgstr "tunniste"
+msgstr "identifikator"
 
 #: paths/utils.py:71
 msgid "unit"
-msgstr ""
+msgstr "enhed"
 
 #: paths/utils.py:85
 msgid "uuid"
@@ -655,54 +683,19 @@ msgstr "uuid"
 
 #: paths/utils.py:96
 msgid "created at"
-msgstr "luotu"
+msgstr "oprettet den"
 
 #: paths/utils.py:98
 msgid "updated at"
-msgstr "päivitetty"
+msgstr "opdateret den"
 
 #: paths/utils.py:106
 msgid "order"
-msgstr "järjestys"
-
-#: paths/settings.py:316
-msgid "English"
-msgstr "englanti"
-
-#: paths/settings.py:317
-msgid "Finnish"
-msgstr "suomi"
-
-#: paths/settings.py:318
-msgid "Swedish"
-msgstr "ruotsi"
-
-#: paths/settings.py:319
-msgid "German"
-msgstr "saksa"
-
-#: paths/settings.py:320
-msgid "German (Switzerland)"
-msgstr "saksa (Sveitsi)"
-
-#: paths/settings.py:321
-msgid "Czech"
-msgstr "tšekki"
-
-#: paths/settings.py:322
-msgid "Danish"
-msgstr "tanska"
-
-#: paths/settings.py:323
-msgid "Polish"
-msgstr "puola"
+msgstr "rækkefølge"
 
 #: users/models.py:11
 msgid "email address"
-msgstr "sähköpostiosoite"
+msgstr "e-mailadresse"
 
 #~ msgid "Discount node name"
-#~ msgstr "Diskonttaussolmun nimi"
-
-#~ msgid "Body"
-#~ msgstr "Kuvaus"
+#~ msgstr "Rabatknudepunktets navn"
