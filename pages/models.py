@@ -202,8 +202,8 @@ class InstanceSiteContent(models.Model):
     instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
 
     intro_content = StreamField([
-        ('title', blocks.RichTextBlock(label=_('Title'))),
-        ('paragraph', blocks.RichTextBlock(label=_("Introductory content to show in the UI"))),
+        ('title', blocks.RichTextBlock(label=_('Title'), features=['h2', 'h3', 'h4', 'bold', 'italic'])),
+        ('paragraph', blocks.RichTextBlock(label=_("Introductory content to show in the UI"), features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'])),
         ],
         block_counts={
             'title': {'max_num': 1},
