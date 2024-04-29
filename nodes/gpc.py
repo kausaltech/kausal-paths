@@ -121,7 +121,7 @@ class DatasetNode(AdditiveNode):
 
 class WeatherNode(AdditiveNode):
     allowed_parameters = AdditiveNode.allowed_parameters + [
-        BoolParameter('weather_normalization', description = 'Is energy normaized for weather?')
+        BoolParameter('weather_normalization', description = 'Is energy normalized for weather?')
     ]
     def compute(self):
         df = super().compute()

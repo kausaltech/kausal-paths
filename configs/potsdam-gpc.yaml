@@ -109,7 +109,8 @@ nodes:
   unit: dimensionless
 #  output_dimensions: [energietrager]
   historical_values: [[1995, 1], [1999, 1], [2003, 1], [2008, 1], [2012, 1], [2014,
-      0.95], [2017, 0.9], [2020, 0.8]]
+      0.95], [2020, 0.8]]
+  forecast_values: [[2030, 0.8], [2040, 0.8], [2050, 0.8]]
 #  input_datasets:  # FIXME For some reason, the unit gets lost
 #  - id: gpc/potsdam_witterungsbereinigung
 #    column: factor  # FIXME Updated dataset has 'ratio' but this only works with the old column name?!?
@@ -117,6 +118,8 @@ nodes:
   params:
   - id: weather_normalization
     ref: weather_normalization
+  - id: inventory_only
+    value: true
   output_nodes:
   - id: i11_residential_fuel_consumption
     tags: non_additive
@@ -138,10 +141,8 @@ nodes:
   input_datasets:
   - id: gpc/potsdam
     forecast_from: 2023
-#  input_dataset_processors: [LinearInterpolation]  # FIXME Time series is broken but this line would cause an error
   output_nodes:
   - id: i11_residential_fuel_consumption_emissions
-    tags: [non_additive]
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -525,7 +526,8 @@ nodes:
 
 - id: i_stationary_energy
   name: Stationärer Energieverbrauch
-  type: simple.AdditiveNode
+#  type: simple.AdditiveNode
+  type: formula.FormulaNode  # FIXME Define the processes: do we want AdditiveNode to fill in blank years?
   quantity: energy
   unit: GWh/a
   input_dimensions: [energietrager, scope]
@@ -536,10 +538,8 @@ nodes:
   output_nodes:
   - total_energy_consumption
   params:
-  - id: drop_nulls
-    value: true
-  - id: drop_nans
-    value: true
+  - id: formula
+    value: i11_residential_fuel_consumption + i12_residential_grid_energy_consumption
 
 - id: electricity_consumption_without_heating
   name: Stromverbrauch (ohne Heizung)
