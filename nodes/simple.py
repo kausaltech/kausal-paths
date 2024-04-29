@@ -92,6 +92,7 @@ class SimpleNode(Node):
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
     allowed_parameters: ClassVar[list[Parameter]] = SimpleNode.allowed_parameters + [
+        BoolParameter(local_id='drop_nans', is_customizable=False),
         StringParameter(local_id='metric', is_customizable=False),
         BoolParameter(
             local_id='inventory_only',
@@ -153,6 +154,9 @@ class AdditiveNode(SimpleNode):
             df = self.fill_gaps_using_input_dataset_pl(df)
         else:
             df = self.add_nodes_pl(df, input_nodes, metric)
+        df = self.maybe_drop_nulls(df)  # FIXME Check where this should be done.
+        if self.get_parameter_value('drop_nans', required=False):  # FIXME: Implement this in the same way as drop_nulls
+            df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
 
         return df
 
