@@ -447,7 +447,7 @@ nodes:
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
-  - id: i_stationary_total_emissions
+  - id: net_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -522,6 +522,67 @@ nodes:
     - id: energietrager
     - id: scope
     - id: ghg
+
+- id: i_stationary_energy
+  name: Stationärer Energieverbrauch
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
+  input_nodes:
+  - i11_residential_fuel_consumption
+  - i12_residential_grid_energy_consumption
+  output_nodes:
+  - total_energy_consumption
+  params:
+  - id: drop_nulls
+    value: true
+  - id: drop_nans
+    value: true
+
+- id: electricity_consumption_without_heating
+  name: Stromverbrauch (ohne Heizung)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
+  input_nodes:
+  - i42_energy_grid_energy_consumption
+  output_nodes:
+  - total_energy_consumption
+  params:
+  - id: drop_nulls
+    value: true
+  - id: drop_nans
+    value: true
+
+- id: on_road_transport_energy_consumption
+  name: Energieverbrauch im Transportwesen
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
+  input_nodes:
+  - ii12_onroad_transport_grid_energy_consumption
+  - ii11_onroad_transport_fuel_consumption
+  output_nodes:
+  - total_energy_consumption
+  params:
+  - id: drop_nulls
+    value: true
+  - id: drop_nans
+    value: true
+
+- id: total_energy_consumption
+  name: Gesamtenergieverbrauch
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
 
 actions:
 
