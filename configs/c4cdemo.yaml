@@ -1,10 +1,10 @@
 id: c4cdemo
 default_language: en
-supported_languages: []
+supported_languages: [fi, sv, da, lv, pl, de, cs]
 site_url: https://c4cdemo.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d7b0e374a834ff16de4b11d0bda5cccc3f39edd3
+  commit: b1dfff9c6472b1c4fcc96bb5f7df7cd6b9bba71a
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner_en: City of Demonstration
@@ -18,6 +18,54 @@ emission_forecast_from: 2023
 emission_dimensions: ['scope', 'ghg']
 features:
   baseline_visible_in_graphs: true
+action_efficiency_pairs:
+- graph_type: cost_effectiveness
+  cost_node: discounted_net_costs
+  impact_node: total_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: kt
+  label: Cost effectiveness
+- graph_type: return_of_investment
+  cost_node: discounted_investment_costs
+  impact_node: discounted_net_costs
+  invert_cost: false
+  invert_impact: false
+  indicator_unit: '%'
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label: Return on investment
+#- graph_type: cost_benefit
+#  cost_node: test_investments_for_the_city
+#  impact_node: discounted_costs
+#  invert_cost: true
+#  invert_impact: true
+#  indicator_unit: MEUR
+#  cost_unit: MEUR
+#  impact_unit: MEUR
+#  stakeholder_dimension: stakeholder
+#  outcome_dimension: outcome_of_interest
+#  label: Cost-benefit analysis
+#- graph_type: cost_benefit
+#  cost_node: total_discounted_action_costs
+#  impact_node: total_economic_costs
+#  invert_cost: true
+#  invert_impact: true
+#  indicator_unit: MEUR
+#  cost_unit: MEUR
+#  impact_unit: MEUR
+#  label: Cost-benefit analysis for the city
+
+params:
+- id: municipality_name
+  value: example
+- id: discount_rate
+  value: 3.5
+  unit: '%'
+  is_visible: true
+  is_customizable: true
 
 dimensions:
 - id: scope
@@ -104,11 +152,18 @@ dimensions:
   - id: geothermal
     label: Geothermal
 
+- id: energy_source
+  label: Energy Source
+  categories:
+  - id: grid
+    label: Grid
+  - id: photovoltaics
+    label: Photovoltaics
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
-
 
 nodes:
 - id: net_price
@@ -426,12 +481,10 @@ nodes:
   input_datasets:
   - id: gpc/demonstration
   output_nodes:
-  - id: i3_manufacturing_total_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
+  - id: i32_manufacturing_grid_energy_total_emissions
     to_dimensions:
     - id: scope
+    - id: energy_carrier
     - id: ghg
 
 - id: i62_nonspecified_grid_energy_consumption
@@ -487,7 +540,7 @@ nodes:
   name: II.1.1 On-Road Transport Fuel Emission Factor
   type: gpc.DatasetNode
   quantity: emission_factor
-  unit: g/Gm
+  unit: g/km
   input_dimensions: ['scope', 'ghg', 'road_type', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'road_type', 'vehicle_type']
   params:
@@ -562,7 +615,7 @@ nodes:
   name: II.2.2 Railway Grid Energy Emission Factor
   type: gpc.DatasetNode
   quantity: emission_factor
-  unit: g/Gm
+  unit: g/km
   input_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'energy_carrier', 'vehicle_type']
   params:
@@ -956,6 +1009,210 @@ nodes:
     - id: cost_type
     - id: scope
 
+- id: total_emissions
+  name: Total emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: discounted_net_costs
+  name: Discounted net costs
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: net_price
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: discounted_investment_costs
+  name: Discounted investment costs
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_price
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: i32_manufacturing_grid_energy_consumption
+  name: I.3.2 Manufacturing Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'energy_source']
+  output_dimensions: ['scope', 'energy_carrier', 'energy_source']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+  - id: i32_manufacturing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+
+- id: i32_manufacturing_grid_energy_consumption_emissions
+  name: I.3.2 Manufacturing Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kg/a
+  input_dimensions: ['energy_source', 'scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['energy_source', 'scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_emissions
+    from_dimensions:
+    - id: energy_source
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i32_manufacturing_grid_energy_consumption_price
+  name: I.3.2 Manufacturing Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_source', 'scope', 'cost_type', 'energy_carrier']
+  output_dimensions: ['energy_source', 'scope', 'cost_type', 'energy_carrier']
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_price
+    from_dimensions:
+    - id: energy_source
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i32_manufacturing_grid_energy_emission_factor
+  name: I.3.2 Manufacturing Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/kWh
+  input_dimensions: ['ghg', 'scope', 'energy_carrier', 'energy_source']
+  output_dimensions: ['ghg', 'scope', 'energy_carrier', 'energy_source']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+
+- id: i32_manufacturing_grid_energy_price
+  name: I.3.2 Manufacturing Grid Energy Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i32_manufacturing_grid_energy_unit_price
+  name: I.3.2 Manufacturing Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: ['scope', 'energy_carrier', 'energy_source', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'energy_source', 'cost_type']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/demonstration
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+    - id: cost_type
+
+- id: i32_manufacturing_grid_energy_total_emissions
+  name: I.3.2 Manufacturing Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kg/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i32_manufacturing_grid_energy_total_price
+  name: I.3.2 Manufacturing Grid Energy Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  output_nodes:
+  - id: i3_manufacturing_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
+- id: i3_manufacturing_total_price
+  name: I.3 Manufacturing Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'cost_type']
+  output_dimensions: ['scope', 'cost_type']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
+
 actions:
 - id: change_streetlights_to_led
   name: Change Streetlights to LED
@@ -991,6 +1248,42 @@ actions:
     - id: scope
     - id: cost_type
 
+- id: build_renewable_electricity_production
+  name: Build Renewable Electricity Production (PV)
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type', 'energy_source']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type', 'energy_source']
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/demonstration_simple_actions
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: energy_source
+  - id: i32_manufacturing_grid_energy_price
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_source
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: cost_type
 
 # - id: led_action
 #   name: Change Streetlights to LED
@@ -1080,8 +1373,22 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Climate-4-CAST Project
-  lead_paragraph: GPC BASIC+ greenhouse gas inventory (2010-2022) and forecast (2023-2030) for the City of Demonstration.
+  lead_title: Climate Budgeting Tool
+  lead_paragraph: Climate budgeting is about including climate emissions systematically in the city's planning and budgeting. In the first phase, the Global Protocol for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing these emissions are considered. C40 Network's website describes <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area. They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a> to guide through the climate budgeting process. 
+  lead_title_fi: Ilmastobudjetointityökalu
+  lead_paragraph_fi: Ilmastobudjetoinnissa kaupungin suunnitteluun ja budjetointiin sisällytetään järjestelmällisesti ilmastopäästöt. Ensimmäisessä vaiheessa huomioidaan yhteisötason Global Protocol for Community-Scale (GPC) BASIC-tason päästöt ja toimet, jotka vähentävät näitä päästöjä. C40-verkosto kuvaa, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">miksi tämä työ on erittäin tärkeää</a>. Oslo on ollut <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">edelläkävijäkaupunki</a> tällä alueella. He ovat myös tehneet <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">käytännön oppaan</a> kaupungeille ilmastobudjetointiprosessin läpiviemiseksi.
+  lead_title_sv: Klimatbudgeteringsverktyg
+  lead_paragraph_sv: Klimatbudgetering handlar om att systematiskt inkludera klimatutsläpp i stadens planering och budgetering. I den första fasen beaktas utsläpp på samhällsnivå enligt Global Protocol for Community-Scale (GPC) BASIC-nivå och åtgärder som minskar dessa utsläpp. C40 Network beskriver <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">varför detta arbete är avgörande</a>. Oslo har varit en <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">föregångsstad</a> inom detta område. De har också skapat en <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">praktisk handbok</a> för städer att guida dem genom klimatbudgeteringsprocessen.
+  lead_title_cs: Nástroj pro rozpočtování klimatu
+  lead_paragraph_cs: Rozpočtování klimatu se týká systematického začlenění emisí skleníkových plynů do plánování a rozpočtování města. V první fázi se berou v úvahu emise na úrovni BASIC podle Globálního protokolu pro měřítko komunity (GPC) a opatření snižující tyto emise. Síť C40 popisuje, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">proč je tato práce kriticky důležitá</a>. <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">Oslo</a> bylo v této oblasti průkopnickým městem. Vytvořili také <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">praktickou příručku</a> pro města, která je provede procesem rozpočtování klimatu.
+  lead_title_pl: Narzędzie do budżetowania klimatycznego
+  lead_paragraph_pl: Budżetowanie klimatyczne polega na systematycznym uwzględnianiu emisji gazów cieplarnianych w planowaniu i budżetowaniu miasta. W pierwszej fazie brane są pod uwagę emisje na poziomie BASIC według Globalnego Protokołu dla Skali Społeczności (GPC) oraz działania redukujące te emisje. Sieć C40 opisuje, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">dlaczego ta praca jest niezwykle ważna</a>. <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">Oslo</a> było miastem pionierskim w tej dziedzinie. Stworzyli również <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">praktyczny podręcznik</a> dla miast, który poprowadzi je przez proces budżetowania klimatycznego.
+  lead_title_da: Klimabudgetteringsværktøj
+  lead_paragraph_da: Klimabudgettering handler om systematisk at inkludere klimaemissioner i byens planlægning og budgettering. I den første fase tages der hensyn til emissioner på BASIC-niveau i henhold til Global Protocol for Community-Scale (GPC) og tiltag, der reducerer disse emissioner. C40 Network beskriver, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">hvorfor dette arbejde er af afgørende betydning</a>. Oslo har været en <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pionerby</a> på dette område. De har også lavet en <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">praktisk manual</a> til byer for at guide dem gennem klimabudgetteringsprocessen.
+  lead_title_lv: Klimata budžeta plānošanas rīks
+  lead_paragraph_lv: Klimata budžeta plānošana ir par to, lai sistemātiski iekļautu klimata emisijas pilsētas plānošanā un budžeta veidošanā. Pirmajā posmā tiek ņemtas vērā emisijas saskaņā ar Global Protocol for Community-Scale (GPC) BASIC līmeni un darbības, kas samazina šīs emisijas. C40 tīkls apraksta, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">kāpēc šis darbs ir ārkārtīgi svarīgs</a>. Oslo ir bijusi <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pionierpilsēta</a> šajā jomā. Viņi ir arī izveidojuši <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">praktisku rokasgrāmatu</a> pilsētām, lai palīdzētu tām iziet klimata budžeta plānošanas procesu.
+  lead_title_de: Klimabudgetierungstool
+  lead_paragraph_de: Bei der Klimabudgetierung geht es darum, Klimaemissionen systematisch in die Planung und Budgetierung der Stadt einzubeziehen. In der ersten Phase werden die Emissionen auf BASIC-Ebene gemäß dem Global Protocol for Community-Scale (GPC) berücksichtigt sowie Maßnahmen zur Reduzierung dieser Emissionen. Das C40-Netzwerk beschreibt, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">warum diese Arbeit von entscheidender Bedeutung ist</a>. Oslo war in diesem Bereich eine <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">Vorreiterstadt</a>. Sie haben auch ein <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">praktisches Handbuch</a> für Städte erstellt, um sie durch den Prozess der Klimabudgetierung zu führen.
 
 scenarios:
 - id: baseline

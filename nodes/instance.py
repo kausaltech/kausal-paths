@@ -617,7 +617,7 @@ class InstanceLoader:
             param.set(param_val)
             context.add_global_parameter(param)
 
-    def setup_action_efficiency_pairs(self):
+    def setup_action_efficiency_pairs(self):  # TODO add an ID so that there can be several impact overviews for different decision makers.
         conf = self.config.get('action_efficiency_pairs', [])
         for aepc in conf:
             label = self.make_trans_string(aepc, 'label', pop=False)
@@ -633,7 +633,7 @@ class InstanceLoader:
                 invert_cost=aepc.get('invert_cost', False),
                 invert_impact=aepc.get('invert_impact', False),
                 indicator_cutpoint=aepc.get('indicator_cutpoint', None),
-                cost_cutpoint=aepc.get('cost_cutpoint', None),
+                cost_cutpoint=aepc.get('cost_cutpoint', None),  # TODO Make these parameters.
                 stakeholder_dimension=aepc.get('stakeholder_dimension', None),
                 outcome_dimension=aepc.get('outcome_dimension', None),
                 label=label,
