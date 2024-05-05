@@ -1,0 +1,189 @@
+id: nzc
+default_language: en
+supported_languages: [fi]
+frameworks: [transport_nzc]
+site_url: https://nzc.paths.staging.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: b1dfff9c6472b1c4fcc96bb5f7df7cd6b9bba71a
+  dvc_remote: kausal-s3
+name: Demonstration BASIC+ Greenhouse Gas Inventory
+owner: City of Demonstration
+theme_identifier: default
+target_year: 2030
+model_end_year: 2045
+minimum_historical_year: 2020
+maximum_historical_year: 2022
+emission_unit: kt/a
+emission_forecast_from: 2023
+emission_dimensions: [scope, ghg]
+features:
+  baseline_visible_in_graphs: true
+
+params:
+- id: municipality_name
+  value: example
+- id: discount_rate
+  value: 3.5
+  unit: '%'
+  is_visible: true
+  is_customizable: true
+
+action_groups:
+- id: transport
+  name: Transport
+- id: freight
+  name: Freight
+- id: buildings
+  name: buildings
+- id: electricity
+  name: Electricity
+- id: waste
+  name: Waste
+- id: scope_3
+  name: Scope 3
+- id: reforestation
+  name: Reforestation
+
+dimensions:
+- id: pollutants
+  label: Pollutants
+  label_fi: Saasteet
+  categories:
+  - id: co2
+    label: CO2
+    label_fi: CO2
+  - id: nox
+    label: NOx
+    label_fi: NOx
+  - id: pm25_combustion
+    label: PM2.5 combustion
+    label_fi: PM2.5-polttoperäinen
+  - id: pm25_wear_tear
+    label: PM2.5 wear & tear
+    label_fi: PM2.5-kuluminen
+  - id: pm10_combustion
+    label: PM10 combustion
+    label_fi: PM10-polttoperäinen
+  - id: pm10_wear_tear
+    label: PM10 Wear & tear
+    label_fi: PM10-kuluminen
+
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+  - id: scope2
+    label: Scope 2
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: maintenance_costs
+    label: Maintenance Costs
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2e
+    label: CO2e
+
+- id: vehicle_type
+  label: Vehicle type
+  categories:
+  - id: cars
+    label: Cars
+    label_fi: Autot
+  - id: buses
+    label: Buses
+    label_fi: Bussit
+  - id: trains
+    label: Trains
+    label_fi: Junat
+  - id: walking
+    label: Walking
+    label_fi: Kävely
+  - id: cycling
+    label: Cycling
+    label_fi: Pyöräily
+
+- id: stakeholder
+  label: Stakeholder
+  categories:
+  - id: citizens
+    label: Citizens
+  - id: property_owners
+    label: Property owners
+  - id: city
+    label: City
+  - id: healthcare_providers
+    label: Healthcare providers
+  - id: transport_operators
+    label: Transport operators
+
+emission_sectors:
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+
+nodes:
+- id: population
+  name: Population
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  historical_values: [[2020, 1000000]]
+
+- id: total_cost
+  name: Total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+
+- id: discounted_total_cost
+  name: Discounted total cost
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes: [total_cost]
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+actions:
+- id: test
+  name: Test
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2023, 100]]
+
+pages:
+- id: home
+  name: Demonstration BASIC+ Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Climate Budgeting Tool
+  lead_paragraph: Climate budgeting is about including climate emissions systematically in the city's planning and budgeting. In the first phase, the Global Protocol for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing these emissions are considered. C40 Network's website describes <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area. They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a> to guide through the climate budgeting process. 
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Plan
+  all_actions_enabled: true

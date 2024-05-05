@@ -1,0 +1,460 @@
+nodes:
+- id: transport_emissions
+  name: Transport emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  input_dimensions: [ghg, scope, vehicle_type]
+  output_dimensions: [ghg, scope, vehicle_type]
+  input_nodes:
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: vehicle_type
+  - id: transport_emission_factor
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+  color: '#014B30'
+#  color: '#ff4f57'
+#  color: '#0047b6'
+
+- id: transport_emission_factor
+  name: Transport emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  historical_values: [[2010, 130], [2022, 130]]
+  input_dataset_processors: [LinearInterpolation]
+#    values: [130, 0.0206]
+#  input_dimensions: [ghg, scope]
+#  output_dimensions: [ghg, scope]
+#  input_datasets:
+#  - id: netzerocities/transport
+#    filters:
+#    - column: Sector
+#      value: II.1.1
+
+- id: transport_air_pollution_emission_factor
+  name: Transport air pollution emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  historical_values: [[2010, 0.0206], [2022, 0.0206]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_air_pollution_emissions
+  name: Transport air pollution emissions
+  type: simple.MultiplicativeNode # EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutants, vehicle_type]
+  output_dimensions: [pollutants, vehicle_type]
+  input_nodes:
+  - id: transport_air_pollution_emission_factor
+    to_dimensions:
+    - id: pollutants
+      categories: [pm25_combustion]
+    - id: vehicle_type
+      categories: [cars]
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: pollutants
+      categories: [pm25_combustion]
+    - id: vehicle_type
+
+- id: vehicle_kilometres
+  name: Vehicle kilometres
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: transport_efficiency
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  
+- id: transport_efficiency
+  name: Transport efficiency
+  type: simple.AdditiveNode
+  quantity: occupancy_factor
+  unit: pkm/vkm
+  historical_values: [[2020, 1.2], [2022, 1.2]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: passenger_kilometres
+  name: Passenger kilometres
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  historical_values: [[2020, 3003], [2022, 3015]]
+  forecast_values: [[2023, 3021], [2045, 3156]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_air_pollution_unit_price
+  name: Transport air pollution unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2010, 252000], [2022, 252000]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_air_pollution_cost_shares
+  name: Transport air pollution cost shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_air_pollution_costs
+  name: Transport air pollution costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, pollutants, vehicle_type]
+  output_dimensions: [stakeholder, pollutants, vehicle_type]
+  input_nodes:
+  - id: transport_air_pollution_unit_price
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: pollutants
+      categories: [pm25_combustion]
+  - id: transport_air_pollution_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: pollutants
+  - id: transport_air_pollution_cost_shares
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: pollutants
+      categories: [pm25_combustion]
+    - id: stakeholder
+      categories: [city]
+  output_nodes:
+  - id: total_transport_cost
+    from_dimensions:
+    - id: pollutants
+      flatten: true
+
+- id: transport_co2_unit_price
+  name: Transport CO2 unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_co2_cost
+  name: Transport CO2 cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [scope, vehicle_type]
+  output_dimensions: [scope, vehicle_type]
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+  - id: transport_co2_unit_price
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: vehicle_type
+      categories: [cars]
+  output_nodes:
+  - id: total_transport_cost
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [city]
+    - id: vehicle_type
+
+- id: transport_noise_unit_price
+  name: Transport noise unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/pkm
+  historical_values: [[2010, 0.006], [2022, 0.006]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_noise_cost_shares
+  name: Transport noise cost shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_noise_cost
+  name: Transport noise cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, vehicle_type]
+  output_dimensions: [stakeholder, vehicle_type]
+  input_nodes:
+  - id: transport_noise_unit_price
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: transport_noise_cost_shares
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: stakeholder
+      categories: [city]
+  output_nodes: [total_transport_cost]
+
+- id: transport_accident_unit_price
+  name: Transport accident unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/pkm
+  historical_values: [[2010, 0.014], [2022, 0.014]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_accident_cost_shares
+  name: Transport accident cost shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_accident_cost
+  name: Transport accident cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, vehicle_type]
+  output_dimensions: [stakeholder, vehicle_type]
+  input_nodes:
+  - id: transport_accident_unit_price
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: transport_accident_cost_shares
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: stakeholder
+      categories: [city]
+  output_nodes: [total_transport_cost]
+
+- id: public_transport_operation_unit_price
+  name: Public transport operation unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/vkm
+  historical_values: [[2010, 3.3], [2022, 3.3]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: public_transport_operation_cost_shares
+  name: Public transport operation cost shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: public_transport_operation_cost
+  name: Public transport operation cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, vehicle_type]
+  output_dimensions: [stakeholder, vehicle_type]
+  input_nodes:
+  - id: public_transport_operation_unit_price
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: vehicle_type
+  - id: public_transport_operation_cost_shares
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: stakeholder
+      categories: [transport_operators]
+  output_nodes: [total_transport_cost]
+
+- id: transport_energy_factor_ice_petrol_diesel
+  name: Transport energy factor - ICE petrol/diesel
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: l/g
+  historical_values: [[2010, 0.000404], [2022, 0.000404]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: fuel_unit_price
+  name: Fuel unit price
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: EUR/l
+  historical_values: [[2010, 1.22], [2022, 1.22]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_fuel_cost
+  name: Transport fuel cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, vehicle_type]
+  output_dimensions: [stakeholder, vehicle_type]
+  input_nodes:
+  - id: transport_emission_factor
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: transport_energy_factor_ice_petrol_diesel
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: vehicle_type
+  - id: fuel_unit_price
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: stakeholder
+      categories: [citizens]
+  output_nodes: [total_transport_cost]
+
+- id: walking_cycling_unit_price
+  name: Walking & cycling unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/pkm
+  historical_values: [[2010, -0.2966], [2022, -0.2966]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: walking_cycling_cost
+  name: Walking & cycling cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, vehicle_type]
+  output_dimensions: [stakeholder, vehicle_type]
+  input_nodes:
+  - id: walking_cycling_unit_price
+    to_dimensions:
+    - id: vehicle_type
+      categories: [walking]
+    - id: stakeholder
+      categories: [citizens]
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [walking]
+  output_nodes: [total_transport_cost]
+
+- id: total_transport_cost
+  name: Total transport cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, vehicle_type]
+  output_dimensions: [stakeholder, vehicle_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [maintenance_costs]
+    - id: stakeholder
+
+actions:
+- id: reduce_all_motorized_transport
+  name: Reduce all motorized transport
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: fraction
+  unit: Mpkm/a
+  group: transport
+  forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
+  output_nodes:
+  - id: passenger_kilometres
+
+- id: modal_switch_from_cars_to_other_modes
+  name: Modal switch from cars to other modes
+  description: Find the right numbeers!  # FIXME
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: mileage
+  unit: Mpkm/a
+  group: transport
+  forecast_values: [[2023, 0], [2030, -1085]]
+  output_nodes:
+  - id: passenger_kilometres
+
+- id: car_pooling
+  name: Car pooling
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: fraction
+  unit: pkm/vkm
+  group: transport
+  forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
+  output_nodes:
+  - id: transport_efficiency
+
+- id: electrification_of_passenger_cars
+  name: Electrification of passenger cars
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: fraction
+  unit: vkm/a
+  group: transport
+  forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
+  output_nodes:
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+
+- id: electrification_of_buses
+  name: Electrification of buses
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: fraction
+  unit: vkm/a
+  group: transport
+  forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
+  output_nodes:
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [buses]

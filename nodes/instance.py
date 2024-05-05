@@ -677,7 +677,8 @@ class InstanceLoader:
                 fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
                 cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
                 cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
-                cls.merge_framework_config(data.get('actions', []), fw_data.get('actions', []))
+                cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
+                # Some nodes, emission sectors and actions must exist in main yaml.
 
         return cls(data, yaml_file_path=filename)
 
