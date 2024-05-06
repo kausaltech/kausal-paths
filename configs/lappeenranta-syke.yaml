@@ -17,6 +17,7 @@ target_year: 2030
 model_end_year: 2030
 reference_year: 2005
 minimum_historical_year: 2010
+
 params:
 - id: municipality_name
   value: Lappeenranta
@@ -46,6 +47,14 @@ nodes:
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
+
+actions:
+- id: test
+  name: test
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2023, 100.0]]
 
 pages:
 - id: home
