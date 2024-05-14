@@ -15,7 +15,7 @@ unitreplace = [['tCO2e', 't'],
                ['€', 'EUR']]
 
 # ---------------------------------------------------------------------------------------
-df = pl.read_csv(incsvpath, separator = incsvsep)
+df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
 
 droplist = ['Description']
 for col in df.columns:

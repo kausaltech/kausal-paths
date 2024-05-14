@@ -61,7 +61,7 @@ def pconvert(value):
         return float('nan')
 
 # ---------------------------------------------------------------------------------------
-df = pl.read_csv(incsvpath, separator = incsvsep)
+df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
 
 df = df.drop(['Description', 'Action'])
 context = []
