@@ -1,7 +1,7 @@
 id: nzc
 default_language: en
 supported_languages: [fi]
-frameworks: [transport_nzc]
+frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -32,14 +32,18 @@ params:
 action_groups:
 - id: transport
   name: Transport
+  color: '#93c572'
 - id: freight
   name: Freight
 - id: buildings
   name: buildings
+  color: '#32cd32'
 - id: electricity
   name: Electricity
+  color: '#29ab87'
 - id: waste
   name: Waste
+  color: '#50c878'
 - id: scope_3
   name: Scope 3
 - id: reforestation
@@ -88,7 +92,7 @@ dimensions:
     label: Maintenance Costs
 
 - id: ghg
-  label: GHG
+  label: Greenhouse gas
   categories:
   - id: co2e
     label: CO2e
@@ -112,6 +116,28 @@ dimensions:
     label: Cycling
     label_fi: Pyöräily
 
+- id: building_energy_class
+  label: Building energy class
+  categories:
+  - id: new_standard
+    label: New, stadard
+  - id: new_better_than_standard
+    label: New, better than standard
+  - id: old_no_renovations
+    label: Old, no renovations
+  - id: old_minor_heating_renovations
+    label: Old, minor heating renovations
+  - id: old_extensive_heating_renovations
+    label: Old, extensive heating renovations
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
+
 - id: stakeholder
   label: Stakeholder
   categories:
@@ -134,10 +160,14 @@ emission_sectors:
 nodes:
 - id: population
   name: Population
-  type: simple.AdditiveNode
+  type: costs.ExponentialNode
   quantity: population
   unit: cap
-  historical_values: [[2020, 1000000]]
+  historical_values: [[2020, 820000]]
+  params:
+  - id: annual_change
+    value: 0.2
+    unit: '%'
 
 - id: total_cost
   name: Total cost
