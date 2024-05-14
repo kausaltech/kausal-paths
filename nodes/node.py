@@ -980,7 +980,13 @@ class Node:
                 res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
             if 'geometric_inverse' in edge.tags:
                 res = res.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
-                print(res)
+            if 'complement' in edge.tags:
+                if not res.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
+                    raise NodeError(self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id)
+                if not self.quantity in ['fraction', 'probability']:
+                    raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
+                res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
+                res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
         return res
 
