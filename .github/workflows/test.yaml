@@ -1,0 +1,46 @@
+name: Test the Django image
+
+on:
+  workflow_call:
+    inputs:
+      docker_image_repo:
+        required: false
+        type: string
+        default: ${{ vars.DOCKER_IMAGE_REPO }}
+      docker_image_tag:
+        required: true
+        type: string
+
+env:
+  POSTGRES_PASSWORD: abcd
+  POSTGRES_USER: app
+  POSTGRES_DATABASE: app
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: self-hosted
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DATABASE: ${{ env.POSTGRES_DATABASE }}
+
+    container:
+      image: ${{ inputs.docker_image_repo }}:${{ inputs.docker_image_tag }}
+      env:
+        DATABASE_URL: postgresql://${{env.POSTGRES_USER}}:${{env.POSTGRES_PASSWORD}}@localhost:5432/${{env.POSTGRES_DATABASE}}
+        # TODO
+
+    steps:
+      - name: Wait for DB
+        run: /scripts/wait-for-it.sh localhost:5432 -t 30
+
+      # - name: Wait for ES
+      #   run: /scripts/wait-for-it.sh localhost:9200 -t 30
+
+      - name: Run tests
+        run: python run_tests.py
+        working-directory: /code

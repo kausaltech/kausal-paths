@@ -28,6 +28,7 @@ env = environ.FileAwareEnv(
     ENV_FILE=(str, ''),
     DEBUG=(bool, False),
     DEPLOYMENT_TYPE=(str, 'development'),
+    KUBERNETES_MODE=(bool, False),
     SECRET_KEY=(str, ''),
     AZURE_AD_CLIENT_ID=(str, ''),
     AZURE_AD_CLIENT_SECRET=(str, ''),
@@ -74,7 +75,7 @@ ADMIN_BASE_URL = env('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))
 DATABASES = {
-    'default': env.db()
+    'default': env.db_url(engine='paths.database')
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -501,24 +502,30 @@ ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
-    import warnings
-    from wagtail.utils.deprecation import RemovedInWagtail60Warning
     from loguru import logger
-    from .log_handler import LogHandler
+    from .log_handler import LogHandler, LogFmtHandlerError, LogFmtHandlerInfo
 
-    logger.configure(
-        handlers=[
-            dict(sink=LogHandler(), format="{message}"),
-        ],
-    )
-    def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
+    is_kube = env.bool('KUBERNETES_MODE')
+
+    if is_kube:
+        loguru_handlers = [dict(sink=LogFmtHandlerError(), format="{message}"), dict(sink=LogFmtHandlerInfo(), format="{message}")]
+    else:
+        loguru_handlers = [dict(sink=LogHandler(), format="{message}")]
+    logger.configure(handlers=loguru_handlers)
+
+    def level(level: Literal['DEBUG', 'INFO', 'WARNING'], handler: str | None = None) -> dict[str, list[str] | bool | str]:
+        if not handler:
+            if is_kube:
+                handlers = ['logfmt-error', 'logfmt-info']
+            else:
+                handlers = ['rich' if DEBUG else 'console']
+        else:
+            handlers = [handler]
         return dict(
-            handlers=['rich'],
+            handlers=handlers,
             propagate=False,
             level=level,
         )
-
-    warnings.filterwarnings(action='ignore', category=RemovedInWagtail60Warning)
 
     LOGGING = {
         'version': 1,
@@ -539,11 +546,28 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
                 'level': 'DEBUG',
                 'class': 'logging.NullHandler',
             },
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+                'formatter': 'simple'
+            },
             'rich': {
                 'level': 'DEBUG',
                 'class': 'paths.log_handler.LogHandler',
                 'formatter': 'rich',
                 'log_time_format': '%Y-%m-%d %H:%M:%S.%f'
+            },
+            'logfmt-error': {
+                'level': 'DEBUG',
+                'class': 'paths.log_handler.LogFmtHandlerError',
+            },
+            'logfmt-info': {
+                'level': 'DEBUG',
+                'class': 'paths.log_handler.LogFmtHandlerInfo',
+            },
+            'uwsgi-req': {
+                'level': 'DEBUG',
+                'class': 'paths.log_handler.UwsgiReqLogHandler',
             },
         },
         'loggers': {
@@ -563,6 +587,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'factory': level('INFO'),
             'watchfiles': level('INFO'),
             'watchdog': level('INFO'),
+            'uwsgi-req': level('DEBUG', handler='uwsgi-req'),
             'git': level('INFO'),
             'pint': level('INFO'),
             'matplotlib': level('INFO'),

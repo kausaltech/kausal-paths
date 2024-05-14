@@ -1,0 +1,47 @@
+name: Deploy image
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        required: true
+        type: string
+      docker_image_repo:
+        required: false
+        type: string
+        default: ${{ vars.DOCKER_IMAGE_REPO }}
+      docker_image_tag:
+        required: true
+        type: string
+      deployment_env:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: Deploy in Kubernetes
+    runs-on: self-hosted
+    container:
+      image: harbor.kausal.dev/library/ubuntu:latest
+    env:
+      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+
+    concurrency:
+      group: ${{ inputs.docker_image_repo }}
+
+    steps:
+      - name: Download ArgoCD CLI
+        uses: clowdhaus/argo-cd-action@main
+        with:
+          version: '2.11.0'
+
+      - name: Deploy image
+        run: |
+          labels="kausal.tech/deployment=${{ inputs.deployment_env }},kausal.tech/project=${{ inputs.project_name }}"
+          apps=$(argocd app list -l $labels -o name)
+          echo "Matching apps: $apps"
+          for app in $apps ; do
+            echo "Updating ${app}..."
+            argocd app set $app -p image.tag=${{ inputs.docker_image_tag }}
+          done

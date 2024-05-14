@@ -1,17 +1,19 @@
-from datetime import datetime
+import logging
+from datetime import datetime, UTC
+from logging import LogRecord, StreamHandler
 from pathlib import Path
-from logging import LogRecord
-from typing import Any, Iterable, List, Optional, TYPE_CHECKING, Sequence, Union, Callable
-from rich.console import ConsoleRenderable
+import sys
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
+from logfmter.formatter import Logfmter
+from rich.console import ConsoleRenderable
+from rich.containers import Renderables
 from rich.logging import RichHandler
 from rich.text import Text, TextType
 from rich.traceback import Traceback
-from rich.containers import Renderables
-
 
 if TYPE_CHECKING:
-    from rich.console import Console, ConsoleRenderable, RenderableType
+    from rich.console import Console, RenderableType
 
 FormatTimeCallable = Callable[[datetime], Text]
 
@@ -91,52 +93,31 @@ class LogRender:
         return Renderables([output] + renderables)  # type: ignore
 
 
+ISO_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
+
 class LogHandler(RichHandler):
     _log_render: LogRender  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         lr = self._log_render
-
         self._log_render = LogRender(
             show_time=lr.show_time,
             show_level=lr.show_level,
             show_path=lr.show_path,
-            # time_format=lr.time_format,
-            time_format='%Y-%m-%d %H:%M:%S.%f',
+            time_format=ISO_FORMAT,
             omit_repeated_times=lr.omit_repeated_times,
             level_width=None,
         )
 
     def render_message(self, record: LogRecord, message: str) -> ConsoleRenderable:
         extra: dict[str, Any] = getattr(record, 'extra', {})
-        markup = extra.pop('markup', False)
-        if markup:
-            setattr(record, 'markup', True)
-            def with_style(style: str, msg: str):
-                return '[%s]%s[/]' % (style, msg)
-        else:
-            def with_style(style: str, msg: str):
-                return msg
-        scope_parts = []
-        instance_id = extra.get('instance')
-        if instance_id:
-            scope_parts.append(with_style('scope.key', instance_id))
-        instance_obj_id = extra.get('instance_obj_id')
-        if instance_obj_id:
-            scope_parts.append(with_style('log.path', instance_obj_id))
-
-        ctx_id = extra.get('context')
-        if ctx_id:
-            scope_parts.append('[scope.key.special]%s[/]' % ctx_id)
-
-        session_id = extra.get('session')
-        if session_id:
-            scope_parts.append('sess [json.key]%s[/]' % session_id)
-
-        if scope_parts:
-            record.highlighter = None
-            message = r'[log.path]\[[/]%s[log.path]][/] %s' % (':'.join(scope_parts), message)
+        tenant_id = extra.get('tenant', None)
+        if tenant_id:
+            message = '[%s] %s' % (extra['tenant'], message)
+        if 'session' in extra:
+            message = '<%s> %s' % (extra['session'], message)
         ret = super().render_message(record, message)
         return ret
 
@@ -176,11 +157,64 @@ class LogHandler(RichHandler):
         return log_renderable
 
 
-def configure_logging():
-    from loguru import logger
-    logger.configure(
-        handlers=[
-            dict(sink=LogHandler(), format="{message}"),
-        ],
-        extra={'markup': True}
-    )
+class LogFmtFormatter(Logfmter):
+    def __init__(self):
+        keys = ['time', 'level']
+        mapping = {
+            'time': 'asctime',
+            'level': 'levelname',
+        }
+        super().__init__(keys=keys, mapping=mapping, datefmt=ISO_FORMAT)
+
+    @classmethod
+    def get_extra(cls, record: logging.LogRecord) -> dict:
+        ret = super().get_extra(record)
+        if 'taskName' in ret:
+            del ret['taskName']
+        if 'extra' in ret:
+            del ret['extra']
+        extra = getattr(record, 'extra', {})
+        for key, val in extra.items():
+            if key in ret:
+                continue
+            ret[key] = val
+        return ret
+
+    def formatTime(self, record, datefmt=None):
+        return datetime.fromtimestamp(record.created, UTC).strftime(ISO_FORMAT)
+
+
+class LogFmtHandlerError(StreamHandler):
+    def __init__(self, stream=None):
+        if stream is None:
+            stream = sys.stderr
+        super().__init__(stream)
+        self.formatter = LogFmtFormatter()
+        self.addFilter(lambda rec: rec.levelno <= logging.INFO)
+
+
+class LogFmtHandlerInfo(StreamHandler):
+    def __init__(self, stream=None):
+        if stream is None:
+            stream = sys.stdout
+        super().__init__(stream)
+        self.formatter = LogFmtFormatter()
+        self.addFilter(lambda rec: rec.levelno > logging.INFO)
+
+
+class UwsgiReqLogHandler(StreamHandler):
+    def __init__(self, stream=None):
+        if stream is None:
+            stream = sys.stdout
+        super().__init__(stream)
+
+    def format(self, record: LogRecord) -> str:
+        s = str(record.msg).rstrip('\n')
+        return s
+
+    def emit(self, record: LogRecord) -> None:
+        # Only emit health check logs only for 5 mins after starting
+        if ' path=/healthz' in record.msg:
+            if record.relativeCreated > 5 * 60 * 1000:
+                return
+        return super().emit(record)

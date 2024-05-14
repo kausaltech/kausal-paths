@@ -10,7 +10,7 @@ djangorestframework
 django-extensions
 dvc-pandas
 ipython
-numba>=0.57.0rc1
+numba
 pint>=0.22
 pint-pandas
 colored
@@ -47,3 +47,4 @@ wagtail-generic-chooser
 wagtail-color-panel
 loguru
 gql[requests]
+logfmter

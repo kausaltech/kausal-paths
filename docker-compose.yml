@@ -1,11 +1,11 @@
-version: '3.8'
 services:
   db:
     # Set DB_IMAGE to specify the image name and tag for docker-compose push
-    image: ${DB_IMAGE-kausal-paths-postgres}
-    build:
-      context: .
-      dockerfile: ./docker/db/Dockerfile
+    image: postgres:13
+    # image: ${DB_IMAGE-kausal-paths-postgres}
+    # build:
+    #   context: .
+    #   dockerfile: ./docker/db/Dockerfile
     restart: always
     environment:
       - POSTGRES_USER=paths
@@ -53,8 +53,8 @@ services:
       - db
       - redis
     healthcheck:
-      # test: ["CMD", "curl", "-f", "http://127.0.0.1/health/"]
-      test: ["CMD", "wget", "-O", "/dev/null", "-q", "--tries=1", "http://127.0.0.1:8000/health/"]
+      # test: ["CMD", "curl", "-f", "http://127.0.0.1/healthz/"]
+      test: ["CMD", "wget", "-O", "/dev/null", "-q", "--tries=1", "http://127.0.0.1:8000/healthz/"]
       interval: 10s
       timeout: 5s
       retries: 5
