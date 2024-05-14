@@ -56,7 +56,9 @@ env = environ.FileAwareEnv(
     MEDIA_FILES_S3_ACCESS_KEY_ID=(str, ''),
     MEDIA_FILES_S3_SECRET_ACCESS_KEY=(str, ''),
     MEDIA_FILES_S3_CUSTOM_DOMAIN=(str, ''),
-    WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech')
+    WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech'),
+    GITHUB_APP_ID=(str, ''),
+    GITHUB_APP_PRIVATE_KEY=(str, '')
 )
 
 BASE_DIR = root()
@@ -429,6 +431,10 @@ BASE_URL = env('ADMIN_BASE_URL')
 WAGTAILADMIN_BASE_URL = BASE_URL
 
 WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
+
+# Information needed to authentiacte as a GitHub App
+GITHUB_APP_ID = env('GITHUB_APP_ID')
+GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
 
 INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
