@@ -133,10 +133,12 @@ jobs:
       - name: Check if an image for this git head already exists
         id: check_existing
         run: |
-          if docker buildx imagetools inspect ${{ env.IMAGE_FULL_PATH }}:${{ steps.build_meta.outputs.git_image_tag }} ; then
-            echo status=found >> $GITHUB_OUTPUT ;
+          digest=$(docker buildx imagetools inspect ${{ env.IMAGE_FULL_PATH }}:${{ steps.build_meta.outputs.git_image_tag }} --format '{{ json .Manifest }}' | jq -r .digest)
+          if [ ! -z "$digest" ] ; then
+            echo status=found >> $GITHUB_OUTPUT
+            echo digest=$digest >> $GITHUB_OUTPUT
           else
-            echo status=not_found >> $GITHUB_OUTPUT ;
+            echo status=not_found >> $GITHUB_OUTPUT
           fi
 
       - name: Update existing image tags
@@ -178,12 +180,12 @@ jobs:
         uses: actions/attest-build-provenance@v1
         with:
           subject-name: ${{ inputs.docker_registry }}/${{ inputs.docker_image_name }}
-          subject-digest: ${{ steps.build_push.outputs.digest }}
+          subject-digest: ${{ steps.build_push.outputs.digest || steps.check_existing.outputs.digest }}
           push-to-registry: true
 
       - name: Sign the images with GitHub OIDC Token
         env:
-          DIGEST: ${{ steps.build_push.outputs.digest }}
+          DIGEST: ${{ steps.build_push.outputs.digest || steps.check_existing.outputs.digest }}
           TAGS: ${{ steps.docker_meta.outputs.tags }}
         run: |
           images=""
