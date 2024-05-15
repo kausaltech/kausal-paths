@@ -2,6 +2,7 @@ emission_sectors:
 
 - id: building_emissions
   name: Building emissions
+  description: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
   part_of: net_emissions
 
 nodes:
@@ -10,8 +11,13 @@ nodes:
 # Model inputs: 176* 519 257* 254* 532 544 545 272* 273* 278 290 296..299* 302..305* 319..322* 586
 # 3.4 heat generation: (coming from model inputs) 19 25 248 259
 
-- id: building_stock
-  name: Building stock
+- id: existing_building_stock
+  name: Existing building stock
+  description: 'Data sources:<ul><li>Model inputs & assumptions, F250. Size of building stock. 
+    TODO maybe later: Calculate floor area per person and use population 
+    size for scaling.</li><li>Model inputs & assumptions, F519. Rate of demolition and new construction.</li><li>Model inputs & assumptions, F257. Retrofitted area %.</li></ul>
+    Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.
+    <p>DIMENSIONS: building_energy_class</p>'
   type: costs.ExponentialNode
   quantity: floor_area
   unit: km**2
@@ -20,6 +26,20 @@ nodes:
   - id: annual_change
     value: 0.2
     unit: '%'
+
+- id: building_stock
+  name: Building stock
+  description: Existing building stock minus demolition and new construction.
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: existing_building_stock
+    to_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
 
 - id: energy_use_intensity
   name: Energy use intensity
@@ -37,6 +57,7 @@ nodes:
 
 - id: building_energy_use
   name: Building energy use
+  description: 'For the frozen scenario, heat energy is relative to population growth.'
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -46,7 +67,6 @@ nodes:
   - id: building_stock
     to_dimensions:
     - id: building_energy_class
-      categories: [old_no_renovations]
   - id: energy_use_intensity
     to_dimensions:
     - id: building_energy_class

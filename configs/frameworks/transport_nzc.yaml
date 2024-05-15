@@ -1,6 +1,7 @@
 nodes:
 - id: transport_emissions
   name: Transport emissions
+  description: This module (all nodes upstream) is based on the excel sheets 1.0 - 1.4.2 Passenger trans. levers.
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
@@ -33,6 +34,11 @@ nodes:
 
 - id: transport_emission_factor
   name: Transport emission factor
+  description: 'Data from Data 1&2 Tranportation, E174:AF179. TODO Upstream calculations based on Model inputs & 
+    assumptions F194 and F207 needs to be included in the model. Emission factor is a weighted average existing and
+    new car fleet, where 0.5 * X % is renewed annually (X = city data request D47, share of fleet that is less than 2 years old). The current emission factors are asked from the user (City data request D34:D43) but the new
+    emission factors come from data; the weighted average of the two trends is calculated.
+    <p>DIMENSIONS: pollutants (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
