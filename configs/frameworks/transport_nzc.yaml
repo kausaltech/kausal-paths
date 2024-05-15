@@ -7,7 +7,7 @@
 # ghg
 # scope
 # vehicle_type
-# pollutant
+# pollutants
 # stakeholder
 
 nodes:
@@ -55,7 +55,7 @@ nodes:
     emission factors come from data; the weighted average of the two trends is calculated.
     MATIAS: DO NOT START FROM HERE; emission fractions are still under construction.
     <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
-    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
+    <p>DIMENSIONS: pollutants (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
@@ -85,18 +85,18 @@ nodes:
   type: simple.MultiplicativeNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
-  input_dimensions: [pollutant, vehicle_type]
-  output_dimensions: [pollutant, vehicle_type]
+  input_dimensions: [pollutants, vehicle_type]
+  output_dimensions: [pollutants, vehicle_type]
   input_nodes:
   - id: transport_air_pollution_emission_factor
     to_dimensions:
-    - id: pollutant
+    - id: pollutants
       categories: [pm25_combustion]
     - id: vehicle_type
       categories: [cars]
   - id: vehicle_kilometres
     to_dimensions:
-    - id: pollutant
+    - id: pollutants
       categories: [pm25_combustion]
     - id: vehicle_type
 
@@ -191,31 +191,31 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, pollutant, vehicle_type]
-  output_dimensions: [stakeholder, pollutant, vehicle_type]
+  input_dimensions: [stakeholder, pollutants, vehicle_type]
+  output_dimensions: [stakeholder, pollutants, vehicle_type]
   input_nodes:
   - id: transport_air_pollution_unit_price
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
-    - id: pollutant
+    - id: pollutants
       categories: [pm25_combustion]
   - id: transport_air_pollution_emissions
     to_dimensions:
     - id: vehicle_type
-    - id: pollutant
+    - id: pollutants
   - id: transport_air_pollution_cost_shares
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
-    - id: pollutant
+    - id: pollutants
       categories: [pm25_combustion]
     - id: stakeholder
       categories: [city]
   output_nodes:
   - id: transport_cost
     from_dimensions:
-    - id: pollutant
+    - id: pollutants
       flatten: true
 
 - id: transport_co2_cost

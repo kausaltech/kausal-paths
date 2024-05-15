@@ -50,7 +50,7 @@ action_groups:
   name: Reforestation
 
 dimensions:
-- id: pollutant
+- id: pollutants
   label: Pollutant
   label_fi: Saaste
   categories:
