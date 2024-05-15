@@ -50,9 +50,9 @@ action_groups:
   name: Reforestation
 
 dimensions:
-- id: pollutants
-  label: Pollutants
-  label_fi: Saasteet
+- id: pollutant
+  label: Pollutant
+  label_fi: Saaste
   categories:
   - id: co2
     label: CO2
@@ -168,6 +168,15 @@ nodes:
   - id: annual_change
     value: 0.2
     unit: '%'
+
+- id: co2_unit_price
+  name: CO2 unit price
+  description: See transport_air_pollution_unit_price.
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2010, 100], [2022, 100]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: total_cost
   name: Total cost

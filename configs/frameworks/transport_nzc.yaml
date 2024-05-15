@@ -1,7 +1,22 @@
+# Required nodes from outside the framework:
+# population
+# co2_unit_price
+# net_emissions
+# total_cost
+# Required dimensions from outside the framework:
+# ghg
+# scope
+# vehicle_type
+# pollutant
+# stakeholder
+
 nodes:
 - id: transport_emissions
   name: Transport emissions
   description: This module (all nodes upstream) is based on the excel sheets 1.0 - 1.4.2 Passenger trans. levers.
+    Note! MIA = Model - inputs & assumptions, CDR = City data - Data requests.
+    In the default datasets, I think we should have historical values for years 2018-2023.
+    Then, the forecast values do not start before 2024 due to the defaults.
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
@@ -38,7 +53,9 @@ nodes:
     assumptions F194 and F207 needs to be included in the model. Emission factor is a weighted average existing and
     new car fleet, where 0.5 * X % is renewed annually (X = city data request D47, share of fleet that is less than 2 years old). The current emission factors are asked from the user (City data request D34:D43) but the new
     emission factors come from data; the weighted average of the two trends is calculated.
-    <p>DIMENSIONS: pollutants (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
+    MATIAS: DO NOT START FROM HERE; emission fractions are still under construction.
+    <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
+    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
@@ -55,6 +72,8 @@ nodes:
 
 - id: transport_air_pollution_emission_factor
   name: Transport air pollution emission factor
+  description: Emission factors for all other pollutants than CO2. TODO Does it make sense to separate these?
+    Maybe separate CO2 out at the emissions phase? How can you filter all but one?
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
@@ -66,18 +85,18 @@ nodes:
   type: simple.MultiplicativeNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
-  input_dimensions: [pollutants, vehicle_type]
-  output_dimensions: [pollutants, vehicle_type]
+  input_dimensions: [pollutant, vehicle_type]
+  output_dimensions: [pollutant, vehicle_type]
   input_nodes:
   - id: transport_air_pollution_emission_factor
     to_dimensions:
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
     - id: vehicle_type
       categories: [cars]
   - id: vehicle_kilometres
     to_dimensions:
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
     - id: vehicle_type
 
@@ -90,9 +109,6 @@ nodes:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: passenger_kilometres
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
   - id: transport_efficiency
     tags: [geometric_inverse]
     to_dimensions:
@@ -101,6 +117,8 @@ nodes:
   
 - id: transport_efficiency
   name: Transport efficiency
+  description: 'Transport efficiency comes from CDR D28:d30 via MIA D188:190. It is constant across time.
+    <p>DIMENSIONS: Vehicle type (car, bus, train, walking)</p>' 
   type: simple.AdditiveNode
   quantity: occupancy_factor
   unit: pkm/vkm
@@ -109,15 +127,42 @@ nodes:
 
 - id: passenger_kilometres
   name: Passenger kilometres
-  type: simple.AdditiveNode
+  description: Passenger kilometre trend depends on population growth and is calculated accordingly.
+  type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mpkm/a
-  historical_values: [[2020, 3003], [2022, 3015]]
-  forecast_values: [[2023, 3021], [2045, 3156]]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: passenger_kilometres_per_person
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: population
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+#  historical_values: [[2020, 3003], [2022, 3015]]
+#  forecast_values: [[2023, 3021], [2045, 3156]]
+#  input_dataset_processors: [LinearInterpolation]
+
+- id: passenger_kilometres_per_person
+  name: Passenger kilometres per person
+  description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
+    TODO Ask if we want to ask values per person or in total, if the variable depends directly on population size anyway.
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: pkm/person/day
+  historical_values: [[2020, 10.025]]  # 10.025 1.609 1.588 6.890 for cars, buses, trains, walking/cycling
   input_dataset_processors: [LinearInterpolation]
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
+  description: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
+    (Essen et al., 2019). Datasets can be created from 1.1 Reduce transport need G129:G134 (CO2 and air pollutants),
+    G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    For European Commission Directorate-General for Mobility and Transport</li></ul>'
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/t
@@ -126,51 +171,52 @@ nodes:
 
 - id: transport_air_pollution_cost_shares
   name: Transport air pollution cost shares
+  description: All cost shares are found on the sheet Data - Distribution stakeholder. All stakeholder
+    distributions could be one
+    dataset with an internal dimension "Outcome", which is used for filtering when data is fetched.
+    See yaml for an example. All shares are constants across time.
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
   historical_values: [[2010, 100], [2022, 100]]
   input_dataset_processors: [LinearInterpolation]
+#  input_datasets:
+#  - id: nzc/outcome_distribution_by_stakeholder
+#    filters:
+#    - column: outcome
+#      value: air_pollution
 
 - id: transport_air_pollution_costs
   name: Transport air pollution costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, pollutants, vehicle_type]
-  output_dimensions: [stakeholder, pollutants, vehicle_type]
+  input_dimensions: [stakeholder, pollutant, vehicle_type]
+  output_dimensions: [stakeholder, pollutant, vehicle_type]
   input_nodes:
   - id: transport_air_pollution_unit_price
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
   - id: transport_air_pollution_emissions
     to_dimensions:
     - id: vehicle_type
-    - id: pollutants
+    - id: pollutant
   - id: transport_air_pollution_cost_shares
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
     - id: stakeholder
       categories: [city]
   output_nodes:
-  - id: total_transport_cost
+  - id: transport_cost
     from_dimensions:
-    - id: pollutants
+    - id: pollutant
       flatten: true
-
-- id: transport_co2_unit_price
-  name: Transport CO2 unit price
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/t
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
 
 - id: transport_co2_cost
   name: Transport CO2 cost
@@ -184,14 +230,14 @@ nodes:
     from_dimensions:
     - id: ghg
       flatten: true
-  - id: transport_co2_unit_price
+  - id: co2_unit_price
     to_dimensions:
     - id: scope
       categories: [scope1]
     - id: vehicle_type
       categories: [cars]
   output_nodes:
-  - id: total_transport_cost
+  - id: transport_cost
     from_dimensions:
     - id: scope
       flatten: true
@@ -202,6 +248,7 @@ nodes:
 
 - id: transport_noise_unit_price
   name: Transport noise unit price
+  description: See transport_air_pollution_unit_price.
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/pkm
@@ -210,6 +257,7 @@ nodes:
 
 - id: transport_noise_cost_shares
   name: Transport noise cost shares
+  description: See transport_air_pollution_cost_shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -231,17 +279,17 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
-      categories: [cars]
   - id: transport_noise_cost_shares
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
     - id: stakeholder
       categories: [city]
-  output_nodes: [total_transport_cost]
+  output_nodes: [transport_cost]
 
 - id: transport_accident_unit_price
   name: Transport accident unit price
+  description: See transport_air_pollution_unit_price.
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/pkm
@@ -250,6 +298,7 @@ nodes:
 
 - id: transport_accident_cost_shares
   name: Transport accident cost shares
+  description: See transport_air_pollution_cost_shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -271,17 +320,21 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
-      categories: [cars]
   - id: transport_accident_cost_shares
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
     - id: stakeholder
       categories: [city]
-  output_nodes: [total_transport_cost]
+  output_nodes: [transport_cost]
 
 - id: public_transport_operation_unit_price
   name: Public transport operation unit price
+  description: Operational costs of buses and trains come from Sveriges kommuner och landsting (2017)
+    and values are at 1.1 Reduce transport need G236:G241. The values are constant across time.
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    For European Commission Directorate-General for Mobility and Transport</li>
+    <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/vkm
@@ -290,6 +343,7 @@ nodes:
 
 - id: public_transport_operation_cost_shares
   name: Public transport operation cost shares
+  description: See transport_air_pollution_cost_shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -317,10 +371,14 @@ nodes:
       categories: [cars]
     - id: stakeholder
       categories: [transport_operators]
-  output_nodes: [total_transport_cost]
+  output_nodes: [transport_cost]
 
 - id: transport_energy_factor_ice_petrol_diesel
   name: Transport energy factor - ICE petrol/diesel
+  description: Values come from European Commission (2019) and are found from 1.1 Reduce transport need G266.
+    <h2>References</h2>
+    European commission (2019) - Reducing CO2 emissions from passenger cars.
+    https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
   type: simple.AdditiveNode
   quantity: unit_price
   unit: l/g
@@ -329,6 +387,8 @@ nodes:
 
 - id: fuel_unit_price
   name: Fuel unit price
+  description: The values come from Eurostat (2019) - Electricity prices for household consumers
+    and are found from MIA D430.
   type: simple.AdditiveNode
   quantity: fraction
   unit: EUR/l
@@ -360,10 +420,15 @@ nodes:
       categories: [cars]
     - id: stakeholder
       categories: [citizens]
-  output_nodes: [total_transport_cost]
+  output_nodes: [transport_cost]
 
 - id: walking_cycling_unit_price
   name: Walking & cycling unit price
+  description: 'Value of cycling and walking is 0.5 and 0.2 USD/pkm, respectively
+    (Victoria Transport Policy Institute, 2019). Unit price is constant across time.
+    Victoria Transport Policy Institute (2019). Evaluating Active Transport Benefits and Costs.
+    https://www.vtpi.org/nmt-tdm.pdf This value is supported by another study, which evaluates the
+    health-benefits to 0.3-0.5 €/pkm: https://www.researchgate.net/publication/330184791_The_Social_Cost_of_Automobility_Cycling_and_Walking_in_the_European_Union'
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/pkm
@@ -381,17 +446,16 @@ nodes:
   - id: walking_cycling_unit_price
     to_dimensions:
     - id: vehicle_type
-      categories: [walking]
+      categories: [cars]  # FIXME
     - id: stakeholder
       categories: [citizens]
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
-      categories: [walking]
-  output_nodes: [total_transport_cost]
+  output_nodes: [transport_cost]
 
-- id: total_transport_cost
-  name: Total transport cost
+- id: transport_cost
+  name: Transport cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -412,22 +476,22 @@ actions:
   name: Reduce all motorized transport
   type: simple.LinearCumulativeAdditiveAction
   quantity: fraction
-  unit: Mpkm/a
+  unit: pkm/person/d
   group: transport
-  forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
+  forecast_values: [[2023, 0], [2030, -3.50875]]  # 10.025 * 0.35
   output_nodes:
-  - id: passenger_kilometres
+  - id: passenger_kilometres_per_person
 
 - id: modal_switch_from_cars_to_other_modes
   name: Modal switch from cars to other modes
   description: Find the right numbeers!  # FIXME
   type: simple.LinearCumulativeAdditiveAction
   quantity: mileage
-  unit: Mpkm/a
+  unit: pkm/person/d
   group: transport
-  forecast_values: [[2023, 0], [2030, -1085]]
+  forecast_values: [[2023, 0], [2030, -3.50875]]  # 10.025 * 0.35
   output_nodes:
-  - id: passenger_kilometres
+  - id: passenger_kilometres_per_person
 
 - id: car_pooling
   name: Car pooling
