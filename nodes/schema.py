@@ -869,7 +869,7 @@ class Query(graphene.ObjectType):
 
     @staticmethod
     def resolve_available_instances(root, info: GQLInfo, hostname: str):
-        qs = InstanceConfig.objects.for_hostname(hostname)
+        qs = InstanceConfig.objects.for_hostname(hostname, request=info.context)
         instances = []
         for config in qs:
             instance = config.get_instance()

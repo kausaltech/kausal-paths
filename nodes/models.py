@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, override
 from django.utils.translation import gettext_lazy as _
@@ -54,23 +55,25 @@ instance_cache_lock = threading.Lock()
 instance_cache: dict[str, Instance] = {}
 
 
-def get_instance_identifier_from_wildcard_domain(hostname: str) -> Union[Tuple[str, str], Tuple[None, None]]:
+def get_instance_identifier_from_wildcard_domain(hostname: str, request: HttpRequest | None = None) -> Union[Tuple[str, str], Tuple[None, None]]:
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
-    if len(parts) == 2:
-        if parts[1] in settings.HOSTNAME_INSTANCE_DOMAINS:
-            return (parts[0], parts[1])
-    return (None, None)
+    req_wildcards = getattr(request, 'wildcard_domains', None) or []
+    wildcard_domains = (settings.HOSTNAME_INSTANCE_DOMAINS or []) + req_wildcards
+    if len(parts) == 2 and parts[1].lower() in wildcard_domains:
+        return (parts[0], parts[1])
+    else:
+        return (None, None)
 
 
 class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
-    def for_hostname(self, hostname: str):
+    def for_hostname(self, hostname: str, request: HttpRequest | None = None):
         hostname = hostname.lower()
         hostnames = InstanceHostname.objects.filter(hostname=hostname)
         lookup = models.Q(id__in=hostnames.values_list('instance'))
 
         # Get instance identifier from hostname for development and testing
-        identifier, _ = get_instance_identifier_from_wildcard_domain(hostname)
+        identifier, _ = get_instance_identifier_from_wildcard_domain(hostname, request)
         if identifier:
             lookup |= models.Q(identifier=identifier)
         return self.filter(lookup)
@@ -93,7 +96,7 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
 
 
 class InstanceConfigManager(models.Manager['InstanceConfig']):
-    def for_hostname(self, hostname: str) -> InstanceConfigQuerySet: ...  # type: ignore
+    def for_hostname(self, hostname: str, request: HttpRequest | None = None) -> InstanceConfigQuerySet: ...  # type: ignore
 
     def get_by_natural_key(self, identifier):
         return self.get(identifier=identifier)

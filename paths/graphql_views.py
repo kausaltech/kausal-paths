@@ -98,8 +98,9 @@ class PathsExecutionContext(ExecutionContext):
         return instance
 
     def get_instance_by_hostname(self, queryset, hostname: str, directive: DirectiveNode | None = None) -> InstanceConfig:
+        request = self.context_value
         try:
-            instance = queryset.for_hostname(hostname).get()
+            instance = queryset.for_hostname(hostname, request).get()
         except InstanceConfig.DoesNotExist:
             raise GraphQLError("Instance matching hostname %s not found" % hostname, directive)
         return instance
