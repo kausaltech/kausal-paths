@@ -102,6 +102,7 @@ class PathsExecutionContext(ExecutionContext):
         try:
             instance = queryset.for_hostname(hostname, request).get()
         except InstanceConfig.DoesNotExist:
+            logger.warning(f"No instance found for hostname {hostname} (wildcard domains: {request.wildcard_domains})")
             raise GraphQLError("Instance matching hostname %s not found" % hostname, directive)
         return instance
 
@@ -358,6 +359,8 @@ class PathsGraphQLView(GraphQLView):
 
         request._referer = self.request.META.get('HTTP_REFERER')
         request.graphql_operation_name = operation_name
+        wildcard_domains = request.headers.get(settings.WILDCARD_DOMAINS_HEADER)
+        request.wildcard_domains = [d.lower() for d in wildcard_domains.split(',')] if wildcard_domains else None
 
         transaction: Transaction | None = sentry_sdk.Hub.current.scope.transaction
         if query is not None:
