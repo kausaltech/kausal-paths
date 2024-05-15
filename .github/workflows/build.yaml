@@ -96,7 +96,7 @@ jobs:
       - name: Determine build env variables
         run: |
           github_run=$(printf "%04g" $GITHUB_RUN_NUMBER)
-          git_sha=$(echo ${{ github.sha }} | cut -c -8)
+          git_sha=$(echo ${{ github.sha }} | cut -c -7)
           build_id=$(date +%Y%m%d)_${github_run}_${git_sha}
           echo "build_id=${build_id}" >> $GITHUB_OUTPUT
           echo "git_image_tag=git-${git_sha}" >> $GITHUB_OUTPUT
