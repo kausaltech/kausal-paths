@@ -25,7 +25,7 @@ class DatasetNode(AdditiveNode):
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-        idlookup = {'': ['.', ',', ':', '-'],
+        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
                     '_': [' '],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
