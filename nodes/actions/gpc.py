@@ -84,7 +84,7 @@ class DatasetActionMFM(ActionNode):
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-        idlookup = {'': ['.', ',', ':', '-'],
+        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
                     '_': [' '],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
@@ -131,7 +131,7 @@ class DatasetActionMFM(ActionNode):
         if not self.is_enabled():
             df['Value'] = self.no_effect_value
 
-        droplist = ['Sector', 'Action']
+        droplist = ['Action']
         for col in df.index.names:
             vals = df.index.get_level_values(col).unique().to_list()
             if vals == ['.']:
@@ -147,15 +147,18 @@ class DatasetActionMFM(ActionNode):
                 dfi[col] = dfi[col].replace(cat, self.makeid(cat))
 
         df.index = pd.MultiIndex.from_frame(dfi)
+
+        dfi = dfi[['sector', 'quantity']].drop_duplicates()
         qdfs = []
-        for quantity in df.index.get_level_values('quantity').unique().to_list():
-            qdf = df[df.index.get_level_values('quantity') == quantity].copy()
-            qdf.index = qdf.index.droplevel('quantity')
+        for pair in list(zip(dfi['sector'], dfi['quantity'])):
+            qdf = df[(df.index.get_level_values('sector') == pair[0]) &
+                     (df.index.get_level_values('quantity') == pair[1])].copy()
+            qdf.index = qdf.index.droplevel(['sector', 'quantity'])
 
             qdf['Value'] = qdf['Value'].astype('pint[' + qdf['Unit'].unique()[0] + ']')
             qdf = qdf.drop(columns = ['Unit'])
 
-            qdf = qdf.rename(columns = {'Value': self.qlookup[quantity]})
+            qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
             qdfs.append(qdf)
 
         jdf = qdfs[0]
