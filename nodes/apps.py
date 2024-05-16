@@ -6,5 +6,5 @@ class NodesConfig(AppConfig):
 
     def ready(self) -> None:
         from nodes.units import add_unit_translations
-
+        import nodes.signals
         add_unit_translations()
