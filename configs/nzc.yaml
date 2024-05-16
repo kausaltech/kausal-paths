@@ -24,7 +24,18 @@ params:
 - id: municipality_name
   value: example
 - id: discount_rate
+  label: Discount rate
   value: 3.5
+  min_value: 0
+  max_value: 5
+  unit: '%'
+  is_visible: true
+  is_customizable: true
+- id: population_growth_rate
+  label: Population growth rate
+  value: 0.2
+  min_value: -2.0
+  max_value: 2.0
   unit: '%'
   is_visible: true
   is_customizable: true
@@ -50,7 +61,7 @@ action_groups:
   name: Reforestation
 
 dimensions:
-- id: pollutants
+- id: pollutant
   label: Pollutant
   label_fi: Saaste
   categories:

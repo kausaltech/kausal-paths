@@ -7,8 +7,10 @@
 # ghg
 # scope
 # vehicle_type
-# pollutants
+# pollutant
 # stakeholder
+# Required parameters from outside the framework:
+# population_growth_rate
 
 nodes:
 - id: transport_emissions
@@ -49,13 +51,13 @@ nodes:
 
 - id: transport_emission_factor
   name: Transport emission factor
-  description: 'Data from Data 1&2 Tranportation, E174:AF179. TODO Upstream calculations based on Model inputs & 
+  description: 'TODO Data from Data 1&2 Tranportation, E174:AF179. TODO Upstream calculations based on Model inputs & 
     assumptions F194 and F207 needs to be included in the model. Emission factor is a weighted average existing and
     new car fleet, where 0.5 * X % is renewed annually (X = city data request D47, share of fleet that is less than 2 years old). The current emission factors are asked from the user (City data request D34:D43) but the new
     emission factors come from data; the weighted average of the two trends is calculated.
     MATIAS: DO NOT START FROM HERE; emission fractions are still under construction.
     <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
-    <p>DIMENSIONS: pollutants (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
+    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
@@ -69,6 +71,27 @@ nodes:
 #    filters:
 #    - column: Sector
 #      value: II.1.1
+
+- id: euro_6_emission_factor
+  name: EURO 6 emission factor
+  description: 'Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
+    https://www.dieselnet.com/standards/eu/ld.php)
+    This node is needed in vehicle fleet upgrade. The idea is that there are several internal categories of vehicle types (e.g. i EURO standard classes and each class has a proportion of P_i. The average emission factor is
+    E_t = sum_i(E_i,t * P_i,t) where i is class and t is timepoint. This is complicated by gradual shift of classes such that
+    P_i,t = P_i,t0 * product(a_i,0, ..., a_i,t), where a_i,t are the survival rates and must be defined in a way that sum_i(P_i,t) = 1 for each t.
+    In this use case, there are two classes, current and EURO 6. But the CO2 emission factor is decreasing in time.
+    The computation logic is that when a car enters the fleet, it has the same survival probability as all other
+    cars in the fleet.
+    Finally, we assume that E is constant for each vehicle as long as it is in the fleet. Therefore, each
+    E_i,t creates a cohort that affects the average of all E_i,t* where t* >= t.
+    This is handled by looking at each E_i,t cohort until the last time point. Importantly, if a cohort exists in the fleet already, only the last timepoint with a value is calculated (as all previous timepoints reflect the same cohort) but if it is a new cohort, it is calculated and new timepoints are interpreted as new cohorts of those new timepoints.'
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  historical_values: [[2010, 0.0046], [2022, 0.0046]]
+  input_dataset_processors: [LinearInterpolation]
+#  input_dimensions: [vehicle_type, pollutant]
+#  output_dimensions: [vehicle_type, pollutant]
 
 - id: transport_air_pollution_emission_factor
   name: Transport air pollution emission factor
@@ -85,18 +108,18 @@ nodes:
   type: simple.MultiplicativeNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
-  input_dimensions: [pollutants, vehicle_type]
-  output_dimensions: [pollutants, vehicle_type]
+  input_dimensions: [pollutant, vehicle_type]
+  output_dimensions: [pollutant, vehicle_type]
   input_nodes:
   - id: transport_air_pollution_emission_factor
     to_dimensions:
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
     - id: vehicle_type
       categories: [cars]
   - id: vehicle_kilometres
     to_dimensions:
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
     - id: vehicle_type
 
@@ -109,6 +132,9 @@ nodes:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
   - id: transport_efficiency
     tags: [geometric_inverse]
     to_dimensions:
@@ -127,34 +153,16 @@ nodes:
 
 - id: passenger_kilometres
   name: Passenger kilometres
-  description: Passenger kilometre trend depends on population growth and is calculated accordingly.
-  type: simple.MultiplicativeNode
+  description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
+    TODO Ask if we want to ask values per person or in total, if the variable depends directly on population size anyway. Passenger kilometre trend depends on population growth and is calculated accordingly.
+  type: costs.ExponentialNode
   quantity: mileage
   unit: Mpkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: passenger_kilometres_per_person
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-  - id: population
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-#  historical_values: [[2020, 3003], [2022, 3015]]
-#  forecast_values: [[2023, 3021], [2045, 3156]]
-#  input_dataset_processors: [LinearInterpolation]
-
-- id: passenger_kilometres_per_person
-  name: Passenger kilometres per person
-  description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
-    TODO Ask if we want to ask values per person or in total, if the variable depends directly on population size anyway.
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: pkm/person/day
-  historical_values: [[2020, 10.025]]  # 10.025 1.609 1.588 6.890 for cars, buses, trains, walking/cycling
+  historical_values: [[2020, 3003], [2022, 3015]]
   input_dataset_processors: [LinearInterpolation]
+  params:
+  - id: annual_change
+    ref: population_growth_rate
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
@@ -191,31 +199,31 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, pollutants, vehicle_type]
-  output_dimensions: [stakeholder, pollutants, vehicle_type]
+  input_dimensions: [stakeholder, pollutant, vehicle_type]
+  output_dimensions: [stakeholder, pollutant, vehicle_type]
   input_nodes:
   - id: transport_air_pollution_unit_price
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
   - id: transport_air_pollution_emissions
     to_dimensions:
     - id: vehicle_type
-    - id: pollutants
+    - id: pollutant
   - id: transport_air_pollution_cost_shares
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
-    - id: pollutants
+    - id: pollutant
       categories: [pm25_combustion]
     - id: stakeholder
       categories: [city]
   output_nodes:
   - id: transport_cost
     from_dimensions:
-    - id: pollutants
+    - id: pollutant
       flatten: true
 
 - id: transport_co2_cost
@@ -279,6 +287,7 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
+      categories: [cars]
   - id: transport_noise_cost_shares
     to_dimensions:
     - id: vehicle_type
@@ -320,6 +329,7 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
+      categories: [cars]
   - id: transport_accident_cost_shares
     to_dimensions:
     - id: vehicle_type
@@ -352,6 +362,7 @@ nodes:
 
 - id: public_transport_operation_cost
   name: Public transport operation cost
+  description: FIXME This is way too high because car rather than bus km are used.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -452,6 +463,7 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
+      categories: [cars]
   output_nodes: [transport_cost]
 
 - id: transport_cost
@@ -476,22 +488,22 @@ actions:
   name: Reduce all motorized transport
   type: simple.LinearCumulativeAdditiveAction
   quantity: fraction
-  unit: pkm/person/d
+  unit: Mpkm/a
   group: transport
-  forecast_values: [[2023, 0], [2030, -3.50875]]  # 10.025 * 0.35
+  forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
   output_nodes:
-  - id: passenger_kilometres_per_person
+  - id: passenger_kilometres
 
 - id: modal_switch_from_cars_to_other_modes
   name: Modal switch from cars to other modes
   description: Find the right numbeers!  # FIXME
   type: simple.LinearCumulativeAdditiveAction
   quantity: mileage
-  unit: pkm/person/d
+  unit: Mpkm/a
   group: transport
-  forecast_values: [[2023, 0], [2030, -3.50875]]  # 10.025 * 0.35
+  forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
   output_nodes:
-  - id: passenger_kilometres_per_person
+  - id: passenger_kilometres
 
 - id: car_pooling
   name: Car pooling
@@ -505,7 +517,7 @@ actions:
 
 - id: electrification_of_passenger_cars
   name: Electrification of passenger cars
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.LinearCumulativeAdditiveAction  # FIXME MixedAction
   quantity: fraction
   unit: vkm/a
   group: transport
@@ -518,7 +530,7 @@ actions:
 
 - id: electrification_of_buses
   name: Electrification of buses
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.LinearCumulativeAdditiveAction  # FIXME MixedAction
   quantity: fraction
   unit: vkm/a
   group: transport

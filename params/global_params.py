@@ -12,6 +12,11 @@ class DiscountRate(NumberParameter):
     id = 'discount_rate'
 
 
+class PopulationGrowthRate(NumberParameter):
+    name = _('Population growth rate')
+    id = 'population_growth_rate'
+
+
 class AvoidedElectricityCapacityPrice(NumberParameter):
     name = _('Avoided electricity capacity price')
     id = 'avoided_electricity_capacity_price'

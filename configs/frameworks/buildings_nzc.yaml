@@ -1,3 +1,13 @@
+# Required nodes from outside the framework:
+# net_emissions
+# Required dimensions from outside the framework:
+# building_energy_class
+# heating_type
+# ghg
+# scope
+# Required parameters from outside the framework:
+# population_growth_rate
+
 emission_sectors:
 
 - id: building_emissions
@@ -14,8 +24,7 @@ nodes:
 - id: existing_building_stock
   name: Existing building stock
   description: 'Data sources:<ul><li>Model inputs & assumptions, F250. Size of building stock. 
-    TODO maybe later: Calculate floor area per person and use population 
-    size for scaling.</li><li>Model inputs & assumptions, F519. Rate of demolition and new construction.</li><li>Model inputs & assumptions, F257. Retrofitted area %.</li></ul>
+    </li><li>Model inputs & assumptions, F519. Rate of demolition and new construction.</li><li>Model inputs & assumptions, F257. Retrofitted area %.</li></ul>
     Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.
     <p>DIMENSIONS: building_energy_class</p>'
   type: costs.ExponentialNode
@@ -24,8 +33,7 @@ nodes:
   historical_values: [[2018, 78.276], [2019, 78.276], [2020, 78.276]]
   params:
   - id: annual_change
-    value: 0.2
-    unit: '%'
+    ref: population_growth_rate
 
 - id: building_stock
   name: Building stock
