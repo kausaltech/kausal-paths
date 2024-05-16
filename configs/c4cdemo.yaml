@@ -1224,15 +1224,15 @@ actions:
   input_datasets:
   - id: gpc/demonstration_simple_actions
   output_metrics:
-  - id: currency
+  - id: i22_currency
     unit: EUR/a
     quantity: currency
-  - id: energy
+  - id: i22_energy
     unit: kWh/a
     quantity: energy
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption
-    metrics: [energy]
+    metrics: [i22_energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -1240,7 +1240,7 @@ actions:
     - id: scope
     - id: energy_carrier
   - id: i22_commercial_and_institutional_grid_energy_price
-    metrics: [currency]
+    metrics: [i22_currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1258,15 +1258,15 @@ actions:
   input_datasets:
   - id: gpc/demonstration_simple_actions
   output_metrics:
-  - id: currency
+  - id: i32_currency
     unit: EUR/a
     quantity: currency
-  - id: energy
+  - id: i32_energy
     unit: kWh/a
     quantity: energy
   output_nodes:
   - id: i32_manufacturing_grid_energy_consumption
-    metrics: [energy]
+    metrics: [i32_energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -1275,7 +1275,7 @@ actions:
     - id: energy_carrier
     - id: energy_source
   - id: i32_manufacturing_grid_energy_price
-    metrics: [currency]
+    metrics: [i32_currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
