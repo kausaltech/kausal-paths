@@ -217,4 +217,4 @@ class UwsgiReqLogHandler(StreamHandler):
         if ' path=/healthz' in record.msg:
             if record.relativeCreated > 5 * 60 * 1000:
                 return
-        return super().emit(record)
+        print(self.format(record))
