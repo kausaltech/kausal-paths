@@ -79,7 +79,7 @@ FROM base AS final
 
 ARG BUILD_ID
 ENV BUILD_ID ${BUILD_ID}
-ARG SENTRY_RELEASE ${SENTRY_RELEASE}
+ENV BUILD_ID=${BUILD_ID} SENTRY_RELEASE=paths-backend@${BUILD_ID}
 
 ENV VENV_PATH=/venv
 ENV PATH=${VENV_PATH}/bin:${PATH}
@@ -96,10 +96,10 @@ RUN chmod a+x /scripts/*.sh
 WORKDIR ${app_path}
 
 ARG STATIC_ROOT=/srv/static
-ENV STATIC_ROOT ${STATIC_ROOT}
+ENV STATIC_ROOT=${STATIC_ROOT}
 
 ARG MEDIA_ROOT=/srv/media
-ENV MEDIA_ROOT ${MEDIA_ROOT}
+ENV MEDIA_ROOT=${MEDIA_ROOT}
 
 RUN mkdir -p ${MEDIA_ROOT} ${STATIC_ROOT}
 
@@ -113,9 +113,8 @@ RUN ./manage.py collectstatic --no-input
 RUN ./manage.py compilemessages
 # RUN pybabel compile -D notifications -d locale
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV UWSGI_MODULE paths.wsgi
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
 
 EXPOSE 8000/tcp
 ENTRYPOINT ["/bin/bash", "/scripts/docker-entrypoint.sh"]
