@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dc83135f4ce6b248c96ae0c6eb69024bf2434f42
+  commit: 044f3e282ca7c23547c6b90f9d7995b24021061a
   dvc_remote: kausal-s3
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
@@ -15,10 +15,10 @@ model_end_year: 2030
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2010
-maximum_historical_year: 2018
+maximum_historical_year: 2022
 emission_dataset: tampere/scenarios/emissions/bau
 emission_unit: kt/a
-emission_forecast_from: 2019
+emission_forecast_from: 2023
 params:
 - id: municipality_name
   value: Tampere
@@ -35,6 +35,7 @@ action_groups:
   name_en: Sustainable energy
 
 dimensions:
+
 - id: tram_phase
   label: Ratikan vaihe
   label_en: Tram phase
@@ -48,6 +49,7 @@ dimensions:
   - id: phase3
     label: Vaihe 3
     label_en: Phase 3
+
 - id: vehicle
   label: Ajoneuvo
   label_en: Vehicle
@@ -61,6 +63,7 @@ dimensions:
   - id: bus
     label: Bussi
     label_en: Bus
+
 - id: energy_consumption
   label: Energiankulutus
   label_en: Energy consumption
@@ -80,6 +83,19 @@ dimensions:
   - id: geothermal_heating_electricity
     label: Maalämmön sähkö
     label_en: Geothermal heating electricity
+
+- id: fuel
+  label: Polttoaine
+  label_en: Fuel
+  categories:
+  - id: diesel_fossil
+    label: Diesel (fossiilinen)
+  - id: diesel_renewable
+    label: Diesel (uusiutuva)
+  - id: gasoline
+    label: Bensiini
+  - id: fuel_oil
+    label: Kevyt polttoöljy
 
 emission_sectors:
 - id: net_emissions
@@ -163,7 +179,6 @@ emission_sectors:
   description_en: The emission forecast for industry and machinery has been made by
     linearly extrapolating the emission development during 2010-2018.
   part_of: net_emissions
-  #  column: Industry without city machinery
   color: '#E8B455'
 
 - id: industry_emissions
@@ -237,6 +252,7 @@ emission_sectors:
   column: Power consumption industry
 
 nodes:
+
 - id: population
   type: finland.Population
   name: Väestö
@@ -380,7 +396,7 @@ nodes:
   name_en: Electricity consumption per capita
   type: simple.AdditiveNode
   unit: kWh/person/a
-  quantity: per_capita
+  quantity: energy
   input_datasets:
   - id: tampere/scenarios/activity/bau
     column: Other electricity consumption per capita
@@ -410,8 +426,8 @@ nodes:
   input_datasets:
   - id: tampere/scenarios/emissions/bau
     column: Other power consumption
-    forecast_from: 2019
-    max_year: 2018
+    forecast_from: 2023
+    max_year: 2022
     unit: kt/a
   input_nodes:
   - other_electricity_consumption_emission_factor
@@ -427,7 +443,7 @@ nodes:
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Other power consumption
-    max_year: 2019
+    max_year: 2022
     unit: g/kWh
 
 - id: electric_heating_emission_factor
@@ -693,7 +709,7 @@ nodes:
   input_datasets:
   - id: tampere/scenarios/emissions/bau
     column: Private cars
-    forecast_from: 2019
+    forecast_from: 2023
     unit: kt/a
   output_nodes:
   - transportation_emissions
@@ -727,7 +743,7 @@ nodes:
   input_datasets:
   - id: tampere/scenarios/emissions/bau
     column: Buses
-    forecast_from: 2019
+    forecast_from: 2023
     unit: kt/a
   output_nodes:
   - transportation_emissions
@@ -769,6 +785,48 @@ nodes:
     unit: g/l
   output_nodes:
   - city_machinery_emissions
+
+- id: city_machinery
+  name_en: City machinery
+  name: Kaupungin työkoneet
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+#  input_datasets:
+#  - id: tampere/scenarios/city_machinery
+#    column: emissions
+  input_dimensions: [fuel]
+  output_dimensions: [fuel]
+
+- id: city_machinery_fuel
+  name: Kaupungin työkoneiden polttoaineenkulutus
+  name_en: City machinery fuel consumption
+  type: simple.Activity
+  quantity: fuel_consumption
+  unit: l/a
+  input_datasets:
+  - id: tampere/scenarios/city_machinery
+    column: activity
+    unit: l/a
+  output_nodes:
+  - city_machinery
+  input_dimensions: [fuel]
+  output_dimensions: [fuel]
+
+- id: city_machinery_emission_factors
+  name: Dieselin päästökerroin
+  name_en: Diesel emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/l
+  input_datasets:
+  - id: tampere/scenarios/city_machinery
+    column: emission_factor
+    unit: g/l
+  output_nodes:
+  - city_machinery
+  input_dimensions: [fuel]
+  output_dimensions: [fuel]
 
 - id: renewable_electricity_consumption_reduction
   name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
@@ -852,7 +910,7 @@ actions:
     by oil and electricity.
   input_datasets:
   - id: tampere/scenarios/energy_renovation_changes
-    forecast_from: 2022
+    forecast_from: 2023
     column: energy
   output_dimensions: [energy_consumption]
   output_nodes:
@@ -917,7 +975,7 @@ actions:
     and industrial buildings.
   input_datasets:
   - id: tampere/scenarios/private_oil_heating_change
-    forecast_from: 2022
+    forecast_from: 2023
     column: energy
   output_dimensions: [energy_consumption]
   output_nodes:
@@ -950,7 +1008,7 @@ actions:
     insignificant.
   input_datasets:
   - id: tampere/scenarios/public_oil_heating_change
-    forecast_from: 2022
+    forecast_from: 2023
     column: energy
   output_dimensions: [energy_consumption]
   output_nodes:
@@ -973,7 +1031,9 @@ actions:
   output_nodes:
   - electricity_production_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2021, 0], [2030, -80]]
+  historical_values: [[2021, 0], [2022, -5]]
+  forecast_values: [[2023, -10], [2030, -42]]
+  forecast_from: 2023
   unit: g/kWh
   group: energy
   params:
@@ -1127,6 +1187,44 @@ actions:
   - city_machinery_emission_factor
   forecast_values: [[2021, 0], [2030, -2689]]
 
+- id: renewable_diesel_in_city_machinery2
+  name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
+  name_en: Renewable diesel in city machinery
+  type: shift.ShiftAction
+  unit: l/a
+  quantity: fuel_consumption
+#  group: transportation
+  description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
+    dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
+  description_en: The city’s own work machinery will move gradually to use renewable
+    diesel so that in 2030 only it will be used.
+  output_nodes:
+  - city_machinery_fuel
+  params:
+  - id: shift
+    unit: l/a
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          fuel: diesel_fossil
+      dests:
+      - categories:
+          fuel: diesel_renewable
+      amounts:
+      - year: 2023
+        source_amount: 0
+        dest_amounts: [1]
+      - year: 2024
+        source_amount: -64619.1
+        dest_amounts: [1]
+      - year: 2030
+        source_amount: -64619.1
+        dest_amounts: [1]
+      - year: 2031
+        source_amount: 0
+        dest_amounts: [1]
+
 - id: energy_conversion_in_buses
   name: Bussiliikenteen käyttövoimamuutos
   name_en: Energy conversion in buses
@@ -1137,7 +1235,7 @@ actions:
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Bus street difference to constant fuel share
-    forecast_from: 2020
+    forecast_from: 2023
     dropna: true
     unit: g/vkm
   output_nodes:
