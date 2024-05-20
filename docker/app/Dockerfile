@@ -1,5 +1,7 @@
 ARG base_image=debian:testing-slim
 
+FROM caddy:2 AS caddy
+
 #
 # Invocations common for builder and final stages
 #
@@ -78,7 +80,6 @@ RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
 FROM base AS final
 
 ARG BUILD_ID
-ENV BUILD_ID ${BUILD_ID}
 ENV BUILD_ID=${BUILD_ID} SENTRY_RELEASE=paths-backend@${BUILD_ID}
 
 ENV VENV_PATH=/venv
@@ -86,6 +87,7 @@ ENV PATH=${VENV_PATH}/bin:${PATH}
 
 COPY --from=builder /venv /venv
 # COPY --from=builder ${app_path}/node_modules ${app_path}/node_modules
+
 COPY . ${app_path}/
 
 RUN mkdir /scripts
@@ -113,8 +115,16 @@ RUN ./manage.py collectstatic --no-input
 RUN ./manage.py compilemessages
 # RUN pybabel compile -D notifications -d locale
 
+COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
+COPY ./docker/app/Caddyfile /etc/caddy/
+
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
+ARG CADDY_PORT=6000
+ENV CADDY_PORT=${CADDY_PORT}
 
-EXPOSE 8000/tcp
+# We need to have the default user as root to be able to run tests etc.
+USER root
+
+EXPOSE 8000/tcp ${CADDY_PORT}/tcp
 ENTRYPOINT ["/bin/bash", "/scripts/docker-entrypoint.sh"]

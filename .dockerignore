@@ -18,4 +18,5 @@ env
 /node_modules/
 /e2e-tests/
 /.ruff_cache/
+/local_settings.py
 **/*~

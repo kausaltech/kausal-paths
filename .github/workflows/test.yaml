@@ -10,6 +10,24 @@ on:
       docker_image_tag:
         required: true
         type: string
+      build_id:
+        description: 'Unique ID for the build'
+        required: true
+        type: string
+      s3_endpoint:
+        description: 'S3 endpoint URL where to upload test artifacts'
+        required: false
+        type: string
+      s3_bucket:
+        description: 'S3 bucket'
+        required: false
+        type: string
+
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
 
 env:
   POSTGRES_PASSWORD: abcd
@@ -42,5 +60,14 @@ jobs:
       #   run: /scripts/wait-for-it.sh localhost:9200 -t 30
 
       - name: Run tests
-        run: python run_tests.py
+        run: /scripts/run-tests.sh
         working-directory: /code
+        env:
+          BUILD_S3_BUCKET: ${{ inputs.s3_bucket || vars.BUILD_S3_BUCKET }}
+          BUILD_S3_ENDPOINT: ${{ inputs.s3_endpoint || vars.BUILD_S3_ENDPOINT }}
+          PGHOST: localhost
+          PGPORT: 5432
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          PGUSER: ${{ env.POSTGRES_USER }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

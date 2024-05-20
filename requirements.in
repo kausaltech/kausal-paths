@@ -1,4 +1,4 @@
-psycopg2-binary
+psycopg[binary]
 pandas
 python-dotenv
 wagtail>=5.2
@@ -48,3 +48,4 @@ wagtail-color-panel
 loguru
 gql[requests]
 logfmter
+s3cmd

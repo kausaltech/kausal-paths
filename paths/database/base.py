@@ -2,7 +2,7 @@ from django.db.backends.postgresql.base import (
     DatabaseWrapper as Psycopg2DatabaseWrapper
 )
 from django.db import close_old_connections, connection as db_connection
-from psycopg2 import InterfaceError
+from psycopg.errors import InterfaceError
 
 
 class DatabaseWrapper(Psycopg2DatabaseWrapper):
