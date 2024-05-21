@@ -13,7 +13,7 @@ target_year: 2050
 model_end_year: 2050
 minimum_historical_year: 1995
 maximum_historical_year: 2022
-emission_unit: t/a
+emission_unit: kt/a
 emission_forecast_from: 2023
 emission_dimensions: [energietrager, scope, ghg]
 features:
@@ -151,7 +151,7 @@ nodes:
   name: I.1.1 Emissionen aus Brennstoffverbrauch Wohngebäude
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -202,7 +202,7 @@ nodes:
   name: I.1.2 Emissionen aus Netzenergieverbrauch Wohngebäude
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -253,7 +253,7 @@ nodes:
   name: I.4.2 Emissionen aus Netzenergieverbrauch Energiesektor
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -304,7 +304,7 @@ nodes:
   name: II.1.1 Emissionen aus Brennstoffverbrauch Straßenverkehr
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -355,7 +355,7 @@ nodes:
   name: II.1.2 Emissionen aus Netzenergieverbrauch Straßenverkehr
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -388,7 +388,7 @@ nodes:
   name: I.1.1 Gesamtemissionen Brennstoffverbrauch Wohngebäude
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -402,7 +402,7 @@ nodes:
   name: I.1.2 Gesamtemissionen Netzenergieverbrauch Wohngebäude
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -416,7 +416,7 @@ nodes:
   name: I.1 Gesamtemissionen Wohngebäude
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -430,7 +430,7 @@ nodes:
   name: I.4.2 Gesamtemissionen Netzenergieverbrauch Energiesektor
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -444,7 +444,8 @@ nodes:
   name: I.4 Gesamtemissionen Energiesektor
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
+  color: '#2B729C'
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -458,7 +459,8 @@ nodes:
   name: I Gesamtemissionen Stationär
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
+  color: '#9C2B54'
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -472,7 +474,7 @@ nodes:
   name: II.1.1 Gesamtemissionen Brennstoffverbrauch Straßenverkehr
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -486,7 +488,7 @@ nodes:
   name: II.1.2 Gesamtemissionen Netzenergieverbrauch Straßenverkehr
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -500,7 +502,7 @@ nodes:
   name: II.1 Gesamtemissionen Straßenverkehr
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
@@ -514,7 +516,8 @@ nodes:
   name: II Gesamtemissionen Verkehr
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
+  color: '#299575'
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
