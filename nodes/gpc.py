@@ -61,11 +61,13 @@ class DatasetNode(AdditiveNode):
     def compute(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')
 
+        # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset()
         df = df[df['Value'].notnull()]
         df = df[(df.index.get_level_values('Sector') == sector) &
                 (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
+        # Drop filter levels and empty dimension levels.
         droplist = ['Sector', 'Quantity']
         for col in df.index.names:
             vals = df.index.get_level_values(col).unique().to_list()
@@ -94,27 +96,41 @@ class DatasetNode(AdditiveNode):
 
         df.index = pd.MultiIndex.from_frame(dfi)
 
-        if FORECAST_COLUMN not in df.columns:
-            df[FORECAST_COLUMN] = False
-        df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
+        # Add forecast column if needed.
+        if 'Forecast' not in df.columns:
+            df['Forecast'] = False
 
-        na_nodes = self.get_input_nodes(tag='non_additive')
+        # Add missing years and interpolate missing values.
+        df = ppl.from_pandas(df)
+        df = df.paths.to_wide()
+
+        yeardf = pd.DataFrame({'Year': range(dfi['Year'].min(), dfi['Year'].max() + 1)})
+        yeardf = yeardf.set_index(['Year'])
+        yeardf = ppl.from_pandas(yeardf)
+
+        df = df.paths.join_over_index(yeardf, how = 'outer')
+        for col in list(set(df.columns) - set(['Year', 'Forecast'])):
+            df = df.with_columns(pl.col(col).interpolate())
+
+        df = df.with_columns(pl.col('Forecast').fill_null(strategy = 'forward'))
+
+        df = df.paths.to_narrow()
+        df = df.to_pandas()
+
+        # Add and multiply input nodes as tagged.
+        na_nodes = self.get_input_nodes(tag = 'non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
 
-
-#        df = ppl.to_ppdf(df)
         df = self.add_nodes(df, input_nodes)
 
         if len(na_nodes) > 0:
-            assert len(na_nodes) == 1 # Only one multiplier allowed
-            mult = na_nodes[0].get_output(target_node=self)
- #           df = mult.paths.join_over_index(df)
-            df = df.join(mult, how='outer', rsuffix='_right')  # FIXME Use PPDF, not pandas.df
+            assert len(na_nodes) == 1 # Only one multiplier allowed.
+            mult = na_nodes[0].get_output(target_node = self)
+#           df = mult.paths.join_over_index(df)
+            df = df.join(mult, how = 'outer', rsuffix = '_right')  # FIXME Use PPDF, not pandas.df
 
             df[VALUE_COLUMN] *= df[VALUE_COLUMN + '_right']
             df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
-
-#       df = extend_last_historical_value(df, self.get_end_year())
 
         return df
 

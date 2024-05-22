@@ -1,10 +1,12 @@
 import pandas as pd
+import polars as pl
 import numpy as np
 from params import StringParameter
 from nodes.calc import extend_last_historical_value
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
 from nodes.dimensions import Dimension
 from nodes.actions import ActionNode
+from common import polars as ppl
 
 
 class DatasetAction(ActionNode):
@@ -21,10 +23,42 @@ class DatasetAction(ActionNode):
                'mileage': 'Mileage',
                'unit_price': 'Unit Price'}
 
-    def makeid(self, name: str):
-        return (name.lower().replace('.', '').replace(',', '').replace(':', '').replace('-', '').replace(' ', '_')
-                .replace('&', 'and').replace('å', 'a').replace('ä', 'a').replace('ö', 'o'))
+    # -----------------------------------------------------------------------------------
+    def makeid(self, label: str):
+        # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
+        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
+                    '_': [' '],
+                    'and': ['&'],
+                    'a': ['ä', 'å', 'ą', 'á', 'ā'],
+                    'c': ['ć', 'č'],
+                    'd': ['ď'],
+                    'e': ['ę', 'é', 'ě', 'ē'],
+                    'g': ['ģ'],
+                    'i': ['í', 'ī'],
+                    'k': ['ķ'],
+                    'l': ['ł', 'ļ'],
+                    'n': ['ń', 'ň', 'ņ'],
+                    'o': ['ö', 'ø', 'ó'],
+                    'r': ['ř'],
+                    's': ['ś', 'š'],
+                    't': ['ť'],
+                    'u': ['ü', 'ú', 'ů', 'ū'],
+                    'y': ['ý'],
+                    'z': ['ź', 'ż', 'ž'],
+                    'ae': ['æ'],
+                    'ss': ['ß']}
 
+        idtext = label.lower()
+        if idtext[:5] == 'scope':
+            idtext = idtext.replace(' ', '')
+
+        for tochar in idlookup:
+            for fromchar in idlookup[tochar]:
+                idtext = idtext.replace(fromchar, tochar)
+
+        return idtext
+
+    # -----------------------------------------------------------------------------------
     def compute_effect(self) -> pd.DataFrame:
         sector = self.get_parameter_value('gpc_sector')
 
@@ -44,21 +78,43 @@ class DatasetAction(ActionNode):
         df['Value'] = df['Value'].astype('pint[' + unit + ']')
         df = df.drop(columns = ['Unit'])
 
+        # Convert index level names from labels to IDs.
         dims = []
-        for i in list(df.index.names):
+        for i in df.index.names:
             if i == YEAR_COLUMN:
                 dims.append(i)
             else:
                 dims.append(self.makeid(i))
         df.index = df.index.set_names(dims)
-        df = df.reset_index()
-        for i in list(set(dims) - {YEAR_COLUMN}):
-            if isinstance(df[i][0], str):
-                for j in range(len(df)):
-                    df[i][j] = self.makeid(df[i][j])
-        df = df.set_index(dims)
-        df[FORECAST_COLUMN] = False
-        df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
+
+        # Convert levels within each index level from labels to IDs.
+        dfi = df.index.to_frame(index = False)
+        for col in list(set(dims) - {YEAR_COLUMN}):
+            for cat in dfi[col].unique():
+                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
+
+        df.index = pd.MultiIndex.from_frame(dfi)
+
+        # Add forecast column if needed.
+        if 'Forecast' not in df.columns:
+            df['Forecast'] = False
+
+        # Add missing years and interpolate missing values.
+        df = ppl.from_pandas(df)
+        df = df.paths.to_wide()
+
+        yeardf = pd.DataFrame({'Year': range(dfi['Year'].min(), dfi['Year'].max() + 1)})
+        yeardf = yeardf.set_index(['Year'])
+        yeardf = ppl.from_pandas(yeardf)
+
+        df = df.paths.join_over_index(yeardf, how = 'outer')
+        for col in list(set(df.columns) - set(['Year', 'Forecast'])):
+            df = df.with_columns(pl.col(col).interpolate())
+
+        df = df.with_columns(pl.col('Forecast').fill_null(strategy = 'forward'))
+
+        df = df.paths.to_narrow()
+        df = df.to_pandas()
 
         if not self.is_enabled():  # FIXME DataFrame is calculated correctly but still does not affect the model outcome?!?
             df[VALUE_COLUMN] *= self.no_effect_value
@@ -66,6 +122,7 @@ class DatasetAction(ActionNode):
 #       df = extend_last_historical_value(df, self.get_end_year())
 
         return df
+
 
 class DatasetActionMFM(ActionNode):
     allowed_parameters = [StringParameter('action', description = 'Action Name', is_customizable = False)]
