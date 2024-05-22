@@ -6,6 +6,7 @@
 #
 aiobotocore[boto3]==2.7.0
     # via
+    #   aiobotocore
     #   dvc-s3
     #   s3fs
 aiohttp==3.9.5
@@ -301,6 +302,8 @@ iterative-telemetry==0.0.8
     # via dvc
 jedi==0.19.1
     # via ipython
+jinja2==3.1.4
+    # via pytest-html
 jmespath==1.0.1
     # via
     #   boto3
@@ -325,11 +328,13 @@ loguru==0.7.2
     # via -r requirements.in
 markdown-it-py==3.0.0
     # via rich
+markupsafe==2.1.5
+    # via jinja2
 matplotlib-inline==0.1.6
     # via ipython
 mdurl==0.1.2
     # via markdown-it-py
-multidict==6.0.4
+multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
@@ -457,10 +462,16 @@ pytest==7.4.3
     # via
     #   pytest-django
     #   pytest-factoryboy
+    #   pytest-html
+    #   pytest-metadata
 pytest-django==4.7.0
     # via -r requirements.in
 pytest-factoryboy==2.6.0
     # via -r requirements.in
+pytest-html==4.1.1
+    # via -r requirements.in
+pytest-metadata==3.1.1
+    # via pytest-html
 python-dateutil==2.8.2
     # via
     #   botocore

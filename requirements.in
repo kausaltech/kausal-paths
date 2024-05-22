@@ -17,6 +17,7 @@ colored
 factory-boy
 pytest-django
 pytest-factoryboy
+pytest-html
 orjson
 redis
 pint-pandas
