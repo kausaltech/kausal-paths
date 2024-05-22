@@ -1,10 +1,14 @@
 name: CI
 on: push
+env:
+  PROJECT_ID: paths-backend
 
 jobs:
   build:
     uses: kausaldev/github-actions/.github/workflows/build-backend.yaml@main
     secrets: inherit
+    with:
+      project_id: paths-backend
 
   test:
     needs: [build]
@@ -23,5 +27,5 @@ jobs:
     with:
       docker_image_repo: ${{ needs.build.outputs.image }}
       docker_image_tag: ${{ needs.build.outputs.image_tag }}
-      project_name: paths-backend
+      project_id: paths-backend
       deployment_env: ${{ needs.build.outputs.deployment_env }}
