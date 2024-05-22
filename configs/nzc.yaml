@@ -101,6 +101,14 @@ dimensions:
     label: Investment Costs
   - id: maintenance_costs
     label: Maintenance Costs
+  - id: operation_cost  # FIXME Overlaps with maintenance_costs
+    label: Operation cost
+  - id: air_pollution
+    label: Air pollution
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
 
 - id: ghg
   label: Greenhouse gas
