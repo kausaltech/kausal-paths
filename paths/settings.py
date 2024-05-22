@@ -617,6 +617,7 @@ if SENTRY_DSN:
         # instrumenter='otel',
         integrations=[DjangoIntegration()],
         environment=DEPLOYMENT_TYPE,
+        server_name=os.getenv('NODE_NAME', None),
     )
     ignore_logger('uwsgi-req')
 

@@ -1,4 +1,5 @@
 import re
+import os
 from typing import Callable, Optional, cast
 
 from django.conf import settings
@@ -7,6 +8,8 @@ from django.http import HttpRequest
 from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
 from wagtail.users.models import UserProfile
+
+import sentry_sdk
 
 from nodes.models import InstanceConfig
 from paths.admin_context import set_admin_instance
@@ -22,6 +25,9 @@ class RequestMiddleware(MiddlewareMixin):
     def __call__(self, request: HttpRequest):
         request = cast(PathsRequest, request)
         request.cache = PathsObjectCache()
+        cluster_name = os.getenv('CLUSTER_NAME', None)
+        if cluster_name:
+            sentry_sdk.set_tag('cluster', cluster_name)
         return self.get_response(request)  # pyright: ignore
 
 
