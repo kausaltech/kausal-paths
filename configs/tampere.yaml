@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 044f3e282ca7c23547c6b90f9d7995b24021061a
+  commit: b201afa9e0608df9c2da8567d5069d33fd5752b7
   dvc_remote: kausal-s3
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
@@ -754,11 +754,16 @@ nodes:
 - id: city_machinery_emissions
   name: Kaupungin työkoneiden päästöt
   name_en: City machinery emissions
-  type: simple.EmissionFactorActivity
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
+  input_dimensions: [fuel]
+  output_dimensions: [fuel]
   output_nodes:
-  - industry_and_machinery_emissions
+  - id: industry_and_machinery_emissions
+    from_dimensions:
+    - id: fuel
+      flatten: true
 
 - id: city_machinery_fuel_consumption
   name: Kaupungin työkoneiden polttoaineenkulutus
@@ -767,9 +772,11 @@ nodes:
   quantity: fuel_consumption
   unit: l/a
   input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: City machinery fuel consumption
+  - id: tampere/scenarios/city_machinery
+    column: activity
     unit: l/a
+  input_dimensions: [fuel]
+  output_dimensions: [fuel]
   output_nodes:
   - city_machinery_emissions
 
@@ -780,53 +787,13 @@ nodes:
   quantity: emission_factor
   unit: g/l
   input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Machinery
-    unit: g/l
-  output_nodes:
-  - city_machinery_emissions
-
-- id: city_machinery
-  name_en: City machinery
-  name: Kaupungin työkoneet
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-#  input_datasets:
-#  - id: tampere/scenarios/city_machinery
-#    column: emissions
-  input_dimensions: [fuel]
-  output_dimensions: [fuel]
-
-- id: city_machinery_fuel
-  name: Kaupungin työkoneiden polttoaineenkulutus
-  name_en: City machinery fuel consumption
-  type: simple.Activity
-  quantity: fuel_consumption
-  unit: l/a
-  input_datasets:
-  - id: tampere/scenarios/city_machinery
-    column: activity
-    unit: l/a
-  output_nodes:
-  - city_machinery
-  input_dimensions: [fuel]
-  output_dimensions: [fuel]
-
-- id: city_machinery_emission_factors
-  name: Dieselin päästökerroin
-  name_en: Diesel emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/l
-  input_datasets:
   - id: tampere/scenarios/city_machinery
     column: emission_factor
     unit: g/l
-  output_nodes:
-  - city_machinery
   input_dimensions: [fuel]
   output_dimensions: [fuel]
+  output_nodes:
+  - city_machinery_emissions
 
 - id: renewable_electricity_consumption_reduction
   name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
@@ -1175,31 +1142,16 @@ actions:
 - id: renewable_diesel_in_city_machinery
   name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
   name_en: Renewable diesel in city machinery
-  type: simple.LinearCumulativeAdditiveAction
-  unit: g/l
-  quantity: emission_factor
+  type: shift.ShiftAction
+  unit: l/a
+  quantity: fuel_consumption
   group: transportation
   description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
     dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
   description_en: The city’s own work machinery will move gradually to use renewable
     diesel so that in 2030 only it will be used.
   output_nodes:
-  - city_machinery_emission_factor
-  forecast_values: [[2021, 0], [2030, -2689]]
-
-- id: renewable_diesel_in_city_machinery2
-  name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
-  name_en: Renewable diesel in city machinery
-  type: shift.ShiftAction
-  unit: l/a
-  quantity: fuel_consumption
-#  group: transportation
-  description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
-    dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
-  description_en: The city’s own work machinery will move gradually to use renewable
-    diesel so that in 2030 only it will be used.
-  output_nodes:
-  - city_machinery_fuel
+  - city_machinery_fuel_consumption
   params:
   - id: shift
     unit: l/a
