@@ -1,4 +1,4 @@
-psycopg[binary]
+psycopg[binary,pool]
 pandas
 python-dotenv
 wagtail>=5.2

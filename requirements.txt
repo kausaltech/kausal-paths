@@ -414,9 +414,11 @@ psutil==5.9.6
     # via
     #   dvc
     #   flufl-lock
-psycopg[binary]==3.1.19
+psycopg[binary,pool]==3.1.19
     # via -r requirements.in
 psycopg-binary==3.1.19
+    # via psycopg
+psycopg-pool==3.2.2
     # via psycopg
 ptyprocess==0.7.0
     # via pexpect
@@ -611,6 +613,7 @@ typing-extensions==4.8.0
     #   dvc-objects
     #   pint
     #   psycopg
+    #   psycopg-pool
     #   pydantic
     #   pydantic-core
     #   pytest-factoryboy
