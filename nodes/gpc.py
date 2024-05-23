@@ -135,15 +135,15 @@ class DatasetNode(AdditiveNode):
         return df
 
 
-class WeatherNode(AdditiveNode):
+class CorrectionNode(AdditiveNode):  # FIXME Make this a child of gpc.DatasetNode
     allowed_parameters = AdditiveNode.allowed_parameters + [
-        BoolParameter('weather_normalization', description = 'Is energy normalized for weather?')
+        BoolParameter('do_correction', description = 'Should the values be corrected?')
     ]
     def compute(self):
         df = super().compute()
-        is_corrected = self.get_parameter_value('weather_normalization', required=True)
+        do_correction = self.get_parameter_value('do_correction', required=True)
 
-        if is_corrected:
+        if not do_correction:
             df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(1))
 
         return df

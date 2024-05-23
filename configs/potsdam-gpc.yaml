@@ -19,7 +19,8 @@ emission_dimensions: [energietrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
 params:
-- id: weather_normalization
+- id: weather_correction
+  label: Wetterkorrektur durchführen?
   value: true
   is_customizable: true
   is_visible: true
@@ -102,32 +103,32 @@ emission_sectors:
 
 
 nodes:
-# - id: witterungsbereinigung
-#   name: Witterungsbereinigung
-#   type: gpc.WeatherNode
-#   quantity: ratio
-#   unit: dimensionless
-# #  output_dimensions: [energietrager]
-#   historical_values: [[1995, 1], [1999, 1], [2003, 1], [2008, 1], [2012, 1], [2014,
-#       0.95], [2020, 0.8]]
-#   forecast_values: [[2030, 0.8], [2040, 0.8], [2050, 0.8]]
-# #  input_datasets:  # FIXME For some reason, the unit gets lost
-# #  - id: gpc/potsdam_witterungsbereinigung
-# #    column: factor  # FIXME Updated dataset has 'ratio' but this only works with the old column name?!?
-# #    forecast_from: 2023
-#   params:
-#   - id: weather_normalization
-#     ref: weather_normalization
-#   - id: inventory_only
-#     value: true
-#   output_nodes:
-#   - id: i11_residential_fuel_consumption
-#     tags: non_additive
-#     to_dimensions:
-#     - id: energietrager
-#       categories: [gas]  # FIXME Should apply to all categories
-#     - id: scope
-#       categories: [scope1]
+- id: witterungsbereinigung
+  name: Witterungsbereinigung
+  type: gpc.CorrectionNode
+  quantity: ratio
+  unit: dimensionless
+  historical_values: [[1995, 1], [1999, 1], [2003, 1], [2008, 1.11], [2012, 1.04], [2014,
+      1.21], [2017, 1.11], [2020, 1.2], [1021, 1.05], [2022, 1.18], [2023, 1.22]]
+  input_dataset_processors: [LinearInterpolation]
+#  input_datasets:  # FIXME update the dataset
+#  - id: gpc/potsdam
+#    forecast_from: 2024
+  params:
+  - id: do_correction
+    ref: weather_correction
+  - id: inventory_only
+    value: true
+#  - id: gpc_sector
+#    value: I
+  output_nodes:
+  - id: i11_residential_fuel_consumption
+    tags: non_additive
+    to_dimensions:
+    - id: energietrager
+      categories: [gas]  # FIXME Should apply to all categories
+    - id: scope
+      categories: [scope1]
 
 - id: i11_residential_fuel_consumption
   name: I.1.1 Brennstoffverbrauch Wohngebäude
