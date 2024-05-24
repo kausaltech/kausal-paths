@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b1dfff9c6472b1c4fcc96bb5f7df7cd6b9bba71a
+  commit: da3b979a86f442ca531865a090c0f4ded456fdef
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -102,13 +102,17 @@ dimensions:
   - id: maintenance_costs
     label: Maintenance Costs
   - id: operation_cost  # FIXME Overlaps with maintenance_costs
-    label: Operation cost
+    label: Operation Cost
   - id: air_pollution
     label: Air pollution
   - id: noise
     label: Noise
   - id: accidents
     label: Accidents
+  - id: health
+    label: Health
+  - id: co2_cost
+    label: CO2 Cost
 
 - id: ghg
   label: Greenhouse gas
@@ -235,7 +239,15 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Climate Budgeting Tool
-  lead_paragraph: Climate budgeting is about including climate emissions systematically in the city's planning and budgeting. In the first phase, the Global Protocol for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing these emissions are considered. C40 Network's website describes <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area. They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a> to guide through the climate budgeting process. 
+  lead_paragraph: Climate budgeting is about including climate emissions systematically
+    in the city's planning and budgeting. In the first phase, the Global Protocol
+    for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing
+    these emissions are considered. C40 Network's website describes <a 
+    href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why
+    this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer
+    city</a> in this area. They have also made a practical <a 
+    href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual
+    for cities</a> to guide through the climate budgeting process.
 
 scenarios:
 - id: baseline

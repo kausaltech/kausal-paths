@@ -27,8 +27,8 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  input_dimensions: [ghg, scope, vehicle_type]
-  output_dimensions: [ghg, scope, vehicle_type]
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
   input_nodes:
   - id: vehicle_kilometres
     to_dimensions:
@@ -59,18 +59,18 @@ nodes:
     <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
     <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
   type: simple.AdditiveNode
+#  type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
   historical_values: [[2010, 130], [2022, 130]]
   input_dataset_processors: [LinearInterpolation]
-#    values: [130, 0.0206]
 #  input_dimensions: [ghg, scope]
 #  output_dimensions: [ghg, scope]
 #  input_datasets:
-#  - id: netzerocities/transport
-#    filters:
-#    - column: Sector
-#      value: II.1.1
+#  - id: nzc/defaults/transport
+#  params:
+#  - id: gpc_sector
+#    value: transport_emission_factor
 
 - id: euro_6_emission_factor
   name: EURO 6 emission factor
@@ -132,37 +132,39 @@ nodes:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: passenger_kilometres
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
   - id: transport_efficiency
     tags: [geometric_inverse]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-  
+
 - id: transport_efficiency
   name: Transport efficiency
   description: 'Transport efficiency comes from CDR D28:d30 via MIA D188:190. It is constant across time.
     <p>DIMENSIONS: Vehicle type (car, bus, train, walking)</p>' 
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: occupancy_factor
   unit: pkm/vkm
-  historical_values: [[2020, 1.2], [2022, 1.2]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_efficiency
 
 - id: passenger_kilometres
   name: Passenger kilometres
   description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
     TODO Ask if we want to ask values per person or in total, if the variable depends directly on population size anyway. Passenger kilometre trend depends on population growth and is calculated accordingly.
-  type: costs.ExponentialNode
+#  type: costs.ExponentialNode  # FIXME Check growth rate
+  type: gpc.DatasetNode
   quantity: mileage
   unit: Mpkm/a
-  historical_values: [[2020, 3003], [2022, 3015]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets: [nzc/defaults/transport]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   params:
-  - id: annual_change
-    ref: population_growth_rate
+#  - id: annual_change
+#    ref: population_growth_rate
+  - id: gpc_sector
+    value: passenger_kilometers
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
@@ -171,11 +173,15 @@ nodes:
     G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
     <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
     For European Commission Directorate-General for Mobility and Transport</li></ul>'
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
-  historical_values: [[2010, 252000], [2022, 252000]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [pollutant, cost_type]
+  output_dimensions: [pollutant, cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_air_pollution_unit_price
 
 - id: transport_air_pollution_cost_shares
   name: Transport air pollution cost shares
@@ -183,67 +189,69 @@ nodes:
     distributions could be one
     dataset with an internal dimension "Outcome", which is used for filtering when data is fetched.
     See yaml for an example. All shares are constants across time.
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
-  unit: '%'
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
-#  input_datasets:
-#  - id: nzc/outcome_distribution_by_stakeholder
-#    filters:
-#    - column: outcome
-#      value: air_pollution
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_air_pollution_cost_shares
 
 - id: transport_air_pollution_costs
   name: Transport air pollution costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, pollutant, vehicle_type]
-  output_dimensions: [stakeholder, pollutant, vehicle_type]
+  input_dimensions: [stakeholder, pollutant, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, pollutant, vehicle_type, cost_type]
   input_nodes:
   - id: transport_air_pollution_unit_price
     to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
+    - id: cost_type
     - id: pollutant
-      categories: [pm25_combustion]
   - id: transport_air_pollution_emissions
     to_dimensions:
     - id: vehicle_type
     - id: pollutant
   - id: transport_air_pollution_cost_shares
     to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: pollutant
-      categories: [pm25_combustion]
+    - id: cost_type
     - id: stakeholder
-      categories: [city]
   output_nodes:
   - id: transport_cost
     from_dimensions:
     - id: pollutant
       flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: vehicle_type
 
 - id: transport_co2_cost
   name: Transport CO2 cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [scope, vehicle_type]
-  output_dimensions: [scope, vehicle_type]
+  input_dimensions: [scope, vehicle_type, cost_type]
+  output_dimensions: [scope, vehicle_type, cost_type]
   input_nodes:
   - id: transport_emissions
     from_dimensions:
     - id: ghg
       flatten: true
+    to_dimensions:
+    - id: scope
+    - id: vehicle_type
   - id: co2_unit_price
     to_dimensions:
     - id: scope
       categories: [scope1]
     - id: vehicle_type
       categories: [cars]
+    - id: cost_type
+      categories: [co2_cost]
   output_nodes:
   - id: transport_cost
     from_dimensions:
@@ -253,90 +261,117 @@ nodes:
     - id: stakeholder
       categories: [city]
     - id: vehicle_type
+    - id: cost_type
 
 - id: transport_noise_unit_price
   name: Transport noise unit price
   description: See transport_air_pollution_unit_price.
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
-  historical_values: [[2010, 0.006], [2022, 0.006]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [vehicle_type, cost_type]
+  output_dimensions: [vehicle_type, cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_noise_unit_price
 
 - id: transport_noise_cost_shares
   name: Transport noise cost shares
   description: See transport_air_pollution_cost_shares
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
-  unit: '%'
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_noise_cost_shares
 
 - id: transport_noise_cost
   name: Transport noise cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type]
-  output_dimensions: [stakeholder, vehicle_type]
+  input_dimensions: [stakeholder, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, vehicle_type, cost_type]
   input_nodes:
   - id: transport_noise_unit_price
     to_dimensions:
+    - id: cost_type
     - id: vehicle_type
-      categories: [cars]
   - id: passenger_kilometres
     to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-  - id: transport_noise_cost_shares
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
     - id: stakeholder
       categories: [city]
-  output_nodes: [transport_cost]
+    - id: vehicle_type
+  - id: transport_noise_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: transport_cost
+    to_categories:
+    - vehicle_type
+    - stakeholder
+    - cost_type
 
 - id: transport_accident_unit_price
   name: Transport accident unit price
   description: See transport_air_pollution_unit_price.
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
-  historical_values: [[2010, 0.014], [2022, 0.014]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [vehicle_type, cost_type]
+  output_dimensions: [vehicle_type, cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_accident_unit_price
 
 - id: transport_accident_cost_shares
   name: Transport accident cost shares
   description: See transport_air_pollution_cost_shares
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
-  unit: '%'
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_accident_cost_shares
 
 - id: transport_accident_cost
   name: Transport accident cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type]
-  output_dimensions: [stakeholder, vehicle_type]
+  input_dimensions: [stakeholder, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, vehicle_type, cost_type]
   input_nodes:
   - id: transport_accident_unit_price
     to_dimensions:
     - id: vehicle_type
-      categories: [cars]
+    - id: cost_type
   - id: passenger_kilometres
     to_dimensions:
+    - id: stakeholder
+      categories: [city]
     - id: vehicle_type
-      categories: [cars]
   - id: transport_accident_cost_shares
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
     - id: stakeholder
-      categories: [city]
-  output_nodes: [transport_cost]
+    - id: cost_type
+  output_nodes:
+  - id: transport_cost
+    to_dimensions:
+    - id: stakeholder
+    - id: vehicle_type
+    - id: cost_type
 
 - id: public_transport_operation_unit_price
   name: Public transport operation unit price
@@ -354,11 +389,16 @@ nodes:
 - id: public_transport_operation_cost_shares
   name: Public transport operation cost shares
   description: See transport_air_pollution_cost_shares
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
-  unit: '%'
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: nzc/defaults/transport
+  params:
+  - id: gpc_sector
+    value: public_transport_operation_cost_shares
 
 - id: public_transport_operation_cost
   name: Public transport operation cost
@@ -366,8 +406,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type]
-  output_dimensions: [stakeholder, vehicle_type]
+  input_dimensions: [stakeholder, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, vehicle_type, cost_type]
   input_nodes:
   - id: public_transport_operation_unit_price
     to_dimensions:
@@ -381,7 +421,7 @@ nodes:
     - id: vehicle_type
       categories: [cars]
     - id: stakeholder
-      categories: [transport_operators]
+    - id: cost_type
   output_nodes: [transport_cost]
 
 - id: transport_energy_factor_ice_petrol_diesel
@@ -390,29 +430,35 @@ nodes:
     <h2>References</h2>
     European commission (2019) - Reducing CO2 emissions from passenger cars.
     https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
-  type: simple.AdditiveNode
-  quantity: unit_price
+  type: gpc.DatasetNode
+  quantity: emission_factor
   unit: l/g
-  historical_values: [[2010, 0.000404], [2022, 0.000404]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: transport_energy_factor_ice_petrol_diesel
 
 - id: fuel_unit_price
   name: Fuel unit price
   description: The values come from Eurostat (2019) - Electricity prices for household consumers
     and are found from MIA D430.
-  type: simple.AdditiveNode
-  quantity: fraction
+  type: gpc.DatasetNode
+  quantity: unit_price
   unit: EUR/l
-  historical_values: [[2010, 1.22], [2022, 1.22]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: fuel_unit_price
 
 - id: transport_fuel_cost
   name: Transport fuel cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type]
-  output_dimensions: [stakeholder, vehicle_type]
+  input_dimensions: [stakeholder, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, vehicle_type, cost_type]
   input_nodes:
   - id: transport_emission_factor
     to_dimensions:
@@ -431,6 +477,7 @@ nodes:
       categories: [cars]
     - id: stakeholder
       categories: [citizens]
+    - id: cost_type
   output_nodes: [transport_cost]
 
 - id: walking_cycling_unit_price
@@ -439,31 +486,37 @@ nodes:
     (Victoria Transport Policy Institute, 2019). Unit price is constant across time.
     Victoria Transport Policy Institute (2019). Evaluating Active Transport Benefits and Costs.
     https://www.vtpi.org/nmt-tdm.pdf This value is supported by another study, which evaluates the
-    health-benefits to 0.3-0.5 €/pkm: https://www.researchgate.net/publication/330184791_The_Social_Cost_of_Automobility_Cycling_and_Walking_in_the_European_Union'
-  type: simple.AdditiveNode
+    health-benefits to 0.3-0.5 €/pkm: https://www.researchgate.net/publication/330184791_The_Social_Cost_of_Automobility_Cycling_and_Walking_in_the_European_Union. From these sources, a summary estimate of 0.2966 EUR/pkm is derived.'
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
-  historical_values: [[2010, -0.2966], [2022, -0.2966]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets: [nzc/defaults/transport]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  params:
+  - id: gpc_sector
+    value: walking_cycling_unit_price
 
 - id: walking_cycling_cost
   name: Walking & cycling cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type]
-  output_dimensions: [stakeholder, vehicle_type]
+  input_dimensions: [stakeholder, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, vehicle_type, cost_type]
   input_nodes:
   - id: walking_cycling_unit_price
     to_dimensions:
     - id: vehicle_type
-      categories: [cars]  # FIXME
     - id: stakeholder
-      categories: [citizens]
+      categories: [citizens]  # FIXME Move this to the dataset
+    - id: cost_type
+      categories: [health]  # FIXME Move this to the dataset
   - id: passenger_kilometres
     to_dimensions:
     - id: vehicle_type
-      categories: [cars]
+    - id: stakeholder
+      categories: [citizens]
   output_nodes: [transport_cost]
 
 - id: transport_cost
@@ -471,8 +524,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type]
-  output_dimensions: [stakeholder, vehicle_type]
+  input_dimensions: [stakeholder, vehicle_type, cost_type]
+  output_dimensions: [stakeholder, vehicle_type, cost_type]
   output_nodes:
   - id: total_cost
     from_dimensions:
@@ -480,7 +533,6 @@ nodes:
       flatten: true
     to_dimensions:
     - id: cost_type
-      categories: [maintenance_costs]
     - id: stakeholder
 
 actions:
@@ -493,6 +545,9 @@ actions:
   forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
   output_nodes:
   - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
 
 - id: modal_switch_from_cars_to_other_modes
   name: Modal switch from cars to other modes
@@ -504,6 +559,9 @@ actions:
   forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
   output_nodes:
   - id: passenger_kilometres
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
 
 - id: car_pooling
   name: Car pooling
@@ -514,6 +572,9 @@ actions:
   forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
   output_nodes:
   - id: transport_efficiency
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
 
 - id: electrification_of_passenger_cars
   name: Electrification of passenger cars

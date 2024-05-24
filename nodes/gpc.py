@@ -13,14 +13,16 @@ from common import polars as ppl
 class DatasetNode(AdditiveNode):
     allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
 
-    qlookup = {'currency': 'Price',
+    qlookup = {'currency': 'Price',  # FIXME Should be case-insensitive and later accept other languages
                'emission_factor': 'Emission Factor',
                'emissions': 'Emissions',
                'energy': 'Energy Consumption',
                'fuel_consumption': 'Fuel Consumption',
                'mass': 'Waste Disposal',
                'mileage': 'Mileage',
-               'unit_price': 'Unit Price'}
+               'unit_price': 'Unit Price',
+               'occupancy_factor': 'Occupancy Factor',
+               'fraction': 'Fraction'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
@@ -69,6 +71,8 @@ class DatasetNode(AdditiveNode):
 
         # Drop filter levels and empty dimension levels.
         droplist = ['Sector', 'Quantity']
+        if 'Description' in df.index.names:
+            droplist.append('Description')
         for col in df.index.names:
             vals = df.index.get_level_values(col).unique().to_list()
             if vals == ['.']:
