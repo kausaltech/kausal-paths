@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: be385e15c88d75609b2f9d8f92ad2fbe2fc79a27
+  commit: da6ce397f52ca3a36aa0cc46597be0bc2804a1c7
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -120,8 +120,8 @@ dimensions:
   - id: co2e
     label: CO2e
 
-- id: vehicle_type
-  label: Vehicle type
+- id: transport_mode
+  label: Transport mode
   categories:
   - id: cars
     label: Cars

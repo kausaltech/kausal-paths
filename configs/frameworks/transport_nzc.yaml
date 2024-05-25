@@ -6,7 +6,7 @@
 # Required dimensions from outside the framework:
 # ghg
 # scope
-# vehicle_type
+# transport_mode
 # pollutant
 # stakeholder
 # Required parameters from outside the framework:
@@ -25,10 +25,10 @@ nodes:
   output_nodes:
   - id: net_emissions
     from_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       flatten: true
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
+  input_dimensions: [transport_mode, ghg, scope]
+  output_dimensions: [transport_mode, ghg, scope]
   input_nodes:
   - id: vehicle_kilometres
     to_dimensions:
@@ -36,14 +36,14 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope1]
-    - id: vehicle_type
+    - id: transport_mode
   - id: transport_emission_factor
     from_dimensions:
     - id: pollutant
       categories: [co2]
       flatten: true
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
     - id: ghg
       categories: [co2e]
     - id: scope
@@ -60,12 +60,12 @@ nodes:
     emission factors come from data; the weighted average of the two trends is calculated.
     MATIAS: DO NOT START FROM HERE; emission fractions are still under construction.
     <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
-    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). vehicle_type (cars, buses, trains)</p>'
+    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). transport_mode (cars, buses, trains)</p>'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, vehicle_type]
-  output_dimensions: [pollutant, vehicle_type]
+  input_dimensions: [pollutant, transport_mode]
+  output_dimensions: [pollutant, transport_mode]
   input_datasets:
   - id: nzc/defaults/transport
   params:
@@ -88,8 +88,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, vehicle_type]
-  output_dimensions: [pollutant, vehicle_type]
+  input_dimensions: [pollutant, transport_mode]
+  output_dimensions: [pollutant, transport_mode]
   input_datasets: [nzc/defaults/transport]
   params:
   - id: gpc_sector
@@ -128,17 +128,17 @@ nodes:
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, vehicle_type]
-  output_dimensions: [pollutant, vehicle_type]
+  input_dimensions: [pollutant, transport_mode]
+  output_dimensions: [pollutant, transport_mode]
   input_nodes:
   - id: baseline_year_emission_factor
     to_dimensions:
     - id: pollutant
-    - id: vehicle_type
+    - id: transport_mode
   - id: new_fleet_emission_factor
     to_dimensions:
     - id: pollutant
-    - id: vehicle_type
+    - id: transport_mode
   - id: remaining_old_car_fleet
     to_dimensions: []
   - id: new_car_fleet_fraction
@@ -160,7 +160,7 @@ nodes:
     to_dimensions:
     - id: pollutant
       categories: [co2]
-    - id: vehicle_type
+    - id: transport_mode
       categories: [buses]
 
 - id: train_emission_factor
@@ -176,7 +176,7 @@ nodes:
     to_dimensions:
     - id: pollutant
       categories: [co2]
-    - id: vehicle_type
+    - id: transport_mode
       categories: [trains]
 
 - id: transport_emission_factor
@@ -185,12 +185,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, vehicle_type]
-  output_dimensions: [pollutant, vehicle_type]
+  input_dimensions: [pollutant, transport_mode]
+  output_dimensions: [pollutant, transport_mode]
   input_nodes:
   - id: car_emission_factor
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
     - id: pollutant
 
 - id: transport_air_pollution_emissions
@@ -198,8 +198,8 @@ nodes:
   type: simple.MultiplicativeNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
-  input_dimensions: [pollutant, vehicle_type]
-  output_dimensions: [pollutant, vehicle_type]
+  input_dimensions: [pollutant, transport_mode]
+  output_dimensions: [pollutant, transport_mode]
   input_nodes:
   - id: transport_emission_factor
     from_dimensions:
@@ -207,18 +207,18 @@ nodes:
       categories: [pm25_combustion, pm10_combustion, pm25_wear_tear, pm10_wear_tear, nox]
     to_dimensions:
     - id: pollutant
-    - id: vehicle_type
+    - id: transport_mode
   - id: vehicle_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
 
 - id: vehicle_kilometres
   name: Vehicle kilometres
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_nodes:
   - id: passenger_kilometres
   - id: transport_efficiency
@@ -231,8 +231,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: occupancy_factor
   unit: pkm/vkm
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults/transport]
   params:
   - id: gpc_sector
@@ -247,8 +247,8 @@ nodes:
   quantity: mileage
   unit: Mpkm/a
   input_datasets: [nzc/defaults/transport]
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   params:
 #  - id: annual_change
 #    ref: population_growth_rate
@@ -294,8 +294,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, pollutant, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, pollutant, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
+  output_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
   input_nodes:
   - id: transport_air_pollution_unit_price
     to_dimensions:
@@ -303,7 +303,7 @@ nodes:
     - id: pollutant
   - id: transport_air_pollution_emissions
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
     - id: pollutant
   - id: transport_air_pollution_cost_shares
     to_dimensions:
@@ -317,15 +317,15 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: stakeholder
-    - id: vehicle_type
+    - id: transport_mode
 
 - id: transport_co2_cost
   name: Transport CO2 cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [scope, vehicle_type, cost_type]
-  output_dimensions: [scope, vehicle_type, cost_type]
+  input_dimensions: [scope, transport_mode, cost_type]
+  output_dimensions: [scope, transport_mode, cost_type]
   input_nodes:
   - id: transport_emissions
     from_dimensions:
@@ -333,12 +333,12 @@ nodes:
       flatten: true
     to_dimensions:
     - id: scope
-    - id: vehicle_type
+    - id: transport_mode
   - id: co2_unit_price
     to_dimensions:
     - id: scope
       categories: [scope1]
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
     - id: cost_type
       categories: [co2_cost]
@@ -350,7 +350,7 @@ nodes:
     to_dimensions:
     - id: stakeholder
       categories: [city]
-    - id: vehicle_type
+    - id: transport_mode
     - id: cost_type
 
 - id: transport_noise_unit_price
@@ -359,8 +359,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
-  input_dimensions: [vehicle_type, cost_type]
-  output_dimensions: [vehicle_type, cost_type]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
   - id: gpc_sector
@@ -384,18 +384,18 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
   - id: transport_noise_unit_price
     to_dimensions:
     - id: cost_type
-    - id: vehicle_type
+    - id: transport_mode
   - id: passenger_kilometres
     to_dimensions:
     - id: stakeholder
       categories: [city]
-    - id: vehicle_type
+    - id: transport_mode
   - id: transport_noise_cost_shares
     to_dimensions:
     - id: stakeholder
@@ -403,7 +403,7 @@ nodes:
   output_nodes:
   - id: transport_cost
     to_categories:
-    - vehicle_type
+    - transport_mode
     - stakeholder
     - cost_type
 
@@ -413,8 +413,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
-  input_dimensions: [vehicle_type, cost_type]
-  output_dimensions: [vehicle_type, cost_type]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
   - id: gpc_sector
@@ -438,21 +438,21 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
   - id: transport_accident_unit_price
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
     - id: cost_type
   - id: passenger_kilometres
     to_dimensions:
     - id: stakeholder
       categories: [city]
-    - id: vehicle_type
+    - id: transport_mode
   - id: transport_accident_cost_shares
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
     - id: stakeholder
     - id: cost_type
@@ -460,7 +460,7 @@ nodes:
   - id: transport_cost
     to_dimensions:
     - id: stakeholder
-    - id: vehicle_type
+    - id: transport_mode
     - id: cost_type
 
 - id: public_transport_operation_unit_price
@@ -496,19 +496,19 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
   - id: public_transport_operation_unit_price
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
   - id: vehicle_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
   - id: public_transport_operation_cost_shares
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
     - id: stakeholder
     - id: cost_type
@@ -547,8 +547,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
   - id: transport_emission_factor
     from_dimensions:
@@ -556,17 +556,17 @@ nodes:
       categories: [co2]
       flatten: true
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
   - id: transport_energy_factor_ice_petrol_diesel
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
   - id: vehicle_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
   - id: fuel_unit_price
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
     - id: stakeholder
       categories: [citizens]
@@ -584,8 +584,8 @@ nodes:
   quantity: unit_price
   unit: EUR/pkm
   input_datasets: [nzc/defaults/transport]
-  input_dimensions: [vehicle_type, stakeholder, cost_type]
-  output_dimensions: [vehicle_type, stakeholder, cost_type]
+  input_dimensions: [transport_mode, stakeholder, cost_type]
+  output_dimensions: [transport_mode, stakeholder, cost_type]
   params:
   - id: gpc_sector
     value: walking_cycling_unit_price
@@ -595,17 +595,17 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
   - id: walking_cycling_unit_price
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
     - id: stakeholder
     - id: cost_type
   - id: passenger_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
     - id: stakeholder
       categories: [citizens]
   output_nodes: [transport_cost]
@@ -615,12 +615,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, vehicle_type, cost_type]
-  output_dimensions: [stakeholder, vehicle_type, cost_type]
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
   output_nodes:
   - id: total_cost
     from_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       flatten: true
     to_dimensions:
     - id: cost_type
@@ -637,7 +637,7 @@ actions:
   output_nodes:
   - id: passenger_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
 
 - id: modal_switch_from_cars_to_other_modes
@@ -651,7 +651,7 @@ actions:
   output_nodes:
   - id: passenger_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
 
 - id: car_pooling
@@ -664,7 +664,7 @@ actions:
   output_nodes:
   - id: transport_efficiency
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
 
 - id: electrification_of_passenger_cars
@@ -677,7 +677,7 @@ actions:
   output_nodes:
   - id: vehicle_kilometres
     to_dimensions:
-    - id: vehicle_type
+    - id: transport_mode
       categories: [cars]
 
 - id: electrification_of_buses
@@ -690,6 +690,6 @@ actions:
   output_nodes:
   - id: bus_emission_factor
 #    to_dimensions:
-#    - id: vehicle_type
+#    - id: transport_mode
 #      categories: [buses]
 
