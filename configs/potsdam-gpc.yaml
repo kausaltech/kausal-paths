@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 321d1b98de77f32f4d7f676ae6729172b5315757
+  commit: b201afa9e0608df9c2da8567d5069d33fd5752b7
   dvc_remote: kausal-s3
 name: Potsdam BASIC+ Treibhausgasinventar
 owner: Stadt Potsdam
@@ -108,8 +108,8 @@ nodes:
   type: gpc.CorrectionNode
   quantity: ratio
   unit: dimensionless
-  historical_values: [[1995, 1], [1999, 1], [2003, 1], [2008, 1.11], [2012, 1.04], [2014,
-      1.21], [2017, 1.11], [2020, 1.2], [1021, 1.05], [2022, 1.18], [2023, 1.22]]
+  historical_values: [[1995, 1], [1999, 1], [2003, 1], [2008, 1.11], [2012, 1.04],
+    [2014, 1.21], [2017, 1.11], [2020, 1.2], [1021, 1.05], [2022, 1.18], [2023, 1.22]]
   input_dataset_processors: [LinearInterpolation]
 #  input_datasets:  # FIXME update the dataset
 #  - id: gpc/potsdam
@@ -117,8 +117,6 @@ nodes:
   params:
   - id: do_correction
     ref: weather_correction
-  - id: inventory_only
-    value: true
 #  - id: gpc_sector
 #    value: I
   output_nodes:
