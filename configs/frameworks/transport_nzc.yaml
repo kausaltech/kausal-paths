@@ -74,17 +74,17 @@ nodes:
 
 - id: new_fleet_emission_factor
   name: New fleet emission factor
-  description: 'Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
-    https://www.dieselnet.com/standards/eu/ld.php) TODO Implement as described below.
-    This node is needed in vehicle fleet upgrade. The idea is that there are several internal categories of vehicle types (e.g. i EURO standard classes and each class has a proportion of P_i. The average emission factor is
-    E_t = sum_i(E_i,t * P_i,t) where i is class and t is timepoint. This is complicated by gradual shift of classes such that
-    P_i,t = P_i,t0 * product(a_i,0, ..., a_i,t), where a_i,t are the survival rates and must be defined in a way that sum_i(P_i,t) = 1 for each t.
-    In this use case, there are two classes, current and EURO 6. But the CO2 emission factor is decreasing in time.
-    The computation logic is that when a car enters the fleet, it has the same survival probability as all other
-    cars in the fleet.
-    Finally, we assume that E is constant for each vehicle as long as it is in the fleet. Therefore, each
-    E_i,t creates a cohort that affects the average of all E_i,t* where t* >= t.
-    This is handled by looking at each E_i,t cohort until the last time point. Importantly, if a cohort exists in the fleet already, only the last timepoint with a value is calculated (as all previous timepoints reflect the same cohort) but if it is a new cohort, it is calculated and new timepoints are interpreted as new cohorts of those new timepoints.'
+  description: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
+    https://www.dieselnet.com/standards/eu/ld.php) TODO Implement as described below.<br>
+    This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P_i among the fleet. The average emission factor is therefore<br>
+    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
+    N<sub>i,t</sub> = N<sub>i,t0</sub> * product(a<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>where s<sub>i,t</sub> are the survival rates, N<sub>i,t</sub> is the number of cars in a cohort at timepoint t, t0 is the timepoint of entry for that cohort, and proportion P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
+    It must be noted that for each timepoint, there are the existing cohorts and a new cohort that enters in that year.</p>
+    <p>In this use case, it is important to separate these cohorts becoause the emission factor is decreasing in time.
+    The computation logic is that after a car has entered the fleet, it has the same survival probability as all other
+    cars in the fleet. (Not realistic but that is how NZC excel works)</p>
+    Finally, we assume that E is constant for each vehicle as long as it is in the fleet. 
+    This is handled by looking at each E_i,t cohort until the last time point.'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
