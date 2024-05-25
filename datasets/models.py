@@ -32,6 +32,12 @@ class DatasetQuerySet(QuerySet['Dataset']):
     pass
 
 
+class DatasetManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, dataset_identifier):
+        instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
+        return self.get(instance=instance, identifier=dataset_identifier)
+
+
 class Dataset(ClusterableModel, UserModifiableModel):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='datasets'
@@ -49,7 +55,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
     i18n = TranslationField(fields=('name',))
 
-    objects = DatasetQuerySet.as_manager()
+    objects = DatasetManager.from_queryset(DatasetQuerySet)()
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -222,9 +228,18 @@ class Dataset(ClusterableModel, UserModifiableModel):
         qs = qs.annotate(nr_unresolved_comments=unresolved)
         return qs
 
+    def natural_key(self):
+        return self.instance.natural_key() + (self.identifier,)
+
 
 class DatasetMetricQuerySet(QuerySet['DatasetMetric']):
     pass
+
+
+class DatasetMetricManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, dataset_identifier, metric_identifier):
+        dataset = Dataset.objects.get_by_natural_key(instance_identifier, dataset_identifier)
+        return self.get(dataset=dataset, identifier=metric_identifier)
 
 
 class DatasetMetric(OrderedModel):
@@ -236,7 +251,7 @@ class DatasetMetric(OrderedModel):
 
     i18n = TranslationField(fields=('label',))
 
-    objects = DatasetMetricQuerySet.as_manager()
+    objects = DatasetMetricManager.from_queryset(DatasetQuerySet)()
 
     class Meta:
         unique_together = (('dataset', 'identifier'),)
@@ -248,13 +263,27 @@ class DatasetMetric(OrderedModel):
     def __str__(self):
         return self.label
 
+    def natural_key(self):
+        return self.dataset.natural_key() + (self.identifier,)
+
+
+class CellMetadataManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, dataset_identifier, cell_path):
+        dataset = Dataset.objects.get_by_natural_key(instance_identifier, dataset_identifier)
+        return self.get(dataset=dataset, cell_path=cell_path)
+
 
 class CellMetadata(UserModifiableModel):
     cell_path = models.CharField(null=True, blank=True, max_length=300)
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="%(app_label)s_%(class)s")
 
+    objects = CellMetadataManager()
+
     class Meta:
         abstract = True
+
+    def natural_key(self):
+        return self.dataset.natural_key() + (self.cell_path,)
 
 
 class DatasetSourceReference(CellMetadata):
@@ -309,8 +338,14 @@ class DatasetComment(CellMetadata):
         verbose_name_plural = _('comments')
 
 
-class DimensioniQuerySet(QuerySet['DatasetMetric']):
+class DimensionQuerySet(QuerySet['DatasetMetric']):
     pass
+
+
+class DimensionManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, dimension_identifier):
+        instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
+        return self.get(instance=instance, identifier=dimension_identifier)
 
 
 class Dimension(ClusterableModel, UserModifiableModel):
@@ -323,7 +358,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
 
     categories: models.manager.RelatedManager[DimensionCategory]
 
-    objects = DimensioniQuerySet.as_manager()
+    objects = DimensionManager.from_queryset(DimensionQuerySet)()
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -399,6 +434,19 @@ class Dimension(ClusterableModel, UserModifiableModel):
                 if dim_obj not in found_dims:
                     dim_obj.delete()
 
+    def natural_key(self):
+        return self.instance.natural_key() + (self.identifier,)
+
+
+class DatasetDimensionManager(models.Manager):
+    def get_by_natural_key(
+        self, dataset_instance_identifier, dataset_identifier, dimension_instance_identifier, dimension_identifier
+    ):
+        assert dataset_instance_identifier == dimension_instance_identifier
+        dataset = Dataset.objects.get_by_natural_key(dataset_instance_identifier, dataset_identifier)
+        dimension = Dimension.objects.get_by_natural_key(dimension_instance_identifier, dimension_identifier)
+        return self.get(dataset=dataset, dimension=dimension)
+
 
 class DatasetDimension(OrderedModel):
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='dimension_selections')
@@ -407,6 +455,8 @@ class DatasetDimension(OrderedModel):
         to='DimensionCategory',
         through='DatasetDimensionSelectedCategory'
     )
+
+    objects = DatasetDimensionManager()
 
     class Meta:
         unique_together = (('dataset', 'dimension'),)
@@ -432,6 +482,16 @@ class DatasetDimension(OrderedModel):
     def get_categories(self) -> list[str]:
         return [x.identifier for x in self.selected_categories.all().order_by('order')]
 
+    def natural_key(self):
+        assert self.dataset.instance == self.dimension.instance
+        return self.dataset.natural_key() + self.dimension.natural_key()
+
+
+class DimensionCategoryManager(models.Manager):
+    def get_by_natural_key(self, dimension_instance_identifier, dimension_identifier, category_identifier):
+        dimension = Dimension.objects.get_by_natural_key(dimension_instance_identifier, dimension_identifier)
+        return self.get(dimension=dimension, identifier=category_identifier)
+
 
 class DimensionCategory(UserModifiableModel, OrderedModel):
     dimension = ParentalKey(Dimension, on_delete=models.CASCADE, related_name='categories')
@@ -440,6 +500,8 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
     label = models.CharField(max_length=50)
 
     i18n = TranslationField(fields=('label',), default_language_field='dimension__instance__primary_language')
+
+    objects = DimensionCategoryManager()
 
     class Meta:
         ordering = ('dimension', 'order')
@@ -451,10 +513,33 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
     def filter_siblings(self, qs: models.QuerySet['DimensionCategory']):
         return qs.filter(dimension=self.dimension)
 
+    def natural_key(self):
+        return self.dimension.natural_key() + (self.identifier,)
+
+
+class DatasetDimensionSelectedCategoryManager(models.Manager):
+    def get_by_natural_key(
+        self, dataset_dimension_dataset_instance_identifier, dataset_dimension_dataset_identifier,
+        dimension_instance_identifier, dimension_identifier, category_dimension_instance_identifier,
+        category_dimension_identifier, category_identifier,
+    ):
+        assert dataset_dimension_dataset_instance_identifier == category_dimension_instance_identifier
+        assert dataset_dimension_dataset_instance_identifier == dimension_instance_identifier
+        assert dimension_identifier == category_dimension_identifier
+        dataset_dimension = DatasetDimension.objects.get_by_natural_key(
+            dataset_dimension_dataset_instance_identifier, dataset_dimension_dataset_identifier, dimension_instance_identifier, dimension_identifier
+        )
+        category = DimensionCategory.objects.get_by_natural_key(
+            category_dimension_instance_identifier, category_dimension_identifier, category_identifier,
+        )
+        return self.get(dataset_dimension=dataset_dimension, category=category)
+
 
 class DatasetDimensionSelectedCategory(OrderedModel):
     dataset_dimension = models.ForeignKey(DatasetDimension, on_delete=models.CASCADE)
     category = models.ForeignKey(DimensionCategory, on_delete=models.PROTECT)
+
+    objects = DatasetDimensionSelectedCategoryManager()
 
     def save(self, *args, **kwargs):
         if self.category not in self.dataset_dimension.dimension.categories.all():
@@ -467,3 +552,9 @@ class DatasetDimensionSelectedCategory(OrderedModel):
     class Meta:
         ordering = ('order', )
         unique_together = (('dataset_dimension', 'category'), )
+
+    def natural_key(self):
+        assert self.dataset_dimension.dataset.instance == self.category.dimension.instance
+        assert self.dataset_dimension.dataset.instance == self.dataset_dimension.dimension.instance
+        assert self.dataset_dimension.dimension == self.category.dimension
+        return self.dataset_dimension.natural_key() + self.category.natural_key()

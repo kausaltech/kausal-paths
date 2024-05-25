@@ -11,7 +11,7 @@ from wagtail.admin.panels import (
     FieldPanel, MultiFieldPanel, Panel,
 )
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import Page, Site
+from wagtail.models import Page, PageManager, Site
 
 from graphene_django.converter import convert_choices_to_named_enum_with_descriptions
 from grapple.models import (
@@ -47,6 +47,20 @@ class PathsAdminPageForm(WagtailAdminPageForm):
         return site.instance
 
 
+class PathsPageManager(PageManager):
+    def get_by_natural_key(self, *slugs):
+        next_level = Page.get_root_nodes()
+        page = None
+        while slugs:
+            slug, *slugs = slugs
+            page = next_level.get(slug=slug)
+            next_level = page.get_children()
+        assert page
+        page = page.specific
+        assert isinstance(page, PathsPage)
+        return page
+
+
 class PathsPage(Page):
     i18n = models.JSONField(blank=True, null=True)
     show_in_footer = models.BooleanField(default=False, verbose_name=_('show in footer'),
@@ -80,6 +94,8 @@ class PathsPage(Page):
     # type annotations
     id: int | None
 
+    objects = PathsPageManager()
+
     class Meta:
         abstract = True
 
@@ -99,6 +115,14 @@ class PathsPage(Page):
             return super().get_url_parts(request)
 
         return (site.pk, instance.site_url, self.url_path)
+
+    def natural_key(self):
+        page = self
+        key = ()
+        while page:
+            key = (page.slug,) + key
+            page = page.get_parent()
+        return key
 
 
 class InstanceRootPage(PathsPage):
@@ -128,6 +152,7 @@ class StaticPage(PathsPage):
     graphql_fields = PathsPage.graphql_fields + [
         GraphQLStreamfield('body')
     ]
+
 
 class OutcomePage(PathsPage):
     outcome_node = ParentalKey(NodeConfig, on_delete=models.PROTECT, related_name='pages')
@@ -198,6 +223,12 @@ class ActionListPage(PathsPage):
         verbose_name_plural = _('Action list pages')
 
 
+class InstanceSiteContentManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier):
+        instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
+        return self.get(instance=instance)
+
+
 class InstanceSiteContent(models.Model):
     instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
 
@@ -213,10 +244,14 @@ class InstanceSiteContent(models.Model):
 
     graphql_fields = [GraphQLStreamfield('intro_content')]
 
+    objects = InstanceSiteContentManager()
 
     class Meta:
         verbose_name = _('Site content')
         verbose_name_plural = _('Site contents')
+
+    def natural_key(self):
+        return self.instance.natural_key()
 
     def __str__(self) -> str:
         return "Site contents for %s" % self.instance.name

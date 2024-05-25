@@ -95,6 +95,9 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
 class InstanceConfigManager(models.Manager['InstanceConfig']):
     def for_hostname(self, hostname: str) -> InstanceConfigQuerySet: ...  # type: ignore
 
+    def get_by_natural_key(self, identifier):
+        return self.get(identifier=identifier)
+
 
 class InstanceConfig(PathsModel):
     identifier = IdentifierField(max_length=100, unique=True)
@@ -125,7 +128,7 @@ class InstanceConfig(PathsModel):
 
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))  # pyright: ignore
 
-    objects: InstanceConfigManager = InstanceConfigQuerySet.as_manager()  # type: ignore
+    objects = InstanceConfigManager.from_queryset(InstanceConfigQuerySet)()  # type: ignore
 
     # Type annotations
     nodes: models.manager.RelatedManager[NodeConfig]
@@ -413,8 +416,17 @@ class InstanceConfig(PathsModel):
     def log(self) -> Logger:
         return logger.bind(instance=self.identifier, markup=True)
 
+    def natural_key(self):
+        return (self.identifier,)
+
     def __str__(self) -> str:
         return self.get_name()
+
+
+class InstanceHostnameManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, hostname, base_path):
+        instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
+        return self.get(instance=instance, hostname=hostname, base_path=base_path)
 
 
 class InstanceHostname(models.Model):
@@ -426,13 +438,24 @@ class InstanceHostname(models.Model):
 
     extra_script_urls = ArrayField(models.URLField(max_length=300), default=list)
 
+    objects = InstanceHostnameManager()
+
     class Meta:
         verbose_name = _('Instance hostname')
         verbose_name_plural = _('Instance hostnames')
         unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
 
+    def natural_key(self):
+        return self.instance.natural_key() + (self.hostname, self.base_path)
+
     def __str__(self):
         return '%s at %s [basepath %s]' % (self.instance, self.hostname, self.base_path)
+
+
+class InstanceTokenManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, token, created_at):
+        instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
+        return self.get(instance=instance, token=token, created_at=created_at)
 
 
 class InstanceToken(models.Model):
@@ -442,9 +465,19 @@ class InstanceToken(models.Model):
     token = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = InstanceTokenManager()
+
     class Meta:
         verbose_name = _('Instance token')
         verbose_name_plural = _('Instance tokens')
+
+    def natural_key(self):
+        return self.instance.natural_key() + (self.token, self.created_at)
+
+
+class DataSourceManager(models.Manager):
+    def get_by_natural_key(self, uuid):
+        return self.get(uuid=uuid)
 
 
 class DataSource(UserModifiableModel):
@@ -467,6 +500,8 @@ class DataSource(UserModifiableModel):
     description = models.TextField(null=True, blank=True, verbose_name=_('description'))
     url = models.URLField(verbose_name=_('URL'), null=True, blank=True)
 
+    objects = DataSourceManager()
+
     def get_label(self):
         name, *rest = [p for p in (self.name, self.authority, self.edition) if p is not None]
         return f'{name}, {" ".join(rest)}'
@@ -477,6 +512,15 @@ class DataSource(UserModifiableModel):
     class Meta:
         verbose_name = _('Data source')
         verbose_name_plural = _('Data sources')
+
+    def natural_key(self):
+        return (str(self.uuid),)
+
+
+class NodeConfigManager(models.Manager):
+    def get_by_natural_key(self, instance_identifier, identifier):
+        instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
+        return self.get(instance=instance, identifier=identifier)
 
 
 class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
@@ -532,6 +576,8 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         index.SearchField('identifier'),
         index.FilterField('instance'),
     ]
+
+    objects = NodeConfigManager()
 
     class Meta:
         verbose_name = _('Node')
@@ -618,6 +664,9 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         if self.uuid is None:
             self.uuid = uuid.uuid4()
         return super().save(**kwargs)
+
+    def natural_key(self):
+        return self.instance.natural_key() + (self.identifier,)
 
 
 InstanceConfig.permission_policy = InstancePermissionPolicy()
