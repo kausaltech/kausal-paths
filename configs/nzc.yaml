@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: da6ce397f52ca3a36aa0cc46597be0bc2804a1c7
+  commit: e96972aa65ed820e048d2dd224669c528b13e074
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -61,6 +61,7 @@ action_groups:
   name: Reforestation
 
 dimensions:
+
 - id: pollutant
   label: Pollutant
   label_fi: Saaste
@@ -83,6 +84,23 @@ dimensions:
   - id: pm10_wear_tear
     label: PM10 Wear & tear
     label_fi: PM10-kuluminen
+
+- id: transport_pollutant
+  label: Transport pollutant
+  label_fi: Liikennesaaste
+  categories:
+  - id: co2
+    label: CO2
+    label_fi: CO2
+  - id: nox
+    label: NOx
+    label_fi: NOx
+  - id: pm25
+    label: PM2.5
+    label_fi: PM2.5
+  - id: pm10
+    label: PM10
+    label_fi: PM10
 
 - id: scope
   label: Scope
@@ -191,6 +209,19 @@ nodes:
   - id: annual_change
     value: 0.2
     unit: '%'
+
+- id: electricity_production_emission_factor
+  name: Electricity production emission factor
+  description: TODO Update calculations
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_datasets: [nzc/defaults/electricity]
+  params:
+  - id: gpc_sector
+    value: electricity_production_emission_factor
 
 - id: co2_unit_price
   name: CO2 unit price

@@ -22,7 +22,8 @@ class DatasetNode(AdditiveNode):
                'mileage': 'Mileage',
                'unit_price': 'Unit Price',
                'occupancy_factor': 'Occupancy Factor',
-               'fraction': 'Fraction'}
+               'fraction': 'Fraction',
+               'energy_factor': 'Energy Factor'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
