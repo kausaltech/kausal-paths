@@ -52,15 +52,18 @@ nodes:
 #  color: '#ff4f57'
 #  color: '#0047b6'
 
-- id: baseline_year_car_emission_factor_pre
-  name: Baseline year car emission factor before splitting
+- id: baseline_year_fleet_emission_factor_pre
+  name: Baseline year car and bus fleet emission factor before splitting
   description: 'TODO Data from Data 1&2 Tranportation, E174:AF179. TODO Upstream calculations based on Model inputs & 
     assumptions F194 and F207 needs to be included in the model. Emission factor is a weighted average existing and
-    new car fleet, where 0.5 * X % is renewed annually (X = city data request D47, share of fleet that is less than 2 years old). The current emission factors are asked from the user (City data request D34:D43) but the new
+    new car and bus fleet, where 0.5 * X % is renewed annually (X = city data request D47, share of fleet that is less than 2 years old). The current emission factors are asked from the user (City data request D34:D43) but the new
     emission factors come from data; the weighted average of the two trends is calculated.
     MATIAS: DO NOT START FROM HERE; emission fractions are still under construction.
     <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
-    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). transport_mode (cars, buses, trains)</p>'
+    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). transport_mode (cars, buses, trains)</p>
+    <p>Bus emission factor is calculated differently than cars, but the differences a minor and we attempt to apply uniform calculations. Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
+    =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
+    There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TODO!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -70,18 +73,18 @@ nodes:
   - id: nzc/defaults/transport
   params:
   - id: gpc_sector
-    value: baseline year car emission factor
+    value: baseline year fleet emission factor
 
-- id: new_car_fleet_emission_factor_pre
-  name: New car fleet emission factor before splitting
+- id: new_fleet_emission_factor_pre
+  name: New fleet emission factor before splitting
   description: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
     https://www.dieselnet.com/standards/eu/ld.php) TODO Implement as described below. Details of the NZC excel calculations are in Data - 1&2 Transportation!M174.<br>
-    This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_car_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_car_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
+    This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_fleet_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
     E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
     N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>where s<sub>i,t</sub> are the survival rates, N<sub>i,t</sub> is the number of cars in a cohort at timepoint t, t0 is the timepoint of entry for that cohort, and proportion P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
     It must be noted that for each timepoint, there are the existing cohorts and a new cohort that enters in that year.</p>
     <p>In this use case, it is important to separate these cohorts becoause the emission factor is decreasing in time.
-    The computation logic is that after a car has entered the fleet, it has the same survival probability as all other
+    The computation logic is that after a vehicle has entered the fleet, it has the same survival probability as all other
     cars in the fleet. (Not realistic but that is how NZC excel works)</p>
     Finally, we assume that E is constant for each vehicle as long as it is in the fleet. 
     This is handled by looking at each E<sub>i,t</sub> cohort until the last time point.'
@@ -93,7 +96,7 @@ nodes:
   input_datasets: [nzc/defaults/transport]
   params:
   - id: gpc_sector
-    value: new car emission factor
+    value: new fleet emission factor
 
 - id: transport_pollutant_split
   name: Transport pollutant split
@@ -108,15 +111,15 @@ nodes:
   - id: gpc_sector
     value: transport pollutant split
 
-- id: baseline_year_car_emission_factor
-  name: Baseline year car emission factor
+- id: baseline_year_fleet_emission_factor
+  name: Baseline year fleet emission factor
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_pollutant, transport_mode]
   output_dimensions: [pollutant, transport_pollutant, transport_mode]
   input_nodes:
-  - id: baseline_year_car_emission_factor_pre
+  - id: baseline_year_fleet_emission_factor_pre
     tags: [non_additive]
     to_dimensions:
     - id: transport_pollutant
@@ -126,15 +129,15 @@ nodes:
     - id: pollutant
     - id: transport_pollutant
 
-- id: new_car_fleet_emission_factor
-  name: New car fleet emission factor
+- id: new_fleet_emission_factor
+  name: New fleet emission factor
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_pollutant, transport_mode]
   output_dimensions: [pollutant, transport_pollutant, transport_mode]
   input_nodes:
-  - id: new_car_fleet_emission_factor_pre
+  - id: new_fleet_emission_factor_pre
     tags: [non_additive]
     to_dimensions:
     - id: transport_pollutant
@@ -144,10 +147,10 @@ nodes:
     - id: pollutant
     - id: transport_pollutant
 
-- id: remaining_old_car_fleet
-  name: Remaining old car fleet
+- id: remaining_old_fleet
+  name: Remaining old fleet
   type: costs.ExponentialNode
-  description: The fraction of remaining car fleet that existed in 2018. TODO Should this be made an action?
+  description: The fraction of remaining car and bus fleet that existed in 2018. TODO Should this be made an action?
   quantity: fraction
   unit: '%'
   historical_values: [[2018, 100.0]]
@@ -162,79 +165,58 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
-- id: new_car_fleet_fraction
-  name: New car fleet fraction
+- id: fleet_replacement_rate
+  name: Fleet replacement rate
+  description: This node is needed when the new fleet replacement node class exists. TODO! It is not clear how the user input should be converted to this dataset, as it is different format for cars and buses.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: old fleet reduction rate
+
+- id: new_fleet_fraction
+  name: New fleet fraction
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
   input_nodes:
-  - id: remaining_old_car_fleet
+  - id: remaining_old_fleet
     tags: [complement]
 
-- id: car_emission_factor
-  name: Car emission factor
-  description: Emission factor for the current car fleet. TODO Note that the calculation is not identical to what is in NZC excel, because replicating that requires a new node type that will be build later. See New fleet emission factor for details.
+- id: fleet_emission_factor
+  name: Fleet emission factor
+  description: Emission factor for the current car and bus fleet. TODO Note that the calculation is not identical to what is in NZC excel, because replicating that requires a new node type that will be build later. See New fleet emission factor for details.
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_mode]
   output_dimensions: [pollutant, transport_mode]
   input_nodes:
-  - id: baseline_year_car_emission_factor
+  - id: baseline_year_fleet_emission_factor
     from_dimensions:
     - id: transport_pollutant
       flatten: true
     to_dimensions:
     - id: pollutant
     - id: transport_mode
-  - id: new_car_fleet_emission_factor
+  - id: new_fleet_emission_factor
     from_dimensions:
     - id: transport_pollutant
       flatten: true
     to_dimensions:
     - id: pollutant
     - id: transport_mode
-  - id: remaining_old_car_fleet
+  - id: remaining_old_fleet
     to_dimensions: []
-  - id: new_car_fleet_fraction
+  - id: new_fleet_fraction
     to_dimensions: []
   params:
   - id: formula
-    value: baseline_year_car_emission_factor * remaining_old_car_fleet + new_car_fleet_emission_factor * new_car_fleet_fraction
-
-- id: baseline_year_bus_emission_factor
-  name: Baseline year bus emission factor
-  description: 'Bus emission factor is calculated differently than cars, and it is not clear whether this is incentional. Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
-  =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
-  There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Because of this, the car emission factor node class can be used. Difference 3 is handled by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.'
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  historical_values: [[2018, 800], [2023, 700]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: transport_emission_factor
-    to_dimensions:
-    - id: pollutant
-      categories: [co2]
-    - id: transport_mode
-      categories: [buses]
-
-- id: bus_emission_factor
-  name: Bus emission factor
-  description: TODO Update calculations
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  historical_values: [[2018, 800], [2023, 700]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: transport_emission_factor
-    to_dimensions:
-    - id: pollutant
-      categories: [co2]
-    - id: transport_mode
-      categories: [buses]
+    value: baseline_year_fleet_emission_factor * remaining_old_fleet + new_fleet_emission_factor * new_fleet_fraction
 
 - id: train_energy_factor
   name: Train energy factor
@@ -277,7 +259,7 @@ nodes:
   input_dimensions: [pollutant, transport_mode]
   output_dimensions: [pollutant, transport_mode]
   input_nodes:
-  - id: car_emission_factor
+  - id: fleet_emission_factor
     to_dimensions:
     - id: transport_mode
     - id: pollutant
@@ -312,6 +294,16 @@ nodes:
   - id: passenger_kilometres
   - id: transport_efficiency
     tags: [geometric_inverse]
+  - id: transport_energy_carrier_shares  # FIXME Add energy_carrier
+    to_dimensions: []
+
+- id: transport_energy_carrier_shares
+  name: Transport energy carrier shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2018, 100.0], [2021, 100.0]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: transport_efficiency
   name: Transport efficiency
@@ -760,27 +752,22 @@ actions:
 
 - id: electrification_of_passenger_cars
   name: Electrification of passenger cars
-  type: simple.LinearCumulativeAdditiveAction  # FIXME MixedAction
+  type: simple.LinearCumulativeAdditiveAction  # FIXME ShiftAction
   quantity: fraction
-  unit: vkm/a
+  unit: '%'
   group: transport
   forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
   output_nodes:
-  - id: vehicle_kilometres
-    to_dimensions:
-    - id: transport_mode
-      categories: [cars]
+  - id: transport_energy_carrier_shares
+    to_dimensions: []
 
 - id: electrification_of_buses
   name: Electrification of buses
-  type: simple.LinearCumulativeAdditiveAction  # FIXME Add correct calculations
+  type: simple.LinearCumulativeAdditiveAction  # FIXME ShiftAction
   quantity: emission_factor
-  unit: g/vkm
+  unit: '%'
   group: transport
   forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
   output_nodes:
-  - id: bus_emission_factor
-#    to_dimensions:
-#    - id: transport_mode
-#      categories: [buses]
-
+  - id: transport_energy_carrier_shares
+    to_dimensions: []
