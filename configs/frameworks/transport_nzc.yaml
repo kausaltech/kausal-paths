@@ -319,8 +319,8 @@ nodes:
   - id: gpc_sector
     value: transport efficiency
 
-- id: passenger_kilometres
-  name: Passenger kilometres
+- id: passenger_kilometres_pre
+  name: Passenger kilometres data
   description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
     TODO Ask if we want to ask values per person or in total, if the variable depends directly on population size anyway. Passenger kilometre trend depends on population growth and is calculated accordingly.
 #  type: costs.ExponentialNode  # FIXME Check growth rate
@@ -335,6 +335,48 @@ nodes:
 #    ref: population_growth_rate
   - id: gpc_sector
     value: passenger kilometers
+
+- id: passenger_kilometres
+  name: Passenger kilometres
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres_pre
+    tags: [non_additive]
+  - id: motorised_transport_change
+    tags: [complement]
+
+- id: motorised_transport_index
+  name: Motorised transport index
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: motorised transport index
+
+- id: motorised_transport_change
+  name: Motorised transport change
+  description: Positive values are reductions in motorised transport.
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: reduce_all_motorised_transport
+    to_dimensions: []
+    tags: [non_additive, arithmetic_inverse]
+  - id: motorised_transport_index
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
@@ -710,22 +752,44 @@ nodes:
     - id: stakeholder
 
 actions:
-- id: reduce_all_motorized_transport
-  name: Reduce all motorized transport
+- id: reduce_all_motorised_transport
+  name: Reduce all motorised transport
   type: simple.LinearCumulativeAdditiveAction
   quantity: fraction
-  unit: Mpkm/a
+  unit: '%'
   group: transport
-  forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
-  output_nodes:
-  - id: passenger_kilometres
-    to_dimensions:
-    - id: transport_mode
-      categories: [cars]
+  forecast_values: [[2023, 0], [2030, 1.0]]
+#  output_nodes:
+#  - id: passenger_kilometres
+#    to_dimensions:
+#    - id: transport_mode
+#      categories: [cars]
+  params:
+  - id: multiplier
+    value: -35.0
+    unit: dimensionless
+    min_value: -50
+    max_value: 0
+    label: Reduction percentage
+    is_visible: true
+    is_customizable: true
+
+- id: test2
+  name: Test2
+  type: gpc.DatasetAction  # It would be nice to have multiplier parameter in this class.
+  quantity: fraction
+  unit: dimensionless
+  group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults/transport]
+  params:
+  - id: gpc_sector
+    value: motorised transport index
 
 - id: modal_switch_from_cars_to_other_modes
   name: Modal switch from cars to other modes
-  description: Find the right numbeers!  # FIXME
+  description: Find the right numbers!  # FIXME
   type: simple.LinearCumulativeAdditiveAction
   quantity: mileage
   unit: Mpkm/a

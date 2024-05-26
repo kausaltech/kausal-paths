@@ -21,7 +21,10 @@ class DatasetAction(ActionNode):
                'fuel_consumption': 'Fuel Consumption',
                'mass': 'Waste Disposal',
                'mileage': 'Mileage',
-               'unit_price': 'Unit Price'}
+               'unit_price': 'Unit Price',
+               'occupancy_factor': 'Occupancy Factor',
+               'energy_factor': 'Energy Factor',
+               'fraction': 'Fraction'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
