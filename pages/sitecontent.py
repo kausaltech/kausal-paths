@@ -1,9 +1,10 @@
-from wagtail_modeladmin.options import (ModelAdmin, ModelAdminMenuItem)
-from wagtail_modeladmin.views import EditView
+from django.utils.translation import gettext_lazy as _
 from wagtail.admin.panels import FieldPanel
+from wagtail.contrib.modeladmin.options import ModelAdmin, ModelAdminMenuItem
+from wagtail.contrib.modeladmin.views import EditView
 
 from pages.models import InstanceSiteContent
-from django.utils.translation import gettext_lazy as _
+
 
 class InstanceSiteContentModelMenuItem(ModelAdminMenuItem):
     def get_one_to_one_field(self, instance):
@@ -30,6 +31,7 @@ class SuccessUrlEditPageMixin:
     """After editing a model instance, redirect to the edit page again instead of the index page."""
     def get_success_url(self):
         return self.url_helper.get_action_url('edit', self.instance.pk)
+
 
 class SiteContentEditView(SuccessUrlEditPageMixin, EditView):
     pass
@@ -58,4 +60,3 @@ class InstanceSiteContentAdmin(ModelAdmin):
     def get_menu_item(self, order=None):
         item = InstanceSiteContentModelMenuItem(self, order or self.get_menu_order())
         return item
-
