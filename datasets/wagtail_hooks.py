@@ -1,16 +1,16 @@
 from django.utils.translation import gettext_lazy as _
+from wagtail.snippets.models import register_snippet
 
-from wagtail_modeladmin.options import (
-    ModelAdmin, modeladmin_register
-)
-from .models import Dimension
+from admin_site.viewsets import PathsViewSet
 from nodes.models import DataSource
 
+from .models import Dimension
 
-class DimensionAdmin(ModelAdmin):
+
+class DimensionViewSet(PathsViewSet):
     model = Dimension
     menu_label = _('Data dimensions')
-    menu_icon = 'kausal-dimensions'
+    icon = 'kausal-dimensions'
     menu_order = 10
     add_to_settings_menu = True
     list_display = ('label',)
@@ -21,10 +21,10 @@ class DimensionAdmin(ModelAdmin):
         return qs
 
 
-class DataSourceAdmin(ModelAdmin):
+class DataSourceViewSet(PathsViewSet):
     model = DataSource
     menu_label = _('Data sources')
-    menu_icon = 'doc-full'
+    icon = 'doc-full'
     menu_order = 11
     add_to_settings_menu = True
 
@@ -34,5 +34,5 @@ class DataSourceAdmin(ModelAdmin):
         return qs
 
 
-modeladmin_register(DataSourceAdmin)
-modeladmin_register(DimensionAdmin)
+register_snippet(DataSourceViewSet)
+register_snippet(DimensionViewSet)
