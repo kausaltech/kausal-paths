@@ -109,8 +109,6 @@ if args.instance:
     instance = instance_obj.get_instance()
     context = instance.context
 else:
-    from paths.log_handler import configure_logging
-
     loader = InstanceLoader.from_yaml(args.config)
     context = loader.context
     instance = loader.instance
