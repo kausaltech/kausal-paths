@@ -50,6 +50,9 @@ class UserManager(DjangoUserManager):
         extra_fields['uuid'] = uuid
         return super().create_superuser(username, email, password, **extra_fields)
 
+    def get_by_natural_key(self, uuid):
+        return self.get(uuid=uuid)
+
 
 class AbstractUser(DjangoAbstractUser):
     uuid = models.UUIDField(unique=True)
@@ -90,6 +93,9 @@ class AbstractUser(DjangoAbstractUser):
         if not self.username or self.username.startswith('u-'):
             return self.email
         return self.username
+
+    def natural_key(self):
+        return (str(self.uuid),)
 
     def __str__(self):
         if self.first_name and self.last_name:
