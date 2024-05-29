@@ -1,11 +1,11 @@
 from typing import Any
 
 from wagtail import hooks
-from wagtail.contrib.modeladmin.options import modeladmin_register
 from wagtail.models import Page
+from wagtail.snippets.models import register_snippet
 from wagtail.query import PageQuerySet
 
-from pages.sitecontent import InstanceSiteContentAdmin
+from pages.sitecontent import InstanceSiteContentViewSet
 from paths.types import PathsAdminRequest
 
 
@@ -24,4 +24,4 @@ def filter_page_chooser_pages(pages: PageQuerySet[Page], request: PathsAdminRequ
     return filter_pages_to_admin_instance(None, pages, request)
 
 
-modeladmin_register(InstanceSiteContentAdmin)
+register_snippet(InstanceSiteContentViewSet)
