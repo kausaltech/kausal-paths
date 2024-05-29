@@ -50,9 +50,6 @@ class UserManager(DjangoUserManager):
         extra_fields['uuid'] = uuid
         return super().create_superuser(username, email, password, **extra_fields)
 
-    def get_by_natural_key(self, uuid):
-        return self.get(uuid=uuid)
-
 
 class AbstractUser(DjangoAbstractUser):
     uuid = models.UUIDField(unique=True)
