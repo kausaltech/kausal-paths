@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b201afa9e0608df9c2da8567d5069d33fd5752b7
+  commit: b80adfc41d66d1eb7427d94d9d81c09cdfd5bfc0
   dvc_remote: kausal-s3
 name: Potsdam BASIC+ Treibhausgasinventar
 owner: Stadt Potsdam
@@ -100,33 +100,36 @@ emission_sectors:
 - id: net_emissions
   name: Netto-Emissionen
   is_outcome: true
-
+  goals:
+  - label: Ziel Netto-Emissionen
+    default: true
+    is_main_goal: true
+    values:
+    - year: 2030
+      value: 551
+    - year: 2050
+      value: 234
 
 nodes:
-- id: witterungsbereinigung
+- id: weather_correction
   name: Witterungsbereinigung
   type: gpc.CorrectionNode
   quantity: ratio
   unit: dimensionless
-  historical_values: [[1995, 1], [1999, 1], [2003, 1], [2008, 1.11], [2012, 1.04],
-    [2014, 1.21], [2017, 1.11], [2020, 1.2], [1021, 1.05], [2022, 1.18], [2023, 1.22]]
-  input_dataset_processors: [LinearInterpolation]
-#  input_datasets:  # FIXME update the dataset
-#  - id: gpc/potsdam
-#    forecast_from: 2024
+  input_datasets:
+  - id: gpc/potsdam
+    forecast_from: 2023
   params:
   - id: do_correction
     ref: weather_correction
-#  - id: gpc_sector
-#    value: I
+  - id: gpc_sector
+    value: I
+  - id: inventory_only
+    value: false
   output_nodes:
   - id: i11_residential_fuel_consumption
     tags: non_additive
-    to_dimensions:
-    - id: energietrager
-      categories: [gas]  # FIXME Should apply to all categories
-    - id: scope
-      categories: [scope1]
+    to_dimensions: []
 
 - id: i11_residential_fuel_consumption
   name: I.1.1 Brennstoffverbrauch Wohngebäude
@@ -528,8 +531,7 @@ nodes:
 
 - id: i_stationary_energy
   name: Stationärer Energieverbrauch
-#  type: simple.AdditiveNode
-  type: formula.FormulaNode  # FIXME Define the processes: do we want AdditiveNode to fill in blank years?
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energietrager, scope]
@@ -539,9 +541,6 @@ nodes:
   - i12_residential_grid_energy_consumption
   output_nodes:
   - total_energy_consumption
-  params:
-  - id: formula
-    value: i11_residential_fuel_consumption + i12_residential_grid_energy_consumption
 
 - id: electricity_consumption_without_heating
   name: Stromverbrauch (ohne Heizung)
