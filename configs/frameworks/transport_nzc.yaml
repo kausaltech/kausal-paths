@@ -307,8 +307,7 @@ nodes:
 
 - id: transport_efficiency
   name: Transport efficiency
-  description: 'Transport efficiency comes from CDR D28:d30 via MIA D188:190. It is constant across time.
-    <p>DIMENSIONS: Vehicle type (car, bus, train, walking)</p>' 
+  description: 'Transport efficiency comes from CDR D28:d30 via MIA D188:190. It is constant across time, except if modified by an action.'
   type: gpc.DatasetNode
   quantity: occupancy_factor
   unit: pkm/vkm
@@ -327,7 +326,9 @@ nodes:
   type: gpc.DatasetNode
   quantity: mileage
   unit: Mpkm/a
-  input_datasets: [nzc/defaults/transport]
+  input_datasets:
+  - id: nzc/defaults/transport
+    forecast_from: 2023
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   params:
@@ -346,8 +347,13 @@ nodes:
   input_nodes:
   - id: passenger_kilometres_pre
     tags: [non_additive]
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions: []
   - id: motorised_transport_change
     tags: [complement]
+  - id: transport_mode_fraction
 
 - id: motorised_transport_index
   name: Motorised transport index
@@ -751,19 +757,27 @@ nodes:
     - id: cost_type
     - id: stakeholder
 
+- id: transport_mode_fraction
+  name: Transport mode fraction
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres_pre
+    tags: activity
+
 actions:
 - id: reduce_all_motorised_transport
   name: Reduce all motorised transport
-  type: simple.LinearCumulativeAdditiveAction
+  type: simple.LinearCumulativeAdditiveAction  # FIXME Allow historical values in this node class.
   quantity: fraction
   unit: '%'
   group: transport
+  historical_values: [[2020, 0], [2022, 0]]
   forecast_values: [[2023, 0], [2030, 1.0]]
-#  output_nodes:
-#  - id: passenger_kilometres
-#    to_dimensions:
-#    - id: transport_mode
-#      categories: [cars]
+  input_dataset_processors: [LinearInterpolation]
   params:
   - id: multiplier
     value: -35.0
@@ -774,56 +788,75 @@ actions:
     is_visible: true
     is_customizable: true
 
-- id: test2
-  name: Test2
-  type: gpc.DatasetAction  # It would be nice to have multiplier parameter in this class.
-  quantity: fraction
-  unit: dimensionless
-  group: transport
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults/transport]
-  params:
-  - id: gpc_sector
-    value: motorised transport index
-
 - id: modal_switch_from_cars_to_other_modes
   name: Modal switch from cars to other modes
-  description: Find the right numbers!  # FIXME
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: mileage
-  unit: Mpkm/a
+  description: Ca. 50 % of passsenger kilometres are by car, and 30 % of that is shifted to other transport modes. The shifted percentages add up. However, if the different transport mode activities change due to other reasons, the absolute passenger kilometres may change due to this action. TODO Check if this is OK, as in the excel, the shifts are absolute passenger kilometres and therefore always add up.
+  type: shift.ShiftAction
+  quantity: mix
+  unit: '%'
   group: transport
-  forecast_values: [[2023, 0], [2030, -1085]]  # 3100 * 0.35
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          transport_mode: cars
+      dests:
+      - categories:
+          transport_mode: buses
+      - categories:
+          transport_mode: trains
+      - categories:
+          transport_mode: walking
+      amounts:
+      - {year: 2024, source_amount: -2.15, dest_amounts: [10, 60, 30]}
+      - {year: 2025, source_amount: -2.15, dest_amounts: [10, 60, 30]}
+      - {year: 2026, source_amount: -2.15, dest_amounts: [10, 60, 30]}
+      - {year: 2027, source_amount: -2.15, dest_amounts: [10, 60, 30]}
+      - {year: 2028, source_amount: -2.15, dest_amounts: [10, 60, 30]}
+      - {year: 2029, source_amount: -2.15, dest_amounts: [10, 60, 30]}
+      - {year: 2030, source_amount: -2.15, dest_amounts: [10, 60, 30]}
   output_nodes:
-  - id: passenger_kilometres
-    to_dimensions:
-    - id: transport_mode
-      categories: [cars]
+  - transport_mode_fraction
 
 - id: car_pooling
   name: Car pooling
+  description: The baseline value for car occupancy is 1.2 pkm/vkm. Therefore, 25 % improvement is 0.3 pkm/vkm. TODO If the baseline changes, the percentages will be from the wrong value.
   type: simple.LinearCumulativeAdditiveAction
   quantity: fraction
   unit: pkm/vkm
   group: transport
-  forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
+  forecast_values: [[2023, 0], [2030, 1.2]]
   output_nodes:
   - id: transport_efficiency
     to_dimensions:
     - id: transport_mode
       categories: [cars]
+  params:
+  - id: multiplier
+    is_customizable: true
+    unit: '%'
+    value: 25.0
+    min_value: 0
+    max_value: 50
 
-- id: electrification_of_passenger_cars
+- id: electrification_of_passenger_cars  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
   name: Electrification of passenger cars
   type: simple.LinearCumulativeAdditiveAction  # FIXME ShiftAction
   quantity: fraction
   unit: '%'
   group: transport
-  forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
+  forecast_values: [[2023, 0.0], [2024, 8], [2025, 13], [2026, 19], [2027, 28], [2028, 39], [2029, 51], [2030, 63]]  # 1.2 * 25 %
   output_nodes:
   - id: transport_energy_carrier_shares
     to_dimensions: []
+  params:
+  - id: multiplier
+    unit: '%'
+    is_customizable: false
+    value: 35
 
 - id: electrification_of_buses
   name: Electrification of buses
