@@ -36,8 +36,9 @@ emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
+  description: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan 20 % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
   is_outcome: true
-  target_year_goal: 112.2
+  target_year_goal: 72.7
 
 nodes:
 - id: population

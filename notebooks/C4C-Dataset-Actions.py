@@ -11,7 +11,7 @@ outcsvpath = sys.argv[3]
 outdvcpath = sys.argv[4]
 
 unitreplace = [['tCO2e', 't'],
-               ['vkm', 'km'], ['p-km', 'km'], ['Mkm', 'Gm'],
+               ['p-km', 'pkm'], ['Mkm', 'Gm'],
                ['€', 'EUR']]
 
 # ---------------------------------------------------------------------------------------
@@ -37,15 +37,15 @@ unitcol = df.select('Unit').to_series(0).to_list()
 for ur in unitreplace:
     unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
 df = df.with_columns(pl.Series(name = 'Unit', values = unitcol))
-
-scopecol = df.select('Scope').to_series(0).to_list()
-labels = []
-for x in scopecol:
-    if x:
-        labels.append('Scope %i' % x)
-    else:
-        labels.append(x)
-df = df.with_columns(pl.Series(name = 'Scope', values = labels))
+if 'Scope' in df.columns:
+    scopecol = df.select('Scope').to_series(0).to_list()
+    labels = []
+    for x in scopecol:
+        if x:
+            labels.append('Scope %i' % x)
+        else:
+            labels.append(x)
+    df = df.with_columns(pl.Series(name = 'Scope', values = labels))
 
 # ---------------------------------------------------------------------------------------
 dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),

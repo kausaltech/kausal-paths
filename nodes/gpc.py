@@ -2,7 +2,7 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from params import StringParameter, BoolParameter
-from nodes.calc import extend_last_historical_value
+from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
 from nodes.dimensions import Dimension
 from nodes.node import Node
@@ -11,7 +11,8 @@ from common import polars as ppl
 
 
 class DatasetNode(AdditiveNode):
-    allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
+    allowed_parameters = AdditiveNode.allowed_parameters + [
+        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
 
     qlookup = {'currency': 'Price',  # FIXME Should be case-insensitive and later accept other languages
                'emission_factor': 'Emission Factor',
@@ -23,7 +24,8 @@ class DatasetNode(AdditiveNode):
                'unit_price': 'Unit Price',
                'occupancy_factor': 'Occupancy Factor',
                'fraction': 'Fraction',
-               'energy_factor': 'Energy Factor'}
+               'energy_factor': 'Energy Factor',
+               'ratio': 'Ratio'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
@@ -140,15 +142,24 @@ class DatasetNode(AdditiveNode):
         return df
 
 
-class CorrectionNode(AdditiveNode):  # FIXME Make this a child of gpc.DatasetNode
-    allowed_parameters = AdditiveNode.allowed_parameters + [
+class CorrectionNode(DatasetNode):
+    allowed_parameters = DatasetNode.allowed_parameters + [
         BoolParameter('do_correction', description = 'Should the values be corrected?')
     ]
     def compute(self):
         df = super().compute()
+        df = ppl.from_pandas(df)  # FIXME Shouldn't this be done in DatasetNode?
         do_correction = self.get_parameter_value('do_correction', required=True)
 
         if not do_correction:
-            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(1))
+            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(1.0))
+
+        # FIXME Should this code be in the DatasetNode instead?
+        inventory_only = self.get_parameter_value('inventory_only', required=False)
+        if inventory_only is not None:
+            if inventory_only:
+                df = df.filter(pl.col(FORECAST_COLUMN) == False)
+            else:
+                df = extend_last_historical_value_pl(df, self.get_end_year())
 
         return df
