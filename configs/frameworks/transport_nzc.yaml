@@ -8,6 +8,8 @@
 # scope
 # transport_mode
 # pollutant
+# transport_pollutant
+# energy_carrier
 # stakeholder
 # Required parameters from outside the framework:
 # population_growth_rate
@@ -27,8 +29,10 @@ nodes:
     from_dimensions:
     - id: transport_mode
       flatten: true
-  input_dimensions: [transport_mode, ghg, scope]
-  output_dimensions: [transport_mode, ghg, scope]
+    - id: energy_carrier
+      flatten: true
+  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
   input_nodes:
   - id: vehicle_kilometres
     to_dimensions:
@@ -37,8 +41,10 @@ nodes:
     - id: scope
       categories: [scope1]
     - id: transport_mode
+    - id: energy_carrier
   - id: transport_emission_factor
     from_dimensions:
+    - id: energy_carrier
     - id: pollutant
       categories: [co2]
       flatten: true
@@ -104,8 +110,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [pollutant, transport_pollutant]
-  output_dimensions: [pollutant, transport_pollutant]
+  input_dimensions: [pollutant, transport_pollutant, energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, energy_carrier]
   input_datasets: [nzc/defaults/transport]
   params:
   - id: gpc_sector
@@ -116,8 +122,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_pollutant, transport_mode]
-  output_dimensions: [pollutant, transport_pollutant, transport_mode]
+  input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: baseline_year_fleet_emission_factor_pre
     tags: [non_additive]
@@ -128,14 +134,15 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: transport_pollutant
+    - id: energy_carrier
 
 - id: new_fleet_emission_factor
   name: New fleet emission factor
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_pollutant, transport_mode]
-  output_dimensions: [pollutant, transport_pollutant, transport_mode]
+  input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: new_fleet_emission_factor_pre
     tags: [non_additive]
@@ -146,6 +153,7 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: transport_pollutant
+    - id: energy_carrier
 
 - id: remaining_old_fleet
   name: Remaining old fleet
@@ -193,8 +201,8 @@ nodes:
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_mode]
-  output_dimensions: [pollutant, transport_mode]
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: baseline_year_fleet_emission_factor
     from_dimensions:
@@ -203,6 +211,7 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: transport_mode
+    - id: energy_carrier
   - id: new_fleet_emission_factor
     from_dimensions:
     - id: transport_pollutant
@@ -210,6 +219,7 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: transport_mode
+    - id: energy_carrier
   - id: remaining_old_fleet
     to_dimensions: []
   - id: new_fleet_fraction
@@ -235,7 +245,7 @@ nodes:
   - id: gpc_sector
     value: train energy factor
 
-- id: train_emission_factor
+- id: train_emission_factor  # FIXME Calculate electricity emissions separately for all transport modes.
   name: Train emission factor
   description: TODO Update calculations
   type: simple.MultiplicativeNode
@@ -249,6 +259,11 @@ nodes:
     - id: pollutant
   output_nodes:
   - id: transport_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: pollutant
+    - id: transport_mode
 
 - id: transport_emission_factor
   name: Transport emission factor
@@ -256,21 +271,22 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_mode]
-  output_dimensions: [pollutant, transport_mode]
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: fleet_emission_factor
     to_dimensions:
     - id: transport_mode
     - id: pollutant
+    - id: energy_carrier
 
 - id: transport_air_pollution_emissions
   name: Transport air pollution emissions
   type: simple.MultiplicativeNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
-  input_dimensions: [pollutant, transport_mode]
-  output_dimensions: [pollutant, transport_mode]
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: transport_emission_factor
     from_dimensions:
@@ -279,31 +295,42 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: transport_mode
+    - id: energy_carrier
   - id: vehicle_kilometres
     to_dimensions:
     - id: transport_mode
+    - id: energy_carrier
 
 - id: vehicle_kilometres
   name: Vehicle kilometres
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
   - id: passenger_kilometres
+    to_dimensions:
+    - id: transport_mode
   - id: transport_efficiency
+    to_dimensions:
+    - id: transport_mode
     tags: [geometric_inverse]
-  - id: transport_energy_carrier_shares  # FIXME Add energy_carrier
-    to_dimensions: []
+  - id: transport_energy_carrier_shares
 
 - id: transport_energy_carrier_shares
   name: Transport energy carrier shares
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
-  unit: '%'
-  historical_values: [[2018, 100.0], [2021, 100.0]]
-  input_dataset_processors: [LinearInterpolation]
+  unit: dimensionless
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_datasets:
+  - id: nzc/defaults/transport  # FIXME It should be possible to define units dimensionless for dataset and % for node
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: transport energy carrier shares
 
 - id: transport_efficiency
   name: Transport efficiency
@@ -431,6 +458,9 @@ nodes:
     - id: cost_type
     - id: pollutant
   - id: transport_air_pollution_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: transport_mode
     - id: pollutant
@@ -459,6 +489,8 @@ nodes:
   - id: transport_emissions
     from_dimensions:
     - id: ghg
+      flatten: true
+    - id: energy_carrier
       flatten: true
     to_dimensions:
     - id: scope
@@ -637,6 +669,11 @@ nodes:
     - id: transport_mode
     - id: cost_type
   - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier  # FIXME Check that the costs are the same for electric buses
+      flatten: true
+    - id: transport_mode
+      categories: [buses, trains]
     to_dimensions:
     - id: transport_mode
   - id: public_transport_operation_cost_shares
@@ -686,6 +723,9 @@ nodes:
     - id: pollutant
       categories: [co2]
       flatten: true
+    - id: energy_carrier
+      categories: [petrol_diesel]
+      flatten: true
     to_dimensions:
     - id: transport_mode
   - id: transport_energy_factor_ice_petrol_diesel
@@ -693,6 +733,10 @@ nodes:
     - id: transport_mode
       categories: [cars]
   - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      categories: [petrol_diesel]
+      flatten: true
     to_dimensions:
     - id: transport_mode
   - id: fuel_unit_price
@@ -768,7 +812,7 @@ nodes:
   - id: passenger_kilometres_pre
     tags: activity
 
-actions:
+actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
 - id: reduce_all_motorised_transport
   name: Reduce all motorised transport
   type: simple.LinearCumulativeAdditiveAction  # FIXME Allow historical values in this node class.
@@ -842,29 +886,62 @@ actions:
     min_value: 0
     max_value: 50
 
-- id: electrification_of_passenger_cars  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
+- id: electrification_of_passenger_cars
   name: Electrification of passenger cars
-  type: simple.LinearCumulativeAdditiveAction  # FIXME ShiftAction
+  type: shift.ShiftAction
   quantity: fraction
   unit: '%'
   group: transport
-  forecast_values: [[2023, 0.0], [2024, 8], [2025, 13], [2026, 19], [2027, 28], [2028, 39], [2029, 51], [2030, 63]]  # 1.2 * 25 %
-  output_nodes:
-  - id: transport_energy_carrier_shares
-    to_dimensions: []
   params:
-  - id: multiplier
+  - id: shift
     unit: '%'
     is_customizable: false
-    value: 35
+    value:
+    - source:
+        categories:
+          transport_mode: cars
+          energy_carrier: petrol_diesel
+      dests:
+      - categories:
+          transport_mode: cars
+          energy_carrier: electricity
+      amounts:
+      - {year: 2024, source_amount: -8.4, dest_amounts: [100]}
+      - {year: 2025, source_amount: -4.3, dest_amounts: [100]}
+      - {year: 2026, source_amount: -5.0, dest_amounts: [100]}
+      - {year: 2027, source_amount: -7.3, dest_amounts: [100]}
+      - {year: 2028, source_amount: -10.9, dest_amounts: [100]}
+      - {year: 2029, source_amount: -12.2, dest_amounts: [100]}
+      - {year: 2030, source_amount: -13.1, dest_amounts: [100]}
+  output_nodes:
+  - transport_energy_carrier_shares
 
 - id: electrification_of_buses
   name: Electrification of buses
-  type: simple.LinearCumulativeAdditiveAction  # FIXME ShiftAction
+  type: shift.ShiftAction
   quantity: emission_factor
   unit: '%'
   group: transport
-  forecast_values: [[2023, 0], [2030, 0.3]]  # 1.2 * 25 %
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          transport_mode: buses
+          energy_carrier: petrol_diesel
+      dests:
+      - categories:
+          transport_mode: buses
+          energy_carrier: electricity
+      amounts:
+      - {year: 2024, source_amount: -23.0, dest_amounts: [100]}
+      - {year: 2025, source_amount: -10.0, dest_amounts: [100]}
+      - {year: 2026, source_amount: -10.0, dest_amounts: [100]}
+      - {year: 2027, source_amount: -10.0, dest_amounts: [100]}
+      - {year: 2028, source_amount: -15.0, dest_amounts: [100]}
+      - {year: 2029, source_amount: -15.0, dest_amounts: [100]}
+      - {year: 2030, source_amount: -17.0, dest_amounts: [100]}
   output_nodes:
-  - id: transport_energy_carrier_shares
-    to_dimensions: []
+  - transport_energy_carrier_shares
