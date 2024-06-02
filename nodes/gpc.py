@@ -25,7 +25,9 @@ class DatasetNode(AdditiveNode):
                'occupancy_factor': 'Occupancy Factor',
                'fraction': 'Fraction',
                'energy_factor': 'Energy Factor',
-               'ratio': 'Ratio'}
+               'ratio': 'Ratio',
+               'floor_area': 'Floor Area',
+               'amount': 'Amount'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):

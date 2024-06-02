@@ -25,17 +25,20 @@ nodes:
   name: Existing building stock
   description: 'Data sources:<ul><li>Model inputs & assumptions, F250. Size of building stock. 
     </li><li>Model inputs & assumptions, F519. Rate of demolition and new construction.</li><li>Model inputs & assumptions, F257. Retrofitted area %.</li></ul>
-    Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.
-    <p>DIMENSIONS: building_energy_class</p>'
-  type: costs.ExponentialNode
+    Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.'
+  type: gpc.DatasetNode
   quantity: floor_area
   unit: km**2
-  historical_values: [[2018, 78.276], [2019, 78.276], [2020, 78.276]]
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults/buildings
+    forecast_from: 2023
   params:
-  - id: annual_change
-    ref: population_growth_rate
+  - id: gpc_sector
+    value: size of building stock
 
-- id: building_stock
+- id: building_stock  # FIXME Calculate the demolition
   name: Building stock
   description: Existing building stock minus demolition and new construction.
   type: simple.AdditiveNode
@@ -47,21 +50,36 @@ nodes:
   - id: existing_building_stock
     to_dimensions:
     - id: building_energy_class
-      categories: [old_no_renovations]
 
 - id: energy_use_intensity
   name: Energy use intensity
-  type: simple.AdditiveNode
+  description: Data comes from user for minimum building standard (38 comes from Madrid as a placeholder)
+  type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
-  historical_values: [[2020, 21]]
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults/buildings
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: energy use intensity
 
 - id: building_heating_type_share
   name: Building heating type share
-  type: simple.AdditiveNode
+  description: Assumes 1 % district and 99 % local heating. Data comes from the user.
+  type: gpc.DatasetNode
   quantity: fraction
-  unit: '%'
-  historical_values: [[2020, 99]]
+  unit: dimensionless
+  input_dimensions: [heating_type, scope]
+  output_dimensions: [heating_type, scope]
+  input_datasets:
+  - id: nzc/defaults/buildings
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: building heating shares
 
 - id: building_energy_use
   name: Building energy use
@@ -69,8 +87,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class]
-  output_dimensions: [heating_type, building_energy_class]
+  input_dimensions: [heating_type, building_energy_class, scope]
+  output_dimensions: [heating_type, building_energy_class, scope]
   input_nodes:
   - id: building_stock
     to_dimensions:
@@ -78,18 +96,25 @@ nodes:
   - id: energy_use_intensity
     to_dimensions:
     - id: building_energy_class
-      categories: [old_no_renovations]
   - id: building_heating_type_share
     to_dimensions:
     - id: heating_type
-      categories: [local_heating]
+    - id: scope
 
 - id: heating_emission_factor
   name: Heating emission factor
-  type: simple.AdditiveNode
+  description: Emission factor for building heating
+  type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
-  historical_values: [[2020, 200]]
+  input_dimensions: [pollutant, heating_type]
+  output_dimensions: [pollutant, heating_type]
+  input_datasets:
+  - id: nzc/defaults/buildings
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: heat emission factor
 
 - id: building_heating_emissions
   name: Building heating emissions
@@ -100,21 +125,38 @@ nodes:
   output_dimensions: [heating_type, ghg, scope]
   input_nodes:
   - id: building_energy_use
-    to_dimensions:
-    - id: heating_type
     from_dimensions:
     - id: building_energy_class
       flatten: true
-  - id: heating_emission_factor
     to_dimensions:
     - id: heating_type
-      categories: [local_heating]
+    - id: scope
+  - id: heating_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: heating_type
     - id: ghg
       categories: [co2e]
-    - id: scope
-      categories: [scope2]
   output_nodes:
   - id: building_emissions
     from_dimensions:
     - id: heating_type
       flatten: true
+
+#actions:
+
+#- id: renovation_rate
+#  name: Renovation rate
+#  description: 'Default 1 %, BPIE (2011) - "Europe's buildings under the microscope". http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
+#  type: shift.ShiftAction
+#  quantity: fraction
+#  unit: '%'
+#  params:
+#  - id: shift
+#    unit: '%'
+#    values:
+#    - year: 2023
+#      value: 1

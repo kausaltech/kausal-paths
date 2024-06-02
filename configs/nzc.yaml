@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dac540622d99bc35de801bf01c6eb3e53536f9ef
+  commit: 5f7b4f0971d3c67e5b74d2a51183ef700008a085
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -156,6 +156,12 @@ dimensions:
   - id: cycling
     label: Cycling
     label_fi: Pyöräily
+  - id: light_trucks
+    label: Light duty trucks <3.5 tonne
+  - id: heavy_trucks
+    label: Heavy duty trucks >3.5 tonne
+  - id: other_motorized
+    label: Other motorized transport
 
 - id: energy_carrier
   label: Energy carrier
@@ -164,20 +170,76 @@ dimensions:
     label: Petrol and diesel
   - id: electricity
     label: Electricity
+  - id: fossil
+    label: Fossil (oil, coal, gas) + inefficient electric heating (not heat pumps)
+  - id: heat_pump
+    label: Electric heat pumps / geothermal
+  - id: bioenergy
+    label: Bio (biogas, biomass) and solar heaters
+  - id: waste
+    label: Waste (fossil & non-fossil waste)
+
+- id: fuel_type
+  label: Fuel type
+  categories:
+  - id: fossil
+    label: Fossil
+  - id: non_fossil
+    label: Non-fossil
+  - id: other
+    label: Other (e.g. nuclear)
+
+- id: waste_type
+  label: Waste type
+  categories:
+  - id: paper
+    label: Paper and cardboard
+  - id: metal
+    label: Metal
+  - id: plastics
+    label: Plastics
+  - id: glass
+    label: Glass
+  - id: organic_waste
+    label: Organic waste
+  - id: other_waste
+    label: Other waste (e.g. textiles, rubble, wood etc)
+
+- id: waste_treatment
+  label: Waste treatment
+  categories:
+  - id: other
+    label: Other waste management
+  - id: incinerated
+    label: Incinerated (e.g. energy recovery)
+  - id: recycled
+    label: Recycled
+  - id: decay
+    label: Organic decay (waste)
+  - id: landfill_gas
+    label: Landfill gas
 
 - id: building_energy_class
   label: Building energy class
   categories:
   - id: new_standard
     label: New, stadard
-  - id: new_better_than_standard
-    label: New, better than standard
+  - id: new_top_performance
+    label: New, top performance
   - id: old_no_renovations
     label: Old, no renovations
   - id: old_minor_heating_renovations
     label: Old, minor heating renovations
   - id: old_extensive_heating_renovations
     label: Old, extensive heating renovations
+
+- id: efficiency_programme
+  label: Energy efficiency programme
+  categories:
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
 
 - id: heating_type
   label: Heating type
@@ -186,6 +248,26 @@ dimensions:
     label: District heating
   - id: local_heating
     label: Local heating
+
+- id: city_area
+  label: City area
+  categories:
+  - id: grey_inside
+    label: Grey area inside city
+  - id: green_inside
+    label: Green area inside city
+  - id: green_outside
+    label: Green area outside city
+  - id: grey_outside
+    label: Grey area outside city
+
+- id: area_distance
+  label: Area distance
+  categories:
+  - id: inside
+    label: Inside city
+  - id: outside
+    label: Outside city
 
 - id: stakeholder
   label: Stakeholder
