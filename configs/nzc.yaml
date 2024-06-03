@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 47c2c850f63aa898a643943f3dae212690a972ac
+  commit: 0597bddf38b8cbcd616f9f12c11fd5c6906c891d
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -137,6 +137,14 @@ dimensions:
     label: Health
   - id: co2_cost
     label: CO2 Cost
+  - id: aesthetics
+    label: Aesthetics and amenity
+  - id: shading
+    label: Shading
+  - id: water_regulation
+    label: Water regulation
+  - id: forest_management
+    label: Forest management
 
 - id: ghg
   label: Greenhouse gas
@@ -156,6 +164,8 @@ dimensions:
   - id: trains
     label: Trains
     label_fi: Junat
+  - id: public_transport
+    label: Public transport
   - id: walking
     label: Walking
     label_fi: Kävely
@@ -166,6 +176,8 @@ dimensions:
     label: Light duty trucks <3.5 tonne
   - id: heavy_trucks
     label: Heavy duty trucks >3.5 tonne
+  - id: trucks
+    label: Trucks
   - id: other_motorized
     label: Other motorized transport
 
@@ -326,12 +338,16 @@ dimensions:
     label: Citizens
   - id: property_owners
     label: Property owners
+  - id: cities
+    label: Cities
   - id: city
     label: City
   - id: healthcare_providers
     label: Healthcare providers
   - id: transport_operators
     label: Transport operators
+  - id: utilities
+    label: Utilities
 
 emission_sectors:
 - id: net_emissions
