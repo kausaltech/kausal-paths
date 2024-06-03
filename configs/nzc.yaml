@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5f7b4f0971d3c67e5b74d2a51183ef700008a085
+  commit: 47c2c850f63aa898a643943f3dae212690a972ac
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -117,10 +117,16 @@ dimensions:
     label: Energy Costs
   - id: investment_costs
     label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: opex
+    label: OPEX (operational expenditure)
   - id: maintenance_costs
     label: Maintenance Costs
   - id: operation_cost  # FIXME Overlaps with maintenance_costs
     label: Operation Cost
+  - id: sales
+    label: Sales income
   - id: air_pollution
     label: Air pollution
   - id: noise
@@ -188,6 +194,14 @@ dimensions:
     label: Non-fossil
   - id: other
     label: Other (e.g. nuclear)
+  - id: local_pv
+    label: Local photovoltaics
+  - id: centralised_pv
+    label: Centralised photovoltaics
+  - id: pv
+    label: Photovoltaics
+  - id: flexibility
+    label: Flexibility
 
 - id: waste_type
   label: Waste type
@@ -216,6 +230,12 @@ dimensions:
     label: Recycled
   - id: decay
     label: Organic decay (waste)
+  - id: sorting
+    label: Sorting
+  - id: plastic_sorting
+    label: Plastic sorting
+  - id: landfill
+    label: Landfill
   - id: landfill_gas
     label: Landfill gas
 
@@ -223,19 +243,21 @@ dimensions:
   label: Building energy class
   categories:
   - id: new_standard
-    label: New, stadard
+    label: New, standard
   - id: new_top_performance
     label: New, top performance
   - id: old_no_renovations
-    label: Old, no renovations
-  - id: old_minor_heating_renovations
-    label: Old, minor heating renovations
-  - id: old_extensive_heating_renovations
-    label: Old, extensive heating renovations
+    label: Old, no renovation
+  - id: minor_renovation
+    label: Old, minor heating renovation
+  - id: major_renovation
+    label: Old, extensive heating renovation
 
 - id: efficiency_programme
   label: Energy efficiency programme
   categories:
+  - id: no_improvement
+    label: No improvement
   - id: minor_improvements
     label: Minor improvements
   - id: aggressive_improvements
@@ -252,6 +274,10 @@ dimensions:
 - id: city_area
   label: City area
   categories:
+  - id: grey
+    label: Grey area
+  - id: green
+    label: Green area
   - id: grey_inside
     label: Grey area inside city
   - id: green_inside
@@ -268,6 +294,30 @@ dimensions:
     label: Inside city
   - id: outside
     label: Outside city
+
+- id: diet
+  label: Diet
+  categories:
+  - id: current_average
+    label: Current average
+  - id: flexitarian
+    label: Flexitarian
+  - id: pescetarian
+    label: Pescetarian
+  - id: vegetarian
+    label: Vegetarian
+  - id: vegan
+    label: Vegan
+
+- id: material
+  label: Material
+  categories:
+  - id: concrete
+    label: Concrete
+  - id: steel
+    label: Steel
+  - id: plastics
+    label: Plastics
 
 - id: stakeholder
   label: Stakeholder
@@ -297,8 +347,7 @@ nodes:
   historical_values: [[2020, 820000]]
   params:
   - id: annual_change
-    value: 0.2
-    unit: '%'
+    ref: population_growth_rate
 
 - id: electricity_production_emission_factor
   name: Electricity production emission factor

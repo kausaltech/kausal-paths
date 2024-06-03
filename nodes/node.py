@@ -34,6 +34,7 @@ from nodes.constants import (
     get_quantity_icon,
 )
 from nodes.goals import NodeGoals
+from nodes.calc import extend_last_historical_value_pl
 from params import Parameter
 from params.param import ParameterWithUnit
 
@@ -976,6 +977,8 @@ class Node:
                     break
             else:
                 raise NodeError(self, "No connection to target node %s" % target_node.id)
+            if 'extend_values' in edge.tags:
+                res = extend_last_historical_value_pl(res, self.get_end_year())
             if 'arithmetic_inverse' in edge.tags:
                 res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
             if 'geometric_inverse' in edge.tags:
@@ -987,6 +990,10 @@ class Node:
                     raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
                 res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
                 res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+            if 'difference' in edge.tags:  # FIXME Convert unit to unit / a
+                res = res.with_columns((pl.col(VALUE_COLUMN).diff().fill_null(0)).alias(VALUE_COLUMN))
+            if 'cumulative' in edge.tags:  # FIXME Convert unit to unit * a
+                res = res.with_columns((pl.col(VALUE_COLUMN).cumsum()).alias(VALUE_COLUMN))
 
         return res
 

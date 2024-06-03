@@ -5,6 +5,7 @@ import polars as pl
 from nodes.units import Unit, unit_registry
 
 from nodes.node import NodeMetric, Node, NodeError
+from nodes.calc import extend_last_historical_value_pl
 import common.polars as ppl
 from params.param import NumberParameter, StringParameter, BoolParameter
 from params.utils import sep_unit, sep_unit_pt
@@ -108,6 +109,12 @@ class ExponentialNode(AdditiveNode):
 
         else:
             df = super().compute()
+
+            if self.get_parameter_value('inventory_only', required=False):
+                df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+            else:
+                df = extend_last_historical_value_pl(df, self.get_end_year())
+
             current_year = self.get_last_historical_year()
             if current_year is None:
                 current_year = df[YEAR_COLUMN].min() - 1
