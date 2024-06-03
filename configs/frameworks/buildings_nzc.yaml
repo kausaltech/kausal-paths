@@ -314,8 +314,6 @@ nodes:
   - id: annual_change  # FIXME from nzc/defaults/assumptions Cost improvements - new buildings
     value: -1.024671139
     unit: '%'
-#  - id: is_decreasing_rate
-#    value: true
 
 - id: new_building_cost
   name: New building cost
@@ -335,8 +333,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
-#  input_dimensions: [energy_carrier]
-#  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults/buildings
     forecast_from: 2023
@@ -361,8 +359,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
   - id: nzc/defaults/actions
     forecast_from: 2023
@@ -370,13 +368,13 @@ nodes:
   - id: gpc_sector
     value: efficiency programme shares
 
-- id: efficiency_improved_buildings  # FIXME Update defaults/actions to get the reduction of no-improvement.
+- id: efficiency_improved_buildings
   name: Efficiency improved buildings
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2
-  input_dimensions: [efficiency_programme]  # FIXME electricity
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
   - id: building_stock
     tags: [non_additive]
@@ -393,8 +391,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
@@ -407,8 +405,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
@@ -421,8 +419,8 @@ nodes:
   type: costs.ExponentialNode
   quantity: unit_price
   unit: EUR/m**2
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
   - id: efficiency_programme_current_unit_price
   params:
@@ -437,8 +435,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
   - id: efficiency_improved_buildings
   - id: efficiency_programme_unit_price
@@ -452,14 +450,14 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
   - id: consumer_electricity_intensity_baseline
-    to_dimensions: []
     tags: [non_additive]
+    to_dimensions: 
+    - id: energy_carrier
   - id: reduced_electricity_need
     tags: [complement]
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
-      categories: [electricity]  # FIXME
 
 - id: consumer_electricity_use
   name: Electricity use for lighting & appliances
@@ -480,10 +478,13 @@ nodes:
     to_dimensions:
     - id: efficiency_programme
       categories: [no_improvement]
+    - id: energy_carrier
+      categories: [electricity]
   - id: efficiency_improved_buildings
     tags: [cumulative]
     to_dimensions:
     - id: efficiency_programme
+    - id: energy_carrier
   params:
   - id: formula
     value: (building_stock + efficiency_improved_buildings) * consumer_electricity_intensity
@@ -557,6 +558,8 @@ nodes:
   - id: efficiency_programme_cost
     from_dimensions:
     - id: efficiency_programme
+      flatten: true
+    - id: energy_carrier
       flatten: true
 
 #actions:

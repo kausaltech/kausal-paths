@@ -348,7 +348,6 @@ nodes:
 - id: passenger_kilometres_pre
   name: Passenger kilometres data
   description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
-    TODO Ask if we want to ask values per person or in total, if the variable depends directly on population size anyway. Passenger kilometre trend depends on population growth and is calculated accordingly.
 #  type: costs.ExponentialNode  # FIXME Check growth rate
   type: gpc.DatasetNode
   quantity: mileage
@@ -554,8 +553,6 @@ nodes:
     - id: transport_mode
   - id: passenger_kilometres
     to_dimensions:
-    - id: stakeholder
-      categories: [city]
     - id: transport_mode
   - id: transport_noise_cost_shares
     to_dimensions:
@@ -608,13 +605,9 @@ nodes:
     - id: cost_type
   - id: passenger_kilometres
     to_dimensions:
-    - id: stakeholder
-      categories: [city]
     - id: transport_mode
   - id: transport_accident_cost_shares
     to_dimensions:
-    - id: transport_mode
-      categories: [cars]
     - id: stakeholder
     - id: cost_type
   output_nodes:
