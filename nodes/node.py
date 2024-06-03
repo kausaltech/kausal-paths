@@ -990,10 +990,10 @@ class Node:
                     raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
                 res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
                 res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
-            if 'difference' in edge.tags:  # FIXME Convert unit to unit / a
-                res = res.with_columns((pl.col(VALUE_COLUMN).diff().fill_null(0)).alias(VALUE_COLUMN))
-            if 'cumulative' in edge.tags:  # FIXME Convert unit to unit * a
-                res = res.with_columns((pl.col(VALUE_COLUMN).cumsum()).alias(VALUE_COLUMN))
+            if 'difference' in edge.tags:
+                res = res.diff(VALUE_COLUMN)
+            if 'cumulative' in edge.tags:
+                res = res.cumulate(VALUE_COLUMN)
 
         return res
 

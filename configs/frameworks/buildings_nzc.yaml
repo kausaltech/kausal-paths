@@ -22,6 +22,8 @@ nodes:
 # Model inputs: 176* 519 257* 254* 532 544 545 272* 273* 278 290 296..299* 302..305* 319..322* 586
 # 3.4 heat generation: (coming from model inputs) 19 25 248 259
 
+# ----------------- Building stock ----------------------
+
 - id: existing_building_stock
   name: Existing building stock
   description: 'Data sources:<ul><li>Model inputs & assumptions, F250. Size of building stock. 
@@ -187,6 +189,8 @@ nodes:
     to_dimensions: []
   - id: renovation_intensity
 
+# --------------------- Heating ---------------------
+
 - id: energy_use_intensity  # FIXME Calculate from relative changes, not data
   name: Energy use intensity for heating of old and new buildings
   type: gpc.DatasetNode
@@ -256,8 +260,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [heating_type, ghg, scope]
-  output_dimensions: [heating_type, ghg, scope]
+  input_dimensions: [heating_type, pollutant, scope]
+  output_dimensions: [heating_type, pollutant, scope]
   input_nodes:
   - id: building_heat_energy_use
     from_dimensions:
@@ -267,19 +271,64 @@ nodes:
     - id: heating_type
     - id: scope
   - id: heating_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+  output_nodes:
+  - id: building_emissions
     from_dimensions:
     - id: pollutant
       categories: [co2]
       flatten: true
-    to_dimensions:
-    - id: heating_type
-    - id: ghg
-      categories: [co2e]
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
     - id: heating_type
       flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+
+- id: new_building_current_unit_price
+  name: Building current unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults/assumptions
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: Building costs - new buildings
+
+- id: new_building_unit_price
+  name: New building unit price
+  type: costs.ExponentialNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: new_building_current_unit_price
+  params:
+  - id: annual_change  # FIXME from nzc/defaults/assumptions Cost improvements - new buildings
+    value: -1.024671139
+    unit: '%'
+#  - id: is_decreasing_rate
+#    value: true
+
+- id: new_building_cost
+  name: New building cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: new_building_stock
+  - id: new_building_unit_price
+
+# -------------------- Electricity --------------------
 
 - id: consumer_electricity_intensity_baseline
   name: Electricity use intensity for lighting & appliances
@@ -353,8 +402,8 @@ nodes:
   - id: gpc_sector
     value: Reduced electricity need with appliances & lighting renovations
 
-- id: efficiency_programme_unit_price
-  name: Efficiency programme unit price
+- id: efficiency_programme_current_unit_price
+  name: Efficiency programme current unit price
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
@@ -367,19 +416,32 @@ nodes:
   - id: gpc_sector
     value: Cost of efficiency programme per m2
 
-- id: efficiency_programme_cost_improvements
-  name: Efficiency programme cost improvements
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
+- id: efficiency_programme_unit_price
+  name: Efficiency programme unit price
+  type: costs.ExponentialNode
+  quantity: unit_price
+  unit: EUR/m**2
   input_dimensions: [efficiency_programme]
   output_dimensions: [efficiency_programme]
-  input_datasets:
-  - id: nzc/defaults/assumptions
-    forecast_from: 2023
+  input_nodes:
+  - id: efficiency_programme_current_unit_price
   params:
-  - id: gpc_sector
-    value: Cost improvements of efficiency programme
+  - id: annual_change  # FIXME from nzc/defaults/assumptions Cost improvements of efficiency programme
+    value: 1.024671139
+    unit: '%'
+  - id: is_decreasing_rate
+    value: true
+
+- id: efficiency_programme_cost
+  name: Efficiency programme cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR
+  input_dimensions: [efficiency_programme]
+  output_dimensions: [efficiency_programme]
+  input_nodes:
+  - id: efficiency_improved_buildings
+  - id: efficiency_programme_unit_price
 
 - id: consumer_electricity_intensity
   name: Consumer electricity intensity
@@ -456,6 +518,46 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope2]
+
+- id: building_air_pollutant_emissions
+  name: Building air pollutant emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: pollutant
+      categories: [nox, pm25_combustion, pm10_combustion]
+  - id: consumer_electricity_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      categories: [nox, pm25_combustion, pm10_combustion]
+
+# ---------------- Summary ---------------------
+
+- id: building_cost  # TODO Add stakeholders and topic-wise costs
+  name: Building cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR
+  input_nodes:
+  - id: new_building_cost
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+  - id: efficiency_programme_cost
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
 
 #actions:
 
