@@ -189,7 +189,7 @@ dimensions:
   - id: electricity
     label: Electricity
   - id: fossil
-    label: Fossil (oil, coal, gas) + inefficient electric heating (not heat pumps)
+    label: Fossil (oil, coal, gas) + direct electric
   - id: heat_pump
     label: Electric heat pumps / geothermal
   - id: bioenergy
@@ -229,7 +229,7 @@ dimensions:
   - id: organic_waste
     label: Organic waste
   - id: other_waste
-    label: Other waste (e.g. textiles, rubble, wood etc)
+    label: Other waste (e.g. textiles, rubble, wood)
 
 - id: waste_treatment
   label: Waste treatment
