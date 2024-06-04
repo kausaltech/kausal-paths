@@ -168,7 +168,7 @@ nodes:
     forecast_from: 2023
   params:
   - id: gpc_sector
-    value: renovation intensity
+    value: renovation intensity  # FIXME get correct data from renovation intensity baseline
 
 - id: renovated_building_stock
   name: Renovated building stock
@@ -562,17 +562,59 @@ nodes:
     - id: energy_carrier
       flatten: true
 
-#actions:
+actions:
 
-#- id: renovation_rate
-#  name: Renovation rate
-#  description: 'Default 1 %, BPIE (2011) - "Europe's buildings under the microscope". http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
-#  type: shift.ShiftAction
-#  quantity: fraction
-#  unit: '%'
-#  params:
-#  - id: shift
-#    unit: '%'
-#    values:
-#    - year: 2023
-#      value: 1
+- id: renovation_rate_improvement
+  name: Renovation rate improvement
+  description: 'Default 1 %, BPIE (2011) - "Europe´s buildings under the microscope". http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
+  type: simple.CumulativeAdditiveAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  forecast_values: [[2023, 1.5]]  # FIXME Should add param multiplier to get a slider
+  output_nodes: [old_building_renovation_rate]
+
+- id: renovation_shares_improvement
+  name: Renovation shares improvement
+  type: shift.ShiftAction
+  quantity: fraction
+  unit: '%'
+  output_nodes: [renovation_intensity]
+  group: buildings
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          building_energy_class: minor_renovation
+      dests:
+      - categories:
+          building_energy_class: major_renovation
+      amounts:
+      - {year: 2023, source_amount: -35.0, dest_amounts: [100]} 
+      - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
+
+- id: new_building_shares_improvement
+  name: New building shares improvement
+  type: shift.ShiftAction
+  quantity: fraction
+  unit: '%'
+  output_nodes: [new_building_shares]
+  group: buildings
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          building_energy_class: new_standard
+      dests:
+      - categories:
+          building_energy_class: new_top_performance
+      amounts:
+      - {year: 2023, source_amount: -30.0, dest_amounts: [100]} 
+      - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
+
