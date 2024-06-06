@@ -191,8 +191,8 @@ nodes:
 
 # --------------------- Heating ---------------------
 
-- id: energy_use_intensity  # FIXME Calculate from relative changes, not data
-  name: Energy use intensity for heating of old and new buildings
+- id: energy_use_intensity_data  # FIXME Calculate from relative changes, not data
+  name: Energy use intensity data for heating
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -204,6 +204,76 @@ nodes:
   params:
   - id: gpc_sector
     value: energy use intensity
+
+- id: energy_use_intensity_relative_old
+  name: Relative energy use intensity of existing building classes
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults/assumptions
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: Energy efficiency improvements from building renovations
+
+- id: energy_use_intensity_old
+  name: Energy use intensity of existing buildings
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: energy_use_intensity_data
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
+      flatten: true
+    to_dimensions: []
+  - id: energy_use_intensity_relative_old
+    tags: [complement]
+
+- id: energy_use_intensity_change_new
+  name: Energy use intensity change for new buildings
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults/actions  # FIXME This could be zero by default and be changed by action
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: improvement compared with new standard  # FIXME update defaults/actions
+
+- id: energy_use_intensity_new
+  name: Energy use intensity for heating of new buildings
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: energy_use_intensity_data
+    tags: [non_additive]
+  - id: energy_use_intensity_change_new
+    tags: [complement]
+
+- id: energy_use_intensity
+  name: Energy use intensity for heating of old and new buildings
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: energy_use_intensity_new
+  - id: energy_use_intensity_old
 
 - id: building_heating_type_share
   name: Building heating type share
@@ -315,16 +385,40 @@ nodes:
     value: -1.024671139
     unit: '%'
 
+- id: new_building_cost_shares
+  name: Building current cost_shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: nzc/defaults/stakeholders
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: investment costs in new buildings
+#building renovation investments
+
+
 - id: new_building_cost
   name: New building cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
+  input_dimensions: [building_energy_class, stakeholder, cost_type]
+  output_dimensions: [building_energy_class, stakeholder, cost_type]
   input_nodes:
   - id: new_building_stock
+    to_dimensions:
+    - id: building_energy_class
   - id: new_building_unit_price
+    to_dimensions:
+    - id: building_energy_class
+  - id: new_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
 
 # -------------------- Electricity --------------------
 
@@ -430,16 +524,40 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
+- id: old_building_cost_shares
+  name: Old building cost_shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: nzc/defaults/stakeholders
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: building renovation investments
+
 - id: efficiency_programme_cost
   name: Efficiency programme cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
+  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   input_nodes:
   - id: efficiency_improved_buildings
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
   - id: efficiency_programme_unit_price
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  - id: old_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
 
 - id: consumer_electricity_intensity
   name: Consumer electricity intensity
@@ -550,6 +668,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
   input_nodes:
   - id: new_building_cost
     from_dimensions:
@@ -561,12 +681,15 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+    to_dimensions:  # FIXME Allocate categories correctly
+    - id: stakeholder
+    - id: cost_type
 
 actions:
 
 - id: renovation_rate_improvement
   name: Renovation rate improvement
-  description: 'Default 1 %, BPIE (2011) - "Europe´s buildings under the microscope". http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
+  description: 'Default 1 %, BPIE (2011) - Europe´s buildings under the microscope. http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
   type: simple.CumulativeAdditiveAction
   quantity: fraction
   unit: '%'
@@ -618,3 +741,15 @@ actions:
       - {year: 2023, source_amount: -30.0, dest_amounts: [100]} 
       - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
 
+- id: top_performance_improvement
+  name: Top performance standard improvement compared with the regular new buildings
+  type: simple.CumulativeAdditiveAction
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2021, 0], [2022, 0]]
+  forecast_values: [[2023, 50]]
+  output_nodes:
+  - id: energy_use_intensity_change_new
+    to_dimensions:
+    - id: building_energy_class
+      categories: [new_top_performance]
