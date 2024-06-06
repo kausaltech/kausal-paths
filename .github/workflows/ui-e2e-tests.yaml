@@ -60,10 +60,6 @@ jobs:
   e2e_test:
     name: Run UI end-to-end tests
     runs-on: self-hosted
-    container:
-      image: mcr.microsoft.com/playwright:v1.43.1
-    env:
-      CI: 1
     services:
       ui:
         image: ${{ inputs.ui_image }}
@@ -101,47 +97,40 @@ jobs:
 
     outputs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
+
+    container:
+      image: harbor.kausal.dev/library/playwright:latest
+    env:
+      CI: 1
+      NEXT_PUBLIC_API_URL: http://localhost:8000/v1
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.ui_repo }}
-          ref: ${{ inputs.ui_}}
+          ref: ${{ inputs.ui_repo_ref }}
 
       - name: Install dependencies
         run: npm ci
         working-directory: ./e2e-tests
 
-      - name: Playwright install
-        run: apt-get update && apt-get install -y netcat && node_modules/.bin/playwright install --with-deps
-        working-directory: ./e2e-tests
-
       - name: Wait for backend to get ready
-        run: ./docker/wait-for-it.sh -t 60 localhost:8000
+        run: wait-for-it.sh -t 60 localhost:8000
 
       - name: Running Playwright e2e tests
         run: node_modules/.bin/playwright test
         id: playwright_test
         working-directory: ./e2e-tests
 
-      # - uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: playwright-report
-      #     path: e2e-tests/playwright-report/
-      #     retention-days: 5
-
       - name: Upload test report to S3
         id: upload
         if: always()
         run: |
-          apt update && apt install --no-install-recommends -y s3cmd
           s3cmd --host ${{ inputs.s3_endpoint }} --host-bucket ${{ inputs.s3_endpoint }} put --recursive playwright-report s3://${{ inputs.s3_bucket }}/${{ inputs.build_id }}/
           export TEST_REPORT_URL="https://${{ inputs.s3_endpoint }}/${{ inputs.s3_bucket }}/${{ inputs.build_id }}/playwright-report/index.html"
           echo "test_report_url=${TEST_REPORT_URL}" >> $GITHUB_OUTPUT
           test_report="🔗 [Test report](${TEST_REPORT_URL})"
-          env
-          if [ "${{ steps.playwright_test.outcome == 'success' }}" == "true" ] ; then
+          if [ "${{ steps.playwright_test.outcome == 'success' }}" = "true" ] ; then
             echo "✅ End-to-end tests succeeded. $test_report" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ End-to-end tests failed. $test_report" >> $GITHUB_STEP_SUMMARY
@@ -149,8 +138,8 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          DEBIAN_FRONTEND: noninteractive
         working-directory: ./e2e-tests
+        shell: bash
 
       - uses: daun/playwright-report-summary@v3
         if: always()
