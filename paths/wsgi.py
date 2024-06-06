@@ -12,7 +12,6 @@ from datetime import datetime, UTC
 from loguru import logger
 from django.core.wsgi import get_wsgi_application
 
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
 django_application = get_wsgi_application()
@@ -49,7 +48,7 @@ except ImportError:
 
 
 def set_log_vars(resp):
-    from .log_handler import ISO_FORMAT
+    from kausal_common.logging.handler import ISO_FORMAT
     now = datetime.now(UTC)
     uwsgi.set_logvar('isotime', now.strftime(ISO_FORMAT).replace('+00:00', 'Z'))
     if hasattr(resp, '_response'):

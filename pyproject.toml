@@ -71,13 +71,13 @@ exclude = [
     '^local_settings\.py',
 ]
 check_untyped_defs = true
-new_type_inference = true
 
 
 [[tool.mypy.overrides]]
 module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
-    "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*"
+    "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
+    "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environs.*",
 ]
 ignore_missing_imports = true
 

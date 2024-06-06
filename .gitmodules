@@ -1,0 +1,3 @@
+[submodule "common"]
+	path = kausal_common
+	url = https://github.com/kausaltech/kausal-backend-common.git

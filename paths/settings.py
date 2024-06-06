@@ -438,8 +438,6 @@ WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
 GITHUB_APP_ID = env('GITHUB_APP_ID')
 GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
 
-INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
-
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
     from kausal_paths_extensions import register_settings
@@ -504,22 +502,19 @@ ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
     from loguru import logger
-    from .log_handler import LogHandler, LogFmtHandlerError, LogFmtHandlerInfo
+    from kausal_common.logging import loguru_rich_sink, loguru_logfmt_sink
 
-    is_kube = env.bool('KUBERNETES_MODE')
+    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False) # type: ignore
 
-    if is_kube:
-        loguru_handlers = [dict(sink=LogFmtHandlerError(), format="{message}"), dict(sink=LogFmtHandlerInfo(), format="{message}")]
+    if not DEBUG or is_kube:
+        loguru_handlers = [dict(sink=loguru_logfmt_sink, format="{message}")]
     else:
-        loguru_handlers = [dict(sink=LogHandler(), format="{message}")]
+        loguru_handlers = [dict(sink=loguru_rich_sink, format="{message}")]
     logger.configure(handlers=loguru_handlers)
 
     def level(level: Literal['DEBUG', 'INFO', 'WARNING'], handler: str | None = None) -> dict[str, list[str] | bool | str]:
         if not handler:
-            if is_kube:
-                handlers = ['logfmt-error', 'logfmt-info']
-            else:
-                handlers = ['rich' if DEBUG else 'console']
+            handlers = ['loguru']
         else:
             handlers = [handler]
         return dict(
@@ -538,7 +533,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'simple': {
                 'format': '%(levelname)s %(name)s %(asctime)s %(message)s'
             },
-            'rich': {
+            'plain': {
                 'format': '%(message)s'
             },
         },
@@ -552,23 +547,14 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
                 'class': 'logging.StreamHandler',
                 'formatter': 'simple'
             },
-            'rich': {
+            'loguru': {
                 'level': 'DEBUG',
-                'class': 'paths.log_handler.LogHandler',
-                'formatter': 'rich',
-                'log_time_format': '%Y-%m-%d %H:%M:%S.%f'
-            },
-            'logfmt-error': {
-                'level': 'DEBUG',
-                'class': 'paths.log_handler.LogFmtHandlerError',
-            },
-            'logfmt-info': {
-                'level': 'DEBUG',
-                'class': 'paths.log_handler.LogFmtHandlerInfo',
+                'class': 'kausal_common.logging.LoguruLoggingHandler',
+                'formatter': 'plain',
             },
             'uwsgi-req': {
                 'level': 'DEBUG',
-                'class': 'paths.log_handler.UwsgiReqLogHandler',
+                'class': 'kausal_common.logging.UwsgiReqLogHandler',
             },
         },
         'loggers': {
@@ -576,7 +562,6 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'django.template': level('WARNING'),
             'django.utils.autoreload': level('INFO'),
             'django': level('DEBUG'),
-            'raven': level('WARNING'),
             'blib2to3': level('INFO'),
             'generic': level('DEBUG'),
             'parso': level('WARNING'),

@@ -29,8 +29,6 @@ if [ "$KUBERNETES_MODE" != "1" -a "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'r
 fi
 
 if [ "$1" = 'uwsgi' ]; then
-    # Clear the caches before uwsgi starts
-    python manage.py shell -c "from django.core.cache import cache; cache.clear()"
     # Log to stdout
     exec uwsgi --ini /uwsgi.ini $EXTRA_UWSGI_ARGS
 elif [ "$1" = 'celery' ]; then

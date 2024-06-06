@@ -1,3 +1,4 @@
+-r kausal_common/requirements-common.txt
 psycopg[binary,pool]
 pandas
 python-dotenv
@@ -5,7 +6,7 @@ wagtail>=5.2
 django
 django-environ
 django-cors-headers
-sentry_sdk[django]
+sentry_sdk[django,opentelemetry]
 djangorestframework
 django-extensions
 dvc-pandas

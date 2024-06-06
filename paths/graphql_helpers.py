@@ -34,6 +34,7 @@ class GQLInstanceContext(GQLContext):
     _referer: str | None
     graphql_operation_name: str | None
     graphql_perf: PerfContext[GraphQLPerfNode]
+    wildcard_domains: list[str]
 
 
 class GQLInfo(GraphQLResolveInfo):

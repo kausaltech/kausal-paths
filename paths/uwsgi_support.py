@@ -1,4 +1,4 @@
-from uwsgidecorators import postfork
+from uwsgidecorators import postfork # type: ignore
 
 
 @postfork

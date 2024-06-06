@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, cast
 from django.conf import settings
 from django.db.models import Model
+from modeltrans.fields import TranslatedVirtualField
 from modeltrans.translator import get_i18n_field
 from modeltrans.utils import build_localized_fieldname
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, Panel
@@ -22,9 +23,10 @@ def insert_model_translation_panels(model: Model, panels: Sequence[Panel], insta
 
     out = []
 
-    field_map = {}
-    for f in i18n_field.get_translated_fields():
-        field_map.setdefault(f.original_name, {})[f.language] = f
+    field_map: dict[str, dict[str, TranslatedVirtualField]] = {}
+    for f in cast(Sequence[TranslatedVirtualField], i18n_field.get_translated_fields()):
+        lang = cast(str, f.language)
+        field_map.setdefault(f.original_name, {})[lang] = f # type: ignore
 
     for p in panels:
         out.append(p)
@@ -40,7 +42,7 @@ def insert_model_translation_panels(model: Model, panels: Sequence[Panel], insta
             tf = t_fields.get(lang_code)
             if not tf:
                 continue
-            out.append(type(p)(tf.name))
+            out.append(type(p)(tf.name)) # type: ignore
     return out
 
 

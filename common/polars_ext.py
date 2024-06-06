@@ -213,8 +213,8 @@ class PathsExt:
             raise Exception("DataFrame has duplicated years")
 
         meta = df.get_meta()
-        df = df.fill_null(strategy='forward')
-        return ppl.to_ppdf(df, meta=meta)
+        zdf = df.fill_null(strategy='forward')
+        return ppl.to_ppdf(zdf, meta=meta)
 
     def sum_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df

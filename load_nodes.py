@@ -176,6 +176,7 @@ if args.check or args.update_instance or args.update_nodes:
 
     init_django()
     from nodes.models import InstanceConfig
+    from django.db import transaction
 
     ins_obj = InstanceConfig.objects.filter(identifier=instance.id).first()
     if ins_obj is None:
@@ -185,12 +186,14 @@ if args.check or args.update_instance or args.update_nodes:
     else:
         instance_obj = ins_obj
 
-    if args.update_instance:
-        instance_obj.update_from_instance(instance, overwrite=True)
-        instance_obj.save()
-    instance_obj.sync_nodes(update_existing=args.update_nodes, delete_stale=args.delete_stale_nodes, overwrite=args.overwrite)
-    instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
-    instance_obj.create_default_content()
+    with transaction.atomic():
+        if args.update_instance:
+            instance_obj.update_from_instance(instance, overwrite=True)
+            instance_obj.save()
+        instance_obj.sync_nodes(update_existing=args.update_nodes, delete_stale=args.delete_stale_nodes, overwrite=args.overwrite)
+        instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
+        instance_obj.refresh_from_db()
+        instance_obj.create_default_content()
 
 for param_arg in (args.param or []):
     param_id, val = param_arg.split('=')

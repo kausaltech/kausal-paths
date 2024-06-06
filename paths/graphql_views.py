@@ -3,7 +3,7 @@ import hashlib
 import json
 from django.http import HttpRequest
 from graphql.execution.execute import get_field_def
-from graphql.type import GraphQLObjectType
+from graphql.type import GraphQLFieldResolver, GraphQLObjectType, GraphQLTypeResolver
 from loguru import logger
 from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext
 from typing import Any, Dict, List, Optional, cast
@@ -16,16 +16,16 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import translation
 from graphene_django.views import GraphQLView
-from graphql import DirectiveNode, ExecutionResult, GraphQLOutputType, GraphQLScalarType, OperationType, get_named_type
+from graphql import DirectiveNode, ExecutionResult, GraphQLOutputType, GraphQLScalarType, GraphQLSchema, MiddlewareManager, OperationType, get_named_type
 from graphql.error import GraphQLError
 from graphql.execution import ExecutionContext
-from graphql.language import FieldNode, OperationDefinitionNode
+from graphql.language import FieldNode, FragmentDefinitionNode, OperationDefinitionNode
 from graphql.language.ast import VariableNode
 from graphql.pyutils import AwaitableOrValue, Path
 from rich.console import Console
 from rich.syntax import Syntax
 
-from nodes.models import Instance, InstanceConfig
+from nodes.models import Instance, InstanceConfig, InstanceConfigQuerySet
 from nodes.perf import PerfContext
 from params.storage import SessionStorage
 from paths.authentication import IDTokenAuthentication
@@ -47,6 +47,10 @@ logger = logger.bind(markup=True)
 
 class PathsExecutionContext(ExecutionContext):
     context_value: GQLInstanceContext
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
 
     def handle_field_error(
         self, error: GraphQLError, return_type: GraphQLOutputType,
@@ -87,7 +91,7 @@ class PathsExecutionContext(ExecutionContext):
         self.context_value.graphql_query_language = lang
         return cast(AbstractContextManager, translation.override(lang))
 
-    def get_instance_by_identifier(self, queryset, identifier: str, directive: DirectiveNode | None = None) -> InstanceConfig:
+    def get_instance_by_identifier(self, queryset: InstanceConfigQuerySet, identifier: str, directive: DirectiveNode | None = None) -> InstanceConfig:
         try:
             if identifier.isnumeric():
                 instance = queryset.get(id=identifier)
@@ -97,7 +101,7 @@ class PathsExecutionContext(ExecutionContext):
             raise GraphQLError("Instance with identifier %s not found" % identifier, directive)
         return instance
 
-    def get_instance_by_hostname(self, queryset, hostname: str, directive: DirectiveNode | None = None) -> InstanceConfig:
+    def get_instance_by_hostname(self, queryset: InstanceConfigQuerySet, hostname: str, directive: DirectiveNode | None = None) -> InstanceConfig:
         request = self.context_value
         try:
             instance = queryset.for_hostname(hostname, request).get()
@@ -208,7 +212,7 @@ class PathsExecutionContext(ExecutionContext):
                 stack.enter_context(context.run())
                 if not context.baseline_values_generated:
                     with (
-                        sentry_sdk.start_span(op='calc', transaction='generate baseline'),
+                        sentry_sdk.start_span(op='calc', description='Generate baseline'),
                         request.graphql_perf.exec_node(GraphQLPerfNode('generate baseline'))
                     ):
                         context.generate_baseline_values()
@@ -263,7 +267,9 @@ class PathsGraphQLView(GraphQLView):
         super().__init__(*args, **kwargs)
 
     def log_reg(self, level: str, operation_name: str | None, msg, *args, depth: int = 0, **kwargs):
-        logger.opt(depth=1 + depth).log(level, 'GQL request [magenta]%s[/]: %s' % (operation_name, msg), *args, **kwargs)
+        log = logger.opt(depth=1 + depth)
+        if operation_name:
+            log = log.bind(**{'graphql_operation': operation_name}).log(level, 'GQL request [magenta]%s[/]: %s' % (operation_name, msg), *args, **kwargs)
 
     def json_encode(self, request: GQLInstanceContext, d, pretty=False):
         errors = []
@@ -360,7 +366,7 @@ class PathsGraphQLView(GraphQLView):
         request._referer = self.request.META.get('HTTP_REFERER')
         request.graphql_operation_name = operation_name
         wildcard_domains = request.headers.get(settings.WILDCARD_DOMAINS_HEADER)
-        request.wildcard_domains = [d.lower() for d in wildcard_domains.split(',')] if wildcard_domains else None
+        request.wildcard_domains = [d.lower() for d in wildcard_domains.split(',')] if wildcard_domains else []
 
         transaction: Transaction | None = sentry_sdk.Hub.current.scope.transaction
         if query is not None:
@@ -401,6 +407,7 @@ class PathsGraphQLView(GraphQLView):
 
         # We currently disable users in the graphql requests
         request.user = AnonymousUser()
+
         span = sentry_sdk.get_current_span()
         assert span is not None
         with enter('get query cache key'):

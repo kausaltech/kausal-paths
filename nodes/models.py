@@ -100,6 +100,11 @@ class InstanceConfigManager(models.Manager['InstanceConfig']):
         return self.get(identifier=identifier)
 
 
+if TYPE_CHECKING:
+    class InstanceConfigManagerType(InstanceConfigManager):
+        def adminable_for(self, user: User) -> InstanceConfigQuerySet: ...
+
+
 class InstanceConfig(PathsModel):
     identifier = IdentifierField(max_length=100, unique=True)
     uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
@@ -129,7 +134,7 @@ class InstanceConfig(PathsModel):
 
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))  # pyright: ignore
 
-    objects = InstanceConfigManager.from_queryset(InstanceConfigQuerySet)()  # type: ignore
+    objects: InstanceConfigManagerType = InstanceConfigManager.from_queryset(InstanceConfigQuerySet)()  # type: ignore
 
     # Type annotations
     nodes: models.manager.RelatedManager[NodeConfig]
@@ -281,6 +286,7 @@ class InstanceConfig(PathsModel):
                 node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
                 self.log.info("Creating node config for node %s" % node.id)
                 node_config.save()
+                node.database_id = node_config.pk
             else:
                 found_nodes.add(node.id)
                 if update_existing:

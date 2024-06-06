@@ -22,6 +22,8 @@ UserOrAnon: typing.TypeAlias = 'User | AnonymousUser'
 class PathsRequest(HttpRequest):
     user: UserOrAnon
     cache: PathsObjectCache
+    correlation_id: str
+    """Randomly generated ID for correlation."""
 
 
 class PathsAuthenticatedRequest(PathsRequest):
