@@ -5,7 +5,7 @@ site_url: https://sunnydale.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: dc83135f4ce6b248c96ae0c6eb69024bf2434f42
-  dvc_remote: kausal-s3
+  dvc_remote: public
 name: Carbon-neutral Sunnydale 2030
 name_fi: Hiilineutraali Sunnydale 2030
 name_de: Klimaneutrales Sunnydale 2030
