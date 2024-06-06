@@ -5,11 +5,22 @@ set -e
 DB_ENDPOINT=${DB_ENDPOINT:-db:5432}
 wait_for_it=/scripts/wait-for-it.sh
 
+function populate_test_instances() {
+  if [ -z "$TEST_INSTANCE_IDENTIFIERS" ] ; then
+    echo "You must set TEST_INSTANCE_IDENTIFIERS."
+    exit 1
+  fi
+
+  for instance in $(echo $TEST_INSTANCE_IDENTIFIERS | sed -e 's/,/ /g') ; do
+    python load_nodes.py --config configs/${instance}.yaml --update-instance
+  done
+}
+
 # Wait for the database to get ready when not running in Kubernetes.
 # In Kube, the migrations will be handled through a job.
 if [ "$KUBERNETES_MODE" != "1" -a "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'runserver' ]; then
     $wait_for_it $DB_ENDPOINT
-    cd /code
+
     if [ "$1" = 'celery' ]; then
         # If we're in a celery container, wait for the app container
         # to start first so that migrations are run.
@@ -25,11 +36,13 @@ if [ "$KUBERNETES_MODE" != "1" -a "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'r
             /bin/bash $scr
         done
     fi
-    EXTRA_UWSGI_ARGS = "--socket :8001"
+    EXTRA_UWSGI_ARGS="--socket :8001"
 fi
 
 if [ "$1" = 'uwsgi' ]; then
-    # Log to stdout
+    if [ "$TEST_MODE" == "1" ]; then
+      populate_test_instances
+    fi
     exec uwsgi --ini /uwsgi.ini $EXTRA_UWSGI_ARGS
 elif [ "$1" = 'celery' ]; then
     exec celery -A aplans "$2" -l INFO

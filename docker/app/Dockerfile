@@ -62,6 +62,7 @@ RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
 COPY requirements-kausal.txt ${app_path}/
 RUN --mount=type=secret,id=EXTRA_PYPI_INDEX \
     if [ -f /run/secrets/EXTRA_PYPI_INDEX ] ; then \
+        export PIP_EXTRA_INDEX_URL=$(cat /run/secrets/EXTRA_PYPI_INDEX) && \
         pip install --extra-index-url "$(cat /run/secrets/EXTRA_PYPI_INDEX)" -r ${app_path}/requirements-kausal.txt ; \
     fi
 
@@ -122,9 +123,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
 ARG CADDY_PORT=6000
 ENV CADDY_PORT=${CADDY_PORT}
+ENV LC_CTYPE=C.UTF-8
 
 # We need to have the default user as root to be able to run tests etc.
 USER root
 
 EXPOSE 8000/tcp ${CADDY_PORT}/tcp
-ENTRYPOINT ["/bin/bash", "/scripts/docker-entrypoint.sh"]
+ENTRYPOINT ["/scripts/docker-entrypoint.sh", "uwsgi"]
