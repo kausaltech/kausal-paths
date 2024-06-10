@@ -93,8 +93,6 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
 
 
 class InstanceConfigManager(models.Manager['InstanceConfig']):
-    def for_hostname(self, hostname: str) -> InstanceConfigQuerySet: ...  # type: ignore
-
     def get_by_natural_key(self, identifier):
         return self.get(identifier=identifier)
 
