@@ -29,11 +29,11 @@ class AttributableFractionRR(DatasetNode):
         df = df[(df.index.get_level_values('Sector') == sector) &
                 (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
 
-        test = df.index.get_level_values('Er_function').unique()
+        df = self.convert_names_to_ids(df)
+
+        test = df.index.get_level_values('er_function').unique()
         if len(test) != 1 or test[0] != 'relative_risk':
             raise NodeError(self, 'All of the rows must be for relative_risk as Er_function.')
-
-        df = self.convert_names_to_ids(df)
 
         droplist = ['sector', 'quantity', 'parameter', 'er_function']
         params = {}

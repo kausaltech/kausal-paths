@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 2a98a6389a320af1d0162cb34540ed13bb936025
+  commit: 136cbabc5f5441f4280d2a4974cc3923525f4789
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -35,9 +35,13 @@ params:
 dimensions:
 - id: pollutant
   label: Saaste
+  alias: transport_pollutant
   categories:
+  - id: co2
+    label: CO2
   - id: pm25
     label: PM2.5
+    alias: pm2_5
   - id: nox
     label: NOx
   - id: pm10
@@ -66,6 +70,12 @@ dimensions:
     label: Kävely
   - id: cycling
     label: Pyöräily
+  - id: pm1025
+    label: PM10-PM2.5
+  - id: so2
+    label: SO2
+  - id: nh3
+    label: NH3
 
 - id: response
   label: Terveysvaikutus
@@ -122,25 +132,94 @@ nodes:
       value: inhalation
   input_nodes:
   - id: exposure
-    to_dimensions: []
+    to_dimensions:
+    - id: pollutant
   params:
   - id: gpc_sector
     value: Air pollution
 
+- id: intake_fraction
+  name: Saantiosuus
+  type: gpc.DatasetNode2
+  quantity: fraction
+  unit: ppm
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_datasets:
+  - id: hia/intake_fraction/air_pollution_if
+    filters:
+    - column: Population density
+      value: average
+    - column: Emission height
+      value: average
+  params:
+  - id: gpc_sector
+    value: Air pollution
+
+- id: emission_ratio
+  name: Päästöjen suhde
+  type: gpc.DatasetRatioNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_datasets:
+  - id: nzc/defaults/transport
+    forecast_from: 2023
+    filters:
+    - column: Transport mode
+      value: cars
+  params:
+  - id: gpc_sector
+    value: baseline year fleet emission factor
+  - id: reference_category
+    value: 'transport_pollutant:co2'
+
+- id: transport_air_pollution_emissions
+  name: Liikenteen ilmansaastepäästöt
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: transport_emissions
+    tags: [non_additive]
+    to_dimensions: []
+  - id: emission_ratio
+
+- id: breathing_rate
+  name: Hengitystilavuus
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: m**3/person/d
+  historical_values: [[1990, 20], [2023, 20]]
+  input_dataset_processors: [LinearInterpolation]
+
 - id: exposure
   name: Exposure
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
-  historical_values: [[1990, 15], [2020, 10], [2023, 9]]
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: transport_air_pollution_emissions
+  - id: intake_fraction
+  - id: breathing_rate
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: population
+    tags: [geometric_inverse]
+    to_dimensions: []
 
 - id: incidence
   name: Ilmaantuvuus
-  type: gpc.DatasetNode
+  type: gpc.DatasetNode2
   quantity: incidence
   unit: case/personyear
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
+  input_dimensions: [response]
+  output_dimensions: [response]
   input_datasets:
   - id: hia/incidence/default_incidence
     filters:
@@ -150,40 +229,49 @@ nodes:
       value: default
   params:
   - id: gpc_sector
-    value: environmental_health
+    value: Environmental health
 
-- id: disease_burden  # FIXME Add case burden
+- id: disease_burden
   name: Kokonaistautitaakka
+  type: simple.MultiplicativeNode
+  quantity: disease_burden
+  unit: DALY/a
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: incidence
+  - id: case_burden
+    to_dimensions:
+    - id: response
+  - id: population
+    to_dimensions: []
+
+- id: case_burden
+  name: Tapaustautitaakka
+  type: gpc.DatasetNode2
+  quantity: case_burden
+  unit: DALY/case
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets:
+  - id: hia/exposure_response/air_pollution_erf
+  params:
+  - id: gpc_sector
+    value: Air pollution
+
+- id: disease_burden_of_air_pollution
+  name: Ilmansaasteiden tautitaakka
   type: simple.MultiplicativeNode
   quantity: disease_burden
   unit: DALY/a
   input_dimensions: [response, pollutant]
   output_dimensions: [response, pollutant]
   input_nodes:
-  - id: incidence
-  - id: case_burden
-  - id: population
-    to_dimensions: []
-
-- id: case_burden
-  name: Tapaustautitaakka
-  type: gpc.DatasetNode
-  quantity: exposure_response
-  unit: DALY/case
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
-  input_datasets:
-  - id: hia/exposure_response/air_pollution_erf
-    filters:
-    - column: Parameter
-      value: case_burden
-    - column: Route
-      value: inhalation
-    - column: Er_function
-      value: relative_risk
-  params:
-  - id: gpc_sector
-    value: Air pollution
+  - id: disease_burden
+    tags: [non_additive]
+    to_dimensions:
+    - id: response
+  - id: attributable_fraction
 
 actions:
 - id: test

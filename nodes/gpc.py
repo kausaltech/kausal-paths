@@ -25,13 +25,14 @@ class DatasetNode(AdditiveNode):
                'unit_price': 'Unit Price',
                'occupancy_factor': 'Occupancy Factor',
                'fraction': 'Fraction',
+               'fraction': 'fraction',
                'energy_factor': 'Energy Factor',
                'ratio': 'Ratio',
                'floor_area': 'Floor Area',
                'amount': 'Amount',
-               'exposure_response': 'exposure_response',
+               'exposure_response': 'exposure-response',
                'incidence': 'incidence',
-               'case_burden': 'case_burden'}
+               'case_burden': 'case burden'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
@@ -125,6 +126,21 @@ class DatasetNode(AdditiveNode):
 
         df = df.paths.to_narrow()
         return df
+
+    def add_and_multiply_input_nodes(self, df: pd.DataFrame) -> ppl.PathsDataFrame:
+        # Add and multiply input nodes as tagged.
+        na_nodes = self.get_input_nodes(tag = 'non_additive')
+        input_nodes = [node for node in self.input_nodes if node not in na_nodes]
+
+        df = self.add_nodes(df, input_nodes)
+
+        if len(na_nodes) > 0:  # FIXME Instead, develop a generic single dimensionless multiplier
+            assert len(na_nodes) == 1 # Only one multiplier allowed.
+            mult = na_nodes[0].get_output(target_node = self)
+            df = df.join(mult, how = 'outer', rsuffix = '_right')  # FIXME Use PPDF, not pandas.df
+
+            df[VALUE_COLUMN] *= df[VALUE_COLUMN + '_right']
+            df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
 
     def get_gpc_dataset(self) -> ppl.PathsDataFrame:  # FIXME Draft. Maybe not needed?
         sector = self.get_parameter_value('gpc_sector')
@@ -220,6 +236,58 @@ class DatasetNode(AdditiveNode):
         return df
 
 
+class DatasetNode2(DatasetNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        sector = self.get_parameter_value('gpc_sector')
+
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[(df.index.get_level_values('Sector') == sector) &
+                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.convert_names_to_ids(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        return df
+    
+    
+class DatasetRatioNode(DatasetNode):
+    allowed_parameters = DatasetNode.allowed_parameters + [
+        StringParameter('reference_category', description = 'Category to which all others are compared', is_customizable = False)]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        sector = self.get_parameter_value('gpc_sector')
+
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[(df.index.get_level_values('Sector') == sector) &
+                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.convert_names_to_ids(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+
+        col, cat = self.get_parameter_value('reference_category').split(':')
+        print(col, cat)
+        reference = df.filter(pl.col(col).eq(cat)).drop(col)
+        df = df.paths.join_over_index(reference)
+        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+        df = df.rename({'transport_pollutant': 'pollutant'})  # FIXME Generalise!
+#        df = df.with_columns(
+#            pl.when(pl.col('pollutant').cast(pl.Utf8).str.contains('co2'))
+#            .then(pl.lit('co2e'))
+#            .otherwise(pl.col('pollutant').cast(pl.Utf8))
+##            .alias('pollutant')
+ #           .cast(pl.Categorical)
+ #       )
+
+        return df
+    
+    
 class CorrectionNode(DatasetNode):
     allowed_parameters = DatasetNode.allowed_parameters + [
         BoolParameter('do_correction', description = 'Should the values be corrected?')
