@@ -62,7 +62,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY, MIX_QUANTITY, CONSUMPTION_FACTOR_QUANTITY,
     UTILITY_QUANTITY,
     'population', 'per_capita', 'fuel_consumption', 'ratio',
-    'exposure', 'exposure-response', 'disease_burden', 'case_burden',
+    'exposure', 'exposure_response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
     'energy_factor', 'effect'

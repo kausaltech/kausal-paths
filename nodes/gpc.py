@@ -13,6 +13,7 @@ from common import polars as ppl
 class DatasetNode(AdditiveNode):
     allowed_parameters = AdditiveNode.allowed_parameters + [
         StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
+        # FIXME Could the parameter be called just sector?
 
     qlookup = {'currency': 'Price',  # FIXME Should be case-insensitive and later accept other languages
                'emission_factor': 'Emission Factor',
@@ -27,7 +28,10 @@ class DatasetNode(AdditiveNode):
                'energy_factor': 'Energy Factor',
                'ratio': 'Ratio',
                'floor_area': 'Floor Area',
-               'amount': 'Amount'}
+               'amount': 'Amount',
+               'exposure_response': 'exposure_response',
+               'incidence': 'incidence',
+               'case_burden': 'case_burden'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
@@ -64,8 +68,80 @@ class DatasetNode(AdditiveNode):
 
         return idtext
 
+    def implement_unit_col(self, df: pd.DataFrame) -> pd.DataFrame:
+        unit = df['Unit'].unique()[0]
+        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype('pint[' + unit + ']')
+        df = df.drop(columns = ['Unit'])
+        return df
+
+    def convert_names_to_ids(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Convert index level names from labels to IDs.
+        dims = []
+        for i in df.index.names:
+            if i == YEAR_COLUMN:
+                dims.append(i)
+            else:
+                dims.append(self.makeid(i))
+        df.index = df.index.set_names(dims)
+
+        # Convert levels within each index level from labels to IDs.
+        dfi = df.index.to_frame(index = False)
+        for col in list(set(dims) - {YEAR_COLUMN}):
+            for cat in dfi[col].unique():
+                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
+
+        df.index = pd.MultiIndex.from_frame(dfi)
+        return df
+
+    def drop_unnecessary_levels(self, df: pd.DataFrame, droplist: list) -> pd.DataFrame:
+        # Drop filter levels and empty dimension levels.
+        if 'Description' in df.index.names:
+            droplist.append('Description')
+        for col in df.index.names:
+            vals = df.index.get_level_values(col).unique().to_list()
+            if vals == ['.']:
+                droplist.append(col)
+        df.index = df.index.droplevel(droplist)
+        return df
+
+    def add_missing_years(self, df: pd.DataFrame) -> ppl.PathsDataFrame:
+        # Add forecast column if needed.
+        if FORECAST_COLUMN not in df.columns:
+            df[FORECAST_COLUMN] = False
+
+        # Add missing years and interpolate missing values.
+        df = ppl.from_pandas(df)
+        df = df.paths.to_wide()
+
+        yeardf = pd.DataFrame({YEAR_COLUMN: range(df[YEAR_COLUMN].min(), df[YEAR_COLUMN].max() + 1)})
+        yeardf = yeardf.set_index([YEAR_COLUMN])
+        yeardf = ppl.from_pandas(yeardf)
+
+        df = df.paths.join_over_index(yeardf, how = 'outer')
+        for col in list(set(df.columns) - set([YEAR_COLUMN, FORECAST_COLUMN])):
+            df = df.with_columns(pl.col(col).interpolate())
+
+        df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy = 'forward'))
+
+        df = df.paths.to_narrow()
+        return df
+
+    def get_gpc_dataset(self) -> ppl.PathsDataFrame:  # FIXME Draft. Maybe not needed?
+        sector = self.get_parameter_value('gpc_sector')
+
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[(df.index.get_level_values('Sector') == sector) &
+                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
+
+        df = self.convert_names_to_ids(df)
+#        df = self.add_missing_years(df)
+
+        return df
+    
     # -----------------------------------------------------------------------------------
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame:  # FIXME Shouldn't the output be PathsDataFrame?
         sector = self.get_parameter_value('gpc_sector')
 
         # Perform initial filtering of GPC dataset.

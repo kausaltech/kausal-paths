@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 791d34a61e64f4cbf07a1c40c1efe13aad954a2c
+  commit: 2a98a6389a320af1d0162cb34540ed13bb936025
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -32,11 +32,70 @@ params:
   # Taakanjakosektorin kaikki ALas-päästöt
   # Päästökaupan alaiset ALas-päästöt
 
+dimensions:
+- id: pollutant
+  label: Saaste
+  categories:
+  - id: pm25
+    label: PM2.5
+  - id: nox
+    label: NOx
+  - id: pm10
+    label: PM10
+  - id: dioxin
+    label: Dioksiini
+  - id: omega3
+    label: Omega-3
+  - id: vitamin_d
+    label: D-vitamiini
+  - id: campylobacter
+    label: Kampylobakteeri
+  - id: rotavirus
+    label: Rotavirus
+  - id: norovirus
+    label: Norovirus
+  - id: sapovirus
+    label: Sapovirus
+  - id: cryptosporidium
+    label: Cryptosporidium
+  - id: e_coli
+    label: E. coli
+  - id: giardia
+    label: Giardia
+  - id: walking
+    label: Kävely
+  - id: cycling
+    label: Pyöräily
+
+- id: response
+  label: Terveysvaikutus
+  categories:
+  - id: mortality
+    label: Kuolleisuus
+  - id: work_days_lost
+    label: Menetetyt työpäivät
+  - id: chronic_bronchitis
+    label: Chronic bronchitis
+  - id: cancer
+    label: Syöpä
+  - id: tolerable_weekly_intake
+    label: Siedettävä viikkosaanti
+  - id: chd_mortality
+    label: Sepelvaltimotautikuolleisuus
+  - id: breast_cancer
+    label: Rintasyöpä
+  - id: deficiency
+    label: Puutos
+  - id: infection
+    label: Infektio
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
-  description: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan 20 % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
+  description: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään
+    vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan 20
+    % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
   is_outcome: true
   target_year_goal: 72.7
 
@@ -48,6 +107,83 @@ nodes:
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
+
+- id: attributable_fraction
+  name: Attributable fraction
+  type: health.AttributableFractionRR
+  quantity: exposure_response
+  unit: dimensionless
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_datasets:
+  - id: hia/exposure_response/air_pollution_erf
+    filters:
+    - column: Route
+      value: inhalation
+  input_nodes:
+  - id: exposure
+    to_dimensions: []
+  params:
+  - id: gpc_sector
+    value: Air pollution
+
+- id: exposure
+  name: Exposure
+  type: simple.AdditiveNode
+  quantity: exposure
+  unit: ug/m**3
+  historical_values: [[1990, 15], [2020, 10], [2023, 9]]
+
+- id: incidence
+  name: Ilmaantuvuus
+  type: gpc.DatasetNode
+  quantity: incidence
+  unit: case/personyear
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_datasets:
+  - id: hia/incidence/default_incidence
+    filters:
+    - column: Place
+      value: default
+    - column: Population
+      value: default
+  params:
+  - id: gpc_sector
+    value: environmental_health
+
+- id: disease_burden  # FIXME Add case burden
+  name: Kokonaistautitaakka
+  type: simple.MultiplicativeNode
+  quantity: disease_burden
+  unit: DALY/a
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_nodes:
+  - id: incidence
+  - id: case_burden
+  - id: population
+    to_dimensions: []
+
+- id: case_burden
+  name: Tapaustautitaakka
+  type: gpc.DatasetNode
+  quantity: exposure_response
+  unit: DALY/case
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_datasets:
+  - id: hia/exposure_response/air_pollution_erf
+    filters:
+    - column: Parameter
+      value: case_burden
+    - column: Route
+      value: inhalation
+    - column: Er_function
+      value: relative_risk
+  params:
+  - id: gpc_sector
+    value: Air pollution
 
 actions:
 - id: test
