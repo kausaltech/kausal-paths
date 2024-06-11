@@ -4,6 +4,9 @@ env:
   PROJECT_ID: paths-backend
 
 jobs:
+  lint:
+    uses: ./.github/workflows/reviewdog.yml
+
   build:
     uses: kausaldev/github-actions/.github/workflows/build-backend.yaml@main
     secrets: inherit
