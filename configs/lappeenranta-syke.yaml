@@ -119,7 +119,7 @@ nodes:
   name: SYKE:n ALaS-päästöinventaario
 
 - id: attributable_fraction
-  name: Attributable fraction
+  name: Ilmansaasteiden syyosuus
   type: health.AttributableFractionRR
   quantity: exposure_response
   unit: dimensionless
@@ -139,7 +139,7 @@ nodes:
     value: Air pollution
 
 - id: intake_fraction
-  name: Saantiosuus
+  name: Ilmansaasteiden saantiosuus
   type: gpc.DatasetNode2
   quantity: fraction
   unit: ppm
@@ -156,8 +156,8 @@ nodes:
   - id: gpc_sector
     value: Air pollution
 
-- id: emission_ratio
-  name: Päästöjen suhde
+- id: transport_emission_ratio
+  name: Liikennepäästöjen keskinäinen suhde
   type: gpc.DatasetRatioNode
   quantity: emission_factor
   unit: dimensionless
@@ -197,7 +197,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: exposure
-  name: Exposure
+  name: Altistuminen ilmansaasteille
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
@@ -247,7 +247,7 @@ nodes:
     to_dimensions: []
 
 - id: case_burden
-  name: Tapaustautitaakka
+  name: Tautitaakka per tapaus
   type: gpc.DatasetNode2
   quantity: case_burden
   unit: DALY/case
@@ -266,6 +266,7 @@ nodes:
   unit: DALY/a
   input_dimensions: [response, pollutant]
   output_dimensions: [response, pollutant]
+  is_outcome: true
   input_nodes:
   - id: disease_burden
     tags: [non_additive]
