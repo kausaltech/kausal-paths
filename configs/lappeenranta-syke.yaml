@@ -1,7 +1,7 @@
 id: lappeenranta-syke
 default_language: fi
 supported_languages: [en]
-frameworks: [syke]
+frameworks: [syke, health_air_pollution]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
 site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -34,70 +34,129 @@ params:
 
 dimensions:
 - id: pollutant
-  label: Saaste
-  alias: transport_pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  aliases: [transport_pollutant]
   categories:
   - id: co2
-    label: CO2
+    label_fi: CO2
+    label_en: CO2
   - id: pm25
-    label: PM2.5
-    alias: pm2_5
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label: PM2.5 combustion
   - id: nox
-    label: NOx
+    label_fi: NOx
+    label_en: NOx
   - id: pm10
-    label: PM10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label: PM10 combustion
   - id: dioxin
-    label: Dioksiini
+    label_fi: Dioksiini
+    label_en: Dioxin
   - id: omega3
-    label: Omega-3
+    label_fi: Omega-3
+    label_en: Omega 3
   - id: vitamin_d
-    label: D-vitamiini
+    label_fi: D-vitamiini
+    label_en: Vitamin D
   - id: campylobacter
-    label: Kampylobakteeri
+    label_fi: Kampylobakteeri
+    label_en: Campylobacter
   - id: rotavirus
-    label: Rotavirus
+    label_fi: Rotavirus
+    label_en: Rotavirus
   - id: norovirus
-    label: Norovirus
+    label_fi: Norovirus
+    label_en: Norovirus
   - id: sapovirus
-    label: Sapovirus
+    label_fi: Sapovirus
+    label_en: Sapovirus
   - id: cryptosporidium
-    label: Cryptosporidium
+    label_fi: Cryptosporidium
+    label_en: Cryptosporidium
   - id: e_coli
-    label: E. coli
+    label_fi: E. coli
+    label_fi: E. coli
   - id: giardia
-    label: Giardia
+    label_fi: Giardia
+    label_en: Giardia
   - id: walking
-    label: Kävely
+    label_fi: Kävely
+    label_en: Walking
   - id: cycling
-    label: Pyöräily
+    label_fi: Pyöräily
+    label_en: Cycling
   - id: pm1025
-    label: PM10-PM2.5
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
   - id: so2
-    label: SO2
+    label_fi: SO2
+    label_en: SO2
   - id: nh3
-    label: NH3
+    label_fi: NH3
+    label_en: NH3
 
 - id: response
-  label: Terveysvaikutus
+  label_fi: Terveysvaikutus
+  label_en: Response
   categories:
   - id: mortality
-    label: Kuolleisuus
+    label_fi: Kuolleisuus
+    label_en: Mortality
   - id: work_days_lost
-    label: Menetetyt työpäivät
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
   - id: chronic_bronchitis
-    label: Chronic bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
   - id: cancer
-    label: Syöpä
+    label_fi: Syöpä
+    label_en: Cancer
   - id: tolerable_weekly_intake
-    label: Siedettävä viikkosaanti
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
   - id: chd_mortality
-    label: Sepelvaltimotautikuolleisuus
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
   - id: breast_cancer
-    label: Rintasyöpä
-  - id: deficiency
-    label: Puutos
-  - id: infection
-    label: Infektio
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # FIXME Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # FIXME Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+
+- id: emission_height
+  label_fi: Päästökorkeus
+  label_en: Emission height
+  categories:
+  - id: high
+    label_fi: Korkea
+    label_en: High
+  - id: low
+    label_fi: Matala
+    label_en: Low
+  - id: ground
+    label_fi: Maan taso
+    label_en: Ground
+  - id: average
+    label_fi: Keskimääräinen
+    label_en: Average
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
 
 emission_sectors:
 - id: net_emissions
@@ -117,162 +176,6 @@ nodes:
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
-
-- id: attributable_fraction
-  name: Ilmansaasteiden syyosuus
-  type: health.AttributableFractionRR
-  quantity: exposure_response
-  unit: dimensionless
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
-  input_datasets:
-  - id: hia/exposure_response/air_pollution_erf
-    filters:
-    - column: Route
-      value: inhalation
-  input_nodes:
-  - id: exposure
-    to_dimensions:
-    - id: pollutant
-  params:
-  - id: gpc_sector
-    value: Air pollution
-
-- id: intake_fraction
-  name: Ilmansaasteiden saantiosuus
-  type: gpc.DatasetNode2
-  quantity: fraction
-  unit: ppm
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
-  input_datasets:
-  - id: hia/intake_fraction/air_pollution_if
-    filters:
-    - column: Population density
-      value: average
-    - column: Emission height
-      value: average
-  params:
-  - id: gpc_sector
-    value: Air pollution
-
-- id: transport_emission_ratio
-  name: Liikennepäästöjen keskinäinen suhde
-  type: gpc.DatasetRatioNode
-  quantity: emission_factor
-  unit: dimensionless
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
-  input_datasets:
-  - id: nzc/defaults/transport
-    forecast_from: 2023
-    filters:
-    - column: Transport mode
-      value: cars
-  params:
-  - id: gpc_sector
-    value: baseline year fleet emission factor
-  - id: reference_category
-    value: 'transport_pollutant:co2'
-
-- id: transport_air_pollution_emissions
-  name: Liikenteen ilmansaastepäästöt
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
-  input_nodes:
-  - id: transport_emissions
-    tags: [non_additive]
-    to_dimensions: []
-  - id: emission_ratio
-
-- id: breathing_rate
-  name: Hengitystilavuus
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: m**3/person/d
-  historical_values: [[1990, 20], [2023, 20]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: exposure
-  name: Altistuminen ilmansaasteille
-  type: simple.MultiplicativeNode
-  quantity: exposure
-  unit: ug/m**3
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
-  input_nodes:
-  - id: transport_air_pollution_emissions
-  - id: intake_fraction
-  - id: breathing_rate
-    tags: [geometric_inverse]
-    to_dimensions: []
-  - id: population
-    tags: [geometric_inverse]
-    to_dimensions: []
-
-- id: incidence
-  name: Ilmaantuvuus
-  type: gpc.DatasetNode2
-  quantity: incidence
-  unit: case/personyear
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_datasets:
-  - id: hia/incidence/default_incidence
-    filters:
-    - column: Place
-      value: default
-    - column: Population
-      value: default
-  params:
-  - id: gpc_sector
-    value: Environmental health
-
-- id: disease_burden
-  name: Kokonaistautitaakka
-  type: simple.MultiplicativeNode
-  quantity: disease_burden
-  unit: DALY/a
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_nodes:
-  - id: incidence
-  - id: case_burden
-    to_dimensions:
-    - id: response
-  - id: population
-    to_dimensions: []
-
-- id: case_burden
-  name: Tautitaakka per tapaus
-  type: gpc.DatasetNode2
-  quantity: case_burden
-  unit: DALY/case
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_datasets:
-  - id: hia/exposure_response/air_pollution_erf
-  params:
-  - id: gpc_sector
-    value: Air pollution
-
-- id: disease_burden_of_air_pollution
-  name: Ilmansaasteiden tautitaakka
-  type: simple.MultiplicativeNode
-  quantity: disease_burden
-  unit: DALY/a
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
-  is_outcome: true
-  input_nodes:
-  - id: disease_burden
-    tags: [non_additive]
-    to_dimensions:
-    - id: response
-  - id: attributable_fraction
 
 actions:
 - id: test
