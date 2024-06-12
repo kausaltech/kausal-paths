@@ -3,7 +3,7 @@ import polars as pl
 import numpy as np
 from params import StringParameter, BoolParameter
 from nodes.calc import extend_last_historical_value_pl
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, KNOWN_QUANTITIES
 from nodes.dimensions import Dimension
 from nodes.node import Node
 from nodes.simple import AdditiveNode
@@ -33,6 +33,14 @@ class DatasetNode(AdditiveNode):
                'exposure_response': 'exposure-response',
                'incidence': 'incidence',
                'case_burden': 'case burden'}
+
+    qlookup2 = {'price': 'currency',
+               'energy_consumption': 'energy',
+               'waste_disposal': 'mass',
+               'amount': 'number',
+               'exposureresponse': 'exposure_response',
+               'case_cost': 'unit_price'
+               }
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):
@@ -69,6 +77,23 @@ class DatasetNode(AdditiveNode):
 
         return idtext
 
+    def get_gpc_dataset(self) -> pd.DataFrame:
+        sector = self.get_parameter_value('gpc_sector')
+
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+        df = df[df[VALUE_COLUMN].notnull()]
+        quans = []
+        for quan in df.index.get_level_values('Quantity'):
+            quan = self.makeid(quan)
+            if not quan in KNOWN_QUANTITIES:
+                quan = self.qlookup2[quan]
+            quans.append(quan)
+        df = df[(df.index.get_level_values('Sector') == sector) &
+                [q == self.quantity for q in quans]]
+
+        return df
+    
     def implement_unit_col(self, df: pd.DataFrame) -> pd.DataFrame:
         unit = df['Unit'].unique()[0]
         df[VALUE_COLUMN] = df[VALUE_COLUMN].astype('pint[' + unit + ']')
@@ -127,6 +152,14 @@ class DatasetNode(AdditiveNode):
         df = df.paths.to_narrow()
         return df
 
+    def rename_dimensions(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        renams = self.get_parameter_value('rename_dimensions', required=False)
+        if renams:
+            for renam in renams.split(','):
+                dimfrom, dimto = renam.split(':')
+                df = df.rename({dimfrom: dimto})
+        return df
+
     def add_and_multiply_input_nodes(self, df: pd.DataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
         na_nodes = self.get_input_nodes(tag = 'non_additive')
@@ -142,20 +175,6 @@ class DatasetNode(AdditiveNode):
             df[VALUE_COLUMN] *= df[VALUE_COLUMN + '_right']
             df = df[[FORECAST_COLUMN, VALUE_COLUMN]]
 
-    def get_gpc_dataset(self) -> ppl.PathsDataFrame:  # FIXME Draft. Maybe not needed?
-        sector = self.get_parameter_value('gpc_sector')
-
-        # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
-        df = df[df[VALUE_COLUMN].notnull()]
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
-
-        df = self.convert_names_to_ids(df)
-#        df = self.add_missing_years(df)
-
-        return df
-    
     # -----------------------------------------------------------------------------------
     def compute(self) -> pd.DataFrame:  # FIXME Shouldn't the output be PathsDataFrame?
         sector = self.get_parameter_value('gpc_sector')
@@ -237,56 +256,38 @@ class DatasetNode(AdditiveNode):
 
 
 class DatasetNode2(DatasetNode):
+    allowed_parameters = DatasetNode.allowed_parameters + [
+        StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False)]
     def compute(self) -> ppl.PathsDataFrame:
-        sector = self.get_parameter_value('gpc_sector')
-
-        # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
-        df = df[df[VALUE_COLUMN].notnull()]
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
+        df = self.get_gpc_dataset()
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
+        df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         return df
     
     
-class DatasetRatioNode(DatasetNode):
-    allowed_parameters = DatasetNode.allowed_parameters + [
-        StringParameter('reference_category', description = 'Category to which all others are compared', is_customizable = False)]
+class DatasetRatioNode(DatasetNode2):
+    allowed_parameters = DatasetNode2.allowed_parameters + [
+        StringParameter('reference_category', description='Category to which all others are compared', is_customizable=False)]
 
     def compute(self) -> ppl.PathsDataFrame:
-        sector = self.get_parameter_value('gpc_sector')
-
-        # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
-        df = df[df[VALUE_COLUMN].notnull()]
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
+        df = self.get_gpc_dataset()
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
+        df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
 
-        col, cat = self.get_parameter_value('reference_category').split(':')
-        print(col, cat)
+        col, cat = self.get_parameter_value('reference_category', required=True).split(':')
         reference = df.filter(pl.col(col).eq(cat)).drop(col)
         df = df.paths.join_over_index(reference)
         df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
-        df = df.rename({'transport_pollutant': 'pollutant'})  # FIXME Generalise!
-#        df = df.with_columns(
-#            pl.when(pl.col('pollutant').cast(pl.Utf8).str.contains('co2'))
-#            .then(pl.lit('co2e'))
-#            .otherwise(pl.col('pollutant').cast(pl.Utf8))
-##            .alias('pollutant')
- #           .cast(pl.Categorical)
- #       )
 
         return df
-    
     
 class CorrectionNode(DatasetNode):
     allowed_parameters = DatasetNode.allowed_parameters + [

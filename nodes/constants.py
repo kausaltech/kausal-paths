@@ -54,7 +54,8 @@ ACTIVITY_QUANTITIES = set([
 ])
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | set([
-    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY
+    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY,
+    'disease_burden'
 ])
 
 KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
@@ -65,7 +66,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
     'exposure', 'exposure_response', 'disease_burden', 'case_burden',
     'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
     'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
-    'energy_factor', 'effect'
+    'energy_factor', 'effect', 'health_effect'
 ])
 
 DEFAULT_METRIC = 'default'
