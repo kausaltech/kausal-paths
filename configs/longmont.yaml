@@ -1,10 +1,11 @@
 id: longmont
 default_language: en
-supported_languages: [es]
+supported_languages: [es, fi]  # FIXME Can we avoid extra laguages from frameworks?
+frameworks: [health_air_pollution]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5dfeac702efe8d3d28d8f98e9fd35f69a7ea3294
+  commit: f5c57165bb8a2d94c9598c1841c63e072a8c6be7
   dvc_remote: kausal-s3
 name: Longmont Greenhouse Gas Inventory
 owner_en: City of Longmont
@@ -418,6 +419,131 @@ dimensions:
   - id: improvement
     label: Relative improvement
 
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  aliases: [transport_pollutant]
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label: PM2.5 combustion
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label: PM10 combustion
+  - id: dioxin
+    label_fi: Dioksiini
+    label_en: Dioxin
+  - id: omega3
+    label_fi: Omega-3
+    label_en: Omega 3
+  - id: vitamin_d
+    label_fi: D-vitamiini
+    label_en: Vitamin D
+  - id: campylobacter
+    label_fi: Kampylobakteeri
+    label_en: Campylobacter
+  - id: rotavirus
+    label_fi: Rotavirus
+    label_en: Rotavirus
+  - id: norovirus
+    label_fi: Norovirus
+    label_en: Norovirus
+  - id: sapovirus
+    label_fi: Sapovirus
+    label_en: Sapovirus
+  - id: cryptosporidium
+    label_fi: Cryptosporidium
+    label_en: Cryptosporidium
+  - id: e_coli
+    label_fi: E. coli
+    label_en: E. coli
+  - id: giardia
+    label_fi: Giardia
+    label_en: Giardia
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  categories:
+  - id: mortality
+    label_fi: Kuolleisuus
+    label_en: Mortality
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # FIXME Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # FIXME Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+
+- id: emission_height
+  label_fi: Päästökorkeus
+  label_en: Emission height
+  categories:
+  - id: high
+    label_fi: Korkea
+    label_en: High
+  - id: low
+    label_fi: Matala
+    label_en: Low
+  - id: ground
+    label_fi: Maan taso
+    label_en: Ground
+  - id: average
+    label_fi: Keskimääräinen
+    label_en: Average
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
+
 params:
 - id: municipality_name
   value: longmont
@@ -464,12 +590,6 @@ emission_sectors:
   name: Stationary energy emissions
   part_of: net_emissions
   color: '#73C1B7'
-  input_dataset_processors: [LinearInterpolation]
-
-- id: transportation_emissions
-  name: Transportation emissions
-  part_of: net_emissions
-  color: '#F4BD7B'
   input_dataset_processors: [LinearInterpolation]
 
 - id: waste_emissions
@@ -960,6 +1080,14 @@ nodes:
     to_dimensions:
     - id: emission_scope
       categories: [scope2]
+  - id: fossil_plant_air_pollution_emissions
+    tags: [non_additive]
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    - id: emission_sectors
+      flatten: true
+    to_dimensions: []
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
@@ -1231,6 +1359,24 @@ nodes:
 #
 # TRANSPORTATION
 #
+
+- id: transportation_emissions
+  name: Transportation emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  color: '#F4BD7B'
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+  - id: transport_air_pollution_emissions
+    tags: [non_additive]
+    from_dimensions:
+    - id: emission_scope
+      flatten: true
+    to_dimensions: []
 
 - id: emission_factor_fuels
   name: Fuel emission factors for CO2

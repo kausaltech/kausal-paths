@@ -36,17 +36,14 @@ nodes:
   unit: t/a
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
-  input_nodes:
-  - id: transport_emissions
-    tags: [non_additive]
-    to_dimensions: []
+  input_nodes:  # This node must be defined as an output for the CO2 emission node without dimensions.
   - id: transport_emission_ratio
 
-- id: heating_emission_ratio
-  name_fi: Lämmityspäästöjen keskinäinen suhde
-  name_en: Ratio of air pollution emissions from heating
-  description_fi: Lämmityksen päästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
-  description_en: Ratio of air pollution emissions from heating compared with CO2 emissions, which has the ratio 1.
+- id: fossil_plant_emission_ratio
+  name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
+  name_en: Ratio of air pollution emissions from fossil plants
+  description_fi: Fossiilivoimalan päästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
+  description_en: Ratio of air pollution emissions from fossil plants compared with CO2 emissions, which has the ratio 1.
   type: gpc.DatasetRatioNode
   quantity: emission_factor
   unit: dimensionless
@@ -61,21 +58,18 @@ nodes:
   - id: reference_category
     value: 'pollutant:co2'
 
-- id: district_heating_air_pollution_emissions
-  name_fi: Kaukolämmityksen ilmansaastepäästöt
+- id: fossil_plant_air_pollution_emissions
+  name_fi: Fossiilivoimalan ilmansaastepäästöt
   name_en: Air pollution emissions from district heating
-  description_fi: Kaukolämmön ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
-  description_en: Air pollution emissions from district heating based on CO2 emissions and other pollutants relative to that based on relative emission factors.
+  description_fi: Fossiilisella polttoaineella toimivien suurien voimalaitosten ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
+  description_en: Air pollution emissions from large fossil fuel plants based on CO2 emissions and other pollutants relative to that based on relative emission factors.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_nodes:
-  - id: district_heating_emissions
-    tags: [non_additive]
-    to_dimensions: []
-  - id: heating_emission_ratio
+  - id: fossil_plant_emission_ratio
     from_dimensions:
     - id: heating_type
       categories: [district_heating]
@@ -140,18 +134,18 @@ nodes:
     to_dimensions: []
   output_nodes: [air_pollution_exposure]
 
-- id: heating_air_pollution_exposure
-  name_fi: Altistuminen lämmityksen ilmansaasteille
-  name_en: Heating air pollution exposure
+- id: fossil_plant_air_pollution_exposure
+  name_fi: Altistuminen suurten fossiilista polttoainetta polttavien voimaloiden ilmansaasteille
+  name_en: Fossil plant air pollution exposure
   description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa altistumisesta tapahtuu tarkastelualueen ulkopuolella. (vain kaukolämpö tällä hetkellä)
-  decription_en: Exposure to air pollution as a long-term average concentration in the breathing zone. The exposure is attributed to the modeled population although a part of the exposure occurs outside the modeled area.
+  description_en: Exposure to air pollution as a long-term average concentration in the breathing zone. The exposure is attributed to the modeled population although a part of the exposure occurs outside the modeled area.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_nodes:
-  - id: district_heating_air_pollution_emissions
+  - id: fossil_plant_air_pollution_emissions
   - id: intake_fraction
     from_dimensions:
     - id: emission_height
@@ -232,6 +226,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: disease_burden
   unit: case/a
+  is_outcome: true
   input_dimensions: [pollutant, response]
   output_dimensions: [pollutant, response]
   input_nodes:

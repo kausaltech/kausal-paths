@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 136cbabc5f5441f4280d2a4974cc3923525f4789
+  commit: 93a88e5f499b3e75ab200972959b4c5447bd62af
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -31,6 +31,12 @@ params:
   # Kaikki ALas-päästöt
   # Taakanjakosektorin kaikki ALas-päästöt
   # Päästökaupan alaiset ALas-päästöt
+
+action_groups:
+- id: transport
+  name: Liikenne
+  name_en: Transport
+  color: '#93c572'
 
 dimensions:
 - id: pollutant
@@ -81,7 +87,7 @@ dimensions:
     label_en: Cryptosporidium
   - id: e_coli
     label_fi: E. coli
-    label_fi: E. coli
+    label_en: E. coli
   - id: giardia
     label_fi: Giardia
     label_en: Giardia
@@ -158,6 +164,28 @@ dimensions:
   - id: local_heating
     label: Local heating
 
+- id: energietrager
+  label: Energieträger
+  categories:
+  - id: erdgas
+    label: Erdgas
+  - id: fern_und_nahwarme
+    label: Fern- und Nahwärme
+  - id: heizol
+    label: Heizöl
+  - id: kerosin
+    label: Kerosin
+  - id: kohle
+    label: Kohle
+  - id: kraftstoffe
+    label: Kraftstoffe
+  - id: nicht_definiert
+    label: Nicht definiert
+  - id: sonstiges
+    label: Sonstiges
+  - id: strom
+    label: Strom
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 1+2)
@@ -177,13 +205,45 @@ nodes:
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
 
-actions:
-- id: test
-  name: test
-  type: simple.AdditiveAction
+- id: road_transport_emissions2
+  name: Intermediate node between the main model and the air pollution model
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2023, 100.0]]
+  input_nodes: [road_transport_emissions]
+  output_nodes:
+  - id: transport_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: district_heating_emissions2
+  name_fi: Välisolmu päämallin ja ilmansaastemallin välillä
+  name_en: Intermediate node between the main model and the air pollution model
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [district_heating_emissions]
+  output_nodes:
+  - id: fossil_plant_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+actions:
+- id: convert_cars_to_evs
+  name_fi: Muuta autokanta sähköiseksi
+  name_en: Electrify car fleed
+  description_fi: Kannustetaan sähköautojen käyttöön. Täyssähköautoja ja ladattavia
+    hybridejä oli Etelä-Karjalassa 700 ja 1680 vuonna 2022. Niiden määrän arvioidaan
+    nousevan lukemaan 4180 ja 5280 vuonna 2030.
+  description_en: Nudging people to buy electric cars. The numbers of full EVs and
+    loadable hybrids were 700 and 1680, respectively, in 2022. The projected numbers
+    are 4180 and 5280 in 2030.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  group: transport
+  unit: kt/a
+  forecast_values: [[2022, 0.0], [2030, -78.4]]  # 123.3 - 44.9
+  output_nodes: [road_transport_emissions]
 
 pages:
 - id: home
@@ -209,3 +269,4 @@ scenarios:
   default: true
   name: Lappeenrannan ilmasto-ohjelma
   name_en: Lappeenranta Climate Action Plan
+  all_actions_enabled: true
