@@ -47,3 +47,4 @@ wagtail-generic-chooser
 wagtail-color-panel
 loguru
 gql[requests]
+PyGithub
