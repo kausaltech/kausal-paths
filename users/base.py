@@ -91,9 +91,6 @@ class AbstractUser(DjangoAbstractUser):
             return self.email
         return self.username
 
-    def natural_key(self):
-        return (str(self.uuid),)
-
     def __str__(self):
         if self.first_name and self.last_name:
             return '%s %s (%s)' % (self.last_name, self.first_name, self.email)
