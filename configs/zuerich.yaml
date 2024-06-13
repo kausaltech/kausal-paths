@@ -1711,6 +1711,7 @@ nodes:
   name_en: Transport fuel factors (historical)
   type: ch.zuerich.TransportFuelFactor
   unit: kg/vkm
+  allow_nulls: true
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/fuel_consumption_factor
@@ -3901,6 +3902,7 @@ actions:
   group: mobility
   type: linear.DatasetReduceAction
   quantity: fuel_consumption
+  allow_nulls: true
   description_de: 'Wirkungsziel: Der Stromverbrauch von Personenwagen sinkt um xx%.
     Der Treibstoffverbrauch von Personenwagen sinkt um xx%.'
   input_nodes:

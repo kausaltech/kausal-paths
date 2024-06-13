@@ -11,7 +11,7 @@ from nodes.dimensions import Dimension
 from params import StringParameter, Parameter, NumberParameter
 from nodes.node import Node, NodeMetric
 from nodes.constants import (
-    FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, 
+    FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN,
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.simple import AdditiveNode, MultiplicativeNode
@@ -114,8 +114,10 @@ class HsyNode(Node):
                 df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
 
         df[FORECAST_COLUMN] = False
-
         return df
+
+    def check(self):
+        return
 
 
 class HsyNodeMixin:
@@ -206,6 +208,7 @@ class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
         df, other_nodes = self.get_sector([ENERGY_QUANTITY, EMISSION_QUANTITY])
         df[VALUE_COLUMN] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
         df = df.drop(columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
+        assert self.unit is not None
         df[VALUE_COLUMN] = self.convert_to_unit(df[VALUE_COLUMN], self.unit)
 
         # If there are other input nodes connected, add them with this one.

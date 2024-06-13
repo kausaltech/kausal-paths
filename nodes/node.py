@@ -53,6 +53,7 @@ if typing.TYPE_CHECKING:
 
 
 class_fname_cache: dict[type, str] = {}
+DEBUG_CACHE_MISSES = os.environ.get('DEBUG_CACHE_MISSES', '0') == '1'
 
 
 class NodeMetric:
@@ -173,6 +174,8 @@ class Node:
     quantity: Optional[str]
     # minimum year for node -- all output before this year is filtered out
     minimum_year: Optional[int]
+    # allow null values in the output
+    allow_nulls: bool
 
     # optional tags to differentiate between multiple input/output nodes
     tags: Set[str]
@@ -327,7 +330,7 @@ class Node:
         unit: Unit | None = None, quantity: str | None = None, minimum_year: int | None = None,
         description: I18nString | None = None, color: str | None = None, order: int | None = None,
         is_visible: bool = True, is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
-        input_datasets: List[Dataset] | None = None,
+        allow_nulls: bool = False, input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
         yaml_fn: str | None = None, yaml_lc: Tuple[int, int] | None = None,
@@ -365,6 +368,7 @@ class Node:
                 self.goals = None
         if self.goals is not None:
             self.goals.set_node(self)
+        self.allow_nulls = allow_nulls
 
         self.input_dataset_instances = input_datasets
         self.edges = []
@@ -967,7 +971,10 @@ class Node:
                 if isinstance(e, NodeComputationError):
                     e.add_node(self)
                     raise
-                raise NodeComputationError(self, "Error getting output") from e
+                if target_node:
+                    raise NodeComputationError(self, "Error getting output for node '%s'" % target_node.id) from e
+                else:
+                    raise NodeComputationError(self, "Error getting output") from e
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
 
@@ -1006,6 +1013,8 @@ class Node:
         if use_cache:
             node_hash = '%s:%s' % (self.id, self.calculate_hash().hex())
             cache_res = self.context.cache.get(node_hash)
+            if not cache_res.is_hit and DEBUG_CACHE_MISSES:
+                self.logger.debug("Cache miss for node %s" % self.id)
             out = cache_res.obj
         else:
             node_hash = ''
@@ -1027,7 +1036,7 @@ class Node:
             try:
                 out = self.compute()
             except Exception as e:
-                self.context.log.exception('Exception when computing node %s' % str(self))
+                self.context.log.error('Exception when computing node %s' % str(self))
                 raise e
             if out is None:
                 raise NodeError(self, "Node returned no output")
@@ -1248,6 +1257,11 @@ class Node:
     def _make_input_dataset(self, data: dict):
         sio = io.StringIO(json.dumps(data))
         old = self.serialize_input_data()
+        old_pks = sorted(data['schema']['primaryKey'])
+        new_pks = sorted(old['schema']['primaryKey'])
+        if old_pks != new_pks:
+            self.logger.warn('Primary keys do not match (%s vs. %s) in node %s input_data; disregarding' % (self.id, old_pks, new_pks))
+            return None
         old['data'] = data['data']
         _ = pd.read_json(sio, orient='table')
         return old
@@ -1258,6 +1272,8 @@ class Node:
                 self, "Can't replace data for node with %d input datasets" % len(self.input_dataset_instances))
 
         d = self._make_input_dataset(data)
+        if d is None:
+            return
         old_ds = self.input_dataset_instances[0]
         try:
             unit = old_ds.get_unit(self.context)
@@ -1372,12 +1388,15 @@ class Node:
         return df
 
     def check(self):
-        from nodes.metric import Metric
+        from nodes.metric import DimensionalMetric
         df = self.get_output_pl()
         for m in self.output_metrics.values():
-            nulls = df.filter(pl.col(m.column_id).is_null() | pl.col(m.column_id).is_nan())
-            if len(nulls):
-                raise NodeError(self, 'Output has nulls or NaNs in column %s' % m.column_id)
+            nulls = df.filter(pl.col(m.column_id).is_null())
+            if len(nulls) and not self.allow_nulls:
+                raise NodeError(self, 'Output has nulls in column %s' % m.column_id)
+            nans = df.filter(pl.col(m.column_id).is_nan())
+            if len(nans):
+                raise NodeError(self, 'Output has NaNs in column %s' % m.column_id)
 
         if self.baseline_values is not None:
             bdf = self.baseline_values
@@ -1386,17 +1405,8 @@ class Node:
                 if len(nulls):
                     raise NodeError(self, 'Baseline output has nulls or NaNs in column %s' % m.column_id)
 
-        m = Metric.from_node(self)  # FIXME Should this be done for DimensionslMetric as well?
-        if m is None:
-            raise NodeError(self, "Output did not result in a Metric")
-        else:
-            fail = False
-            for vals in (m.get_forecast_values(), m.get_historical_values()):
-                for v in vals:
-                    if v.value is None or v.value is float('nan'):
-                        fail = True
-                        break
-                if fail:
-                    break
-            if fail:
-                raise NodeError(self, 'Metric had nan or null values')
+        dm = DimensionalMetric.from_node(self)
+        if dm is not None:
+            for v in dm.values:
+                if v is float('nan'):
+                    raise NodeError(self, "Output metric has NaNs")

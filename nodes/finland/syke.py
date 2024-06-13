@@ -98,6 +98,9 @@ class AlasNode(Node):
 
         return df
 
+    def check(self):
+        return
+
 
 class AlasEmissions(Node):
     unit = 'kt/a'

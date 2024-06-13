@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import io
 import json
 import uuid
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, overload
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, cast, overload
 import orjson
 
 import pandas as pd
@@ -304,8 +304,8 @@ class JSONDataset(Dataset):
         df = self.df.to_pandas()
         return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
-    def get_unit(self, context: Context) -> Unit | None:
-        return self.unit
+    def get_unit(self, context: Context) -> Unit:
+        return cast(Unit, self.unit)
 
     @overload
     @classmethod

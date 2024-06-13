@@ -609,7 +609,8 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1
-            node.replace_input_data(self.input_data)
+            # disable legacy input data stuff
+            # node.replace_input_data(self.input_data)
 
         # FIXME: Override params
 
