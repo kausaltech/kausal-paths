@@ -513,6 +513,7 @@ nodes:
   type: simple.Activity
   quantity: mileage
   unit: Mvkm/a
+  historical_values: [[2010, 0], [2020, 0]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - tram_emissions
