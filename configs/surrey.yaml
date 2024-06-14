@@ -175,10 +175,13 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i11_residential_fuel_total_emissions
-    to_dimensions:
+  - id: i1_residential_total_emissions
+    from_dimensions:
     - id: scope
+      flatten: true
     - id: residential_building_type
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: i12_residential_grid_energy_emissions
@@ -193,10 +196,13 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i12_residential_grid_energy_total_emissions
-    to_dimensions:
+  - id: i1_residential_total_emissions
+    from_dimensions:
     - id: scope
+      flatten: true
     - id: residential_building_type
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: i1_residential_emissions
@@ -228,11 +234,14 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i21_commercial_and_institutional_fuel_total_emissions
-    to_dimensions:
+  - id: i2_commercial_and_institutional_total_emissions
+    from_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: ici_subsector
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: i22_commercial_and_institutional_grid_energy_emissions
   name: I.2.2 Commercial & Institutional Grid Energy Emissions
@@ -246,11 +255,14 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_total_emissions
-    to_dimensions:
+  - id: i2_commercial_and_institutional_total_emissions
+    from_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: ici_subsector
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: i2_commercial_and_institutional_emissions
   name: I.2 Commercial & Institutional Emissions
@@ -281,11 +293,14 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i31_manufacturing_fuel_total_emissions
-    to_dimensions:
+  - id: i3_manufacturing_total_emissions
+    from_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: industry_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: i3_manufacturing_emissions
   name: I.3 Manufacturing Emissions
@@ -316,9 +331,11 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i51_ag_forestry_and_fishing_fuel_total_emissions
-    to_dimensions:
+  - id: i5_ag_forestry_and_fishing_total_emissions
+    from_dimensions:
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: i5_ag_forestry_and_fishing_emissions
@@ -350,10 +367,13 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: i61_nonspecified_fuel_total_emissions
-    to_dimensions:
+  - id: i6_nonspecified_total_emissions
+    from_dimensions:
     - id: scope
+      flatten: true
     - id: equipment_type
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: i6_nonspecified_emissions
@@ -385,10 +405,13 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii11_onroad_transport_fuel_total_emissions
-    to_dimensions:
+  - id: ii1_onroad_transport_total_emissions
+    from_dimensions:
     - id: vehicle_type
+      flatten: true
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: ii12_onroad_transport_grid_energy_emissions
@@ -403,10 +426,13 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii12_onroad_transport_grid_energy_total_emissions
-    to_dimensions:
+  - id: ii1_onroad_transport_total_emissions
+    from_dimensions:
     - id: vehicle_type
+      flatten: true
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
@@ -421,10 +447,13 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii13_onroad_transport_outside_city_t_and_d_loss_total_emissions
-    to_dimensions:
+  - id: ii1_onroad_transport_total_emissions
+    from_dimensions:
     - id: vehicle_type
+      flatten: true
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: ii1_onroad_transport_emissions
@@ -456,11 +485,14 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii21_railway_fuel_total_emissions
-    to_dimensions:
+  - id: ii2_railway_total_emissions
+    from_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: rail_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: ii2_railway_emissions
   name: II.2 Railway Emissions
@@ -491,7 +523,7 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii31_waterborne_fuel_total_emissions
+  - id: ii3_waterborne_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -509,7 +541,7 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii41_aviation_fuel_total_emissions
+  - id: ii4_aviation_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -526,7 +558,7 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: ii51_offroad_transport_fuel_total_emissions
+  - id: ii5_offroad_transport_total_emissions
     to_dimensions:
     - id: scope
     - id: equipment_type
@@ -544,9 +576,11 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: iii12_solid_waste_disposed_outside_city_total_emissions
-    to_dimensions:
+  - id: iii1_solid_waste_total_emissions
+    from_dimensions:
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: iii1_solid_waste_emissions
@@ -578,7 +612,7 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: iii22_biological_waste_treated_outside_city_total_emissions
+  - id: iii2_biological_waste_total_emissions
     to_dimensions:
     - id: scope
     - id: ghg
@@ -595,43 +629,9 @@ nodes:
   input_datasets:
   - id: gpc/surrey
   output_nodes:
-  - id: iii42_wastewater_treated_outside_city_total_emissions
+  - id: iii4_wastewater_total_emissions
     to_dimensions:
     - id: scope
-    - id: ghg
-
-- id: i11_residential_fuel_total_emissions
-  name: I.1.1 Residential Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'residential_building_type', 'ghg']
-  output_dimensions: ['scope', 'residential_building_type', 'ghg']
-  output_nodes:
-  - id: i1_residential_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: residential_building_type
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: i12_residential_grid_energy_total_emissions
-  name: I.1.2 Residential Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'residential_building_type', 'ghg']
-  output_dimensions: ['scope', 'residential_building_type', 'ghg']
-  output_nodes:
-  - id: i1_residential_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: residential_building_type
-      flatten: true
-    to_dimensions:
     - id: ghg
 
 - id: i1_residential_total_emissions
@@ -643,40 +643,6 @@ nodes:
   output_dimensions: ['ghg']
   output_nodes:
   - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: i21_commercial_and_institutional_fuel_total_emissions
-  name: I.2.1 Commercial & Institutional Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'ici_subsector']
-  output_dimensions: ['scope', 'ghg', 'ici_subsector']
-  output_nodes:
-  - id: i2_commercial_and_institutional_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: ici_subsector
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: i22_commercial_and_institutional_grid_energy_total_emissions
-  name: I.2.2 Commercial & Institutional Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'ici_subsector']
-  output_dimensions: ['scope', 'ghg', 'ici_subsector']
-  output_nodes:
-  - id: i2_commercial_and_institutional_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: ici_subsector
-      flatten: true
     to_dimensions:
     - id: ghg
 
@@ -692,23 +658,6 @@ nodes:
     to_dimensions:
     - id: ghg
 
-- id: i31_manufacturing_fuel_total_emissions
-  name: I.3.1 Manufacturing Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'industry_type']
-  output_dimensions: ['scope', 'ghg', 'industry_type']
-  output_nodes:
-  - id: i3_manufacturing_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: industry_type
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
 - id: i3_manufacturing_total_emissions
   name: I.3 Manufacturing Total Emissions
   type: simple.AdditiveNode
@@ -721,21 +670,6 @@ nodes:
     to_dimensions:
     - id: ghg
 
-- id: i51_ag_forestry_and_fishing_fuel_total_emissions
-  name: I.5.1 Ag, Forestry, & Fishing Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: i5_ag_forestry_and_fishing_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
 - id: i5_ag_forestry_and_fishing_total_emissions
   name: I.5 Ag, Forestry, & Fishing Total Emissions
   type: simple.AdditiveNode
@@ -745,23 +679,6 @@ nodes:
   output_dimensions: ['ghg']
   output_nodes:
   - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: i61_nonspecified_fuel_total_emissions
-  name: I.6.1 Non-Specified Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'equipment_type', 'ghg']
-  output_dimensions: ['scope', 'equipment_type', 'ghg']
-  output_nodes:
-  - id: i6_nonspecified_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: equipment_type
-      flatten: true
     to_dimensions:
     - id: ghg
 
@@ -790,57 +707,6 @@ nodes:
     to_dimensions:
     - id: ghg
 
-- id: ii11_onroad_transport_fuel_total_emissions
-  name: II.1.1 On-Road Transport Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['vehicle_type', 'scope', 'ghg']
-  output_dimensions: ['vehicle_type', 'scope', 'ghg']
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: ii12_onroad_transport_grid_energy_total_emissions
-  name: II.1.2 On-Road Transport Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['vehicle_type', 'scope', 'ghg']
-  output_dimensions: ['vehicle_type', 'scope', 'ghg']
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: ii13_onroad_transport_outside_city_t_and_d_loss_total_emissions
-  name: II.1.3 On-Road Transport Outside City, T & D Loss Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['vehicle_type', 'scope', 'ghg']
-  output_dimensions: ['vehicle_type', 'scope', 'ghg']
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
 - id: ii1_onroad_transport_total_emissions
   name: II.1 On-Road Transport Total Emissions
   type: simple.AdditiveNode
@@ -850,23 +716,6 @@ nodes:
   output_dimensions: ['ghg']
   output_nodes:
   - id: ii_transportation_total_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: ii21_railway_fuel_total_emissions
-  name: II.2.1 Railway Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'rail_type']
-  output_dimensions: ['scope', 'ghg', 'rail_type']
-  output_nodes:
-  - id: ii2_railway_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: rail_type
-      flatten: true
     to_dimensions:
     - id: ghg
 
@@ -881,20 +730,6 @@ nodes:
   - id: ii_transportation_total_emissions
     to_dimensions:
     - id: ghg
-
-- id: ii31_waterborne_fuel_total_emissions
-  name: II.3.1 Waterborne Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'waterborne_type']
-  output_dimensions: ['scope', 'ghg', 'waterborne_type']
-  output_nodes:
-  - id: ii3_waterborne_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: waterborne_type
 
 - id: ii3_waterborne_total_emissions
   name: II.3 Waterborne Total Emissions
@@ -913,19 +748,6 @@ nodes:
     to_dimensions:
     - id: ghg
 
-- id: ii41_aviation_fuel_total_emissions
-  name: II.4.1 Aviation Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: ii4_aviation_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
 - id: ii4_aviation_total_emissions
   name: II.4 Aviation Total Emissions
   type: simple.AdditiveNode
@@ -939,20 +761,6 @@ nodes:
     - id: scope
       flatten: true
     to_dimensions:
-    - id: ghg
-
-- id: ii51_offroad_transport_fuel_total_emissions
-  name: II.5.1 Off-Road Transport Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'equipment_type', 'ghg']
-  output_dimensions: ['scope', 'equipment_type', 'ghg']
-  output_nodes:
-  - id: ii5_offroad_transport_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: equipment_type
     - id: ghg
 
 - id: ii5_offroad_transport_total_emissions
@@ -985,21 +793,6 @@ nodes:
     to_dimensions:
     - id: ghg
 
-- id: iii12_solid_waste_disposed_outside_city_total_emissions
-  name: III.1.2 Solid Waste Disposed outside City Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: iii1_solid_waste_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
 - id: iii1_solid_waste_total_emissions
   name: III.1 Solid Waste Total Emissions
   type: simple.AdditiveNode
@@ -1010,19 +803,6 @@ nodes:
   output_nodes:
   - id: iii_waste_total_emissions
     to_dimensions:
-    - id: ghg
-
-- id: iii22_biological_waste_treated_outside_city_total_emissions
-  name: III.2.2 Biological Waste Treated outside City Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: iii2_biological_waste_total_emissions
-    to_dimensions:
-    - id: scope
     - id: ghg
 
 - id: iii2_biological_waste_total_emissions
@@ -1038,19 +818,6 @@ nodes:
     - id: scope
       flatten: true
     to_dimensions:
-    - id: ghg
-
-- id: iii42_wastewater_treated_outside_city_total_emissions
-  name: III.4.2 Wastewater Treated outside City Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  output_nodes:
-  - id: iii4_wastewater_total_emissions
-    to_dimensions:
-    - id: scope
     - id: ghg
 
 - id: iii4_wastewater_total_emissions
