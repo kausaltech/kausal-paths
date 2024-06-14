@@ -51,3 +51,5 @@ loguru
 gql[requests]
 logfmter
 s3cmd
+recursive-diff
+wagtail-modeladmin

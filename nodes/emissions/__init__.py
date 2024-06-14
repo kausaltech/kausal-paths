@@ -18,7 +18,7 @@ class GlobalWarmingPotential(Node):
         idx = pd.MultiIndex.from_product([years, ghg_dim.get_cat_ids()]).to_list()
         df = pl.DataFrame(idx, orient='row', schema=[YEAR_COLUMN, ghg_dim.id])
         df = df.with_columns([
-            pl.col(ghg_dim.id).map_dict(AR5GWP100).alias(VALUE_COLUMN),
+            pl.col(ghg_dim.id).replace(AR5GWP100).cast(pl.Float32).alias(VALUE_COLUMN),
             pl.lit(False).alias(FORECAST_COLUMN)
         ])
         meta = ppl.DataFrameMeta(

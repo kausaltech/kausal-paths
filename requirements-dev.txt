@@ -25,7 +25,7 @@ executing==2.0.1
     #   stack-data
 ipdb==0.13.13
     # via -r requirements-dev.in
-ipython==8.17.2
+ipython==8.25.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
@@ -34,19 +34,19 @@ jedi==0.19.1
     # via
     #   -c requirements.txt
     #   ipython
-matplotlib-inline==0.1.6
+matplotlib-inline==0.1.7
     # via
     #   -c requirements.txt
     #   ipython
-packaging==23.2
+packaging==24.1
     # via
     #   -c requirements.txt
     #   build
-parso==0.8.3
+parso==0.8.4
     # via
     #   -c requirements.txt
     #   jedi
-pexpect==4.8.0
+pexpect==4.9.0
     # via
     #   -c requirements.txt
     #   ipython
@@ -54,7 +54,7 @@ pip-tools==7.4.1
     # via -r requirements-dev.in
 plotext==5.2.8
     # via -r requirements-dev.in
-prompt-toolkit==3.0.40
+prompt-toolkit==3.0.47
     # via
     #   -c requirements.txt
     #   ipython
@@ -66,7 +66,7 @@ pure-eval==0.2.2
     # via
     #   -c requirements.txt
     #   stack-data
-pygments==2.16.1
+pygments==2.18.0
     # via
     #   -c requirements.txt
     #   ipython
@@ -83,12 +83,12 @@ stack-data==0.6.3
     # via
     #   -c requirements.txt
     #   ipython
-traitlets==5.13.0
+traitlets==5.14.3
     # via
     #   -c requirements.txt
     #   ipython
     #   matplotlib-inline
-wcwidth==0.2.9
+wcwidth==0.2.13
     # via
     #   -c requirements.txt
     #   prompt-toolkit

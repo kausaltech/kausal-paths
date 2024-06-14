@@ -1,35 +1,43 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
 import hashlib
 import json
-from django.http import HttpRequest
-from graphql.execution.execute import get_field_def
-from graphql.type import GraphQLFieldResolver, GraphQLObjectType, GraphQLTypeResolver
-from loguru import logger
+import os
+import time
 from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext
 from typing import Any, Dict, List, Optional, cast
 
 import orjson
 import sentry_sdk
-from sentry_sdk.tracing import Transaction
-from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
+from django.http import HttpRequest
 from django.utils import translation
 from graphene_django.views import GraphQLView
-from graphql import DirectiveNode, ExecutionResult, GraphQLOutputType, GraphQLScalarType, GraphQLSchema, MiddlewareManager, OperationType, get_named_type
+from graphql import (
+    DirectiveNode,
+    ExecutionResult,
+    GraphQLOutputType,
+    OperationType,
+)
 from graphql.error import GraphQLError
 from graphql.execution import ExecutionContext
-from graphql.language import FieldNode, FragmentDefinitionNode, OperationDefinitionNode
+from graphql.language import FieldNode, OperationDefinitionNode
 from graphql.language.ast import VariableNode
 from graphql.pyutils import AwaitableOrValue, Path
+from graphql.type import GraphQLObjectType
+from loguru import logger
 from rich.console import Console
 from rich.syntax import Syntax
+from sentry_sdk.tracing import Transaction
 
+from kausal_common.testing.graphql import capture_query
 from nodes.models import Instance, InstanceConfig, InstanceConfigQuerySet
 from nodes.perf import PerfContext
 from params.storage import SessionStorage
 from paths.authentication import IDTokenAuthentication
-from paths.types import PathsAPIRequest
+from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
 
 from .graphql_helpers import GQLContext, GQLInstanceContext, GraphQLPerfNode
 
@@ -43,6 +51,8 @@ def _arg_value(arg, variable_vals):
 
 
 logger = logger.bind(markup=True)
+
+GRAPHQL_CAPTURE_QUERIES = os.getenv('GRAPHQL_CAPTURE_QUERIES', '0') == '1'
 
 
 class PathsExecutionContext(ExecutionContext):
@@ -353,8 +363,15 @@ class PathsGraphQLView(GraphQLView):
         )
         perf.enabled = settings.ENABLE_PERF_TRACING
         request.graphql_perf = perf
+        capture_queries = True
         with perf:
+            start = time.time()
             ret = super().get_response(request, data, show_graphiql)
+            if capture_queries and data and ret[0]:
+                headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
+                now = time.time()
+                capture_query(request, headers, data, ret[0], ret[1], (now - start) * 1000)
+
         return ret
 
     def execute_graphql_request(

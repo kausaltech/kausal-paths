@@ -36,7 +36,7 @@ class PathsAdminRequest(PathsAuthenticatedRequest):
 
 
 class PathsAPIRequest(PathsAuthenticatedRequest):
-    pass
+    wildcard_domains: list[str] | None
 
 
 class PathsModel(models.Model):

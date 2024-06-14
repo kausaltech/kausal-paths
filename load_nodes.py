@@ -24,6 +24,7 @@ import pandas as pd
 from nodes.units import Quantity
 
 
+
 load_dotenv()
 
 console = Console()
@@ -52,7 +53,7 @@ if True:
 
     warnings.showwarning = warn_with_traceback
     # Pretty tracebacks
-    rich.traceback.install()
+    rich.traceback.install(max_frames=10)
 
 django_initialized = False
 
@@ -91,6 +92,7 @@ parser.add_argument('--print-action-efficiencies', action='store_true', help='ca
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
+parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -122,6 +124,26 @@ if args.check:
 if args.show_perf:
     context.perf_context.enabled = True
 
+
+if args.cache_benchmark:
+    from common.perf import PerfCounter
+
+    pc = PerfCounter()
+    context.skip_cache = True
+    nodes = context.get_outcome_nodes()
+    test_dfs = []
+    for n in nodes:
+        df = n.get_output_pl()
+        test_dfs.append(df)
+    cache = context.cache
+    old_client = cache.client
+    cache.client = None
+    pc.display('begin')
+    for i in range(1000):
+        key = 'key-%d' % i
+        cache.set(key, test_dfs[i % len(test_dfs)])
+    pc.display('end', show_time_to_last=True)
+    exit()
 
 profile: cProfile.Profile | None
 if args.profile:

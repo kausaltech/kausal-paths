@@ -1,4 +1,3 @@
-import logging
 import typing
 from typing import ClassVar, Tuple, Union
 
@@ -11,7 +10,7 @@ from nodes.dimensions import Dimension
 from params import StringParameter, Parameter, NumberParameter
 from nodes.node import Node, NodeMetric
 from nodes.constants import (
-    FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN,
+    PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN,
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.simple import AdditiveNode, MultiplicativeNode
@@ -326,7 +325,7 @@ class MultiplicativeWithDataBackup(MultiplicativeNode):
         df_data = df_data.with_columns([pl.col('building_heat_source').cast(pl.Categorical)])
         df_data = df_data.with_columns([pl.col('building_use').cast(pl.Categorical)])
         on = list(set(df.get_meta().primary_keys + df_data.get_meta().primary_keys))
-        df = df.join(df_data, on=on, how='outer')
+        df = df.join(df_data, on=on, how='outer_coalesce')
 
         # FIXME If you add actions to years without calculated values, you get zero-counting rather than double-counting.
         df = df.with_columns([

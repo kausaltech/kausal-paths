@@ -66,7 +66,7 @@ class LinearInterpolation(Processor):
         df = df.paths.to_wide()
         years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
         meta = df.get_meta()
-        zdf = df.join(years_df, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
+        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
         df = ppl.to_ppdf(zdf, meta=meta)
         cols = [pl.col(col).interpolate() for col in df.metric_cols]
         df = df.with_columns(cols)

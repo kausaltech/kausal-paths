@@ -14,7 +14,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 from importlib.util import find_spec
 from threading import ExceptHookArgs
-from typing import Literal
+from typing import Any, Literal
 
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
@@ -115,7 +115,7 @@ INSTALLED_APPS = [
     'wagtail.search',
     'wagtail.admin',
     'wagtail',
-    'wagtail.contrib.modeladmin',
+    'wagtail_modeladmin',
     'wagtail.contrib.styleguide',
     'wagtail_localize',
     'wagtail_localize.locales',  # replaces `wagtail.locales`
@@ -256,10 +256,8 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 
+from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER  # noqa
 
-INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'
-INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
-WILDCARD_DOMAINS_HEADER = 'x-wildcard-domains'
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     # Match localhost with optional port
@@ -269,6 +267,9 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
     'baggage',
+    INSTANCE_IDENTIFIER_HEADER,
+    INSTANCE_HOSTNAME_HEADER,
+    WILDCARD_DOMAINS_HEADER
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 3600
@@ -392,7 +393,7 @@ MEDIA_FILES_S3_ACCESS_KEY_ID = env('MEDIA_FILES_S3_ACCESS_KEY_ID')
 MEDIA_FILES_S3_SECRET_ACCESS_KEY = env('MEDIA_FILES_S3_SECRET_ACCESS_KEY')
 MEDIA_FILES_S3_CUSTOM_DOMAIN = env('MEDIA_FILES_S3_CUSTOM_DOMAIN')
 
-STORAGES = {
+STORAGES: dict[str, Any] = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
@@ -523,6 +524,8 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             level=level,
         )
 
+    #warnings.filterwarnings(action='ignore', category=RemovedInWagtail60Warning)
+
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -584,6 +587,9 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'markdown_it': level('INFO'),
             'colormath': level('INFO'),
             'gql': level('WARNING'),
+            'psycopg': level('INFO'),
+            'aiobotocore': level('INFO'),
+            's3fs': level('INFO'),
             '': level('DEBUG'),
         }
     }
@@ -623,4 +629,4 @@ if DEBUG:
         django_stubs_ext.monkeypatch()
     except ImportError:
         pass
- 
+

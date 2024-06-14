@@ -4,12 +4,12 @@
 #
 #    pip-compile requirements-lint.in
 #
-asgiref==3.7.2
+asgiref==3.8.1
     # via
     #   -c requirements.txt
     #   django
     #   django-stubs
-certifi==2023.7.22
+certifi==2024.6.2
     # via
     #   -c requirements.txt
     #   requests
@@ -17,12 +17,12 @@ charset-normalizer==3.3.2
     # via
     #   -c requirements.txt
     #   requests
-django==4.2.7
+django==5.0.6
     # via
     #   -c requirements.txt
     #   django-stubs
     #   django-stubs-ext
-django-stubs==5.0.0
+django-stubs==5.0.2
     # via
     #   -r requirements-lint.in
     #   djangorestframework-stubs
@@ -34,13 +34,13 @@ factory-boy==3.3.0
     # via
     #   -c requirements.txt
     #   types-factory-boy
-faker==20.0.0
+faker==25.8.0
     # via
     #   -c requirements.txt
     #   factory-boy
 graphene-stubs==0.16
     # via -r requirements-lint.in
-idna==3.4
+idna==3.7
     # via
     #   -c requirements.txt
     #   requests
@@ -50,27 +50,27 @@ mypy==1.10.0
     #   graphene-stubs
 mypy-extensions==1.0.0
     # via mypy
-numpy==1.26.1
+numpy==1.26.4
     # via
     #   -c requirements.txt
     #   pandas-stubs
 pandas-stubs==2.2.2.240603
     # via -r requirements-lint.in
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
     # via
     #   -c requirements.txt
     #   faker
-requests==2.31.0
+requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.4.7
+ruff==0.4.8
     # via -r requirements-lint.in
 six==1.16.0
     # via
     #   -c requirements.txt
     #   python-dateutil
-sqlparse==0.4.4
+sqlparse==0.5.0
     # via
     #   -c requirements.txt
     #   django
@@ -84,11 +84,9 @@ types-pyyaml==6.0.12.20240311
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.31.0.6
+types-requests==2.32.0.20240602
     # via djangorestframework-stubs
-types-urllib3==1.26.25.14
-    # via types-requests
-typing-extensions==4.8.0
+typing-extensions==4.12.2
     # via
     #   -c requirements.txt
     #   django-stubs
@@ -97,7 +95,8 @@ typing-extensions==4.8.0
     #   graphene-stubs
     #   mypy
     #   types-factory-boy
-urllib3==1.26.18
+urllib3==2.2.1
     # via
     #   -c requirements.txt
     #   requests
+    #   types-requests

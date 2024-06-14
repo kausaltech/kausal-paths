@@ -85,7 +85,7 @@ class DVCDataset(Dataset):
             assert isinstance(self.unit, Unit)
         self.dvc_dataset = None
 
-    def _process_output(self, df: ppl.PathsDataFrame, ds_hash: str, context: Context) -> ppl.PathsDataFrame:
+    def _process_output(self, df: ppl.PathsDataFrame, ds_hash: str | None, context: Context) -> ppl.PathsDataFrame:
         if self.max_year:
             df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)
         if self.min_year:
@@ -103,7 +103,8 @@ class DVCDataset(Dataset):
                 else:
                     df = df.set_unit(col, self.unit)
 
-        context.cache.set(ds_hash, df)
+        if ds_hash:
+            context.cache.set(ds_hash, df)
         return df
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
@@ -116,6 +117,9 @@ class DVCDataset(Dataset):
             res = context.cache.get(ds_hash)
             if res.is_hit:
                 obj = res.obj
+        else:
+            ds_hash = None
+
         if obj is not None:
             self.df = obj
             return obj

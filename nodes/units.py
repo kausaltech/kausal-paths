@@ -46,7 +46,6 @@ class CachingUnitRegistry(  # type: ignore[misc]
     facets.GenericContextRegistry[Quantity, Unit],
     facets.GenericNumpyRegistry[Quantity, Unit],
     facets.GenericMeasurementRegistry[Quantity, Unit],
-    facets.GenericFormattingRegistry[Quantity, Unit],
     facets.GenericNonMultiplicativeRegistry[Quantity, Unit],
     facets.GenericPlainRegistry[Quantity, Unit],
 ):

@@ -1,5 +1,5 @@
-from wagtail.contrib.modeladmin.options import (ModelAdmin, ModelAdminMenuItem)
-from wagtail.contrib.modeladmin.views import EditView
+from wagtail_modeladmin.options import (ModelAdmin, ModelAdminMenuItem)
+from wagtail_modeladmin.views import EditView
 from wagtail.admin.panels import FieldPanel
 
 from pages.models import InstanceSiteContent

@@ -29,12 +29,13 @@ class GraphQLBlockField(GraphQLField):
         self,
         field_name: str,
         block_cls: type[blocks.Block],
+        *,
         required: bool | None = None,
         **kwargs
     ):
         def build_type():
             return build_block_type(block_cls, '', interfaces=())
-        super().__init__(field_name, build_type, required, **kwargs)  # type: ignore
+        super().__init__(field_name, build_type, required=required, **kwargs)  # type: ignore
 
 
 @register_streamfield_block

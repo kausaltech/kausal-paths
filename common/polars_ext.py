@@ -5,6 +5,7 @@ from typing import Literal, TypeAlias, TYPE_CHECKING, Union
 import pandas as pd
 
 import polars as pl
+from polars import type_aliases as pl_types
 import common.polars as ppl
 from nodes.units import Unit
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
@@ -79,7 +80,7 @@ class PathsExt:
 
         df = df.with_columns([
             pl.concat_list([
-                format_col(dim) for dim in dim_ids 
+                format_col(dim) for dim in dim_ids
             ]).list.join('/').alias('_dims')
         ])
         mdf = None
@@ -195,7 +196,7 @@ class PathsExt:
         assert isinstance(last_hist_year, int)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         if len(years):
-            df = df.join(years, on=YEAR_COLUMN, how='outer').sort(YEAR_COLUMN)
+            df = df.join(years, on=YEAR_COLUMN, how='outer_coalesce').sort(YEAR_COLUMN)
             df = df.with_columns([
                 pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(True)).otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN)
             ])
@@ -251,7 +252,8 @@ class PathsExt:
         join_on = list(set(sm.primary_keys) & set(om.primary_keys))
         if not len(join_on):
             if len(other) == 1:  # A single value copied to all rows
-                df = sdf.with_columns(other)
+                #df = sdf.with_columns(other).paths._df
+                raise Exception("invalid access")
             else:
                 raise ValueError("No shared primary keys between joined DFs")
         else:
@@ -259,7 +261,10 @@ class PathsExt:
                 sdt = sdf[col].dtype
                 if sdt != other[col].dtype:
                     other = other.with_columns([pl.col(col).cast(sdt)])
-            df = sdf.join(other, on=join_on, how=how)
+            pl_how: pl_types.JoinStrategy = how
+            if how == 'outer':
+                pl_how = 'outer_coalesce'
+            df = sdf.join(other, on=join_on, how=pl_how)
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
@@ -339,17 +344,19 @@ class PathsExt:
         right_fc = pl.col(FORECAST_COLUMN + '_right')
         left_val = pl.col(val_col)
         right_val = pl.col(val_col + '_right')
+        pl_how: pl_types.JoinStrategy = how
         if how == 'outer':
             left_fc = left_fc.fill_null(False)
             right_fc = right_fc.fill_null(False)
 
             left_val = left_val.fill_null(0)
             right_val = right_val.fill_null(0)
+            pl_how = 'outer_coalesce'
         elif how == 'left':
             right_fc = right_fc.fill_null(False)
             right_val = right_val.fill_null(False)
 
-        df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=how), meta=meta)
+        df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=pl_how), meta=meta)
         df = df.with_columns([
             left_val + right_val,
             left_fc | right_fc

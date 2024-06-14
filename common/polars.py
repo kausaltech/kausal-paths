@@ -11,7 +11,7 @@ from pint_pandas import PintType
 from nodes.units import Quantity
 import polars as pl
 from polars.type_aliases import IntoExpr
-from polars.utils._parse_expr_input import parse_as_list_of_expressions
+from polars._utils.parse_expr_input import parse_as_list_of_expressions
 from polars.polars import PyExpr, PyDataFrame
 import numpy as np
 from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN

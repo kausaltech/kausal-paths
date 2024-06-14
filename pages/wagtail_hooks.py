@@ -1,5 +1,5 @@
 from typing import Any
-from wagtail.contrib.modeladmin.options import modeladmin_register
+from wagtail_modeladmin.options import modeladmin_register
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
 from paths.types import PathsAdminRequest
