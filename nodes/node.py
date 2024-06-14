@@ -1246,7 +1246,7 @@ class Node:
         ds = self.input_dataset_instances[0]
         df = ds.get_copy(self.context)
         if not isinstance(df, ppl.PathsDataFrame) or FORECAST_COLUMN not in df.columns:
-            raise Exception('Dataset %s is not suitable for serialization')
+            raise Exception(f'Dataset {ds.id} is not suitable for serialization')
 
         out = JSONDataset.serialize_df(df.to_pandas())
         return out

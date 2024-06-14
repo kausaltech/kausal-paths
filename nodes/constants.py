@@ -48,24 +48,29 @@ POPULATION_QUANTITY = 'population'
 MIX_QUANTITY = 'mix'
 GROUPED_MIX_QUANTITY = 'grouped_mix'
 UTILITY_QUANTITY = 'utility'
+
 ACTIVITY_QUANTITIES = set([
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
-    PASSENGER_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'mass'
+    PASSENGER_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption', 'mass'
+])
+
+ACTIVITY_FACTOR_QUANTITIES = set([
+    ENERGY_FACTOR_QUANTITY, CONSUMPTION_FACTOR_QUANTITY, 'energy_per_area', 'occupancy_factor', 'fuel_factor'
+])
+
+UNIT_PRICE_QUANTITIES = set([
+    UNIT_PRICE_QUANTITY, 'energy_unit_price', 'floor_area_unit_price', 'fuel_unit_price', 'mileage_unit_price'
 ])
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | set([
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY
 ])
 
-KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
-    EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, UNIT_PRICE_QUANTITY,
-    PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY, MIX_QUANTITY, CONSUMPTION_FACTOR_QUANTITY,
-    UTILITY_QUANTITY,
-    'population', 'per_capita', 'fuel_consumption', 'ratio',
-    'exposure', 'exposure-response', 'disease_burden', 'case_burden',
-    'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
-    'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
-    'energy_factor', 'effect'
+KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE_QUANTITIES | set([
+    EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
+    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
+    'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden', 'mass_concentration',
+    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect'
 ])
 
 DEFAULT_METRIC = 'default'

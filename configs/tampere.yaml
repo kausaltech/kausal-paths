@@ -513,6 +513,7 @@ nodes:
   type: simple.Activity
   quantity: mileage
   unit: Mvkm/a
+  historical_values: [[2010, 0], [2020, 0]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - tram_emissions
@@ -775,6 +776,7 @@ nodes:
   - id: tampere/scenarios/city_machinery
     column: activity
     unit: l/a
+    forecast_from: 2023
   input_dimensions: [fuel]
   output_dimensions: [fuel]
   output_nodes:
@@ -790,6 +792,7 @@ nodes:
   - id: tampere/scenarios/city_machinery
     column: emission_factor
     unit: g/l
+    forecast_from: 2023
   input_dimensions: [fuel]
   output_dimensions: [fuel]
   output_nodes:
