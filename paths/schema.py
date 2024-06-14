@@ -28,7 +28,7 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
 
     lang = get_language().replace('-', '_')
     fmt = '~P' if not html else '~Z'
-    f = unit.format_babel(fmt, locale=lang, sort=False)  # type: ignore
+    f = unit.format_babel(fmt, locale=lang)  # type: ignore
     if not long:
         if f == 't/a/cap':
             if lang == 'de':
@@ -76,7 +76,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery):
     def resolve_unit(root: 'Query', info: GQLInfo, value: str):
         try:
             unit = validate_unit(value)
-        except ValidationError as e:
+        except ValidationError:
             raise GraphQLError(_("Invalid unit"), info.field_nodes)
         return unit
 

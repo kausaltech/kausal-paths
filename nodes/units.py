@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
 import re
-from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeAlias
+from typing import TYPE_CHECKING, Optional, Tuple, TypeAlias
 import os
 import pint
-from pint._typing import UnitLike
 import pint_pandas
 from pint import facets
 from pint.formatting import register_unit_format, formatter

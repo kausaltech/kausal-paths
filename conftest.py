@@ -130,7 +130,7 @@ def graphql_client_query(client, instance_config, settings):
         # In tests, only headers that start with `HTTP_` are used, but in production the header names are taken verbatim
         assert not settings.INSTANCE_IDENTIFIER_HEADER.startswith('HTTP_')
         headers = {
-            'HTTP_' + settings.INSTANCE_IDENTIFIER_HEADER: instance_config.identifier,
+            settings.INSTANCE_IDENTIFIER_HEADER: instance_config.identifier,
         }
         return graphql_query(*args, **kwargs, client=client, graphql_url='/v1/graphql/', headers=headers)
     return func
