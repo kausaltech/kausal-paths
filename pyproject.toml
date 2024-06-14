@@ -78,6 +78,7 @@ module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
     "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
     "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environs.*",
+    "wagtail_modeladmin.*",
 ]
 ignore_missing_imports = true
 

@@ -1,5 +1,6 @@
 name: reviewdog
 on:
+  pull_request:
   workflow_call:
 
 jobs:
@@ -7,22 +8,72 @@ jobs:
     name: reviewdog
     runs-on: ubuntu-latest
     permissions:
-        contents: read
-        pull-requests: write
+      checks: write
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Setup cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: |
+            ~/.cache/pip
+            .mypy_cache
+          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}
       - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
           cache: 'pip'
+          cache-dependency-path: |
+            requirements-lint.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements-lint.txt -r requirements.txt
+          sudo apt update && sudo apt install --no-install-recommends -y libproj-dev gdal-bin
+      - name: Save cache
+        uses: actions/cache/save@v4
+        if: ${{ ! steps.cache.outputs.cache-hit }}
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+
+      - name: Get push diff
+        if: github.event_name == 'push' && github.event.before
+        id: push_diff
+        run: |
+          # Check if the "before" hash exists
+          if [ "$(git cat-file -t ${{ github.event.before }})" = "commit" ] ; then
+            echo Diffing ${{ github.event.before }}..${{ github.sha }}
+            git diff --find-renames --submodule=diff ${{ github.event.before }} ${{ github.sha }} > ${{ runner.temp }}/changes.diff
+            echo has_diff=true >> $GITHUB_OUTPUT
+          else
+            echo Commit ${{ github.event.before }} does not exist -- skipping reviewdog
+            echo has_diff=false >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
       - uses: reviewdog/action-setup@v1
         with:
           reviewdog_version: latest # Optional. [latest,nightly,v.X.Y.Z]
-      - name: Install dependencies
-        run: python -m pip install -U pip -r requirements-lint.txt
-      - name: Run reviewdog
+
+      - name: Run reviewdog for push
+        if: github.event_name == 'push' && steps.push_diff.outputs.has_diff == 'true'
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          reviewdog -reporter=github-check -fail-on-error
+          reviewdog -reporter=local -fail-on-error -diff "cat ${{ runner.temp }}/changes.diff"
+
+      - name: Run reviewdog for PR
+        if: github.event_name == 'pull_request'
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          reviewdog -reporter=github-pr-check -log-level=debug
