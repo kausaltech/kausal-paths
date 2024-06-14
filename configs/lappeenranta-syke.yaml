@@ -187,26 +187,35 @@ dimensions:
     label: Strom
 
 emission_sectors:
+
 - id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
+  name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
-  description: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään
+  description_fi: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään
     vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan 20
     % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
+  description_en: 'The emissions goal is to be carbon neutral in 2030. At least 80% of emissions will be reduced compared to the situation in 2020 (363.7 kt) and a maximum of 20% (72.7 kt) will be compensated. (Source: Lappeenranta Climate City Contract)'
+  type: simple.AdditiveNode
   is_outcome: true
   target_year_goal: 72.7
 
 nodes:
 - id: population
   type: finland.Population
-  name: Väestö
+  name_fi: Väestö
+  name_en: Population
+  description_fi: Kohdeväestön koko
+  description_en: Size of the target population
 
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
 
 - id: road_transport_emissions2
-  name: Intermediate node between the main model and the air pollution model
+  name_fi: Tieliikenteen CO2-päästöt
+  name_en: CO2 emissions from road transport
+  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välissä
+  description_en: Intermediate node between the main model and the air pollution module
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -217,8 +226,10 @@ nodes:
     to_dimensions: []
 
 - id: district_heating_emissions2
-  name_fi: Välisolmu päämallin ja ilmansaastemallin välillä
-  name_en: Intermediate node between the main model and the air pollution model
+  name_fi: Kaukolämmön CO2-päästöt
+  name_en: CO2 emissions from district heating
+  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välillä
+  description_en: Intermediate node between the main model and the air pollution module
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a

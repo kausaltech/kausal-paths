@@ -38,6 +38,9 @@ nodes:
   output_dimensions: [pollutant]
   input_nodes:  # This node must be defined as an output for the CO2 emission node without dimensions.
   - id: transport_emission_ratio
+    from_dimensions:
+    - id: pollutant
+      categories: [pm25, pm10, nox]
 
 - id: fossil_plant_emission_ratio
   name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
@@ -218,45 +221,60 @@ nodes:
   - id: gpc_sector
     value: Air pollution
 
+- id: total_number_of_cases
+  name_fi: Kokonaistapausmäärä
+  name_en: Total number of cases
+  description_fi: Kokonaistapausmäärä kohdeväestössä
+  description_en: Total number of cases in the target population
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: incidence
+    to_dimensions:
+    - id: response
+  - id: population
+    to_dimensions: []
+
+- id: attributable_cases
+  name_fi: Ilmansaasteisiin kohdentuvat tapaukset
+  name_en: Cases attributable to air pollution
+  description_fi: Pienhiukkasiin ja typenoksideihin kohdentuvat tapaukset
+  description_en: Cases attributable to PM2.5 and NOx
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_nodes:
+  - id: air_pollution_attributable_fraction
+#    to_dimensions:
+#    - id: pollutant
+  - id: total_number_of_cases
+    tags: [non_additive]
+    to_dimensions:
+    - id: response
+
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
   name_en: Premature deaths
   description_fi: Pienhiukkasten ja typenoksidien aiheuttamat ennenaikaiset kuolemat.
   description_en: Premature deaths caused by PM2.5 and NOx.
-  type: simple.MultiplicativeNode
-  quantity: disease_burden
+  type: simple.AdditiveNode
+  quantity: health_effect
   unit: case/a
   is_outcome: true
   input_dimensions: [pollutant, response]
   output_dimensions: [pollutant, response]
   input_nodes:
-  - id: incidence
+  - id: attributable_cases
     from_dimensions:
     - id: response
       categories: [mortality]
-    to_dimensions:
-    - id: response
-  - id: air_pollution_attributable_fraction
-  - id: population
-    to_dimensions: []
-
-- id: disease_burden
-  name_fi: Kokonaistautitaakka
-  name_en: Total disease burden
-  description_fi: Kokonaistautitaakka väestössä valikoituihin terveysvasteisiin.
-  description_en: Total disease burden in the population to a selection of endpoints.
-  type: simple.MultiplicativeNode
-  quantity: disease_burden
-  unit: DALY/a
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_nodes:
-  - id: incidence
-  - id: case_burden
-    to_dimensions:
-    - id: response
-  - id: population
-    to_dimensions: []
 
 - id: case_burden
   name_fi: Tautitaakka per tapaus
@@ -270,6 +288,7 @@ nodes:
   output_dimensions: [response]
   input_datasets:
   - id: hia/exposure_response/air_pollution_erf
+    forecast_from: 2023
   params:
   - id: gpc_sector
     value: Air pollution
@@ -280,14 +299,14 @@ nodes:
   description_fi: Ilmansaasteiden aiheuttama tautitaakka kohdeväestössä.
   description_en: Disease burden attributable to air pollution in the target population.
   type: simple.MultiplicativeNode
-  quantity: disease_burden
+  quantity: health_effect
   unit: DALY/a
   input_dimensions: [response, pollutant]
   output_dimensions: [response, pollutant]
   is_outcome: true
   input_nodes:
-  - id: disease_burden
+  - id: case_burden
     tags: [non_additive]
     to_dimensions:
     - id: response
-  - id: air_pollution_attributable_fraction
+  - id: attributable_cases
