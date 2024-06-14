@@ -178,19 +178,12 @@ class DatasetActionMFM(ActionNode):
 
     # -----------------------------------------------------------------------------------
     def compute_effect(self) -> pd.DataFrame:
+        # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset()
         df = df[df['Value'].notnull()]
         df = df[df.index.get_level_values('Action') == self.get_parameter_value('action')]
 
-        fc = pd.DataFrame()
-        if 'Forecast' in df.columns:
-            fc = df.reset_index()
-            fc = fc[['Year', 'Forecast']].drop_duplicates()
-            df = df.drop(columns = ['Forecast'])
-
-        if not self.is_enabled():
-            df['Value'] = self.no_effect_value
-
+        # Drop filter levels and empty dimension levels.
         droplist = ['Action']
         for col in df.index.names:
             vals = df.index.get_level_values(col).unique().to_list()
@@ -198,9 +191,11 @@ class DatasetActionMFM(ActionNode):
                 droplist.append(col)
         df.index = df.index.droplevel(droplist)
 
+        # Convert index level names from labels to IDs.
         df.index = df.index.set_names([self.makeid(i) for i in df.index.names])
         df.index = df.index.set_names({'year': 'Year'})
 
+        # Convert levels within each index level from labels to IDs.
         dfi = df.index.to_frame(index = False)
         for col in list(set(df.index.names) - set(['quantity', 'Year'])):
             for cat in dfi[col].unique():
@@ -208,6 +203,28 @@ class DatasetActionMFM(ActionNode):
 
         df.index = pd.MultiIndex.from_frame(dfi)
 
+        # Create DF with all years and forecast true/false values.
+        yeardf = pd.DataFrame({'Year': range(dfi['Year'].min(), dfi['Year'].max() + 1)})
+        yeardf = yeardf.set_index(['Year'])
+
+        if 'Forecast' in df.columns:
+            fc = df.reset_index()
+            fc = pd.DataFrame(fc.groupby('Year')['Forecast'].max())
+            fc = yeardf.join(fc)
+            fc = fc['Forecast'].ffill()
+
+            df = df.drop(columns = ['Forecast'])
+        else:
+            fc = yeardf.copy()
+            fc['Forecast'] = False
+
+        yeardf = ppl.from_pandas(yeardf)
+
+        # Set value to 'no effect' if action is not enabled.
+        if not self.is_enabled():
+            df['Value'] = self.no_effect_value
+
+        # Create a DF for each sector/quantity pair...
         dfi = dfi[['sector', 'quantity']].drop_duplicates()
         qdfs = []
         for pair in list(zip(dfi['sector'], dfi['quantity'])):
@@ -218,17 +235,27 @@ class DatasetActionMFM(ActionNode):
             qdf['Value'] = qdf['Value'].astype('pint[' + qdf['Unit'].unique()[0] + ']')
             qdf = qdf.drop(columns = ['Unit'])
 
+            # ...add missing years and interpolate missing values.
+            qdf = ppl.from_pandas(qdf)
+            qdf = qdf.paths.to_wide()
+
+            qdf = yeardf.paths.join_over_index(qdf)
+            for col in list(set(qdf.columns) - set(['Year'])):
+                qdf = qdf.with_columns(pl.col(col).interpolate())
+
+            qdf = qdf.paths.to_narrow()
+            qdf = qdf.to_pandas()
+
+            # ...rename value column.
             qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
             qdfs.append(qdf)
 
+        # Join sector/quantity DFs into a single multi-metric DF.
         jdf = qdfs[0]
         for qdf in qdfs[1:]:
             jdf = jdf.join(qdf, how = 'outer')
 
-        if len(fc):
-            jdf = jdf.join(fc.set_index('Year'))
-        else:
-            jdf['Forecast'] = False
+        jdf = jdf.join(fc)
 
         for dim in self.output_dimensions:
             self.output_dimensions[dim].is_internal = True
