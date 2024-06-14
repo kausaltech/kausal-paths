@@ -14,6 +14,18 @@ from nodes.models import InstanceConfig
 logger = loguru.logger.opt(colors=True)
 
 
+def make_comparable(table: dict):
+    schema: dict = table['schema']
+    pks: list = schema['primaryKey']
+    pks.sort()
+    fields: list = schema['fields']
+
+    fields.sort(key=lambda x: x['name'])
+    data: list = table['data']
+    data.sort(key=lambda x: tuple([x[key] for key in pks]))
+    return data
+
+
 class Command(BaseCommand):
     help = 'Create a dataset in DB based on a DVC dataset'
 
@@ -22,6 +34,7 @@ class Command(BaseCommand):
         parser.add_argument('--skip', dest='skip', metavar='INSTANCE_ID', action='append')
         parser.add_argument('--store', dest='store', metavar='DIR', type=str, action='store')
         parser.add_argument('--compare', dest='compare', metavar='DIR', type=str, action='store')
+        parser.add_argument('--start-from', dest='start_from', metavar='INSTANCE_ID', action='store')
 
     def check_instance(self, ic: InstanceConfig, store: str, compare: str):
         instance = ic.get_instance()
@@ -46,7 +59,7 @@ class Command(BaseCommand):
                         data = json.load(f)
                     df = node.get_output()
                     df_ser = JSONDataset.serialize_df(df)
-                    diffs = list(recursive_diff(data, df_ser))
+                    diffs = list(recursive_diff(make_comparable(data), make_comparable(df_ser)))
                     if diffs:
                         logger.error("Instance %s, node %s differs" % (instance.id, node.id))
                         print(diffs)
@@ -55,12 +68,18 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         instance_ids = options['instances']
         if not instance_ids:
-            instance_ids = list(InstanceConfig.objects.all().values_list('identifier', flat=True))
+            instance_ids = list(InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True))
         if options['store']:
             os.makedirs(options['store'], exist_ok=True)
+        start_from = options['start_from']
         for id in instance_ids:
             if options['skip'] and id in options['skip']:
                 continue
+            if start_from:
+                if id == start_from:
+                    start_from = None
+                else:
+                    continue
             ic = InstanceConfig.objects.get(identifier=id)
             logger.info("Checking instance {}", id)
             self.check_instance(ic, options['store'], options['compare'])
