@@ -776,6 +776,7 @@ nodes:
   - id: tampere/scenarios/city_machinery
     column: activity
     unit: l/a
+    forecast_from: 2023
   input_dimensions: [fuel]
   output_dimensions: [fuel]
   output_nodes:
@@ -791,6 +792,7 @@ nodes:
   - id: tampere/scenarios/city_machinery
     column: emission_factor
     unit: g/l
+    forecast_from: 2023
   input_dimensions: [fuel]
   output_dimensions: [fuel]
   output_nodes:
