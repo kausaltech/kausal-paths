@@ -372,7 +372,6 @@ emission_sectors:
     Kok Uusimaa</li> <li>HS.ymp.1 Sdp Savo</li> <li>HS.ymp.1 Sdp Uusimaa</li> <li>HS.ymp.2
     Sdp Uusimaa</li> <li>HS.ymp.1 Kesk Savo</li> <li>HS.ymp.2 Kesk Savo</li></ul>
   is_outcome: true
-  target_year_goal: 212
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -389,12 +388,65 @@ nodes:
   - id: region
     value: Suomi
 
-- id: net_emissions2  # Needed locally because it is stuck to the database
-  name: Empty placeholder
+# ------------------ Etelä-Suomen biodiversiteetti --------------
+
+- id: protected_forest_area
+  name: Suojellun metsäluonnon pinta-ala Etelä-Suomessa
+  type: values.AssociationNode
+  quantity: area
+  unit: ha
+  historical_values: [[2010, 200], [2023, 100]]
+
+- id: rich_forest_biodiversity_area
+  name: Rikkaan metsäluonnon pinta-ala Etelä-Suomessa
+  type: values.AssociationNode
+  quantity: area
+  unit: ha
+  historical_values: [[2010, 200], [2023, 100]]
+  input_nodes: [protected_forest_area]
+
+- id: forest_biodiversity_channels
+  name: Rikkaan metsäluonnon yhdyskäytävät Etelä-Suomessa
+  type: values.AssociationNode
+  quantity: area
+  unit: ha
+  historical_values: [[2010, 200], [2023, 100]]
+
+- id: forest_grazing
+  name: Metsälaidunnus
+  type: values.AssociationNode
+  quantity: area
+  unit: ha
+  historical_values: [[2010, 0.20], [2023, 0.50]]
+
+- id: number_of_endangered_species
+  name: Uhanalaisten lajien määrä
+  description: 'Punaisen kirjan mukainen uhanalaisuusluokitus. Valitettavasti vain vuoden 2019 tulokset ovat ladattavissa avoimena datana, joten aikasarjoja ei ole mahdollista piirtää suoraan datan perusteella. Kuitenkin yksittäinenkin aikapiste kertoo nykytilanteesta. Ehkä hyödyllisin analyysi olisi laskea uhanalaisten lajien määrät elinympäristöittäin. Tähän kuvaustekstiin voisi ilmoittaa samat tiedot prosenttiosuuksina kaikista elinympäristön lajeista. <h3>Viitteet</h3> Ympäristöministeriö & Suomen ympäristökeskus (2019). Suomen lajien uhanalaisuus – Punainen kirja 2019: tiedostolataus (versio 2). Ladattu osoitteesta https://punainenkirja.laji.fi/publications 2024-06-16.'
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 50], [2023, 150]]
+  input_nodes:
+  - id: rich_forest_biodiversity_area
+  - id: forest_biodiversity_channels
+  - id: forest_grazing
+
+- id: forest_protection_unit_cost
+  name: Metsien suojelun yksikköhinta
+  description: Metsien suojelun kustannuksiin sisältyvät suorat tuet tai lunastushinnat maanomistajalle sekä vaihtoehtoiskustannukset eli maankäytön muutoksesta syntyvä sadon väheneminen.
   type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  historical_values: [[2020, 0]]
+  quantity: currency
+  unit: MEUR/ha/a
+  historical_values: [[2010, 100], [2023, 120]]
+
+- id: forest_protection_cost
+  name: Metsien suojelun kustannus
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: protected_forest_area
+  - id: forest_protection_unit_cost
 
 # ---------------------------- Suomen metsänielukeskustelu
 
@@ -464,7 +516,7 @@ nodes:
   name: Korkean jalostusasteen puutuotteiden hinta
   type: simple.AdditiveNode
   quantity: unit_price
-  unit: MEUR/t
+  unit: EUR/t
   historical_values: [[2000, 4000], [2023, 4000]]
   input_dataset_processors: [LinearInterpolation]
 
@@ -564,7 +616,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: utility
   unit: Ut/a
-  input_nodes: [net_emissions]
+  input_nodes: [agriculture_emissions]
   output_nodes: [forestry_utility]
   params:
   - id: multiplier
@@ -595,8 +647,36 @@ nodes:
     value: 1
     unit: Ut/a/kt
 
+- id: nature_protection_commitment_utility
+  name: Luonnonsuojelusitoumusten toteuttamisen utiliteetti
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes:
+  - id: protected_forest_area
+    tags: [non_additive]
+  output_nodes: [forestry_utility]
+  params:
+  - id: multiplier
+    value: 1
+    unit: Ut/a/ha
+
+- id: southern_finland_biodiversity_utility
+  name: Etelä-Suomen biodiversiteetin utiliteetti
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes:
+  - id: number_of_endangered_species
+    tags: [non_additive]
+  output_nodes: [forestry_utility]
+  params:
+  - id: multiplier
+    value: 1
+    unit: Ut/a/pcs
+
 - id: forestry_utility
-  name: Metsäteollisuuden utiliteetti
+  name: Metsien utiliteetti
   type: simple.AdditiveNode
   quantity: utility
   unit: Ut/a
@@ -1424,6 +1504,28 @@ pages:
 
 actions:
 
+# ------------ Finnish environmental policy --------------
+
+- id: forest_grazing_support
+  name: Metsälaidunnuksen tuki
+  description: Tähän pitäisi kerätä tietoa siitä, kuinka paljon tukea metsälaidunnukselle annetaan nykyään, ja mikä on tilanne hallituksen säästötoimien jälkeen. Samoin pitäisi kuvata sitä, miten paljon laidunnus lisääntyy tukimäärän suurentuessa (€/ha). Yhteys tuskin on lineaarinen, vaan jokin määrä laidunnusta tapahtuu ilman tukiakin, mutta liian pieni hehtaarituki ei lisää laidunnusta lainkaan.
+  type: simple.CumulativeAdditiveAction
+  quantity: area
+  unit: ha
+  group: forestry
+  forecast_values: [[2024, 0], [2025, 100]]
+  output_nodes: [forest_grazing]
+
+- id: ambition_of_forest_protection
+  name: Metsiensuojelun kunnianhimon määrä
+  description: Kunnianhimon määrää mitataan tässä suojeltujen hehtaarien määrällä. Osa suojelusta tapahtuu ilman valtion toimiakin, ja se ei näy tässä toimenpiteessä vaan trendinä solmussa Suojellun metsäluonnon pinta-ala Etelä-Suomessa. Tähän tarvittaisiin tieto kustannustehokkuudesta eli paljonko hehtaarin suojelu maksaa.
+  type: simple.CumulativeAdditiveAction
+  quantity: area
+  unit: ha
+  group: forestry
+  forecast_values: [[2024, 0], [2026, 100]]
+  output_nodes: [protected_forest_area]
+
 - id: block_the_pipes
   name: Tulpataan teollisuuden piiput
   type: simple.CumulativeAdditiveAction
@@ -1442,6 +1544,8 @@ actions:
   forecast_values: [[2024, 0], [2028, 0], [2029, 1760]]  # 50 % yield C6H12O6 180 g/mol in wood results in 6 CO2 264 g/mol --> 600 kt / 50 % * 264 / 180 = 1760 kt
   input_dataset_processors: [LinearInterpolation]
   output_nodes: [pulp_production_capacity]
+
+# ---------------- Municipality tranport policies --------------
 
 - id:  ev_charging_infrastructure
   name: Kaupunki rakentaa latauspisteitä
