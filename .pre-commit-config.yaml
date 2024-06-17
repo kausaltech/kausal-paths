@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: check-submodules
+        name: Check submodules
+        entry: ./.hooks/check-submodules
+        language: script
+        types: [directory]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.4.9
+    hooks:
+      # Run the linter.
+      - id: ruff
