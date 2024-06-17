@@ -15,7 +15,7 @@ txtrst='\033[0m'          # Text reset
 # ------------------------------
 # regex
 SUBMODULE_REGEX_STATUS="([\+-uU[:space:]])([^[:space:]]*) ([^[:space:]]*)( ([^[:space:]]*))?"
-SUBMODULE_REGEX_MODULE="\[submodule \"(.*)\"\]"
+SUBMODULE_REGEX_MODULE="path = (.*)"
 GIT_REGEX_DIFF_COMMIT=".*commit (.*)"
 
 # ------------------------------
@@ -53,13 +53,14 @@ find_submodule_remote_ref() {
 # ------------------------------
 # $1 = path
 find_submodule_commit_hash() {
-  local l_br=`git diff HEAD -- $1 | sed '1,6 d'` # too specific?
-  if [[ ${l_br} =~ $GIT_REGEX_DIFF_COMMIT ]]; then
-    # return commit HASH
-    echo ${BASH_REMATCH[1]}
-    return 0
+  local rev=${PRE_COMMIT_TO_REF}
+  if [ -z "$rev" ]; then
+    rev=HEAD
   fi
-  return -1
+  local l_br=`git ls-tree ${rev} -- $1 | cut -d ' ' -f 3`
+  local commit=$(echo $l_br | cut -d $'\t' -f 1)
+  echo $commit
+  return 0
 }
 
 # ------------------------------

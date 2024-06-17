@@ -1,5 +1,6 @@
 **/__pycache__/
 **/.mypy_cache/
+/.hooks/
 /static/
 /.direnv/
 /.env*
