@@ -63,14 +63,19 @@ UNIT_PRICE_QUANTITIES = set([
 ])
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | set([
-    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY, 'area'
+    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY, 'area',
+    'disease_burden', 'health_effect'
 ])
 
-KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE_QUANTITIES | set([
-    EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
-    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
-    'ratio', 'exposure', 'exposure-response', 'disease_burden', 'case_burden', 'mass_concentration',
-    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect'
+KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | set([
+    EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, UNIT_PRICE_QUANTITY,
+    PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY, MIX_QUANTITY, CONSUMPTION_FACTOR_QUANTITY,
+    UTILITY_QUANTITY,
+    'population', 'per_capita', 'fuel_consumption', 'ratio',
+    'exposure', 'exposure_response', 'disease_burden', 'case_burden',
+    'mass', 'consumption', 'mass_concentration', 'body_weight', 'incidence', 'fraction',
+    'probability', 'ingestion', 'energy_per_area', 'area', 'occupancy_factor',
+    'energy_factor', 'effect', 'health_effect'
 ])
 
 DEFAULT_METRIC = 'default'

@@ -1,12 +1,12 @@
 id: lappeenranta-syke
 default_language: fi
 supported_languages: [en]
-frameworks: [syke]
+frameworks: [syke, health_air_pollution]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
 site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 791d34a61e64f4cbf07a1c40c1efe13aad954a2c
+  commit: 93a88e5f499b3e75ab200972959b4c5447bd62af
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -32,30 +32,229 @@ params:
   # Taakanjakosektorin kaikki ALas-päästöt
   # Päästökaupan alaiset ALas-päästöt
 
+action_groups:
+- id: transport
+  name: Liikenne
+  name_en: Transport
+  color: '#93c572'
+
+dimensions:
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  aliases: [transport_pollutant]
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label: PM2.5 combustion
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label: PM10 combustion
+  - id: dioxin
+    label_fi: Dioksiini
+    label_en: Dioxin
+  - id: omega3
+    label_fi: Omega-3
+    label_en: Omega 3
+  - id: vitamin_d
+    label_fi: D-vitamiini
+    label_en: Vitamin D
+  - id: campylobacter
+    label_fi: Kampylobakteeri
+    label_en: Campylobacter
+  - id: rotavirus
+    label_fi: Rotavirus
+    label_en: Rotavirus
+  - id: norovirus
+    label_fi: Norovirus
+    label_en: Norovirus
+  - id: sapovirus
+    label_fi: Sapovirus
+    label_en: Sapovirus
+  - id: cryptosporidium
+    label_fi: Cryptosporidium
+    label_en: Cryptosporidium
+  - id: e_coli
+    label_fi: E. coli
+    label_en: E. coli
+  - id: giardia
+    label_fi: Giardia
+    label_en: Giardia
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  categories:
+  - id: mortality
+    label_fi: Kuolleisuus
+    label_en: Mortality
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # FIXME Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # FIXME Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+
+- id: emission_height
+  label_fi: Päästökorkeus
+  label_en: Emission height
+  categories:
+  - id: high
+    label_fi: Korkea
+    label_en: High
+  - id: low
+    label_fi: Matala
+    label_en: Low
+  - id: ground
+    label_fi: Maan taso
+    label_en: Ground
+  - id: average
+    label_fi: Keskimääräinen
+    label_en: Average
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
+
+- id: energietrager
+  label: Energieträger
+  categories:
+  - id: erdgas
+    label: Erdgas
+  - id: fern_und_nahwarme
+    label: Fern- und Nahwärme
+  - id: heizol
+    label: Heizöl
+  - id: kerosin
+    label: Kerosin
+  - id: kohle
+    label: Kohle
+  - id: kraftstoffe
+    label: Kraftstoffe
+  - id: nicht_definiert
+    label: Nicht definiert
+  - id: sonstiges
+    label: Sonstiges
+  - id: strom
+    label: Strom
+
 emission_sectors:
+
 - id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
+  name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
-  description: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan 20 % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
+  description_fi: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä vähennetään
+    vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan 20
+    % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
+  description_en: 'The emissions goal is to be carbon neutral in 2030. At least 80% of emissions will be reduced compared to the situation in 2020 (363.7 kt) and a maximum of 20% (72.7 kt) will be compensated. (Source: Lappeenranta Climate City Contract)'
+  type: simple.AdditiveNode
   is_outcome: true
   target_year_goal: 72.7
 
 nodes:
 - id: population
   type: finland.Population
-  name: Väestö
+  name_fi: Väestö
+  name_en: Population
+  description_fi: Kohdeväestön koko
+  description_en: Size of the target population
 
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
 
-actions:
-- id: test
-  name: test
-  type: simple.AdditiveAction
+- id: road_transport_emissions2
+  name_fi: Tieliikenteen CO2-päästöt
+  name_en: CO2 emissions from road transport
+  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välissä
+  description_en: Intermediate node between the main model and the air pollution module
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  forecast_values: [[2023, 100.0]]
+  input_nodes: [road_transport_emissions]
+  output_nodes:
+  - id: transport_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: district_heating_emissions2
+  name_fi: Kaukolämmön CO2-päästöt
+  name_en: CO2 emissions from district heating
+  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välillä
+  description_en: Intermediate node between the main model and the air pollution module
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [district_heating_emissions]
+  output_nodes:
+  - id: fossil_plant_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+actions:
+- id: convert_cars_to_evs
+  name_fi: Muuta autokanta sähköiseksi
+  name_en: Electrify car fleed
+  description_fi: Kannustetaan sähköautojen käyttöön. Täyssähköautoja ja ladattavia
+    hybridejä oli Etelä-Karjalassa 700 ja 1680 vuonna 2022. Niiden määrän arvioidaan
+    nousevan lukemaan 4180 ja 5280 vuonna 2030.
+  description_en: Nudging people to buy electric cars. The numbers of full EVs and
+    loadable hybrids were 700 and 1680, respectively, in 2022. The projected numbers
+    are 4180 and 5280 in 2030.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  group: transport
+  unit: kt/a
+  forecast_values: [[2022, 0.0], [2030, -78.4]]  # 123.3 - 44.9
+  output_nodes: [road_transport_emissions]
 
 pages:
 - id: home
@@ -81,3 +280,4 @@ scenarios:
   default: true
   name: Lappeenrannan ilmasto-ohjelma
   name_en: Lappeenranta Climate Action Plan
+  all_actions_enabled: true
