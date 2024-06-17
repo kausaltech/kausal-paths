@@ -26,7 +26,7 @@ ignore = "E309"
 [tool.ruff]
 line-length = 130
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 split-on-trailing-comma = false
 required-imports = ["from __future__ import annotations"]
 
