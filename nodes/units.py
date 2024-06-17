@@ -177,11 +177,13 @@ def add_unit_translations():
             if 'per' in cup:
                 del cup['per']
 
+    _babel_units['metric_ton'] = 'mass-tonne'
     set_one('capita', _('capita'))
     set_one('cap', pgettext_lazy('capita short', 'cap'))
     set_one('kt', pgettext_lazy('kilotonne short', 'kt'))
     set_one('a', pgettext_lazy('year short', 'yr.'))
     set_one('percent', pgettext_lazy('percent', 'percent'))
+    set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
     set_one('%', '%')
 
 
