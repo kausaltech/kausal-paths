@@ -4,3 +4,4 @@ ipython
 pip-tools
 ipdb
 plotext
+pre-commit
