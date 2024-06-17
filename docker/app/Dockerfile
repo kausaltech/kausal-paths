@@ -80,9 +80,6 @@ RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
 #
 FROM base AS final
 
-ARG BUILD_ID
-ENV BUILD_ID=${BUILD_ID} SENTRY_RELEASE=paths-backend@${BUILD_ID}
-
 ENV VENV_PATH=/venv
 ENV PATH=${VENV_PATH}/bin:${PATH}
 
@@ -124,6 +121,13 @@ ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
 ARG CADDY_PORT=6000
 ENV CADDY_PORT=${CADDY_PORT}
 ENV LC_CTYPE=C.UTF-8
+
+ARG SENTRY_PROJECT=paths-backend
+ARG BUILD_ID
+ENV \
+  BUILD_ID=${BUILD_ID} \
+  SENTRY_PROJECT=${SENTRY_PROJECT} \
+  SENTRY_RELEASE=${SENTRY_PROJECT}@${BUILD_ID}
 
 # We need to have the default user as root to be able to run tests etc.
 USER root
