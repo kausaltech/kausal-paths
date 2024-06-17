@@ -7,9 +7,18 @@ repos:
         language: script
         types: [directory]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.4.9
-    hooks:
-      # Run the linter.
-      - id: ruff
+      - id: run-ruff
+        name: Run Ruff
+        language: system
+        types: [python]
+        stages: [pre-commit]
+        entry: |
+          ruff
+
+      - id: run-reviewdog
+        name: Run Reviewdog
+        language: script
+        entry: ./.hooks/reviewdog.sh
+        types: [python]
+        stages: [pre-push]
+        verbose: true

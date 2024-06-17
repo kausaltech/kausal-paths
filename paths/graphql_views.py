@@ -125,7 +125,7 @@ class PathsExecutionContext(ExecutionContext):
         arguments = {arg.name.value: _arg_value(arg, self.variable_values) for arg in directive.arguments}
         identifier = arguments.get('identifier')
         hostname = arguments.get('hostname')
-        token = arguments.get('token')
+        token = arguments.get('token')  # noqa
         if identifier:
             return self.get_instance_by_identifier(qs, identifier, directive)
         if hostname:
@@ -306,7 +306,7 @@ class PathsGraphQLView(GraphQLView):
 
     def get_ic_from_headers(self, request: HttpRequest):
         identifier = request.headers.get('x-paths-instance-identifier')
-        hostname = request.headers.get('x-paths-instance-hostname')
+        hostname = request.headers.get('x-paths-instance-hostname')  # noqa
         if not identifier:
             return None
         return InstanceConfig.objects.filter(identifier=identifier).first()
