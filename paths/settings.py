@@ -607,7 +607,7 @@ if SENTRY_DSN:
         profiles_sample_rate=1.0 if ENABLE_PERF_TRACING else 0.0,
         # instrumenter='otel',
         integrations=[DjangoIntegration()],
-        environment=DEPLOYMENT_TYPE,
+        environment=os.getenv('SENTRY_ENVIRONMENT', None) or DEPLOYMENT_TYPE,
         server_name=os.getenv('NODE_NAME', None),
     )
     ignore_logger('uwsgi-req')

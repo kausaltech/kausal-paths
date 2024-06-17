@@ -259,7 +259,7 @@ class PathsExecutionContext(ExecutionContext):
             if operation.operation != OperationType.QUERY:
                 setattr(self.context_value, 'graphene_no_cache', True)
             with self.instance_context(operation):
-                 ret = super().execute_operation(operation, root_value)
+                ret = super().execute_operation(operation, root_value)
             return ret
 
 
@@ -363,13 +363,13 @@ class PathsGraphQLView(GraphQLView):
         )
         perf.enabled = settings.ENABLE_PERF_TRACING
         request.graphql_perf = perf
-        capture_queries = True
         with perf:
             start = time.time()
             ret = super().get_response(request, data, show_graphiql)
-            if capture_queries and data and ret[0]:
+            if GRAPHQL_CAPTURE_QUERIES and data and ret[0]:
                 headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
                 now = time.time()
+                logger.info("Capturing GraphQL query and response")
                 capture_query(request, headers, data, ret[0], ret[1], (now - start) * 1000)
 
         return ret
