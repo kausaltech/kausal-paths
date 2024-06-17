@@ -94,6 +94,8 @@ jobs:
           TEST_MODE: 1
           TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
           SECRET_KEY: abcd
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: ci
 
     outputs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
