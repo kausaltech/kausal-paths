@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/reviewdog.yml
 
   build:
-    uses: kausaltech/github-actions/.github/workflows/build.yaml@main
+    uses: kausaldev/github-actions/.github/workflows/build.yaml@main
     secrets:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
@@ -47,7 +47,9 @@ jobs:
   deploy:
     needs: [build]
     uses: kausaldev/github-actions/.github/workflows/deploy.yaml@main
-    secrets: inherit
+    secrets:
+      argocd_server: ${{ secrets.ARGOCD_SERVER }}
+      argocd_auth_token: ${{ secrets.ARGOCD_AUTH_TOKEN }}
     if: needs.build.outputs.deployment_env
     with:
       docker_image_repo: ${{ needs.build.outputs.image }}
