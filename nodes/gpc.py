@@ -12,8 +12,8 @@ from common import polars as ppl
 
 class DatasetNode(AdditiveNode):
     allowed_parameters = AdditiveNode.allowed_parameters + [
-        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
-        # FIXME Could the parameter be called just sector?
+        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),   # FIXME To be removed, replaced by 'sector' below.
+        StringParameter('sector', description = 'Sector', is_customizable = False)]
 
     qlookup = {'currency': 'Price',  # FIXME Should be case-insensitive and later accept other languages
                'emission_factor': 'Emission Factor',
@@ -267,8 +267,30 @@ class DatasetNode2(DatasetNode):
         df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         return df
-    
-    
+
+class DetailedDatasetNode(DatasetNode):
+    allowed_parameters = DatasetNode.allowed_parameters + [
+        StringParameter('action', description = 'Detailed action module', is_customizable = False)]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+
+        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[(df.index.get_level_values('Sector') == self.get_parameter_value('sector')) &
+                (df.index.get_level_values('Action') == self.get_parameter_value('action')) &
+                (df.index.get_level_values('Node Name') == str(self.name).split(' ', 1)[1])]
+
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action', 'Node Name'])
+        df = self.convert_names_to_ids(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = self.rename_dimensions(df)
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+
+        return df
+
+
 class DatasetRatioNode(DatasetNode2):
     allowed_parameters = DatasetNode2.allowed_parameters + [
         StringParameter('reference_category', description='Category to which all others are compared', is_customizable=False)]
