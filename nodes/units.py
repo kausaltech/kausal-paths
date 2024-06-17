@@ -142,7 +142,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
 
 
 define_custom_units(unit_registry)
-unit_registry.default_format = '~P'
+unit_registry.formatter.default_format = '~P'
 app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
 pint_pandas.PintType.ureg = unit_registry  # type: ignore
