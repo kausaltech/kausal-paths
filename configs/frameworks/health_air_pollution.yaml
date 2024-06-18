@@ -177,6 +177,15 @@ nodes:
 
 # -------------- Health effects ---------------
 
+- id: planetary_health
+  name_fi: Raakile luonnon monimuotoisuudesta ja planetaarisesta terveydestä
+  description_fi: 'https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi https://www.biwe.fi/ https://www.allergia.fi/jarjesto/tutkimus-1/'
+  type: simple.AdditiveNode
+  quantity: utility
+  unit: Ut/a
+  historical_values: [[2010, 100], [2023, 100]]
+  input_dataset_processors: [LinearInterpolation]
+
 - id: incidence
   name_fi: Ilmaantuvuus
   name_en: Incidence
