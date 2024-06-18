@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5a0af512217d11c11d2a83163802e77d691139d1
+  commit: 0ed7e0faff316fbbb1d2bdde8db65c3df33a1f15
   dvc_remote: kausal-s3
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
@@ -104,6 +104,28 @@ dimensions:
     label: Incandescent
   - id: led
     label: LED
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: investment
+    label: Investment
+  - id: energy
+    label: Energy
+  - id: maintenance
+    label: Maintenance
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: electricity
+    label: Electricity
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2e
+    label: CO2e
 
 emission_sectors:
 - id: net_emissions
@@ -832,8 +854,8 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
-#  output_nodes:
-#  - id: i22_streetlight_replacement_action
+  output_nodes:
+  - id: i22_streetlights
 
 - id: i22_annual_new_streetlights
   name: I.2.2 Annual New Streetlights
@@ -847,8 +869,172 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
-#  output_nodes:
-#  - id: i22_streetlight_replacement_action
+  output_nodes:
+  - id: i22_streetlights
+    tags: ['cumulative']
+  - id: i22_new_streetlight_costs
+    to_dimensions:
+    - id: streetlight_type
+
+- id: i22_streetlights
+  name: I.2.2 Streetlights
+  type: simple.AdditiveNode
+  quantity: number
+  unit: count/a
+  input_dimensions: [streetlight_type]
+  output_dimensions: [streetlight_type]
+  output_nodes:
+  - id: i22_streetlight_energy_consumption
+    to_dimensions:
+    - id: streetlight_type
+  - id: i22_maintenance_costs
+    to_dimensions:
+    - id: streetlight_type
+
+- id: i22_new_streetlight_unit_costs
+  name: I.2.2 New Streetlight Unit Costs
+  type: gpc.DetailedDatasetNode
+  quantity: unit_price
+  unit: EUR/count
+  input_dimensions: [streetlight_type, cost_type]
+  output_dimensions: [streetlight_type, cost_type]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+  output_nodes:
+  - id: i22_new_streetlight_costs
+
+- id: i22_new_streetlight_costs
+  name: I.2.2 New Streetlight Costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [streetlight_type, cost_type]
+  output_dimensions: [streetlight_type, cost_type]
+
+- id: i22_streetlight_energy_factor
+  name: I.2.2 Streetlight Energy Factor
+  type: gpc.DetailedDatasetNode
+  quantity: energy_factor
+  unit: kWh/count
+  input_dimensions: [streetlight_type, energy_carrier]
+  output_dimensions: [streetlight_type, energy_carrier]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+  output_nodes:
+  - id: i22_streetlight_energy_consumption
+
+- id: i22_streetlight_energy_consumption
+  name: I.2.2 Streetlight Energy Consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [streetlight_type, energy_carrier]
+  output_dimensions: [streetlight_type, energy_carrier]
+  output_nodes:
+  - id: i22_energy_costs
+    to_dimensions:
+    - id: streetlight_type
+    - id: energy_carrier
+  - id: i22_energy_consumption_emissions
+    to_dimensions:
+    - id: streetlight_type
+    - id: energy_carrier
+
+- id: i22_energy_unit_costs
+  name: I.2.2 Energy Unit Costs
+  type: gpc.DetailedDatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: [cost_type, energy_carrier]
+  output_dimensions: [cost_type, energy_carrier]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+  output_nodes:
+  - id: i22_energy_costs
+    to_dimensions:
+    - id: cost_type
+    - id: energy_carrier
+
+- id: i22_energy_costs
+  name: I.2.2 Energy Costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [streetlight_type, cost_type, energy_carrier]
+  output_dimensions: [streetlight_type, cost_type, energy_carrier]
+
+- id: i22_maintenance_unit_costs
+  name: I.2.2 Maintenance Unit Costs
+  type: gpc.DetailedDatasetNode
+  quantity: unit_price
+  unit: EUR/count
+  input_dimensions: [streetlight_type, cost_type]
+  output_dimensions: [streetlight_type, cost_type]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+  output_nodes:
+  - id: i22_maintenance_costs
+
+- id: i22_maintenance_costs
+  name: I.2.2 Maintenance Costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [streetlight_type, cost_type]
+  output_dimensions: [streetlight_type, cost_type]
+
+- id: i22_energy_emission_factor
+  name: I.2.2 Energy Emission Factor
+  type: gpc.DetailedDatasetNode
+  quantity: emission_factor
+  unit: kg/kWh
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+  output_nodes:
+  - id: i22_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
+- id: i22_energy_consumption_emissions
+  name: I.2.2 Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [streetlight_type, energy_carrier, ghg]
+  output_dimensions: [streetlight_type, energy_carrier, ghg]
+
+- id: i22_streetlight_total_costs
+  name: I.2.2 Streetlight Total Costs
+  type: simple.AdditiveNode
+  quantity: number
+  unit: EUR/a
+  input_dimensions: [streetlight_type, cost_type]
+  output_dimensions: [streetlight_type, cost_type]
+  input_nodes:
+  - id: i22_new_streetlight_costs
+  - id: i22_energy_costs
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: i22_maintenance_costs
 
 #
 # ------- ACTIONS --------
