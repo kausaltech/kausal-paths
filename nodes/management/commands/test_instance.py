@@ -54,6 +54,11 @@ class Command(BaseCommand):
                         json.dump(out, f, indent=2)
                 elif compare:
                     fn = os.path.join(compare, '%s-%s.json' % (instance.id, node.id))
+                    try:
+                        os.stat(fn)
+                    except FileNotFoundError as e:
+                        logger.warning("Skipping compare; %s" % str(e))
+                        continue
                     logger.info("Comparing output to %s" % fn)
                     with open(fn, 'r', encoding='utf8') as f:
                         data = json.load(f)
