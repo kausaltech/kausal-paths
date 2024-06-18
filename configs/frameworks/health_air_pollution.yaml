@@ -1,0 +1,312 @@
+nodes:
+
+# -------------- Emissions --------------
+
+- id: transport_emission_ratio
+  name_fi: Liikennepäästöjen keskinäinen suhde
+  name_en: Ratio of air pollution emissions
+  description_fi: Liikennepäästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
+  description_en: Ratio of air pollution emissions from transport compared with CO2 emissions, which has the ratio 1.
+  type: gpc.DatasetRatioNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_datasets:
+  - id: nzc/defaults/transport
+    forecast_from: 2023
+    filters:
+    - column: Transport mode
+      value: cars
+  params:
+  - id: gpc_sector
+    value: baseline year fleet emission factor
+  - id: rename_dimensions
+    value: 'transport_pollutant:pollutant'
+  - id: reference_category
+    value: 'pollutant:co2'
+
+- id: transport_air_pollution_emissions
+  name_fi: Liikenteen ilmansaastepäästöt
+  name_en: Air pollution emissions from transport
+  description_fi: Liikenteen ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
+  description_en: Air pollution emissions from transport based on CO2 emissions and other pollutants relative to that based on relative emission factors.
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:  # This node must be defined as an output for the CO2 emission node without dimensions.
+  - id: transport_emission_ratio
+    from_dimensions:
+    - id: pollutant
+      categories: [pm25, pm10, nox]
+
+- id: fossil_plant_emission_ratio
+  name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
+  name_en: Ratio of air pollution emissions from fossil plants
+  description_fi: Fossiilivoimalan päästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
+  description_en: Ratio of air pollution emissions from fossil plants compared with CO2 emissions, which has the ratio 1.
+  type: gpc.DatasetRatioNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [pollutant, heating_type]
+  output_dimensions: [pollutant, heating_type]
+  input_datasets:
+  - id: nzc/defaults/buildings
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: heat emission factor
+  - id: reference_category
+    value: 'pollutant:co2'
+
+- id: fossil_plant_air_pollution_emissions
+  name_fi: Fossiilivoimalan ilmansaastepäästöt
+  name_en: Air pollution emissions from district heating
+  description_fi: Fossiilisella polttoaineella toimivien suurien voimalaitosten ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
+  description_en: Air pollution emissions from large fossil fuel plants based on CO2 emissions and other pollutants relative to that based on relative emission factors.
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: fossil_plant_emission_ratio
+    from_dimensions:
+    - id: heating_type
+      categories: [district_heating]
+      flatten: true
+
+# -------------- Exposure -----------------
+
+- id: intake_fraction
+  name_fi: Ilmansaasteiden saantiosuus
+  name_en: Intake fraction of air pollution
+  description_fi: Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
+  description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
+  type: gpc.DatasetNode2
+  quantity: fraction
+  unit: ppm
+  input_dimensions: [pollutant, emission_height]
+  output_dimensions: [pollutant, emission_height]
+  input_datasets:
+  - id: hia/intake_fraction/air_pollution_if
+    filters:
+    - column: Population density
+      value: average
+  params:
+  - id: gpc_sector
+    value: Air pollution
+
+- id: breathing_rate
+  name_fi: Hengitystilavuus
+  name_en: Breathing rate
+  description_fi: Hengitystilavuus vuorokaudessa. Käytetään nimellistä lukemaa, jonka täytyy olla sama kuin saantiosuutta laskettaessa.
+  description_en: Breathing volume per day. A nominal value is used, as it has to be the same as was used for calculating the intake fraction.
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: m**3/person/d
+  historical_values: [[1990, 20], [2023, 20]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_air_pollution_exposure
+  name_fi: Altistuminen liikenteen ilmansaasteille
+  name_en: Transport air pollution exposure
+  description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa altistumisesta tapahtuu tarkastelualueen ulkopuolella.
+  decription_en: Exposure to air pollution as a long-term average concentration in the breathing zone. The exposure is attributed to the modeled population although a part of the exposure occurs outside the modeled area.
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: ug/m**3
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: transport_air_pollution_emissions
+  - id: intake_fraction
+    from_dimensions:
+    - id: emission_height
+      categories: [ground]
+      flatten: true
+    to_dimensions:
+    - id: pollutant
+  - id: breathing_rate
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: population
+    tags: [geometric_inverse]
+    to_dimensions: []
+  output_nodes: [air_pollution_exposure]
+
+- id: fossil_plant_air_pollution_exposure
+  name_fi: Altistuminen suurten fossiilista polttoainetta polttavien voimaloiden ilmansaasteille
+  name_en: Fossil plant air pollution exposure
+  description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa altistumisesta tapahtuu tarkastelualueen ulkopuolella. (vain kaukolämpö tällä hetkellä)
+  description_en: Exposure to air pollution as a long-term average concentration in the breathing zone. The exposure is attributed to the modeled population although a part of the exposure occurs outside the modeled area.
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: ug/m**3
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: fossil_plant_air_pollution_emissions
+  - id: intake_fraction
+    from_dimensions:
+    - id: emission_height
+      categories: [high]
+      flatten: true
+    to_dimensions:
+    - id: pollutant
+  - id: breathing_rate
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: population
+    tags: [geometric_inverse]
+    to_dimensions: []
+  output_nodes: [air_pollution_exposure]
+
+- id: air_pollution_exposure
+  name_fi: Ilmansaastealtistus
+  name_en: Air pollution exposure
+  description_fi: Altistuminen ilmansaasteille kaikista lähteistä yhteensä.
+  description_en: Exposure to air pollution from all sources combined.
+  type: simple.AdditiveNode
+  quantity: exposure
+  unit: ug/m**3
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+
+# -------------- Health effects ---------------
+
+- id: incidence
+  name_fi: Ilmaantuvuus
+  name_en: Incidence
+  description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja vaikutusten ilmaantuvuus
+  description_en: Incidence of environmentally relevant diseases and effects
+  type: gpc.DatasetNode2
+  quantity: incidence
+  unit: case/personyear
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets:
+  - id: hia/incidence/default_incidence
+    filters:
+    - column: Place
+      value: default
+    - column: Population
+      value: default
+  params:
+  - id: gpc_sector
+    value: Environmental health
+
+- id: air_pollution_attributable_fraction
+  name_fi: Ilmansaasteiden syyosuus
+  name_en: Attributable fraction of air pollution
+  description_fi: Se osuus tautitaakasta, joka selittyy ilmansaastealtistuksella.
+  description_en: The fraction of disease burden that can be attributed to air pollution exposure.
+  type: health.AttributableFractionRR
+  quantity: exposure_response
+  unit: dimensionless  # FIXME Allow for different units in dataset and node.
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_datasets:
+  - id: hia/exposure_response/air_pollution_erf
+    filters:
+    - column: Route
+      value: inhalation
+  input_nodes:
+  - id: air_pollution_exposure
+    to_dimensions:
+    - id: pollutant
+  params:
+  - id: gpc_sector
+    value: Air pollution
+
+- id: total_number_of_cases
+  name_fi: Kokonaistapausmäärä
+  name_en: Total number of cases
+  description_fi: Kokonaistapausmäärä kohdeväestössä
+  description_en: Total number of cases in the target population
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: incidence
+    to_dimensions:
+    - id: response
+  - id: population
+    to_dimensions: []
+
+- id: attributable_cases
+  name_fi: Ilmansaasteisiin kohdentuvat tapaukset
+  name_en: Cases attributable to air pollution
+  description_fi: Pienhiukkasiin ja typenoksideihin kohdentuvat tapaukset
+  description_en: Cases attributable to PM2.5 and NOx
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_nodes:
+  - id: air_pollution_attributable_fraction
+#    to_dimensions:
+#    - id: pollutant
+  - id: total_number_of_cases
+    tags: [non_additive]
+    to_dimensions:
+    - id: response
+
+- id: premature_deaths
+  name_fi: Ennenaikaiset kuolemat
+  name_en: Premature deaths
+  description_fi: Pienhiukkasten ja typenoksidien aiheuttamat ennenaikaiset kuolemat.
+  description_en: Premature deaths caused by PM2.5 and NOx.
+  type: simple.AdditiveNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [pollutant, response]
+  output_dimensions: [pollutant, response]
+  input_nodes:
+  - id: attributable_cases
+    from_dimensions:
+    - id: response
+      categories: [mortality]
+
+- id: case_burden
+  name_fi: Tautitaakka per tapaus
+  name_en: Disease burden by case
+  description_fi: Yhden tapauksen aiheuttama tautitaakka.
+  description_en: Disease burden caused by a single case.
+  type: gpc.DatasetNode2
+  quantity: case_burden
+  unit: DALY/case
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets:
+  - id: hia/exposure_response/air_pollution_erf
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: Air pollution
+
+- id: disease_burden_of_air_pollution
+  name_fi: Ilmansaasteiden tautitaakka
+  name_en: Disease burden caused by air pollution
+  description_fi: Ilmansaasteiden aiheuttama tautitaakka kohdeväestössä.
+  description_en: Disease burden attributable to air pollution in the target population.
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: DALY/a
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  is_outcome: true
+  input_nodes:
+  - id: case_burden
+    tags: [non_additive]
+    to_dimensions:
+    - id: response
+  - id: attributable_cases

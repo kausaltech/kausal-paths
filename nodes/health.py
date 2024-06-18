@@ -1,12 +1,97 @@
 import pandas as pd
 import numpy as np
+import polars as pl
 
 from params.param import NumberParameter, PercentageParameter, StringParameter
 from .context import unit_registry
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode
+from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode, MultiplicativeNode
+from .gpc import DatasetNode
 from .ovariable import Ovariable, OvariableFrame
 from .exceptions import NodeError
+from .calc import extend_last_historical_value
+from common import polars as ppl
+
+
+class AttributableFractionRR(DatasetNode):
+    '''Calculate attributable fraction when the ERF function is relative risk.
+    '''
+
+    def compute(self):
+        # df = self.get_gpc_dataset()
+        # print(df)
+        # exit()
+        sector = self.get_parameter_value('gpc_sector')
+
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[(df.index.get_level_values('Sector') == sector) &
+                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
+
+        df = self.convert_names_to_ids(df)
+
+        test = df.index.get_level_values('er_function').unique()
+        if len(test) != 1 or test[0] != 'relative_risk':
+            raise NodeError(self, 'All of the rows must be for relative_risk as Er_function.')
+
+        droplist = ['sector', 'quantity', 'parameter', 'er_function']
+        params = {}
+        for param in ['beta', 'threshold', 'rr_min']:
+            dfp = df.loc[df.index.get_level_values('parameter') == param].copy()
+            dfp = self.drop_unnecessary_levels(dfp, droplist)
+            dfp = self.implement_unit_col(dfp)
+            dfp = extend_last_historical_value(dfp, end_year=self.get_end_year())
+            params[param] = ppl.from_pandas(dfp)
+
+        if len(self.input_nodes) != 1:
+            raise NodeError(self, 'The node must have exactly one input node for exposure.')
+        dfn = self.input_nodes[0].get_output_pl(target_node=self)
+
+        beta = params['beta']
+        threshold = params['threshold']
+        rr_min = params['rr_min']  # FIXME add to forumula
+
+        dfn = dfn.paths.join_over_index(threshold, how='left', index_from='union')
+        dfn = dfn.subtract_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        dfn = dfn.drop(VALUE_COLUMN + '_right')
+        dfn = dfn.paths.join_over_index(beta, how='left', index_from='union')
+        dfn = dfn.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        dfn = dfn.drop(VALUE_COLUMN + '_right')
+        dfn = dfn.with_columns(pl.col(VALUE_COLUMN).exp().alias(VALUE_COLUMN))
+        dfn = dfn.drop_nulls()
+
+        '''AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+        is smaller than 0, we should use r instead. It can be converted from the result:
+        r/(r+1)=s <=> r=s/(1-s)
+        '''
+
+        frexposed = 1  # FIXME Make an input node
+
+        r = dfn.with_columns([
+            (pl.lit(frexposed) * (pl.col(VALUE_COLUMN) - pl.lit(1.0))).alias(VALUE_COLUMN)])
+        r = r.with_columns([
+            (pl.col(VALUE_COLUMN) / (pl.col(VALUE_COLUMN) + pl.lit(1.0))).alias(VALUE_COLUMN)])
+        r = r.with_columns(
+            pl.when(pl.col(VALUE_COLUMN).ge(pl.lit(0.0))).then(pl.col(VALUE_COLUMN))
+            .otherwise(pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).alias(VALUE_COLUMN))
+
+        return r
+
+            # beta = pick_parameter('m1')
+            # threshold = pick_parameter('p1')
+            # out = exposure - threshold
+            # rrmin = pick_parameter('p0')
+            # out = (out * beta).exp()
+            # s = out[VALUE_COLUMN]
+            # out[VALUE_COLUMN] = np.where(s < rrmin, rrmin, s)
+            # out = self.postprocess_relative(rr=out, frexposed=frexposed)
+        # r = frexposed * (rr - 1)
+        # of = (r / (r + 1))
+        # s = of[VALUE_COLUMN]
+        # of[VALUE_COLUMN] = np.where(s < 0, s / (1 - s), s)
+        # return of
+
 
 ''' QUESTIONS TO ASK:
 Q1: If exposure-response has restrictions for e.g. pollutant or population subgroup that have no parameters,

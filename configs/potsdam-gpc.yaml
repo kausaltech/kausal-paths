@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b80adfc41d66d1eb7427d94d9d81c09cdfd5bfc0
+  commit: ade9c148ef1d76f8a451a44fbbc448da3701c822
   dvc_remote: kausal-s3
 name: Potsdam BASIC+ Treibhausgasinventar
 owner: Stadt Potsdam

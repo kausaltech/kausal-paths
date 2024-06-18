@@ -1,8 +1,8 @@
-id: espoo
+id: espoo-syke
 default_language: fi
 supported_languages: [en]
 frameworks: [syke]
-site_url: https://espoo.paths.kausal.tech
+site_url: https://espoo-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: f47b07dcbd11c67003bba576beb71b46d91b6f2e
@@ -34,6 +34,7 @@ emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
   name_en: Net emissions (scope 2)
+  is_outcome: true
   target_year_goal: 245
 
 nodes:
@@ -44,6 +45,14 @@ nodes:
 - id: all_alas_emissions
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
+
+actions:
+- id: test
+  name: test
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2023, 100.0]]
 
 pages:
 - id: home

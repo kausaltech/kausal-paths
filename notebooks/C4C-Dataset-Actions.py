@@ -37,7 +37,8 @@ unitcol = df.select('Unit').to_series(0).to_list()
 for ur in unitreplace:
     unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
 df = df.with_columns(pl.Series(name = 'Unit', values = unitcol))
-if 'Scope' in df.columns:
+
+if 'Scope' in df.columns:   # Detailed actions have no 'Scope' column.
     scopecol = df.select('Scope').to_series(0).to_list()
     labels = []
     for x in scopecol:
@@ -69,7 +70,9 @@ if outdvcpath.upper() not in ['N', 'NONE']:
     from dvc_pandas import Dataset, Repository
 
     indexcols = list(dims)
-    indexcols.extend(['Quantity', 'Year'])
+    indexcols.extend(['Year'])
+    if 'Quantity' in dfmain.columns:   # Detailed actions have no 'Quantity' column.
+        indexcols.extend(['Quantity'])
     pdindex = pd.MultiIndex.from_frame(pd.DataFrame(dfmain.select(indexcols).fill_null('.'), columns = indexcols))
 
     valuecols = list(set(dfmain.columns) - set(indexcols))

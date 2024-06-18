@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b201afa9e0608df9c2da8567d5069d33fd5752b7
+  commit: 5a0af512217d11c11d2a83163802e77d691139d1
   dvc_remote: kausal-s3
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
@@ -96,6 +96,14 @@ dimensions:
     label: Bensiini
   - id: fuel_oil
     label: Kevyt polttoöljy
+
+- id: streetlight_type
+  label: Streetlight Type
+  categories:
+  - id: incandescent
+    label: Incandescent
+  - id: led
+    label: LED
 
 emission_sectors:
 - id: net_emissions
@@ -808,6 +816,39 @@ nodes:
   params:
     multiplier: -1
   unit: GWh/a
+
+  #
+  # LED Streetlight Detailed Action Module
+  #
+- id: i22_baseline_streetlights
+  name: I.2.2 Baseline Streetlights
+  type: gpc.DetailedDatasetNode
+  quantity: number
+  unit: count/a
+  input_dimensions: [streetlight_type]
+  output_dimensions: [streetlight_type]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+#  output_nodes:
+#  - id: i22_streetlight_replacement_action
+
+- id: i22_annual_new_streetlights
+  name: I.2.2 Annual New Streetlights
+  type: gpc.DetailedDatasetNode
+  quantity: number
+  unit: count/a
+  input_dimensions: [streetlight_type]
+  output_dimensions: [streetlight_type]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+#  output_nodes:
+#  - id: i22_streetlight_replacement_action
 
 #
 # ------- ACTIONS --------

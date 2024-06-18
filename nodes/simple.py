@@ -429,7 +429,7 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with Multi
         node = self.input_nodes[0]
 
         df = node.get_output_pl(target_node=self)
-        multiplier_param = self.get_parameter('multiplier')
+        multiplier_param = self.get_parameter('multiplier')  # FIXME Use get_parameter_value() instead.
         multiplier = multiplier_param.get()
         if multiplier_param.has_unit():
             m_unit = multiplier_param.get_unit()
