@@ -2,14 +2,12 @@ nodes:
 
 # -------------- Emissions --------------
 
-- id: transport_emission_ratio
-  name_fi: Liikennepäästöjen keskinäinen suhde
-  name_en: Ratio of air pollution emissions
-  description_fi: Liikennepäästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
-  description_en: Ratio of air pollution emissions from transport compared with CO2 emissions, which has the ratio 1.
-  type: gpc.DatasetRatioNode
+- id: transport_emission_factor
+  name_fi: Liikennepäästöjen päästökerroin
+  name_en: Air pollution emission factor
+  type: gpc.DatasetNode
   quantity: emission_factor
-  unit: dimensionless
+  unit: g/vkm
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_datasets:
@@ -23,6 +21,22 @@ nodes:
     value: baseline year fleet emission factor
   - id: rename_dimensions
     value: 'transport_pollutant:pollutant'
+
+- id: transport_emission_ratio
+  name_fi: Liikennepäästöjen keskinäinen suhde
+  name_en: Ratio of air pollution emissions
+  description_fi: Liikennepäästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
+  description_en: Ratio of air pollution emissions from transport compared with CO2 emissions, which has the ratio 1.
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: transport_emission_factor
+  params:
+  - id: use_input_node_unit_when_adding
+    value: true
   - id: reference_category
     value: 'pollutant:co2'
 
@@ -42,14 +56,12 @@ nodes:
     - id: pollutant
       categories: [pm25, pm10, nox]
 
-- id: fossil_plant_emission_ratio
-  name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
-  name_en: Ratio of air pollution emissions from fossil plants
-  description_fi: Fossiilivoimalan päästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
-  description_en: Ratio of air pollution emissions from fossil plants compared with CO2 emissions, which has the ratio 1.
-  type: gpc.DatasetRatioNode
+- id: fossil_plant_emission_factor
+  name_fi: Fossiilivoimalan ilmansaasteiden päästökerroin
+  name_en: Air pollution emission factor
+  type: gpc.DatasetNode
   quantity: emission_factor
-  unit: dimensionless
+  unit: g/kWh
   input_dimensions: [pollutant, heating_type]
   output_dimensions: [pollutant, heating_type]
   input_datasets:
@@ -58,6 +70,22 @@ nodes:
   params:
   - id: gpc_sector
     value: heat emission factor
+
+- id: fossil_plant_emission_ratio
+  name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
+  name_en: Ratio of air pollution emissions from fossil plants
+  description_fi: Fossiilivoimalan päästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
+  description_en: Ratio of air pollution emissions from fossil plants compared with CO2 emissions, which has the ratio 1.
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [pollutant, heating_type]
+  output_dimensions: [pollutant, heating_type]
+  input_nodes:
+  - id: fossil_plant_emission_factor
+  params:
+  - id: use_input_node_unit_when_adding
+    value: true
   - id: reference_category
     value: 'pollutant:co2'
 
@@ -85,7 +113,7 @@ nodes:
   name_en: Intake fraction of air pollution
   description_fi: Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
   description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: ppm
   input_dimensions: [pollutant, emission_height]
@@ -191,7 +219,7 @@ nodes:
   name_en: Incidence
   description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja vaikutusten ilmaantuvuus
   description_en: Incidence of environmentally relevant diseases and effects
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: incidence
   unit: case/personyear
   input_dimensions: [response]
@@ -290,7 +318,7 @@ nodes:
   name_en: Disease burden by case
   description_fi: Yhden tapauksen aiheuttama tautitaakka.
   description_en: Disease burden caused by a single case.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: case_burden
   unit: DALY/case
   input_dimensions: [response]

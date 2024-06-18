@@ -70,7 +70,7 @@ emission_sectors:
 nodes:
 - id: private_houses_emissions
   name: Private Haushalte
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
   color: '#00A969'
@@ -95,7 +95,7 @@ nodes:
 
 - id: commercial_services_emissions
   name: Gewerbe + Sonstiges
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
   color: '#9D0000'
@@ -120,7 +120,7 @@ nodes:
 
 - id: industrial_emissions
   name: Gewerbe + Sonstiges
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
   color: '#005B99'
@@ -143,7 +143,7 @@ nodes:
 
 - id: city_building_emissions
   name: Städtische Gebäude
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
   color: '#29ab87'
@@ -168,7 +168,7 @@ nodes:
 
 - id: transport_emissions
   name: Verkehr
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
   color: '#AD8F00'

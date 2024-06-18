@@ -70,7 +70,7 @@ nodes:
     <p>Bus emission factor is calculated differently than cars, but the differences a minor and we attempt to apply uniform calculations. Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
     =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
     There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TODO!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [transport_pollutant, transport_mode]
@@ -94,7 +94,7 @@ nodes:
     cars in the fleet. (Not realistic but that is how NZC excel works)</p>
     Finally, we assume that E is constant for each vehicle as long as it is in the fleet. 
     This is handled by looking at each E<sub>i,t</sub> cohort until the last time point.'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [transport_pollutant, transport_mode]
@@ -107,7 +107,7 @@ nodes:
 - id: transport_pollutant_split
   name: Transport pollutant split
   description: Particulate pollutants (PM2.5 and PM10) are entered as totals by the user. However, calculations are based on a split between combustion pollutants (from tailpipe) and wear & tear (dust from breaks and tyres). This node has the fractions of these subcategories. Note! The NZC excel treats combustion and non-combustion fractions differently. Non-combustion value is taken from the user multiplied by its split fraction and assumed to stay constant across time. Combustion value for new cars comes from an EU report and is assumed to improve over time. The difference is substantial, as the default for current PM10 is 30 mg/vkm, while the new fleet assumes 8 mg/vkm. Here, we use the lower value, which is consistent with the calculation logic.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [pollutant, transport_pollutant, energy_carrier]
@@ -176,7 +176,7 @@ nodes:
 - id: fleet_replacement_rate
   name: Fleet replacement rate
   description: This node is needed when the new fleet replacement node class exists. TODO! It is not clear how the user input should be converted to this dataset, as it is different format for cars and buses.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [transport_mode]
@@ -231,7 +231,7 @@ nodes:
 - id: train_energy_factor
   name: Train energy factor
   description: Electricity consumed per one vehicle-kilometre of train travel.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/vkm
   input_dimensions: [transport_mode]
@@ -320,7 +320,7 @@ nodes:
 
 - id: transport_energy_carrier_shares
   name: Transport energy carrier shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [energy_carrier, transport_mode]
@@ -335,7 +335,7 @@ nodes:
 - id: transport_efficiency
   name: Transport efficiency
   description: 'Transport efficiency comes from CDR D28:d30 via MIA D188:190. It is constant across time, except if modified by an action.'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: occupancy_factor
   unit: pkm/vkm
   input_dimensions: [transport_mode]
@@ -349,7 +349,7 @@ nodes:
   name: Passenger kilometres data
   description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
 #  type: costs.ExponentialNode  # FIXME Check growth rate
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: mileage
   unit: Mpkm/a
   input_datasets:
@@ -383,7 +383,7 @@ nodes:
 
 - id: motorised_transport_index
   name: Motorised transport index
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [transport_mode]
@@ -417,7 +417,7 @@ nodes:
     G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
     <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
     For European Commission Directorate-General for Mobility and Transport</li></ul>'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
   input_dimensions: [pollutant, cost_type]
@@ -433,7 +433,7 @@ nodes:
     distributions could be one
     dataset with an internal dimension "Outcome", which is used for filtering when data is fetched.
     See yaml for an example. All shares are constants across time.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type]
@@ -516,7 +516,7 @@ nodes:
 - id: transport_noise_unit_price
   name: Transport noise unit price
   description: See transport_air_pollution_unit_price.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
   input_dimensions: [transport_mode, cost_type]
@@ -529,7 +529,7 @@ nodes:
 - id: transport_noise_cost_shares
   name: Transport noise cost shares
   description: See transport_air_pollution_cost_shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type]
@@ -568,7 +568,7 @@ nodes:
 - id: transport_accident_unit_price
   name: Transport accident unit price
   description: See transport_air_pollution_unit_price.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
   input_dimensions: [transport_mode, cost_type]
@@ -581,7 +581,7 @@ nodes:
 - id: transport_accident_cost_shares
   name: Transport accident cost shares
   description: See transport_air_pollution_cost_shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type]
@@ -624,7 +624,7 @@ nodes:
     <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
     For European Commission Directorate-General for Mobility and Transport</li>
     <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/vkm
   input_dimensions: [transport_mode, cost_type]
@@ -637,7 +637,7 @@ nodes:
 - id: public_transport_operation_cost_shares
   name: Public transport operation cost shares
   description: See transport_air_pollution_cost_shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type]
@@ -681,7 +681,7 @@ nodes:
     <h2>References</h2>
     European commission (2019) - Reducing CO2 emissions from passenger cars.
     https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emission_factor
   unit: l/g
   input_datasets: [nzc/defaults/transport]
@@ -693,7 +693,7 @@ nodes:
   name: Fuel unit price
   description: The values come from Eurostat (2019) - Electricity prices for household consumers
     and are found from MIA D430.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/l
   input_dimensions: [cost_type]
@@ -748,7 +748,7 @@ nodes:
     Victoria Transport Policy Institute (2019). Evaluating Active Transport Benefits and Costs.
     https://www.vtpi.org/nmt-tdm.pdf This value is supported by another study, which evaluates the
     health-benefits to 0.3-0.5 €/pkm: https://www.researchgate.net/publication/330184791_The_Social_Cost_of_Automobility_Cycling_and_Walking_in_the_European_Union. From these sources, a summary estimate of 0.2966 EUR/pkm is derived.'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
   input_datasets: [nzc/defaults/transport]

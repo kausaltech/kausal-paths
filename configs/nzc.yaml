@@ -1,7 +1,7 @@
 id: nzc
 default_language: en
 supported_languages: [fi]
-frameworks: [transport_nzc, buildings_nzc]
+frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -364,6 +364,19 @@ nodes:
   params:
   - id: annual_change
     ref: population_growth_rate
+
+- id: population_rate
+  name: Population rate
+  type: simple.AdditiveNode
+  quantity: population
+  unit: '%'
+  input_nodes:
+  - id: population
+  params:
+  - id: reference_year
+    value: 2023
+  - id: use_input_node_unit_when_adding
+    value: true
 
 - id: electricity_production_emission_factor
   name: Electricity production emission factor

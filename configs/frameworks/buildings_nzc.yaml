@@ -29,7 +29,7 @@ nodes:
   description: 'Data sources:<ul><li>Model inputs & assumptions, F250. Size of building stock. 
     </li><li>Model inputs & assumptions, F519. Rate of demolition and new construction.</li><li>Model inputs & assumptions, F257. Retrofitted area %.</li></ul>
     Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.'
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: floor_area
   unit: km**2
   input_dimensions: [building_energy_class]
@@ -58,7 +58,7 @@ nodes:
 
 - id: new_building_shares
   name: New building shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [building_energy_class]
@@ -74,7 +74,7 @@ nodes:
 
 - id: demolition_rate
   name: Demolition rate
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [building_energy_class]
@@ -146,7 +146,7 @@ nodes:
 - id: old_building_renovation_rate
   name: Old building renovation rate
   description: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_datasets:
@@ -158,7 +158,7 @@ nodes:
 
 - id: renovation_intensity
   name: Renovation intensity
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [building_energy_class]
@@ -193,7 +193,7 @@ nodes:
 
 - id: energy_use_intensity_data  # FIXME Calculate from relative changes, not data
   name: Energy use intensity data for heating
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [building_energy_class]
@@ -207,7 +207,7 @@ nodes:
 
 - id: energy_use_intensity_relative_old
   name: Relative energy use intensity of existing building classes
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [building_energy_class]
@@ -239,7 +239,7 @@ nodes:
 
 - id: energy_use_intensity_change_new
   name: Energy use intensity change for new buildings
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [building_energy_class]
@@ -278,7 +278,7 @@ nodes:
 - id: building_heating_type_share
   name: Building heating type share
   description: Assumes 1 % district and 99 % local heating. Data comes from the user.
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [heating_type, scope]
@@ -313,7 +313,7 @@ nodes:
 - id: heating_emission_factor
   name: Heating emission factor
   description: Emission factor for building heating
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [pollutant, heating_type]
@@ -359,7 +359,7 @@ nodes:
 
 - id: new_building_current_unit_price
   name: Building current unit price
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
   input_dimensions: [building_energy_class]
@@ -387,7 +387,7 @@ nodes:
 
 - id: new_building_cost_shares
   name: Building current cost_shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type]
@@ -424,7 +424,7 @@ nodes:
 
 - id: consumer_electricity_intensity_baseline
   name: Electricity use intensity for lighting & appliances
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [energy_carrier]
@@ -438,7 +438,7 @@ nodes:
 
 - id: efficient_appliances_rate
   name: Efficient appliances rate
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless  # FIXME 1/a
 #  input_dimensions: [building_energy_class]  # FIXME
@@ -453,7 +453,7 @@ nodes:
 - id: efficiency_programme_shares
   name: Efficiency programme shares
   description: FIXME The excel logic of action 3.3 changes 1) the fraction of aggressive improvement in energy efficienay, 2) the amount of electricity contumper per squaremetre after improvement and 3) the cost of Improvement. In constrast, it does NOT affect the floor area renovated (old buildings) or built (new buildings), just the fraction of minor and aggressive shares. How should we implement this? The energy improvement can be adjusted by the user, as well as the unit price of improvement. 
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -487,7 +487,7 @@ nodes:
 
 - id: reduced_electricity_need
   name: Reduced electricity need
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -501,7 +501,7 @@ nodes:
 
 - id: efficiency_programme_current_unit_price
   name: Efficiency programme current unit price
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -531,7 +531,7 @@ nodes:
 
 - id: old_building_cost_shares
   name: Old building cost_shares
-  type: gpc.DatasetNode2
+  type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type]

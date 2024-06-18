@@ -1,0 +1,85 @@
+emission_sectors:
+
+- id: other_emissions
+  name: Other emissions
+  input_nodes: [net_emissions]
+
+nodes:
+
+- id: electricity_production_emissions  # FIXME Move to main yaml?
+  name_en: Electricity production emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [fuel_type, energy_carrier, pollutant]
+  output_dimensions: [fuel_type, energy_carrier, pollutant]
+  input_nodes:
+  - id: consumer_electricity_use
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_production_shares
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: electricity_production_emission_factor
+    to_dimensions:
+    - id: pollutant
+
+- id: electricity_production_shares_historical
+  name_en: Electricity production shares historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults/buildings
+    forecast_from: 2023
+  params:
+  - id: gpc_sector
+    value: electricity production shares
+
+- id: electricity_production_shares
+  name_en: Electricity production shares
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    tags: [non_additive]
+#  - id: replace_fossil_electricity
+#    tage: [non_additive]
+
+actions:
+
+- id: replace_fossil_electricity
+  name_en: Replace fossil electricity
+  type: shift.ShiftAction
+  quantity: fraction
+  unit: '%'
+  output_nodes:
+  - id: electricity_production_shares
+    tags: [non_additive]
+    to_dimensions:
+    - id: fuel_type
+  params:
+  - id: shift  # nzc/defaults/fossil_electricity_replaced
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          fuel_type: fossil
+      dests:
+      - categories:
+          fuel_type: non_fossil
+      amounts:
+      - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
+      - {year: 2025, source_amount: -14.0, dest_amounts: [100]} 
+      - {year: 2030, source_amount: -14.0, dest_amounts: [100]} 
+      - {year: 2031, source_amount: 0.0, dest_amounts: [100]} 

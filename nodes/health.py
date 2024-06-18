@@ -18,17 +18,7 @@ class AttributableFractionRR(DatasetNode):
     '''
 
     def compute(self):
-        # df = self.get_gpc_dataset()
-        # print(df)
-        # exit()
-        sector = self.get_parameter_value('gpc_sector')
-
-        # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
-        df = df[df[VALUE_COLUMN].notnull()]
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
-
+        df = self.get_gpc_dataset()
         df = self.convert_names_to_ids(df)
 
         test = df.index.get_level_values('er_function').unique()
