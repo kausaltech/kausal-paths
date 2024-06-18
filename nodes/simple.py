@@ -34,6 +34,16 @@ class SimpleNode(Node):
             local_id='drop_nulls',
             description='At the end of compute() do you want to drop nulls?',
             is_customizable=False
+        ),
+        StringParameter(
+            local_id='reference_category',
+            description='Category to which all others are compared',
+            is_customizable=False
+        ),
+        NumberParameter(
+            local_id='reference_year',
+            description='Year to which all others are compared',
+            is_customizable=False
         )
     ]
 
@@ -88,6 +98,37 @@ class SimpleNode(Node):
             df = df.drop_nulls()
         return df
 
+    def scale_by_reference_category(self, df: ppl.DataFrameMeta) -> ppl.DataFrameMeta:
+        param = self.get_parameter_value('reference_category', required=False)
+        if param:
+            col, cat = param.split(':')
+            reference = df.filter(pl.col(col).eq(cat)).drop(col)
+            df = df.paths.join_over_index(reference)
+            df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+
+        return df
+
+    def scale_by_reference_year(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        year = self.get_parameter_value('reference_year', required=False)
+        if year:
+            if len(df.dim_ids) == 0:
+                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
+                df = df.with_columns((
+                    pl.col(VALUE_COLUMN) / pl.lit(reference)
+                ).alias(VALUE_COLUMN))
+            else:
+                meta = df.get_meta()
+                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
+                df = df.join(reference, on=df.dim_ids)
+                df = df.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+                df = df.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
+                df = ppl.to_ppdf(df, meta=meta)
+
+            df = df.clear_unit(VALUE_COLUMN)
+            df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
 
 class AdditiveNode(SimpleNode):
     """Simple addition of inputs"""
@@ -99,6 +140,11 @@ class AdditiveNode(SimpleNode):
             description='Node represents historical (inventory) values only',
             is_customizable=False,
         ),
+        BoolParameter(
+            local_id='use_input_node_unit_when_adding',
+            description='Use input node unit when doing add_nodes_pl()',
+            is_customizable=False
+        )
     ]
 
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
@@ -149,14 +195,20 @@ class AdditiveNode(SimpleNode):
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
 
+        if self.get_parameter_value('use_input_node_unit_when_adding', required=False):
+            unit = self.input_nodes[0].unit
+        else:
+            unit = self.unit
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes_pl(None, input_nodes, metric)
+            df = self.add_nodes_pl(None, input_nodes, metric, unit=unit)
             df = self.fill_gaps_using_input_dataset_pl(df)
         else:
-            df = self.add_nodes_pl(df, input_nodes, metric)
+            df = self.add_nodes_pl(df, input_nodes, metric, unit=unit)
         df = self.maybe_drop_nulls(df)  # FIXME Check where this should be done.
         if self.get_parameter_value('drop_nans', required=False):  # FIXME: Implement this in the same way as drop_nulls
             df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+        df = self.scale_by_reference_category(df)
+        df = self.scale_by_reference_year(df)
 
         return df
 

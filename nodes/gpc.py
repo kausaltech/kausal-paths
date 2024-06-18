@@ -269,23 +269,21 @@ class DatasetNode2(DatasetNode):
         return df
     
     
-class DatasetRatioNode(DatasetNode2):
+class DatasetRatioNode(DatasetNode2):  # FIXME Split the dataset and scale_by_reference_category into two nodes.
     allowed_parameters = DatasetNode2.allowed_parameters + [
         StringParameter('reference_category', description='Category to which all others are compared', is_customizable=False)]
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
+        if df is None:  # There must be either one dataset or one input node.
+            df = self.input_nodes[0].get_output_pl(self)
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
         df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
-
-        col, cat = self.get_parameter_value('reference_category', required=True).split(':')
-        reference = df.filter(pl.col(col).eq(cat)).drop(col)
-        df = df.paths.join_over_index(reference)
-        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+        df = self.scale_by_reference_category(df)
 
         return df
     
