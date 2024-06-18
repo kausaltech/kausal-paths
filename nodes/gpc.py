@@ -155,7 +155,8 @@ class DatasetNode(AdditiveNode):
             mult = na_nodes[0].get_output_pl(target_node = self)
             df = df.paths.join_over_index(mult, how = 'outer', index_from='union')
 
-            df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+            df = (df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+                  .drop(VALUE_COLUMN + '_right'))
         return df
 
     # -----------------------------------------------------------------------------------
@@ -178,7 +179,7 @@ class CorrectionNode(DatasetNode):
     ]
     def compute(self):
         df = super().compute()
-        df = ppl.from_pandas(df)  # FIXME Shouldn't this be done in DatasetNode?
+
         do_correction = self.get_parameter_value('do_correction', required=True)
 
         if not do_correction:

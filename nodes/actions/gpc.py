@@ -14,7 +14,7 @@ class DatasetAction(ActionNode):
 
     no_effect_value = 0.0
 
-    qlookup = {'currency': 'Price',
+    qlookup = {'currency': 'Price',  # FIXME Make a generic qlookup to constants.py and use that.
                'emission_factor': 'Emission Factor',
                'emissions': 'Emissions',
                'energy': 'Energy Consumption',
