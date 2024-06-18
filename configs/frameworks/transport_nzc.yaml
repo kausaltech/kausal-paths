@@ -78,8 +78,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults/transport
   params:
-  - id: gpc_sector
-    value: baseline year fleet emission factor
+    gpc_sector: baseline year fleet emission factor
 
 - id: new_fleet_emission_factor_pre
   name: New fleet emission factor before splitting
@@ -101,8 +100,7 @@ nodes:
   output_dimensions: [transport_pollutant, transport_mode]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: new fleet emission factor
+    gpc_sector: new fleet emission factor
 
 - id: transport_pollutant_split
   name: Transport pollutant split
@@ -114,8 +112,7 @@ nodes:
   output_dimensions: [pollutant, transport_pollutant, energy_carrier]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport pollutant split
+    gpc_sector: transport pollutant split
 
 - id: baseline_year_fleet_emission_factor
   name: Baseline year fleet emission factor
@@ -183,8 +180,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: old fleet reduction rate
+    gpc_sector: old fleet reduction rate
 
 - id: new_fleet_fraction
   name: New fleet fraction
@@ -242,8 +238,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
   params:
-  - id: gpc_sector
-    value: train energy factor
+    gpc_sector: train energy factor
 
 - id: train_emission_factor  # FIXME Calculate electricity emissions separately for all transport modes.
   name: Train emission factor
@@ -329,8 +324,7 @@ nodes:
   - id: nzc/defaults/transport  # FIXME It should be possible to define units dimensionless for dataset and % for node
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: transport energy carrier shares
+    gpc_sector: transport energy carrier shares
 
 - id: transport_efficiency
   name: Transport efficiency
@@ -342,8 +336,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport efficiency
+    gpc_sector: transport efficiency
 
 - id: passenger_kilometres_pre
   name: Passenger kilometres data
@@ -360,8 +353,7 @@ nodes:
   params:
 #  - id: annual_change
 #    ref: population_growth_rate
-  - id: gpc_sector
-    value: passenger kilometers
+    gpc_sector: passenger kilometers
 
 - id: passenger_kilometres
   name: Passenger kilometres
@@ -390,8 +382,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: motorised transport index
+    gpc_sector: motorised transport index
 
 - id: motorised_transport_change
   name: Motorised transport change
@@ -424,8 +415,7 @@ nodes:
   output_dimensions: [pollutant, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport air pollution unit price
+    gpc_sector: transport air pollution unit price
 
 - id: transport_air_pollution_cost_shares
   name: Transport air pollution cost shares
@@ -440,8 +430,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport air pollution cost shares
+    gpc_sector: transport air pollution cost shares
 
 - id: transport_air_pollution_costs
   name: Transport air pollution costs
@@ -523,8 +512,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport noise unit price
+    gpc_sector: transport noise unit price
 
 - id: transport_noise_cost_shares
   name: Transport noise cost shares
@@ -536,8 +524,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport noise cost shares
+    gpc_sector: transport noise cost shares
 
 - id: transport_noise_cost
   name: Transport noise cost
@@ -575,8 +562,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport accident unit price
+    gpc_sector: transport accident unit price
 
 - id: transport_accident_cost_shares
   name: Transport accident cost shares
@@ -588,8 +574,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport accident cost shares
+    gpc_sector: transport accident cost shares
 
 - id: transport_accident_cost
   name: Transport accident cost
@@ -631,8 +616,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: public transport operation unit price
+    gpc_sector: public transport operation unit price
 
 - id: public_transport_operation_cost_shares
   name: Public transport operation cost shares
@@ -645,8 +629,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults/transport
   params:
-  - id: gpc_sector
-    value: public transport operation cost shares
+    gpc_sector: public transport operation cost shares
 
 - id: public_transport_operation_cost
   name: Public transport operation cost
@@ -686,8 +669,7 @@ nodes:
   unit: l/g
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: transport energy factor ice petrol diesel
+    gpc_sector: transport energy factor ice petrol diesel
 
 - id: fuel_unit_price
   name: Fuel unit price
@@ -700,8 +682,7 @@ nodes:
   output_dimensions: [cost_type]
   input_datasets: [nzc/defaults/transport]
   params:
-  - id: gpc_sector
-    value: fuel unit price
+    gpc_sector: fuel unit price
 
 - id: transport_fuel_cost
   name: Transport fuel cost
@@ -755,8 +736,7 @@ nodes:
   input_dimensions: [transport_mode, stakeholder, cost_type]
   output_dimensions: [transport_mode, stakeholder, cost_type]
   params:
-  - id: gpc_sector
-    value: walking cycling unit price
+    gpc_sector: walking cycling unit price
 
 - id: walking_cycling_cost
   name: Walking & cycling cost

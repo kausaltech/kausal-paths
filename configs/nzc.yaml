@@ -388,8 +388,7 @@ nodes:
   output_dimensions: [pollutant]
   input_datasets: [nzc/defaults/electricity]
   params:
-  - id: gpc_sector
-    value: electricity_production_emission_factor
+    gpc_sector: electricity_production_emission_factor
 
 - id: co2_unit_price
   name: CO2 unit price

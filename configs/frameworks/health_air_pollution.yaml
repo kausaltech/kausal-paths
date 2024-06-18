@@ -17,10 +17,8 @@ nodes:
     - column: Transport mode
       value: cars
   params:
-  - id: gpc_sector
-    value: baseline year fleet emission factor
-  - id: rename_dimensions
-    value: 'transport_pollutant:pollutant'
+    gpc_sector: baseline year fleet emission factor
+    rename_dimensions: 'transport_pollutant:pollutant'
 
 - id: transport_emission_ratio
   name_fi: Liikennepäästöjen keskinäinen suhde
@@ -68,8 +66,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: heat emission factor
+    gpc_sector: heat emission factor
 
 - id: fossil_plant_emission_ratio
   name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
@@ -124,8 +121,7 @@ nodes:
     - column: Population density
       value: average
   params:
-  - id: gpc_sector
-    value: Air pollution
+    gpc_sector: Air pollution
 
 - id: breathing_rate
   name_fi: Hengitystilavuus
@@ -232,8 +228,7 @@ nodes:
     - column: Population
       value: default
   params:
-  - id: gpc_sector
-    value: Environmental health
+    gpc_sector: Environmental health
 
 - id: air_pollution_attributable_fraction
   name_fi: Ilmansaasteiden syyosuus
@@ -255,8 +250,7 @@ nodes:
     to_dimensions:
     - id: pollutant
   params:
-  - id: gpc_sector
-    value: Air pollution
+    gpc_sector: Air pollution
 
 - id: total_number_of_cases
   name_fi: Kokonaistapausmäärä
@@ -327,8 +321,7 @@ nodes:
   - id: hia/exposure_response/air_pollution_erf
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: Air pollution
+    gpc_sector: Air pollution
 
 - id: disease_burden_of_air_pollution
   name_fi: Ilmansaasteiden tautitaakka

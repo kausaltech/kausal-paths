@@ -39,8 +39,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: electricity production shares
+    gpc_sector: electricity production shares
 
 - id: electricity_production_shares
   name_en: Electricity production shares

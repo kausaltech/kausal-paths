@@ -38,8 +38,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: size of building stock
+    gpc_sector: size of building stock
 
 - id: projected_building_stock
   name: Projected building stock
@@ -67,10 +66,8 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: new building shares
-  - id: inventory_only
-    value: true
+    gpc_sector: new building shares
+    inventory_only: true
 
 - id: demolition_rate
   name: Demolition rate
@@ -83,8 +80,7 @@ nodes:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: Demolition rate existing buildings
+    gpc_sector: Demolition rate existing buildings
 
 - id: demolished_building_stock
   name: Demolished building stock
@@ -153,8 +149,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: renovation rate (building envelope)
+    gpc_sector: renovation rate (building envelope)
 
 - id: renovation_intensity
   name: Renovation intensity
@@ -167,8 +162,7 @@ nodes:
   - id: nzc/defaults/actions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: renovation intensity  # FIXME get correct data from renovation intensity baseline
+    gpc_sector: renovation intensity  # FIXME get correct data from renovation intensity baseline
 
 - id: renovated_building_stock
   name: Renovated building stock
@@ -202,8 +196,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: energy use intensity
+    gpc_sector: energy use intensity
 
 - id: energy_use_intensity_relative_old
   name: Relative energy use intensity of existing building classes
@@ -216,8 +209,7 @@ nodes:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: Energy efficiency improvements from building renovations
+    gpc_sector: Energy efficiency improvements from building renovations
 
 - id: energy_use_intensity_old
   name: Energy use intensity of existing buildings
@@ -248,8 +240,7 @@ nodes:
   - id: nzc/defaults/actions  # FIXME This could be zero by default and be changed by action
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: improvement compared with new standard  # FIXME update defaults/actions
+    gpc_sector: improvement compared with new standard  # FIXME update defaults/actions
 
 - id: energy_use_intensity_new
   name: Energy use intensity for heating of new buildings
@@ -287,8 +278,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: building heating shares
+    gpc_sector: building heating shares
 
 - id: building_heat_energy_use
   name: Building heat energy use
@@ -322,8 +312,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: heat emission factor
+    gpc_sector: heat emission factor
 
 - id: building_heating_emissions
   name: Building heating emissions
@@ -368,8 +357,7 @@ nodes:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: Building costs - new buildings
+    gpc_sector: Building costs - new buildings
 
 - id: new_building_unit_price
   name: New building unit price
@@ -396,8 +384,7 @@ nodes:
   - id: nzc/defaults/stakeholders
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: investment costs in new buildings
+    gpc_sector: investment costs in new buildings
 #building renovation investments
 
 
@@ -433,8 +420,7 @@ nodes:
   - id: nzc/defaults/buildings
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: consumer electricity use
+    gpc_sector: consumer electricity use
 
 - id: efficient_appliances_rate
   name: Efficient appliances rate
@@ -447,8 +433,7 @@ nodes:
   - id: nzc/defaults/actions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: efficient appliances rate
+    gpc_sector: efficient appliances rate
 
 - id: efficiency_programme_shares
   name: Efficiency programme shares
@@ -462,8 +447,7 @@ nodes:
   - id: nzc/defaults/actions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: efficiency programme shares
+    gpc_sector: efficiency programme shares
 
 - id: efficiency_improved_buildings
   name: Efficiency improved buildings
@@ -496,8 +480,7 @@ nodes:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: Reduced electricity need with appliances & lighting renovations ## FIXME Reduced electricity need with appliances; after updating the dataset
+    gpc_sector: Reduced electricity need with appliances & lighting renovations ## FIXME Reduced electricity need with appliances; after updating the dataset
 
 - id: efficiency_programme_current_unit_price
   name: Efficiency programme current unit price
@@ -510,8 +493,7 @@ nodes:
   - id: nzc/defaults/assumptions
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: Cost of efficiency programme per m2
+    gpc_sector: Cost of efficiency programme per m2
 
 - id: efficiency_programme_unit_price
   name: Efficiency programme unit price
@@ -540,8 +522,7 @@ nodes:
   - id: nzc/defaults/stakeholders
     forecast_from: 2023
   params:
-  - id: gpc_sector
-    value: building renovation investments
+    gpc_sector: building renovation investments
 
 - id: efficiency_programme_cost
   name: Efficiency programme cost

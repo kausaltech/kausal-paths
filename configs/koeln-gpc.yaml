@@ -83,8 +83,7 @@ nodes:
     - column: Sector name
       value: Private Haushalte
   params:
-  - id: gpc_sector
-    value: I.1
+    gpc_sector: I.1
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -108,8 +107,7 @@ nodes:
     - column: Sector name
       value: Gewerbe+ Sonstiges
   params:
-  - id: gpc_sector
-    value: I.2
+    gpc_sector: I.2
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -133,8 +131,7 @@ nodes:
     - column: Sector name
       value: Industrie
   params:
-  - id: gpc_sector
-    value: I.3
+    gpc_sector: I.3
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -156,8 +153,7 @@ nodes:
     - column: Sector name
       value: Städtische Gebäude
   params:
-  - id: gpc_sector
-    value: I.2
+    gpc_sector: I.2
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -181,8 +177,7 @@ nodes:
     - column: Sector name
       value: Verkehr
   params:
-  - id: gpc_sector
-    value: II.1
+    gpc_sector: II.1
   output_nodes:
   - id: net_emissions
     from_dimensions:
