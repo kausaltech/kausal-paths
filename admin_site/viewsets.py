@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Generic, Type, TypeVar
+from functools import cached_property
+from typing import Generic, Iterable, Type, TypeVar
 
 from django.db import models
 from django.core.exceptions import FieldDoesNotExist
@@ -78,6 +79,11 @@ class PathsViewSet(SnippetViewSet, Generic[M]):
     edit_view_class = PathsEditView
     add_to_admin_menu = True
     chooser_viewset_class = PathsChooserViewSet
+
+    icon: cached_property[str] | str
+    search_fields: Iterable[str]
+    menu_order: int
+    _edit_handler: cached_property[Panel]
 
     def get_queryset(self, request: PathsAdminRequest) -> models.QuerySet[M]:
         base_qs = super().get_queryset(request)

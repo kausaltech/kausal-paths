@@ -6,7 +6,7 @@ from django.db.models import Model
 from modeltrans.fields import TranslatedVirtualField
 from modeltrans.translator import get_i18n_field
 from modeltrans.utils import build_localized_fieldname
-from wagtail.admin.panels import FieldPanel, FieldRowPanel, Panel
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, Panel
 
 from paths.types import PathsAdminRequest
 
@@ -74,7 +74,28 @@ class TranslatedLanguagePanel(FieldPanel):
             return self.panel.language in (instance.other_languages or [])
 
 
-class TranslatedFieldPanel(FieldRowPanel):
+class TranslatedFieldRowPanel(FieldRowPanel):
+    def __init__(self, field_name: str, widget: Any = None, **kwargs):
+        self.field_name = field_name
+        self.widget = widget
+        primary_panel = FieldPanel(field_name, widget=widget, **kwargs)
+        lang_panels = [TranslatedLanguagePanel(
+            field_name=field_name,
+            language=lang[0],
+            widget=widget,
+            **kwargs
+        ) for lang in settings.LANGUAGES]
+        super().__init__(children=[primary_panel, *lang_panels], **kwargs)
+
+    def clone_kwargs(self):
+        ret = super().clone_kwargs()
+        del ret['children']
+        ret['field_name'] = self.field_name
+        ret['widget'] = self.widget
+        return ret
+
+
+class TranslatedFieldPanel(MultiFieldPanel):
     def __init__(self, field_name: str, widget: Any = None, **kwargs):
         self.field_name = field_name
         self.widget = widget
