@@ -35,7 +35,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: size of building stock
@@ -63,7 +63,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: new building shares
@@ -77,7 +77,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/assumptions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: Demolition rate existing buildings
@@ -146,7 +146,7 @@ nodes:
   quantity: fraction
   unit: dimensionless
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: renovation rate (building envelope)
@@ -159,7 +159,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/actions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: renovation intensity  # FIXME get correct data from renovation intensity baseline
@@ -193,7 +193,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: energy use intensity
@@ -206,7 +206,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/assumptions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: Energy efficiency improvements from building renovations
@@ -237,7 +237,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/actions  # FIXME This could be zero by default and be changed by action
+  - id: nzc/defaults  # FIXME This could be zero by default and be changed by action
     forecast_from: 2023
   params:
     gpc_sector: improvement compared with new standard  # FIXME update defaults/actions
@@ -275,7 +275,7 @@ nodes:
   input_dimensions: [heating_type, scope]
   output_dimensions: [heating_type, scope]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: building heating shares
@@ -309,7 +309,7 @@ nodes:
   input_dimensions: [pollutant, heating_type]
   output_dimensions: [pollutant, heating_type]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: heat emission factor
@@ -354,7 +354,7 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/assumptions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: Building costs - new buildings
@@ -369,7 +369,7 @@ nodes:
   input_nodes:
   - id: new_building_current_unit_price
   params:
-  - id: annual_change  # FIXME from nzc/defaults/assumptions Cost improvements - new buildings
+  - id: annual_change  # FIXME from nzc/defaults Cost improvements - new buildings
     value: -1.024671139
     unit: '%'
 
@@ -381,7 +381,7 @@ nodes:
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
-  - id: nzc/defaults/stakeholders
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: investment costs in new buildings
@@ -417,7 +417,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: consumer electricity use
@@ -427,10 +427,10 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless  # FIXME 1/a
-#  input_dimensions: [building_energy_class]  # FIXME
-#  output_dimensions: [building_energy_class]
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults/actions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: efficient appliances rate
@@ -444,7 +444,7 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
-  - id: nzc/defaults/actions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: efficiency programme shares
@@ -454,20 +454,20 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
+  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
   input_nodes:
   - id: building_stock
     tags: [non_additive]
-    from_dimensions:
+    to_dimensions:
     - id: building_energy_class
-      flatten: true  # FIXME Do not flatten
-    to_dimensions: []
   - id: efficient_appliances_rate
-#    from_dimensions:
-#    - id: building_energy_class
-    to_dimensions: []  # FIXME
+    to_dimensions:
+    - id: building_energy_class
   - id: efficiency_programme_shares
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
 
 - id: reduced_electricity_need
   name: Reduced electricity need
@@ -477,7 +477,7 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
-  - id: nzc/defaults/assumptions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: Reduced electricity need with appliances & lighting renovations ## FIXME Reduced electricity need with appliances; after updating the dataset
@@ -490,7 +490,7 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
-  - id: nzc/defaults/assumptions
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: Cost of efficiency programme per m2
@@ -505,7 +505,7 @@ nodes:
   input_nodes:
   - id: efficiency_programme_current_unit_price
   params:
-  - id: annual_change  # FIXME from nzc/defaults/assumptions Cost improvements of efficiency programme
+  - id: annual_change  # FIXME from nzc/defaults Cost improvements of efficiency programme
     value: 1.024671139
     unit: '%'
   - id: is_decreasing_rate
@@ -519,7 +519,7 @@ nodes:
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
-  - id: nzc/defaults/stakeholders
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: building renovation investments
@@ -533,6 +533,9 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   input_nodes:
   - id: efficiency_improved_buildings
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
@@ -586,6 +589,9 @@ nodes:
       categories: [electricity]
   - id: efficiency_improved_buildings
     tags: [cumulative]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
@@ -608,8 +614,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: electricity_production_emission_factor
-    to_dimensions:
-    - id: pollutant
   output_nodes:
   - id: building_emissions
     from_dimensions:

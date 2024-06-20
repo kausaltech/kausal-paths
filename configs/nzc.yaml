@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0597bddf38b8cbcd616f9f12c11fd5c6906c891d
+  commit: 833b1dfbe8fffa5bb22e59af87557e3398be7d5d
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -47,7 +47,7 @@ action_groups:
 - id: freight
   name: Freight
 - id: buildings
-  name: buildings
+  name: Buildings
   color: '#32cd32'
 - id: electricity
   name: Electricity
@@ -384,11 +384,11 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
-  input_datasets: [nzc/defaults/electricity]
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_datasets: [nzc/defaults]
   params:
-    gpc_sector: electricity_production_emission_factor
+    gpc_sector: electricity production emission factor
 
 - id: co2_unit_price
   name: CO2 unit price

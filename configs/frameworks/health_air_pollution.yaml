@@ -11,7 +11,7 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_datasets:
-  - id: nzc/defaults/transport
+  - id: nzc/defaults
     forecast_from: 2023
     filters:
     - column: Transport mode
@@ -63,7 +63,7 @@ nodes:
   input_dimensions: [pollutant, heating_type]
   output_dimensions: [pollutant, heating_type]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: heat emission factor

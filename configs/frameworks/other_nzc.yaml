@@ -27,32 +27,30 @@ nodes:
   - id: electricity_production_emission_factor
     to_dimensions:
     - id: pollutant
+    - id: energy_carrier
 
 - id: electricity_production_shares_historical
   name_en: Electricity production shares historical
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%'
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
-  - id: nzc/defaults/buildings
+  - id: nzc/defaults
     forecast_from: 2023
   params:
     gpc_sector: electricity production shares
 
 - id: electricity_production_shares
   name_en: Electricity production shares
-  type: simple.MultiplicativeNode
+  type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
   - id: electricity_production_shares_historical
-    tags: [non_additive]
-#  - id: replace_fossil_electricity
-#    tage: [non_additive]
 
 actions:
 
@@ -61,12 +59,17 @@ actions:
   type: shift.ShiftAction
   quantity: fraction
   unit: '%'
+  group: electricity
   output_nodes:
-  - id: electricity_production_shares
-    tags: [non_additive]
+  - id: electricity_production_shares_historical
     to_dimensions:
     - id: fuel_type
+    - id: energy_carrier
+      categories: [electricity]
   params:
+  - id: multiplier2
+    value: 41.0
+    unit: '%'
   - id: shift  # nzc/defaults/fossil_electricity_replaced
     unit: '%'
     is_customizable: false
