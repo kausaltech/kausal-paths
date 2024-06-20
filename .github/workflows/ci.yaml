@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/reviewdog.yml
 
   build:
-    uses: kausaldev/github-actions/.github/workflows/build.yaml@main
+    uses: kausaltech/github-actions/.github/workflows/build.yaml@main
     secrets:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
@@ -36,7 +36,7 @@ jobs:
     with:
       product_id: paths
       instance_identifiers: sunnydale
-      ui_repo: kausaldev/kausal-paths-ui
+      ui_repo: kausaltech/kausal-paths-ui
       ui_repo_ref: deployment/testing
       ui_image: "${{ vars.DOCKER_REGISTRY }}/paths-ui/paths-ui:latest"
       backend_image: "${{ needs.build.outputs.image }}:${{ needs.build.outputs.image_tag }}"
@@ -46,7 +46,7 @@ jobs:
 
   deploy:
     needs: [build]
-    uses: kausaldev/github-actions/.github/workflows/deploy.yaml@main
+    uses: kausaltech/github-actions/.github/workflows/deploy.yaml@main
     secrets:
       argocd_server: ${{ secrets.ARGOCD_SERVER }}
       argocd_auth_token: ${{ secrets.ARGOCD_AUTH_TOKEN }}
