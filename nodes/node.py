@@ -1359,7 +1359,7 @@ class Node:
                 raise NodeError(self, "Value column missing in output of %s" % node.id)
 
             if node_multipliers:
-                mult = node_multipliers.pop(0)  # FIXME Should this be the i-th multiplier, not the first?
+                mult = node_multipliers.pop(0)
                 node_df = node_df.with_columns(pl.col(VALUE_COLUMN) * mult)
 
             ndf_meta = node_df.get_meta()

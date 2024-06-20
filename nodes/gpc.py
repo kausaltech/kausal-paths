@@ -169,6 +169,7 @@ class DatasetNode(AdditiveNode):
         df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         df = self.add_and_multiply_input_nodes(df)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
 

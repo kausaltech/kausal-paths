@@ -10,7 +10,9 @@ from common import polars as ppl
 
 
 class DatasetAction(ActionNode):
-    allowed_parameters = [StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)]
+    allowed_parameters = ActionNode.allowed_parameters + [
+        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)
+    ]
 
     no_effect_value = 0.0
 
@@ -62,7 +64,7 @@ class DatasetAction(ActionNode):
         return idtext
 
     # -----------------------------------------------------------------------------------
-    def compute_effect(self) -> pd.DataFrame:
+    def compute_effect(self) -> pd.DataFrame:  # FIXME use sub-functions like DatasetNode
         sector = self.get_parameter_value('gpc_sector')
 
         df = self.get_input_dataset()
@@ -117,9 +119,10 @@ class DatasetAction(ActionNode):
         df = df.with_columns(pl.col('Forecast').fill_null(strategy = 'forward'))
 
         df = df.paths.to_narrow()
+        df = self.implement_multiplier(df)
         df = df.to_pandas()
 
-        if not self.is_enabled():  # FIXME DataFrame is calculated correctly but still does not affect the model outcome?!?
+        if not self.is_enabled():
             df[VALUE_COLUMN] *= self.no_effect_value
 
 #       df = extend_last_historical_value(df, self.get_end_year())

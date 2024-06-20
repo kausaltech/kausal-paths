@@ -17,7 +17,7 @@ from nodes.constants import (
     VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, UNCERTAINTY_COLUMN, STACKABLE_QUANTITIES, DecisionLevel
 )
 from nodes.units import Quantity, Unit
-from params import BoolParameter
+from params import BoolParameter, NumberParameter
 from params.param import Parameter
 
 if typing.TYPE_CHECKING:
@@ -63,7 +63,10 @@ class ActionNode(Node):
     # actions, 1.0.
     no_effect_value: Optional[float] = None
     enabled_param: BoolParameter
-    allowed_parameters: ClassVar[list[Parameter]] = [ENABLED_PARAM]
+    allowed_parameters: ClassVar[list[Parameter]] = [
+        ENABLED_PARAM,
+        NumberParameter(local_id='multiplier2', label='Multiplies the output', is_customizable=True)  # FIXME Convert to multiplier
+    ]
 
     def __init_subclass__(cls) -> None:
         """Ensure the 'enabled' parameter is allowed for all action classes."""
@@ -110,6 +113,15 @@ class ActionNode(Node):
         new_index = range(df.index.min(), self.get_end_year() + 1)
         df = df.reindex(new_index, fill_value=self.no_effect_value)
         df[FORECAST_COLUMN] = True
+        return df
+
+    def implement_multiplier(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        multiplier = self.get_parameter_value('multiplier2', required=False, units=True)
+        if multiplier:
+            if not isinstance(multiplier, Quantity):
+                raise NodeError(self, 'multiplier must have a unit')
+            df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
     def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:
