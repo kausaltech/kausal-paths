@@ -583,6 +583,7 @@ nodes:
   unit: Gm/a
   input_dimensions: ['scope', 'road_type', 'vehicle_type']
   output_dimensions: ['scope', 'road_type', 'vehicle_type']
+  allow_nulls: true
   params:
     gpc_sector: II.1.1
   input_datasets:
@@ -633,6 +634,7 @@ nodes:
 - id: ii22_railway_grid_energy_mileage
   name: II.2.2 Railway Grid Energy Mileage
   type: gpc.DatasetNode
+  allow_nulls: true
   quantity: mileage
   unit: Gm/a
   input_dimensions: ['scope', 'energy_carrier', 'vehicle_type']
@@ -1219,6 +1221,7 @@ actions:
   type: gpc.DatasetActionMFM
   input_dimensions: ['scope', 'energy_carrier', 'cost_type']
   output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  allow_nulls: true
   params:
     action: Change Streetlights to LED
   input_datasets:
@@ -1251,6 +1254,7 @@ actions:
 - id: build_renewable_electricity_production
   name: Build Renewable Electricity Production (PV)
   type: gpc.DatasetActionMFM
+  allow_nulls: true
   input_dimensions: ['scope', 'energy_carrier', 'cost_type', 'energy_source']
   output_dimensions: ['scope', 'energy_carrier', 'cost_type', 'energy_source']
   params:
@@ -1374,7 +1378,7 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Climate Budgeting Tool
-  lead_paragraph: Climate budgeting is about including climate emissions systematically in the city's planning and budgeting. In the first phase, the Global Protocol for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing these emissions are considered. C40 Network's website describes <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area. They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a> to guide through the climate budgeting process. 
+  lead_paragraph: Climate budgeting is about including climate emissions systematically in the city's planning and budgeting. In the first phase, the Global Protocol for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing these emissions are considered. C40 Network's website describes <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area. They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a> to guide through the climate budgeting process.
   lead_title_fi: Ilmastobudjetointityökalu
   lead_paragraph_fi: Ilmastobudjetoinnissa kaupungin suunnitteluun ja budjetointiin sisällytetään järjestelmällisesti ilmastopäästöt. Ensimmäisessä vaiheessa huomioidaan yhteisötason Global Protocol for Community-Scale (GPC) BASIC-tason päästöt ja toimet, jotka vähentävät näitä päästöjä. C40-verkosto kuvaa, <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">miksi tämä työ on erittäin tärkeää</a>. Oslo on ollut <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">edelläkävijäkaupunki</a> tällä alueella. He ovat myös tehneet <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">käytännön oppaan</a> kaupungeille ilmastobudjetointiprosessin läpiviemiseksi.
   lead_title_sv: Klimatbudgeteringsverktyg

@@ -1,0 +1,150 @@
+name: End-to-end tests against an UI image
+on:
+  workflow_call:
+    inputs:
+      product_id:
+        description: 'Product ID (watch/paths)'
+        required: true
+        type: string
+      instance_identifiers:
+        description: 'Comma separated list of instance identifiers'
+        required: false
+        type: string
+        default: 'sunnydale,espoo,zuerich,nzc'
+      ui_repo:
+        description: 'UI GitHub repo'
+        required: true
+        type: string
+      ui_repo_ref:
+        description: 'UI source revision'
+        required: true
+        type: string
+      ui_image:
+        description: 'UI image to test (full path including registry, repo and tag)'
+        required: true
+        type: string
+      backend_image:
+        description: 'Backend image tag to test (full path including registry, repo and tag)'
+        required: true
+        type: string
+      build_id:
+        description: 'Unique ID for the backend build'
+        required: true
+        type: string
+      s3_endpoint:
+        description: 'S3 endpoint URL where to upload test artifacts'
+        required: false
+        type: string
+      s3_bucket:
+        description: 'S3 bucket'
+        required: false
+        type: string
+
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+
+    outputs:
+      test_report_url:
+        description: 'URL to e2e test report'
+        value: ${{ jobs.e2e_test.outputs.test_report_url }}
+
+env:
+  POSTGRES_PASSWORD: abcd
+  POSTGRES_USER: app
+  POSTGRES_DATABASE: app
+
+jobs:
+  e2e_test:
+    name: Run UI end-to-end tests
+    runs-on: self-hosted
+    services:
+      ui:
+        image: ${{ inputs.ui_image }}
+        env:
+          NEXT_PUBLIC_WILDCARD_DOMAINS: localhost
+          NEXT_PUBLIC_DEPLOYMENT_TYPE: testing
+          NEXT_PUBLIC_API_URL: http://localhost:8000/v1
+          TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
+          TEST_PAGE_BASE_URL: 'http://{instanceId}.localhost:3001'
+          AUTH_SECRET: abcd
+          AUTH_TRUST_HOST: true
+          HOSTNAME: 0.0.0.0
+
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DATABASE: ${{ env.POSTGRES_DATABASE }}
+
+      redis:
+        image: redis:7-alpine
+
+      backend:
+        image: ${{ inputs.backend_image }}
+        env:
+          DATABASE_URL: postgresql://${{env.POSTGRES_USER}}:${{env.POSTGRES_PASSWORD}}@localhost:5432/${{env.POSTGRES_DATABASE}}
+          REDIS_URL: redis://localhost
+          DB_ENDPOINT: localhost:5432
+          ALLOWED_HOSTS: localhost
+          KUBERNETES_LOGGING: 1
+          TEST_MODE: 1
+          TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
+          SECRET_KEY: abcd
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: ci
+
+    outputs:
+      test_report_url: ${{ steps.upload.outputs.test_report_url }}
+
+    container:
+      image: harbor.kausal.dev/library/playwright:latest
+    env:
+      CI: 1
+      NEXT_PUBLIC_API_URL: http://localhost:8000/v1
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.ui_repo }}
+          ref: ${{ inputs.ui_repo_ref }}
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./e2e-tests
+
+      - name: Wait for backend to get ready
+        run: wait-for-it.sh -t 60 localhost:8000
+
+      - name: Running Playwright e2e tests
+        run: node_modules/.bin/playwright test
+        id: playwright_test
+        working-directory: ./e2e-tests
+
+      - name: Upload test report to S3
+        id: upload
+        if: always()
+        run: |
+          s3cmd --host ${{ inputs.s3_endpoint }} --host-bucket ${{ inputs.s3_endpoint }} put --recursive playwright-report s3://${{ inputs.s3_bucket }}/${{ inputs.build_id }}/
+          export TEST_REPORT_URL="https://${{ inputs.s3_endpoint }}/${{ inputs.s3_bucket }}/${{ inputs.build_id }}/playwright-report/index.html"
+          echo "test_report_url=${TEST_REPORT_URL}" >> $GITHUB_OUTPUT
+          test_report="🔗 [Test report](${TEST_REPORT_URL})"
+          if [ "${{ steps.playwright_test.outcome == 'success' }}" = "true" ] ; then
+            echo "✅ End-to-end tests succeeded. $test_report" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ End-to-end tests failed. $test_report" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        working-directory: ./e2e-tests
+        shell: bash
+
+      - uses: daun/playwright-report-summary@v3
+        if: always()
+        with:
+          report-file: ./e2e-tests/test-results.json
+          report-url: ${{steps.upload.outputs.test_report_url}}

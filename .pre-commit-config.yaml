@@ -1,0 +1,24 @@
+repos:
+  - repo: local
+    hooks:
+      - id: check-submodules
+        name: Check submodules
+        entry: ./.hooks/check-submodules
+        language: script
+        types: [directory]
+
+      - id: run-ruff
+        name: Run Ruff
+        language: system
+        types: [python]
+        stages: [pre-commit]
+        entry: |
+          ruff
+
+      - id: run-reviewdog
+        name: Run Reviewdog
+        language: script
+        entry: ./.hooks/reviewdog.sh
+        types: [python]
+        stages: [pre-push]
+        verbose: true

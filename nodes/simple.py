@@ -679,7 +679,7 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit w
         df = df_add.paths.join_over_index(df_mult, how='left', index_from='union')  # FIXME This was how='outer' but why?
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df = df.drop(VALUE_COLUMN + '_right')
- 
+
         return df
 
 

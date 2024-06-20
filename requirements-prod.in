@@ -1,2 +1,4 @@
 -c requirements.txt
 uwsgi
+psycopg[c]
+gunicorn

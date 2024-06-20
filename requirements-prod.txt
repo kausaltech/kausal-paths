@@ -4,5 +4,21 @@
 #
 #    pip-compile requirements-prod.in
 #
-uwsgi==2.0.25.1
+gunicorn==22.0.0
+    # via -r requirements-prod.in
+packaging==24.1
+    # via
+    #   -c requirements.txt
+    #   gunicorn
+psycopg[c]==3.1.19
+    # via
+    #   -c requirements.txt
+    #   -r requirements-prod.in
+psycopg-c==3.1.19
+    # via psycopg
+typing-extensions==4.12.2
+    # via
+    #   -c requirements.txt
+    #   psycopg
+uwsgi==2.0.26
     # via -r requirements-prod.in

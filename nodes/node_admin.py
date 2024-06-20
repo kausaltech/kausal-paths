@@ -4,7 +4,7 @@ from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
 from wagtail_color_panel.edit_handlers import NativeColorPanel
 
-from admin_site.panels import TranslatedFieldPanel
+from admin_site.panels import TranslatedFieldPanel, TranslatedFieldRowPanel
 from admin_site.viewsets import PathsViewSet
 
 from nodes.models import NodeConfig
@@ -20,15 +20,15 @@ class NodeViewSet(PathsViewSet):
 
     basic_panels = [
         FieldPanel("identifier", read_only=True),
-        TranslatedFieldPanel("name"),
+        TranslatedFieldRowPanel("name"),
         NativeColorPanel("color"),
         FieldPanel("is_visible"),
         FieldPanel("indicator_node"),
-        FieldPanel("goal"),
-        FieldPanel("short_description"),
+        TranslatedFieldRowPanel("goal"),
+        TranslatedFieldRowPanel("short_description"),
     ]
     description_panels = [
-        FieldPanel("description"),
+        TranslatedFieldPanel("description"),
     ]
     extra_panels = [
         FieldPanel("body"),
@@ -51,8 +51,9 @@ class NodeViewSet(PathsViewSet):
 register_snippet(NodeViewSet)
 
 
-@hooks.register("register_icons")
 def register_icons(icons: list[str]):
     return icons + [
         'wagtailfontawesomesvg/solid/circle-nodes.svg',
     ]
+
+hooks.register('register_icons', register_icons)

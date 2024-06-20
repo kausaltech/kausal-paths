@@ -1,0 +1,25 @@
+:{$CADDY_PORT}
+
+log {
+	format json
+	output stdout
+	level DEBUG
+}
+
+@immutable {
+	# Match files that have a hash right before the file extension
+	path_regexp \.([a-f0-9]{12})\.[a-zA-Z0-9]+$
+}
+
+encode zstd gzip
+header Access-Control-Allow-Origin *
+header Access-Control-Allow-Headers *
+header Access-Control-Allow-Methods "GET, HEAD"
+
+route /static/* {
+	uri strip_prefix /static
+	root * /srv/static
+	header Cache-Control public,max-age=0,must-revalidate
+	header @immutable Cache-Control public,max-age=31536000,immutable
+	file_server
+}

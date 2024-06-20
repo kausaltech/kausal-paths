@@ -1,4 +1,3 @@
-import logging
 import typing
 from typing import ClassVar, Tuple, Union
 
@@ -11,7 +10,7 @@ from nodes.dimensions import Dimension
 from params import StringParameter, Parameter, NumberParameter
 from nodes.node import Node, NodeMetric
 from nodes.constants import (
-    FORECAST_COLUMN, PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, 
+    PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN,
     EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
 )
 from nodes.simple import AdditiveNode, MultiplicativeNode
@@ -114,8 +113,10 @@ class HsyNode(Node):
                 df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
 
         df[FORECAST_COLUMN] = False
-
         return df
+
+    def check(self):
+        return
 
 
 class HsyNodeMixin:
@@ -206,6 +207,7 @@ class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
         df, other_nodes = self.get_sector([ENERGY_QUANTITY, EMISSION_QUANTITY])
         df[VALUE_COLUMN] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
         df = df.drop(columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
+        assert self.unit is not None
         df[VALUE_COLUMN] = self.convert_to_unit(df[VALUE_COLUMN], self.unit)
 
         # If there are other input nodes connected, add them with this one.
@@ -314,16 +316,16 @@ class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin):
 class MultiplicativeWithDataBackup(MultiplicativeNode):
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = super().compute()
-        meta = df.get_meta()
+        pdf = super().compute()
+        meta = pdf.get_meta()
 
         data_node = self.get_input_node(tag='data_node')
         df_data = data_node.get_output_pl()
         # FIXME dimensions in df are cat but in df_data str. Which one they should be and how to fix this in a clever way?
         df_data = df_data.with_columns([pl.col('building_heat_source').cast(pl.Categorical)])
         df_data = df_data.with_columns([pl.col('building_use').cast(pl.Categorical)])
-        on = list(set(df.get_meta().primary_keys + df_data.get_meta().primary_keys))
-        df = df.join(df_data, on=on, how='outer')
+        on = list(set(pdf.get_meta().primary_keys + df_data.get_meta().primary_keys))
+        df = pdf.join(df_data, on=on, how='outer_coalesce')
 
         # FIXME If you add actions to years without calculated values, you get zero-counting rather than double-counting.
         df = df.with_columns([

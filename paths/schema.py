@@ -1,3 +1,4 @@
+from babel import Locale
 from django.core.exceptions import ValidationError
 import graphene
 from graphql.type.definition import GraphQLArgument, GraphQLNonNull
@@ -11,7 +12,7 @@ from django.utils.translation import get_language, gettext as _
 from grapple.registry import registry as grapple_registry
 
 from nodes.schema import Query as NodesQuery, Mutations as NodesMutations
-from nodes.units import Unit
+from nodes.units import Unit, unit_registry
 from pages.schema import Query as PagesQuery
 from params.schema import (
     Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
@@ -21,14 +22,23 @@ from paths.utils import validate_unit
 
 CO2E = 'CO<sub>2</sub>e'
 
+locale_cache: dict[str, Locale] = {}
+
 
 def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
     if dict(unit._units) == dict(percent=1):
         return '%'
 
-    lang = get_language().replace('-', '_')
+    full_lang = get_language()
+    locale = locale_cache.get(full_lang, None)
+    if not locale:
+        locale = Locale.parse(full_lang, sep='-')
+        locale_cache[full_lang] = locale
+    lang = locale.language
     fmt = '~P' if not html else '~Z'
-    f = unit.format_babel(fmt, locale=lang, sort=False)  # type: ignore
+    f = unit_registry.formatter.format_unit_babel(
+        unit, spec=fmt, length='long' if long else 'short', locale=locale
+    )
     if not long:
         if f == 't/a/cap':
             if lang == 'de':
@@ -76,7 +86,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery):
     def resolve_unit(root: 'Query', info: GQLInfo, value: str):
         try:
             unit = validate_unit(value)
-        except ValidationError as e:
+        except ValidationError:
             raise GraphQLError(_("Invalid unit"), info.field_nodes)
         return unit
 

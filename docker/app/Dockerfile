@@ -1,63 +1,136 @@
-# syntax=docker/dockerfile:1
-FROM ubuntu:24.04 AS base
+ARG base_image=debian:testing-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Helsinki"
-ENV PYTHON_VERSION=3.12
+FROM caddy:2 AS caddy
 
-RUN mkdir /code
+#
+# Invocations common for builder and final stages
+#
+FROM ${base_image} AS base
 
-RUN apt-get update
-RUN apt-get install -y wget
+ARG runtime_deps="libpq5 postgresql-client gettext \
+    libproj25 ^libgdal3[4567]$ libjpeg62-turbo libtiff6 libxml2 libffi8 libxslt1.1 \
+    libwebp7 libvoikko1 voikko-fi curl libpcre3 \
+    libpython3.12t64 python3.12 python3.12-venv python3-pip-whl \
+    iputils-ping inetutils-telnet redis-tools restic procps git"
+ARG build_time_deps="libpq-dev build-essential \
+    zlib1g-dev libjpeg-dev libtiff-dev libopenjp2-7-dev libwebp-dev \
+    binutils libproj-dev libgdal-dev \
+    libxml2-dev libxslt1-dev libffi-dev libpython3.12-dev"
+# ARG node_install_url="https://deb.nodesource.com/setup_lts.x"
+ARG app_path=/code
+ARG app_user_uid=1000
+ARG app_user_gid=1000
 
-# Add the postgres repo
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-RUN wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc > /etc/apt/trusted.gpg.d/pgdg.asc
+ENV VIRTUAL_ENV=/venv
+ENV PATH=/venv/bin:$PATH
+ENV DEBIAN_FRONTEND=noninteractive TZ=Europe/Helsinki
 
+RUN mkdir -p ${app_path}
 # Set up APT package caching
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  apt-get update && apt-get install -y \
-    python${PYTHON_VERSION} libpython${PYTHON_VERSION}-dev python${PYTHON_VERSION}-venv python3-pip \
-	postgresql-client-common postgresql-client libpq-dev \
-	gettext git libsnappy-dev
+  apt update && apt upgrade -y && apt install --no-install-recommends -y \
+    ${runtime_deps} && \
+  update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
+#  && \
+#  (curl -fsSL "${node_install_url}" | bash) && \
+#  apt install --no-install-recommends -y nodejs
 
-RUN /usr/bin/python${PYTHON_VERSION} -m venv /venv
-ENV PATH="/venv/bin:${PATH}"
+
+#
+# Builder stage
+#
+FROM base AS builder
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt update && apt install --no-install-recommends -y \
+	${runtime_deps} ${build_time_deps}
+
+# Create python virtual env
+RUN python -m venv ${VIRTUAL_ENV}
+
 ENV XDG_CACHE_HOME=/cache
-RUN mkdir /cache
 
-# Install also ipython for convenience
+COPY requirements.txt requirements-prod.txt ${app_path}/
 RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
-    python -m pip install --upgrade pip ipython
-
-COPY requirements.txt requirements-prod.txt /code/
-RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
-    pip install -r /code/requirements-prod.txt -r /code/requirements.txt
-
-ARG EXTRA_PYPI_INDEX
+    pip install -r ${app_path}/requirements-prod.txt -r ${app_path}/requirements.txt
 
 # Install extra dependencies
-COPY requirements-kausal.txt /code/
-RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
-    if [ ! -z "$EXTRA_PYPI_INDEX" ] ; then \
-        pip install --extra-index-url "${EXTRA_PYPI_INDEX}" -r /code/requirements-kausal.txt ; \
+COPY requirements-kausal.txt ${app_path}/
+RUN --mount=type=secret,id=EXTRA_PYPI_INDEX \
+    if [ -f /run/secrets/EXTRA_PYPI_INDEX ] ; then \
+        export PIP_EXTRA_INDEX_URL=$(cat /run/secrets/EXTRA_PYPI_INDEX) && \
+        pip install --extra-index-url "$(cat /run/secrets/EXTRA_PYPI_INDEX)" -r ${app_path}/requirements-kausal.txt ; \
     fi
 
-ARG MEDIA_ROOT=/srv/media
-ENV MEDIA_ROOT=$MEDIA_ROOT
+# COPY package.json package-lock.json ${app_path}/
+WORKDIR ${app_path}
+# RUN npm install
+
+ARG INSTALL_DEV_DEPS
+COPY requirements-dev.txt ${app_path}/
+RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
+    if [ ! -z "${INSTALL_DEV_DEPS}" ] ; then ${VENV_PATH}/bin/pip install -r ${app_path}/requirements-dev.txt ; fi
+
+#
+# Final image
+#
+FROM base AS final
+
+ENV VENV_PATH=/venv
+ENV PATH=${VENV_PATH}/bin:${PATH}
+
+COPY --from=builder /venv /venv
+# COPY --from=builder ${app_path}/node_modules ${app_path}/node_modules
+
+COPY . ${app_path}/
+
+RUN mkdir /scripts
+COPY ./docker/app/*.sh /scripts/
+COPY ./docker/app/uwsgi.ini /
+RUN chmod a+x /scripts/*.sh
+
+WORKDIR ${app_path}
+
 ARG STATIC_ROOT=/srv/static
-ENV STATIC_ROOT=$STATIC_ROOT
-RUN mkdir -p "$MEDIA_ROOT"
+ENV STATIC_ROOT=${STATIC_ROOT}
 
-WORKDIR /code
+ARG MEDIA_ROOT=/srv/media
+ENV MEDIA_ROOT=${MEDIA_ROOT}
 
-COPY . /code/
+RUN mkdir -p ${MEDIA_ROOT} ${STATIC_ROOT}
+
+RUN groupadd -g ${app_user_gid} user && useradd --no-log-init -m -d /home/user -g ${app_user_gid} -u ${app_user_uid} -r user
+RUN chown -R user:user /code /srv/media /srv/static
+
+# Switch to the app user
+USER user
+
 RUN ./manage.py collectstatic --no-input
 RUN ./manage.py compilemessages
-COPY ./docker/app/docker-entrypoint.sh /
-COPY ./docker/app/wait-for-it.sh /
+# RUN pybabel compile -D notifications -d locale
 
-ENTRYPOINT ["/bin/bash", "/docker-entrypoint.sh"]
+COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
+COPY ./docker/app/Caddyfile /etc/caddy/
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
+ARG CADDY_PORT=6000
+ENV CADDY_PORT=${CADDY_PORT}
+ENV LC_CTYPE=C.UTF-8
+
+ARG SENTRY_PROJECT=paths-backend
+ARG BUILD_ID
+ENV \
+  BUILD_ID=${BUILD_ID} \
+  SENTRY_PROJECT=${SENTRY_PROJECT} \
+  SENTRY_RELEASE=${SENTRY_PROJECT}@${BUILD_ID}
+
+# We need to have the default user as root to be able to run tests etc.
+USER root
+
+EXPOSE 8000/tcp ${CADDY_PORT}/tcp
+ENTRYPOINT ["/scripts/docker-entrypoint.sh", "uwsgi"]

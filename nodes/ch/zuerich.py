@@ -59,9 +59,9 @@ class BuildingFloorAreaHistorical(Node):
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
         df = df.with_columns(
-            pl.col('building_use_extended').map_dict({
-                'residential': 'residential'
-            }, default='nonresidential').alias('building_use')
+            pl.col('building_use_extended').replace(
+                'residential', 'residential', default='nonresidential'
+            ).alias('building_use')
         )
         df = df.add_to_index('building_use')
         df = df.paths.sum_over_dims(['building_use_extended'])
@@ -865,7 +865,7 @@ class TransportEmissionFactor(Node):
         fdf = fef_node.get_output_pl(target_node=self)
         fdf = fdf.rename({VALUE_COLUMN: 'EF'})
 
-        ef_expr = pl.col('EF').map_dict({0.0: None}, default=pl.col('EF'))
+        ef_expr = pl.col('EF').replace(0.0, None, default=pl.col('EF'))
         fdf = fdf.with_columns([ef_expr]).filter(~pl.col('EF').is_null())
         fdf = fdf.ensure_unit('EF', m.unit)
         fdf = extend_last_historical_value_pl(fdf, self.get_end_year())
@@ -921,7 +921,7 @@ class TransportElectricity(AdditiveNode):
         df = self.get_input_dataset_pl()
         m = self.get_default_output_metric()
         # Replace 0 values with nulls
-        el_expr = pl.col('electricity').map_dict({0.0: None}, default=pl.col('electricity'))
+        el_expr = pl.col('electricity').replace(0.0, None, default=pl.col('electricity'))
         df = df.select([YEAR_COLUMN, *df.dim_ids, el_expr])
         df = df.set_unit('electricity', 'kWh/vkm', force=True)
         df = df.rename(dict(electricity=m.column_id)).ensure_unit(m.column_id, m.unit)
@@ -1084,11 +1084,11 @@ class SewageSludgeProcessingEmissions(SimpleNode):
             pl.when(
                 pl.col('greenhouse_gases').eq('co2_biogen')
             ).then(pl.col('emissions') * pl.col('CCSShare') * -1).otherwise(pl.col('emissions')),
-            pl.col('greenhouse_gases').map_dict({'co2_biogen': 'co2'}, default=pl.first()),
+            pl.col('greenhouse_gases').replace('co2_biogen', 'co2'),
         ]).drop('CCSShare')
 
         df = df.with_columns([
-            pl.col('greenhouse_gases').map_dict({'co2': 'negative_emissions'}, default='scope1').alias('emission_scope'),
+            pl.col('greenhouse_gases').replace('co2', 'negative_emissions', default='scope1').alias('emission_scope'),
         ]).add_to_index('emission_scope')
         df = convert_to_co2e(df, 'greenhouse_gases')
 

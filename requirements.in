@@ -1,22 +1,24 @@
-psycopg2-binary
+-r kausal_common/requirements-common.txt
+psycopg[binary,pool]
 pandas
 python-dotenv
 wagtail>=5.2
 django
 django-environ
 django-cors-headers
-sentry_sdk[django]
+sentry_sdk[django,opentelemetry]
 djangorestframework
 django-extensions
 dvc-pandas
 ipython
-numba>=0.57.0rc1
+numba
 pint>=0.22
 pint-pandas
 colored
 factory-boy
 pytest-django
 pytest-factoryboy
+pytest-html
 orjson
 redis
 pint-pandas
@@ -47,3 +49,8 @@ wagtail-generic-chooser
 wagtail-color-panel
 loguru
 gql[requests]
+logfmter
+s3cmd
+recursive-diff
+wagtail-modeladmin
+PyGithub

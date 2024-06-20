@@ -14,7 +14,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 from importlib.util import find_spec
 from threading import ExceptHookArgs
-from typing import Literal
+from typing import Any, Literal
 
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
@@ -28,6 +28,7 @@ env = environ.FileAwareEnv(
     ENV_FILE=(str, ''),
     DEBUG=(bool, False),
     DEPLOYMENT_TYPE=(str, 'development'),
+    KUBERNETES_MODE=(bool, False),
     SECRET_KEY=(str, ''),
     AZURE_AD_CLIENT_ID=(str, ''),
     AZURE_AD_CLIENT_SECRET=(str, ''),
@@ -74,7 +75,7 @@ ADMIN_BASE_URL = env('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))
 DATABASES = {
-    'default': env.db()
+    'default': env.db_url(engine='paths.database')
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -114,7 +115,7 @@ INSTALLED_APPS = [
     'wagtail.search',
     'wagtail.admin',
     'wagtail',
-    'wagtail.contrib.modeladmin',
+    'wagtail_modeladmin',
     'wagtail.contrib.styleguide',
     'wagtail_localize',
     'wagtail_localize.locales',  # replaces `wagtail.locales`
@@ -255,9 +256,8 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 
+from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER  # noqa
 
-INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'
-INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     # Match localhost with optional port
@@ -267,6 +267,9 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
     'baggage',
+    INSTANCE_IDENTIFIER_HEADER,
+    INSTANCE_HOSTNAME_HEADER,
+    WILDCARD_DOMAINS_HEADER
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 3600
@@ -390,7 +393,7 @@ MEDIA_FILES_S3_ACCESS_KEY_ID = env('MEDIA_FILES_S3_ACCESS_KEY_ID')
 MEDIA_FILES_S3_SECRET_ACCESS_KEY = env('MEDIA_FILES_S3_SECRET_ACCESS_KEY')
 MEDIA_FILES_S3_CUSTOM_DOMAIN = env('MEDIA_FILES_S3_CUSTOM_DOMAIN')
 
-STORAGES = {
+STORAGES: dict[str, Any] = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
@@ -435,8 +438,6 @@ WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
 # Information needed to authentiacte as a GitHub App
 GITHUB_APP_ID = env('GITHUB_APP_ID')
 GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
-
-INSTANCE_LOADER_CONFIG = 'configs/tampere.yaml'
 
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
@@ -501,24 +502,29 @@ ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 
 if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
-    import warnings
-    from wagtail.utils.deprecation import RemovedInWagtail60Warning
     from loguru import logger
-    from .log_handler import LogHandler
+    from kausal_common.logging import loguru_rich_sink, loguru_logfmt_sink
 
-    logger.configure(
-        handlers=[
-            dict(sink=LogHandler(), format="{message}"),
-        ],
-    )
-    def level(level: Literal['DEBUG', 'INFO', 'WARNING']):
+    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False) # type: ignore
+
+    if not DEBUG or is_kube:
+        loguru_handlers = [dict(sink=loguru_logfmt_sink, format="{message}")]
+    else:
+        loguru_handlers = [dict(sink=loguru_rich_sink, format="{message}")]
+    logger.configure(handlers=loguru_handlers)
+
+    def level(level: Literal['DEBUG', 'INFO', 'WARNING'], handler: str | None = None) -> dict[str, list[str] | bool | str]:
+        if not handler:
+            handlers = ['loguru']
+        else:
+            handlers = [handler]
         return dict(
-            handlers=['rich'],
+            handlers=handlers,
             propagate=False,
             level=level,
         )
 
-    warnings.filterwarnings(action='ignore', category=RemovedInWagtail60Warning)
+    #warnings.filterwarnings(action='ignore', category=RemovedInWagtail60Warning)
 
     LOGGING = {
         'version': 1,
@@ -530,7 +536,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'simple': {
                 'format': '%(levelname)s %(name)s %(asctime)s %(message)s'
             },
-            'rich': {
+            'plain': {
                 'format': '%(message)s'
             },
         },
@@ -539,11 +545,19 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
                 'level': 'DEBUG',
                 'class': 'logging.NullHandler',
             },
-            'rich': {
+            'console': {
                 'level': 'DEBUG',
-                'class': 'paths.log_handler.LogHandler',
-                'formatter': 'rich',
-                'log_time_format': '%Y-%m-%d %H:%M:%S.%f'
+                'class': 'logging.StreamHandler',
+                'formatter': 'simple'
+            },
+            'loguru': {
+                'level': 'DEBUG',
+                'class': 'kausal_common.logging.LoguruLoggingHandler',
+                'formatter': 'plain',
+            },
+            'uwsgi-req': {
+                'level': 'DEBUG',
+                'class': 'kausal_common.logging.UwsgiReqLogHandler',
             },
         },
         'loggers': {
@@ -551,7 +565,6 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'django.template': level('WARNING'),
             'django.utils.autoreload': level('INFO'),
             'django': level('DEBUG'),
-            'raven': level('WARNING'),
             'blib2to3': level('INFO'),
             'generic': level('DEBUG'),
             'parso': level('WARNING'),
@@ -563,6 +576,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'factory': level('INFO'),
             'watchfiles': level('INFO'),
             'watchdog': level('INFO'),
+            'uwsgi-req': level('DEBUG', handler='uwsgi-req'),
             'git': level('INFO'),
             'pint': level('INFO'),
             'matplotlib': level('INFO'),
@@ -573,6 +587,9 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'markdown_it': level('INFO'),
             'colormath': level('INFO'),
             'gql': level('WARNING'),
+            'psycopg': level('INFO'),
+            'aiobotocore': level('INFO'),
+            's3fs': level('INFO'),
             '': level('DEBUG'),
         }
     }
@@ -581,6 +598,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import ignore_logger
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -589,8 +607,11 @@ if SENTRY_DSN:
         profiles_sample_rate=1.0 if ENABLE_PERF_TRACING else 0.0,
         # instrumenter='otel',
         integrations=[DjangoIntegration()],
-        environment=DEPLOYMENT_TYPE,
+        environment=os.getenv('SENTRY_ENVIRONMENT', None) or DEPLOYMENT_TYPE,
+        server_name=os.getenv('NODE_NAME', None),
     )
+    ignore_logger('uwsgi-req')
+
 
 if 'DATABASES' in locals():
     if DATABASES['default']['ENGINE'] in ('django.db.backends.postgresql', 'django.contrib.gis.db.backends.postgis'):
@@ -598,6 +619,7 @@ if 'DATABASES' in locals():
 
 CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
 CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
+CORS_ALLOW_HEADERS.append(WILDCARD_DOMAINS_HEADER)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
 
@@ -607,4 +629,4 @@ if DEBUG:
         django_stubs_ext.monkeypatch()
     except ImportError:
         pass
- 
+

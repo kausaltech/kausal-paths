@@ -77,7 +77,7 @@ urlpatterns = [
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('sso/', include(social_urls, namespace='social')),
-    path('health/', csrf_exempt(health_view)),
+    path('healthz/', csrf_exempt(health_view)),
 ]
 
 if kpe_urls is not None:

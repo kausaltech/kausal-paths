@@ -853,6 +853,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: L/a
+  allow_nulls: true
   output_dimensions: [emission_sectors, vehicle_type, energy_carrier]
   input_dimensions: [emission_sectors, vehicle_type, energy_carrier]
   input_dataset_processors: [LinearInterpolation]
@@ -942,6 +943,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: saskatoon/livestock_emission_factor
+  allow_nulls: true
   params:
     inventory_only: true
 

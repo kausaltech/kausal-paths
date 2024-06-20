@@ -12,10 +12,10 @@ from common import polars as ppl
 
 class DatasetNode(AdditiveNode):
     allowed_parameters = AdditiveNode.allowed_parameters + [
-        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),
+        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),   # FIXME To be removed, replaced by 'sector' below.
+        StringParameter('sector', description = 'Sector', is_customizable = False),
         StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False)
     ]
-        # FIXME Could the parameter be called just sector?
 
     qlookup = {'price': 'currency',
                'energy_consumption': 'energy',
@@ -170,11 +170,53 @@ class DatasetNode(AdditiveNode):
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         df = self.add_and_multiply_input_nodes(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+class DetailedDatasetNode(DatasetNode):
+    allowed_parameters = DatasetNode.allowed_parameters + [
+        StringParameter('action', description = 'Detailed action module', is_customizable = False)]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        # Perform initial filtering of GPC dataset.
+        df = self.get_input_dataset()
+
+        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[(df.index.get_level_values('Sector') == self.get_parameter_value('sector')) &
+                (df.index.get_level_values('Action') == self.get_parameter_value('action')) &
+                (df.index.get_level_values('Node Name') == str(self.name).split(' ', 1)[1])]
+
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action', 'Node Name'])
+        df = self.convert_names_to_ids(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = self.rename_dimensions(df)  # FIXME Should we add add_and_multiply_input_nodes() and ensure_unit()?
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
 
         return df
 
 
-class CorrectionNode(DatasetNode):
+class DatasetRatioNode(DatasetNode):
+    allowed_parameters = DatasetNode.allowed_parameters + [
+        StringParameter('reference_category', description='Category to which all others are compared', is_customizable=False)]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_gpc_dataset()
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.convert_names_to_ids(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = self.rename_dimensions(df)  # FIXME Should we add add_and_multiply_input_nodes() and ensure_unit()?
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+
+        col, cat = self.get_parameter_value('reference_category', required=True).split(':')
+        reference = df.filter(pl.col(col).eq(cat)).drop(col)
+        df = df.paths.join_over_index(reference)
+        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+
+        return df
+
+
+class CorrectionNode(DatasetNode):  # FIXME Separate correction into another node?
     allowed_parameters = DatasetNode.allowed_parameters + [
         BoolParameter('do_correction', description = 'Should the values be corrected?')
     ]

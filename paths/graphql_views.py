@@ -1,35 +1,43 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
 import hashlib
 import json
-from django.http import HttpRequest
-from graphql.execution.execute import get_field_def
-from graphql.type import GraphQLObjectType
-from loguru import logger
+import os
+import time
 from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext
 from typing import Any, Dict, List, Optional, cast
 
 import orjson
 import sentry_sdk
-from sentry_sdk.tracing import Transaction
-from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
+from django.http import HttpRequest
 from django.utils import translation
 from graphene_django.views import GraphQLView
-from graphql import DirectiveNode, ExecutionResult, GraphQLOutputType, GraphQLScalarType, OperationType, get_named_type
+from graphql import (
+    DirectiveNode,
+    ExecutionResult,
+    GraphQLOutputType,
+    OperationType,
+)
 from graphql.error import GraphQLError
 from graphql.execution import ExecutionContext
 from graphql.language import FieldNode, OperationDefinitionNode
 from graphql.language.ast import VariableNode
 from graphql.pyutils import AwaitableOrValue, Path
+from graphql.type import GraphQLObjectType
+from loguru import logger
 from rich.console import Console
 from rich.syntax import Syntax
+from sentry_sdk.tracing import Transaction
 
-from nodes.models import Instance, InstanceConfig
+from kausal_common.testing.graphql import capture_query
+from nodes.models import Instance, InstanceConfig, InstanceConfigQuerySet
 from nodes.perf import PerfContext
 from params.storage import SessionStorage
 from paths.authentication import IDTokenAuthentication
-from paths.types import PathsAPIRequest
+from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
 
 from .graphql_helpers import GQLContext, GQLInstanceContext, GraphQLPerfNode
 
@@ -44,9 +52,15 @@ def _arg_value(arg, variable_vals):
 
 logger = logger.bind(markup=True)
 
+GRAPHQL_CAPTURE_QUERIES = os.getenv('GRAPHQL_CAPTURE_QUERIES', '0') == '1'
+
 
 class PathsExecutionContext(ExecutionContext):
     context_value: GQLInstanceContext
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
 
     def handle_field_error(
         self, error: GraphQLError, return_type: GraphQLOutputType,
@@ -87,7 +101,7 @@ class PathsExecutionContext(ExecutionContext):
         self.context_value.graphql_query_language = lang
         return cast(AbstractContextManager, translation.override(lang))
 
-    def get_instance_by_identifier(self, queryset, identifier: str, directive: DirectiveNode | None = None) -> InstanceConfig:
+    def get_instance_by_identifier(self, queryset: InstanceConfigQuerySet, identifier: str, directive: DirectiveNode | None = None) -> InstanceConfig:
         try:
             if identifier.isnumeric():
                 instance = queryset.get(id=identifier)
@@ -97,10 +111,12 @@ class PathsExecutionContext(ExecutionContext):
             raise GraphQLError("Instance with identifier %s not found" % identifier, directive)
         return instance
 
-    def get_instance_by_hostname(self, queryset, hostname: str, directive: DirectiveNode | None = None) -> InstanceConfig:
+    def get_instance_by_hostname(self, queryset: InstanceConfigQuerySet, hostname: str, directive: DirectiveNode | None = None) -> InstanceConfig:
+        request = self.context_value
         try:
-            instance = queryset.for_hostname(hostname).get()
+            instance = queryset.for_hostname(hostname, request).get()
         except InstanceConfig.DoesNotExist:
+            logger.warning(f"No instance found for hostname {hostname} (wildcard domains: {request.wildcard_domains})")
             raise GraphQLError("Instance matching hostname %s not found" % hostname, directive)
         return instance
 
@@ -109,7 +125,7 @@ class PathsExecutionContext(ExecutionContext):
         arguments = {arg.name.value: _arg_value(arg, self.variable_values) for arg in directive.arguments}
         identifier = arguments.get('identifier')
         hostname = arguments.get('hostname')
-        token = arguments.get('token')
+        token = arguments.get('token')  # noqa
         if identifier:
             return self.get_instance_by_identifier(qs, identifier, directive)
         if hostname:
@@ -206,7 +222,7 @@ class PathsExecutionContext(ExecutionContext):
                 stack.enter_context(context.run())
                 if not context.baseline_values_generated:
                     with (
-                        sentry_sdk.start_span(op='calc', transaction='generate baseline'),
+                        sentry_sdk.start_span(op='calc', description='Generate baseline'),
                         request.graphql_perf.exec_node(GraphQLPerfNode('generate baseline'))
                     ):
                         context.generate_baseline_values()
@@ -243,7 +259,7 @@ class PathsExecutionContext(ExecutionContext):
             if operation.operation != OperationType.QUERY:
                 setattr(self.context_value, 'graphene_no_cache', True)
             with self.instance_context(operation):
-                 ret = super().execute_operation(operation, root_value)
+                ret = super().execute_operation(operation, root_value)
             return ret
 
 
@@ -261,7 +277,9 @@ class PathsGraphQLView(GraphQLView):
         super().__init__(*args, **kwargs)
 
     def log_reg(self, level: str, operation_name: str | None, msg, *args, depth: int = 0, **kwargs):
-        logger.opt(depth=1 + depth).log(level, 'GQL request [magenta]%s[/]: %s' % (operation_name, msg), *args, **kwargs)
+        log = logger.opt(depth=1 + depth)
+        if operation_name:
+            log = log.bind(**{'graphql_operation': operation_name}).log(level, 'GQL request [magenta]%s[/]: %s' % (operation_name, msg), *args, **kwargs)
 
     def json_encode(self, request: GQLInstanceContext, d, pretty=False):
         errors = []
@@ -288,7 +306,7 @@ class PathsGraphQLView(GraphQLView):
 
     def get_ic_from_headers(self, request: HttpRequest):
         identifier = request.headers.get('x-paths-instance-identifier')
-        hostname = request.headers.get('x-paths-instance-hostname')
+        hostname = request.headers.get('x-paths-instance-hostname')  # noqa
         if not identifier:
             return None
         return InstanceConfig.objects.filter(identifier=identifier).first()
@@ -346,7 +364,14 @@ class PathsGraphQLView(GraphQLView):
         perf.enabled = settings.ENABLE_PERF_TRACING
         request.graphql_perf = perf
         with perf:
+            start = time.time()
             ret = super().get_response(request, data, show_graphiql)
+            if GRAPHQL_CAPTURE_QUERIES and data and ret[0]:
+                headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
+                now = time.time()
+                logger.info("Capturing GraphQL query and response")
+                capture_query(request, headers, data, ret[0], ret[1], (now - start) * 1000)
+
         return ret
 
     def execute_graphql_request(
@@ -357,6 +382,8 @@ class PathsGraphQLView(GraphQLView):
 
         request._referer = self.request.META.get('HTTP_REFERER')
         request.graphql_operation_name = operation_name
+        wildcard_domains = request.headers.get(settings.WILDCARD_DOMAINS_HEADER)
+        request.wildcard_domains = [d.lower() for d in wildcard_domains.split(',')] if wildcard_domains else []
 
         transaction: Transaction | None = sentry_sdk.Hub.current.scope.transaction
         if query is not None:
@@ -397,6 +424,7 @@ class PathsGraphQLView(GraphQLView):
 
         # We currently disable users in the graphql requests
         request.user = AnonymousUser()
+
         span = sentry_sdk.get_current_span()
         assert span is not None
         with enter('get query cache key'):

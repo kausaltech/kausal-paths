@@ -1,61 +1,58 @@
 name: CI
 on: push
+env:
+  PROJECT_ID: paths-backend
+
 jobs:
-  build_test_and_push:
-    name: Build Docker images, run tests and push to Docker registry
-    runs-on: self-hosted
-    env:
-      APP_IMAGE: docker.kausal.tech/paths
-      DB_IMAGE: docker.kausal.tech/paths-postgres
-      POSTGRES_PASSWORD: foobar123
-      DATABASE_URL: postgres://paths:foobar123@db/paths
+  lint:
+    uses: ./.github/workflows/reviewdog.yml
+
+  build:
+    uses: kausaldev/github-actions/.github/workflows/build.yaml@main
+    secrets:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
-      EXTRA_INSTALLED_APPS_VERSIONS: kausal-paths-extensions==0.3.4
-      EXTRA_INSTALLED_APPS: kausal_paths_extensions
-      DOCKER_BUILDKIT: 1
-      BUILDKIT_PROGRESS: plain
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+    with:
+      project_id: paths-backend
+      project_type: django
 
-      - name: Check for deployment branch
-        if: startsWith(github.ref, 'refs/heads/deployment/')
-        run: |
-          echo "DEPLOYMENT_TYPE=$(echo ${{ github.ref }} | cut -d / -f 4)" >> $GITHUB_ENV
+  test:
+    needs: [build]
+    uses: ./.github/workflows/test.yaml
+    secrets: inherit
+    with:
+      docker_image_repo: ${{ needs.build.outputs.image }}
+      docker_image_tag: ${{ needs.build.outputs.image_tag }}
+      build_id: ${{ needs.build.outputs.build_id }}
 
-      # Clean up database volume left over from previous runs. If we don't do this, after a major version upgrade the db
-      # container will refuse to start since it detects a existing incompatible database.
-      - name: Remove existing containers and volumes
-        run: docker-compose down -v
-      - name: Build Docker containers
-        run: docker-compose build
-      - name: Start Postgres and Redis
-        run: docker-compose up -d db redis
-      - name: Run pytest unit tests
-        run: docker-compose run --rm --entrypoint '' app pytest
-      - name: Stop Postgres and Redis
-        run: docker-compose down
-      - name: Log into Docker registry
-        if: env.DEPLOYMENT_TYPE
-        uses: docker/login-action@v2
-        with:
-          registry: docker.kausal.tech
-          username: docker
-          # FIXME: Instead of using the password, we should probably switch to token authentication with limited scope
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
-      # - name: Push latest tag to Docker registry
-      #   if: github.ref == 'refs/heads/main'
-      #   run: |
-      #     docker push ${{ env.APP_IMAGE }}:latest
-      #     docker push ${{ env.DB_IMAGE }}:latest
-      - name: Tag and push to registry
-        if: env.DEPLOYMENT_TYPE
-        run: |
-          docker tag ${{ env.APP_IMAGE }} ${{ env.APP_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-${{ github.run_number }}
-          docker tag ${{ env.APP_IMAGE }} ${{ env.APP_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-latest
-          docker tag ${{ env.DB_IMAGE }} ${{ env.DB_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-${{ github.run_number }}
-          docker tag ${{ env.DB_IMAGE }} ${{ env.DB_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-latest
-          docker push ${{ env.APP_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-${{ github.run_number }}
-          docker push ${{ env.APP_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-latest
-          docker push ${{ env.DB_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-${{ github.run_number }}
-          docker push ${{ env.DB_IMAGE }}:${{ env.DEPLOYMENT_TYPE }}-latest
+  ui-e2e-test:
+    needs: [build]
+    uses: ./.github/workflows/ui-e2e-tests.yaml
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    with:
+      product_id: paths
+      instance_identifiers: sunnydale
+      ui_repo: kausaldev/kausal-paths-ui
+      ui_repo_ref: deployment/testing
+      ui_image: "${{ vars.DOCKER_REGISTRY }}/paths-ui/paths-ui:latest"
+      backend_image: "${{ needs.build.outputs.image }}:${{ needs.build.outputs.image_tag }}"
+      build_id: "${{ needs.build.outputs.build_id }}"
+      s3_endpoint: ${{ vars.BUILD_S3_ENDPOINT }}
+      s3_bucket: ${{ vars.BUILD_S3_BUCKET }}
+
+  deploy:
+    needs: [build]
+    uses: kausaldev/github-actions/.github/workflows/deploy.yaml@main
+    secrets:
+      argocd_server: ${{ secrets.ARGOCD_SERVER }}
+      argocd_auth_token: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+    if: needs.build.outputs.deployment_env
+    with:
+      docker_image_repo: ${{ needs.build.outputs.image }}
+      docker_image_tag: ${{ needs.build.outputs.image_tag }}
+      project_id: paths-backend
+      deployment_env: ${{ needs.build.outputs.deployment_env }}

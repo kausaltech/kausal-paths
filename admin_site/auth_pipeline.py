@@ -1,4 +1,5 @@
 import io
+from typing import cast
 from loguru import logger
 
 from sentry_sdk import capture_exception
@@ -61,7 +62,7 @@ def find_user_by_email(backend, details, user=None, social=None, *args, **kwargs
 
 def create_or_update_user(backend, details, user, *args, **kwargs):
     if user is None:
-        uuid = details.get('uuid') or kwargs.get('uid')
+        uuid = cast(str, details.get('uuid') or kwargs.get('uid'))
         user = User(uuid=uuid)
         msg = 'Created new user'
     else:

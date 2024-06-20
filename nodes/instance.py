@@ -297,6 +297,7 @@ class InstanceLoader:
             minimum_year=config.get('minimum_year', None),
             target_year_goal=config.get('target_year_goal'),
             goals=config.get('goals'),
+            allow_nulls=config.get('allow_nulls', False),
             input_datasets=datasets,
             output_dimension_ids=config.get('output_dimensions'),
             input_dimension_ids=config.get('input_dimensions'),

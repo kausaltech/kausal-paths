@@ -303,8 +303,16 @@ class DimensionalMetric:
 
         dims: list[MetricDimension] = []
 
+        def include_as_input(node: Node):
+            if isinstance(node, ActionNode):
+                return False
+            for dim in node.output_dimensions.values():
+                if dim.is_internal:
+                    return False
+            return True
+
         # Use inputs nodes as categories for the dimension "Sectors" in some cases.
-        input_nodes = [node for node in node.input_nodes if not isinstance(node, ActionNode)]
+        input_nodes = [node for node in node.input_nodes if include_as_input(node)]
         if (
             isinstance(node, AdditiveNode) and len(input_nodes) > 1
             and not node.input_dataset_instances and not isinstance(node, RelativeNode)

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
 import re
-from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeAlias
+from typing import TYPE_CHECKING, Optional, Tuple, TypeAlias
 import os
 import pint
-from pint._typing import UnitLike
 import pint_pandas
 from pint import facets
 from pint.formatting import register_unit_format, formatter
@@ -46,7 +45,6 @@ class CachingUnitRegistry(  # type: ignore[misc]
     facets.GenericContextRegistry[Quantity, Unit],
     facets.GenericNumpyRegistry[Quantity, Unit],
     facets.GenericMeasurementRegistry[Quantity, Unit],
-    facets.GenericFormattingRegistry[Quantity, Unit],
     facets.GenericNonMultiplicativeRegistry[Quantity, Unit],
     facets.GenericPlainRegistry[Quantity, Unit],
 ):
@@ -144,7 +142,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
 
 
 define_custom_units(unit_registry)
-unit_registry.default_format = '~P'
+unit_registry.formatter.default_format = '~P'
 app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
 pint_pandas.PintType.ureg = unit_registry  # type: ignore
@@ -179,11 +177,13 @@ def add_unit_translations():
             if 'per' in cup:
                 del cup['per']
 
+    _babel_units['metric_ton'] = 'mass-tonne'
     set_one('capita', _('capita'))
     set_one('cap', pgettext_lazy('capita short', 'cap'))
     set_one('kt', pgettext_lazy('kilotonne short', 'kt'))
     set_one('a', pgettext_lazy('year short', 'yr.'))
     set_one('percent', pgettext_lazy('percent', 'percent'))
+    set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
     set_one('%', '%')
 
 
