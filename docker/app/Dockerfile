@@ -109,7 +109,7 @@ ENV MEDIA_ROOT=${MEDIA_ROOT}
 RUN mkdir -p ${MEDIA_ROOT} ${STATIC_ROOT}
 
 RUN groupadd -g ${app_user_gid} user && useradd --no-log-init -m -d /home/user -g ${app_user_gid} -u ${app_user_uid} -r user
-RUN chown -R user:user /code /srv/media /srv/static
+RUN chown -R user:user /code /locale /venv /srv/media /srv/static
 
 # Switch to the app user
 USER user
