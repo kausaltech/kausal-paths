@@ -1,12 +1,4 @@
 ARG base_image=debian:testing-slim
-
-FROM caddy:2 AS caddy
-
-#
-# Invocations common for builder and final stages
-#
-FROM ${base_image} AS base
-
 ARG runtime_deps="libpq5 postgresql-client gettext \
     libproj25 ^libgdal3[4567]$ libjpeg62-turbo libtiff6 libxml2 libffi8 libxslt1.1 \
     libwebp7 libvoikko1 voikko-fi curl libpcre3 \
@@ -16,10 +8,19 @@ ARG build_time_deps="libpq-dev build-essential \
     zlib1g-dev libjpeg-dev libtiff-dev libopenjp2-7-dev libwebp-dev \
     binutils libproj-dev libgdal-dev \
     libxml2-dev libxslt1-dev libffi-dev libpython3.12-dev"
-# ARG node_install_url="https://deb.nodesource.com/setup_lts.x"
 ARG app_path=/code
-ARG app_user_uid=1000
-ARG app_user_gid=1000
+
+FROM caddy:2 AS caddy
+
+#
+# Invocations common for builder and final stages
+#
+FROM ${base_image} AS base
+
+ARG runtime_deps
+ARG build_time_deps
+# ARG node_install_url="https://deb.nodesource.com/setup_lts.x"
+ARG app_path
 
 ENV VIRTUAL_ENV=/venv
 ENV PATH=/venv/bin:$PATH
@@ -43,6 +44,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Builder stage
 #
 FROM base AS builder
+
+ARG runtime_deps
+ARG build_time_deps
+ARG app_path
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -79,6 +84,9 @@ RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
 # Final image
 #
 FROM base AS final
+
+ARG app_user_uid=1000
+ARG app_user_gid=1000
 
 COPY --from=builder /venv /venv
 # COPY --from=builder ${app_path}/node_modules ${app_path}/node_modules
