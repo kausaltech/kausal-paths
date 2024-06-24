@@ -595,6 +595,11 @@ nodes:
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
   params:
   - id: formula
     value: (building_stock + efficiency_improved_buildings) * consumer_electricity_intensity
@@ -657,7 +662,7 @@ nodes:
   name: Building cost
   type: simple.AdditiveNode
   quantity: currency
-  unit: MEUR
+  unit: MEUR  # FIXME MEUR/a
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_nodes:
@@ -674,6 +679,8 @@ nodes:
     to_dimensions:  # FIXME Allocate categories correctly
     - id: stakeholder
     - id: cost_type
+#  output_nodes:
+#  - total_cost
 
 actions:
 
@@ -744,8 +751,9 @@ actions:
     - id: building_energy_class
       categories: [new_top_performance]
 
-- id: electricity_need_reduction_minor  # FIXME All renovated and newly built buildings are improved for electricity use. The question is, what fraction is minor and what is major improvement. The other question is, how much there is improvement. Take only the non-renovated from defaults/assumptions Reduced electricity need with appliances; and the minor and major improvement from these actions.
+- id: electricity_need_reduction_minor
   name: 3.3 Electricity need reduction, minor improvement
+  description: FIXME All renovated and newly built buildings are improved for electricity use. The question is, what fraction is minor and what is major improvement. The other question is, how much there is improvement. Take only the non-renovated from defaults/assumptions Reduced electricity need with appliances; and the minor and major improvement from these actions.
   type: simple.CumulativeAdditiveAction
   quantity: fraction
   unit: '%'

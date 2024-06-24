@@ -224,21 +224,22 @@ nodes:
   - id: formula
     value: baseline_year_fleet_emission_factor * remaining_old_fleet + new_fleet_emission_factor * new_fleet_fraction
 
-- id: train_energy_factor
-  name: Train energy factor
-  description: Electricity consumed per one vehicle-kilometre of train travel.
+- id: vehicle_electricity_factor
+  name: Vehicle electricity factor
+  description: Electricity consumed per one vehicle-kilometre of various vehicle types.
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/vkm
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets: [nzc/defaults]
   output_nodes:
   - id: train_emission_factor
     to_dimensions:
     - id: transport_mode
+    - id: energy_carrier
   params:
-    gpc_sector: train energy factor
+    gpc_sector: Electricity consumption, average vehicle
 
 - id: train_emission_factor  # FIXME Calculate electricity emissions separately for all transport modes.
   name: Train emission factor
@@ -316,6 +317,28 @@ nodes:
     forecast_from: 2023
   params:
     gpc_sector: transport energy carrier shares
+
+- id: transport_electricity_consumption
+  name: Transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: vehicle_electricity_factor
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
 
 - id: transport_efficiency
   name: Transport efficiency

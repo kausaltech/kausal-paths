@@ -14,10 +14,7 @@ nodes:
   input_dimensions: [fuel_type, energy_carrier, pollutant]
   output_dimensions: [fuel_type, energy_carrier, pollutant]
   input_nodes:
-  - id: consumer_electricity_use
-    from_dimensions:
-    - id: efficiency_programme
-      flatten: true
+  - id: total_electricity_consumption
     to_dimensions:
     - id: energy_carrier
   - id: electricity_production_shares
@@ -28,6 +25,76 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
+
+- id: new_electricity_production_capacity  # FIXME Link this to the action 4.1!
+  name: New electricity production capacity
+  description: FIXME Does not show increased production capacity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [difference, non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_electricity_production_shares
+
+- id: effective_electricity_production_hours
+  name: Effective electricity production hours
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: h/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Assumed uptime of wind/solar
+
+- id: job_demand_of_renewables
+  name: Job demand of renewables
+  description: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
+  type: gpc.DatasetNode
+  quantity: number
+  unit: number/MW  # FIXME after dataset update jobs/MW
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Jobs created per MW
+
+- id: jobs_created_by_renewables
+  name: Jobs created by renewables
+  type: simple.MultiplicativeNode
+  quantity: employment
+  unit: number
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    tags: [cumulative]
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+  - id: job_demand_of_renewables
+    to_dimensions:
+    - id: energy_carrier
+  - id: effective_electricity_production_hours
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: new_electricity_production_shares
+  name: New electricity production shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: new renewables shares
 
 - id: electricity_production_shares_historical
   name_en: Electricity production shares historical
@@ -52,10 +119,359 @@ nodes:
   input_nodes:
   - id: electricity_production_shares_historical
 
+- id: renewable_uptime
+  name: Renewable uptime
+  description: Assumed uptime of wind and solar electricity production
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: h/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  forecast_from: 2023
+  params:
+    sector: Assumed uptime of wind/solar
+
+- id: renewable_electricity_upfront_price
+  name: Renewable electricity upfront price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [fuel_type, energy_carrier]  # FIXME cost_type
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: 'PV: Upfront investment cost'
+
+# - id: renewable_electricity_shares  # FIXME implement after dataset update
+#   name: Renewable electricity shares
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: dimensionless
+#   input_dimensions: [fuel_type, stakeholder, cost_type]
+#   output_dimensions: [fuel_type, stakeholder, cost_type]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: solar panel cost
+#   output_nodes:
+#   - id: renewable_electricity_cost
+#     to_dimensions:
+#     - id: fuel_type
+#     - id: stakeholder
+#     - id: cost_type
+
+- id: renewable_electricity_cost
+  name: Renewable electricity cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [fuel_type, energy_carrier, cost_type]
+  output_dimensions: [fuel_type, energy_carrier, cost_type]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: renewable_electricity_upfront_price
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+    - id: cost_type
+      categories: [capex]  # FIXME
+
+- id: electricity_cost
+  name: Electrcity cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, cost_type]
+  output_dimensions: [energy_carrier, cost_type]
+  input_nodes:
+  - id: renewable_electricity_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+
+- id: electricity_cost_shares
+  name: Electrcity cost shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: fossil/current electricity supply
+
+- id: electricity_cost_by_stakeholder
+  name: Electrcity cost by stakeholder
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, energy_carrier]
+  input_nodes:
+  - id: electricity_cost
+    tags: [non_additive]
+    to_dimensions:
+    - id: cost_type
+    - id: energy_carrier
+  - id: electricity_cost_shares
+    from_dimensions:
+    - id: cost_type
+      flatten: true  # FIXME Update data to match also capex
+    to_dimensions:
+    - id: stakeholder
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+# ----------------- Waste -------------------
+
+- id: collected_waste
+  name: Collected waste
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [waste_type]
+  output_dimensions: [waste_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: collected waste
+
+- id: waste_recycling_shares
+  name: Waste recycling shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [waste_type, waste_treatment]
+  output_dimensions: [waste_type, waste_treatment]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: waste recycling shares
+
+- id: waste_recycled
+  name: Waste recycled
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [waste_type, waste_treatment]
+  output_dimensions: [waste_type, waste_treatment]
+  input_nodes:
+  - id: collected_waste
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_type
+  - id: waste_recycling_shares
+
+- id: waste_emission_factor
+  name: Waste emission factor
+  type: simple.AdditiveNode # gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  # input_dimensions: [waste_type, waste_treatment, pollutant]
+  # output_dimensions: [waste_type, waste_treatment, pollutant]
+  # input_datasets: [nzc/defaults]
+  # params:
+  #   sector: waste emission factor
+  historical_values: [[2018, 2.7], [2023, 2.7]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_emissions
+    to_dimensions: []
+
+- id: waste_emissions
+  name: Waste emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycled
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_treatment
+      categories: [incinerated, landfill]
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    - id: waste_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: ghg
+      categories: [co2e]
+
+- id: waste_air_pollution_emission_factor
+  name: Waste air pollution emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/t
+  input_dimensions: [pollutant, waste_treatment]  # waste_type
+  output_dimensions: [pollutant, waste_treatment]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: waste incineration emission factor
+  output_nodes:
+  - id: waste_incineration_emissions
+    to_dimensions:
+    - id: pollutant
+    - id: waste_treatment
+
+- id: waste_incineration_emissions
+  name: Waste incineration emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant, waste_treatment, waste_type]
+  output_dimensions: [pollutant, waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycled
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_treatment
+      categories: [incinerated, landfill]
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+
+- id: recycled_waste_unit_price
+  name: Recycled waste unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [waste_type, cost_type, energy_carrier]
+  output_dimensions: [waste_type, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Prices of sorted waste
+  output_nodes:
+  - id: recycled_waste_sales_income
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: waste_type
+    - id: cost_type
+
+- id: recycled_waste_sales_income
+  name: Recycled waste sales income
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [waste_type, cost_type, waste_treatment]
+  output_dimensions: [waste_type, cost_type, waste_treatment]
+  input_nodes:
+  - id: waste_recycled
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: waste_management_cost
+    tags: [arithmetic_inverse]
+
+- id: waste_treatment_unit_price
+  name: Waste treatment unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [waste_treatment, cost_type, energy_carrier]
+  output_dimensions: [waste_treatment, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Waste management costs
+  output_nodes:
+  - id: waste_treatment_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: waste_treatment
+    - id: cost_type
+
+- id: waste_treatment_cost
+  name: Waste treatment cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [waste_type, cost_type, waste_treatment]
+  output_dimensions: [waste_type, cost_type, waste_treatment]
+  input_nodes:
+  - id: waste_recycled
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: waste_management_cost
+
+- id: waste_management_cost
+  name: Waste management cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [waste_type, cost_type, waste_treatment]
+  output_dimensions: [waste_type, cost_type, waste_treatment]
+
+- id: waste_management_cost_shares
+  name: Waste management cost shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: waste recycling
+
+- id: waste_management_cost_by_stakeholder
+  name: Waste management cost by stakeholder
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, waste_treatment, stakeholder]
+  output_dimensions: [cost_type, waste_treatment, stakeholder]
+  input_nodes:
+  - id: waste_management_cost
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_type
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: waste_treatment
+  - id: waste_management_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+
 actions:
 
 - id: replace_fossil_electricity
-  name_en: Replace fossil electricity
+  name_en: 4.1 Replace fossil electricity
   type: shift.ShiftAction
   quantity: fraction
   unit: '%'

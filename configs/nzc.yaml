@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 833b1dfbe8fffa5bb22e59af87557e3398be7d5d
+  commit: ed975397b06bb8ac30883ff5b58fc29187488ccb
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -230,6 +230,8 @@ dimensions:
     label: Organic waste
   - id: other_waste
     label: Other waste (e.g. textiles, rubble, wood)
+  - id: mixed_waste
+    label: Mixed waste
 
 - id: waste_treatment
   label: Waste treatment
@@ -250,6 +252,8 @@ dimensions:
     label: Landfill
   - id: landfill_gas
     label: Landfill gas
+  - id: composting
+    label: Composting
 
 - id: building_energy_class
   label: Building energy class
@@ -365,18 +369,46 @@ nodes:
   - id: annual_change
     ref: population_growth_rate
 
-- id: population_rate
-  name: Population rate
+- id: total_electricity_consumption
+  name: Total electricity consumption
   type: simple.AdditiveNode
-  quantity: population
-  unit: '%'
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+
+- id: statistical_electricity_consumption
+  name: Statistical electricity consumption
+  type: simple.AdditiveNode  # FIXME gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2018, 2152.0]]
+  input_dataset_processors: [LinearInterpolation]
+  # input_dimensions: [energy_carrier]
+  # output_dimensions: [energy_carrier]
+  # input_datasets: [nzc/defaults]
+  # params:
+  #   sector: Total electricity demand within city boundaries
+
+- id: statistical_electricity_consumption2
+  name: Statistical electricity consumption
+  description: Total consumption based on population growth. FIXME this causes double
+    counting.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  # input_dimensions: [energy_carrier]
+  # output_dimensions: [energy_carrier]
   input_nodes:
+  - id: statistical_electricity_consumption
+    tags: [non_additive]
   - id: population
-  params:
-  - id: reference_year
-    value: 2023
-  - id: use_input_node_unit_when_adding
-    value: true
+    tags: [ratio_to_last_historical_value]
+  output_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:  # FIXME
+    - id: energy_carrier
+      categories: [electricity]
 
 - id: electricity_production_emission_factor
   name: Electricity production emission factor
