@@ -7,6 +7,7 @@ from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, KNOWN_QU
 from nodes.dimensions import Dimension
 from nodes.node import Node
 from nodes.simple import AdditiveNode
+from nodes.exceptions import NodeError
 from common import polars as ppl
 
 
@@ -61,7 +62,11 @@ class DatasetNode(AdditiveNode):
         return idtext
 
     def get_gpc_dataset(self) -> pd.DataFrame:
-        sector = self.get_parameter_value('gpc_sector', required=True)
+        sector = self.get_parameter_value('gpc_sector', required=False)
+        if not sector:
+            sector = self.get_parameter_value('sector', required=False)
+        if not sector:
+            raise NodeError(self, 'You must give either gpc_sector or sector parameter.')
 
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset()

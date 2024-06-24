@@ -52,8 +52,9 @@ if 'Scope' in df.columns:   # Detailed actions have no 'Scope' column.
 dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
                                                   (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
-df = df.with_row_count(name = 'Index')
-for i in range(len(df)):
+df = df.with_row_index(name = 'Index')
+for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the length of the df increases: 2s/row when 500 rows.
+    print(i, 'out of', len(df))
     for y in values:
         mcols = list(context)
         mcols.extend([y])

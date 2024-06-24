@@ -609,7 +609,7 @@ class Node:
         if year is not None:
             return year
 
-        if len(self.input_dataset_instances) != 1:
+        if len(self.input_dataset_instances) != 1:  # FIXME What's the point here?
             return None
         ds = self.input_dataset_instances[0]
         df = ds.get_copy(self.context)
@@ -984,8 +984,11 @@ class Node:
                     break
             else:
                 raise NodeError(self, "No connection to target node %s" % target_node.id)
+
             if 'extend_values' in edge.tags:
                 res = extend_last_historical_value_pl(res, self.get_end_year())
+            if 'inventory_only' in edge.tags:
+                res = res.filter(pl.col(FORECAST_COLUMN) == False)
             if 'arithmetic_inverse' in edge.tags:
                 res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
             if 'geometric_inverse' in edge.tags:
@@ -1001,6 +1004,9 @@ class Node:
                 res = res.diff(VALUE_COLUMN)
             if 'cumulative' in edge.tags:
                 res = res.cumulate(VALUE_COLUMN)
+            if 'ratio_to_last_historical_value' in edge.tags:
+                year = res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max()
+                res = self._scale_by_reference_year(res, year)
 
         return res
 
@@ -1410,3 +1416,22 @@ class Node:
             for v in dm.values:
                 if v is float('nan'):
                     raise NodeError(self, "Output metric has NaNs")
+
+    def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
+        if year:
+            if len(df.dim_ids) == 0:
+                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
+                df = df.with_columns((
+                    pl.col(VALUE_COLUMN) / pl.lit(reference)
+                ).alias(VALUE_COLUMN))
+            else:
+                meta = df.get_meta()
+                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
+                df = df.join(reference, on=df.dim_ids)
+                df = df.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+                df = df.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
+                df = ppl.to_ppdf(df, meta=meta)
+
+            df = df.clear_unit(VALUE_COLUMN)
+            df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+        return df

@@ -100,7 +100,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     CAD = nan EUR
     USD = nan EUR
     SEK = 0.1 EUR
-    pcs = [number] = pieces
+    pcs = [number] = pieces = number
     capita = [population] = cap = inh = inhabitant = person
     MMBtu = 1e6 Btu
     standard_cubic_feet = 0.01 therm = scf
@@ -112,6 +112,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     VMT = vehicle * mile
     @alias vkm = vkt = v_km
     @alias pkm = pkt = p_km
+    job = [employment] = fte = full_time_equivalent
     million_square_meters = 1e6 * meter ** 2 = Msqm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e

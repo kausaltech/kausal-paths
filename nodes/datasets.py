@@ -141,7 +141,7 @@ class DVCDataset(Dataset):
                     df = df.drop(col)
                 elif 'dimension' in d:
                     dim_id = d['dimension']
-                    dim = context.dimensions[dim_id]
+                    dim = context.dimensions[dim_id]  # FIXME Use makeid to understand dataset columns and items.
                     if 'groups' in d:
                         grp_ids = d['groups']
                         grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))

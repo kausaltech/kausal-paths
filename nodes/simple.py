@@ -108,24 +108,11 @@ class SimpleNode(Node):
 
         return df
 
-    def scale_by_reference_year(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        year = self.get_parameter_value('reference_year', required=False)
+    def scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
+        if not year:
+            year = self.get_parameter_value('reference_year', required=False)
         if year:
-            if len(df.dim_ids) == 0:
-                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
-                df = df.with_columns((
-                    pl.col(VALUE_COLUMN) / pl.lit(reference)
-                ).alias(VALUE_COLUMN))
-            else:
-                meta = df.get_meta()
-                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
-                df = df.join(reference, on=df.dim_ids)
-                df = df.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
-                df = df.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
-                df = ppl.to_ppdf(df, meta=meta)
-
-            df = df.clear_unit(VALUE_COLUMN)
-            df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+            df = self._scale_by_reference_year(df, year)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
@@ -342,7 +329,8 @@ class MultiplicativeNode(SimpleNode):
                 operation_nodes.append(node)
 
         if len(operation_nodes) < 2 and input_df is None:
-            raise NodeError(self, "Must receive at least two inputs to operate %s on" % self.operation_label)
+            raise NodeError(self, "Must receive at least two inputs to operate %s on. Now received %s." 
+                            % (self.operation_label, [node.id for node in operation_nodes]))
 
         outputs = [n.get_output_pl(target_node=self) for n in operation_nodes]
 

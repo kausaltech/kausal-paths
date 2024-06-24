@@ -51,11 +51,12 @@ UTILITY_QUANTITY = 'utility'
 
 ACTIVITY_QUANTITIES = set([
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
-    PASSENGER_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption', 'mass'
+    PASSENGER_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption', 'mass', 'employment'
 ])
 
 ACTIVITY_FACTOR_QUANTITIES = set([
-    ENERGY_FACTOR_QUANTITY, CONSUMPTION_FACTOR_QUANTITY, 'energy_per_area', 'occupancy_factor', 'fuel_factor'
+    ENERGY_FACTOR_QUANTITY, CONSUMPTION_FACTOR_QUANTITY, 'energy_per_area', 'occupancy_factor', 'fuel_factor',
+    'demand_factor'
 ])
 
 UNIT_PRICE_QUANTITIES = set([
