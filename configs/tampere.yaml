@@ -854,6 +854,7 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_streetlights
 
@@ -869,9 +870,10 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_streetlights
-    tags: ['cumulative']
+    tags: [cumulative]
   - id: i22_new_streetlight_costs
     to_dimensions:
     - id: streetlight_type
@@ -903,6 +905,7 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_new_streetlight_costs
 
@@ -926,6 +929,7 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_streetlight_energy_consumption
 
@@ -958,6 +962,7 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_energy_costs
     to_dimensions:
@@ -984,6 +989,7 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_maintenance_costs
 
@@ -1007,6 +1013,7 @@ nodes:
     action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
   output_nodes:
   - id: i22_energy_consumption_emissions
     to_dimensions:
@@ -1024,7 +1031,7 @@ nodes:
 - id: i22_streetlight_total_costs
   name: I.2.2 Streetlight Total Costs
   type: simple.AdditiveNode
-  quantity: number
+  quantity: currency
   unit: EUR/a
   input_dimensions: [streetlight_type, cost_type]
   output_dimensions: [streetlight_type, cost_type]
@@ -1041,6 +1048,39 @@ nodes:
 #
 
 actions:
+
+- id: i22_streetlight_replacement_action
+  name: I.2.2 Streetlight Replacement Action
+  type: gpc.StockReplacementAction
+  quantity: number
+  unit: count/a
+  input_dimensions: [streetlight_type] #, cost_type]
+  output_dimensions: [streetlight_type] #, cost_type]
+  params:
+    sector: I.2.2
+    action: LED Streetlights
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
+  input_nodes:
+  - id: i22_baseline_streetlights
+    tags: [baseline]
+  - id: i22_annual_new_streetlights
+    tags: [new]
+
+  # output_metrics:
+  # - id: currency
+  #   unit: [unit]
+  #   quantity: currency
+  # - id: number
+  #   unit: [unit]
+  #   quantity: number
+  output_nodes:
+  - id: i22_streetlights
+
+
+
+
 
 - id: naistenlahti3
   name: Naistenlahti 3 -biovoimalaitos
@@ -1153,6 +1193,8 @@ actions:
     unit: GWh/a
     description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
     description_en: PV energy production in 2030
+  is_visible: true
+  is_customizable: false
 
 - id: oil_heated_private_buildings_to_geothermal
   name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
