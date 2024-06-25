@@ -468,6 +468,134 @@ nodes:
     - id: cost_type
     - id: stakeholder
 
+- id: waste_treatment_2030
+  name: Waste treatment 2030
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [waste_type, waste_treatment]
+  output_dimensions: [waste_type, waste_treatment]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2030
+    filters:
+    - column: Year
+      value: 2030
+      drop_col: false
+  params:
+    sector: waste recycling shares 2030
+
+# --------------- Scope 3 ------------------
+
+# - id: building_material_shares
+#   name: Building material shares
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: dimensionless
+#   input_dimensions: []
+#   output_dimensions: []
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Materials as share of total mass
+
+# - id: building_material_used_in_new_buildings
+#   name: Building material shares
+#   type: gpc.DatasetNode
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: []
+#   output_dimensions: []
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Tonnes material used in for new buildings (2010)
+
+# - id: building_renovation_material_ratios
+#   name: Building renovation material ratios
+#   type: gpc.DatasetNode
+#   quantity: ratio
+#   unit: dimensionless
+#   input_dimensions: [building_energy]
+#   output_dimensions: [building_energy]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Tonnes material used for renovations
+
+# - id: building_renovation_material_use
+#   name: Building renovation material use
+#   type: simple.MultiplicativeNode
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: [building_energy]
+#   output_dimensions: [building_energy]
+#   input_nodes:
+#   - id: building_materials_used_in_new_buildings
+#     tags: [non_additive]
+#     to_dimensions: []
+#   - id: building_renovation_material_ratios
+
+# - id: building_material_emission_factor
+#   name: Building material emission factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/t
+#   input_dimensions: [material]
+#   output_dimensions: [material]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Emissions from production
+
+# - id: building_material_emissions
+#   name: Building material emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [material, building_energy]
+#   output_dimensions: [material, building_energy]
+#   input_nodes:
+#   - id: building_renovationi_material_use
+#     to_dimensions:
+#     - id: building_energy
+#   - id: building_material_emission_factor
+#     to_dimensions:
+#     - id: material
+
+# - id: building_material_unit_price
+#   name: Building material unit_price
+#   type: gpc.DatasetNode
+#   quantity: unit_price
+#   unit: EUR/t
+#   input_dimensions: [material]
+#   output_dimensions: [material]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Production costs per tonne
+
+# - id: building_material_cost
+#   name: Building material cost
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [material, building_energy]
+#   output_dimensions: [material, building_energy]
+#   input_nodes:
+#   - id: building_renovationi_material_use
+#     to_dimensions:
+#     - id: building_energy
+#   - id: building_material_unit_price
+#     to_dimensions:
+#     - id: material
+
+# ------------- Food -------------------
+
+# - id: food_consumption_per_person
+#   name: Food consumption per person
+#   type: gpc.DatasetNode
+#   quantity: energy
+#   unit: kcal/inh/d
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Consumption per capita
+
 actions:
 
 - id: replace_fossil_electricity
@@ -501,3 +629,15 @@ actions:
       - {year: 2025, source_amount: -14.0, dest_amounts: [100]} 
       - {year: 2030, source_amount: -14.0, dest_amounts: [100]} 
       - {year: 2031, source_amount: 0.0, dest_amounts: [100]} 
+
+# - id: increase_waste_recycling
+#   name: Increase waste recycling
+#   type: linear.DatasetReduceAction
+#   quantity: fraction
+#   unit: dimensionless
+#   input_dimensions: [waste_type, waste_treatment]
+#   output_dimensions: [waste_type, waste_treatment]
+#   input_nodes:
+#   - id: waste_treatment_2030
+#   output_nodes:
+#   - id: waste_recycling_shares

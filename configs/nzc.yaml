@@ -232,6 +232,8 @@ dimensions:
     label: Other waste (e.g. textiles, rubble, wood)
   - id: mixed_waste
     label: Mixed waste
+  - id: aluminium
+    label: Aluminiium
 
 - id: waste_treatment
   label: Waste treatment
@@ -278,6 +280,10 @@ dimensions:
     label: Minor improvements
   - id: aggressive_improvements
     label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
 
 - id: heating_type
   label: Heating type

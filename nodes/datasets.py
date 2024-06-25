@@ -136,9 +136,11 @@ class DVCDataset(Dataset):
             for d in self.filters:
                 if 'column' in d:
                     col = d['column']
-                    val = d['value']
+                    val = d['value']  # FIXME Could be a list of values
+                    drop = d.get('drop_col', True)
                     df = df.filter(pl.col(col) == val)
-                    df = df.drop(col)
+                    if drop:
+                        df = df.drop(col)
                 elif 'dimension' in d:
                     dim_id = d['dimension']
                     dim = context.dimensions[dim_id]  # FIXME Use makeid to understand dataset columns and items.
