@@ -33,6 +33,22 @@ for c in df.columns:
 
 dims = [c for c in context if c not in ['Quantity', 'Unit']]
 
+duplicates = df.group_by(dims).agg(pl.len()).filter(pl.col('len') > 1)
+if len(duplicates) > 0:
+    print('There are duplicate values. Remove them and try again.')
+    print(duplicates)
+    exit()
+else:
+    print('No duplicates, continuing...')
+
+missing_data = df.filter((pl.col('Sector') + pl.col('Quantity') + pl.col('Unit')).is_null())
+if missing_data.is_empty():
+    print('No missing data in columns Sector, Quantity, Unit. Continuing...')
+else:
+    print('Missing data in obligatory cells. Fill in and try again.')
+    print(missing_data.select(['Sector', 'Quantity', 'Unit']))
+    exit()
+
 unitcol = df.select('Unit').to_series(0).to_list()
 for ur in unitreplace:
     unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
@@ -53,8 +69,8 @@ dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').ca
                                                   (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
 df = df.with_row_index(name = 'Index')
-for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the length of the df increases: 2s/row when 500 rows.
-    print(i, 'out of', len(df))
+for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the length of the df increases: 2s/row 
+    print('Row', i, 'out of', len(df))
     for y in values:
         mcols = list(context)
         mcols.extend([y])
