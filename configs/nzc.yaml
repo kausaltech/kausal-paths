@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ed975397b06bb8ac30883ff5b58fc29187488ccb
+  commit: 6103053c1b69017edc5098e03f1c09f4486f8d5b
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -270,6 +270,16 @@ dimensions:
     label: Old, minor heating renovation
   - id: major_renovation
     label: Old, extensive heating renovation
+  - id: no_improvement  # FIXME Remove redundant
+    label: No improvement
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
 
 - id: efficiency_programme
   label: Energy efficiency programme
@@ -340,6 +350,8 @@ dimensions:
     label: Steel
   - id: plastics
     label: Plastics
+  - id: aluminium
+    label: Aluminium
 
 - id: stakeholder
   label: Stakeholder

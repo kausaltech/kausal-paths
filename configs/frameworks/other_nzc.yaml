@@ -56,8 +56,8 @@ nodes:
   name: Job demand of renewables
   description: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
   type: gpc.DatasetNode
-  quantity: number
-  unit: number/MW  # FIXME after dataset update jobs/MW
+  quantity: demand_factor
+  unit: jobs/MW
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets: [nzc/defaults]
@@ -68,7 +68,7 @@ nodes:
   name: Jobs created by renewables
   type: simple.MultiplicativeNode
   quantity: employment
-  unit: number
+  unit: jobs
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -138,36 +138,36 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
-  input_dimensions: [fuel_type, energy_carrier]  # FIXME cost_type
-  output_dimensions: [fuel_type, energy_carrier]
+  input_dimensions: [fuel_type, energy_carrier, cost_type]
+  output_dimensions: [fuel_type, energy_carrier, cost_type]
   input_datasets: [nzc/defaults]
   params:
     sector: 'PV: Upfront investment cost'
 
-# - id: renewable_electricity_shares  # FIXME implement after dataset update
-#   name: Renewable electricity shares
-#   type: gpc.DatasetNode
-#   quantity: fraction
-#   unit: dimensionless
-#   input_dimensions: [fuel_type, stakeholder, cost_type]
-#   output_dimensions: [fuel_type, stakeholder, cost_type]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: solar panel cost
-#   output_nodes:
-#   - id: renewable_electricity_cost
-#     to_dimensions:
-#     - id: fuel_type
-#     - id: stakeholder
-#     - id: cost_type
+- id: renewable_electricity_shares  # FIXME implement after dataset update
+  name: Renewable electricity shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, stakeholder, cost_type]
+  output_dimensions: [fuel_type, stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: solar panel costs
+  output_nodes:
+  - id: renewable_electricity_cost
+    to_dimensions:
+    - id: fuel_type
+    - id: stakeholder
+    - id: cost_type
 
 - id: renewable_electricity_cost
   name: Renewable electricity cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [fuel_type, energy_carrier, cost_type]
-  output_dimensions: [fuel_type, energy_carrier, cost_type]
+  input_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: new_electricity_production_capacity
     to_dimensions:
@@ -178,15 +178,14 @@ nodes:
     - id: fuel_type
     - id: energy_carrier
     - id: cost_type
-      categories: [capex]  # FIXME
 
-- id: electricity_cost
+- id: electricity_cost  # FIXME Should this be non-renewable?
   name: Electrcity cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [energy_carrier, cost_type]
-  output_dimensions: [energy_carrier, cost_type]
+  input_dimensions: [energy_carrier, cost_type, stakeholder]
+  output_dimensions: [energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: renewable_electricity_cost
     from_dimensions:
@@ -204,7 +203,7 @@ nodes:
   params:
     sector: fossil/current electricity supply
 
-- id: electricity_cost_by_stakeholder
+- id: electricity_cost_by_stakeholder  # FIXME Should this be additive renewable + non-renewable?
   name: Electrcity cost by stakeholder
   type: simple.MultiplicativeNode
   quantity: currency
@@ -214,9 +213,6 @@ nodes:
   input_nodes:
   - id: electricity_cost
     tags: [non_additive]
-    to_dimensions:
-    - id: cost_type
-    - id: energy_carrier
   - id: electricity_cost_shares
     from_dimensions:
     - id: cost_type
@@ -269,27 +265,24 @@ nodes:
 
 - id: waste_emission_factor
   name: Waste emission factor
-  type: simple.AdditiveNode # gpc.DatasetNode
+  type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/t
-  # input_dimensions: [waste_type, waste_treatment, pollutant]
-  # output_dimensions: [waste_type, waste_treatment, pollutant]
-  # input_datasets: [nzc/defaults]
-  # params:
-  #   sector: waste emission factor
-  historical_values: [[2018, 2.7], [2023, 2.7]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [waste_type, waste_treatment, pollutant]
+  output_dimensions: [waste_type, waste_treatment, pollutant]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: waste emission factor
   output_nodes:
   - id: waste_emissions
-    to_dimensions: []
 
 - id: waste_emissions
   name: Waste emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
+  input_dimensions: [waste_treatment, waste_type, pollutant]
+  output_dimensions: [waste_treatment, waste_type, pollutant]
   input_nodes:
   - id: waste_recycled
     tags: [non_additive]
@@ -302,6 +295,9 @@ nodes:
   output_nodes:
   - id: net_emissions
     from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
     - id: waste_treatment
       flatten: true
     - id: waste_type
@@ -317,13 +313,17 @@ nodes:
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: kg/t
-  input_dimensions: [pollutant, waste_treatment]  # waste_type
-  output_dimensions: [pollutant, waste_treatment]
+  input_dimensions: [pollutant, waste_treatment, waste_type]
+  output_dimensions: [pollutant, waste_treatment, waste_type]
   input_datasets: [nzc/defaults]
   params:
     sector: waste incineration emission factor
   output_nodes:
   - id: waste_incineration_emissions
+    from_dimensions:
+    - id: waste_type
+      categories: [mixed_waste]  # FIXME Note a mismatch of waste types.
+      flatten: true
     to_dimensions:
     - id: pollutant
     - id: waste_treatment
@@ -338,18 +338,18 @@ nodes:
   input_nodes:
   - id: waste_recycled
     tags: [non_additive]
-    from_dimensions:
-    - id: waste_treatment
-      categories: [incinerated, landfill]
+#    from_dimensions:  # FIXME Check what is wanted.
+#    - id: waste_treatment
+#      categories: [incinerated, landfill]
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
   output_nodes:
   - id: waste_emissions
-    from_dimensions:
+    to_dimensions:
     - id: pollutant
-      categories: [co2]
-      flatten: true
+    - id: waste_treatment
+    - id: waste_type
 
 - id: recycled_waste_unit_price
   name: Recycled waste unit price
@@ -487,114 +487,147 @@ nodes:
 
 # --------------- Scope 3 ------------------
 
-# - id: building_material_shares
-#   name: Building material shares
-#   type: gpc.DatasetNode
-#   quantity: fraction
-#   unit: dimensionless
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Materials as share of total mass
+- id: building_material_shares
+  name: Building material shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Materials as share of total mass
 
-# - id: building_material_used_in_new_buildings
-#   name: Building material shares
-#   type: gpc.DatasetNode
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Tonnes material used in for new buildings (2010)
+- id: building_materials_used_in_new_buildings
+  name: Building material shares
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/m**2
+#  input_dimensions: [material]
+#  output_dimensions: [material]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Tonnes material used in for new buildings (2010)
 
-# - id: building_renovation_material_ratios
-#   name: Building renovation material ratios
-#   type: gpc.DatasetNode
-#   quantity: ratio
-#   unit: dimensionless
-#   input_dimensions: [building_energy]
-#   output_dimensions: [building_energy]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Tonnes material used for renovations
+- id: building_renovation_material_ratios
+  name: Building renovation material ratios
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Tonnes material used for renovations
 
-# - id: building_renovation_material_use
-#   name: Building renovation material use
-#   type: simple.MultiplicativeNode
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: [building_energy]
-#   output_dimensions: [building_energy]
-#   input_nodes:
-#   - id: building_materials_used_in_new_buildings
-#     tags: [non_additive]
-#     to_dimensions: []
-#   - id: building_renovation_material_ratios
+- id: building_renovation_material_use
+  name: Building renovation material use
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: t/m**2  # FIXME Make sure units make sense
+  input_dimensions: [efficiency_programme]
+  output_dimensions: [efficiency_programme]
+  input_nodes:
+  - id: building_materials_used_in_new_buildings
+    tags: [non_additive]
+    to_dimensions: []
+#    - id: material
+  - id: building_renovation_material_ratios
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: efficiency_programme
+      categories: [aggressive_improvements]
 
-# - id: building_material_emission_factor
-#   name: Building material emission factor
-#   type: gpc.DatasetNode
-#   quantity: emission_factor
-#   unit: t/t
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Emissions from production
+- id: building_renovation_material_use2
+  name: Building renovation material use
+  type: simple.FixedMultiplierNode
+  quantity: mass
+  unit: t/m**2/a  # FIXME Make sure units make sense
+  input_dimensions: [efficiency_programme]
+  output_dimensions: [efficiency_programme]
+  input_nodes:
+  - id: building_renovation_material_use
+  params:
+  - id: multiplier
+    value: 1
+    unit: 1/a
 
-# - id: building_material_emissions
-#   name: Building material emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [material, building_energy]
-#   output_dimensions: [material, building_energy]
-#   input_nodes:
-#   - id: building_renovationi_material_use
-#     to_dimensions:
-#     - id: building_energy
-#   - id: building_material_emission_factor
-#     to_dimensions:
-#     - id: material
+- id: building_material_emission_factor
+  name: Building material emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Emissions from production
 
-# - id: building_material_unit_price
-#   name: Building material unit_price
-#   type: gpc.DatasetNode
-#   quantity: unit_price
-#   unit: EUR/t
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Production costs per tonne
+- id: building_material_emissions
+  name: Building material emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [material, efficiency_programme, building_energy_class]
+  output_dimensions: [material, efficiency_programme, building_energy_class]
+  input_nodes:
+  - id: building_renovation_material_use2
+    to_dimensions:
+    - id: efficiency_programme
+  - id: building_material_emission_factor
+    to_dimensions:
+    - id: material
+  - id: building_stock  # FIXME Make sure that right categories are selected.
+    from_dimensions:
+    - id: building_energy_class
+      categories: [major_renovation]  # FIXME Make this coherent
+    to_dimensions:
+    - id: building_energy_class
 
-# - id: building_material_cost
-#   name: Building material cost
-#   type: simple.MultiplicativeNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [material, building_energy]
-#   output_dimensions: [material, building_energy]
-#   input_nodes:
-#   - id: building_renovationi_material_use
-#     to_dimensions:
-#     - id: building_energy
-#   - id: building_material_unit_price
-#     to_dimensions:
-#     - id: material
+- id: building_material_unit_price
+  name: Building material unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Production costs per tonne
+
+- id: building_material_cost
+  name: Building material cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [material, efficiency_programme]
+  output_dimensions: [material, efficiency_programme]
+  input_nodes:
+  - id: building_renovation_material_use2  # FIXME Use difference with CORRECT unit conversion.
+    to_dimensions:
+    - id: efficiency_programme
+  - id: building_material_unit_price
+    to_dimensions:
+    - id: material
+  - id: building_stock
+    from_dimensions:
+    - id: building_energy_class
+      categories: [major_renovation]
+      flatten: true
+    to_dimensions: []
 
 # ------------- Food -------------------
 
-# - id: food_consumption_per_person
-#   name: Food consumption per person
-#   type: gpc.DatasetNode
-#   quantity: energy
-#   unit: kcal/inh/d
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Consumption per capita
+- id: food_consumption_per_person
+  name: Food consumption per person
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kcal/d  # kcal/inh/d
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Average food Consumption per capita
 
 actions:
 
