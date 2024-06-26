@@ -59,7 +59,7 @@ env:
 jobs:
   e2e_test:
     name: Run UI end-to-end tests
-    runs-on: self-hosted
+    runs-on: runner-prod
     services:
       ui:
         image: ${{ inputs.ui_image }}
@@ -101,7 +101,7 @@ jobs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
 
     container:
-      image: harbor.kausal.dev/library/playwright:latest
+      image: harbor.kausal.tech/library/playwright:latest
     env:
       CI: 1
       NEXT_PUBLIC_API_URL: http://localhost:8000/v1
