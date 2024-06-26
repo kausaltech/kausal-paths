@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
@@ -28,6 +29,11 @@ from paths.utils import (
 )
 
 
+if TYPE_CHECKING:
+    from django.db.models.manager import RelatedManager  # type: ignore
+    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+
+
 class DatasetQuerySet(QuerySet['Dataset']):
     pass
 
@@ -48,8 +54,8 @@ class Dataset(ClusterableModel, UserModifiableModel):
     years = ArrayField(models.IntegerField())
     name = models.CharField(max_length=200)
 
-    metrics: models.manager.RelatedManager[DatasetMetric]
-    dimension_selections: models.manager.RelatedManager[DatasetDimension]
+    metrics: RelatedManager[DatasetMetric]
+    dimension_selections: RelatedManager[DatasetDimension]
 
     table = models.JSONField()
 
