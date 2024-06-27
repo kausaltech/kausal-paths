@@ -73,15 +73,12 @@ WORKDIR ${app_path}
 ARG INSTALL_DEV_DEPS
 COPY requirements-dev.txt ${app_path}/
 RUN --mount=type=cache,target=${XDG_CACHE_HOME}/pip \
-    if [ ! -z "${INSTALL_DEV_DEPS}" ] ; then ${VENV_PATH}/bin/pip install -r ${app_path}/requirements-dev.txt ; fi
+    if [ ! -z "${INSTALL_DEV_DEPS}" ] ; then ${VIRTUAL_ENV}/bin/pip install -r ${app_path}/requirements-dev.txt ; fi
 
 #
 # Final image
 #
 FROM base AS final
-
-ENV VENV_PATH=/venv
-ENV PATH=${VENV_PATH}/bin:${PATH}
 
 COPY --from=builder /venv /venv
 # COPY --from=builder ${app_path}/node_modules ${app_path}/node_modules
