@@ -44,30 +44,38 @@ if [ "$1" == "snapshots" ] ; then
 fi
 
 if [ "$1" == "backup" ] ; then
-    if [ -z "$PGPASSFILE" -o ! -r "$PGPASSFILE" ] ; then
-        echo PGPASSFILE must be set and the file pointed by it readable.
-        exit 1
+    if [ -z "$DATABASE_URL" ] ; then
+        if [ -z "$PGPASSFILE" -o ! -r "$PGPASSFILE" ] ; then
+            echo PGPASSFILE must be set and the file pointed by it readable. Alternatively, set DATABASE_URL.
+            exit 1
+        fi
+
+        # Work around kubernetes secret mount permission limitations
+        pgpasstmp=$(mktemp)
+        cat $PGPASSFILE > $pgpasstmp
+        export PGPASSFILE=$pgpasstmp
+
+        database=$(cat $PGPASSFILE | cut -d ':' -f 3)
+    else
+        database="$DATABASE_URL"
     fi
-
-    # Work around kubernetes secret mount permission limitations
-    pgpasstmp=$(mktemp)
-    cat $PGPASSFILE > $pgpasstmp
-    export PGPASSFILE=$pgpasstmp
-
-    database=$(cat $PGPASSFILE | cut -d ':' -f 3)
     datatmp=$(mktemp)
 
     echo "Generating dump..."
-    pg_dump -O $database > $datatmp
+    pg_dump -O "$database" > $datatmp
     echo "Uploading to restic..."
     cat $datatmp | restic backup --no-cache --stdin-filename database.sql --stdin
     echo "Pruning old backups..."
     restic forget --prune --keep-within-hourly 48h --keep-within-daily 30d --keep-within-weekly 1y --keep-monthly unlimited
-    rm $datatmp $pgpasstmp
+    rm $datatmp
+    if [ -z "$DATABASE_URL" ] ; then
+        rm $pgpasstmp
+    fi
     exit 0
 fi
 
 if [ "$1" == "restore" ] ; then
     echo "Restoring from backup..."
     restic dump latest database.sql | python manage.py dbshell
+    exit 0
 fi
