@@ -27,7 +27,7 @@ def make_comparable(table: dict):
 
 
 class Command(BaseCommand):
-    help = 'Create a dataset in DB based on a DVC dataset'
+    help = 'Validate computation models and store/compare results'
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument('instances', metavar='INSTANCE_ID', type=str, nargs='*')

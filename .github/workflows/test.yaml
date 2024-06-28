@@ -37,7 +37,7 @@ env:
 jobs:
   test:
     name: Run unit tests
-    runs-on: self-hosted
+    runs-on: runner-prod
     services:
       postgres:
         image: postgis/postgis:16-3.4-alpine
