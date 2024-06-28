@@ -9,9 +9,11 @@ from nodes.node import Node
 from nodes.simple import AdditiveNode
 from nodes.exceptions import NodeError
 from common import polars as ppl
+from django.utils.translation import gettext_lazy as _
 
 
 class DatasetNode(AdditiveNode):
+    explanation = _("""This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""")
     allowed_parameters = AdditiveNode.allowed_parameters + [
         StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),   # FIXME To be removed, replaced by 'sector' below.
         StringParameter('sector', description = 'Sector', is_customizable = False),
@@ -27,7 +29,7 @@ class DatasetNode(AdditiveNode):
                }
 
     # -----------------------------------------------------------------------------------
-    def makeid(self, label: str):
+    def makeid(self, label: str):  # FIXME This and all other copies of makeid() functions should go to .calc.py.
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
                     '_': [' '],

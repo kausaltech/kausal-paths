@@ -4,6 +4,7 @@ from nodes.calc import convert_to_co2e, extend_last_historical_value_pl, nafill_
 from nodes.units import Unit
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
 from typing import List, ClassVar, Sequence, Tuple, Union
+from django.utils.translation import gettext_lazy as _
 import polars as pl
 import pandas as pd
 import pint
@@ -118,7 +119,8 @@ class SimpleNode(Node):
 
 
 class AdditiveNode(SimpleNode):
-    """Simple addition of inputs"""
+    explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
+Missing values are assumed to be zero.""")
     allowed_parameters: ClassVar[list[Parameter]] = SimpleNode.allowed_parameters + [
         BoolParameter(local_id='drop_nans', is_customizable=False),
         StringParameter(local_id='metric', is_customizable=False),
@@ -201,6 +203,7 @@ class AdditiveNode(SimpleNode):
 
 
 class SubtractiveNode(Node):
+    explanation = _("This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.")  # FIXME Is this needed? Edge process arithmetic_inverse could be used instead.
     allowed_parameters = [
         BoolParameter(local_id='only_historical', description='Perform subtraction on only historical data', is_customizable=False)
     ]
@@ -217,8 +220,9 @@ class SubtractiveNode(Node):
 
 
 class SectorEmissions(AdditiveNode):
+    explanation = _("This is a Sector Emissions Node. It is like Additive Node but for subsector emissions")
+    # FIXME Is this needed?
     quantity = 'emissions'
-    """Simple addition of subsector emissions"""
 
     allowed_parameters = AdditiveNode.allowed_parameters + [
         StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False)
@@ -252,10 +256,10 @@ class SectorEmissions(AdditiveNode):
 
 
 class MultiplicativeNode(SimpleNode):
-    """Multiply nodes together with potentially adding other input nodes.
+    explanation = _("""This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.
 
     Multiplication and addition is determined based on the input node units.
-    """
+    """)
 
     allowed_parameters = SimpleNode.allowed_parameters + [
         BoolParameter(
@@ -375,10 +379,10 @@ class MultiplicativeNode(SimpleNode):
 
 
 class DivisiveNode(MultiplicativeNode):
-    """Divide two nodes together with potentially adding other input nodes.
+    explanation = _("""This is a Divisive Node. It divides two nodes together with potentially adding other input nodes.
 
     Division and addition is determined based on the input node units.
-    """
+    """)  # FIXME Is this needed as we have edge process geometric_inverse
 
     operation_label = 'division'
 
@@ -388,7 +392,8 @@ class DivisiveNode(MultiplicativeNode):
 
 
 class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Tampere/other_electricity_consumption_emisisons
-    """Multiply an activity by an emission factor."""
+    explanation = _("""This is an Emission Factor Activity Node. It multiplies an activity by an emission factor.""")
+    # FIXME Do we need a separate node class?
     quantity = 'emissions'
     default_unit = '%s/a' % EMISSION_UNIT
     allowed_parameters = MultiplicativeNode.allowed_parameters + [
@@ -452,11 +457,12 @@ class PerCapitaActivity(MultiplicativeNode):
 
 
 class Activity(AdditiveNode):
-    """Add activity amounts together."""
+    explanation = _("""This is Activity Node. It adds activity amounts together.""")
     pass
 
 
-class FixedMultiplierNode(SimpleNode):  # FIXME Merge functionalities with MultiplicativeNode
+class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter instead.
+    explanation = _("""This is a Fixed Multiplier Node. It multiplies a single input node with a parameter.""")
     allowed_parameters = [
         NumberParameter(local_id='multiplier'),
         StringParameter(local_id='global_multiplier'),
@@ -567,10 +573,10 @@ class MixNode(AdditiveNode):
 
 
 class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
-    """First add other input nodes, then multiply the output.
+    explanation = _("""First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
-    """
+    """)
 
     operation_label = 'multiplication'
 
@@ -609,10 +615,10 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wi
 
 
 class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
-    """First add other input nodes, then multiply the output.
+    explanation = _("""First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
-    """
+    """)
 
     operation_label = 'multiplication'
 
@@ -672,9 +678,9 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit w
 
 
 class ImprovementNode(MultiplicativeNode):
-    '''First does what MultiplicativeNode does, then calculates 1 - result.
+    explanation = _('''First does what MultiplicativeNode does, then calculates 1 - result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
-    '''
+    ''')
 
     def compute(self):
         if len(self.input_nodes) == 1:
@@ -691,9 +697,9 @@ class ImprovementNode(MultiplicativeNode):
 
 
 class ImprovementNode2(MultiplicativeNode):
-    '''First does what MultiplicativeNode does, then calculates 1 + result.
+    explanation = _('''First does what MultiplicativeNode does, then calculates 1 + result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
-    '''
+    ''')
 
     def compute(self):
         if len(self.input_nodes) == 1:
@@ -710,14 +716,14 @@ class ImprovementNode2(MultiplicativeNode):
 
 
 class RelativeNode(AdditiveNode):
-    '''
+    explanation = _('''
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
     where V is the expected output value and N is the comparison value from
     the other input nodes. So, the output value V = (R + 1)N.
     If there is no "non-additive" node, it will behave like AdditiveNode except
     it never creates a temporary dimension Sectors.
-    '''
+    ''')
 
     def compute(self) -> ppl.PathsDataFrame:
         n = self.get_input_node(tag='non_additive', required=False)
@@ -735,9 +741,9 @@ class RelativeNode(AdditiveNode):
         return df
 
 class TrajectoryNode(SimpleNode):
-    '''
+    explanation = _('''
     TrajectoryNode uses select_category() to select a category from a dimension.
-    '''
+    ''')
     allowed_parameters = SimpleNode.allowed_parameters + [
         StringParameter(local_id='dimension'),
         StringParameter(local_id='category'),

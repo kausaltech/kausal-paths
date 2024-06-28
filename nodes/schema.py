@@ -321,6 +321,7 @@ class NodeInterface(graphene.Interface):
     target_year_goal = graphene.Float(deprecation_reason='Replaced by "goals".')
     goals = graphene.List(graphene.NonNull(NodeGoal), active_goal=graphene.ID(required=False), required=True)
     is_action = graphene.Boolean(required=True, deprecation_reason='Use __typeName instead')
+    explanation = graphene.String(required=False)
 
     input_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
     output_nodes = graphene.List(graphene.NonNull(lambda: NodeInterface), required=True)
@@ -464,6 +465,14 @@ class NodeInterface(graphene.Interface):
         if nc is None or not nc.description_i18n:
             return None
         return expand_db_html(nc.description_i18n)
+
+    @staticmethod
+    def resolve_explanation(root: Node, info: GQLInstanceInfo) -> Optional[str]:
+        # nc = root.db_obj
+        # if nc is None or not nc.description_i18n:
+        #     return None
+        # return expand_db_html(nc.description_i18n)
+        return root.get_explanation()
 
     @staticmethod
     def resolve_body(root: Node, info: GQLInstanceInfo):

@@ -21,6 +21,7 @@ from rich import print as pprint
 import networkx as nx
 
 from common import polars as ppl
+from django.utils.translation import gettext_lazy as _
 from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
@@ -194,6 +195,9 @@ class Node:
 
     input_dimension_ids: list[str] = []
     "References to the dimensions that this node's input must contain (typically set in a class)."
+
+    explanation: I18nString = _('NOTE! Add text about the node class.')
+    "Textual explanation about what the node computes (typicallly set in a class)."
 
     # set if this node has a specific goal for the simulation target year
     goals: NodeGoals | None
@@ -1435,3 +1439,16 @@ class Node:
             df = df.clear_unit(VALUE_COLUMN)
             df = df.set_unit(VALUE_COLUMN, 'dimensionless')
         return df
+
+    def get_explanation(self):
+        operation_nodes = [n.name for n in self.input_nodes]  # FIXME separate operation and additive
+        explanation = self.explanation
+        if len(operation_nodes) > 0:
+            node_text = _('The node has the following input nodes:') + '\n' + str(operation_nodes)
+        else:
+            node_text = _('The node does not have input nodes.')
+        # print(self.input_datasets)  # FIXME Why does this not work?
+        # if self.input_datasets:
+        #     dataset_text = _('The node has the following datasets:') + '\n' + str(self.input_datasets)
+        text = explanation + '\n' + node_text + '\n'# + dataset_text
+        return text

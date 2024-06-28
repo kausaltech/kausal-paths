@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import polars as pl
 
+from django.utils.translation import gettext_lazy as _
 from params.param import NumberParameter, PercentageParameter, StringParameter
 from .context import unit_registry
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
@@ -14,8 +15,11 @@ from common import polars as ppl
 
 
 class AttributableFractionRR(DatasetNode):
-    '''Calculate attributable fraction when the ERF function is relative risk.
-    '''
+    explanation = _('''Calculate attributable fraction when the ERF function is relative risk.
+    AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
+    is smaller than 0, we should use r instead. It can be converted from the result:
+    r/(r+1)=s <=> r=s/(1-s)
+    ''')
 
     def compute(self):
         df = self.get_gpc_dataset()
@@ -50,11 +54,6 @@ class AttributableFractionRR(DatasetNode):
         dfn = dfn.drop(VALUE_COLUMN + '_right')
         dfn = dfn.with_columns(pl.col(VALUE_COLUMN).exp().alias(VALUE_COLUMN))
         dfn = dfn.drop_nulls()
-
-        '''AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
-        is smaller than 0, we should use r instead. It can be converted from the result:
-        r/(r+1)=s <=> r=s/(1-s)
-        '''
 
         frexposed = 1  # FIXME Make an input node
 
