@@ -4,8 +4,9 @@ supported_languages: [en]
 site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f5c57165bb8a2d94c9598c1841c63e072a8c6be7
+  commit: 2e2cf0999436d8d4247bca9434dbce4b34d3d1da
   dvc_remote: kausal-s3
+  # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: Köln Stadt
 theme_identifier: de-koeln
@@ -13,7 +14,7 @@ target_year: 2030
 model_end_year: 2045
 minimum_historical_year: 2008
 maximum_historical_year: 2020
-emission_unit: t/a
+emission_unit: kt/a
 emission_forecast_from: 2021
 emission_dimensions: [scope]
 features:
@@ -72,7 +73,7 @@ nodes:
   name: Private Haushalte
   type: gpc.DatasetNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#00A969'
   input_dimensions: [energietrager, eigentum, scope]
   output_dimensions: [energietrager, eigentum, scope]
@@ -96,7 +97,7 @@ nodes:
   name: Gewerbe + Sonstiges
   type: gpc.DatasetNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#9D0000'
   input_dimensions: [energietrager, eigentum, scope]
   output_dimensions: [energietrager, eigentum, scope]
@@ -117,10 +118,10 @@ nodes:
       flatten: true
 
 - id: industrial_emissions
-  name: Gewerbe + Sonstiges
+  name: Industrie
   type: gpc.DatasetNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#005B99'
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
@@ -142,7 +143,7 @@ nodes:
   name: Städtische Gebäude
   type: gpc.DatasetNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#29ab87'
   input_dimensions: [energietrager, eigentum, scope]
   output_dimensions: [energietrager, eigentum, scope]
@@ -164,9 +165,12 @@ nodes:
 
 - id: transport_emissions
   name: Verkehr
+  description: HINWEIS! Die Emissionen des Verkehrs für das Jahr 2008 summieren sich
+    auf 4219 kt, aber in der Zeile „Gesamt“ steht 2664 kt. Hier verwenden wir die
+    Werte für jeden Energieträger.
   type: gpc.DatasetNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#AD8F00'
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
