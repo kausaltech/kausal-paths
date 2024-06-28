@@ -4,8 +4,9 @@ supported_languages: [en]
 site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f5c57165bb8a2d94c9598c1841c63e072a8c6be7
+  commit: d01f7db1f266a54da7ef4fb5f6d0dc3d87489107
   dvc_remote: kausal-s3
+  # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: Köln Stadt
 theme_identifier: de-koeln
@@ -119,7 +120,7 @@ nodes:
       flatten: true
 
 - id: industrial_emissions
-  name: Gewerbe + Sonstiges
+  name: Industrie
   type: gpc.DatasetNode2
   quantity: emissions
   unit: t/a
@@ -168,6 +169,7 @@ nodes:
 
 - id: transport_emissions
   name: Verkehr
+  description: HINWEIS! Die Emissionen des Verkehrs für das Jahr 2008 summieren sich auf 4219 kt, aber in der Zeile „Gesamt“ steht 2664 kt. Hier verwenden wir die Werte für jeden Energieträger.
   type: gpc.DatasetNode2
   quantity: emissions
   unit: t/a
