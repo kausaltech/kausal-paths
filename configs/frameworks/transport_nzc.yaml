@@ -78,7 +78,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    gpc_sector: baseline year fleet emission factor
+    sector: Transport Emission factors
 
 - id: new_fleet_emission_factor_pre
   name: New fleet emission factor before splitting
@@ -180,7 +180,11 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: old fleet reduction rate
+  - id: sector
+    value: Share of fleet that is less than 2 years old
+  - id: multiplier
+    value: 0.5
+    unit: dimensionless
 
 - id: new_fleet_fraction
   name: New fleet fraction
@@ -305,18 +309,70 @@ nodes:
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
 
-- id: transport_energy_carrier_shares
-  name: Transport energy carrier shares
+- id: fully_electric_car_share
+  name: Fully electric car share
+  description: Share of car fleet fully electric (not including hybrids)
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
-  input_dimensions: [energy_carrier, transport_mode]
-  output_dimensions: [energy_carrier, transport_mode]
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_datasets:
-  - id: nzc/defaults  # FIXME It should be possible to define units dimensionless for dataset and % for node
+  - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: transport energy carrier shares
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: fully_electric_bus_share
+  name: Fully electric bus share
+  description: Share of bus fleet fully electric (not including hybrids)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: Share of bus fleet as fully electric buses (not including hybrids)
+
+- id: fully_electric_train_share
+  name: Fully electric train share
+  description: Share of train fleet fully electric
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2018, 100.0], [2023, 100.0]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_energy_carrier_shares
+  name: Transport energy carrier shares
+  description: Share of fleet fully electric (not including hybrids)
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: fully_electric_car_share
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: transport_mode
+  - id: fully_electric_bus_share
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: transport_mode
+  - id: fully_electric_train_share
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: transport_mode
+      categories: [trains]
+  params:
+    new_category: 'energy_carrier:petrol_diesel'
 
 - id: transport_electricity_consumption
   name: Transport electricity consumption
@@ -350,7 +406,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport efficiency
+    sector: Number of passengers per vehicle
 
 - id: passenger_kilometres_pre
   name: Passenger kilometres data
@@ -367,7 +423,7 @@ nodes:
   params:
 #  - id: annual_change
 #    ref: population_growth_rate
-    gpc_sector: passenger kilometers
+    sector: Transport need
 
 - id: passenger_kilometres
   name: Passenger kilometres
@@ -875,60 +931,38 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 
 - id: electrification_of_passenger_cars
   name: Electrification of passenger cars
-  type: shift.ShiftAction
+  type: gpc.DatasetAction
   quantity: fraction
-  unit: '%'
+  unit: dimensionless  # FIXME Make % usable as well
   group: transport
+  # input_dimensions: [transport_mode, energy_carrier]
+  # output_dimensions: [transport_mode, energy_carrier]
+  # historical_values: [[2018, 0.0], [2023, 0.0]]
+  # input_dataset_processors: [LinearInterpolation]  # FIXME Could be used if GPC processor happens inside dataset, not node.
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
   params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          transport_mode: cars
-          energy_carrier: petrol_diesel
-      dests:
-      - categories:
-          transport_mode: cars
-          energy_carrier: electricity
-      amounts:
-      - {year: 2024, source_amount: -8.4, dest_amounts: [100]}
-      - {year: 2025, source_amount: -4.3, dest_amounts: [100]}
-      - {year: 2026, source_amount: -5.0, dest_amounts: [100]}
-      - {year: 2027, source_amount: -7.3, dest_amounts: [100]}
-      - {year: 2028, source_amount: -10.9, dest_amounts: [100]}
-      - {year: 2029, source_amount: -12.2, dest_amounts: [100]}
-      - {year: 2030, source_amount: -13.1, dest_amounts: [100]}
+    gpc_sector: 1.4.1 Electrification of passenger cars + motorcycles
   output_nodes:
-  - transport_energy_carrier_shares
+  - id: fully_electric_car_share
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
 
 - id: electrification_of_buses
   name: Electrification of buses
-  type: shift.ShiftAction
-  quantity: emission_factor
-  unit: '%'
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: dimensionless  # FIXME '%/a'
   group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
   params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          transport_mode: buses
-          energy_carrier: petrol_diesel
-      dests:
-      - categories:
-          transport_mode: buses
-          energy_carrier: electricity
-      amounts:
-      - {year: 2024, source_amount: -23.0, dest_amounts: [100]}
-      - {year: 2025, source_amount: -10.0, dest_amounts: [100]}
-      - {year: 2026, source_amount: -10.0, dest_amounts: [100]}
-      - {year: 2027, source_amount: -10.0, dest_amounts: [100]}
-      - {year: 2028, source_amount: -15.0, dest_amounts: [100]}
-      - {year: 2029, source_amount: -15.0, dest_amounts: [100]}
-      - {year: 2030, source_amount: -17.0, dest_amounts: [100]}
+    gpc_sector: Expected procurement schedule for buses
   output_nodes:
-  - transport_energy_carrier_shares
+  - id: fully_electric_bus_share
+    tags: [cumulative]

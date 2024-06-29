@@ -514,8 +514,10 @@ nodes:
   type: gpc.DatasetNode
   quantity: ratio
   unit: dimensionless
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
+#  input_dimensions: [building_energy_class]
+#  output_dimensions: [building_energy_class]
+  input_dimensions: [efficiency_programme]
+  output_dimensions: [efficiency_programme]
   input_datasets: [nzc/defaults]
   params:
     sector: Tonnes material used for renovations
@@ -533,12 +535,12 @@ nodes:
     to_dimensions: []
 #    - id: material
   - id: building_renovation_material_ratios
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: efficiency_programme
-      categories: [aggressive_improvements]
+#    from_dimensions:
+#    - id: building_energy_class
+#      flatten: true
+#    to_dimensions:
+#    - id: efficiency_programme
+#      categories: [aggressive_improvements]
 
 - id: building_renovation_material_use2
   name: Building renovation material use
@@ -624,7 +626,7 @@ nodes:
   name: Food consumption per person
   type: gpc.DatasetNode
   quantity: energy
-  unit: kcal/d  # kcal/inh/d
+  unit: kcal/cap/d
   input_datasets: [nzc/defaults]
   params:
     sector: Average food Consumption per capita
