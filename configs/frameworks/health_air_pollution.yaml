@@ -17,7 +17,7 @@ nodes:
     - column: Transport mode
       value: cars
   params:
-    gpc_sector: baseline year fleet emission factor
+    sector: Transport Emission factors
     rename_dimensions: 'transport_pollutant:pollutant'
 
 - id: transport_emission_ratio

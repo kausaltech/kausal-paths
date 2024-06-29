@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 833b1dfbe8fffa5bb22e59af87557e3398be7d5d
+  commit: 2e2cf0999436d8d4247bca9434dbce4b34d3d1da
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
