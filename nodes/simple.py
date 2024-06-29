@@ -45,6 +45,11 @@ class SimpleNode(Node):
             local_id='reference_year',
             description='Year to which all others are compared',
             is_customizable=False
+        ),
+        NumberParameter(  # FIXME Make sure that the treatment is systematic in all node classes.
+            local_id='multiplier',
+            description='Multiplier to implement after operation and before additions',
+            is_customizable=False
         )
     ]
 
@@ -115,6 +120,12 @@ class SimpleNode(Node):
         if year:
             df = self._scale_by_reference_year(df, year)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+    
+    def apply_multiplier(self, df: ppl.PathsDataFrame):
+        multiplier = self.get_parameter_value('multiplier', required=False, units=True)
+        if multiplier:
+            df = df.multiply_quantity(VALUE_COLUMN, multiplier)
         return df
 
 
@@ -762,4 +773,28 @@ class TrajectoryNode(SimpleNode):
         df = df.select_category(dim_id, cat_id, cat_no, keep_dimension=keep)
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class FillNewCategoryNode(AdditiveNode):
+    explanation = _('This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter "new_category" in format "dimension:category"')
+    allowed_parameters = AdditiveNode.allowed_parameters + [
+        StringParameter(local_id='new_category')
+    ]
+
+    def compute(self):
+        category = self.get_parameter_value('new_category', required=True, units=False)
+        dim, cat = category.split(':')
+
+        df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+
+        df2 = df.paths.sum_over_dims(dim)
+        df2 = df2.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+        df2 = df2.with_columns(pl.lit(cat).cast(pl.Categorical).alias(dim))
+        df2 = df2.select(df.columns)
+
+        df = df.paths.concat_vertical(df2)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
         return df

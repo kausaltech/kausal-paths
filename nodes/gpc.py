@@ -175,6 +175,7 @@ class DatasetNode(AdditiveNode):
         df = self.add_missing_years(df)
         df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        df = self.apply_multiplier(df)
         df = self.add_and_multiply_input_nodes(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
@@ -202,7 +203,7 @@ class DetailedDatasetNode(DatasetNode):
         return df
 
 
-class DatasetRatioNode(DatasetNode):
+class DatasetRatioNode(DatasetNode):  # FIXME Use edge process instead?
     allowed_parameters = DatasetNode.allowed_parameters + [
         StringParameter('reference_category', description='Category to which all others are compared', is_customizable=False)]
 

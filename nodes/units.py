@@ -114,6 +114,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     @alias pkm = pkt = p_km
     job = [employment] = fte = full_time_equivalent
     million_square_meters = 1e6 * meter ** 2 = Msqm
+    thousand_square_meters = 1000 meter **2 = ksqm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
     kg_co2e = kg * CO2e

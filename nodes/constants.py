@@ -36,6 +36,7 @@ ENERGY_QUANTITY = 'energy'
 MILEAGE_QUANTITY = 'mileage'
 VEHICLE_MILEAGE_QUANTITY = 'vehicle_mileage'
 PASSENGER_MILEAGE_QUANTITY = 'passenger_mileage'
+FREIGHT_MILEAGE_QUANTITY = 'freight_quantity'  # FIXME
 EMISSION_FACTOR_QUANTITY = 'emission_factor'
 ENERGY_FACTOR_QUANTITY = 'energy_factor'
 CONSUMPTION_FACTOR_QUANTITY = 'consumption_factor'
@@ -51,7 +52,7 @@ UTILITY_QUANTITY = 'utility'
 
 ACTIVITY_QUANTITIES = set([
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
-    PASSENGER_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption', 'mass', 'employment'
+    PASSENGER_MILEAGE_QUANTITY, FREIGHT_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption', 'mass', 'employment'
 ])
 
 ACTIVITY_FACTOR_QUANTITIES = set([
@@ -72,7 +73,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE
     EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
     'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration',
-    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect'
+    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate'
 ])
 
 
