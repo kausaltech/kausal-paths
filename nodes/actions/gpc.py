@@ -119,7 +119,7 @@ class DatasetAction(ActionNode):
         df = df.with_columns(pl.col('Forecast').fill_null(strategy = 'forward'))
 
         df = df.paths.to_narrow()
-        df = self.implement_multiplier(df)
+        df = self.apply_multiplier(df, required=False, units=True)
         df = df.to_pandas()
 
         if not self.is_enabled():

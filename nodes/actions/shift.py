@@ -239,5 +239,5 @@ class ShiftAction(ActionNode):
         sdf = df.groupby(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
         sdf = sdf.sort(meta.primary_keys)
         df = ppl.to_ppdf(sdf, meta=meta)
-        df = self.implement_multiplier(df)
+        df = self.apply_multiplier(df, required=False, units=False)
         return df

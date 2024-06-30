@@ -65,7 +65,7 @@ class ActionNode(Node):
     enabled_param: BoolParameter
     allowed_parameters: ClassVar[list[Parameter]] = [
         ENABLED_PARAM,
-        NumberParameter(local_id='multiplier2', label='Multiplies the output', is_customizable=True)  # FIXME Convert to multiplier
+        NumberParameter(local_id='multiplier', label='Multiplies the output', is_customizable=True)
     ]
 
     def __init_subclass__(cls) -> None:
@@ -115,12 +115,14 @@ class ActionNode(Node):
         df[FORECAST_COLUMN] = True
         return df
 
-    def implement_multiplier(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        multiplier = self.get_parameter_value('multiplier2', required=False, units=True)
+    # See also sister function in SimpleNode
+    def apply_multiplier(self, df: ppl.PathsDataFrame, required, units) -> ppl.PathsDataFrame:
+        multiplier = self.get_parameter_value('multiplier', required=required, units=units)
         if multiplier:
-            if not isinstance(multiplier, Quantity):
-                raise NodeError(self, 'multiplier must have a unit')
-            df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+            if isinstance(multiplier, Quantity):
+                df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+            else:
+                df = df.with_columns((pl.col(VALUE_COLUMN) * pl.lit(multiplier)).alias(VALUE_COLUMN))
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 

@@ -1,7 +1,7 @@
 import functools
 from common.perf import PerfCounter
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl, nafill_all_forecast_years
-from nodes.units import Unit
+from nodes.units import Quantity, Unit
 from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
 from typing import List, ClassVar, Sequence, Tuple, Union
 from django.utils.translation import gettext_lazy as _
@@ -122,10 +122,15 @@ class SimpleNode(Node):
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
     
-    def apply_multiplier(self, df: ppl.PathsDataFrame):
-        multiplier = self.get_parameter_value('multiplier', required=False, units=True)
+    # See also sister function in ActionNode
+    def apply_multiplier(self, df: ppl.PathsDataFrame, required, units):
+        multiplier = self.get_parameter_value('multiplier', required=required, units=units)
         if multiplier:
-            df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+            if isinstance(multiplier, Quantity):
+                df = df.multiply_quantity(VALUE_COLUMN, multiplier)
+            else:
+                df = df.with_columns((pl.col(VALUE_COLUMN) * pl.lit(multiplier)).alias(VALUE_COLUMN))
+            df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 
