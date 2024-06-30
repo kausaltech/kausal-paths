@@ -29,7 +29,7 @@ class DatasetAction(ActionNode):
                'fraction': 'Fraction'}
 
     # -----------------------------------------------------------------------------------
-    def makeid(self, label: str):
+    def makeid(self, label: str):  # FIXME Move all makeid() functions to .calc.py.
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
                     '_': [' '],

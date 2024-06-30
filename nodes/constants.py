@@ -27,6 +27,7 @@ FLOW_ROLE_TARGET = 'target'
 
 EMISSION_UNIT = 'kg'
 BASELINE_VALUE_COLUMN = 'BaselineValue'
+TIME_INTERVAL = 'a'
 
 #
 # Quantities

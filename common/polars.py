@@ -14,7 +14,7 @@ from polars.type_aliases import IntoExpr
 from polars._utils.parse_expr_input import parse_as_list_of_expressions
 from polars.polars import PyExpr, PyDataFrame
 import numpy as np
-from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN, TIME_INTERVAL
 from nodes.dimensions import Dimension, DimensionCategory
 
 from nodes.units import Unit, unit_registry
@@ -289,22 +289,36 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def cumulate(self, col: str) -> PathsDataFrame:  # FIXME Should we update the unit to unit * a?
+        meta = self.get_meta()
+        unit = unit_registry(TIME_INTERVAL)
+        meta.units[col] *= unit
+
         df = self.paths.to_wide()
         for df_col in df.columns:
             if col + '@' in df_col or col == df_col:
                 df = df.with_columns(pl.col(df_col).cumsum())
             else:
                 continue
-        return df.paths.to_narrow()
+        df = df.paths.to_narrow()
+
+        df = to_ppdf(df, meta=meta)
+        return df
 
     def diff(self, col: str, n: Any = 1) -> PathsDataFrame:
+        meta = self.get_meta()
+        unit = unit_registry(TIME_INTERVAL)
+        meta.units[col] /= unit
+
         df = self.paths.to_wide()
         for df_col in df.columns:
             if col + '@' in df_col or col == df_col:
                 df = df.with_columns(pl.col(df_col).diff(n))
             else:
                 continue
-        return df.paths.to_narrow()
+        df = df.paths.to_narrow()
+
+        df = to_ppdf(df, meta=meta)
+        return df
 
     def add_to_index(self, cols: str | list[str]) -> PathsDataFrame:
         if isinstance(cols, str):

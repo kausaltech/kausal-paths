@@ -14,7 +14,7 @@ from .node import Node, NodeError
 from .context import Context
 
 
-class Processor(ABC):
+class Processor(ABC):  # FIXME Can processors be used also for nodes inside compute() function? Would be useful.
     context: Context
     node: Node
     # Parameters with their values

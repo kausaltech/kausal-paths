@@ -989,28 +989,29 @@ class Node:
             else:
                 raise NodeError(self, "No connection to target node %s" % target_node.id)
 
-            if 'extend_values' in edge.tags:
-                res = extend_last_historical_value_pl(res, self.get_end_year())
-            if 'inventory_only' in edge.tags:
-                res = res.filter(pl.col(FORECAST_COLUMN) == False)
-            if 'arithmetic_inverse' in edge.tags:
-                res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
-            if 'geometric_inverse' in edge.tags:
-                res = res.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
-            if 'complement' in edge.tags:
-                if not res.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
-                    raise NodeError(self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id)
-                if not self.quantity in ['fraction', 'probability']:
-                    raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
-                res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
-                res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
-            if 'difference' in edge.tags:
-                res = res.diff(VALUE_COLUMN)
-            if 'cumulative' in edge.tags:
-                res = res.cumulate(VALUE_COLUMN)
-            if 'ratio_to_last_historical_value' in edge.tags:
-                year = res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max()
-                res = self._scale_by_reference_year(res, year)
+            for tag in edge.tags:
+                if tag == 'extend_values':
+                    res = extend_last_historical_value_pl(res, self.get_end_year())
+                elif tag == 'inventory_only':
+                    res = res.filter(pl.col(FORECAST_COLUMN) == False)
+                elif tag == 'arithmetic_inverse':
+                    res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+                elif tag == 'geometric_inverse':
+                    res = res.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+                elif tag == 'complement':
+                    if not res.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
+                        raise NodeError(self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id)
+                    if not self.quantity in ['fraction', 'probability']:
+                        raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
+                    res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
+                    res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+                elif tag == 'difference':
+                    res = res.diff(VALUE_COLUMN)
+                elif tag == 'cumulative':
+                    res = res.cumulate(VALUE_COLUMN)
+                elif tag == 'ratio_to_last_historical_value':
+                    year = res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max()
+                    res = self._scale_by_reference_year(res, year)
 
         return res
 
