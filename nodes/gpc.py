@@ -105,6 +105,8 @@ class DatasetNode(AdditiveNode):
         for col in list(set(dims) - {YEAR_COLUMN}):
             for cat in dfi[col].unique():
                 dfi[col] = dfi[col].replace(cat, self.makeid(cat))
+            dim = self.context.dimensions[col]
+            dfi[col] = dim.series_to_ids(dfi[col])
 
         df.index = pd.MultiIndex.from_frame(dfi)
         return df

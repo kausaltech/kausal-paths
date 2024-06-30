@@ -120,6 +120,7 @@ class DatasetAction(ActionNode):
 
         df = df.paths.to_narrow()
         df = self.apply_multiplier(df, required=False, units=True)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         df = df.to_pandas()
 
         if not self.is_enabled():
