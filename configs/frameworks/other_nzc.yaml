@@ -31,7 +31,7 @@ nodes:
   description: FIXME Does not show increased production capacity
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: GWh/a
+  unit: GWh/a**2
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -170,6 +170,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: new_electricity_production_capacity
+    tags: [cumulative]
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
@@ -514,10 +515,10 @@ nodes:
   type: gpc.DatasetNode
   quantity: ratio
   unit: dimensionless
-#  input_dimensions: [building_energy_class]
-#  output_dimensions: [building_energy_class]
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+#   input_dimensions: [efficiency_programme]
+#   output_dimensions: [efficiency_programme]
   input_datasets: [nzc/defaults]
   params:
     sector: Tonnes material used for renovations
@@ -527,34 +528,27 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: mass
   unit: t/m**2  # FIXME Make sure units make sense
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
+  input_dimensions: [building_energy_class, material]
+  output_dimensions: [building_energy_class, material]
+#   input_dimensions: [efficiency_programme]
+#   output_dimensions: [efficiency_programme]
   input_nodes:
   - id: building_materials_used_in_new_buildings
     tags: [non_additive]
     to_dimensions: []
 #    - id: material
   - id: building_renovation_material_ratios
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_material_shares
+    to_dimensions:
+    - id: material
 #    from_dimensions:
 #    - id: building_energy_class
 #      flatten: true
 #    to_dimensions:
 #    - id: efficiency_programme
 #      categories: [aggressive_improvements]
-
-- id: building_renovation_material_use2
-  name: Building renovation material use
-  type: simple.FixedMultiplierNode
-  quantity: mass
-  unit: t/m**2/a  # FIXME Make sure units make sense
-  input_dimensions: [efficiency_programme]
-  output_dimensions: [efficiency_programme]
-  input_nodes:
-  - id: building_renovation_material_use
-  params:
-  - id: multiplier
-    value: 1
-    unit: 1/a
 
 - id: building_material_emission_factor
   name: Building material emission factor
@@ -571,20 +565,15 @@ nodes:
   name: Building material emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
-  input_dimensions: [material, efficiency_programme, building_energy_class]
-  output_dimensions: [material, efficiency_programme, building_energy_class]
+  unit: kt
+  input_dimensions: [material, building_energy_class]
+  output_dimensions: [material, building_energy_class]
   input_nodes:
-  - id: building_renovation_material_use2
+  - id: building_renovation_material_use
     to_dimensions:
-    - id: efficiency_programme
-  - id: building_material_emission_factor
-    to_dimensions:
+    - id: building_energy_class
     - id: material
   - id: building_stock  # FIXME Make sure that right categories are selected.
-    from_dimensions:
-    - id: building_energy_class
-      categories: [major_renovation]  # FIXME Make this coherent
     to_dimensions:
     - id: building_energy_class
 
@@ -604,16 +593,20 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [material, efficiency_programme]
-  output_dimensions: [material, efficiency_programme]
+  input_dimensions: [material] #, efficiency_programme]
+  output_dimensions: [material] #, efficiency_programme]
   input_nodes:
-  - id: building_renovation_material_use2  # FIXME Use difference with CORRECT unit conversion.
+  - id: building_renovation_material_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
     to_dimensions:
-    - id: efficiency_programme
+    - id: material
   - id: building_material_unit_price
     to_dimensions:
     - id: material
   - id: building_stock
+    tags: [difference]
     from_dimensions:
     - id: building_energy_class
       categories: [major_renovation]
@@ -646,7 +639,7 @@ actions:
     - id: energy_carrier
       categories: [electricity]
   params:
-  - id: multiplier2
+  - id: multiplier
     value: 41.0
     unit: '%'
   - id: shift  # nzc/defaults/fossil_electricity_replaced

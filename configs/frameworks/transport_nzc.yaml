@@ -315,7 +315,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [transport_mode]
+  input_dimensions: [transport_mode]  # FIXME energy_carrier
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/defaults
@@ -329,8 +329,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+  input_dimensions: [transport_mode] # , energy_carrier]
+  output_dimensions: [transport_mode] # , energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -358,12 +358,12 @@ nodes:
   - id: fully_electric_car_share
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
+      categories: [electricity]  # FIXME
     - id: transport_mode
   - id: fully_electric_bus_share
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
+      categories: [electricity]  # FIXME
     - id: transport_mode
   - id: fully_electric_train_share
     to_dimensions:
@@ -856,6 +856,7 @@ nodes:
     tags: activity
 
 actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
+
 - id: reduce_all_motorised_transport
   name: Reduce all motorised transport
   type: simple.LinearCumulativeAdditiveAction  # FIXME Allow historical values in this node class.
@@ -933,12 +934,10 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   name: Electrification of passenger cars
   type: gpc.DatasetAction
   quantity: fraction
-  unit: dimensionless  # FIXME Make % usable as well
+  unit: '%'
   group: transport
-  # input_dimensions: [transport_mode, energy_carrier]
-  # output_dimensions: [transport_mode, energy_carrier]
-  # historical_values: [[2018, 0.0], [2023, 0.0]]
-  # input_dataset_processors: [LinearInterpolation]  # FIXME Could be used if GPC processor happens inside dataset, not node.
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -946,18 +945,20 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
     gpc_sector: 1.4.1 Electrification of passenger cars + motorcycles
   output_nodes:
   - id: fully_electric_car_share
+    from_dimensions:
+    - id: energy_carrier  # FIXME
+      flatten: true
     to_dimensions:
     - id: transport_mode
-      categories: [cars]
 
 - id: electrification_of_buses
   name: Electrification of buses
   type: gpc.DatasetAction
   quantity: fraction
-  unit: dimensionless  # FIXME '%/a'
+  unit: '%/a'
   group: transport
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -966,3 +967,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_nodes:
   - id: fully_electric_bus_share
     tags: [cumulative]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true

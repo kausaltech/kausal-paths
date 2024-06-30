@@ -73,20 +73,21 @@ nodes:
   name: Demolition rate
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%/a'
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Demolition rate existing buildings
+  - id: sector
+    value: Demolition rate existing buildings
 
 - id: demolished_building_stock
   name: Demolished building stock
   type: simple.MultiplicativeNode
   quantity: floor_area
-  unit: km**2
+  unit: km**2/a
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
@@ -98,7 +99,7 @@ nodes:
   name: New building stock
   type: formula.FormulaNode
   quantity: floor_area
-  unit: km**2
+  unit: km**2/a
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
@@ -144,12 +145,12 @@ nodes:
   description: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%/a'
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: renovation rate (building envelope)
+    sector: renovation rate (building envelope)
 
 - id: renovation_intensity
   name: Renovation intensity
@@ -168,7 +169,7 @@ nodes:
   name: Renovated building stock
   type: simple.MultiplicativeNode
   quantity: floor_area
-  unit: km**2
+  unit: km**2/a
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
@@ -392,7 +393,7 @@ nodes:
   name: New building cost
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: MEUR
+  unit: MEUR/a
   input_dimensions: [building_energy_class, stakeholder, cost_type]
   output_dimensions: [building_energy_class, stakeholder, cost_type]
   input_nodes:
@@ -426,14 +427,14 @@ nodes:
   name: Efficient appliances rate
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless  # FIXME 1/a
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
+  unit: '%/a'
+  # input_dimensions: [building_energy_class]
+  # output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: efficient appliances rate
+    sector: 3.3 Efficient lighting & appliances
 
 - id: efficiency_programme_shares
   name: Efficiency programme shares
@@ -453,7 +454,7 @@ nodes:
   name: Efficiency improved buildings
   type: simple.MultiplicativeNode
   quantity: floor_area
-  unit: km**2
+  unit: km**2/a
   input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
   output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
   input_nodes:
@@ -462,8 +463,7 @@ nodes:
     to_dimensions:
     - id: building_energy_class
   - id: efficient_appliances_rate
-    to_dimensions:
-    - id: building_energy_class
+    to_dimensions: []
   - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
@@ -528,7 +528,7 @@ nodes:
   name: Efficiency programme cost
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: MEUR
+  unit: MEUR/a
   input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   input_nodes:
@@ -662,7 +662,7 @@ nodes:
   name: Building cost
   type: simple.AdditiveNode
   quantity: currency
-  unit: MEUR  # FIXME MEUR/a
+  unit: MEUR/a
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_nodes:
@@ -679,8 +679,8 @@ nodes:
     to_dimensions:  # FIXME Allocate categories correctly
     - id: stakeholder
     - id: cost_type
-#  output_nodes:
-#  - total_cost
+  output_nodes:
+  - total_cost
 
 actions:
 
@@ -689,7 +689,7 @@ actions:
   description: 'Default 1 %, BPIE (2011) - Europe´s buildings under the microscope. http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
   type: simple.CumulativeAdditiveAction
   quantity: fraction
-  unit: '%'
+  unit: '%/a'
   group: buildings
   forecast_values: [[2023, 1.5]]  # FIXME Should add param multiplier to get a slider
   output_nodes: [old_building_renovation_rate]
