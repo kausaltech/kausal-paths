@@ -387,8 +387,11 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
   - id: vehicle_electricity_factor
-    to_dimensions:
+    from_dimensions:
     - id: transport_mode
+      flatten: true  # FIXME
+    to_dimensions:
+#    - id: transport_mode
     - id: energy_carrier
   output_nodes:
   - id: total_electricity_consumption
@@ -398,7 +401,6 @@ nodes:
 
 - id: transport_efficiency
   name: Transport efficiency
-  description: 'Transport efficiency comes from CDR D28:d30 via MIA D188:190. It is constant across time, except if modified by an action.'
   type: gpc.DatasetNode
   quantity: occupancy_factor
   unit: pkm/vkm
@@ -439,8 +441,6 @@ nodes:
     - id: transport_mode
       flatten: true
     to_dimensions: []
-  - id: motorised_transport_change
-    tags: [complement]
   - id: transport_mode_fraction
 
 - id: motorised_transport_index
@@ -463,13 +463,13 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: reduce_all_motorised_transport
-    to_dimensions: []
-    tags: [non_additive, arithmetic_inverse]
   - id: motorised_transport_index
     tags: [non_additive]
     to_dimensions:
     - id: transport_mode
+  output_nodes:
+  - id: passenger_kilometres
+    tags: [complement]
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
@@ -718,15 +718,20 @@ nodes:
     from_dimensions:
     - id: energy_carrier  # FIXME Check that the costs are the same for electric buses
       flatten: true
-    - id: transport_mode
-      categories: [buses, trains]
+  #  - id: transport_mode  # FIXME
+  #    categories: [buses, trains]
     to_dimensions:
     - id: transport_mode
   - id: public_transport_operation_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
-  output_nodes: [transport_cost]
+  output_nodes:
+  - id: transport_cost
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: transport_energy_factor_ice_petrol_diesel
   name: Transport energy factor - ICE petrol/diesel
@@ -859,22 +864,17 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 
 - id: reduce_all_motorised_transport
   name: Reduce all motorised transport
-  type: simple.LinearCumulativeAdditiveAction  # FIXME Allow historical values in this node class.
+  type: gpc.DatasetAction  # FIXME Allow historical values in LinearCumulativeAdditiveAction.
   quantity: fraction
   unit: '%'
   group: transport
-  historical_values: [[2020, 0], [2022, 0]]
-  forecast_values: [[2023, 0], [2030, 1.0]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets: [nzc/defaults]
   params:
-  - id: multiplier
-    value: -35.0
-    unit: dimensionless
-    min_value: -50
-    max_value: 0
-    label: Reduction percentage
-    is_visible: true
-    is_customizable: true
+    gpc_sector: Transportation need reduction by 2030 from urban planning, digital meetings and other transport-reducing initiatives
+  output_nodes:
+  - id: motorised_transport_change
+    to_dimensions: []
+    tags: [non_additive, extend_values]
 
 - id: modal_switch_from_cars_to_other_modes  # FIXME Something strange on the UI. Check.
   name: Modal switch from cars to other modes
@@ -911,24 +911,20 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 
 - id: car_pooling
   name: Car pooling
-  description: The baseline value for car occupancy is 1.2 pkm/vkm. Therefore, 25 % improvement is 0.3 pkm/vkm. TODO If the baseline changes, the percentages will be from the wrong value.
-  type: simple.LinearCumulativeAdditiveAction
+  description: How many % increase there is in the average number of people in a car.
+  type: gpc.DatasetAction
   quantity: fraction
-  unit: pkm/vkm
+  unit: '%'
   group: transport
-  forecast_values: [[2023, 0], [2030, 1.2]]
-  output_nodes:
-  - id: transport_efficiency
-    to_dimensions:
-    - id: transport_mode
-      categories: [cars]
+  input_datasets: [nzc/defaults]
+  # output_nodes:
+  # - id: transport_efficiency
+  #   tags: [non_additive, arithmetic_inverse, complement]
+  #   to_dimensions:
+  #   - id: transport_mode
+  #     categories: [cars]
   params:
-  - id: multiplier
-    is_customizable: true
-    unit: '%'
-    value: 25.0
-    min_value: 0
-    max_value: 50
+    gpc_sector: 1.3 Car pooling
 
 - id: electrification_of_passenger_cars
   name: Electrification of passenger cars

@@ -305,6 +305,7 @@ dimensions:
   categories:
   - id: district_heating
     label: District heating
+    aliases: ['']  # FIXME
   - id: local_heating
     label: Local heating
 
@@ -443,7 +444,38 @@ nodes:
   output_dimensions: [pollutant, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: electricity production emission factor
+    sector: Emission factors from electricity generation
+
+- id: electricity_production_unit_price
+  name: Electricity production unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Spot price electricity
+
+- id: consumer_electricity_unit_price
+  name: Consumer electricity unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Retail price of electricity
+
+- id: consumer_heating_unit_price
+  name: Consumer heating unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Retail price of heating
 
 - id: co2_unit_price
   name: CO2 unit price

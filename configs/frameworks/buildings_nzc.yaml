@@ -272,14 +272,40 @@ nodes:
   description: Assumes 1 % district and 99 % local heating. Data comes from the user.
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
-  input_dimensions: [heating_type, scope]
-  output_dimensions: [heating_type, scope]
+  unit: '%'
+  input_dimensions: [heating_type] #, scope]
+  output_dimensions: [heating_type] #, scope]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: building heating shares
+    sector: Heating technologies
+
+- id: heating_fuel_share
+  name: Heating fuel share
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type]
+  output_dimensions: [energy_carrier, heating_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: Share of heating fuel
+
+# - id: district_heating_waste_share
+#   name: District heating waste share
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [fuel_type, heating_type, energy_carrier]
+#   output_dimensions: [fuel_type, heating_type, energy_carrier]
+#   input_datasets:
+#   - id: nzc/defaults
+#     forecast_from: 2023
+#   params:
+#     sector: Share of waste used in district heating that is fossil / non-fossil
 
 - id: building_heat_energy_use
   name: Building heat energy use
@@ -300,6 +326,7 @@ nodes:
     to_dimensions:
     - id: heating_type
     - id: scope
+      categories: [scope2]  # FIXME
 
 - id: heating_emission_factor
   name: Heating emission factor
@@ -313,7 +340,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: heat emission factor
+    gpc_sector: Emission factors from heat production
 
 - id: building_heating_emissions
   name: Building heating emissions
