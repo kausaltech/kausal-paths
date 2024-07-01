@@ -23,7 +23,7 @@ class AttributableFractionRR(DatasetNode):
 
     def compute(self):
         df = self.get_gpc_dataset()
-        df = self.convert_names_to_ids(df)
+        df = self.convert_names_to_ids(df, use_dims=False)
 
         test = df.index.get_level_values('er_function').unique()
         if len(test) != 1 or test[0] != 'relative_risk':

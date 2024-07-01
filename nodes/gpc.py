@@ -90,7 +90,18 @@ class DatasetNode(AdditiveNode):
         df = df.drop(columns = ['Unit'])
         return df
 
-    def convert_names_to_ids(self, df: pd.DataFrame) -> pd.DataFrame:
+    def rename_dimensions(self, df: pd.DataFrame) -> pd.DataFrame:
+        renams = self.get_parameter_value('rename_dimensions', required=False)
+        if renams:
+            for renam in renams.split(','):
+                dimfrom, dimto = renam.split(':')
+                nam = list(df.index.names)
+                loc = nam.index(dimfrom)
+                nam[loc] = dimto
+                df.index.names = nam
+        return df
+
+    def convert_names_to_ids(self, df: pd.DataFrame, use_dims=True) -> pd.DataFrame:
         # Convert index level names from labels to IDs.
         dims = []
         for i in df.index.names:
@@ -105,8 +116,9 @@ class DatasetNode(AdditiveNode):
         for col in list(set(dims) - {YEAR_COLUMN}):
             for cat in dfi[col].unique():
                 dfi[col] = dfi[col].replace(cat, self.makeid(cat))
-            dim = self.context.dimensions[col]
-            dfi[col] = dim.series_to_ids(dfi[col])
+            if use_dims:
+                dim = self.context.dimensions[col]
+                dfi[col] = dim.series_to_ids(dfi[col])
 
         df.index = pd.MultiIndex.from_frame(dfi)
         return df
@@ -144,14 +156,6 @@ class DatasetNode(AdditiveNode):
         df = df.paths.to_narrow()
         return df
 
-    def rename_dimensions(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        renams = self.get_parameter_value('rename_dimensions', required=False)
-        if renams:
-            for renam in renams.split(','):
-                dimfrom, dimto = renam.split(':')
-                df = df.rename({dimfrom: dimto})
-        return df
-
     def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
         na_nodes = self.get_input_nodes(tag = 'non_additive')
@@ -172,10 +176,10 @@ class DatasetNode(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
-        df = self.rename_dimensions(df)
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)
