@@ -452,10 +452,12 @@ nodes:
 
 - id: cumulative_carbon_emissions
   name: Kumulatiivinen hiilipäästö
-  type: costs.CumulativeNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: Mt
-  input_nodes: [net_emissions]
+  input_nodes:
+  - id: net_emissions
+    tags: [cumulative]
 
 - id: carbon_budget
   name: Suomen hiilibudjetti

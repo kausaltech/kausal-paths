@@ -188,19 +188,6 @@ class InternalGrowthNode(ExponentialNode):
         return df
 
 
-class CumulativeNode(AdditiveNode):
-    def compute(self):
-        unit = self.unit
-        self.unit = unit * unit_registry.parse_units('1/a')
-        df = super().compute()
-        self.unit = unit
-        df = df.cumulate(VALUE_COLUMN)
-        unit = df.get_unit(VALUE_COLUMN) * unit_registry.parse_units('1 a') # FIXME Should this happen inside cumulate()?
-        df = df.set_unit(VALUE_COLUMN, unit, force=True)
-
-        return df
-
-
 class EnergyCostNode(AdditiveNode):
     output_metrics = {
         VALUE_COLUMN: NodeMetric('SEK/kWh', 'currency'),

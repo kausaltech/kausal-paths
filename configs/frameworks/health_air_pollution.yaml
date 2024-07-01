@@ -18,7 +18,7 @@ nodes:
       value: cars
   params:
     sector: Transport Emission factors
-    rename_dimensions: 'transport_pollutant:pollutant'
+    rename_dimensions: 'Transport pollutant:pollutant'
 
 - id: transport_emission_ratio
   name_fi: Liikennepäästöjen keskinäinen suhde

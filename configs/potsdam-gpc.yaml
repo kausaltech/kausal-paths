@@ -30,7 +30,7 @@ action_groups:
   name: Stationär
   color: '#989898'
 - id: transport
-  name: Transport
+  name: Verkehr
   color: '#0505A0'
 - id: waste
   name: Abfall
