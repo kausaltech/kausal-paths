@@ -860,6 +860,18 @@ nodes:
   - id: passenger_kilometres_pre
     tags: activity
 
+- id: electrification_of_vehicles_year
+  name: Electrification of vehicles year
+  type: gpc.DatasetNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    gpc_sector: At what year can we expect the city to reach the maximum value specified above?
+
 actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
 
 - id: reduce_all_motorised_transport
@@ -926,7 +938,7 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   params:
     gpc_sector: 1.3 Car pooling
 
-- id: electrification_of_passenger_cars
+- id: electrification_of_passenger_cars  # FIXME Build a new node type for S-curve development.
   name: Electrification of passenger cars
   type: gpc.DatasetAction
   quantity: fraction
@@ -939,13 +951,13 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
     forecast_from: 2023
   params:
     gpc_sector: 1.4.1 Electrification of passenger cars + motorcycles
-  output_nodes:
-  - id: fully_electric_car_share
-    from_dimensions:
-    - id: energy_carrier  # FIXME
-      flatten: true
-    to_dimensions:
-    - id: transport_mode
+  # output_nodes:
+  # - id: fully_electric_car_share
+  #   from_dimensions:
+  #   - id: energy_carrier  # FIXME
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: transport_mode
 
 - id: electrification_of_buses
   name: Electrification of buses
@@ -966,3 +978,44 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
     from_dimensions:
     - id: energy_carrier
       flatten: true
+
+- id: utilisation_of_trucks
+  name: Utilisation of trucks
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Utilisation of trucks in decarbonisation scenario
+
+- id: route_optimisation
+  name: Route optimisation
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Reduction of total distance travelled through route optimisation
+
+- id: truck_fleet_electrification
+  name: Truck fleet electrification
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: What is the maximum share of the truck fleet that can be electrified?
+

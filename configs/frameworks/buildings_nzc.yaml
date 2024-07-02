@@ -163,7 +163,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: renovation intensity  # FIXME get correct data from renovation intensity baseline
+    sector: Assumed share of type of renovation in lever
 
 - id: renovated_building_stock
   name: Renovated building stock
@@ -234,14 +234,14 @@ nodes:
   name: Energy use intensity change for new buildings
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
+  unit: '%'
+  # input_dimensions: [building_energy_class]  # FIXME
+  # output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults  # FIXME This could be zero by default and be changed by action
+  - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: improvement compared with new standard  # FIXME update defaults/actions
+    sector: Improvement in energy efficiency relative to minimum requirement
 
 - id: energy_use_intensity_new
   name: Energy use intensity for heating of new buildings
@@ -255,6 +255,7 @@ nodes:
     tags: [non_additive]
   - id: energy_use_intensity_change_new
     tags: [complement]
+    to_dimensions: []  # FIXME
 
 - id: energy_use_intensity
   name: Energy use intensity for heating of old and new buildings
@@ -463,19 +464,20 @@ nodes:
   params:
     sector: 3.3 Efficient lighting & appliances
 
-- id: efficiency_programme_shares
+- id: efficiency_programme_shares  # FIXME Is this an action?
   name: Efficiency programme shares
   description: FIXME The excel logic of action 3.3 changes 1) the fraction of aggressive improvement in energy efficienay, 2) the amount of electricity contumper per squaremetre after improvement and 3) the cost of Improvement. In constrast, it does NOT affect the floor area renovated (old buildings) or built (new buildings), just the fraction of minor and aggressive shares. How should we implement this? The energy improvement can be adjusted by the user, as well as the unit price of improvement. 
-  type: gpc.DatasetNode
+  type: gpc.DatasetNode  # FIXME Add node where shares sum to 0 rather than 1.
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
+  input_dimensions: [efficiency_programme] #, energy_carrier] # FIXME
+  output_dimensions: [efficiency_programme] #, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: efficiency programme shares
+    gpc_sector: Assumed share of type of efficiency programme for lever
+
 
 - id: efficiency_improved_buildings
   name: Efficiency improved buildings
@@ -495,6 +497,7 @@ nodes:
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
+      categories: [electricity]  # FIXME
 
 - id: reduced_electricity_need
   name: Reduced electricity need
@@ -743,6 +746,19 @@ actions:
       - {year: 2023, source_amount: -35.0, dest_amounts: [100]} 
       - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
 
+- id: new_building_standard_shares
+  name: New building standard shares
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Share of new buildings built with high energy efficiency standards
+
 - id: new_building_shares_improvement
   name: New building shares improvement
   type: shift.ShiftAction
@@ -765,6 +781,71 @@ actions:
       - {year: 2023, source_amount: -30.0, dest_amounts: [100]} 
       - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
 
+- id: heating_technology_improvement
+  name: Heating technology improvement
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Heating technologies in 2030
+
+- id: heating_energy_improvement
+  name: Heating energy improvement
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type]
+  output_dimensions: [energy_carrier, heating_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Share of heating in 2030
+
+# - id: district_heating_waste_shares_2030
+#   name: District heating waste shares 2030
+#   type: gpc.DatasetAction  # Add category checking also to this class
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [fuel_type]
+#   output_dimensions: [fuel_type]
+#   input_datasets:
+#   - id: nzc/defaults
+#     forecast_from: 2023
+#   params:
+#     gpc_sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
+
+- id: heating_re_investment_fraction
+  name: Heating re-investment fraction
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
+
+- id: fossil_electricity_replacement_fraction
+  name: Fossil electriticy replacement fraction
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  # input_dimensions: [fuel_type, energy_carrier]
+  # output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Share of current fossil production replaced by renewables (or nuclear)
+
 - id: top_performance_improvement
   name: Top performance standard improvement compared with the regular new buildings
   type: simple.CumulativeAdditiveAction
@@ -774,9 +855,9 @@ actions:
   forecast_values: [[2023, 50]]
   output_nodes:
   - id: energy_use_intensity_change_new
-    to_dimensions:
-    - id: building_energy_class
-      categories: [new_top_performance]
+    # to_dimensions:
+    # - id: building_energy_class
+    #   categories: [new_top_performance]
 
 - id: electricity_need_reduction_minor
   name: 3.3 Electricity need reduction, minor improvement

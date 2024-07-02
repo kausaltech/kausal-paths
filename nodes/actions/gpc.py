@@ -26,7 +26,8 @@ class DatasetAction(ActionNode):
                'unit_price': 'Unit Price',
                'occupancy_factor': 'Occupancy Factor',
                'energy_factor': 'Energy Factor',
-               'fraction': 'Fraction'}
+               'fraction': 'Fraction',
+               'number': 'Amount'}
 
     # -----------------------------------------------------------------------------------
     def makeid(self, label: str):  # FIXME Move all makeid() functions to .calc.py.

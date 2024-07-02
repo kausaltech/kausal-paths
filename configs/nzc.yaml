@@ -158,6 +158,7 @@ dimensions:
   - id: cars
     label: Cars
     label_fi: Autot
+    aliases: ['']
   - id: buses
     label: Buses
     label_fi: Bussit
@@ -204,6 +205,7 @@ dimensions:
     label: Fossil
   - id: non_fossil
     label: Non-fossil
+    aliases: [nonfossil, non-fossil]
   - id: other
     label: Other (e.g. nuclear)
   - id: local_pv

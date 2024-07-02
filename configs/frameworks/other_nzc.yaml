@@ -40,6 +40,10 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: new_electricity_production_shares
+    to_dimensions:  # FIXME
+    - id: energy_carrier
+      categories: [electricity]
+    - id: fuel_type
 
 - id: effective_electricity_production_hours
   name: Effective electricity production hours
@@ -90,11 +94,11 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
+  input_dimensions: [fuel_type] #, energy_carrier]
+  output_dimensions: [fuel_type] #, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: new renewables shares
+    gpc_sector: Distribution of type of new renewables
 
 - id: electricity_production_shares_historical
   name_en: Electricity production shares historical
@@ -494,23 +498,6 @@ nodes:
     - id: cost_type
     - id: stakeholder
 
-- id: waste_treatment_2030
-  name: Waste treatment 2030
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [waste_type, waste_treatment]
-  output_dimensions: [waste_type, waste_treatment]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2030
-    filters:
-    - column: Year
-      value: 2030
-      drop_col: false
-  params:
-    sector: waste recycling shares 2030
-
 # --------------- Scope 3 ------------------
 
 - id: building_material_shares
@@ -649,6 +636,30 @@ nodes:
   params:
     sector: Average food Consumption per capita
 
+# ----------- AFOLU --------------
+
+- id: distribution_between_trees_in_grey_and_green_area
+  name: Distribution between trees in grey and green area
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [city_area, area_distance]
+  output_dimensions: [city_area, area_distance]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Distribution between trees in grey and green area
+
+- id: population_density_outside_city_compared_to_inside_city
+  name: Population density outside city compared to inside city
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [area_distance]
+  output_dimensions: [area_distance]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Population density outside city compared to inside city
+
 actions:
 
 - id: replace_fossil_electricity
@@ -694,3 +705,48 @@ actions:
 #   - id: waste_treatment_2030
 #   output_nodes:
 #   - id: waste_recycling_shares
+
+- id: waste_treatment_2030
+  name: Waste treatment 2030
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_type, waste_treatment]
+  output_dimensions: [waste_type, waste_treatment]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2030
+    # filters:
+    # - column: Year
+    #   value: 2030
+    #   drop_col: false
+  params:
+    gpc_sector: 5.1. Increased recycling of waste
+
+- id: tree_planting
+  name: Tree planting
+  type: gpc.DatasetAction
+  quantity: number
+  unit: pcs
+  input_dimensions: [area_distance]
+  output_dimensions: [area_distance]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2030
+    # filters:
+    # - column: Year
+    #   value: 2030
+    #   drop_col: false
+  params:
+    gpc_sector: Number of planted trees until 2030
+
+# --------------- AFOLU -----------------
+
+- id: reduced_co2_emissions_in_other_sectors
+  name: Reduced CO2 emissions in other sectors
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other sector
