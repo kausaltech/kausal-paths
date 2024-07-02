@@ -58,7 +58,11 @@ check_python_version() {
         fi
     else
         print_error "Python version does not meet the minimum requirement"
-    fi
+        echo -e "${BLUE}ℹ️ You can install the required Python version using:${NC}"
+        echo -e "${GREEN}   pyenv install $REQUIRED_VERSION${NC}"
+        echo -e "${BLUE}ℹ️ Then, update the Python version in your .envrc file.${NC}"
+        echo -e "${BLUE}ℹ️ And reload the environment:${NC}"
+        echo -e "${GREEN}   direnv allow${NC}"
 }
 
 check_package_versions() {
