@@ -1,4 +1,4 @@
-id: sunnydale
+id: sunnydale  # FIXME /graph gives errors, e.g. [district_heating_consumption <nodes.simple.Activity>] Metric has nans or nulls
 default_language: en
 supported_languages: [de, fi]  # FIXME instance_config.other_languages is [] for an unknown reason
 site_url: https://sunnydale.paths.kausal.tech

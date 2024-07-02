@@ -850,13 +850,19 @@ nodes:
   input_dimensions: [streetlight_type]
   output_dimensions: [streetlight_type]
   params:
-    sector: I.2.2
-    action: LED Streetlights
+  - id: sector
+    value: I.2.2
+  - id: action
+    value: LED Streetlights
+  # - id: multiplier  # FIXME Fix unit in dataset and then remove this parameter
+  #   value: 1
+  #   unit: a
   input_datasets:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
   - id: i22_streetlights
+    tags: [cumulative]  # FIXME Fix unit in dataset and then remove this row.
 
 - id: i22_annual_new_streetlights
   name: I.2.2 Annual New Streetlights
@@ -882,7 +888,7 @@ nodes:
   name: I.2.2 Streetlights
   type: simple.AdditiveNode
   quantity: number
-  unit: count/a
+  unit: count
   input_dimensions: [streetlight_type]
   output_dimensions: [streetlight_type]
   output_nodes:
@@ -925,13 +931,19 @@ nodes:
   input_dimensions: [streetlight_type, energy_carrier]
   output_dimensions: [streetlight_type, energy_carrier]
   params:
-    sector: I.2.2
-    action: LED Streetlights
+  - id: sector
+    value: I.2.2
+  - id: action
+    value: LED Streetlights
+  # - id: multiplier  # FIXME Fix unit in dataset and then remove this parameter
+  #   value: 1
+  #   unit: 1/a
   input_datasets:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
   - id: i22_streetlight_energy_consumption
+    tags: [difference]  # FIXME Fix unit in dataset and then remove this row.
 
 - id: i22_streetlight_energy_consumption
   name: I.2.2 Streetlight Energy Consumption
@@ -985,13 +997,19 @@ nodes:
   input_dimensions: [streetlight_type, cost_type]
   output_dimensions: [streetlight_type, cost_type]
   params:
-    sector: I.2.2
-    action: LED Streetlights
+  - id: sector
+    value: I.2.2
+  - id: action
+    value: LED Streetlights
+  # - id: multiplier  # FIXME Fix unit in dataset and then remove this parameter
+  #   value: 1
+  #   unit: 1/a
   input_datasets:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
   - id: i22_maintenance_costs
+    tags: [difference]  # FIXME Fix unit in dataset and then remove this row.
 
 - id: i22_maintenance_costs
   name: I.2.2 Maintenance Costs
@@ -1049,34 +1067,34 @@ nodes:
 
 actions:
 
-- id: i22_streetlight_replacement_action
-  name: I.2.2 Streetlight Replacement Action
-  type: gpc.StockReplacementAction
-  quantity: number
-  unit: count/a
-  input_dimensions: [streetlight_type] #, cost_type]
-  output_dimensions: [streetlight_type] #, cost_type]
-  params:
-    sector: I.2.2
-    action: LED Streetlights
-  input_datasets:
-  - id: gpc/tampere_detailed_actions
-    forecast_from: 2021
-  input_nodes:
-  - id: i22_baseline_streetlights
-    tags: [baseline]
-  - id: i22_annual_new_streetlights
-    tags: [new]
+# - id: i22_streetlight_replacement_action
+#   name: I.2.2 Streetlight Replacement Action
+#   type: gpc.StockReplacementAction
+#   quantity: number
+#   unit: count/a
+#   input_dimensions: [streetlight_type] #, cost_type]
+#   output_dimensions: [streetlight_type] #, cost_type]
+#   params:
+#     sector: I.2.2
+#     action: LED Streetlights
+#   input_datasets:
+#   - id: gpc/tampere_detailed_actions
+#     forecast_from: 2021
+#   input_nodes:
+#   - id: i22_baseline_streetlights
+#     tags: [baseline]
+#   - id: i22_annual_new_streetlights
+#     tags: [new]
 
-  # output_metrics:
-  # - id: currency
-  #   unit: [unit]
-  #   quantity: currency
-  # - id: number
-  #   unit: [unit]
-  #   quantity: number
-  output_nodes:
-  - id: i22_streetlights
+#   # output_metrics:
+#   # - id: currency
+#   #   unit: [unit]
+#   #   quantity: currency
+#   # - id: number
+#   #   unit: [unit]
+#   #   quantity: number
+#   output_nodes:
+#   - id: i22_streetlights
 
 
 
