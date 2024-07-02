@@ -25,3 +25,4 @@ db.sqlite3
 /notebooks/.virtual_documents
 /notebooks/nodes.txt
 /.mypy_cache/
+/bin
