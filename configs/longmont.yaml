@@ -1,7 +1,7 @@
 id: longmont
 default_language: en
-supported_languages: [es, fi]  # FIXME Can we avoid extra laguages from frameworks?
-frameworks: [health_air_pollution]
+supported_languages: [es]  # , fi]  # FIXME Can we avoid extra laguages from frameworks?
+# frameworks: [health_air_pollution]  # TODO Also commented out some code needed in health impact assessment.
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -343,7 +343,7 @@ dimensions:
   - id: fuel_oil
     label: Heating oil
   - id: import
-    label: European import
+    label: European import  # Many categories originally come from Zuerich. Should we clean up?
     aliases:
     - UCTE-Mix / ENTSO-E Mix
     - Nicht deklariert (UCTE)
@@ -419,7 +419,7 @@ dimensions:
   - id: improvement
     label: Relative improvement
 
-- id: pollutant
+- id: pollutant  # FIXME Only needed for health impact assessment
   label_fi: Saaste
   label_en: Pollutant
   aliases: [transport_pollutant]
@@ -487,7 +487,7 @@ dimensions:
     label_fi: NH3
     label_en: NH3
 
-- id: response
+- id: response  # FIXME Only needed for health impact assessment
   label_fi: Terveysvaikutus
   label_en: Response
   categories:
@@ -519,7 +519,7 @@ dimensions:
     label_fi: Infektio
     label_en: Infection
 
-- id: emission_height
+- id: emission_height  # FIXME Only needed for health impact assessment
   label_fi: Päästökorkeus
   label_en: Emission height
   categories:
@@ -536,7 +536,7 @@ dimensions:
     label_fi: Keskimääräinen
     label_en: Average
 
-- id: heating_type
+- id: heating_type  # FIXME Only needed for health impact assessment
   label: Heating type
   categories:
   - id: district_heating
@@ -1080,14 +1080,14 @@ nodes:
     to_dimensions:
     - id: emission_scope
       categories: [scope2]
-  - id: fossil_plant_air_pollution_emissions
-    tags: [non_additive]
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions: []
+  # - id: fossil_plant_air_pollution_emissions
+  #   tags: [non_additive]
+  #   from_dimensions:
+  #   - id: greenhouse_gases
+  #     flatten: true
+  #   - id: emission_sectors
+  #     flatten: true
+  #   to_dimensions: []
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
@@ -1371,12 +1371,12 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
-  - id: transport_air_pollution_emissions
-    tags: [non_additive]
-    from_dimensions:
-    - id: emission_scope
-      flatten: true
-    to_dimensions: []
+  # - id: transport_air_pollution_emissions
+  #   tags: [non_additive]
+  #   from_dimensions:
+  #   - id: emission_scope
+  #     flatten: true
+  #   to_dimensions: []
 
 - id: emission_factor_fuels
   name: Fuel emission factors for CO2

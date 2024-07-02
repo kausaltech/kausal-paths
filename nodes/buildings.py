@@ -3,17 +3,16 @@ from params.param import NumberParameter, StringParameter
 import polars as pl
 
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, TIME_INTERVAL
 from .node import Node
 from .exceptions import NodeError
 from nodes.actions.energy_saving import CfFloorAreaAction
 from nodes.simple import MultiplicativeNode, AdditiveNode, SimpleNode
+from .units import unit_registry
 
 
-class FloorAreaNode(MultiplicativeNode):
-    '''
-    Floor area node takes in actions and calculates the floor area impacted.
-    '''
+class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
+    explanation = 'Floor area node takes in actions and calculates the floor area impacted.'
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']  # FIXME Generalise and remove emission_sectors
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
@@ -51,7 +50,8 @@ class FloorAreaNode(MultiplicativeNode):
             .otherwise(pl.col(VALUE_COLUMN)).alias('floor_old')
             )
         df_bau = df_bau.with_columns((pl.col(VALUE_COLUMN) - pl.col('floor_old')).alias('floor_new'))
-        df_bau = df_bau.set_unit('floor_new', df_bau.get_unit('floor_old'))
+        # FIXME Bubblegum fix for wrong unit treatment in diff:
+        df_bau = df_bau.set_unit('floor_new', df_bau.get_unit('floor_old') * unit_registry(TIME_INTERVAL))
         df_bau = df_bau.diff('floor_new').with_columns(pl.col('floor_new').fill_null(0))
         df_bau = df_bau.drop(VALUE_COLUMN)
 
