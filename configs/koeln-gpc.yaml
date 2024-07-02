@@ -7,7 +7,7 @@ dataset_repo:
   commit: 2e2cf0999436d8d4247bca9434dbce4b34d3d1da
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
-name: Demonstration BASIC+ Greenhouse Gas Inventory
+name: Demonstration BASIC+ Treibhausgasinventar
 owner: Köln Stadt
 theme_identifier: de-koeln
 target_year: 2030
