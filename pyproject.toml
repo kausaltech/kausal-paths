@@ -4,7 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kausal-paths"
+requires-python = ">= 3.12"
 dynamic = ["version"]
+
+[tool.pip-tools]
 
 [tool.isort]
 atomic = true
@@ -29,7 +32,6 @@ line-length = 130
 [tool.ruff.lint.isort]
 split-on-trailing-comma = false
 required-imports = ["from __future__ import annotations"]
-
 
 [tool."pylint.MASTER"]
 load-plugins = "pylint_django"
@@ -78,7 +80,7 @@ module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
     "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
     "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environs.*",
-    "wagtail_modeladmin.*", "wagtail_color_panel.*",
+    "wagtail_color_panel.*",
 ]
 ignore_missing_imports = true
 
