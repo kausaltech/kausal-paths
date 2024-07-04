@@ -315,8 +315,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [transport_mode]  # FIXME energy_carrier
-  output_dimensions: [transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -329,8 +329,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [transport_mode] # , energy_carrier]
-  output_dimensions: [transport_mode] # , energy_carrier]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -358,12 +358,10 @@ nodes:
   - id: fully_electric_car_share
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]  # FIXME
     - id: transport_mode
   - id: fully_electric_bus_share
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]  # FIXME
     - id: transport_mode
   - id: fully_electric_train_share
     to_dimensions:
@@ -387,11 +385,8 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
   - id: vehicle_electricity_factor
-    from_dimensions:
-    - id: transport_mode
-      flatten: true  # FIXME
     to_dimensions:
-#    - id: transport_mode
+    - id: transport_mode
     - id: energy_carrier
   output_nodes:
   - id: total_electricity_consumption
@@ -718,8 +713,8 @@ nodes:
     from_dimensions:
     - id: energy_carrier  # FIXME Check that the costs are the same for electric buses
       flatten: true
-  #  - id: transport_mode  # FIXME
-  #    categories: [buses, trains]
+    - id: transport_mode
+      categories: [buses, trains]
     to_dimensions:
     - id: transport_mode
   - id: public_transport_operation_cost_shares
@@ -975,9 +970,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_nodes:
   - id: fully_electric_bus_share
     tags: [cumulative]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
 
 - id: utilisation_of_trucks
   name: Utilisation of trucks

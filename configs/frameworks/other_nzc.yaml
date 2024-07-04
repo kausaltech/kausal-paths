@@ -40,9 +40,8 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: new_electricity_production_shares
-    to_dimensions:  # FIXME
+    to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
     - id: fuel_type
 
 - id: effective_electricity_production_hours
@@ -94,8 +93,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [fuel_type] #, energy_carrier]
-  output_dimensions: [fuel_type] #, energy_carrier]
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
     gpc_sector: Distribution of type of new renewables
@@ -128,7 +127,7 @@ nodes:
   name: Solar electricity produced by solar PV area
   type: gpc.DatasetNode
   quantity: energy_factor
-  unit: kWh/m**2  # FIXME /a
+  unit: kWh/m**2/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets: [nzc/defaults]
@@ -243,7 +242,6 @@ nodes:
   - id: electricity_cost_shares
     from_dimensions:
     - id: cost_type
-      flatten: true  # FIXME Update data to match also capex
     to_dimensions:
     - id: stakeholder
   output_nodes:
@@ -302,9 +300,6 @@ nodes:
     sector: waste emission factor
   output_nodes:
   - id: waste_emissions
-    # from_dimensions:
-    # - id: waste_type
-    #   flatten: true
 
 - id: waste_emissions
   name: Waste emissions
@@ -516,8 +511,6 @@ nodes:
   type: gpc.DatasetNode
   quantity: mass
   unit: t/m**2
-#  input_dimensions: [material]
-#  output_dimensions: [material]
   input_datasets: [nzc/defaults]
   params:
     sector: Tonnes material used in for new buildings (2010)
@@ -529,8 +522,6 @@ nodes:
   unit: dimensionless
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
-#   input_dimensions: [efficiency_programme]
-#   output_dimensions: [efficiency_programme]
   input_datasets: [nzc/defaults]
   params:
     sector: Tonnes material used for renovations
@@ -542,25 +533,16 @@ nodes:
   unit: t/m**2  # FIXME Make sure units make sense
   input_dimensions: [building_energy_class, material]
   output_dimensions: [building_energy_class, material]
-#   input_dimensions: [efficiency_programme]
-#   output_dimensions: [efficiency_programme]
   input_nodes:
   - id: building_materials_used_in_new_buildings
     tags: [non_additive]
     to_dimensions: []
-#    - id: material
   - id: building_renovation_material_ratios
     to_dimensions:
     - id: building_energy_class
   - id: building_material_shares
     to_dimensions:
     - id: material
-#    from_dimensions:
-#    - id: building_energy_class
-#      flatten: true
-#    to_dimensions:
-#    - id: efficiency_programme
-#      categories: [aggressive_improvements]
 
 - id: building_material_emission_factor
   name: Building material emission factor
@@ -605,8 +587,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [material] #, efficiency_programme]
-  output_dimensions: [material] #, efficiency_programme]
+  input_dimensions: [material]
+  output_dimensions: [material]
   input_nodes:
   - id: building_renovation_material_use
     from_dimensions:
