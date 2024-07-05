@@ -92,3 +92,9 @@ django_settings_module = "paths.settings"
 
 [tool.setuptools]
 include-package-data = false
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+optional-dependencies.dev = { file = ["requirements-dev.txt", "requirements-lint.txt"] }
+optional-dependencies.lint = { file = ["requirements-lint.txt"] }
+optional-dependencies.prod = { file = ["requirements-prod.txt"] }
