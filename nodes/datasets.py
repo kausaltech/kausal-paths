@@ -136,9 +136,13 @@ class DVCDataset(Dataset):
             for d in self.filters:
                 if 'column' in d:
                     col = d['column']
-                    val = d['value']  # FIXME Could be a list of values
+                    val = d.get('value', None)
+                    vals = d.get('values', [])
                     drop = d.get('drop_col', True)
-                    df = df.filter(pl.col(col) == val)
+                    if vals:
+                        df = df.filter(pl.col(col).is_in(vals))
+                    else:
+                        df = df.filter(pl.col(col) == val)
                     if drop:
                         df = df.drop(col)
                 elif 'dimension' in d:
