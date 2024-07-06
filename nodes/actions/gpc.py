@@ -10,6 +10,7 @@ from nodes.gpc import DatasetNode
 from nodes.processors import LinearInterpolation
 from nodes.units import unit_registry
 from common import polars as ppl
+from nodes.exceptions import NodeError
 
 
 class DatasetAction2(ActionNode, DatasetNode):
@@ -570,7 +571,7 @@ class StockReplacementAction(ActionNode):
 
 
 class SCurveAction(DatasetAction2):
-    explanation = "Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve, and x0 is the midpoint."
+    explanation = "This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint."
     allowed_parameters = DatasetAction2.allowed_parameters
 
     no_effect_value = 0.0
@@ -590,35 +591,47 @@ class SCurveAction(DatasetAction2):
     
         return df
 
+    # Extend the value on the selected row (based on year column) to the whole selected column
+    def extend_value_to_whole_column(self, df: ppl.PathsDataFrame, col: str, row) -> ppl.PathsDataFrame:
+        df = df.paths.to_wide()
+        cols = [co for co in df.columns if col + '@' in co]
+        expr = [pl.col(col).where(pl.col(YEAR_COLUMN).eq(row)) for col in cols]
+        df = df.with_columns(expr)
+        df = df.paths.to_narrow()
+        return df
+
     def compute_effect(self) -> ppl.PathsDataFrame:
         BASE_YEAR = 2018.0
 
-        bg_df = self.get_input_node(tag='background').get_output_pl(target_node=self)
-        meta = bg_df.get_meta()
+        df = self.get_input_node().get_output_pl(target_node=self)
 
-        year_df = self.get_input_node(tag='year').get_output_pl(target_node=self)
-        year_df = year_df.filter(pl.col(YEAR_COLUMN).eq(self.get_end_year()))
+        params = self.get_gpc_dataset()
+        params = self.drop_unnecessary_levels(params, droplist=['Sector', 'Quantity'])
+        params = self.rename_dimensions(params)
+        params = self.convert_names_to_ids(params)
+        params = self.implement_unit_col(params)
+        params = ppl.from_pandas(params)
+        params = self.apply_multiplier(params, required=False, units=True)
+        row = params[YEAR_COLUMN].unique()
+        if len(row) != 1:
+            raise NodeError(self, 'All parameter values must be at the same year.')
+        row = row[0]
 
-        bg_df = bg_df.paths.join_over_index(year_df).rename({VALUE_COLUMN + '_right': 'maxyear'})
-        bg_df = bg_df.with_columns(pl.col('maxyear').max().alias('maxyear'))
-
-        df = self.get_gpc_dataset()
-        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
-        df = self.rename_dimensions(df)
-        df = self.convert_names_to_ids(df)
-        df = self.implement_unit_col(df)
-        df = self.add_missing_years(df)
-        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
-        df = self.apply_multiplier(df, required=False, units=True)
-        df = bg_df.paths.join_over_index(df).rename({VALUE_COLUMN + '_right': 'A'})
-        df = df.with_columns((pl.col('A').max().alias('A')))
+        impact = params.filter(pl.col('parameter').eq('max_impact')).drop('parameter')
+        df = df.paths.join_over_index(impact).rename({VALUE_COLUMN + '_right': 'A'})
+        df = self.extend_value_to_whole_column(df, 'A', row)
         df = df.ensure_unit('A', df.get_unit(VALUE_COLUMN))
 
-        df = df.with_columns(
-            (pl.col(YEAR_COLUMN) - (pl.lit(BASE_YEAR) + (pl.col('maxyear') - pl.lit(BASE_YEAR)) / 2)).alias('x'))
+        year = params.filter(pl.col('parameter').eq('max_year')).drop('parameter')
+        df = df.paths.join_over_index(year).rename({VALUE_COLUMN + '_right': 'maxyear'})
+        df = self.extend_value_to_whole_column(df, 'maxyear', row)
+
+        df = df.with_columns((
+            pl.col(YEAR_COLUMN) - (pl.lit(BASE_YEAR) +
+            (pl.col('maxyear') - pl.lit(BASE_YEAR)) / 2)).alias('x'))
         df = df.with_columns((pl.col('A') / (
-                pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
-                ).alias('out'))
+            pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
+            ).alias('out'))
         df = df.set_unit('out', df.get_unit('A'))
         df = df.sum_cols([VALUE_COLUMN, 'out'], 'out')
         df = df.with_columns(
