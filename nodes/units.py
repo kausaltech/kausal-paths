@@ -109,6 +109,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     passenger = [passenger] = p = pass = trip
     vkm = vehicle * kilometer
     pkm = passenger * kilometer
+    tkm = tonne * kilometer
     VMT = vehicle * mile
     @alias vkm = vkt = v_km
     @alias pkm = pkt = p_km

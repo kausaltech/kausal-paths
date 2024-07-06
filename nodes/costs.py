@@ -56,7 +56,7 @@ class SelectiveNode(AdditiveNode):
 
 
 class ExponentialNode(AdditiveNode):
-    '''
+    explanation = ''' This is Exponential Node.
     Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
     Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.
     Optionally, touches also historical values.
@@ -108,14 +108,14 @@ class ExponentialNode(AdditiveNode):
             df = ppl.to_ppdf(df, meta=meta)
 
         else:
-            df = super().compute()
+            df = super().compute()  # FIXME Use AdditiveNode.compute instead
 
-            if self.get_parameter_value('inventory_only', required=False):
+            if self.get_parameter_value('inventory_only', required=False):  # FIXME use edge procesess instead
                 df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
             else:
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 
-            current_year = self.get_last_historical_year()
+            current_year = df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max()
             if current_year is None:
                 current_year = df[YEAR_COLUMN].min() - 1
 
@@ -276,4 +276,53 @@ class EnergyCostNode(AdditiveNode):
         df = df.with_columns([
             (pl.col(VALUE_COLUMN) + add_expr).alias(VALUE_COLUMN)
         ])
+        return df
+
+
+class DilutionNode(SimpleNode):
+    explanation = '''
+    This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)
+    '''
+
+    def compute(self)-> ppl.PathsDataFrame:
+        existing = self.get_input_node(tag='existing')
+        incoming = self.get_input_node(tag='incoming')
+        removing = self.get_input_node(tag='removing')
+        inserting = self.get_input_node(tag='inserting')
+
+        df_e = existing.get_output_pl(target_node=self)
+        df_c = incoming.get_output_pl(target_node=self)
+        df_r = removing.get_output_pl(target_node=self)
+        df_n = inserting.get_output_pl(target_node=self)
+
+        df = df_e.paths.join_over_index(df_c).rename({VALUE_COLUMN + '_right': 'incoming'})
+        df = df.paths.join_over_index(df_r).rename({VALUE_COLUMN + '_right': 'removing'})
+        df = df.paths.join_over_index(df_n).rename({VALUE_COLUMN + '_right': 'inserting'})
+        df = df.drop_nulls()
+
+        df = df.ensure_unit('removing', '1/a')
+        df = df.ensure_unit('inserting', '1/a')
+
+        df = df.paths.to_wide()
+        dims = list(set([s.split('@')[1] for s in df.metric_cols]))
+        years = range(df[YEAR_COLUMN].max() + 1, self.get_end_year() + 1)
+
+        for year in years:
+            out = df.filter(pl.col(YEAR_COLUMN).eq(year - 1))
+            out = out.with_columns([
+                pl.lit(year).cast(pl.Int64).alias(YEAR_COLUMN),
+                pl.lit(True).alias(FORECAST_COLUMN),
+            ])
+
+            for dim in dims:
+                dim = '@' + dim
+                out = out.with_columns([
+                    (pl.col(VALUE_COLUMN + dim) * (pl.lit(1.0) - pl.col('removing' + dim))
+                        + pl.col('incoming' + dim) * pl.col('inserting' + dim)
+                        ).alias(VALUE_COLUMN + dim)
+                ])
+
+            df = df.paths.concat_vertical(out)
+        df = df.paths.to_narrow().drop(['incoming', 'removing', 'inserting'])
+
         return df
