@@ -2,11 +2,46 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from params import StringParameter
-from nodes.calc import extend_last_historical_value
+from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
 from nodes.dimensions import Dimension
 from nodes.actions import ActionNode
+from nodes.gpc import DatasetNode
+from nodes.processors import LinearInterpolation
+from nodes.units import unit_registry
 from common import polars as ppl
+
+
+class DatasetAction2(ActionNode, DatasetNode):
+    allowed_parameters = ActionNode.allowed_parameters + DatasetNode.allowed_parameters
+
+    no_effect_value = 0.0
+
+    # A copy of LinearInterpolation processor. What is a good location for this?
+    def linear_interpolation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        years = df[YEAR_COLUMN].unique().sort()
+        min_year = years.min()
+        assert isinstance(min_year, int)
+        max_year = years.max()
+        assert isinstance(max_year, int)
+        df = df.paths.to_wide()
+        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
+        meta = df.get_meta()
+        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        cols = [pl.col(col).interpolate() for col in df.metric_cols]
+        df = df.with_columns(cols)
+        df = df.paths.to_narrow()
+        return df
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        df = DatasetNode.compute(self)
+        df = self.linear_interpolation(df)
+
+        if not self.is_enabled():
+            df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
+
+        return df
 
 
 class DatasetAction(ActionNode):
@@ -532,3 +567,67 @@ class StockReplacementAction(ActionNode):
 #                    baseline[key].extend(type_frame[key])
 #            else:
 #                baseline = type_frame
+
+
+class SCurveAction(DatasetAction2):
+    explanation = "Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve, and x0 is the midpoint."
+    allowed_parameters = DatasetAction2.allowed_parameters
+
+    no_effect_value = 0.0
+
+    def create_empty_df_pl(self) -> ppl.PathsDataFrame:
+        min_year = self.context.instance.minimum_historical_year
+        max_year = self.get_end_year()
+        df = pl.DataFrame(
+            data={YEAR_COLUMN: range(min_year, max_year + 1)},
+            schema={YEAR_COLUMN: pl.Int64})
+        expr = [pl.lit(False).alias(FORECAST_COLUMN), pl.lit(0.0).alias(VALUE_COLUMN)]
+        df = df.with_columns(expr)
+        meta = ppl.DataFrameMeta(
+            units={VALUE_COLUMN: unit_registry('dimensionless')},
+            primary_keys=[YEAR_COLUMN])
+        df = ppl.to_ppdf(df, meta=meta)
+    
+        return df
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        BASE_YEAR = 2018.0
+
+        bg_df = self.get_input_node(tag='background').get_output_pl(target_node=self)
+        meta = bg_df.get_meta()
+
+        year_df = self.get_input_node(tag='year').get_output_pl(target_node=self)
+        year_df = year_df.filter(pl.col(YEAR_COLUMN).eq(self.get_end_year()))
+
+        bg_df = bg_df.paths.join_over_index(year_df).rename({VALUE_COLUMN + '_right': 'maxyear'})
+        bg_df = bg_df.with_columns(pl.col('maxyear').max().alias('maxyear'))
+
+        df = self.get_gpc_dataset()
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.rename_dimensions(df)
+        df = self.convert_names_to_ids(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        df = self.apply_multiplier(df, required=False, units=True)
+        df = bg_df.paths.join_over_index(df).rename({VALUE_COLUMN + '_right': 'A'})
+        df = df.with_columns((pl.col('A').max().alias('A')))
+        df = df.ensure_unit('A', df.get_unit(VALUE_COLUMN))
+
+        df = df.with_columns(
+            (pl.col(YEAR_COLUMN) - (pl.lit(BASE_YEAR) + (pl.col('maxyear') - pl.lit(BASE_YEAR)) / 2)).alias('x'))
+        df = df.with_columns((pl.col('A') / (
+                pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
+                ).alias('out'))
+        df = df.set_unit('out', df.get_unit('A'))
+        df = df.sum_cols([VALUE_COLUMN, 'out'], 'out')
+        df = df.with_columns(
+            pl.min_horizontal(['out', 'A']).alias('out')
+        )
+        df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
+        df = df.drop(['maxyear', 'A', 'x', 'out'])
+
+        if not self.is_enabled():
+            df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df

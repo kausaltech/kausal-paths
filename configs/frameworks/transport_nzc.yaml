@@ -309,6 +309,19 @@ nodes:
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
 
+- id: fully_electric_car_share_pre
+  name: Fully electric car share historic
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
 - id: fully_electric_car_share
   name: Fully electric car share
   description: Share of car fleet fully electric (not including hybrids)
@@ -385,8 +398,11 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
   - id: vehicle_electricity_factor
-    to_dimensions:
+    from_dimensions:
     - id: transport_mode
+      flatten: true  # FIXME Should match vehicle km
+    to_dimensions:
+    # - id: transport_mode
     - id: energy_carrier
   output_nodes:
   - id: total_electricity_consumption
@@ -867,6 +883,31 @@ nodes:
   params:
     gpc_sector: At what year can we expect the city to reach the maximum value specified above?
 
+- id: relative_transport_efficiency
+  name: Relative transport efficiency
+  type: gpc.DatasetNode
+  quantity: fraction # ratio
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: transport_efficiency
+    tags: [non_additive]
+  params:
+    sector: motorised transport index  # FIXME relative transport efficiency
+
+- id: year_when_maximum_reached
+  name: Year when maximum reached
+  type: gpc.DatasetNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: At what year can we expect the city to reach the maximum value specified above?
+
 actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
 
 - id: reduce_all_motorised_transport
@@ -919,23 +960,22 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 - id: car_pooling
   name: Car pooling
   description: How many % increase there is in the average number of people in a car.
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   group: transport
   input_datasets: [nzc/defaults]
-  # output_nodes:
-  # - id: transport_efficiency
-  #   tags: [non_additive, arithmetic_inverse, complement]
-  #   to_dimensions:
-  #   - id: transport_mode
-  #     categories: [cars]
+  output_nodes:
+  - id: relative_transport_efficiency
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
   params:
     gpc_sector: 1.3 Car pooling
 
-- id: electrification_of_passenger_cars  # FIXME Build a new node type for S-curve development.
+- id: electrification_of_passenger_cars
   name: Electrification of passenger cars
-  type: gpc.DatasetAction
+  type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
   group: transport
@@ -946,13 +986,20 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
     forecast_from: 2023
   params:
     gpc_sector: 1.4.1 Electrification of passenger cars + motorcycles
-  # output_nodes:
-  # - id: fully_electric_car_share
-  #   from_dimensions:
-  #   - id: energy_carrier  # FIXME
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: transport_mode
+  input_nodes:
+  - id: year_when_maximum_reached
+    tags: ['year']
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+    to_dimensions:  # FIXME
+    - id: transport_mode
+    # - id: energy_carrier
+    #   categories: [electricity]
+  - id: fully_electric_car_share_pre
+    tags: ['background']
+  output_nodes:
+  - id: fully_electric_car_share
 
 - id: electrification_of_buses
   name: Electrification of buses

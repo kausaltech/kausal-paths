@@ -168,7 +168,7 @@ class DatasetNode(AdditiveNode):
             mult = na_nodes[0].get_output_pl(target_node = self)
             df = df.paths.join_over_index(mult, how = 'outer', index_from='union')
 
-            df = (df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+            df = (df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)  # FIXME Does not treat missing categories well
                   .drop(VALUE_COLUMN + '_right'))
         return df
 
