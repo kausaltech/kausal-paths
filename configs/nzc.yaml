@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9a832257309edd3b2a3ddc3e2d6b938d328f792e
+  commit: ce84397a9fe7794a10152858c3ab460829d9f36c
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -379,21 +379,38 @@ dimensions:
   - id: utilities
     label: Utilities
 
+- id: parameter
+  label: Parameter
+  categories:
+  - id: max_impact
+    label: Maximum impact
+  - id: max_year
+    label: Year to reach maximum impact
+
 emission_sectors:
 - id: net_emissions
   name: Net emissions
   is_outcome: true
 
 nodes:
+- id: population_baseline
+  name: Population baseline
+  type: gpc.DatasetNode
+  quantity: population
+  unit: cap
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Population
+
 - id: population
   name: Population
   type: costs.ExponentialNode
   quantity: population
   unit: cap
-  historical_values: [[2020, 820000]]
+  input_nodes: [population_baseline]
   params:
   - id: annual_change
-    ref: population_growth_rate
+    ref: population_growth_rate  # FIXME This should come from dataset
 
 - id: total_electricity_consumption
   name: Total electricity consumption

@@ -152,23 +152,21 @@ nodes:
     - id: transport_pollutant
     - id: energy_carrier
 
-- id: remaining_old_fleet
-  name: Remaining old fleet
-  type: costs.ExponentialNode
-  description: The fraction of remaining car and bus fleet that existed in 2018. TODO Should this be made an action?
+- id: old_fleet_removal
+  name: Old fleet removal
+  type: gpc.DatasetNode
+  description: The fraction of current car and bus fleet that is removed each year from the fleet.
   quantity: fraction
-  unit: '%'
-  historical_values: [[2018, 100.0]]
+  unit: '%/a'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
   params:
-  - id: annual_change
-    value: 5
-    unit: '%'
-    min_value: 0
-    max_value: 10
-    is_customizable: true
-    is_visible: true
-  - id: is_decreasing_rate
-    value: true
+  - id: sector
+    value: Share of fleet that is less than 2 years old
+  - id: multiplier
+    value: 0.5
+    unit: 1/a
 
 - id: fleet_replacement_rate
   name: Fleet replacement rate
@@ -186,47 +184,29 @@ nodes:
     value: 0.5
     unit: dimensionless
 
-- id: new_fleet_fraction
-  name: New fleet fraction
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_nodes:
-  - id: remaining_old_fleet
-    tags: [complement]
-
 - id: fleet_emission_factor
   name: Fleet emission factor
-  description: Emission factor for the current car and bus fleet. TODO Note that the calculation is not identical to what is in NZC excel, because replicating that requires a new node type that will be build later. See New fleet emission factor for details.
-  type: formula.FormulaNode
+  description: Emission factor for the current car and bus fleet.
+  type: costs.DilutionNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_mode, energy_carrier]
   output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: baseline_year_fleet_emission_factor
+    tags: [inventory_only, existing]
     from_dimensions:
     - id: transport_pollutant
       flatten: true
-    to_dimensions:
-    - id: pollutant
-    - id: transport_mode
-    - id: energy_carrier
   - id: new_fleet_emission_factor
+    tags: [incoming]
     from_dimensions:
     - id: transport_pollutant
       flatten: true
+  - id: old_fleet_removal
+    tags: [removing, inserting]
     to_dimensions:
-    - id: pollutant
     - id: transport_mode
-    - id: energy_carrier
-  - id: remaining_old_fleet
-    to_dimensions: []
-  - id: new_fleet_fraction
-    to_dimensions: []
-  params:
-  - id: formula
-    value: baseline_year_fleet_emission_factor * remaining_old_fleet + new_fleet_emission_factor * new_fleet_fraction
 
 - id: vehicle_electricity_factor
   name: Vehicle electricity factor
@@ -309,8 +289,8 @@ nodes:
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
 
-- id: fully_electric_car_share_pre
-  name: Fully electric car share historic
+- id: fully_electric_vehicle_share
+  name: Fully electric vehicle share historic
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -319,6 +299,23 @@ nodes:
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: fully_electric_truck_share
+  name: Fully electric truck share
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+    filters:
+    - column: Transport mode
+      values: [light_trucks, heavy_trucks]
+      drop_col: false
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
@@ -481,6 +478,100 @@ nodes:
   output_nodes:
   - id: passenger_kilometres
     tags: [complement]
+
+# ---------------- Freight transport -------------
+
+- id: freight_transport_need_baseline
+  name: Freight transport need baseline
+  type: gpc.DatasetNode
+  quantity: freight_quantity
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: Total transportation need within city - Road freight transport
+  - id: multiplier
+    value: 1
+    unit: 1/a
+
+- id: freight_transport_need
+  name: Freight transport need
+  type: simple.MultiplicativeNode
+  quantity: freight_quantity
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: freight_transport_need_baseline
+    tags: [non_additive]
+  - id: population
+    tags: [ratio_to_last_historical_value]
+    to_dimensions: []
+
+- id: average_truck_utilisation
+  name: Average truck utilisation
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Average utilisation
+
+# - id: truck_max_load_weight
+#   name: Truck max load _weight
+#   type: gpc.DatasetNode
+#   quantity: mass
+#   unit: tkm/vkm
+#   input_dimensions: [transport_mode]
+#   output_dimensions: [transport_mode]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Max load weight
+
+- id: truck_max_load_weight
+  name: Truck max load _weight
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: tkm/vkm
+  historical_values: [[2018, 1.5], [2023, 1.5]]
+
+- id: freight_transport_vehicle_kilometres
+  name: Freight transport vehicle kilometres
+  type: simple.MultiplicativeNode
+  quantity: freight_quantity
+  unit: Mvkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: freight_transport_need
+    tags: [non_additive]
+  - id: average_truck_utilisation
+    tags: [geometric_inverse]
+  - id: truck_max_load_weight
+    tags: [geometric_inverse]
+    to_dimensions: []
+
+- id: number_of_trucks_registered_within_city
+  name: Number of trucks registered within city
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Number of trucks registered within city
+
+
+# ---------------- Transport costs ---------------
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
@@ -871,22 +962,10 @@ nodes:
   - id: passenger_kilometres_pre
     tags: activity
 
-- id: electrification_of_vehicles_year
-  name: Electrification of vehicles year
-  type: gpc.DatasetNode
-  quantity: number
-  unit: dimensionless
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    gpc_sector: At what year can we expect the city to reach the maximum value specified above?
-
 - id: relative_transport_efficiency
   name: Relative transport efficiency
   type: gpc.DatasetNode
-  quantity: fraction # ratio
+  quantity: ratio
   unit: '%'
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
@@ -895,18 +974,7 @@ nodes:
   - id: transport_efficiency
     tags: [non_additive]
   params:
-    sector: motorised transport index  # FIXME relative transport efficiency
-
-- id: year_when_maximum_reached
-  name: Year when maximum reached
-  type: gpc.DatasetNode
-  quantity: number
-  unit: dimensionless
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: At what year can we expect the city to reach the maximum value specified above?
+    sector: relative transport efficiency
 
 actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
 
@@ -964,12 +1032,13 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   quantity: fraction
   unit: '%'
   group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
   output_nodes:
   - id: relative_transport_efficiency
     to_dimensions:
     - id: transport_mode
-      categories: [cars]
   params:
     gpc_sector: 1.3 Car pooling
 
@@ -985,19 +1054,12 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: 1.4.1 Electrification of passenger cars + motorcycles
+    gpc_sector: Electrification of transport fleet
   input_nodes:
-  - id: year_when_maximum_reached
-    tags: ['year']
+  - id: fully_electric_vehicle_share
     from_dimensions:
     - id: transport_mode
       categories: [cars]
-    to_dimensions:  # FIXME
-    - id: transport_mode
-    # - id: energy_carrier
-    #   categories: [electricity]
-  - id: fully_electric_car_share_pre
-    tags: ['background']
   output_nodes:
   - id: fully_electric_car_share
 
@@ -1046,15 +1108,21 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 
 - id: truck_fleet_electrification
   name: Truck fleet electrification
-  type: gpc.DatasetAction
+  type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
   group: transport
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: What is the maximum share of the truck fleet that can be electrified?
-
+    gpc_sector: Electrification of transport fleet
+  input_nodes:
+  - id: fully_electric_vehicle_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks, heavy_trucks]
+  output_nodes:
+  - id: fully_electric_truck_share
