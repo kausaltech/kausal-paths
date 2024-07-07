@@ -286,8 +286,13 @@ def add_unit_translations():
     _babel_units['percent'] = 'concentr-percent'
     set_one('capita', _('capita'), short=pgettext_lazy('capita short', 'cap'))
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
-    set_one('kt', pgettext_lazy('kilotonne short', 'kt'))
-    set_one('a', pgettext_lazy('year short', 'yr.'))
+    kt_str = pgettext_lazy('kilotonne short', 'kt')
+    set_one('kt', kt_str, kt_str)
+
+    loc = Loc('de')
+    loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
+
+    #set_one('a', pgettext_lazy('year short', 'yr.'))
     #set_one('percent', pgettext_lazy('percent', 'percent'))
     #set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
     #set_one('%', '%')

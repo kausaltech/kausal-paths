@@ -28,7 +28,7 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
         formatter = unit_registry.pretty_formatter  # type: ignore
     #fmt = 'Zh' if html else 'Zp'
     f = formatter.format_unit(
-        unit, uspec='Z', sort_func=None, use_plural=False, length='long' if long else 'narrow', locale=locale
+        unit, uspec='Z', sort_func=None, use_plural=not long, length='long' if long else 'short', locale=locale
     )
     if not long:
         if f == 't/a/cap':
