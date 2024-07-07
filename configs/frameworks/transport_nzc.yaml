@@ -1065,6 +1065,7 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 
 - id: electrification_of_buses
   name: Electrification of buses
+  description: Fraction of buses that is replaced with electric buses each year.
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%/a'
@@ -1085,7 +1086,7 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
-  group: transport
+  group: freight_transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
@@ -1099,7 +1100,7 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
-  group: transport
+  group: freight_transport
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -1111,7 +1112,7 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
-  group: transport
+  group: freight_transport
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:

@@ -44,8 +44,8 @@ action_groups:
 - id: transport
   name: Transport
   color: '#93c572'
-- id: freight
-  name: Freight
+- id: freight_transport
+  name: Freight transport
 - id: buildings
   name: Buildings
   color: '#32cd32'
@@ -240,8 +240,8 @@ dimensions:
 - id: waste_treatment
   label: Waste treatment
   categories:
-  - id: other
-    label: Other waste management
+  # - id: other
+  #   label: Other waste management
   - id: incinerated
     label: Incinerated (e.g. energy recovery)
   - id: recycled
@@ -254,6 +254,7 @@ dimensions:
     label: Plastic sorting
   - id: landfill
     label: Landfill
+    aliases: [other, Other waste management]
   - id: landfill_gas
     label: Landfill gas
   - id: composting
@@ -386,6 +387,10 @@ dimensions:
     label: Maximum impact
   - id: max_year
     label: Year to reach maximum impact
+  - id: baseline_scenario
+    label: Baseline scenario
+  - id: decarbonisation_scenario
+    label: Decarbonisation scenario
 
 emission_sectors:
 - id: net_emissions
@@ -553,11 +558,17 @@ pages:
     href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual
     for cities</a> to guide through the climate budgeting process.
 
-scenarios:
+scenarios:  # FIXME Add the three scenarios
 - id: baseline
   name: Business as Usual
+  params:
+  - id: waste_recycling_shares_2030.slice_category_at_edge
+    value: waste_type:paper
 
 - id: default
   default: true
   name: Climate Action Plan
   all_actions_enabled: true
+  params:
+  - id: waste_recycling_shares_2030.slice_category_at_edge
+    value: waste_type:plastics

@@ -263,13 +263,43 @@ nodes:
   params:
     sector: Total collected waste within city boundaries by type
 
+- id: waste_recycling_shares_historical
+  name: Waste recycling shares historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share recycling/incineration/landfill
+
+- id: waste_recycling_shares_2030
+  name: Waste recycling shares 2030
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2030
+    filters:
+    - column: Year
+      value: 2030
+      drop_col: false
+  params:
+    gpc_sector: 5.1. Increased recycling of waste
+    # slice_category_at_edge: 'parameter:decarbonisaton_scenario'
+    slice_category_at_edge: 'waste_type:paper'
+
 - id: waste_recycling_shares
   name: Waste recycling shares
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
-  input_dimensions: [waste_type, waste_treatment]
-  output_dimensions: [waste_type, waste_treatment]
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
   input_datasets: [nzc/defaults]
   params:
     sector: Share recycling/incineration/landfill
@@ -290,6 +320,7 @@ nodes:
 
 - id: waste_emission_factor
   name: Waste emission factor
+  description: OK. But has mixed waste also, although does not come from the same place as the others.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/t
@@ -303,17 +334,15 @@ nodes:
 
 - id: waste_emissions
   name: Waste emissions
+  description: TODO Check that other waste emissions in 2030 after decarbonising scenario are 15 kt/a.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [waste_treatment, waste_type, pollutant]
-  output_dimensions: [waste_treatment, waste_type, pollutant]
+  input_dimensions: [waste_type, waste_treatment, pollutant]
+  output_dimensions: [waste_type, waste_treatment, pollutant]
   input_nodes:
   - id: waste_recycled
     tags: [non_additive]
-    from_dimensions:
-    - id: waste_treatment
-      categories: [incinerated, landfill]
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
@@ -344,17 +373,33 @@ nodes:
   params:
     sector: Emission factors from waste management
   output_nodes:
-  - id: waste_incineration_emissions
+  - id: waste_incineration_air_pollution_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [nox, pm25_combustion, pm10_combustion]
     to_dimensions:
     - id: pollutant
     - id: waste_treatment
     - id: energy_carrier
+  - id: waste_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    - id: energy_carrier
+      flatten: true
+    - id: waste_treatment
+      categories: [incinerated]
+    to_dimensions:
+    - id: pollutant
+    - id: waste_treatment
+    - id: waste_type
+      categories: [other_waste]
 
-- id: waste_incineration_emissions
-  name: Waste incineration emissions
+- id: waste_incineration_air_pollution_emissions
+  name: Waste incineration air pollution emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
   output_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
   input_nodes:
@@ -366,15 +411,30 @@ nodes:
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
-  output_nodes:
-  - id: waste_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: pollutant
-    - id: waste_treatment
-    - id: waste_type
+  # output_nodes:
+  # - id: waste_emissions
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: pollutant
+  #   - id: waste_treatment
+  #   - id: waste_type
+
+- id: waste_air_pollution_unit_price
+  name: Waste air pollution unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [pollutant, cost_type]
+  output_dimensions: [pollutant, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: transport air pollution unit price  # FIXME Air pollution unit price
+    # filters:
+    # - column: Area distance
+    #   value: outside
 
 - id: recycled_waste_unit_price
   name: Recycled waste unit price
@@ -484,11 +544,60 @@ nodes:
     to_dimensions:
     - id: stakeholder
     - id: cost_type
-  output_nodes:
-  - id: total_cost
+
+- id: waste_air_pollution_cost
+  name: Waste air pollution cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, waste_treatment]
+  output_dimensions: [stakeholder, cost_type, waste_treatment]
+  input_nodes:
+  - id: waste_incineration_air_pollution_emissions
+    from_dimensions:
+    - id: waste_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: waste_treatment
+  - id: transport_air_pollution_unit_price
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: transport_air_pollution_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: waste_cost_by_stakeholder
+  name: Waste cost by stakeholder
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: waste_air_pollution_cost
     from_dimensions:
     - id: waste_treatment
       flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: waste_management_cost_by_stakeholder
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: total_cost
     to_dimensions:
     - id: cost_type
     - id: stakeholder
@@ -676,40 +785,33 @@ actions:
       - {year: 2030, source_amount: -14.0, dest_amounts: [100]} 
       - {year: 2031, source_amount: 0.0, dest_amounts: [100]} 
 
-# - id: increase_waste_recycling
-#   name: Increase waste recycling
-#   type: linear.DatasetReduceAction
-#   quantity: fraction
-#   unit: dimensionless
-#   input_dimensions: [waste_type, waste_treatment]
-#   output_dimensions: [waste_type, waste_treatment]
-#   input_nodes:
-#   - id: waste_treatment_2030
-#   output_nodes:
-#   - id: waste_recycling_shares
-
-- id: waste_treatment_2030
-  name: Waste treatment 2030
-  type: gpc.DatasetAction
+- id: increase_waste_recycling
+  name: Increase waste recycling
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
-  input_dimensions: [waste_type, waste_treatment]
-  output_dimensions: [waste_type, waste_treatment]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2030
-    # filters:
-    # - column: Year
-    #   value: 2030
-    #   drop_col: false
-  params:
-    gpc_sector: 5.1. Increased recycling of waste
+  group: waste
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_historical
+    tags: [historical]
+  - id: waste_recycling_shares_2030
+    tags: [goal]
+    to_dimensions:
+    - id: waste_treatment
+    - id: waste_type
+  output_nodes:
+  - id: waste_recycling_shares
+
+# --------------- AFOLU -----------------
 
 - id: tree_planting
   name: Tree planting
   type: gpc.DatasetAction
   quantity: number
   unit: pcs
+  group: reforestation
   input_dimensions: [area_distance]
   output_dimensions: [area_distance]
   input_datasets:
@@ -722,13 +824,12 @@ actions:
   params:
     gpc_sector: Number of planted trees until 2030
 
-# --------------- AFOLU -----------------
-
 - id: reduced_co2_emissions_in_other_sectors
   name: Reduced CO2 emissions in other sectors
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
+  group: reforestation
   input_datasets: [nzc/defaults]
   params:
     gpc_sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other sector
