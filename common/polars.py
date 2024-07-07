@@ -1,24 +1,22 @@
 from __future__ import annotations
-from functools import reduce
+
 import re
-
 import typing
-from typing import Any, Collection, Iterable, Sequence
 from dataclasses import dataclass
+from functools import reduce
+from typing import Any, Callable, Collection, Iterable, Sequence, cast
 
-import pandas as pd
-from pint_pandas import PintType
-from nodes.units import Quantity
-import polars as pl
-from polars.type_aliases import IntoExpr
-from polars._utils.parse_expr_input import parse_as_list_of_expressions
-from polars.polars import PyExpr, PyDataFrame
 import numpy as np
-from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN
-from nodes.dimensions import Dimension, DimensionCategory
+import pandas as pd
+import polars as pl
+from pint_pandas import PintType
+from polars._utils.parse_expr_input import parse_as_list_of_expressions
+from polars.polars import PyDataFrame, PyExpr
+from polars.selectors import _selector_proxy_
+from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
 
-from nodes.units import Unit, unit_registry
-
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
     from .polars_ext import PathsExt
@@ -86,15 +84,18 @@ class PathsDataFrame(pl.DataFrame):
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta)
 
-    def filter(self, predicate: pl.Expr | str | pl.Series | list[bool] | np.ndarray[Any, Any] | bool) -> PathsDataFrame:
+    def filter(self, *predicates: (
+        IntoExprColumn | Iterable[IntoExprColumn] | bool | list[bool] | np.ndarray[Any, Any]
+       ), **constraints: Any) -> PathsDataFrame:
         meta = self.get_meta()
-        df = super().filter(predicate)
+        df = super().filter(*predicates, **constraints)
         return to_ppdf(df, meta=meta)
 
-    def rename(self, mapping: dict[str, str]) -> PathsDataFrame:
+    def rename(self, mapping: dict[str, str] | Callable[[str], str]) -> PathsDataFrame:
         meta = self.get_meta()
         units = dict(meta.units)
         primary_keys = list(meta.primary_keys)
+        assert not callable(mapping)
         for old_col, new_col in mapping.items():
             if old_col in meta.units:
                 units[new_col] = meta.units[old_col]
@@ -105,9 +106,9 @@ class PathsDataFrame(pl.DataFrame):
         df = super().rename(mapping)
         return to_ppdf(df, meta=meta)
 
-    def drop(self, columns: str | Collection[str], *more_columns: str) -> PathsDataFrame:
+    def drop(self, *columns: str | _selector_proxy_ | Iterable[str | _selector_proxy_]) -> PathsDataFrame:
         meta = self.get_meta()
-        df = super().drop(columns, *more_columns)
+        df = super().drop(*columns)
         for col in list(meta.units.keys()):
             if col not in df.columns:
                 del meta.units[col]
@@ -131,11 +132,8 @@ class PathsDataFrame(pl.DataFrame):
                     meta.units[output_col] = meta.units[root_cols[0]]
         return meta
 
-    def select(
-        self,
-        *exprs: IntoExpr,
-        units: dict[str, Unit] | None = None,
-        **named_exprs: IntoExpr,
+    def select(  # type: ignore[override]
+        self, *exprs: IntoExpr | Iterable[IntoExpr], units: dict[str, Unit] | None = None, **named_exprs: IntoExpr
     ) -> PathsDataFrame:
         structify = False
         pyexprs = parse_as_list_of_expressions(
@@ -162,7 +160,7 @@ class PathsDataFrame(pl.DataFrame):
             df = df.rename({src: dest for src, dest in zip(metric_cols, rename)})
         return df
 
-    def with_columns(
+    def with_columns(  # type: ignore[override]
         self,
         *exprs: IntoExpr | Iterable[IntoExpr],
         units: dict[str, Unit] | None = None,
@@ -179,17 +177,20 @@ class PathsDataFrame(pl.DataFrame):
     def with_column(self, column: pl.Series | pl.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
         raise NotImplementedError("Use with_columns() instead")
 
-    def drop_nulls(self, subset: str | Collection[str] | None = None) -> PathsDataFrame:
+    def drop_nulls(self, subset: ColumnNameOrSelector | Collection[ColumnNameOrSelector] | None = None) -> PathsDataFrame:
         df = super().drop_nulls(subset)
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
     def sort(
         self,
-        by: IntoExpr | Iterable[IntoExpr], *more_by: IntoExpr,
+        by: IntoExpr | Iterable[IntoExpr],
+        *more_by: IntoExpr,
         descending: bool | Sequence[bool] = False,
-        nulls_last: bool = False,
+        nulls_last: bool | Sequence[bool] = False,
+        multithreaded: bool = True,
+        maintain_order: bool = False,
     ) -> PathsDataFrame:
-        df = super().sort(by, *more_by, descending=descending, nulls_last=nulls_last)
+        df = super().sort(by, *more_by, descending=descending, nulls_last=nulls_last, multithreaded=multithreaded, maintain_order=maintain_order)
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
     def get_meta(self) -> DataFrameMeta:
@@ -238,7 +239,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = reduce(lambda x, y: x / y, [self._units[col] for col in cols])
+        res_unit = cast(Unit, reduce(lambda x, y: x / y, [self._units[col] for col in cols]))
         s = reduce(lambda x, y: x / y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -247,7 +248,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = quantity.units / self._units[col]
+        res_unit = cast(Unit, quantity.units / self._units[col])
         df = self.with_columns((pl.lit(quantity.m) / pl.col(col)).alias(col))
         df._units[col] = res_unit
         if out_unit:
@@ -282,6 +283,7 @@ class PathsDataFrame(pl.DataFrame):
             else:
                 s = s - self.ensure_unit(col, res_unit)[col]
 
+        assert res_unit is not None
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
         if out_unit:
@@ -431,7 +433,7 @@ class PathsDataFrame(pl.DataFrame):
             category: str | None = None,
             category_number: int | None = None,
             baseline_year: int | None = None,
-            baseline_year_level: Any | None = None,
+            baseline_year_level: Quantity | None = None,
             keep_dimension: bool | None = None) -> PathsDataFrame:
         '''
         Basic functionality is to select one category of a dimension and further process that.
@@ -461,7 +463,7 @@ class PathsDataFrame(pl.DataFrame):
                 df = df.set_unit(VALUE_COLUMN, 'dimensionless')
             else:
                 unit = df.get_unit(VALUE_COLUMN)
-                baseline_year_level = baseline_year_level.to(unit)
+                baseline_year_level = cast(Quantity, baseline_year_level.to(unit))
                 df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(baseline_year_level.m))
         return df
 
