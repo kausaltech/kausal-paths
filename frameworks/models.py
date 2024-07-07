@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, Self
+import uuid
 
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet
@@ -50,6 +51,7 @@ class Framework(UUIDIdentifiedModel):
 
     dimensions: RelatedManager[FrameworkDimension]
     sections: RelatedManager[Section]
+    configs: RelatedManager[FrameworkConfig]
 
     def __str__(self):
         return self.name
@@ -127,7 +129,7 @@ class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
 
     measure_templates: RelatedManager[MeasureTemplate]
 
-    public_fields: ClassVar = ["identifier", "name", "description", "available_years"]
+    public_fields: ClassVar = ["identifier", "path", "name", "description", "available_years"]
 
     class Meta:
         constraints = [
@@ -270,13 +272,25 @@ class FrameworkConfig(models.Model):
     baseline_year = models.IntegerField()
     categories = models.ManyToManyField(FrameworkDimensionCategory)
 
+    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year']
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['framework', 'instance_config'], name='unique_framework_instance')
         ]
 
+    @classmethod
+    def create_instance(cls, framework: Framework, org_name: str, baseline_year: int):
+        new_uuid = uuid.uuid4()
+        ic = InstanceConfig.objects.create(
+            name='%s: %s' % (framework.name, org_name), identifier=str(new_uuid),
+            primary_language="en", other_languages=[],
+        )
+        fc = cls.objects.create(framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year)
+        return fc
+
     def __str__(self):
-        return f"{self.framework.name} - {self.instance_config.name}"
+        return f"{self.framework.identifier}: {self.instance_config.name}"
 
 
 class Measure(models.Model):
@@ -291,6 +305,10 @@ class Measure(models.Model):
     measure_template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="measures")
     unit = UnitField(null=True, blank=True)
     internal_notes = models.TextField(blank=True)
+
+    public_fields = [
+        'framework_config', 'measure_template', 'unit',
+    ]
 
     class Meta:
         constraints = [

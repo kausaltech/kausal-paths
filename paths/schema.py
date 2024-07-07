@@ -9,7 +9,7 @@ from graphql.type.directives import DirectiveLocation, GraphQLDirective, specifi
 from graphql.type.scalars import GraphQLID, GraphQLString
 from grapple.registry import registry as grapple_registry
 
-from frameworks.schema import Query as FrameworksQuery
+from frameworks.schema import Mutations as FrameworksMutations, Query as FrameworksQuery
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from nodes.schema import Mutations as NodesMutations, Query as NodesQuery
 from pages.schema import Query as PagesQuery
@@ -33,7 +33,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQ
         return unit
 
 
-class Mutations(ParamsMutations, NodesMutations):
+class Mutations(ParamsMutations, NodesMutations, FrameworksMutations):
     pass
 
 
