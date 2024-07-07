@@ -11,6 +11,7 @@ from nodes.processors import LinearInterpolation
 from nodes.units import unit_registry
 from common import polars as ppl
 from nodes.exceptions import NodeError
+from django.utils.translation import gettext_lazy as _
 
 
 class DatasetAction2(ActionNode, DatasetNode):
@@ -571,7 +572,7 @@ class StockReplacementAction(ActionNode):
 
 
 class SCurveAction(DatasetAction2):
-    explanation = "This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint."
+    explanation = _("This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint.")
     allowed_parameters = DatasetAction2.allowed_parameters
 
     no_effect_value = 0.0

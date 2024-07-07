@@ -17,6 +17,7 @@ from common import polars as ppl
 from params import Parameter, ParameterWithUnit
 
 from .action import ActionNode
+from django.utils.translation import gettext_lazy as _
 
 
 class ReduceAmount(BaseModel):
@@ -202,8 +203,8 @@ class ReduceAction(ActionNode):
 
 
 class DatasetReduceAction(ActionNode):
-    """
-    Receive goal input from a dataset and cause a linear effect.
+    explanation = _("""
+    Receive goal input from a dataset or node and cause a linear effect.
 
     The output will be a time series with the difference to the
     last historical value of the input node.
@@ -211,30 +212,32 @@ class DatasetReduceAction(ActionNode):
     The goal input can also be relative (for e.g. percentage
     reductions), in which case the input will be treated as
     a multiplier.
-    """
+    """)
 
     allowed_parameters: ClassVar[list[Parameter]] = [
         BoolParameter(local_id='relative_goal'),
     ]
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node(required=False)
+        n = self.get_input_node(tag='historical', required=False)
         if n is None:
             df = self.get_input_dataset_pl(tag='historical')
             if FORECAST_COLUMN not in df.columns:
                 df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
-            goal_tag = 'goal'
         else:
             df = n.get_output_pl(target_node=self)
             df = df.filter(~pl.col(FORECAST_COLUMN))
-            goal_tag = None
 
         max_year = df[YEAR_COLUMN].max()
         df = df.filter(pl.col(YEAR_COLUMN) == max_year)
 
-        gdf = self.get_input_dataset_pl(tag=goal_tag)
+        gdf = self.get_input_dataset_pl(tag='goal', required=False)
+        if gdf is None:
+            gn = self.get_input_node(tag='goal', required=True)
+            gdf = gn.get_output_pl(target_node=self)
+
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
             raise NodeError(self, "Dimension mismatch to input nodes")
 

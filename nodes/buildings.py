@@ -9,10 +9,11 @@ from .exceptions import NodeError
 from nodes.actions.energy_saving import CfFloorAreaAction
 from nodes.simple import MultiplicativeNode, AdditiveNode, SimpleNode
 from .units import unit_registry
+from django.utils.translation import gettext_lazy as _
 
 
 class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
-    explanation = 'Floor area node takes in actions and calculates the floor area impacted.'
+    explanation = _('Floor area node takes in actions and calculates the floor area impacted.')
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']  # FIXME Generalise and remove emission_sectors
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 

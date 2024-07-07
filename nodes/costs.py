@@ -11,6 +11,7 @@ from params.param import NumberParameter, StringParameter, BoolParameter
 from params.utils import sep_unit, sep_unit_pt
 from .constants import DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .simple import AdditiveNode, SimpleNode
+from django.utils.translation import gettext_lazy as _
 
 
 class SelectiveNode(AdditiveNode):
@@ -56,12 +57,12 @@ class SelectiveNode(AdditiveNode):
 
 
 class ExponentialNode(AdditiveNode):
-    explanation = ''' This is Exponential Node.
+    explanation = _(''' This is Exponential Node.
     Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
     Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.
     Optionally, touches also historical values.
     Parameter is_decreasing_rate is used to give discount rates instead.
-    '''
+    ''')
     allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
             local_id='current_value',
@@ -280,9 +281,9 @@ class EnergyCostNode(AdditiveNode):
 
 
 class DilutionNode(SimpleNode):
-    explanation = '''
+    explanation = _('''
     This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)
-    '''
+    ''')
 
     def compute(self)-> ppl.PathsDataFrame:
         existing = self.get_input_node(tag='existing')
