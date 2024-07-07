@@ -106,7 +106,7 @@ class PathsExt:
                 mdf = tdf
             else:
                 if FORECAST_COLUMN in index_cols:
-                    tdf = tdf.drop(columns=FORECAST_COLUMN)
+                    tdf = tdf.drop(FORECAST_COLUMN)
                 mdf = mdf.join(tdf, on=YEAR_COLUMN)
         assert mdf is not None
         mdf = mdf.sort(YEAR_COLUMN)
