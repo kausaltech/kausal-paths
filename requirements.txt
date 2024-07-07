@@ -715,7 +715,7 @@ wagtail==6.1.2
     #   wagtail-grapple
     #   wagtail-headless-preview
     #   wagtail-localize
-wagtail-color-panel==1.5.0
+wagtail-color-panel @ https://github.com/torchbox-forks/wagtail-color-panel/archive/6ed313955482b5893353898006c1300a22821446.zip
     # via -r requirements.in
 wagtail-font-awesome-svg==1.0.1
     # via -r requirements.in

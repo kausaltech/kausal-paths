@@ -135,11 +135,12 @@ class PathsExecutionContext(ExecutionContext):
     def process_instance_headers(self, context: GQLContext) -> InstanceConfig | None:
         identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
         hostname = context.headers.get(settings.INSTANCE_HOSTNAME_HEADER)
-        auth = IDTokenAuthentication()
-        ret = auth.authenticate(context)  # type: ignore
-        if ret is not None:
-            user, token = ret
-            context.user = user
+        if IDTokenAuthentication is not None:
+            auth = IDTokenAuthentication()
+            ret = auth.authenticate(context)  # type: ignore
+            if ret is not None:
+                user, token = ret
+                context.user = user
 
         qs = InstanceConfig.objects.all()
         if identifier:
