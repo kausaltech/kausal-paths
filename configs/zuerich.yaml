@@ -3511,7 +3511,9 @@ actions:
   input_datasets:
   - id: zuerich/gas_network_mix_goal
     tags: [goal]
-  input_nodes: [gas_network_mix_historical]
+  input_nodes:
+  - id: gas_network_mix_historical
+    tags: [historical]
   output_nodes: [gas_network_mix]
 
 - id: other_building_fuel_to_biogas
@@ -3844,10 +3846,12 @@ actions:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: vehicle_engine_type_split_historical
+    tags: [historical]
   output_nodes:
   - id: vehicle_engine_type_split
   input_datasets:
   - id: zuerich/vehicle_electrification_goals
+    tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [cars, motorbikes]
@@ -3866,10 +3870,12 @@ actions:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: vehicle_engine_type_split_historical
+    tags: [historical]
   output_nodes:
   - id: vehicle_engine_type_split
   input_datasets:
   - id: zuerich/vehicle_electrification_goals
+    tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [vans, lorries]
@@ -3886,10 +3892,12 @@ actions:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: vehicle_engine_type_split_historical
+    tags: [historical]
   output_nodes:
   - id: vehicle_engine_type_split
   input_datasets:
   - id: zuerich/vehicle_electrification_goals
+    tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [buses, coaches]
@@ -3908,6 +3916,7 @@ actions:
   input_nodes:
   - id: transport_consumption_factor_historical
     metrics: [Electricity, Fuel]
+    tags: [historical]
   output_metrics:
   - id: Electricity
     unit: kWh/vkm
@@ -3928,6 +3937,7 @@ actions:
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
   - id: zuerich/vehicle_fuel_efficiency_improvement
+    tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [cars]
