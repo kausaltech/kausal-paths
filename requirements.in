@@ -53,3 +53,4 @@ logfmter
 s3cmd
 recursive-diff
 PyGithub
+django-stubs-ext

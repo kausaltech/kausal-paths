@@ -2,12 +2,22 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
 import re
-from typing import TYPE_CHECKING, Optional, Tuple, TypeAlias
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Tuple, TypeAlias, Unpack, cast
 import os
 import pint
+from pint.facets.plain import PlainUnit
+from pint.babel_names import _babel_units
 import pint_pandas
-from pint import facets
-from pint.formatting import register_unit_format, formatter
+from pint import UnitRegistry, facets
+from pint.delegates.formatter.html import HTMLFormatter
+from pint.delegates.formatter.plain import PrettyFormatter
+from pint.delegates.formatter._compound_unit_helpers import (
+    BabelKwds,
+    SortFunc,
+    prepare_compount_unit,
+)
+from pint.delegates.formatter._format_helpers import formatter
+
 
 if TYPE_CHECKING:
     from django.utils.functional import _StrPromise as StrPromise  # pyright: ignore
@@ -51,6 +61,8 @@ class CachingUnitRegistry(  # type: ignore[misc]
     unit_cache: dict[str, Unit] | None = None
     Unit: TypeAlias = Unit
     Quantity: TypeAlias = Quantity
+    html_formatter: 'PathsHTMLFormatter'
+    pretty_formatter: 'PathsPrettyFormatter'
 
     def parse_units(self, input_string: str, as_delta: Optional[bool] = None, case_sensitive: Optional[bool] = None) -> Unit:
         if self.unit_cache is None:
@@ -86,6 +98,93 @@ unit_registry = CachingUnitRegistry(
 )
 
 
+def prepare_units_for_babel(unit: Unit, html: bool = False):
+    items = unit._units.items()
+    out = {}
+    for key, val in items:
+        name, specifier = split_specifier(key)
+        if name in _babel_units:
+            name = _babel_units[name]
+        if specifier is not None and specifier == 'CO2e':
+            if html:
+                name = name + ' CO<sub>2</sub>-e.'
+            else:
+                name = name + ' CO₂-e.'
+        out[name] = val
+    return out.items()
+
+
+class PathsHTMLFormatter(HTMLFormatter):
+    def format_unit(  # type: ignore
+        self,
+        unit: PlainUnit | Iterable[tuple[str, Any]],
+        uspec: str = "",
+        sort_func: SortFunc | None = None,
+        **babel_kwds: Unpack[BabelKwds],
+    ) -> str:
+        if isinstance(unit, Unit):
+            unit = prepare_units_for_babel(unit, html=True)
+        numerator, denominator = prepare_compount_unit(
+            unit,
+            uspec,
+            sort_func=sort_func,
+            **babel_kwds,
+            registry=self._registry,
+        )
+        return formatter(
+            numerator,
+            denominator,
+            as_ratio=True,
+            single_denominator=True,
+            product_fmt=r"·",
+            division_fmt=r"{}∕{}",
+            power_fmt=r"{}<sup>{}</sup>",
+            parentheses_fmt=r"({})",
+        )
+
+
+class PathsPrettyFormatter(PrettyFormatter):
+    def format_unit(  # type: ignore
+        self,
+        unit: PlainUnit | Iterable[tuple[str, Any]],
+        uspec: str = "",
+        sort_func: SortFunc | None = None,
+        **babel_kwds: Unpack[BabelKwds]
+    ) -> str:
+        if isinstance(unit, Unit):
+            unit = prepare_units_for_babel(unit, html=False)
+        return super().format_unit(unit, uspec, sort_func, **babel_kwds)
+
+
+unit_registry.html_formatter = PathsHTMLFormatter(registry=cast(UnitRegistry, unit_registry))
+unit_registry.pretty_formatter = PathsPrettyFormatter(registry=cast(UnitRegistry, unit_registry))
+
+
+"""
+def _format_paths_html(unit, registry, short: bool, **options):
+    print('formatting unit "%s"' % unit)
+
+    return formatter(
+        out.items(),
+        as_ratio=True,
+        single_denominator=True,
+        product_fmt=r"·",
+        division_fmt=r"{}∕{}",
+        power_fmt=r"{}<sup>{}</sup>",
+        parentheses_fmt=r"({})",
+        **options,
+    )
+
+@register_unit_format("Z")
+def format_paths_long(unit, registry, **options):
+    return _format_paths_html(unit, registry, short=False, **options)
+
+
+@register_unit_format("~Z")
+def format_paths_short(unit, registry, **options):
+    return _format_paths_html(unit, registry, short=True, **options)
+"""
+
 def define_custom_units(unit_registry: CachingUnitRegistry):
     # By default, kt is knots, but here kilotonne is the most common
     # usage.
@@ -113,6 +212,8 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     @alias vkm = vkt = v_km
     @alias pkm = pkt = p_km
     million_square_meters = 1e6 * meter ** 2 = Msqm
+    thousand_square_meters = 1e3 * meter ** 2 = ksqm
+    Mpkm = 1e6 * pkm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
     kg_co2e = kg * CO2e
@@ -161,16 +262,19 @@ def add_unit_translations():
     from django.utils import translation
     from django.utils.translation import gettext_lazy as _, pgettext_lazy
 
-    def set_one(u: str, t: str | StrPromise):
+    def set_one(u: str, long: str | StrPromise, short: str | StrPromise | None = None):
         bu = 'kausal-%s' % u
         if u not in _babel_units:
             _babel_units[u] = bu
         for lang in [la[0] for la in settings.LANGUAGES]:
             loc = Loc(lang.replace('-', '_'))
             loc_data: dict = loc._data  # type: ignore
-            pats = loc_data['unit_patterns']
+            all_pats = loc_data['unit_patterns']
             with translation.override(lang):
-                pats[bu] = dict(long=dict(one=str(t)))
+                unit_pats = dict(long=dict(one=str(long)))
+                if short is not None:
+                    unit_pats['short'] = dict(one=str(short))
+                all_pats[bu] = unit_pats
 
             # Work around a bug in pint
             cup = loc_data.get('compound_unit_patterns', {})
@@ -178,30 +282,12 @@ def add_unit_translations():
                 del cup['per']
 
     _babel_units['metric_ton'] = 'mass-tonne'
-    set_one('capita', _('capita'))
-    set_one('cap', pgettext_lazy('capita short', 'cap'))
+    _babel_units['%'] = 'concentr-percent'
+    _babel_units['percent'] = 'concentr-percent'
+    set_one('capita', _('capita'), short=pgettext_lazy('capita short', 'cap'))
+    #set_one('cap', pgettext_lazy('capita short', 'cap'))
     set_one('kt', pgettext_lazy('kilotonne short', 'kt'))
     set_one('a', pgettext_lazy('year short', 'yr.'))
-    set_one('percent', pgettext_lazy('percent', 'percent'))
-    set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
-    set_one('%', '%')
-
-
-@register_unit_format("Z")
-def format_paths_html(unit, registry, **options):
-    out = {}
-    for key, val in unit.items():
-        name, specifier = split_specifier(key)
-        if specifier is not None and specifier == 'CO2e':
-            name = name + ' CO<sub>2</sub>-e.'
-        out[name] = val
-    return formatter(
-        out.items(),
-        as_ratio=True,
-        single_denominator=True,
-        product_fmt=r"·",
-        division_fmt=r"{}∕{}",
-        power_fmt=r"{}<sup>{}</sup>",
-        parentheses_fmt=r"({})",
-        **options,
-    )
+    #set_one('percent', pgettext_lazy('percent', 'percent'))
+    #set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
+    #set_one('%', '%')
