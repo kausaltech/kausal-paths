@@ -50,7 +50,12 @@ class SimpleNode(Node):
             local_id='multiplier',
             description='Multiplier to implement after operation and before additions',
             is_customizable=False
-        )
+        ),
+        StringParameter(
+            local_id='slice_category_at_edge',
+            description='A category is sliced at edge before offering as input to another node',
+            is_customizable=False
+        ),
     ]
 
     def replace_output_using_input_dataset_pl(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:

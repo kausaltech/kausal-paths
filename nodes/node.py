@@ -822,6 +822,15 @@ class Node:
             raise NodeError(self, "No connection to target node %s" % target_node.id)
 
         df = self._get_output_for_node(df, edge)
+
+        # Slice a dimension if the parameter is given.
+        params = self.get_parameter_value('slice_category_at_edge', required=False)
+        if params:
+            params = params.split(',')
+            assert len(params) == 1
+            params = params[0].split(':')
+            df = df.filter(pl.col(params[0]).eq(params[1]))
+
         if edge.from_dimensions:
             meta = df.get_meta()
             if not meta.dim_ids:
