@@ -10,6 +10,7 @@ from graphql.type.scalars import GraphQLID, GraphQLString
 from grapple.registry import registry as grapple_registry
 
 from frameworks.schema import Query as FrameworksQuery
+from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from nodes.schema import Mutations as NodesMutations, Query as NodesQuery
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
@@ -20,7 +21,7 @@ from paths.utils import validate_unit
 CO2E = 'CO<sub>2</sub>e'
 
 
-class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery):
+class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
     @staticmethod
