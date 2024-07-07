@@ -5,6 +5,7 @@ from nodes.context import Context
 from nodes.scenario import Scenario
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
 from nodes.metric import Metric
+from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
 
@@ -53,6 +54,7 @@ def test_forecast_metric_type(
 ):
     context.generate_baseline_values()
     metric = Metric.from_node(additive_action)
+    assert metric is not None
     data = graphql_client_query_data(
         '''
         query($id: ID!) {
@@ -105,6 +107,10 @@ def test_forecast_metric_type(
         'year': yearly_value.year,
         'value': yearly_value.value,
     } for yearly_value in metric.get_baseline_forecast_values()]
+
+    assert metric.unit is not None
+    unit_pretty_short = unit_registry.pretty_formatter.format_unit(metric.unit, locale=get_language(), length='short', use_plural=False)
+
     expected = {
         'node': {
             'metric': {
@@ -114,7 +120,7 @@ def test_forecast_metric_type(
                 'outputNode': None,  # TODO
                 'unit': {
                     '__typename': 'UnitType',
-                    'short': metric.unit.format_babel('~P', locale=get_language()),
+                    'short': unit_pretty_short,
                 },
                 'historicalValues': expected_historical_values,
                 'forecastValues': expected_forecast_values,
@@ -126,7 +132,7 @@ def test_forecast_metric_type(
 
 
 def test_node_type(graphql_client_query_data, additive_action, instance_config):
-    node_config = NodeConfigFactory(instance=instance_config, identifier=additive_action.id)
+    node_config = NodeConfigFactory(instance=instance_config, identifier=additive_action.id)  # noqa
     ctx = instance_config._instance.context
     assert ctx.instance == instance_config._instance
     input_node = NodeFactory.create(context=ctx)

@@ -117,7 +117,7 @@ jobs:
         working-directory: ./e2e-tests
 
       - name: Wait for backend to get ready
-        run: wait-for-it.sh -t 60 localhost:8000
+        run: wait-for-it.sh -t 180 localhost:8000
 
       - name: Running Playwright e2e tests
         run: node_modules/.bin/playwright test
