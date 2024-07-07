@@ -96,13 +96,14 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
 
 
 class InstanceConfigManager(models.Manager['InstanceConfig']):
-    def get_by_natural_key(self, identifier):
+    def get_by_natural_key(self, identifier: str):
         return self.get(identifier=identifier)
 
 
 if TYPE_CHECKING:
     class InstanceConfigManagerType(InstanceConfigManager):
         def adminable_for(self, user: User) -> InstanceConfigQuerySet: ...
+        def for_hostname(self, hostname: str, request: HttpRequest | None = None) -> InstanceConfigQuerySet: ...
 
 
 class InstanceConfig(PathsModel):

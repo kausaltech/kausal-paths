@@ -1,16 +1,13 @@
 import functools
-from common.perf import PerfCounter
-from nodes.calc import convert_to_co2e, extend_last_historical_value_pl, nafill_all_forecast_years
-from nodes.units import Unit
-from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
-from typing import List, ClassVar, Sequence, Tuple, Union
+from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
+from params.param import Parameter, BoolParameter, NumberParameter, StringParameter
+from typing import List, ClassVar, Sequence
 import polars as pl
 import pandas as pd
-import pint
 
 from common.i18n import TranslatedString
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, MIX_QUANTITY, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN, DEFAULT_METRIC
+from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 from .node import Node, NodeMetric
 from .exceptions import NodeError
 

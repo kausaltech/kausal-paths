@@ -1,19 +1,16 @@
+from __future__ import annotations
+
 from cmath import nan
-from typing import ClassVar, Iterable
+from typing import ClassVar
 
-
-import pandas as pd
-import pint_pandas
 import polars as pl
-from common import polars as ppl
 
-
-from params.param import Parameter
-from params import PercentageParameter, NumberParameter, StringParameter, BoolParameter
-from nodes.constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.node import NodeError
-from .action import ActionNode
+from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
+from params.param import Parameter
 
+from .action import ActionNode
 
 
 class AdditiveAction(ActionNode):
@@ -161,6 +158,6 @@ class TrajectoryAction(ActionNode):
             cat_no = None
 
         df = df.select_category(dim_id, cat_id, cat_no, year, level, keep)
-
+        assert self.unit is not None
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
