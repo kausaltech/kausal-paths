@@ -124,6 +124,8 @@ class PathsHTMLFormatter(HTMLFormatter):
     ) -> str:
         if isinstance(unit, Unit):
             unit = prepare_units_for_babel(unit, html=True)
+        if not unit:  # this is the case for dimensionless units
+            return ''
         numerator, denominator = prepare_compount_unit(
             unit,
             uspec,
@@ -153,6 +155,8 @@ class PathsPrettyFormatter(PrettyFormatter):
     ) -> str:
         if isinstance(unit, Unit):
             unit = prepare_units_for_babel(unit, html=False)
+        if not unit:  # this is the case for dimensionless units
+            return ''
         return super().format_unit(unit, uspec, sort_func, **babel_kwds)
 
 
