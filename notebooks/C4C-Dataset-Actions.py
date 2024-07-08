@@ -78,7 +78,8 @@ for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the
         mframe = df.filter(pl.col('Index') == i).select(mcols).with_columns(pl.lit(y).cast(pl.Int64))
         mframe.columns = dfmain.columns
         if mframe['Value'][0] is not None:
-            dfmain = pl.concat([dfmain, mframe])
+            dfmain = pl.concat([dfmain, mframe], rechunk=False)
+df = df.rechunk()  # This helped speed a bit.
 
 if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)

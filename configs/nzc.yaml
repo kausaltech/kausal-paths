@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ce84397a9fe7794a10152858c3ab460829d9f36c
+  commit: 13b0f649c608d1dd97dad6f612654f25e093cd7f
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -60,6 +60,18 @@ action_groups:
 - id: reforestation
   name: Reforestation
 
+# action_efficiency_pairs:
+
+# - graph_type: cost_effectiveness
+#   cost_node: aggregated_discounted_total_cost
+#   impact_node: aggregated_net_emissions
+#   invert_cost: true
+#   invert_impact: true
+#   indicator_unit: kEUR/t
+#   cost_unit: MEUR
+#   impact_unit: kt
+#   label: Cost effectiveness
+
 dimensions:
 
 - id: pollutant
@@ -75,12 +87,14 @@ dimensions:
   - id: pm25_combustion
     label: PM2.5 combustion
     label_fi: PM2.5-polttoperäinen
+    aliases: [pm25]
   - id: pm25_wear_tear
     label: PM2.5 wear & tear
     label_fi: PM2.5-kuluminen
   - id: pm10_combustion
     label: PM10 combustion
     label_fi: PM10-polttoperäinen
+    aliases: [pm10]
   - id: pm10_wear_tear
     label: PM10 wear & tear
     label_fi: PM10-kuluminen
@@ -121,10 +135,9 @@ dimensions:
     label: CAPEX (capital expenditure)
   - id: opex
     label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
   - id: maintenance_costs
     label: Maintenance Costs
-  - id: operation_cost  # FIXME Overlaps with maintenance_costs
-    label: Operation Cost
   - id: sales
     label: Sales income
   - id: air_pollution
@@ -189,6 +202,7 @@ dimensions:
     label: Petrol and diesel
   - id: electricity
     label: Electricity
+    aliases: ['']  # FIXME
   - id: fossil
     label: Fossil (oil, coal, gas) + direct electric
   - id: heat_pump
@@ -391,6 +405,8 @@ dimensions:
     label: Baseline scenario
   - id: decarbonisation_scenario
     label: Decarbonisation scenario
+  - id: frozen_scenario
+    label: Frozen scenario
 
 emission_sectors:
 - id: net_emissions
@@ -417,6 +433,19 @@ nodes:
   - id: annual_change
     ref: population_growth_rate  # FIXME This should come from dataset
 
+- id: aggregated_net_emissions
+  name: Aggregated net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: total_electricity_consumption
   name: Total electricity consumption
   type: simple.AdditiveNode
@@ -427,36 +456,27 @@ nodes:
 
 - id: statistical_electricity_consumption
   name: Statistical electricity consumption
-  type: simple.AdditiveNode  # FIXME gpc.DatasetNode
+  type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
-  historical_values: [[2018, 2152.0]]
-  input_dataset_processors: [LinearInterpolation]
-  # input_dimensions: [energy_carrier]
-  # output_dimensions: [energy_carrier]
-  # input_datasets: [nzc/defaults]
-  # params:
-  #   sector: Total electricity demand within city boundaries
-
-- id: statistical_electricity_consumption2
-  name: Statistical electricity consumption
-  description: Total consumption based on population growth. FIXME this causes double
-    counting.
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  # input_dimensions: [energy_carrier]
-  # output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:  # FIXME Unnecessary after dataset update
+    - column: Energy carrier
+      value: electricity
+      drop_col: false
   input_nodes:
-  - id: statistical_electricity_consumption
-    tags: [non_additive]
   - id: population
-    tags: [ratio_to_last_historical_value]
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Total electricity demand within city boundaries
   output_nodes:
   - id: total_electricity_consumption
-    to_dimensions:  # FIXME
+    to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
 
 - id: electricity_production_emission_factor
   name: Electricity production emission factor
@@ -533,6 +553,19 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
+- id: aggregated_discounted_total_cost
+  name: Aggregated discounted total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: discounted_total_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: cost_type
+      flatten: true
+
 actions:
 - id: test
   name: Test
@@ -558,17 +591,23 @@ pages:
     href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual
     for cities</a> to guide through the climate budgeting process.
 
-scenarios:  # FIXME Add the three scenarios
+scenarios:
 - id: baseline
-  name: Business as Usual
+  name: Baseline scenario
   params:
-  - id: waste_recycling_shares_2030.slice_category_at_edge
-    value: waste_type:paper
+  - id: waste_recycling_share_goal.slice_category_at_edge
+    value: parameter:baseline_scenario
+
+- id: frozen
+  name: Frozen scenario
+  params:
+  - id: waste_recycling_share_goal.slice_category_at_edge
+    value: parameter:frozen_scenario
 
 - id: default
   default: true
-  name: Climate Action Plan
+  name: Decarbonsation scenario
   all_actions_enabled: true
-  params:
-  - id: waste_recycling_shares_2030.slice_category_at_edge
-    value: waste_type:plastics
+  params:  # FIXME Check that values get recalculated after scenario switch.
+  - id: waste_recycling_share_goal.slice_category_at_edge
+    value: parameter:decarbonisation_scenario

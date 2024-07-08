@@ -17,20 +17,12 @@
 nodes:
 - id: transport_emissions
   name: Transport emissions
-  description: This module (all nodes upstream) is based on the excel sheets 1.0 - 1.4.2 Passenger trans. levers.
-    Note! MIA = Model - inputs & assumptions, CDR = City data - Data requests.
-    In the default datasets, I think we should have historical values for years 2018-2023.
-    Then, the forecast values do not start before 2024 due to the defaults.
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    - id: energy_carrier
-      flatten: true
+  color: '#014B30'
+#  color: '#ff4f57'
+#  color: '#0047b6'
   input_dimensions: [transport_mode, ghg, scope, energy_carrier]
   output_dimensions: [transport_mode, ghg, scope, energy_carrier]
   input_nodes:
@@ -54,9 +46,13 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope1]
-  color: '#014B30'
-#  color: '#ff4f57'
-#  color: '#0047b6'
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: baseline_year_fleet_emission_factor_pre
   name: Baseline year car and bus fleet emission factor before splitting
@@ -484,7 +480,7 @@ nodes:
 - id: freight_transport_need_baseline
   name: Freight transport need baseline
   type: gpc.DatasetNode
-  quantity: freight_quantity
+  quantity: freight_mileage
   unit: Mtkm/a
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
@@ -492,14 +488,11 @@ nodes:
   params:
   - id: sector
     value: Total transportation need within city - Road freight transport
-  - id: multiplier
-    value: 1
-    unit: 1/a
 
 - id: freight_transport_need
   name: Freight transport need
   type: simple.MultiplicativeNode
-  quantity: freight_quantity
+  quantity: freight_mileage
   unit: Mtkm/a
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
@@ -509,6 +502,17 @@ nodes:
   - id: population
     tags: [ratio_to_last_historical_value]
     to_dimensions: []
+
+- id: average_truck_utilisation_historical
+  name: Average truck utilisation historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Average utilisation
 
 - id: average_truck_utilisation
   name: Average truck utilisation
@@ -521,28 +525,35 @@ nodes:
   params:
     sector: Average utilisation
 
-# - id: truck_max_load_weight
-#   name: Truck max load _weight
-#   type: gpc.DatasetNode
-#   quantity: mass
-#   unit: tkm/vkm
-#   input_dimensions: [transport_mode]
-#   output_dimensions: [transport_mode]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Max load weight
+- id: average_truck_utilisation_goal
+  name: Average truck utilisation goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Utilisation of trucks in decarbonisation scenario
 
 - id: truck_max_load_weight
   name: Truck max load _weight
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: mass
   unit: tkm/vkm
-  historical_values: [[2018, 1.5], [2023, 1.5]]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Max load weight
 
 - id: freight_transport_vehicle_kilometres
   name: Freight transport vehicle kilometres
   type: simple.MultiplicativeNode
-  quantity: freight_quantity
+  quantity: freight_mileage
   unit: Mvkm/a
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
@@ -553,7 +564,6 @@ nodes:
     tags: [geometric_inverse]
   - id: truck_max_load_weight
     tags: [geometric_inverse]
-    to_dimensions: []
 
 - id: number_of_trucks_registered_within_city
   name: Number of trucks registered within city
@@ -570,6 +580,93 @@ nodes:
   params:
     sector: Number of trucks registered within city
 
+# - id: baseline_year_truck_emission_factor
+#   name: Baseline year truck emission factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: g/vkm
+#   input_dimensions: [transport_mode, pollutant]
+#   output_dimensions: [transport_mode, pollutant]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Baseline year truck emission factor
+
+# - id: new_truck_emission_factor
+#   name: New truck emission factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: g/vkm
+#   input_dimensions: [transport_mode, pollutant]
+#   output_dimensions: [transport_mode, pollutant]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: New truck emission factor
+
+# - id: truck_emission_factor
+#   name: Truck emission factor
+#   type: costs.DilutionNode
+#   quantity: emission_factor
+#   unit: g/vkm
+#   input_dimensions: [transport_mode, pollutant]
+#   output_dimensions: [transport_mode, pollutant]
+#   input_nodes:
+#   - id: baseline_year_truck_emission_factor
+#     tags: [inventory_only, existing]
+#   - id: new_truck_emission_factor
+#     tags: [incoming]
+#   - id: old_fleet_removal
+#     tags: [removing, inserting]
+#     to_dimensions:
+#     - id: transport_mode
+
+# - id: freight_transport_emissions
+#   name: Freight transport emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [transport_mode]
+#   output_dimensions: [transport_mode]
+#   input_nodes:
+#   - id: freight_transport_vehicle_kilometres
+#   - id: fleet_emission_factor
+
+- id: freight_emissions
+  name: Freight emissions
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  color: '#ff4f57'
+#  color: '#0047b6'
+  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres  # FIXME
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: transport_mode
+    - id: energy_carrier
+  - id: transport_emission_factor  # FIXME
+    from_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 # ---------------- Transport costs ---------------
 
@@ -1081,19 +1178,21 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   - id: fully_electric_bus_share
     tags: [cumulative]
 
-- id: utilisation_of_trucks
-  name: Utilisation of trucks
-  type: gpc.DatasetAction
+- id: improve_utilisation_of_trucks
+  name: Improve utilisation of trucks
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: freight_transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    gpc_sector: Utilisation of trucks in decarbonisation scenario
+  input_nodes:
+  - id: average_truck_utilisation_goal
+    tags: [goal]
+  - id: average_truck_utilisation_historical
+    tags: [historical]
+  output_nodes:
+  - id: average_truck_utilisation
 
 - id: route_optimisation
   name: Route optimisation

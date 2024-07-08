@@ -274,24 +274,18 @@ nodes:
   params:
     sector: Share recycling/incineration/landfill
 
-- id: waste_recycling_shares_2030
-  name: Waste recycling shares 2030
+- id: waste_recycling_share_goal
+  name: Waste recycling share goal
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
+  input_dimensions: [waste_treatment, waste_type, parameter]
+  output_dimensions: [waste_treatment, waste_type, parameter]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2030
-    filters:
-    - column: Year
-      value: 2030
-      drop_col: false
   params:
     gpc_sector: 5.1. Increased recycling of waste
-    # slice_category_at_edge: 'parameter:decarbonisaton_scenario'
-    slice_category_at_edge: 'waste_type:paper'
+    slice_category_at_edge: 'parameter:decarbonisaton_scenario'
 
 - id: waste_recycling_shares
   name: Waste recycling shares
@@ -304,8 +298,8 @@ nodes:
   params:
     sector: Share recycling/incineration/landfill
 
-- id: waste_recycled
-  name: Waste recycled
+- id: waste_management_amount
+  name: Waste management amount
   type: simple.MultiplicativeNode
   quantity: mass
   unit: t/a
@@ -334,14 +328,13 @@ nodes:
 
 - id: waste_emissions
   name: Waste emissions
-  description: TODO Check that other waste emissions in 2030 after decarbonising scenario are 15 kt/a.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [waste_type, waste_treatment, pollutant]
   output_dimensions: [waste_type, waste_treatment, pollutant]
   input_nodes:
-  - id: waste_recycled
+  - id: waste_management_amount
     tags: [non_additive]
     to_dimensions:
     - id: waste_type
@@ -403,7 +396,7 @@ nodes:
   input_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
   output_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
   input_nodes:
-  - id: waste_recycled
+  - id: waste_management_amount
     tags: [non_additive]
 #    from_dimensions:  # FIXME Check what is wanted.
 #    - id: waste_treatment
@@ -428,13 +421,14 @@ nodes:
   unit: EUR/t
   input_dimensions: [pollutant, cost_type]
   output_dimensions: [pollutant, cost_type]
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Area distance
+      value: outside
   params:
   - id: sector
-    value: transport air pollution unit price  # FIXME Air pollution unit price
-    # filters:
-    # - column: Area distance
-    #   value: outside
+    value: Air pollution unit price
 
 - id: recycled_waste_unit_price
   name: Recycled waste unit price
@@ -463,7 +457,7 @@ nodes:
   input_dimensions: [waste_type, cost_type, waste_treatment]
   output_dimensions: [waste_type, cost_type, waste_treatment]
   input_nodes:
-  - id: waste_recycled
+  - id: waste_management_amount
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
@@ -498,14 +492,14 @@ nodes:
   input_dimensions: [waste_type, cost_type, waste_treatment]
   output_dimensions: [waste_type, cost_type, waste_treatment]
   input_nodes:
-  - id: waste_recycled
+  - id: waste_management_amount
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
   output_nodes:
   - id: waste_management_cost
 
-- id: waste_management_cost
+- id: waste_management_cost  # FIXME Add nodes for waste incineration income
   name: Waste management cost
   type: simple.AdditiveNode
   quantity: currency
@@ -796,8 +790,11 @@ actions:
   input_nodes:
   - id: waste_recycling_shares_historical
     tags: [historical]
-  - id: waste_recycling_shares_2030
+  - id: waste_recycling_share_goal
     tags: [goal]
+    from_dimensions:
+    - id: parameter
+      flatten: true
     to_dimensions:
     - id: waste_treatment
     - id: waste_type

@@ -307,6 +307,19 @@ nodes:
   params:
     sector: Share of waste used in district heating that is fossil / non-fossil
 
+- id: district_heating_waste_share_2030
+  name: District heating waste share 2030
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type]
+  output_dimensions: [fuel_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    gpc_sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
+
 - id: building_heat_energy_use
   name: Building heat energy use
   description: 'For the frozen scenario, heat energy is relative to population growth.'
@@ -796,7 +809,7 @@ actions:
 
 - id: heating_energy_improvement
   name: Heating energy improvement
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction  # Add category checking also to this class
   quantity: fraction
   unit: '%'
   input_dimensions: [energy_carrier, heating_type]
@@ -807,18 +820,24 @@ actions:
   params:
     gpc_sector: Share of heating in 2030
 
-- id: district_heating_waste_shares_2030
-  name: District heating waste shares 2030
-  type: gpc.DatasetAction  # Add category checking also to this class
+- id: change_district_heating_waste_share
+  name: Change district heating waste share
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
-  input_dimensions: [fuel_type]
-  output_dimensions: [fuel_type]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    gpc_sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
+  input_dimensions: [energy_carrier, fuel_type, heating_type]
+  output_dimensions: [energy_carrier, fuel_type, heating_type]
+  input_nodes:
+  - id: district_heating_waste_share
+    tags: [historical]
+  - id: district_heating_waste_share_2030
+    tags: [goal]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+      categories: [waste]
+    - id: heating_type
+      categories: [district_heating]
 
 - id: heating_re_investment_fraction
   name: Heating re-investment fraction
