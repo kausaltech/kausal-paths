@@ -288,7 +288,7 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(out_col, out_unit)
         return df
 
-    def cumulate(self, col: str) -> PathsDataFrame:  # FIXME Should we update the unit to unit * a?
+    def cumulate(self, col: str) -> PathsDataFrame:
         meta = self.get_meta()
         unit = unit_registry(TIME_INTERVAL)
         meta.units[col] *= unit
@@ -302,6 +302,25 @@ class PathsDataFrame(pl.DataFrame):
         df = df.paths.to_narrow()
 
         df = to_ppdf(df, meta=meta)
+        return df
+
+    def cumprod(self, col: str, complement: bool = False) -> PathsDataFrame:
+        meta = self.get_meta()
+        unit = unit_registry(TIME_INTERVAL)
+        meta.units[col] *= unit
+        df = to_ppdf(self, meta=meta)
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        if complement:
+            df = df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+
+        df = df.paths.to_wide()
+        for df_col in df.metric_cols:
+            if col + '@' in df_col or col == df_col:
+                df = df.with_columns(pl.col(df_col).cumprod().alias(df_col))
+            else:
+                continue
+        df = df.paths.to_narrow()
+
         return df
 
     def diff(self, col: str, n: Any = 1) -> PathsDataFrame:

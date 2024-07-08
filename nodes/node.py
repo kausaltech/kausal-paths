@@ -1018,6 +1018,10 @@ class Node:
                     res = res.diff(VALUE_COLUMN)
                 elif tag == 'cumulative':
                     res = res.cumulate(VALUE_COLUMN)
+                elif tag == 'cumulative_product':
+                    res = res.cumprod(VALUE_COLUMN)
+                elif tag == 'complement_cumulative_product':
+                    res = res.cumprod(VALUE_COLUMN, complement=True)
                 elif tag == 'ratio_to_last_historical_value':
                     year = res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max()
                     res = self._scale_by_reference_year(res, year)
