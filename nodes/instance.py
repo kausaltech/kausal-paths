@@ -200,7 +200,8 @@ class InstanceLoader:
                 if len(matches) == 1:
                     full = matches[0]
                 else:
-                    raise Exception("Unsupported language: %s" % full)
+                    self.logger.warning("Ignoring '%s' due to unsupported language" % key)
+                    continue
 
             langs[full] = config[key]
             if pop:
@@ -687,6 +688,7 @@ class InstanceLoader:
         self.yaml_file_path = os.path.abspath(yaml_file_path) if yaml_file_path else None
         self.config = config
         self.default_language = config['default_language']
+        self.logger = logger.bind(instance=config['id'])
         with set_default_language(self.default_language):
             self._init_instance()
 
