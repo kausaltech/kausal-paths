@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: be29eddb4378197cb809c7571e71f4ae81c3483c
+  commit: 2787b940f1fc4112f79163b72143d82df98174dc
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -162,6 +162,10 @@ dimensions:
     label: Bus costs
   - id: charging_infrastructure_costs
     label: Charging infrastructure costs
+  - id: vehicle_costs
+    label: Vehicle costs
+  - id: infrastructure_costs
+    label: Infrastructure costs
 
 - id: ghg
   label: Greenhouse gas
@@ -182,7 +186,7 @@ dimensions:
   - id: trains
     label: Trains
     label_fi: Junat
-    aliases: [Metro/tram]
+    aliases: [Metro/tram, metro/tram]
   - id: public_transport
     label: Public transport
   - id: walking

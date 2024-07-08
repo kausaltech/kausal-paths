@@ -672,6 +672,121 @@ nodes:
 
 # ---------------- Transport costs ---------------
 
+- id: electric_vehicles_additional_unit_price
+  name: Electric vehicles additional unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Additional costs for electric vehicles
+
+- id: electric_buses_additional_unit_price_historical
+  name: Electric buses additional unit price historical
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: Additional costs for electric buses
+
+- id: electric_buses_additional_unit_price_rate
+  name: Electric buses additional unit price rate
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Additional costs for electric buses rate
+
+- id: electric_buses_additional_unit_price
+  name: Electric buses additional unit price
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_nodes:
+  - id: electric_buses_additional_unit_price_historical
+    tags: [non_additive]
+  - id: electric_buses_additional_unit_price_rate
+    tags: [arithmetic_inverse, complement_cumulative_product]
+
+- id: electric_trucks_additional_unit_price_historical
+  name: Electric trucks additional unit price historical
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: Additional cost for electrified trucks
+  - id: multiplier  # FIXME
+    value: 1
+    unit: vkm/v
+# Additional costs for electric vehicles
+# Additional infrastructure costs for electric vehicles
+
+- id: electric_trucks_additional_unit_price_rate
+  name: Electric trucks additional unit price rate
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Additional cost for electrified trucks rate
+# Additional costs for electric vehicles rate
+
+- id: electric_trucks_additional_unit_price
+  name: Electric trucks additional unit price
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: electric_trucks_additional_unit_price_historical
+    tags: [non_additive]
+  - id: electric_trucks_additional_unit_price_rate
+    tags: [arithmetic_inverse, complement_cumulative_product]
+
+- id: new_electric_vehicle_costs
+  name: New electric vehicle costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: electric_trucks_additional_unit_price
+  - id: number_of_trucks_registered_within_city  # FIXME This reflects population, not EV trucks
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+
+
+- id: electricity_consumption_for_electric_vehicles
+  name: Electricity consumption for electric vehicles
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Electricity consumption for electric vehicles
+
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
   description: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
