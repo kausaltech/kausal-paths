@@ -1,6 +1,6 @@
 id: longmont
 default_language: en
-supported_languages: [es, fi]  # FIXME Can we avoid extra laguages from frameworks?
+supported_languages: [es]  # FIXME Can we avoid extra laguages from frameworks?
 frameworks: [health_air_pollution]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
