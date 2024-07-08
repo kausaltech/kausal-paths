@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 13b0f649c608d1dd97dad6f612654f25e093cd7f
+  commit: be29eddb4378197cb809c7571e71f4ae81c3483c
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -158,6 +158,10 @@ dimensions:
     label: Water regulation
   - id: forest_management
     label: Forest management
+  - id: bus_costs
+    label: Bus costs
+  - id: charging_infrastructure_costs
+    label: Charging infrastructure costs
 
 - id: ghg
   label: Greenhouse gas
@@ -178,6 +182,7 @@ dimensions:
   - id: trains
     label: Trains
     label_fi: Junat
+    aliases: [Metro/tram]
   - id: public_transport
     label: Public transport
   - id: walking
@@ -345,10 +350,14 @@ dimensions:
 - id: area_distance
   label: Area distance
   categories:
+  - id: metropolitan
+    label: Metropolitan
   - id: inside
     label: Inside city
   - id: outside
     label: Outside city
+  - id: average
+    label: Average
 
 - id: diet
   label: Diet
@@ -393,6 +402,10 @@ dimensions:
     label: Transport operators
   - id: utilities
     label: Utilities
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
 
 - id: parameter
   label: Parameter
@@ -463,10 +476,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    filters:  # FIXME Unnecessary after dataset update
-    - column: Energy carrier
-      value: electricity
-      drop_col: false
   input_nodes:
   - id: population
     tags: [ratio_to_last_historical_value, non_additive]

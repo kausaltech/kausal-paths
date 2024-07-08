@@ -312,8 +312,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [fuel_type]
-  output_dimensions: [fuel_type]
+  input_dimensions: [fuel_type, heating_type, energy_carrier]
+  output_dimensions: [fuel_type, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -835,9 +835,7 @@ actions:
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
-      categories: [waste]
     - id: heating_type
-      categories: [district_heating]
 
 - id: heating_re_investment_fraction
   name: Heating re-investment fraction

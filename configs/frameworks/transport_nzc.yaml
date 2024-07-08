@@ -580,55 +580,57 @@ nodes:
   params:
     sector: Number of trucks registered within city
 
-# - id: baseline_year_truck_emission_factor
-#   name: Baseline year truck emission factor
-#   type: gpc.DatasetNode
-#   quantity: emission_factor
-#   unit: g/vkm
-#   input_dimensions: [transport_mode, pollutant]
-#   output_dimensions: [transport_mode, pollutant]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Baseline year truck emission factor
+- id: baseline_year_truck_emission_factor
+  name: Baseline year truck emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Baseline year truck emission factor
 
-# - id: new_truck_emission_factor
-#   name: New truck emission factor
-#   type: gpc.DatasetNode
-#   quantity: emission_factor
-#   unit: g/vkm
-#   input_dimensions: [transport_mode, pollutant]
-#   output_dimensions: [transport_mode, pollutant]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: New truck emission factor
+- id: new_truck_emission_factor
+  name: New truck emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: New truck emission factor
 
-# - id: truck_emission_factor
-#   name: Truck emission factor
-#   type: costs.DilutionNode
-#   quantity: emission_factor
-#   unit: g/vkm
-#   input_dimensions: [transport_mode, pollutant]
-#   output_dimensions: [transport_mode, pollutant]
-#   input_nodes:
-#   - id: baseline_year_truck_emission_factor
-#     tags: [inventory_only, existing]
-#   - id: new_truck_emission_factor
-#     tags: [incoming]
-#   - id: old_fleet_removal
-#     tags: [removing, inserting]
-#     to_dimensions:
-#     - id: transport_mode
+- id: truck_emission_factor
+  name: Truck emission factor
+  type: costs.DilutionNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_nodes:
+  - id: baseline_year_truck_emission_factor
+    tags: [inventory_only, existing]
+  - id: new_truck_emission_factor
+    tags: [incoming]
+  - id: old_fleet_removal
+    tags: [removing, inserting]
+    to_dimensions:
+    - id: transport_mode
 
-# - id: freight_transport_emissions
-#   name: Freight transport emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [transport_mode]
-#   output_dimensions: [transport_mode]
-#   input_nodes:
-#   - id: freight_transport_vehicle_kilometres
-#   - id: fleet_emission_factor
+- id: freight_transport_emissions
+  name: Freight transport emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+  - id: truck_emission_factor
 
 - id: freight_emissions
   name: Freight emissions
@@ -680,26 +682,11 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
-  input_dimensions: [pollutant, cost_type]
-  output_dimensions: [pollutant, cost_type]
+  input_dimensions: [pollutant, cost_type, area_distance]
+  output_dimensions: [pollutant, cost_type, area_distance]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport air pollution unit price
-
-- id: transport_air_pollution_cost_shares
-  name: Transport air pollution cost shares
-  description: All cost shares are found on the sheet Data - Distribution stakeholder. All stakeholder
-    distributions could be one
-    dataset with an internal dimension "Outcome", which is used for filtering when data is fetched.
-    See yaml for an example. All shares are constants across time.
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-    gpc_sector: transport air pollution cost shares
+    gpc_sector: Air pollution unit price
 
 - id: transport_air_pollution_costs
   name: Transport air pollution costs
@@ -711,6 +698,10 @@ nodes:
   output_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
   input_nodes:
   - id: transport_air_pollution_unit_price
+    from_dimensions:
+    - id: area_distance
+      categories: [inside]  # FIXME Check PM10: Does it drop out?
+      flatten: true
     to_dimensions:
     - id: cost_type
     - id: pollutant
@@ -721,7 +712,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
     - id: pollutant
-  - id: transport_air_pollution_cost_shares
+  - id: transport_co_benefit_cost_shares
     to_dimensions:
     - id: cost_type
     - id: stakeholder
@@ -781,11 +772,21 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport noise unit price
+    sector: Noise
 
-- id: transport_noise_cost_shares
-  name: Transport noise cost shares
-  description: See transport_air_pollution_cost_shares
+- id: freight_transport_noise_unit_price
+  name: Freight transport noise unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/tkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight transport Noise
+
+- id: transport_co_benefit_cost_shares
+  name: Transport co-benefit cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -793,7 +794,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport noise cost shares
+    gpc_sector: distribution of co-benefits
 
 - id: transport_noise_cost
   name: Transport noise cost
@@ -810,7 +811,7 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: transport_mode
-  - id: transport_noise_cost_shares
+  - id: transport_co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
@@ -831,19 +832,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport accident unit price
-
-- id: transport_accident_cost_shares
-  name: Transport accident cost shares
-  description: See transport_air_pollution_cost_shares
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-    gpc_sector: transport accident cost shares
+    gpc_sector: Traffic accidents
 
 - id: transport_accident_cost
   name: Transport accident cost
@@ -860,7 +849,7 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: transport_mode
-  - id: transport_accident_cost_shares
+  - id: transport_co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
@@ -878,14 +867,16 @@ nodes:
     <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
     For European Commission Directorate-General for Mobility and Transport</li>
     <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
-  type: gpc.DatasetNode
+  # type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/vkm
-  input_dimensions: [transport_mode, cost_type]
-  output_dimensions: [transport_mode, cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-    gpc_sector: public transport operation unit price
+  historical_values: [[2018, 0.32]]
+  # # input_dimensions: [transport_mode, cost_type]
+  # # output_dimensions: [transport_mode, cost_type]
+  # input_datasets: [nzc/defaults]
+  # params:
+  #   gpc_sector: public transport operation unit price
 
 - id: public_transport_operation_cost_shares
   name: Public transport operation cost shares
@@ -893,12 +884,12 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
+  input_dimensions: [stakeholder, cost_type, transport_mode]
+  output_dimensions: [stakeholder, cost_type, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
-    gpc_sector: public transport operation cost shares
+    gpc_sector: public transport operation costs
 
 - id: public_transport_operation_cost
   name: Public transport operation cost
@@ -912,7 +903,9 @@ nodes:
   - id: public_transport_operation_unit_price
     to_dimensions:
     - id: transport_mode
+      categories: [buses]  # FIXME
     - id: cost_type
+      categories: [opex]  # FIXME
   - id: vehicle_kilometres
     from_dimensions:
     - id: energy_carrier  # FIXME Check that the costs are the same for electric buses
@@ -922,6 +915,10 @@ nodes:
     to_dimensions:
     - id: transport_mode
   - id: public_transport_operation_cost_shares
+    from_dimensions:
+    - id: transport_mode
+      categories: [public_transport]
+      flatten: true
     to_dimensions:
     - id: stakeholder
     - id: cost_type

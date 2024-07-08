@@ -169,7 +169,7 @@ nodes:
   params:
     sector: 'PV: Upfront investment cost'
 
-- id: renewable_electricity_shares  # FIXME implement after dataset update
+- id: renewable_electricity_shares
   name: Renewable electricity shares
   type: gpc.DatasetNode
   quantity: fraction
@@ -561,9 +561,12 @@ nodes:
     from_dimensions:
     - id: pollutant
       flatten: true
+    - id: area_distance
+      categories: [outside]
+      flatten: true
     to_dimensions:
     - id: cost_type
-  - id: transport_air_pollution_cost_shares
+  - id: transport_co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
