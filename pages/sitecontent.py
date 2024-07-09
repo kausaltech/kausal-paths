@@ -10,8 +10,8 @@ from pages.models import InstanceSiteContent
 
 class SiteContentPermissionPolicy(ModelPermissionPolicy):
     def user_has_permission(self, user, action):
-        # Disable creating new site content instances
-        if action == 'change':
+        # Disable creating of site content instances
+        if action == 'add':
             return False
         return super().user_has_permission(user, action)
 
