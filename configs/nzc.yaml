@@ -81,6 +81,7 @@ dimensions:
   - id: co2
     label: CO2
     label_fi: CO2
+    aliases: [co2e]
   - id: nox
     label: NOx
     label_fi: NOx
@@ -172,6 +173,7 @@ dimensions:
   categories:
   - id: co2e
     label: CO2e
+    aliases: [co2]
 
 - id: transport_mode
   label: Transport mode
@@ -536,12 +538,14 @@ nodes:
 
 - id: co2_unit_price
   name: CO2 unit price
-  description: See transport_air_pollution_unit_price.
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
-  historical_values: [[2010, 100], [2022, 100]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [cost_type, ghg]
+  output_dimensions: [cost_type, ghg]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Value of CO2 reduction
 
 - id: total_cost
   name: Total cost

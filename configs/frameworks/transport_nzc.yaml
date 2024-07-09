@@ -693,6 +693,9 @@ nodes:
     - id: transport_mode
     - id: energy_carrier
   - id: truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
     to_dimensions:
     - id: energy_carrier
       categories: [petrol_diesel]
@@ -713,6 +716,261 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope1]
+
+- id: freight_transport_air_pollution_emissions
+  name: Freight transport air pollution emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  color: '#ff4f57'
+#  color: '#0047b6'
+  input_dimensions: [pollutant, energy_carrier, transport_mode]
+  output_dimensions: [pollutant, energy_carrier, transport_mode]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      exclude: true
+      categories: [co2]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol_diesel]
+    - id: transport_mode
+    - id: pollutant
+
+# ---------------- Freight transport costs -------
+
+- id: freight_transport_air_pollution_costs
+  name: Freight transport air pollution costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
+  output_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
+  input_nodes:
+  - id: transport_air_pollution_unit_price
+    from_dimensions:
+    - id: area_distance
+      categories: [inside]
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: pollutant
+  - id: freight_transport_air_pollution_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: pollutant
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: transport_mode
+
+- id: freight_transport_co2_cost
+  name: Freight transport CO2 cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  - id: co2_unit_price
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
+    to_dimensions:
+    - id: stakeholder
+      categories: [city]  # FIXME
+    - id: transport_mode
+    - id: cost_type
+
+- id: electric_trucks_additional_unit_price_historical
+  name: Electric trucks additional unit price historical
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: Additional cost for electrified trucks
+  - id: multiplier  # FIXME
+    value: 1
+    unit: vkm/v
+# Additional costs for electric vehicles
+# Additional infrastructure costs for electric vehicles
+
+- id: electric_trucks_additional_unit_price_rate
+  name: Electric trucks additional unit price rate
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Additional cost for electrified trucks rate
+# Additional costs for electric vehicles rate
+
+- id: electric_trucks_additional_unit_price
+  name: Electric trucks additional unit price
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: electric_trucks_additional_unit_price_historical
+    tags: [non_additive]
+  - id: electric_trucks_additional_unit_price_rate
+    tags: [arithmetic_inverse, complement_cumulative_product]
+
+- id: new_electric_truck_costs
+  name: New electric truck costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: electric_trucks_additional_unit_price
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: number_of_electric_trucks
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: cost_type
+      categories: [capex]
+
+- id: freight_transport_noise_unit_price
+  name: Freight transport noise unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/tkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight transport Noise
+
+- id: freight_transport_noise_cost
+  name: Freight transport noise cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_noise_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_need
+    to_dimensions:
+    - id: transport_mode
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
+    to_categories:
+    - transport_mode
+    - stakeholder
+    - cost_type
+
+- id: freight_transport_accident_unit_price
+  name: Freight transport accident unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/tkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight transport Traffic accidents
+
+- id: freight_transport_accident_cost
+  name: Freight transport accident cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_accident_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_need
+    to_dimensions:
+    - id: transport_mode
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
+    to_categories:
+    - transport_mode
+    - stakeholder
+    - cost_type
+
+- id: freight_transport_cost
+  name: Freight transport cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
 
 # ---------------- Transport costs ---------------
 
@@ -762,78 +1020,6 @@ nodes:
     tags: [non_additive]
   - id: electric_buses_additional_unit_price_rate
     tags: [arithmetic_inverse, complement_cumulative_product]
-
-- id: electric_trucks_additional_unit_price_historical
-  name: Electric trucks additional unit price historical
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/v
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets: [nzc/defaults]
-  params:
-  - id: sector
-    value: Additional cost for electrified trucks
-  - id: multiplier  # FIXME
-    value: 1
-    unit: vkm/v
-# Additional costs for electric vehicles
-# Additional infrastructure costs for electric vehicles
-
-- id: electric_trucks_additional_unit_price_rate
-  name: Electric trucks additional unit price rate
-  type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets: [nzc/defaults]
-  params:
-    gpc_sector: Additional cost for electrified trucks rate
-# Additional costs for electric vehicles rate
-
-- id: electric_trucks_additional_unit_price
-  name: Electric trucks additional unit price
-  type: simple.MultiplicativeNode
-  quantity: unit_price
-  unit: EUR/v
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_nodes:
-  - id: electric_trucks_additional_unit_price_historical
-    tags: [non_additive]
-  - id: electric_trucks_additional_unit_price_rate
-    tags: [arithmetic_inverse, complement_cumulative_product]
-
-- id: new_electric_vehicle_costs
-  name: New electric vehicle costs
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_nodes:
-  - id: electric_trucks_additional_unit_price
-    to_dimensions:
-    - id: transport_mode
-    - id: energy_carrier
-  - id: number_of_electric_trucks
-    tags: [difference]
-    to_dimensions:
-    - id: transport_mode
-    - id: energy_carrier
-  output_nodes:
-  - id: freight_transport_cost
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: transport_mode
-    - id: stakeholder
-      categories: [transport_operators]
-    - id: cost_type
-      categories: [capex]
-
 
 - id: electricity_consumption_for_electric_vehicles
   name: Electricity consumption for electric vehicles
@@ -918,13 +1104,13 @@ nodes:
     - id: scope
     - id: transport_mode
   - id: co2_unit_price
+    from_dimensions:
+    - id: ghg
+      flatten: true
     to_dimensions:
     - id: scope
       categories: [scope1]
-    - id: transport_mode
-      categories: [cars]
     - id: cost_type
-      categories: [co2_cost]
   output_nodes:
   - id: transport_cost
     from_dimensions:
@@ -947,17 +1133,6 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Noise
-
-- id: freight_transport_noise_unit_price
-  name: Freight transport noise unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/tkm
-  input_dimensions: [transport_mode, cost_type]
-  output_dimensions: [transport_mode, cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Freight transport Noise
 
 - id: transport_co_benefit_cost_shares
   name: Transport co-benefit cost shares
@@ -996,35 +1171,8 @@ nodes:
     - stakeholder
     - cost_type
 
-- id: freight_transport_noise_cost
-  name: Freight transport noise cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, transport_mode, cost_type]
-  output_dimensions: [stakeholder, transport_mode, cost_type]
-  input_nodes:
-  - id: freight_transport_noise_unit_price
-    to_dimensions:
-    - id: cost_type
-    - id: transport_mode
-  - id: freight_transport_need
-    to_dimensions:
-    - id: transport_mode
-  - id: transport_co_benefit_cost_shares
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
-  output_nodes:
-  - id: freight_transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
-
 - id: transport_accident_unit_price
   name: Transport accident unit price
-  description: See transport_air_pollution_unit_price.
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1231,22 +1379,6 @@ nodes:
 
 - id: transport_cost
   name: Transport cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, transport_mode, cost_type]
-  output_dimensions: [stakeholder, transport_mode, cost_type]
-  output_nodes:
-  - id: total_cost
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: stakeholder
-
-- id: freight_transport_cost
-  name: Freight transport cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
