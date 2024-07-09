@@ -31,29 +31,9 @@ console = Console()
 
 
 if True:
-    # Print traceback for warnings
-    import traceback
-    import warnings
-
-    def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
-        tb = None
-        depth = 2
-        while True:
-            try:
-                frame = sys._getframe(depth)
-                depth += 1
-            except ValueError:
-                break
-            tb = types.TracebackType(tb, frame, frame.f_lasti, frame.f_lineno)
-        exc = cast(Exception, category(message)).with_traceback(tb)
-
-        tbp = rich.traceback.Traceback.from_exception(type(exc), exc, traceback=tb, max_frames=5)
-        console.print(tbp)
-        return
-
-    warnings.showwarning = warn_with_traceback
-    # Pretty tracebacks
+    from kausal_common.logging.warnings import register_warning_handler
     rich.traceback.install(max_frames=10)
+    register_warning_handler()
 
 django_initialized = False
 
@@ -286,7 +266,7 @@ if args.print_action_efficiencies:
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
                 pc.display('%s computed' % action.id)
-                e = out.cumulative_efficiency 
+                e = out.cumulative_efficiency
                 if e:
                     e = round_quantity(e)
 
