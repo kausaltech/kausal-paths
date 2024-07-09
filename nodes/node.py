@@ -1461,8 +1461,51 @@ class Node:
             node_text = _('The node has the following input nodes:') + '\n' + str(operation_nodes)
         else:
             node_text = _('The node does not have input nodes.')
+        edge_text0 = edge_text = 'The input nodes are processed in the following way before using as input for calculations in this node:\n'
+        for node in self.input_nodes:
+            for edge in node.edges:
+                if edge.output_node == self:
+                    if len(edge.tags) > 0:
+                        edge_text += '    Node ' + str(node.name) + ':\n'
+                        for tag in edge.tags:
+                            if tag == 'non_additive':
+                                edge_text += _('    - Input node values are not added but operated despite matching units.\n')
+                            elif tag == 'extend_values':
+                                edge_text += _('    - Extend the last historical values to the remaining missing years.\n')
+                            elif tag == 'inventory_only':
+                                edge_text += _('    - Truncate the forecast values.\n')
+                            elif tag == 'arithmetic_inverse':
+                                edge_text += _('    - Take the arithmetic inverse of the values (-x).\n')
+                            elif tag == 'geometric_inverse':
+                                edge_text += _('    - Take the geometric inverse of the values (1/x).\n')
+                            elif tag == 'complement':
+                                edge_text += _('    - Take the complement of the dimensionless values (1-x).\n')
+                            elif tag == 'difference':
+                                edge_text += _('    - Take the difference across time (i.e. annual changes)\n')
+                            elif tag == 'cumulative':
+                                edge_text += _('    - Take the cumulative sum across time.\n')
+                            elif tag == 'cumulative_product':
+                                edge_text += _('    - Take the cumulative product of the dimensionless values across time.\n')
+                            elif tag == 'complement_cumulative_product':
+                                edge_text += _('    - Take the cumulative product of the dimensionless complement values across time.\n')
+                            elif tag == 'ratio_to_last_historical_value':
+                                edge_text += _('    - Take the ratio of the values compared with the last historical value.\n')
+                            elif tag == 'existing':
+                                edge_text += _('    - In Dilution Node, this is used as the baseline.\n')
+                            elif tag == 'incoming':
+                                edge_text += _('    - In Dilution Node, this is used for the incoming stock.\n')
+                            elif tag == 'removing':
+                                edge_text += _('    - In Dilution Node, this is the rate of stock removal.\n')
+                            elif tag == 'inserting':
+                                edge_text += _('    - In Dilution Node, this is the rate of new stock coming in.\n')
+                            else:
+                                edge_text += _('    - The tag "%s" is given.\n') % tag
+
         # print(self.input_datasets)  # FIXME Why does this not work?
         # if self.input_datasets:
         #     dataset_text = _('The node has the following datasets:') + '\n' + str(self.input_datasets)
-        text = explanation + '\n' + node_text + '\n'# + dataset_text
+        if edge_text == edge_text0:
+            edge_text = ''
+        # FIXME The following probably does not work properly in translations.
+        text = explanation + '\n' + node_text + '\n' + edge_text  # + dataset_text
         return text
