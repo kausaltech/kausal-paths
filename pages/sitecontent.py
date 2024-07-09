@@ -1,3 +1,5 @@
+from typing import Callable
+
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.menu import MenuItem
@@ -49,10 +51,27 @@ class InstanceSiteContentModelMenuItem(MenuItem):
         return self.view_set.permission_policy.user_has_permission_for_instance(request.user, 'change', field)
 
 
-class SiteContentEditView(PathsEditView):
-    def get_success_url(self):
-        # After editing a model instance, redirect to the edit page again instead of the index page
+# TODO: Could be moved to kausal-common, this is used as-is in kausal-watch as well
+class SuccessUrlEditPageMixin:
+    """After editing a model instance, redirect to the edit page again instead of the index page."""
+    get_edit_url: Callable
+
+    def get_success_url(self) -> str:
         return self.get_edit_url()
+
+    def get_success_buttons(self) -> list:
+        # Remove the button that takes the user to the edit view from the
+        # success message, since we're redirecting back to the edit view already
+        return []
+
+    def get_breadcrumbs_items(self):
+        # As the idea is to stay only on the edit page, hide the breadcrumb trail
+        # that gives access e.g. to the index view
+        return []
+
+
+class SiteContentEditView(SuccessUrlEditPageMixin, PathsEditView):
+    pass
 
 
 class InstanceSiteContentViewSet(PathsViewSet):
