@@ -1079,14 +1079,6 @@ nodes:
     to_dimensions:
     - id: emission_scope
       categories: [scope2]
-  - id: fossil_plant_air_pollution_emissions
-    tags: [non_additive]
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions: []
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
@@ -1370,12 +1362,6 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
-  - id: transport_air_pollution_emissions
-    tags: [non_additive]
-    from_dimensions:
-    - id: emission_scope
-      flatten: true
-    to_dimensions: []
 
 - id: emission_factor_fuels
   name: Fuel emission factors for CO2
