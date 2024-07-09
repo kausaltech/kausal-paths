@@ -378,6 +378,27 @@ nodes:
   params:
     new_category: 'energy_carrier:petrol_diesel'
 
+- id: freight_transport_energy_carrier_shares
+  name: Freight transport energy carrier shares
+  description: Share of freight fleet fully electric (not including hybrids)
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_nodes:
+  - id: fully_electric_truck_share
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  output_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  params:
+    new_category: 'energy_carrier:petrol_diesel'
+
 - id: transport_electricity_consumption
   name: Transport electricity consumption
   type: simple.MultiplicativeNode
@@ -540,7 +561,7 @@ nodes:
     gpc_sector: Utilisation of trucks in decarbonisation scenario
 
 - id: truck_max_load_weight
-  name: Truck max load _weight
+  name: Truck max load weight
   type: gpc.DatasetNode
   quantity: mass
   unit: tkm/vkm
@@ -555,15 +576,21 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: freight_mileage
   unit: Mvkm/a
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_nodes:
   - id: freight_transport_need
     tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
   - id: average_truck_utilisation
     tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
   - id: truck_max_load_weight
     tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
 
 - id: number_of_trucks_registered_within_city
   name: Number of trucks registered within city
@@ -573,12 +600,44 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
-  input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
   params:
     sector: Number of trucks registered within city
+
+- id: truck_mileage
+  name: Truck mileage
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    tags: [inventory_only]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: number_of_trucks_registered_within_city
+    tags: [geometric_inverse, ventory_only]
+
+- id: number_of_electric_trucks
+  name: Number of electric trucks
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: truck_mileage
+    tags: [extend_values, geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+  - id: freight_transport_vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
 
 - id: baseline_year_truck_emission_factor
   name: Baseline year truck emission factor
@@ -624,44 +683,21 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [transport_mode, pollutant]
-  output_dimensions: [transport_mode, pollutant]
+  color: '#ff4f57'
+#  color: '#0047b6'
+  input_dimensions: [transport_mode, pollutant, energy_carrier]
+  output_dimensions: [transport_mode, pollutant, energy_carrier]
   input_nodes:
   - id: freight_transport_vehicle_kilometres
     to_dimensions:
     - id: transport_mode
+    - id: energy_carrier
   - id: truck_emission_factor
-
-- id: freight_emissions
-  name: Freight emissions
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  color: '#ff4f57'
-#  color: '#0047b6'
-  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
-  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
-  input_nodes:
-  - id: vehicle_kilometres  # FIXME
     to_dimensions:
-    - id: ghg
-      categories: [co2e]
-    - id: scope
-      categories: [scope1]
+    - id: energy_carrier
+      categories: [petrol_diesel]
     - id: transport_mode
-    - id: energy_carrier
-  - id: transport_emission_factor  # FIXME
-    from_dimensions:
-    - id: energy_carrier
     - id: pollutant
-      categories: [co2]
-      flatten: true
-    to_dimensions:
-    - id: transport_mode
-    - id: ghg
-      categories: [co2e]
-    - id: scope
-      categories: [scope1]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -669,6 +705,14 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
 
 # ---------------- Transport costs ---------------
 
@@ -770,10 +814,25 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
   - id: electric_trucks_additional_unit_price
-  - id: number_of_trucks_registered_within_city  # FIXME This reflects population, not EV trucks
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: number_of_electric_trucks
     tags: [difference]
     to_dimensions:
     - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: cost_type
+      categories: [capex]
 
 
 - id: electricity_consumption_for_electric_vehicles
@@ -932,6 +991,32 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: transport_cost
+    to_categories:
+    - transport_mode
+    - stakeholder
+    - cost_type
+
+- id: freight_transport_noise_cost
+  name: Freight transport noise cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_noise_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_need
+    to_dimensions:
+    - id: transport_mode
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
     to_categories:
     - transport_mode
     - stakeholder
@@ -1146,6 +1231,22 @@ nodes:
 
 - id: transport_cost
   name: Transport cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+
+- id: freight_transport_cost
+  name: Freight transport cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
