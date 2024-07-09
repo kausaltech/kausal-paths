@@ -144,12 +144,12 @@ class ShiftAction(ActionNode):
         #dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
         #if len(dupes):
         #    raise NodeError(self, "Duplicate rows")
-        df = df.groupby(YEAR_COLUMN).agg([pl.first(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
+        df = df.group_by(YEAR_COLUMN).agg([pl.first(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
         df = df.with_columns(pl.col(col).interpolate().fill_null(0.0) for col in ('Source', *dest_cols))
 
-        value_cols = [col for col in df.columns if col != YEAR_COLUMN]
+        value_cols = [col for col in df.collect_schema().names() if col != YEAR_COLUMN]
         if self.is_enabled():
-            df = df.with_columns([pl.cumsum(col).alias(col) for col in value_cols])
+            df = df.with_columns([pl.cum_sum(col).alias(col) for col in value_cols])
         else:
             df = df.with_columns([pl.lit(float(0)).alias(col) for col in value_cols])
 
@@ -202,8 +202,8 @@ class ShiftAction(ActionNode):
             ])
             return tdf
 
-        df = df.collect()
-        dfs = [make_target_df(df.lazy(), target, col) for col, target in targets]
+        cdf = df.collect()
+        dfs = [make_target_df(cdf.lazy(), target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
         #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([
@@ -236,7 +236,7 @@ class ShiftAction(ActionNode):
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = self.compute_effect_flow().drop([FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
         meta = df.get_meta()
-        sdf = df.groupby(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
+        sdf = df.group_by(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
         sdf = sdf.sort(meta.primary_keys)
         df = ppl.to_ppdf(sdf, meta=meta)
         return df

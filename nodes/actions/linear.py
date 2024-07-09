@@ -118,11 +118,11 @@ class ReduceAction(ActionNode):
         if len(dupes):
             raise NodeError(self, "Duplicate rows")
 
-        df = df.groupby(YEAR_COLUMN).agg(pl.first('Target')).sort(YEAR_COLUMN)
+        df = df.group_by(YEAR_COLUMN).agg(pl.first('Target')).sort(YEAR_COLUMN)
         df = df.with_columns(df['Target'].interpolate()).fill_null(0)
         value_cols = [col for col in df.columns if col != YEAR_COLUMN]
         if self.is_enabled():
-            df = df.with_columns([(pl.cumsum(col) * pl.lit(mult)).alias(col) for col in value_cols])
+            df = df.with_columns([(pl.cum_sum(col) * pl.lit(mult)).alias(col) for col in value_cols])
         else:
             df = df.with_columns([pl.lit(float(0)).alias(col) for col in value_cols])
 
@@ -195,7 +195,7 @@ class ReduceAction(ActionNode):
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = self.compute_effect_flow().drop([FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
         meta = df.get_meta()
-        sdf = df.groupby(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
+        sdf = df.group_by(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
         sdf = sdf.sort(meta.primary_keys)
         df = ppl.to_ppdf(sdf, meta=meta)
         return df

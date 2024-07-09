@@ -47,6 +47,8 @@ if TYPE_CHECKING:
     from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from pages.models import ActionListPage
     from users.models import User
+    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
 
 
 instance_cache_lock = threading.Lock()
@@ -136,10 +138,10 @@ class InstanceConfig(PathsModel):
     objects: InstanceConfigManagerType = InstanceConfigManager.from_queryset(InstanceConfigQuerySet)()  # type: ignore
 
     # Type annotations
-    nodes: models.manager.RelatedManager[NodeConfig]
-    hostnames: models.manager.RelatedManager[InstanceHostname]
-    dimensions: models.manager.RelatedManager['DimensionModel']
-    datasets: models.manager.RelatedManager['DatasetModel']
+    nodes: RelatedManager[NodeConfig]
+    hostnames: RelatedManager[InstanceHostname]
+    dimensions: RelatedManager['DimensionModel']
+    datasets: RelatedManager['DatasetModel']
 
     permission_policy: ClassVar[InstancePermissionPolicy]
     _instance: Instance
@@ -583,7 +585,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         index.FilterField('instance'),
     ]
 
-    objects = NodeConfigManager()
+    objects: models.Manager[Self] = NodeConfigManager()
 
     class Meta:
         verbose_name = _('Node')

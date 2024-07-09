@@ -1,12 +1,12 @@
-import pandas as pd
+from typing import cast
 import polars as pl
 from common import polars as ppl
 
-import common.polars as ppl
-from nodes.calc import convert_to_co2e, extend_last_historical_value, extend_last_historical_value_pl
+from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.node import NodeMetric, NodeError, Node
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
 from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
+from nodes.units import Unit
 from params.param import BoolParameter
 
 
@@ -305,7 +305,7 @@ class ElectricityProductionMix(MixNode):
 
         gdf = gdf.paths.join_over_index(idf)
         gdf = gdf.select([YEAR_COLUMN, es_dim, pl.col('TotalEnergy') + pl.col('ExtEnergy').fill_null(0)])
-        sum_df = gdf.groupby([YEAR_COLUMN]).agg(pl.sum('TotalEnergy').alias('YearSum')).sort(YEAR_COLUMN)
+        sum_df = gdf.group_by([YEAR_COLUMN]).agg(pl.sum('TotalEnergy').alias('YearSum')).sort(YEAR_COLUMN)
         sum_df = ppl.to_ppdf(sum_df, meta=ppl.DataFrameMeta(units={'YearSum': energy_unit}, primary_keys=[YEAR_COLUMN]))
         gdf = gdf.paths.join_over_index(sum_df)
 
@@ -398,7 +398,7 @@ class DistrictHeatProductionMix(MixNode, GasGridMixin):
         use_grid = self.get_parameter_value('use_gas_network', required=False)
         if use_grid:
             df = self.use_gas_grid(df)
- 
+
         return df
 
 
@@ -473,7 +473,7 @@ class EnergyProductionEmissionFactor(AdditiveNode):
         meta = df.get_meta()
         other_dims = df.dim_ids
         other_dims.remove(es_dim_id)
-        zdf = df.groupby([YEAR_COLUMN, *other_dims]).agg([pl.sum('EF'), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
+        zdf = df.group_by([YEAR_COLUMN, *other_dims]).agg([pl.sum('EF'), pl.first(FORECAST_COLUMN)]).sort(YEAR_COLUMN)
         df = ppl.to_ppdf(zdf, meta=meta)
         df = df.rename(dict(EF=VALUE_COLUMN))
         return df
@@ -516,7 +516,7 @@ class EmissionFactor(Node):
             df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(0) + pl.col('_Right').fill_null(0)).drop('_Right')
 
         if df.paths.index_has_duplicates():
-            dupes = df.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1)
+            dupes = df.group_by(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1)
             self.print(dupes)
             raise NodeError(self, "Duplicate rows detected")
         return df
@@ -545,7 +545,7 @@ class EmissionFactorActivity(Node):
         df = df.ensure_unit(m.column_id, m.unit)
         meta = df.get_meta()
         zdf = (
-            df.groupby([YEAR_COLUMN, *self.output_dimensions.keys()])
+            df.group_by([YEAR_COLUMN, *self.output_dimensions.keys()])
             .agg([pl.sum(m.column_id), pl.first(FORECAST_COLUMN)])
             .sort(YEAR_COLUMN)
         )
@@ -571,7 +571,7 @@ class ToPerCapita(Node):
         meta = act_df.get_meta()
         df = ppl.to_ppdf(act_df.join(pop_df, on=YEAR_COLUMN, how='left'), meta=meta)
 
-        pc_unit = act_df.get_unit('Value') / pop_df.get_unit('Pop')
+        pc_unit = cast(Unit, act_df.get_unit('Value') / pop_df.get_unit('Pop'))
         df = df.with_columns([
             (pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'),
             (pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN)
@@ -827,7 +827,7 @@ class TransportFuelFactor(AdditiveNode):
         for col, m in (('electricity', e_m), ('fuel', f_m)):
             u = df.get_unit(col)
             if 'vehicle' not in u.dimensionality:
-                df = df.set_unit(col, u / v_unit, force=True)
+                df = df.set_unit(col, cast(Unit, u / v_unit), force=True)
             df = df.ensure_unit(col, m.unit).rename({col: m.column_id})
             df = df.with_columns(pl.col(m.column_id).fill_nan(None))
             exprs.append(pl.col(m.column_id).is_null() | pl.col(m.column_id).eq(0.0))
@@ -1084,7 +1084,7 @@ class SewageSludgeProcessingEmissions(SimpleNode):
             pl.when(
                 pl.col('greenhouse_gases').eq('co2_biogen')
             ).then(pl.col('emissions') * pl.col('CCSShare') * -1).otherwise(pl.col('emissions')),
-            pl.col('greenhouse_gases').replace('co2_biogen', 'co2'),
+            pl.col('greenhouse_gases').cast(pl.String).replace({'co2_biogen': 'co2'}),
         ]).drop('CCSShare')
 
         df = df.with_columns([

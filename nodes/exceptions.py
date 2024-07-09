@@ -15,10 +15,13 @@ class NodeError(Exception):
     def add_node(self, node: Node):
         self.node_paths.append(node.id)
 
+    def get_dependency_path(self):
+        return ' -> '.join(reversed(self.node_paths))
+
     def __str__(self):
         msg = super().__str__()
         if self.node_paths:
-            msg += '\nNode dependency path: %s' % ' -> '.join(reversed(self.node_paths))
+            msg += '\nNode dependency path: %s' % self.get_dependency_path()
         return msg
 
 class NodeHashingError(NodeError):
