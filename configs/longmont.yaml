@@ -1,7 +1,6 @@
 id: longmont
 default_language: en
-supported_languages: [es]  # FIXME Can we avoid extra laguages from frameworks?
-frameworks: [health_air_pollution]
+supported_languages: [es]
 site_url: https://longmont.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
