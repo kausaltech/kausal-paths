@@ -83,8 +83,8 @@ FROM base AS final
 ENV VENV_PATH=/venv
 ENV PATH=${VENV_PATH}/bin:${PATH}
 
-COPY --from=builder /venv /venv
-# COPY --from=builder ${app_path}/node_modules ${app_path}/node_modules
+COPY --from=builder --chown=${app_user_uid}:${app_user_gid} /venv /venv
+# COPY --from=builder --chown=${app_user_uid}:${app_user_gid} ${app_path}/node_modules ${app_path}/node_modules
 
 COPY . ${app_path}/
 
@@ -111,12 +111,17 @@ USER user
 
 RUN ./manage.py collectstatic --no-input
 RUN ./manage.py compilemessages
+# Run the system checks to import more code and pre-generate the .pyc files
+RUN ./manage.py check
+
 # RUN pybabel compile -D notifications -d locale
 
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY ./docker/app/Caddyfile /etc/caddy/
 
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1
+# Disable this for now
+# ENV PYTHONDONTWRITEBYTECODE=1
 ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
 ARG CADDY_PORT=6000
 ENV CADDY_PORT=${CADDY_PORT}
@@ -124,10 +129,12 @@ ENV LC_CTYPE=C.UTF-8
 
 ARG SENTRY_PROJECT=paths-backend
 ARG BUILD_ID
+ARG GIT_REV
 ENV \
   BUILD_ID=${BUILD_ID} \
   SENTRY_PROJECT=${SENTRY_PROJECT} \
-  SENTRY_RELEASE=${SENTRY_PROJECT}@${BUILD_ID}
+  SENTRY_RELEASE=${SENTRY_PROJECT}@${BUILD_ID} \
+  GIT_REV=${GIT_REV}
 
 # We need to have the default user as root to be able to run tests etc.
 USER root

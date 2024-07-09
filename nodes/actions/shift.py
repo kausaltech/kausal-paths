@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Iterable, Any, List
 
-from pydantic import BaseModel, RootModel, model_validator, Field, validator
+from pydantic import BaseModel, RootModel, model_validator, Field
 import pandas as pd
 import polars as pl
 
@@ -234,7 +234,7 @@ class ShiftAction(ActionNode):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        df = self.compute_effect_flow().drop(columns=[FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
+        df = self.compute_effect_flow().drop([FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
         meta = df.get_meta()
         sdf = df.groupby(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
         sdf = sdf.sort(meta.primary_keys)

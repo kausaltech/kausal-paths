@@ -147,6 +147,7 @@ INSTALLED_APPS = [
     'pages',
     'nodes',
     'datasets',
+    'frameworks',
 ]
 
 MIDDLEWARE = [
@@ -622,10 +623,8 @@ CORS_ALLOW_HEADERS.append(WILDCARD_DOMAINS_HEADER)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
 
-if DEBUG:
-    try:
-        import django_stubs_ext
-        django_stubs_ext.monkeypatch()
-    except ImportError:
-        pass
-
+try:
+    import django_stubs_ext
+    django_stubs_ext.monkeypatch()
+except ImportError:
+    pass

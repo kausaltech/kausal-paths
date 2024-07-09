@@ -14,8 +14,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.http import HttpRequest
 from django.utils import timezone
-from django.utils.translation import get_language, gettext, override
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from loguru import logger
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
@@ -45,8 +44,7 @@ from .instance import Instance, InstanceLoader
 if TYPE_CHECKING:
     from loguru import Logger
 
-    from datasets.models import Dataset as DatasetModel
-    from datasets.models import Dimension as DimensionModel
+    from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from pages.models import ActionListPage
     from users.models import User
 
@@ -96,13 +94,14 @@ class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceC
 
 
 class InstanceConfigManager(models.Manager['InstanceConfig']):
-    def get_by_natural_key(self, identifier):
+    def get_by_natural_key(self, identifier: str):
         return self.get(identifier=identifier)
 
 
 if TYPE_CHECKING:
     class InstanceConfigManagerType(InstanceConfigManager):
         def adminable_for(self, user: User) -> InstanceConfigQuerySet: ...
+        def for_hostname(self, hostname: str, request: HttpRequest | None = None) -> InstanceConfigQuerySet: ...
 
 
 class InstanceConfig(PathsModel):

@@ -1,9 +1,10 @@
+import importlib.util
+
 from django.http import HttpRequest
 from rest_framework.authentication import TokenAuthentication
 from rest_framework import exceptions
 from django.utils.translation import gettext_lazy as _
-from oauth2_provider.views.mixins import OAuthLibMixin
-from oauth2_provider.oauth2_validators import OAuth2Validator
+
 
 from nodes.models import InstanceConfig
 
@@ -22,13 +23,7 @@ class InstanceTokenAuthentication(TokenAuthentication):
         return instance
 
 
-class IDTokenAuthentication(TokenAuthentication):
-    keyword = 'Bearer'
-
-    def authenticate_credentials(self, key: str):
-        validator_class = OAuthLibMixin.get_validator_class()
-        validator: OAuth2Validator = validator_class()  # type: ignore
-        token = validator._load_id_token(key)
-        if not token:
-            return None
-        return token.user, token
+if importlib.util.find_spec('kausal_paths_extensions') is not None:
+    from kausal_paths_extensions.auth.authentication import IDTokenAuthentication
+else:
+    IDTokenAuthentication = None  # type: ignore

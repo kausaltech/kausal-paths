@@ -15,7 +15,7 @@ repos:
         types: [python]
         stages: [pre-commit]
         entry: |
-          ruff
+          ruff check
 
       - id: run-reviewdog
         name: Run Reviewdog

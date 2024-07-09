@@ -44,7 +44,7 @@ idna==3.7
     # via
     #   -c requirements.txt
     #   requests
-mypy==1.10.0
+mypy==1.10.1
     # via
     #   -r requirements-lint.in
     #   graphene-stubs
@@ -64,7 +64,7 @@ requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.4.8
+ruff==0.5.0
     # via -r requirements-lint.in
 six==1.16.0
     # via
@@ -84,7 +84,7 @@ types-pyyaml==6.0.12.20240311
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.32.0.20240602
+types-requests==2.32.0.20240622
     # via djangorestframework-stubs
 typing-extensions==4.12.2
     # via

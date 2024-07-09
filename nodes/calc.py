@@ -73,6 +73,6 @@ def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
         print(df)
         raise Exception("Some greenhouse gases failed to convert")
     df = df.multiply_cols([metric_col, 'gwp_factor'], metric_col)
-    df = df.drop(columns='gwp_factor')
+    df = df.drop('gwp_factor')
     df = df.paths.sum_over_dims([dim_id])
     return df

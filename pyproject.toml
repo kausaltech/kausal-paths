@@ -30,7 +30,8 @@ ignore = "E309"
 line-length = 130
 
 [tool.ruff.lint.isort]
-split-on-trailing-comma = false
+split-on-trailing-comma = true
+combine-as-imports = true
 required-imports = ["from __future__ import annotations"]
 
 [tool."pylint.MASTER"]
@@ -66,13 +67,15 @@ plugins = [
     "numpy.typing.mypy_plugin",
     "pydantic.mypy",
 ]
-mypy_path = "typings"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
 exclude = [
     '^Attic/',
     '^typings/',
+    '^kausal_common/typings/',
     '^local_settings\.py',
 ]
 check_untyped_defs = true
+sqlite_cache = true
 
 
 [[tool.mypy.overrides]]
@@ -80,15 +83,21 @@ module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
     "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
     "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environs.*",
-    "wagtail_color_panel.*",
+    "wagtail_color_panel.*", "polars.polars.*",
 ]
 ignore_missing_imports = true
 
 [tool.pyright]
-stubPath = "./typings"
+stubPath = "./kausal_common/typings"
 
 [tool.django-stubs]
 django_settings_module = "paths.settings"
 
 [tool.setuptools]
 include-package-data = false
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt", "kausal_common/requirements-common.txt"]}
+optional-dependencies.dev = { file = ["requirements-dev.txt", "requirements-lint.txt"] }
+optional-dependencies.lint = { file = ["requirements-lint.txt"] }
+optional-dependencies.prod = { file = ["requirements-prod.txt"] }

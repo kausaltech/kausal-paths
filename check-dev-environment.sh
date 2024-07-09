@@ -1,11 +1,12 @@
 #!/bin/bash
 
 # Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
+# Setting the color codes
+GREEN='\033[0;32m'  # Green
+RED='\033[0;31m'    # Red
+BLUE='\033[0;34m'   # Blue
+YELLOW='\033[0;33m' # Yellow color for warning messages
+NC='\033[0m'        # No color
 # Initialize error counter
 ERROR_COUNT=0
 
@@ -21,7 +22,7 @@ print_error() {
 }
 
 print_warning() {
-    echo -e "${RED}✘ $1${NC}"
+    echo -e "${YELLOW}⚠ $1${NC}"
 }
 
 REQ_FILES="requirements-dev.txt requirements-lint.txt requirements.txt"
@@ -36,8 +37,7 @@ check_python_version() {
     fi
 
     # Extract the Python version requirement from pyproject.toml
-    REQUIRED_VERSION=$(grep "requires-python" pyproject.toml | sed -E 's/.*">= ([0-9]+\.[0-9]+)".*/\1/')
-
+    REQUIRED_VERSION=$(grep "requires-python" pyproject.toml | sed -E 's/.*>= *([0-9]+\.[0-9]+).*/\1/')
     if [ -z "$REQUIRED_VERSION" ]; then
         print_error "Could not find or parse 'requires-python' in pyproject.toml"
         return
@@ -59,14 +59,24 @@ check_python_version() {
     else
         print_error "Python version does not meet the minimum requirement"
         echo -e "${BLUE}ℹ️ You can install the required Python version using:${NC}"
-        echo -e "${GREEN}   pyenv install $REQUIRED_VERSION${NC}"
+        echo -e "${GREEN}   pyenv install ${REQUIRED_VERSION}${NC}"
         echo -e "${BLUE}ℹ️ Then, update the Python version in your .envrc file.${NC}"
         echo -e "${BLUE}ℹ️ And reload the environment:${NC}"
         echo -e "${GREEN}   direnv allow${NC}"
+    fi
 }
 
 check_package_versions() {
     echo "📦 Checking installed package versions..."
+
+    # Extract requirements files from pyproject.toml
+    REQ_FILES=$(grep -E "^(dependencies|optional-dependencies\.dev)" pyproject.toml | grep -oP '(?<=\[)[^\]]+' | tr -d '"' | tr ',' ' ')
+    if [ -z "$REQ_FILES" ]; then
+        print_error "No requirements files found in pyproject.toml"
+        return 1
+    fi
+
+    echo "  📄 Requirements files: $(echo $REQ_FILES | xargs echo)"
 
     # Run pip-sync with dry run
     OUTPUT=$(pip-sync -n $REQ_FILES 2>&1)

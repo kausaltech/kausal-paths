@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import ClassVar, Iterable, Any, List
 
-from pydantic import BaseModel, RootModel, root_validator, Field, validator
+from pydantic import BaseModel, RootModel, Field, validator
 import pandas as pd
 import polars as pl
 
 from nodes.constants import (
-    FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
+    FLOW_ROLE_COLUMN, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
     VALUE_COLUMN, YEAR_COLUMN
 )
 from nodes.exceptions import NodeError
@@ -194,7 +194,7 @@ class ReduceAction(ActionNode):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        df = self.compute_effect_flow().drop(columns=[FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
+        df = self.compute_effect_flow().drop([FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
         meta = df.get_meta()
         sdf = df.groupby(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])
         sdf = sdf.sort(meta.primary_keys)
