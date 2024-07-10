@@ -1491,15 +1491,41 @@ class Node:
                             elif tag == 'ratio_to_last_historical_value':
                                 edge_text += _('    - Take the ratio of the values compared with the last historical value.\n')
                             elif tag == 'existing':
-                                edge_text += _('    - In Dilution Node, this is used as the baseline.\n')
+                                edge_text += _('    - This is used as the baseline.\n')
                             elif tag == 'incoming':
-                                edge_text += _('    - In Dilution Node, this is used for the incoming stock.\n')
+                                edge_text += _('    - This is used for the incoming stock.\n')
                             elif tag == 'removing':
-                                edge_text += _('    - In Dilution Node, this is the rate of stock removal.\n')
+                                edge_text += _('    - This is the rate of stock removal.\n')
                             elif tag == 'inserting':
-                                edge_text += _('    - In Dilution Node, this is the rate of new stock coming in.\n')
+                                edge_text += _('    - This is the rate of new stock coming in.\n')
+                            elif tag == 'historical':
+                                edge_text += _('    - The node is used as the historical starting point.\n')
+                            elif tag == 'goal':
+                                edge_text += _('    - The node is used as the goal for the action.\n')
                             else:
                                 edge_text += _('    - The tag "%s" is given.\n') % tag
+
+                        dims = edge.from_dimensions
+                        if dims is not None:
+                            for dim in dims:
+                                cats = str([cat.label for cat in dims[dim].categories])
+                                dimlabel = self.context.dimensions[dim].label
+                                if len(dims[dim].categories) > 0:
+                                    if dims[dim].exclude:
+                                        do = 'exclude'
+                                    else:
+                                        do = 'include'
+                                    edge_text += _('    - From dimension %s, %s categories %s.\n') % (dimlabel, do, cats)
+                                if dims[dim].flatten:
+                                    edge_text += _('    - Sum over dimension %s .\n') % dimlabel
+
+                        dims = edge.to_dimensions
+                        if dims is not None:
+                            for dim in dims:
+                                cats = str([cat.label for cat in dims[dim].categories])
+                                dimlabel = self.context.dimensions[dim].label
+                                if len(dims[dim].categories) > 0:
+                                    edge_text += _('    - Add values to the category %s in a new dimension %s.\n' % (cats, dim))
 
         # print(self.input_datasets)  # FIXME Why does this not work?
         # if self.input_datasets:
