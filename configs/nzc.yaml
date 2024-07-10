@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2787b940f1fc4112f79163b72143d82df98174dc
+  commit: 0042a4e8711d008127ecf2450a844897bae20061
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -139,6 +139,7 @@ dimensions:
     aliases: [operation_cost, Operation Cost]
   - id: maintenance_costs
     label: Maintenance Costs
+    aliases: [maintenance]
   - id: sales
     label: Sales income
   - id: air_pollution
@@ -167,6 +168,14 @@ dimensions:
     label: Vehicle costs
   - id: infrastructure_costs
     label: Infrastructure costs
+  - id: fuel
+    label: Fuel costs
+  - id: tires
+    label: Tire costs
+  - id: depreciation
+    label: Depreciation costs
+  - id: labour_costs
+    label: Labour costs
 
 - id: ghg
   label: Greenhouse gas

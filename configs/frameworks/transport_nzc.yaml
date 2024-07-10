@@ -96,7 +96,7 @@ nodes:
   output_dimensions: [transport_pollutant, transport_mode]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: new fleet emission factor
+    sector: new fleet emission factor
 
 - id: transport_pollutant_split
   name: Transport pollutant split
@@ -108,7 +108,7 @@ nodes:
   output_dimensions: [pollutant, transport_pollutant, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport pollutant split
+    sector: transport pollutant split
 
 - id: baseline_year_fleet_emission_factor
   name: Baseline year fleet emission factor
@@ -200,30 +200,12 @@ nodes:
     - id: transport_pollutant
       flatten: true
   - id: old_fleet_removal
-    tags: [removing, inserting]
+    tags: [removing, inserting, test_tag]
     to_dimensions:
     - id: transport_mode
 
-- id: vehicle_electricity_factor
-  name: Vehicle electricity factor
-  description: Electricity consumed per one vehicle-kilometre of various vehicle types.
-  type: gpc.DatasetNode
-  quantity: energy_factor
-  unit: kWh/vkm
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets: [nzc/defaults]
-  output_nodes:
-  - id: train_emission_factor
-    to_dimensions:
-    - id: transport_mode
-    - id: energy_carrier
-  params:
-    gpc_sector: Electricity consumption, average vehicle
-
-- id: train_emission_factor  # FIXME Calculate electricity emissions separately for all transport modes.
+- id: train_emission_factor
   name: Train emission factor
-  description: TODO Update calculations
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
@@ -234,6 +216,10 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
+  - id: electricity_consumption_for_electric_vehicles
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
 
 - id: transport_emission_factor
   name: Transport emission factor
@@ -343,6 +329,18 @@ nodes:
   params:
     sector: Share of bus fleet as fully electric buses (not including hybrids)
 
+- id: number_of_buses_historical
+  name: Number of buses historical
+  type: gpc.DatasetNode
+  quantity: number
+  unit: v
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Number of buses in city bus fleet
+
 - id: fully_electric_train_share
   name: Fully electric train share
   description: Share of train fleet fully electric
@@ -411,12 +409,9 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  - id: vehicle_electricity_factor
-    from_dimensions:
-    - id: transport_mode
-      flatten: true  # FIXME Should match vehicle km
+  - id: electricity_consumption_for_electric_vehicles
     to_dimensions:
-    # - id: transport_mode
+    - id: transport_mode
     - id: energy_carrier
   output_nodes:
   - id: total_electricity_consumption
@@ -477,7 +472,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: motorised transport index
+    sector: motorised transport index
 
 - id: motorised_transport_change
   name: Motorised transport change
@@ -558,7 +553,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Utilisation of trucks in decarbonisation scenario
+    sector: Utilisation of trucks in decarbonisation scenario
 
 - id: truck_max_load_weight
   name: Truck max load weight
@@ -742,6 +737,39 @@ nodes:
     - id: transport_mode
     - id: pollutant
 
+- id: truck_fuel_consumption
+  name: Truck fuel consumption
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: cl/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Fleet average consumption
+  
+- id: freight_transport_fuel_consumption
+  name: freight transport fuel consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: Ml/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+  - id: truck_fuel_consumption
+
+- id: freight_transport_electricity_consumption
+  name: freight transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+  - id: electricity_consumption_for_electric_vehicles
+
 # ---------------- Freight transport costs -------
 
 - id: freight_transport_air_pollution_costs
@@ -811,60 +839,19 @@ nodes:
     - id: transport_mode
     - id: cost_type
 
-- id: electric_trucks_additional_unit_price_historical
-  name: Electric trucks additional unit price historical
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/v
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets: [nzc/defaults]
-  params:
-  - id: sector
-    value: Additional cost for electrified trucks
-  - id: multiplier  # FIXME
-    value: 1
-    unit: vkm/v
-# Additional costs for electric vehicles
-# Additional infrastructure costs for electric vehicles
-
-- id: electric_trucks_additional_unit_price_rate
-  name: Electric trucks additional unit price rate
-  type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets: [nzc/defaults]
-  params:
-    gpc_sector: Additional cost for electrified trucks rate
-# Additional costs for electric vehicles rate
-
-- id: electric_trucks_additional_unit_price
-  name: Electric trucks additional unit price
-  type: simple.MultiplicativeNode
-  quantity: unit_price
-  unit: EUR/v
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_nodes:
-  - id: electric_trucks_additional_unit_price_historical
-    tags: [non_additive]
-  - id: electric_trucks_additional_unit_price_rate
-    tags: [arithmetic_inverse, complement_cumulative_product]
-
-- id: new_electric_truck_costs
-  name: New electric truck costs
+- id: new_electric_trucks_additional_costs
+  name: New electric trucks additional costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_nodes:
-  - id: electric_trucks_additional_unit_price
+  - id: electric_vehicles_additional_unit_price
     to_dimensions:
     - id: transport_mode
     - id: energy_carrier
+    - id: cost_type
   - id: number_of_electric_trucks
     tags: [difference]
     to_dimensions:
@@ -876,11 +863,10 @@ nodes:
     - id: energy_carrier
       flatten: true
     to_dimensions:
+    - id: cost_type
     - id: transport_mode
     - id: stakeholder
       categories: [transport_operators]
-    - id: cost_type
-      categories: [capex]
 
 - id: freight_transport_noise_unit_price
   name: Freight transport noise unit price
@@ -956,6 +942,140 @@ nodes:
     - stakeholder
     - cost_type
 
+- id: freight_transport_ownership_costs
+  name: Freight transport ownership costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, transport_mode, energy_carrier]
+  output_dimensions: [cost_type, transport_mode, energy_carrier]
+  input_nodes:
+  - id: total_cost_of_ownership
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+
+- id: freight_ownership_labour_cost_fraction
+  name: Freight ownership_labour cost fraction
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight labour cost fraction
+
+- id: freight_ownership_cost_without_labour
+  name: Freight ownership cost without labour
+  description: Labour costs are dropped here because those are assumed to stay constant despite changes in vehicle kilometres. Therefore, they are not included in total costs where the impacts are calculated.
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_ownership_costs
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: stakeholder
+      categories: [transport_operators]
+  - id: freight_ownership_labour_cost_fraction
+    tags: [complement]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  output_nodes:
+  - id: freight_transport_cost
+    to_dimensions:
+    - id: stakeholder
+    - id: transport_mode
+    - id: cost_type
+
+- id: fuel_consumption_increase_per_load_increase
+  name: Fuel consumption increase per load increase
+  description: Fuel consumption change of 1% utilisation change
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: 'Fuel consumption change of 1% utilisation change '
+
+- id: fuel_consumption_increase_due_to_load
+  name: Fuel consumption increase due to load
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: fuel_consumption_increase_per_load_increase
+    tags: [non_additive]
+  - id: average_truck_utilisation
+    tags: [non_additive]
+
+- id: freight_transport_fuel_cost
+  name: freight transport fuel cost
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: freight_transport_fuel_consumption
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: fuel_unit_price
+    to_dimensions:
+    - id: cost_type
+
+- id: freight_transport_electricity_cost
+  name: freight transport electricity cost
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: electricity_consumption_for_electric_vehicles
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: consumer_electricity_unit_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+      categories: [opex]
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: transport_mode
+    - id: cost_type
+
 - id: freight_transport_cost
   name: Freight transport cost
   type: simple.AdditiveNode
@@ -974,51 +1094,129 @@ nodes:
 
 # ---------------- Transport costs ---------------
 
-- id: electric_vehicles_additional_unit_price
-  name: Electric vehicles additional unit price
+- id: car_driving_unit_price
+  name: Car driving unit price
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/v
+  unit: EUR/vkm
   input_dimensions: [transport_mode, cost_type, energy_carrier]
   output_dimensions: [transport_mode, cost_type, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Additional costs for electric vehicles
+    sector: Cost of driving a car per kilometre (excluding fuel)
 
-- id: electric_buses_additional_unit_price_historical
-  name: Electric buses additional unit price historical
+- id: charging_infrastructure_unit_price
+  name: Car driving unit price
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/v
-  input_dimensions: [transport_mode, cost_type, energy_carrier]
-  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Charging infrastructure costs
+
+- id: total_cost_of_ownership_historical
+  name: Total cost of ownership historical
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total cost of ownership
+
+- id: total_cost_of_ownership_shares
+  name: Total cost of ownership shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total cost of ownership shares
+
+- id: total_cost_of_ownership
+  name: Total cost of ownership
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: total_cost_of_ownership_historical
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+  - id: total_cost_of_ownership_shares
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+
+- id: transport_ownership_costs
+  name: Transport ownership costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, transport_mode, energy_carrier]
+  output_dimensions: [cost_type, transport_mode, energy_carrier]
+  input_nodes:
+  - id: total_cost_of_ownership
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+    - id: stakeholder
+      categories: [transport_operators]
+
+- id: electric_vehicles_additional_unit_price_historical
+  name: Electric vehicles additional unit price historical
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_datasets: [nzc/defaults]
   params:
   - id: sector
-    value: Additional costs for electric buses
+    value: Additional costs for electric vehicles
 
-- id: electric_buses_additional_unit_price_rate
-  name: Electric buses additional unit price rate
+- id: electric_vehicles_unit_price_rate
+  name: Electric vehicles additional unit price rate
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
-  input_dimensions: [transport_mode, cost_type, energy_carrier]
-  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Additional costs for electric buses rate
+    sector: Additional costs for electric vehicles rate
 
-- id: electric_buses_additional_unit_price
-  name: Electric buses additional unit price
+- id: electric_vehicles_additional_unit_price
+  name: Electric vehicles additional unit price
   type: simple.MultiplicativeNode
   quantity: unit_price
   unit: EUR/v
-  input_dimensions: [transport_mode, cost_type, energy_carrier]
-  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_nodes:
-  - id: electric_buses_additional_unit_price_historical
+  - id: electric_vehicles_additional_unit_price_historical
     tags: [non_additive]
-  - id: electric_buses_additional_unit_price_rate
+  - id: electric_vehicles_unit_price_rate
     tags: [arithmetic_inverse, complement_cumulative_product]
 
 - id: electricity_consumption_for_electric_vehicles
@@ -1030,7 +1228,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
-    sector: Electricity consumption for electric vehicles
+    sector: Electricity consumption average vehicle
 
 - id: transport_air_pollution_unit_price
   name: Transport air pollution unit price
@@ -1046,7 +1244,7 @@ nodes:
   output_dimensions: [pollutant, cost_type, area_distance]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Air pollution unit price
+    sector: Air pollution unit price
 
 - id: transport_air_pollution_costs
   name: Transport air pollution costs
@@ -1143,7 +1341,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: distribution of co-benefits
+    sector: distribution of co-benefits
 
 - id: transport_noise_cost
   name: Transport noise cost
@@ -1180,7 +1378,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Traffic accidents
+    sector: Traffic accidents
 
 - id: transport_accident_cost
   name: Transport accident cost
@@ -1224,7 +1422,7 @@ nodes:
   # # output_dimensions: [transport_mode, cost_type]
   # input_datasets: [nzc/defaults]
   # params:
-  #   gpc_sector: public transport operation unit price
+  #   sector: public transport operation unit price
 
 - id: public_transport_operation_cost_shares
   name: Public transport operation cost shares
@@ -1237,7 +1435,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    gpc_sector: public transport operation costs
+    sector: public transport operation costs
 
 - id: public_transport_operation_cost
   name: Public transport operation cost
@@ -1288,7 +1486,7 @@ nodes:
   unit: l/g
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: transport energy factor ice petrol diesel
+    sector: transport energy factor ice petrol diesel
 
 - id: fuel_unit_price
   name: Fuel unit price
@@ -1301,7 +1499,7 @@ nodes:
   output_dimensions: [cost_type]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: fuel unit price
+    sector: fuel unit price
 
 - id: transport_fuel_cost
   name: Transport fuel cost
@@ -1343,11 +1541,6 @@ nodes:
 
 - id: walking_cycling_unit_price
   name: Walking & cycling unit price
-  description: 'Value of cycling and walking is 0.5 and 0.2 USD/pkm, respectively
-    (Victoria Transport Policy Institute, 2019). Unit price is constant across time.
-    Victoria Transport Policy Institute (2019). Evaluating Active Transport Benefits and Costs.
-    https://www.vtpi.org/nmt-tdm.pdf This value is supported by another study, which evaluates the
-    health-benefits to 0.3-0.5 €/pkm: https://www.researchgate.net/publication/330184791_The_Social_Cost_of_Automobility_Cycling_and_Walking_in_the_European_Union. From these sources, a summary estimate of 0.2966 EUR/pkm is derived.'
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1355,7 +1548,7 @@ nodes:
   input_dimensions: [transport_mode, stakeholder, cost_type]
   output_dimensions: [transport_mode, stakeholder, cost_type]
   params:
-    gpc_sector: walking cycling unit price
+    sector: Total Average cost of cycling/walking
 
 - id: walking_cycling_cost
   name: Walking & cycling cost
@@ -1373,8 +1566,8 @@ nodes:
   - id: passenger_kilometres
     to_dimensions:
     - id: transport_mode
-    - id: stakeholder
-      categories: [citizens]
+    # - id: stakeholder
+    #   categories: [citizens]
   output_nodes: [transport_cost]
 
 - id: transport_cost
@@ -1522,6 +1715,8 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_nodes:
   - id: fully_electric_bus_share
     tags: [cumulative]
+
+# ----------------- Freight transport -----------------
 
 - id: improve_utilisation_of_trucks
   name: Improve utilisation of trucks
