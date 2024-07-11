@@ -322,7 +322,7 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 2 * 60  # two minutes
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_RESULT_EXPIRES = 60 * 60  # one hour
-
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = False
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
