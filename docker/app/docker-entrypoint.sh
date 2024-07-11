@@ -20,7 +20,7 @@ function populate_test_instances() {
 
 # Wait for the database to get ready when not running in Kubernetes.
 # In Kube, the migrations will be handled through a job.
-if [ "$KUBERNETES_MODE" != "1" -a "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'runserver' ]; then
+if [ "$KUBERNETES_MODE" != "1" ] && [ "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'runserver' ]; then
     echo "Waiting for database to get ready..."
     $wait_for_it $DB_ENDPOINT
 
