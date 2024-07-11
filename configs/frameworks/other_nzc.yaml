@@ -8,27 +8,49 @@ nodes:
 
 - id: electricity_production_emissions  # FIXME Move to main yaml?
   name_en: Electricity production emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [fuel_type, energy_carrier, pollutant]
-  output_dimensions: [fuel_type, energy_carrier, pollutant]
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
   input_nodes:
   - id: total_electricity_consumption
     to_dimensions:
     - id: energy_carrier
-  - id: electricity_production_shares
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
+  # - id: electricity_production_shares
+  #   to_dimensions:
+  #   - id: fuel_type
+  #   - id: energy_carrier
   - id: electricity_production_emission_factor
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
+  - id: electricity_production_switched
+    from_dimensions:
+    - id: fuel_type
+#      categories: [fossil]  # FIXME
+#      exlude: true
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: ghg
+      categories: [co2e]
+  params:
+    formula: electricity_production_emission_factor * (total_electricity_consumption + electricity_production_switched)
 
-- id: new_electricity_production_capacity  # FIXME Link this to the action 4.1!
+- id: new_electricity_production_capacity
   name: New electricity production capacity
-  description: FIXME Does not show increased production capacity
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a**2
@@ -40,6 +62,27 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: new_electricity_production_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: electricity_production_capacity
+  name: Electricity production capacity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_production_shares_historical
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+  - id: electricity_production_switched
     to_dimensions:
     - id: energy_carrier
     - id: fuel_type
@@ -97,7 +140,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Distribution of type of new renewables
+    sector: Distribution of type of new renewables
 
 - id: electricity_production_shares_historical
   name_en: Electricity production shares historical
@@ -284,7 +327,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    gpc_sector: 5.1. Increased recycling of waste
+    sector: 5.1. Increased recycling of waste
     slice_category_at_edge: 'parameter:decarbonisaton_scenario'
 
 - id: waste_recycling_shares
@@ -748,39 +791,51 @@ nodes:
   params:
     sector: Population density outside city compared to inside city
 
+- id: electricity_production_switched
+  name: Electricity production switched
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: statistical_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_production_shares_historical
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_electricity_production_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
 actions:
 
 - id: replace_fossil_electricity
   name_en: 4.1 Replace fossil electricity
-  type: shift.ShiftAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   group: electricity
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_datasets: [nzc/defaults]
   output_nodes:
-  - id: electricity_production_shares_historical
-    to_dimensions:
+  - id: electricity_production_switched
+    from_dimensions:
     - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
   params:
-  - id: multiplier
-    value: 41.0
-    unit: '%'
-  - id: shift  # nzc/defaults/fossil_electricity_replaced
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          fuel_type: fossil
-      dests:
-      - categories:
-          fuel_type: non_fossil
-      amounts:
-      - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
-      - {year: 2025, source_amount: -14.0, dest_amounts: [100]} 
-      - {year: 2030, source_amount: -14.0, dest_amounts: [100]} 
-      - {year: 2031, source_amount: 0.0, dest_amounts: [100]} 
+    sector: Share of current fossil production replaced by renewables (or nuclear)
 
 - id: increase_waste_recycling
   name: Increase waste recycling
@@ -808,7 +863,7 @@ actions:
 
 - id: tree_planting
   name: Tree planting
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: number
   unit: pcs
   group: reforestation
@@ -822,14 +877,14 @@ actions:
     #   value: 2030
     #   drop_col: false
   params:
-    gpc_sector: Number of planted trees until 2030
+    sector: Number of planted trees until 2030
 
 - id: reduced_co2_emissions_in_other_sectors
   name: Reduced CO2 emissions in other sectors
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   group: reforestation
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other sector
+    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other sector

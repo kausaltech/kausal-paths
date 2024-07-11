@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0042a4e8711d008127ecf2450a844897bae20061
+  commit: 79fe71d77af26ac2acdd0a716a536d29d6140436
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -134,6 +134,8 @@ dimensions:
     label: Investment Costs
   - id: capex
     label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
   - id: opex
     label: OPEX (operational expenditure)
     aliases: [operation_cost, Operation Cost]
@@ -435,6 +437,40 @@ dimensions:
     label: Decarbonisation scenario
   - id: frozen_scenario
     label: Frozen scenario
+
+- id: country
+  label: Country
+  categories:
+  - id: at
+    label: Austria
+  - id: be
+    label: Belgium
+  - id: cz
+    label: Czeck Republic
+  - id: dk
+    label: Denmark
+  - id: fr
+    label: France
+  - id: de
+    label: Germany
+  - id: it
+    label: Italy
+  - id: lt
+    label: Latvia
+  - id: 'no'
+    label: Norway
+  - id: pl
+    label: Poland
+  - id: ro
+    label: Romania
+  - id: sk
+    label: Slovakia
+  - id: es
+    label: Spain
+  - id: se
+    label: Sweden
+  - id: average
+    label: Average
 
 emission_sectors:
 - id: net_emissions

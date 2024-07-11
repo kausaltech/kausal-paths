@@ -55,11 +55,11 @@ nodes:
   - id: inventory_only
     value: false
 
-- id: new_building_shares
-  name: New building shares
+- id: new_building_shares_historical
+  name: New building shares historical
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%'
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
@@ -68,6 +68,28 @@ nodes:
   params:
     sector: 'Energy efficiency of new buildings, Share'
     inventory_only: true
+
+- id: new_building_shares_improvements
+  name: New building shares improvements
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share of new buildings built with high energy efficiency standards
+
+- id: new_building_shares
+  name: New building shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: new building shares # Share of new buildings built
 
 - id: demolition_rate
   name: Demolition rate
@@ -95,13 +117,11 @@ nodes:
     tags: [non_additive]
   - id: demolition_rate
 
-- id: new_building_stock
-  name: New building stock
-  type: formula.FormulaNode
+- id: new_building_stock_total
+  name: New building stock total
+  type: simple.AdditiveNode
   quantity: floor_area
   unit: km**2/a
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
   input_nodes:
   - id: projected_building_stock
     tags: [difference]
@@ -114,11 +134,19 @@ nodes:
     - id: building_energy_class
       flatten: true
     to_dimensions: []
+
+- id: new_building_stock
+  name: New building stock
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: km**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: new_building_stock_total
+    tags: [non_additive]
+    to_dimensions: []
   - id: new_building_shares
-    tags: [extend_values]
-  params:
-  - id: formula
-    value: (projected_building_stock + demolished_building_stock) * new_building_shares
 
 - id: building_stock
   name: Building stock
@@ -784,25 +812,19 @@ actions:
 
 - id: new_building_shares_improvement
   name: New building shares improvement
-  type: shift.ShiftAction
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
-  output_nodes: [new_building_shares]
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
   group: buildings
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          building_energy_class: new_standard
-      dests:
-      - categories:
-          building_energy_class: new_top_performance
-      amounts:
-      - {year: 2023, source_amount: -30.0, dest_amounts: [100]} 
-      - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
+  input_nodes:
+  - id: new_building_shares_historical
+    tags: [historical]
+  - id: new_building_shares_improvements
+    tags: [goal]
+  output_nodes:
+  - id: new_building_shares
 
 - id: heating_technology_improvement
   name: Heating technology improvement
