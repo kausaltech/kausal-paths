@@ -55,3 +55,5 @@ s3cmd
 recursive-diff
 PyGithub
 django-stubs-ext
+celery
+django-celery-results
