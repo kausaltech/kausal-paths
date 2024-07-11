@@ -73,7 +73,7 @@ elif os.path.exists(os.path.join(BASE_DIR, '.env')):
 DEBUG = env('DEBUG')
 ADMIN_BASE_URL = env('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
-INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))
+INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))  # type: ignore
 DATABASES = {
     'default': env.db_url(engine='paths.database')
 }
@@ -81,9 +81,11 @@ DATABASES['default']['ATOMIC_REQUESTS'] = True
 
 # If Redis is configured, but no CACHE_URL is set in the environment,
 # default to using Redis as the cache.
+REDIS_URL = env('REDIS_URL')
+
 cache_var = 'CACHE_URL'
 if env.get_value('CACHE_URL', default=None) is None:  # pyright: ignore
-    if env('REDIS_URL'):
+    if REDIS_URL:
         cache_var = 'REDIS_URL'
 CACHES = {
     'default': env.cache_url(var=cache_var),
@@ -305,6 +307,22 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': '^/v1',
     'SCHEMA_COERCE_PATH_PK_SUFFIX': True,
 }
+
+# If we are using Redis, we also use that for the broker and the results.
+# Otherwise, we use a Django database backend.
+if REDIS_URL:
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
+else:
+    CELERY_BROKER_URL = 'django-db'
+    CELERY_RESULT_BACKEND = 'django-cache'
+    INSTALLED_APPS.append('django_celery_results')
+
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 2 * 60  # two minutes
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_RESULT_EXPIRES = 60 * 60  # one hour
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
@@ -590,6 +608,7 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             'psycopg': level('INFO'),
             'aiobotocore': level('INFO'),
             's3fs': level('INFO'),
+            'celery.utils': level('INFO'),
             '': level('DEBUG'),
         }
     }
