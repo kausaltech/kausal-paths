@@ -49,7 +49,11 @@ if [ "$1" = 'uwsgi' ]; then
     fi
     exec uwsgi --ini /uwsgi.ini $EXTRA_UWSGI_ARGS
 elif [ "$1" = 'celery' ]; then
-    exec celery -A paths "$2" -l INFO
+    CELERY_ARGS=""
+    if [ "$2" = "worker" -a "$KUBERNETES_MODE" = "1" ] ; then
+      CELERY_ARGS="--concurrency=1"
+    fi
+    exec celery -A paths "$2" -l INFO $CELERY_ARGS
 elif [ "$1" = 'runserver' ]; then
     cd /code
     exec python manage.py runserver 0.0.0.0:8000
