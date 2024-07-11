@@ -25,7 +25,9 @@ class DatasetNode(AdditiveNode):
                'waste_disposal': 'mass',
                'amount': 'number',
                'exposureresponse': 'exposure_response',
-               'case_cost': 'unit_price'
+               'case_cost': 'unit_price',
+               'unit_cost': 'unit_price',
+               'share': 'fraction'
                }
 
     # -----------------------------------------------------------------------------------

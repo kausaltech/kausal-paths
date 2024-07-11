@@ -9,6 +9,7 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.units import Quantity
 from params.param import BoolParameter, StringParameter
 from .node import Node
+from django.utils.translation import gettext_lazy as _
 
 
 PDF: TypeAlias = ppl.PathsDataFrame
@@ -30,6 +31,7 @@ BinomRightDF: TypeAlias = Callable[[Quantity, PDF], PDF]
 
 
 class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != b * a with some dimensions
+    explanation = _('This is a Formula Node. It uses a specified formula to calculate the output.')
     allowed_parameters = [
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value')

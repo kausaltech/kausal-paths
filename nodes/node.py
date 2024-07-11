@@ -1456,11 +1456,13 @@ class Node:
 
     def get_explanation(self):
         operation_nodes = [n.name for n in self.input_nodes]  # FIXME separate operation and additive
-        explanation = self.explanation
+        text = self.explanation + '\n'
+        if 'formula' in self.parameters.keys():
+            text += 'The formula is:\n' + self.get_parameter_value('formula', required=False) + '\n'
         if len(operation_nodes) > 0:
-            node_text = _('The node has the following input nodes:') + '\n' + str(operation_nodes)
+            text += _('The node has the following input nodes:') + '\n' + str(operation_nodes)
         else:
-            node_text = _('The node does not have input nodes.')
+            text += _('The node does not have input nodes.')
         edge_text0 = edge_text = 'The input nodes are processed in the following way before using as input for calculations in this node:\n'
         for node in self.input_nodes:
             for edge in node.edges:
@@ -1533,5 +1535,5 @@ class Node:
         if edge_text == edge_text0:
             edge_text = ''
         # FIXME The following probably does not work properly in translations.
-        text = explanation + '\n' + node_text + '\n' + edge_text  # + dataset_text
+        text += edge_text  # + dataset_text
         return text
