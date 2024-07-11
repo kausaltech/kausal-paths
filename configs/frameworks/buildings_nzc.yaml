@@ -38,7 +38,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Total floor area (residental & non-residential)
+    sector: Total floor area (residental & non-residential)
 
 - id: projected_building_stock
   name: Projected building stock
@@ -66,7 +66,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: new building shares
+    sector: 'Energy efficiency of new buildings, Share'
     inventory_only: true
 
 - id: demolition_rate
@@ -150,7 +150,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    sector: renovation rate (building envelope)
+    sector: Share of building stock renovated each year
 
 - id: renovation_intensity
   name: Renovation intensity
@@ -162,6 +162,18 @@ nodes:
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
+  params:
+    sector: Assumed share of type of renovation in lever
+
+- id: renovation_intensity_shares
+  name: Renovation intensity shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults
   params:
     sector: Assumed share of type of renovation in lever
 
@@ -197,7 +209,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: energy use intensity
+    sector: energy use intensity
 
 - id: energy_use_intensity_relative_old
   name: Relative energy use intensity of existing building classes
@@ -210,7 +222,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Energy efficiency improvements from building renovations
+    sector: Energy efficiency improvements from building renovations
 
 - id: energy_use_intensity_old
   name: Energy use intensity of existing buildings
@@ -318,7 +330,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
+    sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
 
 - id: building_heat_energy_use
   name: Building heat energy use
@@ -352,7 +364,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Emission factors from heat production
+    sector: Emission factors from heat production
 
 - id: building_heating_emissions
   name: Building heating emissions
@@ -397,7 +409,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Building costs - new buildings
+    sector: Building costs - new buildings
 
 - id: new_building_unit_price
   name: New building unit price
@@ -424,7 +436,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: investment costs in new buildings
+    sector: investment costs in new buildings
 #building renovation investments
 
 
@@ -460,7 +472,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: consumer electricity use
+    sector: consumer electricity use
 
 - id: efficient_appliances_rate
   name: Efficient appliances rate
@@ -487,7 +499,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Assumed share of type of efficiency programme for lever
+    sector: Assumed share of type of efficiency programme for lever
 
 
 - id: efficiency_improved_buildings
@@ -521,7 +533,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Reduced electricity need with appliances
+    sector: Reduced electricity need with appliances
 
 - id: efficiency_programme_current_unit_price
   name: Efficiency programme current unit price
@@ -533,8 +545,12 @@ nodes:
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
+    filters:
+    - column: Energy carrier
+      value: electricity
+      drop_col: false
   params:
-    gpc_sector: Cost of efficiency programme per m2
+    sector: Cost of efficiency programme per m2
 
 - id: efficiency_programme_unit_price
   name: Efficiency programme unit price
@@ -543,7 +559,12 @@ nodes:
   unit: EUR/m**2
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Energy carrier
+      value: electricity
+      drop_col: false
   # input_nodes:
   # - id: efficiency_programme_current_unit_price
   params:
@@ -565,7 +586,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: building renovation investments
+    sector: building renovation investments
 
 - id: efficiency_programme_cost
   name: Efficiency programme cost
@@ -739,29 +760,18 @@ actions:
 
 - id: renovation_shares_improvement
   name: Renovation shares improvement
-  type: shift.ShiftAction
+  type: gpc.DatasetAction2
   quantity: fraction
-  unit: '%'
-  output_nodes: [renovation_intensity]
+  unit: '%/a'
+  input_datasets: [nzc/defaults]
+#  output_nodes: [renovation_intensity]
   group: buildings
   params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          building_energy_class: minor_renovation
-      dests:
-      - categories:
-          building_energy_class: major_renovation
-      amounts:
-      - {year: 2023, source_amount: -35.0, dest_amounts: [100]} 
-      - {year: 2024, source_amount: 0.0, dest_amounts: [100]} 
+    sector: Renovation rate - decarbonisation scenario
 
 - id: new_building_standard_shares
   name: New building standard shares
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [building_energy_class]
@@ -770,7 +780,7 @@ actions:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Share of new buildings built with high energy efficiency standards
+    sector: Share of new buildings built with high energy efficiency standards
 
 - id: new_building_shares_improvement
   name: New building shares improvement
@@ -796,7 +806,7 @@ actions:
 
 - id: heating_technology_improvement
   name: Heating technology improvement
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type]
@@ -805,11 +815,11 @@ actions:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Heating technologies in 2030
+    sector: Heating technologies in 2030
 
 - id: heating_energy_improvement
   name: Heating energy improvement
-  type: gpc.DatasetAction  # Add category checking also to this class
+  type: gpc.DatasetAction2  # Add category checking also to this class
   quantity: fraction
   unit: '%'
   input_dimensions: [energy_carrier, heating_type]
@@ -818,7 +828,7 @@ actions:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Share of heating in 2030
+    sector: Share of heating in 2030
 
 - id: change_district_heating_waste_share
   name: Change district heating waste share
@@ -839,7 +849,7 @@ actions:
 
 - id: heating_re_investment_fraction
   name: Heating re-investment fraction
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type]
@@ -848,11 +858,11 @@ actions:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
+    sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
 
 - id: fossil_electricity_replacement_fraction
   name: Fossil electriticy replacement fraction
-  type: gpc.DatasetAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   input_dimensions: [fuel_type, energy_carrier]
@@ -861,7 +871,7 @@ actions:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: Share of current fossil production replaced by renewables (or nuclear)
+    sector: Share of current fossil production replaced by renewables (or nuclear)
 
 - id: top_performance_improvement
   name: Top performance standard improvement compared with the regular new buildings

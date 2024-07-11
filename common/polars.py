@@ -336,7 +336,7 @@ class PathsDataFrame(pl.DataFrame):
                 df = df.with_columns(pl.col(df_col).diff(n))
             else:
                 continue
-        df = df.paths.to_narrow()
+        df = df.paths.to_narrow().drop_nulls()
 
         df = to_ppdf(df, meta=meta)
         return df
