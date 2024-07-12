@@ -36,7 +36,6 @@ nodes:
     - id: energy_carrier
   - id: transport_emission_factor
     from_dimensions:
-    - id: energy_carrier
     - id: pollutant
       categories: [co2]
       flatten: true
@@ -46,6 +45,7 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope1]
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -56,16 +56,10 @@ nodes:
 
 - id: baseline_year_fleet_emission_factor_pre
   name: Baseline year car and bus fleet emission factor before splitting
-  description: 'TODO Data from Data 1&2 Tranportation, E174:AF179. TODO Upstream calculations based on Model inputs & 
-    assumptions F194 and F207 needs to be included in the model. Emission factor is a weighted average existing and
-    new car and bus fleet, where 0.5 * X % is renewed annually (X = city data request D47, share of fleet that is less than 2 years old). The current emission factors are asked from the user (City data request D34:D43) but the new
-    emission factors come from data; the weighted average of the two trends is calculated.
-    MATIAS: DO NOT START FROM HERE; emission fractions are still under construction.
-    <p>FROZEN SCENARIO: Emission factors are constant across time.</p>
-    <p>DIMENSIONS: pollutant (CO2, NOx, PM2.5, PM10 combustion and other). transport_mode (cars, buses, trains)</p>
-    <p>Bus emission factor is calculated differently than cars, but the differences a minor and we attempt to apply uniform calculations. Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
+  description: 'Emission factor is a weighted average of existing and
+    new car and bus fleet, where 0.5 * X % is renewed annually (X = share of fleet that is less than 2 years old). Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
     =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
-    There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TODO!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
+    There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TO BE DISCUSSED!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -79,12 +73,12 @@ nodes:
 - id: new_fleet_emission_factor_pre
   name: New fleet emission factor before splitting
   description: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
-    https://www.dieselnet.com/standards/eu/ld.php) TODO Implement as described below. Details of the NZC excel calculations are in Data - 1&2 Transportation!M174.<br>
+    https://www.dieselnet.com/standards/eu/ld.php)<br>
     This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_fleet_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
     E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
     N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>where s<sub>i,t</sub> are the survival rates, N<sub>i,t</sub> is the number of cars in a cohort at timepoint t, t0 is the timepoint of entry for that cohort, and proportion P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
     It must be noted that for each timepoint, there are the existing cohorts and a new cohort that enters in that year.</p>
-    <p>In this use case, it is important to separate these cohorts becoause the emission factor is decreasing in time.
+    <p>In this use case, it is important to separate these cohorts because the emission factor is decreasing in time.
     The computation logic is that after a vehicle has entered the fleet, it has the same survival probability as all other
     cars in the fleet. (Not realistic but that is how NZC excel works)</p>
     Finally, we assume that E is constant for each vehicle as long as it is in the fleet. 
@@ -166,7 +160,6 @@ nodes:
 
 - id: fleet_replacement_rate
   name: Fleet replacement rate
-  description: This node is needed when the new fleet replacement node class exists. TODO! It is not clear how the user input should be converted to this dataset, as it is different format for cars and buses.
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -182,7 +175,7 @@ nodes:
 
 - id: fleet_emission_factor
   name: Fleet emission factor
-  description: Emission factor for the current car and bus fleet.
+  description: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
   type: costs.DilutionNode
   quantity: emission_factor
   unit: g/vkm
@@ -204,8 +197,8 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-- id: train_emission_factor
-  name: Train emission factor
+- id: electric_vehicle_emission_factor
+  name: Electric vehicle emission factor
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
@@ -223,14 +216,17 @@ nodes:
 
 - id: transport_emission_factor
   name: Transport emission factor
-  description: TODO Update calculations
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_mode, energy_carrier]
   output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
-  - id: train_emission_factor
+  - id: electric_vehicle_emission_factor
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks, heavy_trucks]
+      exclude: true
   - id: fleet_emission_factor
 
 - id: transport_air_pollution_emissions
@@ -430,10 +426,8 @@ nodes:
   params:
     sector: Number of passengers per vehicle
 
-- id: passenger_kilometres_pre
+- id: passenger_kilometres_data
   name: Passenger kilometres data
-  description: We assume fixed amount per person per day. Data comes from CDR D22:D25 via MIA F182:F185.
-#  type: costs.ExponentialNode  # FIXME Check growth rate
   type: gpc.DatasetNode
   quantity: mileage
   unit: Mpkm/a
@@ -442,9 +436,11 @@ nodes:
     forecast_from: 2023
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
   params:
-#  - id: annual_change
-#    ref: population_growth_rate
     sector: Transport need
 
 - id: passenger_kilometres_reduced
@@ -455,16 +451,24 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_pre
+  - id: passenger_kilometres_data
     tags: [non_additive]
-    from_dimensions:
-    - id: transport_mode
-      categories: [cars]
-      flatten: true
-    to_dimensions: []
+  - id: motorised_transport_change
+    tags: [arithmetic_inverse]
 
-- id: relative_transport_modes
-  name: Relative transport modes
+- id: passenger_kilometres_after_reducing
+  name: Passenger kilometres after reducing
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres_data
+  - id: passenger_kilometres_reduced
+
+- id: relative_transport_mode_switches
+  name: Relative transport mode switches
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -482,14 +486,14 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_reduced
+  - id: passenger_kilometres_after_reducing
     tags: [non_additive]
     from_dimensions:
     - id: transport_mode
       categories: [cars]
       flatten: true
     to_dimensions: []
-  - id: relative_transport_modes
+  - id: relative_transport_mode_switches
     to_dimensions:
     - id: transport_mode
 
@@ -501,13 +505,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_reduced
-    tags: [non_additive]
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    to_dimensions: []
-  # - id: transport_mode_fraction
+  - id: passenger_kilometres_after_reducing
   - id: passenger_kilometres_switched
 
 - id: motorised_transport_index
@@ -534,37 +532,24 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: transport_mode
-  output_nodes:
-  - id: passenger_kilometres_reduced
-    tags: [complement]
 
 # ---------------- Freight transport -------------
 
-- id: freight_transport_need_baseline
-  name: Freight transport need baseline
+- id: freight_transport_need
+  name: Freight transport need
   type: gpc.DatasetNode
   quantity: freight_mileage
   unit: Mtkm/a
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
   params:
   - id: sector
     value: Total transportation need within city - Road freight transport
-
-- id: freight_transport_need
-  name: Freight transport need
-  type: simple.MultiplicativeNode
-  quantity: freight_mileage
-  unit: Mtkm/a
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_nodes:
-  - id: freight_transport_need_baseline
-    tags: [non_additive]
-  - id: population
-    tags: [ratio_to_last_historical_value]
-    to_dimensions: []
 
 - id: average_truck_utilisation_historical
   name: Average truck utilisation historical
@@ -659,7 +644,7 @@ nodes:
     - id: energy_carrier
       flatten: true
   - id: number_of_trucks_registered_within_city
-    tags: [geometric_inverse, ventory_only]
+    tags: [geometric_inverse, inventory_only]
 
 - id: number_of_electric_trucks
   name: Number of electric trucks
@@ -1664,7 +1649,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_pre
+  - id: passenger_kilometres_data
     tags: activity
 
 - id: relative_transport_efficiency
@@ -1699,7 +1684,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
 
 - id: modal_switch_from_cars_to_other_modes
   name: Modal switch from cars to other modes
-  description: Ca. 50 % of passsenger kilometres are by car, and 30 % of that is shifted to other transport modes. The shifted percentages add up. However, if the different transport mode activities change due to other reasons, the absolute passenger kilometres may change due to this action. TODO Check if this is OK, as in the excel, the shifts are absolute passenger kilometres and therefore always add up.
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1794,6 +1778,10 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
+  output_nodes:
+  - id: freight_transport_vehicle_kilometres
+    tags: [complement, non_additive]
+    to_dimensions: []
   params:
     sector: Reduction of total distance travelled through route optimisation
 

@@ -89,7 +89,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets: [nzc/defaults]
   params:
-    sector: new building shares # Share of new buildings built
+    sector: Share of new buildings built # new building shares # 
 
 - id: demolition_rate
   name: Demolition rate
@@ -168,33 +168,50 @@ nodes:
     to_dimensions:
     - id: building_energy_class
 
-- id: old_building_renovation_rate
-  name: Old building renovation rate
-  description: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
+- id: old_building_renovation_rate_historical
+  name: Old building renovation rate historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: Share of building stock renovated each year
-
-- id: renovation_intensity
-  name: Renovation intensity
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    sector: Assumed share of type of renovation in lever
+    sector: Share of building stock renovated each year
 
-- id: renovation_intensity_shares
-  name: Renovation intensity shares
+- id: old_building_renovation_rate_goal
+  name: Old building renovation rate goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Year
+      value: 2030
+      drop_col: false
+  params:
+    sector: Renovation rate - decarbonisation scenario
+
+- id: old_building_renovation_rate
+  name: Old building renovation rate
+  description: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: old_building_renovation_rate_historical
+    to_dimensions:
+    - id: building_energy_class
+
+- id: renovation_intensity_shares_historical
+  name: Renovation intensity shares historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -203,7 +220,33 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
+    sector: Renovations Actual share of market in baseline scenario
+
+- id: renovation_intensity_shares_goal
+  name: Renovation intensity shares goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Year
+      value: 2030
+      drop_col: false
+  params:
     sector: Assumed share of type of renovation in lever
+
+- id: renovation_intensity_shares
+  name: Renovation intensity shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: renovation_intensity_shares_historical
 
 - id: renovated_building_stock
   name: Renovated building stock
@@ -221,8 +264,11 @@ nodes:
       flatten: true
     to_dimensions: []
   - id: old_building_renovation_rate
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
     to_dimensions: []
-  - id: renovation_intensity
+  - id: renovation_intensity_shares
 
 # --------------------- Heating ---------------------
 
@@ -778,37 +824,43 @@ actions:
 
 - id: renovation_rate_improvement
   name: Renovation rate improvement
-  description: 'Default 1 %, BPIE (2011) - Europe´s buildings under the microscope. http://bpie.eu/wp-content/uploads/2015/10/HR_EU_B_under_microscope_study.pdf'
-  type: simple.CumulativeAdditiveAction
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%/a'
   group: buildings
-  forecast_values: [[2023, 1.5]]  # FIXME Should add param multiplier to get a slider
-  output_nodes: [old_building_renovation_rate]
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: old_building_renovation_rate_historical
+    tags: [historical]
+    to_dimensions:
+    - id: building_energy_class
+  - id: old_building_renovation_rate_goal
+    tags: [goal]
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: old_building_renovation_rate
 
 - id: renovation_shares_improvement
   name: Renovation shares improvement
-  type: gpc.DatasetAction2
+  type: linear.DatasetReduceAction
   quantity: fraction
-  unit: '%/a'
-  input_datasets: [nzc/defaults]
-#  output_nodes: [renovation_intensity]
+  unit: '%'
   group: buildings
-  params:
-    sector: Renovation rate - decarbonisation scenario
-
-- id: new_building_standard_shares
-  name: New building standard shares
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: dimensionless
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: Share of new buildings built with high energy efficiency standards
+  input_nodes:
+  - id: renovation_intensity_shares_historical
+    tags: [historical, inventory_only]
+    to_dimensions:
+    - id: building_energy_class
+  - id: renovation_intensity_shares_goal
+    tags: [goal]
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: renovation_intensity_shares
 
 - id: new_building_shares_improvement
   name: New building shares improvement

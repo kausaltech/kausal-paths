@@ -115,6 +115,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: employment
   unit: jobs
+  is_outcome: true
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -249,7 +250,7 @@ nodes:
     - id: cost_type
 
 - id: electricity_cost  # FIXME Should this be non-renewable?
-  name: Electrcity cost
+  name: Electricity cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a

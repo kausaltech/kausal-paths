@@ -5,20 +5,21 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 79fe71d77af26ac2acdd0a716a536d29d6140436
+  commit: f317f2fed61de8b8568f60b021d1219b334957e1
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
 theme_identifier: default
-target_year: 2030
+target_year: 2035
 model_end_year: 2045
-minimum_historical_year: 2020
-maximum_historical_year: 2022
+minimum_historical_year: 2018
+maximum_historical_year: 2020
 emission_unit: kt/a
-emission_forecast_from: 2023
+emission_forecast_from: 2021
 emission_dimensions: [scope, ghg]
 features:
   baseline_visible_in_graphs: true
+  show_significant_digits: 4
 
 params:
 - id: municipality_name
@@ -478,24 +479,26 @@ emission_sectors:
   is_outcome: true
 
 nodes:
-- id: population_baseline
-  name: Population baseline
+- id: population
+  name: Population
   type: gpc.DatasetNode
   quantity: population
   unit: cap
   input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population_growth
+    tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
   params:
     sector: Population
 
-- id: population
-  name: Population
-  type: costs.ExponentialNode
-  quantity: population
-  unit: cap
-  input_nodes: [population_baseline]
+- id: population_growth
+  name: Population growth
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_datasets: [nzc/defaults]
   params:
-  - id: annual_change
-    ref: population_growth_rate  # FIXME This should come from dataset
+    sector: Expected annual population growth (up until 2030)
 
 - id: aggregated_net_emissions
   name: Aggregated net emissions
