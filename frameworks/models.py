@@ -214,6 +214,7 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
     )
 
     default_data_points: RelatedManager[MeasureTemplateDefaultDataPoint]
+    measures: RelatedManager[Measure]
 
     objects: models.Manager[MeasureTemplate]
     public_fields: ClassVar = [
@@ -347,8 +348,10 @@ class Measure(models.Model):
     unit = UnitField(null=True, blank=True)
     internal_notes = models.TextField(blank=True)
 
-    public_fields = [
-        'framework_config', 'measure_template', 'unit',
+    data_points: RelatedManager[MeasureDataPoint]
+
+    public_fields: ClassVar = [
+        'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes'
     ]
 
     class Meta:
@@ -372,8 +375,13 @@ class MeasureDataPoint(models.Model):
     year = models.IntegerField()
     value = models.FloatField()
 
+    public_fields: ClassVar = ['id', 'year', 'value']
+
     class Meta:
         ordering = ["measure", "year"]
+        constraints = [
+            models.UniqueConstraint(fields=['measure', 'year'], name='unique_measure_year_datapoints')
+        ]
 
     def __str__(self):
         return f"{self.measure.measure_template.name} - {self.year}"
