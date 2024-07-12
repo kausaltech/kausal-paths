@@ -119,6 +119,10 @@ class FrameworkConfigType(DjangoNode):
         model = FrameworkConfig
         fields = public_fields(FrameworkConfig)
 
+    @staticmethod
+    def resolve_measures(root: FrameworkConfig, info: GQLInfo):
+        return root.measures.all()
+
 
 class MeasureDataPointType(DjangoNode):
     class Meta:
@@ -159,6 +163,50 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
 
         fc = FrameworkConfig.create_instance(framework, name, baseline_year)
         return dict(ok=True, framework_config=fc)
+
+
+class UpdateFrameworkConfigMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        organization_name = graphene.String(required=False)
+        baseline_year = graphene.Int(
+            required=False,
+            description=(
+                "New baseline year. Data point years will also be updated for measures that "
+                "have exactly one data point which points to the previous baseline year."
+            )
+        )
+
+    ok = graphene.Boolean()
+    framework_config = graphene.Field(FrameworkConfigType)
+
+    @classmethod
+    @transaction.atomic
+    def mutate(cls, root, info: GQLInfo, id: str, organization_name: str | None = None, baseline_year: int | None = None):
+        try:
+            framework_config = FrameworkConfig.objects.get(id=id)
+        except FrameworkConfig.DoesNotExist:
+            raise GraphQLError("FrameworkConfig not found", nodes=info.field_nodes)
+
+        if organization_name is not None:
+            framework_config.organization_name = organization_name
+
+        if baseline_year is not None:
+            old_baseline_year = framework_config.baseline_year
+            framework_config.baseline_year = baseline_year
+
+            # Update datapoint years for measures with a single datapoint
+            measures = framework_config.measures.all()
+            for measure in measures:
+                datapoints = list(measure.data_points.all())
+                if len(datapoints) == 1 and datapoints[0].year == old_baseline_year:
+                    datapoint = datapoints[0]
+                    datapoint.year = baseline_year
+                    datapoint.save()
+
+        framework_config.save()
+
+        return UpdateFrameworkConfigMutation(ok=True, framework_config=framework_config)
 
 
 class DeleteFrameworkConfigMutation(graphene.Mutation):
@@ -227,5 +275,6 @@ class UpdateMeasureDataPoint(graphene.Mutation):
 
 class Mutations(graphene.ObjectType):
     create_framework_config = CreateFrameworkConfigMutation.Field()
+    update_framework_config = UpdateFrameworkConfigMutation.Field()
     delete_framework_config = DeleteFrameworkConfigMutation.Field()
     update_measure_data_point = UpdateMeasureDataPoint.Field()

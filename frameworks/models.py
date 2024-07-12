@@ -314,6 +314,8 @@ class FrameworkConfig(models.Model):
     baseline_year = models.IntegerField()
     categories = models.ManyToManyField(FrameworkDimensionCategory)
 
+    measures: RelatedManager[Measure]
+
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year']
 
     class Meta:
