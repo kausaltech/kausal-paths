@@ -43,23 +43,23 @@ params:
 
 action_groups:
 - id: transport
-  name: Transport
+  name: 1. Transport
   color: '#93c572'
 - id: freight_transport
-  name: Freight transport
+  name: 2. Freight transport
 - id: buildings
-  name: Buildings
+  name: 3. Buildings
   color: '#32cd32'
 - id: electricity
-  name: Electricity
+  name: 4. Electricity
   color: '#29ab87'
 - id: waste
-  name: Waste
+  name: 5. Waste
   color: '#50c878'
 - id: scope_3
-  name: Scope 3
+  name: 6. Scope 3
 - id: reforestation
-  name: Reforestation
+  name: 7. Reforestation
 
 # action_efficiency_pairs:
 
@@ -329,8 +329,9 @@ dimensions:
 - id: efficiency_programme
   label: Energy efficiency programme
   categories:
-  - id: no_improvement
-    label: No improvement
+  - id: no_improvements
+    label: No improvements
+    aliases: [no_improvement]
   - id: minor_improvements
     label: Minor improvements
   - id: aggressive_improvements
@@ -663,11 +664,11 @@ scenarios:
   - id: waste_recycling_share_goal.slice_category_at_edge
     value: parameter:baseline_scenario
 
-- id: frozen
-  name: Frozen scenario
-  params:
-  - id: waste_recycling_share_goal.slice_category_at_edge
-    value: parameter:frozen_scenario
+# - id: frozen
+#   name: Frozen scenario
+#   params:
+#   - id: waste_recycling_share_goal.slice_category_at_edge
+#     value: parameter:frozen_scenario
 
 - id: default
   default: true

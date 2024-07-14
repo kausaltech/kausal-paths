@@ -546,14 +546,14 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    sector: consumer electricity use
+    sector: Average electricity use for lighting & appliances
 
 - id: efficient_appliances_rate
   name: Efficient appliances rate
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
-  input_dimensions: [building_energy_class]
+  input_dimensions: [building_energy_class]  # FIXME energy_carrier
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
@@ -561,53 +561,152 @@ nodes:
   params:
     sector: 3.3 Efficient lighting & appliances
 
-- id: efficiency_programme_shares  # FIXME Is this an action?
-  name: Efficiency programme shares
-  description: FIXME The excel logic of action 3.3 changes 1) the fraction of aggressive improvement in energy efficienay, 2) the amount of electricity contumper per squaremetre after improvement and 3) the cost of Improvement. In constrast, it does NOT affect the floor area renovated (old buildings) or built (new buildings), just the fraction of minor and aggressive shares. How should we implement this? The energy improvement can be adjusted by the user, as well as the unit price of improvement. 
-  type: gpc.DatasetNode  # FIXME Add node where shares sum to 0 rather than 1.
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: Assumed share of type of efficiency programme for lever
-
-
-- id: efficiency_improved_buildings
-  name: Efficiency improved buildings
+- id: efficiency_programme_done_in_old_buildings
+  name: Efficiency programme done in old buildings
   type: simple.MultiplicativeNode
-  quantity: floor_area
-  unit: km**2/a
-  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
-  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]  # FIXME energy_carrier
+  output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   input_nodes:
-  - id: building_stock
-    tags: [non_additive]
+  - id: efficient_appliances_rate
+    tags: [complement_cumulative_product, complement]
     to_dimensions:
     - id: building_energy_class
-  - id: efficient_appliances_rate
+  - id: building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations, minor_renovation, major_renovation]
     to_dimensions:
     - id: building_energy_class
   - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
+  output_nodes:
+  - id: building_stock_by_efficiency_programme
+    to_dimensions:
+    - id: building_energy_class
+    - id: efficiency_programme
+    - id: energy_carrier
 
-- id: reduced_electricity_need
+- id: efficiency_programme_not_done_in_old_buildings
+  name: Efficiency programme not done in old buildings
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [building_energy_class]  # FIXME energy_carrier
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: efficient_appliances_rate
+    tags: [complement_cumulative_product]
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations, minor_renovation, major_renovation]
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: building_stock_by_efficiency_programme
+    to_dimensions:
+    - id: building_energy_class
+    - id: energy_carrier
+      categories: [electricity]
+    - id: efficiency_programme
+      categories: [no_improvements]
+
+- id: efficiency_programme_shares_data
+  name: Efficiency programme shares data
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Assumed share of type of efficiency programme for lever
+
+- id: efficiency_programme_shares
+  name: Efficiency programme shares
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes: [efficiency_programme_shares_data]
+  params:
+    new_category: 'efficiency_programme:no_improvements'
+
+- id: efficiency_improved_new_buildings
+  name: Efficiency improved new buildings
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  input_nodes:
+  - id: building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new_standard, new_top_performance]
+    to_dimensions:
+    - id: building_energy_class
+  - id: efficiency_programme_shares
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  output_nodes:
+  - id: building_stock_by_efficiency_programme
+
+- id: relative_electricity_need_reduction
   name: Reduced electricity need
   type: gpc.DatasetNode
   quantity: fraction
-  unit: dimensionless
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
+  unit: '%'
+  input_dimensions: [efficiency_programme] # , energy_carrier] FIXME
+  output_dimensions: [efficiency_programme] # , energy_carrier]
+  input_datasets: [nzc/defaults]
   params:
-    sector: Reduced electricity need with appliances
+    sector: Efficiency improvements for each renovation
+
+- id: building_stock_by_efficiency_programme
+  name: Building stock by efficiency programme
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+
+- id: consumer_electricity_use
+  name: Electricity use for lighting & appliances
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
+  output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: building_stock_by_efficiency_programme
+  - id: consumer_electricity_intensity_baseline
+    to_dimensions:
+    - id: energy_carrier
+  - id: relative_electricity_need_reduction
+    tags: [complement]
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+      categories: [electricity]
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: efficiency_programme
+      flatten: true
 
 - id: efficiency_programme_current_unit_price
   name: Efficiency programme current unit price
@@ -670,8 +769,12 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   input_nodes:
-  - id: efficiency_improved_buildings
+  - id: building_stock_by_efficiency_programme
+    tags: [difference]
     from_dimensions:
+    - id: efficiency_programme
+      categories: [no_improvements]
+      exclude: true
     - id: building_energy_class
       flatten: true
     to_dimensions:
@@ -681,66 +784,10 @@ nodes:
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
-  - id: old_building_cost_shares
+  - id: old_building_cost_shares  # CHECK
     to_dimensions:
     - id: stakeholder
     - id: cost_type
-
-- id: consumer_electricity_intensity
-  name: Consumer electricity intensity
-  type: simple.MultiplicativeNode
-  quantity: energy_factor
-  unit: kWh/m**2/a
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: consumer_electricity_intensity_baseline
-    tags: [non_additive]
-    to_dimensions: 
-    - id: energy_carrier
-  - id: reduced_electricity_need
-    tags: [complement]
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-
-- id: consumer_electricity_use
-  name: Electricity use for lighting & appliances
-  type: formula.FormulaNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: consumer_electricity_intensity
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  - id: building_stock
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: efficiency_programme
-      categories: [no_improvement]
-    - id: energy_carrier
-      categories: [electricity]
-  - id: efficiency_improved_buildings
-    tags: [cumulative]
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  output_nodes:
-  - id: total_electricity_consumption
-    from_dimensions:
-    - id: efficiency_programme
-      flatten: true
-  params:
-  - id: formula
-    value: (building_stock + efficiency_improved_buildings) * consumer_electricity_intensity
 
 - id: consumer_electricity_emissions
   name: Consumer electricity emissions
@@ -753,6 +800,8 @@ nodes:
   - id: consumer_electricity_use
     from_dimensions:
     - id: efficiency_programme
+      flatten: true
+    - id: building_energy_class
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -823,7 +872,7 @@ nodes:
 actions:
 
 - id: renovation_rate_improvement
-  name: Renovation rate improvement
+  name: 3.1.1 Renovation rate improvement
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%/a'
@@ -843,7 +892,7 @@ actions:
   - id: old_building_renovation_rate
 
 - id: renovation_shares_improvement
-  name: Renovation shares improvement
+  name: 3.1.2 Renovation shares improvement
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -863,13 +912,13 @@ actions:
   - id: renovation_intensity_shares
 
 - id: new_building_shares_improvement
-  name: New building shares improvement
+  name: 3.2 New building shares improvement
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
+  group: buildings
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
-  group: buildings
   input_nodes:
   - id: new_building_shares_historical
     tags: [historical]
@@ -879,10 +928,11 @@ actions:
   - id: new_building_shares
 
 - id: heating_technology_improvement
-  name: Heating technology improvement
+  name: 3.4.1 Heating technology improvement
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
+  group: buildings
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
   input_datasets:
@@ -892,10 +942,11 @@ actions:
     sector: Heating technologies in 2030
 
 - id: heating_energy_improvement
-  name: Heating energy improvement
+  name: 3.4.2 Heating energy improvement
   type: gpc.DatasetAction2  # Add category checking also to this class
   quantity: fraction
   unit: '%'
+  group: buildings
   input_dimensions: [energy_carrier, heating_type]
   output_dimensions: [energy_carrier, heating_type]
   input_datasets:
@@ -905,10 +956,11 @@ actions:
     sector: Share of heating in 2030
 
 - id: change_district_heating_waste_share
-  name: Change district heating waste share
+  name: 3.4.3 Change district heating waste share
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
+  group: buildings
   input_dimensions: [energy_carrier, fuel_type, heating_type]
   output_dimensions: [energy_carrier, fuel_type, heating_type]
   input_nodes:
@@ -922,10 +974,11 @@ actions:
     - id: heating_type
 
 - id: heating_re_investment_fraction
-  name: Heating re-investment fraction
+  name: 3.4.4 Heating re-investment fraction
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
+  group: buildings
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
   input_datasets:
@@ -935,10 +988,11 @@ actions:
     sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
 
 - id: fossil_electricity_replacement_fraction
-  name: Fossil electriticy replacement fraction
+  name: 3.4.5 Fossil electriticy replacement fraction
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
+  group: buildings
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
@@ -948,10 +1002,11 @@ actions:
     sector: Share of current fossil production replaced by renewables (or nuclear)
 
 - id: top_performance_improvement
-  name: Top performance standard improvement compared with the regular new buildings
+  name: '? Top performance standard improvement compared with the regular new buildings'
   type: simple.CumulativeAdditiveAction
   quantity: fraction
   unit: '%'
+  group: buildings
   historical_values: [[2021, 0], [2022, 0]]
   forecast_values: [[2023, 50]]
   output_nodes:
@@ -960,33 +1015,17 @@ actions:
     - id: building_energy_class
       categories: [new_top_performance]
 
-- id: electricity_need_reduction_minor
-  name: 3.3 Electricity need reduction, minor improvement
-  description: FIXME All renovated and newly built buildings are improved for electricity use. The question is, what fraction is minor and what is major improvement. The other question is, how much there is improvement. Take only the non-renovated from defaults/assumptions Reduced electricity need with appliances; and the minor and major improvement from these actions.
+- id: electricity_need_reduction
+  name: 3.3 Electricity need reduction
+  description: The action looks at renovated and newly built buildings and improves their electricity use. The fractions of minor and major improvement come from the user. If the action is not done, no improvements are made.
   type: simple.CumulativeAdditiveAction
   quantity: fraction
-  unit: '%'
+  unit: dimensionless
   group: buildings
-  forecast_values: [[2023, 13.0]]
-  output_nodes:
-  - id: reduced_electricity_need
-    to_dimensions:
-    - id: efficiency_programme
-      categories: [minor_improvements]
-    - id: energy_carrier
-      categories: [electricity]
-
-- id: electricity_need_reduction_major
-  name: 3.3 Electricity need reduction, major improvement
-  type: simple.CumulativeAdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  forecast_values: [[2023, 38.0]]
-  output_nodes:
-  - id: reduced_electricity_need
-    to_dimensions:
-    - id: efficiency_programme
-      categories: [aggressive_improvements]
-    - id: energy_carrier
-      categories: [electricity]
+  historical_values: [[2018, 0.0], [2022, 0.0]]
+  forecast_values: [[2023, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
+  # output_nodes:  # FIXME after dataset update
+  # - id: efficiency_programme_shares_data
+  #   tags: [non_additive]
+  #   to_dimensions: []
