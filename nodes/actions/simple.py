@@ -11,10 +11,11 @@ from params import BoolParameter, NumberParameter, PercentageParameter, StringPa
 from params.param import Parameter
 
 from .action import ActionNode
+from django.utils.translation import gettext_lazy as _
 
 
 class AdditiveAction(ActionNode):
-    """Simple action that produces an additive change to a value."""
+    explanation = _("""Simple action that produces an additive change to a value.""")
     no_effect_value = 0.0
 
     def compute_effect(self):
@@ -30,7 +31,7 @@ class AdditiveAction(ActionNode):
 
 
 class CumulativeAdditiveAction(ActionNode):  # FIXME Update to deal with old-fashioned multi-metric nodes such as Tampere/private_building_energy_renovation
-    """Additive action where the effect is cumulative and remains in the future."""
+    explanation = _("""Additive action where the effect is cumulative and remains in the future.""")
 
     allowed_parameters: ClassVar[list[Parameter]] = [
         PercentageParameter('target_year_ratio', min_value=0),
@@ -76,12 +77,12 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         NumberParameter('multiplier'),
     ]
 
-    """Cumulative additive action where a yearly target is set and the effect is linear.
+    explanation = _("""Cumulative additive action where a yearly target is set and the effect is linear.
     This can be modified with these parameters:
     target_year_level is the value to be reached at the target year.
     action_delay is the year when the implementation of the action starts.
     multiplier scales the size of the impact (useful between scenarios).
-    """
+    """)
     def compute_effect(self):
         df = self.get_input_dataset()
         start_year = df.index.min()
@@ -118,7 +119,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
 
 
 class EmissionReductionAction(ActionNode):
-    """Simple emission reduction impact"""
+    explanation = _("""Simple emission reduction impact""")
 
     no_effect_value = 0
 
@@ -129,10 +130,10 @@ class EmissionReductionAction(ActionNode):
 
 
 class TrajectoryAction(ActionNode):
-    '''
+    explanation = _('''
     TrajectoryAction uses select_category() to select a category from a dimension
     and then possibly do some relative or absolute conversions.
-    '''
+    ''')
     allowed_parameters = ActionNode.allowed_parameters + [
         StringParameter(local_id='dimension'),
         StringParameter(local_id='category'),
