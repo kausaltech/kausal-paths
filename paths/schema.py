@@ -13,6 +13,7 @@ from frameworks.schema import Mutations as FrameworksMutations, Query as Framewo
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from nodes.schema import Mutations as NodesMutations, Query as NodesQuery
 from pages.schema import Query as PagesQuery
+from users.schema import Query as UsersQuery, Mutations as UsersMutations
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 from paths.graphql_helpers import GQLInfo
 from paths.graphql_types import UnitType
@@ -21,7 +22,7 @@ from paths.utils import validate_unit
 CO2E = 'CO<sub>2</sub>e'
 
 
-class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery):
+class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
     @staticmethod
@@ -33,7 +34,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQ
         return unit
 
 
-class Mutations(ParamsMutations, NodesMutations, FrameworksMutations):
+class Mutations(ParamsMutations, NodesMutations, FrameworksMutations, UsersMutations):
     pass
 
 
