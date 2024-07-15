@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f317f2fed61de8b8568f60b021d1219b334957e1
+  commit: f78a9d7cd73b70d65ad310ee85b6e38ccca7efe4
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -123,8 +123,13 @@ dimensions:
   categories:
   - id: scope1
     label: Scope 1
+    aliases: [scope_1]
   - id: scope2
     label: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label: Scope 3
+    aliases: [scope_3]
 
 - id: cost_type
   label: Cost Type
@@ -147,6 +152,7 @@ dimensions:
     label: Sales income
   - id: air_pollution
     label: Air pollution
+    aliases: [air_quality]
   - id: noise
     label: Noise
   - id: accidents
@@ -161,6 +167,7 @@ dimensions:
     label: Shading
   - id: water_regulation
     label: Water regulation
+    aliases: [water_regulations]
   - id: forest_management
     label: Forest management
   - id: bus_costs
@@ -253,6 +260,10 @@ dimensions:
     label: Photovoltaics
   - id: flexibility
     label: Flexibility
+  - id: direct_electricity
+    label: Direct electricity
+  - id: heat_pump
+    label: Heat pump
 
 - id: waste_type
   label: Waste type
@@ -411,10 +422,9 @@ dimensions:
     label: Citizens
   - id: property_owners
     label: Property owners
-  - id: cities
-    label: Cities
   - id: city
     label: City
+    aliases: [cities, Cities]
   - id: healthcare_providers
     label: Healthcare providers
   - id: transport_operators

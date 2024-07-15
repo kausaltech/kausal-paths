@@ -17,10 +17,10 @@ nodes:
   - id: total_electricity_consumption
     to_dimensions:
     - id: energy_carrier
-  # - id: electricity_production_shares
-  #   to_dimensions:
-  #   - id: fuel_type
-  #   - id: energy_carrier
+  - id: electricity_production_shares
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
   - id: electricity_production_emission_factor
     to_dimensions:
     - id: pollutant
@@ -28,8 +28,8 @@ nodes:
   - id: electricity_production_switched
     from_dimensions:
     - id: fuel_type
-#      categories: [fossil]  # FIXME
-#      exlude: true
+      categories: [fossil]
+      exlude: true
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -293,6 +293,30 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
+
+- id: electricity_production_switched
+  name: Electricity production switched
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: statistical_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_production_shares_historical
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_electricity_production_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
 
 # ----------------- Waste -------------------
 
@@ -657,7 +681,7 @@ nodes:
     sector: Materials as share of total mass
 
 - id: building_materials_used_in_new_buildings
-  name: Building material shares
+  name: Building material used in new buildings
   type: gpc.DatasetNode
   quantity: mass
   unit: t/m**2
@@ -694,6 +718,79 @@ nodes:
     to_dimensions:
     - id: material
 
+- id: building_material_composition_historical
+  name: Building material composition historical
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets:  # FIXME
+  - id: nzc/defaults
+    filters:
+    - column: Year
+      values: [2018, 2019, 2020]
+      drop_col: false
+  params:
+    sector: New materials composition due to materials efficiency
+
+- id: building_material_composition_goal
+  name: Building material composition goal
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets:  # FIXME
+  - id: nzc/defaults
+    filters:
+    - column: Year
+      value: 2023
+      drop_col: false
+  params:
+    sector: New materials composition due to materials efficiency # FIXME after
+
+- id: building_material_composition
+  name: Building material composition
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_nodes:
+  - id: building_material_composition_historical
+
+- id: new_building_material_cost  # FIXME CHECK
+  name: New building material cost
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: MEUR/a
+  input_dimensions: [material, building_energy_class, cost_type, stakeholder]
+  output_dimensions: [material, building_energy_class, cost_type, stakeholder]
+  input_nodes:
+  - id: building_material_composition
+    to_dimensions:
+    - id: material
+  - id: new_building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_material_unit_price
+    to_dimensions:
+    - id: cost_type
+      categories: [capex]
+    - id: material
+  - id: new_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: material
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+
 - id: building_material_emission_factor
   name: Building material emission factor
   type: gpc.DatasetNode
@@ -709,7 +806,7 @@ nodes:
   name: Building material emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt
+  unit: kt/a
   input_dimensions: [material, building_energy_class]
   output_dimensions: [material, building_energy_class]
   input_nodes:
@@ -717,9 +814,25 @@ nodes:
     to_dimensions:
     - id: building_energy_class
     - id: material
-  - id: building_stock  # FIXME Make sure that right categories are selected.
+  - id: building_stock
+    tags: [difference]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [minor_renovation, major_renovation]
     to_dimensions:
     - id: building_energy_class
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: material
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope3]
+    - id: ghg
+      categories: [co2e]
 
 - id: building_material_unit_price
   name: Building material unit_price
@@ -781,6 +894,52 @@ nodes:
   params:
     sector: Distribution between trees in grey and green area
 
+- id: number_of_new_trees
+  name: Number of new trees
+  type: gpc.DatasetNode
+  quantity: number
+  unit: pcs
+  input_dimensions: [area_distance]
+  output_dimensions: [area_distance]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Number of planted trees until 2030
+    inventory_only: true
+
+- id: tree_planting_unit_price
+  name: Tree planting unit price
+  type: gpc.DatasetNode
+  quantity: emission_factor # FIXME unit_price
+  unit: EUR/pcs
+  input_dimensions: [area_distance, cost_type]
+  output_dimensions: [area_distance, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Cost of planting trees  by area distance
+
+- id: tree_planting_cost
+  name: Tree planting cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [area_distance, cost_type]
+  output_dimensions: [area_distance, cost_type]
+  input_nodes:
+  - id: tree_planting_unit_price
+  - id: number_of_new_trees
+    tags: [difference]
+    to_dimensions:
+    - id: area_distance
+  output_nodes:
+  - id: forestation_cost
+    from_dimensions:
+    - id: area_distance
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [city]
+
 - id: population_density_outside_city_compared_to_inside_city
   name: Population density outside city compared to inside city
   type: gpc.DatasetNode
@@ -788,33 +947,151 @@ nodes:
   unit: '%'
   input_dimensions: [area_distance]
   output_dimensions: [area_distance]
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
   params:
     sector: Population density outside city compared to inside city
 
-- id: electricity_production_switched
-  name: Electricity production switched
+- id: annual_co2_capture_by_trees
+  name: Annual CO2 capture by trees
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/pcs/a
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+  - id: sector
+    value: Annual CO2 capture per tree
+  - id: multiplier  # FIXME
+    value: 1
+    unit: 1/a
+
+- id: co2_reduction_by_trees
+  name: CO2 reduction by trees
   type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier, fuel_type]
-  output_dimensions: [energy_carrier, fuel_type]
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [area_distance]
+  output_dimensions: [area_distance]
   input_nodes:
-  - id: statistical_electricity_consumption
-    tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-  - id: electricity_production_shares_historical
+  - id: number_of_new_trees
+  - id: annual_co2_capture_by_trees
+    to_dimensions: []
+  output_nodes:
+  - id: forestation_emissions
+    tags: [arithmetic_inverse]
     from_dimensions:
-    - id: fuel_type
-      categories: [fossil]
+    - id: area_distance
       flatten: true
     to_dimensions:
-    - id: energy_carrier
-  - id: new_electricity_production_shares
+    - id: scope
+      categories: [scope1]
+    - id: ghg
+      categories: [co2e]
+
+- id: forestation_emissions
+  name: Forestation emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  output_nodes:
+  - id: net_emissions
+  
+- id: forestation_co2_cost
+  name: Forestation CO2 cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [scope, cost_type, ghg]
+  output_dimensions: [scope, cost_type, ghg]
+  input_nodes:
+  - id: forestation_emissions
     to_dimensions:
-    - id: energy_carrier
-    - id: fuel_type
+    - id: scope
+    - id: ghg
+  - id: co2_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: ghg
+  output_nodes:
+  - id: forestation_cost
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [city]
+
+- id: forestation_cost
+  name: Forestation cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  output_nodes:
+  - id: total_cost
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+
+- id: tree_benefit_unit_price
+  name: Tree benefit unit price
+  type: gpc.DatasetNode
+  quantity: emission_factor # FIXME unit_price
+  unit: MEUR/pcs/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: 'Benefits from planting trees '
+  - id: multiplier  # FIXME
+    value: 1
+    unit: 1/a
+
+- id: tree_benefit_stakeholders
+  name: Tree benefit stakeholders
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: forest costs and savings
+
+- id: monetary_tree_benefits
+  name: Monetary tree benefits
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, area_distance, stakeholder]
+  output_dimensions: [cost_type, area_distance, stakeholder]
+  input_nodes:
+  - id: number_of_new_trees
+    to_dimensions:
+    - id: area_distance
+  - id: tree_benefit_unit_price
+    to_dimensions:
+    - id: cost_type
+  - id: tree_benefit_stakeholders
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: forestation_cost
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: area_distance
+      flatten: true
 
 actions:
 
@@ -860,6 +1137,23 @@ actions:
   output_nodes:
   - id: waste_recycling_shares
 
+# --------------- Scope 3 ---------------
+
+- id: improve_building_material_composition
+  name: 6.1 Improve building material composition
+  type: linear.DatasetReduceAction
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_nodes:
+  - id: building_material_composition_historical
+    tags: [historical]
+  - id: building_material_composition_goal
+    tags: [goal]
+  output_nodes:
+  - id: building_material_composition
+
 # --------------- AFOLU -----------------
 
 - id: tree_planting
@@ -870,15 +1164,11 @@ actions:
   group: reforestation
   input_dimensions: [area_distance]
   output_dimensions: [area_distance]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2030
-    # filters:
-    # - column: Year
-    #   value: 2030
-    #   drop_col: false
+  input_datasets: [nzc/defaults]
   params:
     sector: Number of planted trees until 2030
+  output_nodes:
+  - id: number_of_new_trees
 
 - id: reduced_co2_emissions_in_other_sectors
   name: '6? Reduced CO2 emissions in other sectors'

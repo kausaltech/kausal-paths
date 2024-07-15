@@ -353,9 +353,8 @@ nodes:
   - id: energy_use_intensity_new
   - id: energy_use_intensity_old
 
-- id: building_heating_type_share
-  name: Building heating type share
-  description: Assumes 1 % district and 99 % local heating. Data comes from the user.
+- id: building_heating_type_share_historical
+  name: Building heating type share historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -367,8 +366,33 @@ nodes:
   params:
     sector: Heating technologies
 
-- id: heating_fuel_share
-  name: Heating fuel share
+- id: building_heating_type_share_goal
+  name: Building heating type share goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_dimensions: [heating_type, scope]
+  output_dimensions: [heating_type, scope]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: Heating technologies in 2030
+
+- id: building_heating_type_share
+  name: Building heating type share
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_dimensions: [heating_type, scope]
+  output_dimensions: [heating_type, scope]
+  input_nodes:
+  - id: building_heating_type_share_historical
+
+- id: heating_fuel_share_historical
+  name: Heating fuel share historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -380,8 +404,31 @@ nodes:
   params:
     sector: Share of heating fuel
 
-- id: district_heating_waste_share
-  name: District heating waste share
+- id: heating_fuel_share_goal
+  name: Heating fuel share goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type]
+  output_dimensions: [energy_carrier, heating_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: Share of heating in 2030
+
+- id: heating_fuel_share
+  name: Heating fuel share
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type]
+  output_dimensions: [energy_carrier, heating_type]
+  input_nodes:
+  - id: heating_fuel_share_historical
+
+- id: heating_fossil_share_historical
+  name: Heating fossil share historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -393,8 +440,8 @@ nodes:
   params:
     sector: Share of waste used in district heating that is fossil / non-fossil
 
-- id: district_heating_waste_share_2030
-  name: District heating waste share 2030
+- id: heating_fossil_share_goal
+  name: Heating fossil share goal
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -406,14 +453,81 @@ nodes:
   params:
     sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
 
+- id: heating_fossil_share
+  name: Heating fossil share
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, heating_type, energy_carrier]
+  output_dimensions: [fuel_type, heating_type, energy_carrier]
+  input_nodes:
+  - id: heating_fossil_share_historical
+
+- id: building_heating_shares
+  name: Building heating shares
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier, fuel_type, scope]
+  output_dimensions: [heating_type, energy_carrier, fuel_type, scope]
+  input_nodes:
+  - id: building_heating_type_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+    - id: scope
+  - id: heating_fossil_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+  - id: heating_fuel_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+
 - id: building_heat_energy_use
   name: Building heat energy use
-  description: 'For the frozen scenario, heat energy is relative to population growth.'
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, scope]
-  output_dimensions: [heating_type, building_energy_class, scope]
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
+  input_nodes:
+  - id: building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: energy_use_intensity
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_heating_shares
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: scope
+    - id: fuel_type
+
+- id: efficiency_of_heat_pumps
+  name: Efficiency of heat pumps
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: MWh/MWh
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Efficiency of heat pumps
+
+- id: building_heat_electricity_use
+  name: Building heat electricity use
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating_type, building_energy_class, scope, fuel_type, energy_carrier]
+  output_dimensions: [heating_type, building_energy_class, scope, fuel_type, energy_carrier]
   input_nodes:
   - id: building_stock
     to_dimensions:
@@ -425,6 +539,23 @@ nodes:
     to_dimensions:
     - id: heating_type
     - id: scope
+  - id: efficiency_of_heat_pumps
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
 
 - id: heating_emission_factor
   name: Heating emission factor
@@ -451,6 +582,10 @@ nodes:
   - id: building_heat_energy_use
     from_dimensions:
     - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: fuel_type
       flatten: true
     to_dimensions:
     - id: heating_type
@@ -500,7 +635,7 @@ nodes:
     unit: '%'
 
 - id: new_building_cost_shares
-  name: Building current cost_shares
+  name: Building current cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -511,8 +646,19 @@ nodes:
     forecast_from: 2023
   params:
     sector: investment costs in new buildings
-#building renovation investments
 
+- id: building_renovation_investment_shares
+  name: Building renovation investment shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: building renovation investments
 
 - id: new_building_cost
   name: New building cost
@@ -553,8 +699,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
-  input_dimensions: [building_energy_class]  # FIXME energy_carrier
-  output_dimensions: [building_energy_class]
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
     forecast_from: 2023
@@ -566,13 +712,13 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: km**2
-  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]  # FIXME energy_carrier
+  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   input_nodes:
   - id: efficient_appliances_rate
     tags: [complement_cumulative_product, complement]
     to_dimensions:
-    - id: building_energy_class
+    - id: energy_carrier
   - id: building_stock
     tags: [non_additive]
     from_dimensions:
@@ -596,13 +742,13 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: km**2
-  input_dimensions: [building_energy_class]  # FIXME energy_carrier
-  output_dimensions: [building_energy_class]
+  input_dimensions: [building_energy_class, energy_carrier]
+  output_dimensions: [building_energy_class, energy_carrier]
   input_nodes:
   - id: efficient_appliances_rate
     tags: [complement_cumulative_product]
     to_dimensions:
-    - id: building_energy_class
+    - id: energy_carrier
   - id: building_stock
     tags: [non_additive]
     from_dimensions:
@@ -615,7 +761,6 @@ nodes:
     to_dimensions:
     - id: building_energy_class
     - id: energy_carrier
-      categories: [electricity]
     - id: efficiency_programme
       categories: [no_improvements]
 
@@ -668,8 +813,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [efficiency_programme] # , energy_carrier] FIXME
-  output_dimensions: [efficiency_programme] # , energy_carrier]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
     sector: Efficiency improvements for each renovation
@@ -699,7 +844,6 @@ nodes:
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
-      categories: [electricity]
   output_nodes:
   - id: total_electricity_consumption
     from_dimensions:
@@ -708,86 +852,7 @@ nodes:
     - id: efficiency_programme
       flatten: true
 
-- id: efficiency_programme_current_unit_price
-  name: Efficiency programme current unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/m**2
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-    filters:
-    - column: Energy carrier
-      value: electricity
-      drop_col: false
-  params:
-    sector: Cost of efficiency programme per m2
-
-- id: efficiency_programme_unit_price
-  name: Efficiency programme unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/m**2
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-    filters:
-    - column: Energy carrier
-      value: electricity
-      drop_col: false
-  # input_nodes:
-  # - id: efficiency_programme_current_unit_price
-  params:
-    sector: Cost of efficiency programme per m2
-  # - id: annual_change  # FIXME from nzc/defaults Cost improvements of efficiency programme
-  #   value: 1.024671139
-  #   unit: '%'
-  # - id: is_decreasing_rate
-  #   value: true
-
-- id: old_building_cost_shares
-  name: Old building cost_shares
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: building renovation investments
-
-- id: efficiency_programme_cost
-  name: Efficiency programme cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
-  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
-  input_nodes:
-  - id: building_stock_by_efficiency_programme
-    tags: [difference]
-    from_dimensions:
-    - id: efficiency_programme
-      categories: [no_improvements]
-      exclude: true
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  - id: efficiency_programme_unit_price
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  - id: old_building_cost_shares  # CHECK
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
+# --------------- Emissions ------------
 
 - id: consumer_electricity_emissions
   name: Consumer electricity emissions
@@ -842,6 +907,183 @@ nodes:
       flatten: true
     - id: pollutant
       categories: [nox, pm25_combustion, pm10_combustion]
+
+# --------------- Costs ----------------
+
+- id: efficiency_programme_current_unit_price
+  name: Efficiency programme current unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [efficiency_programme, energy_carrier, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, cost_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+    filters:
+    - column: Energy carrier
+      value: electricity
+      drop_col: false
+  params:
+    sector: Cost of efficiency programme per m2
+
+- id: efficiency_programme_unit_price
+  name: Efficiency programme unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [efficiency_programme, energy_carrier, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, cost_type]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Energy carrier
+      value: electricity
+      drop_col: false
+  # input_nodes:
+  # - id: efficiency_programme_current_unit_price
+  params:
+    sector: Cost of efficiency programme per m2
+  # - id: annual_change  # FIXME from nzc/defaults Cost improvements of efficiency programme
+  #   value: 1.024671139
+  #   unit: '%'
+  # - id: is_decreasing_rate
+  #   value: true
+
+- id: old_building_cost_shares
+  name: Old building cost_shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2023
+  params:
+    sector: building renovation investments
+
+- id: efficiency_programme_cost
+  name: Efficiency programme cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  input_nodes:
+  - id: building_stock_by_efficiency_programme
+    tags: [difference]
+    from_dimensions:
+    - id: efficiency_programme
+      categories: [no_improvements]
+      exclude: true
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  - id: efficiency_programme_unit_price
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+    - id: cost_type
+  - id: old_building_cost_shares  # CHECK
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: heating_re_investment_fraction
+  name: Heating re-investment fraction
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier]
+  output_dimensions: [heating_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
+
+- id: new_heating_capacity_needed
+  name: New heating capacity needed (investments)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: GWh/a**2
+  input_dimensions: [heating_type, energy_carrier]
+  output_dimensions: [heating_type, energy_carrier]
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [non_additive, difference, make_nonnegative]  # FIXME Should we look also at negative investments?
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+  - id: heating_re_investment_fraction
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+
+- id: un_levelised_capital_cost_of_heating
+  name: Un-levelised capital cost of heating
+  description: The unit is multiplied by 1 a because the unit price is given per production, not production capacity.
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR*a/MWh
+  input_dimensions: [energy_carrier, cost_type, heating_type]
+  output_dimensions: [energy_carrier, cost_type, heating_type]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: Un-levelized capital cost of heating
+  - id: multiplier
+    value: 1
+    unit: a
+
+- id: heating_cost_stakeholder_shares
+  name: Heating cost stakeholder shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [stakeholder, cost_type, heating_type]
+  output_dimensions: [stakeholder, cost_type, heating_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: heating costs
+
+- id: new_heating_capacity_cost
+  name: New heating capacity cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
+  output_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
+  input_nodes:
+  - id: new_heating_capacity_needed
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+  - id: un_levelised_capital_cost_of_heating
+    to_dimensions:
+    - id: cost_type
+    - id: heating_type
+    - id: energy_carrier
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+    - id: heating_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: heating_type
+      flatten: true
 
 # ---------------- Summary ---------------------
 
@@ -927,36 +1169,54 @@ actions:
   output_nodes:
   - id: new_building_shares
 
-- id: heating_technology_improvement
+- id: heating_technology_improvement  # FIXME Add 20 a lifetime
   name: 3.4.1 Heating technology improvement
-  type: gpc.DatasetAction2
+  description: Switch from local to district heating.
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
-  input_dimensions: [heating_type]
-  output_dimensions: [heating_type]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: Heating technologies in 2030
+  input_dimensions: [heating_type, scope]
+  output_dimensions: [heating_type, scope]
+  input_nodes:
+  - id: building_heating_type_share_historical
+    tags: [historical, inventory_only]
+    # from_dimensions:
+    # - id: scope
+    #   flatten: true
+    # to_dimensions:
+    # - id: heating_type
+  - id: building_heating_type_share_goal
+    tags: [goal]
+    to_dimensions:
+    - id: heating_type
+    - id: scope
+  output_nodes:
+  - id: building_heating_type_share
+    to_dimensions:
+    - id: heating_type
+    - id: scope
+#      categories: [scope1]
 
 - id: heating_energy_improvement
   name: 3.4.2 Heating energy improvement
-  type: gpc.DatasetAction2  # Add category checking also to this class
+  description: Improve the fuel shares of heating.
+  type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
   input_dimensions: [energy_carrier, heating_type]
   output_dimensions: [energy_carrier, heating_type]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: Share of heating in 2030
+  input_nodes:
+  - id: heating_fuel_share_historical
+    tags: [historical]
+  - id: heating_fuel_share_goal
+    tags: [goal]
+  output_nodes:
+  - id: heating_fuel_share
 
-- id: change_district_heating_waste_share
-  name: 3.4.3 Change district heating waste share
+- id: change_heating_fossil_share
+  name: 3.4.3 Change heating fossil share
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -964,28 +1224,16 @@ actions:
   input_dimensions: [energy_carrier, fuel_type, heating_type]
   output_dimensions: [energy_carrier, fuel_type, heating_type]
   input_nodes:
-  - id: district_heating_waste_share
+  - id: heating_fossil_share_historical
     tags: [historical]
-  - id: district_heating_waste_share_2030
+  - id: heating_fossil_share_goal
     tags: [goal]
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
     - id: heating_type
-
-- id: heating_re_investment_fraction
-  name: 3.4.4 Heating re-investment fraction
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_dimensions: [heating_type]
-  output_dimensions: [heating_type]
-  input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2023
-  params:
-    sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
+  output_nodes:
+  - id: heating_fossil_share
 
 - id: fossil_electricity_replacement_fraction
   name: 3.4.5 Fossil electriticy replacement fraction
@@ -1025,7 +1273,7 @@ actions:
   historical_values: [[2018, 0.0], [2022, 0.0]]
   forecast_values: [[2023, 1.0]]
   input_dataset_processors: [LinearInterpolation]
-  # output_nodes:  # FIXME after dataset update
-  # - id: efficiency_programme_shares_data
-  #   tags: [non_additive]
-  #   to_dimensions: []
+  output_nodes:
+  - id: efficiency_programme_shares_data
+    tags: [non_additive]
+    to_dimensions: []
