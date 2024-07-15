@@ -1025,6 +1025,10 @@ class Node:
                 elif tag == 'ratio_to_last_historical_value':
                     year = res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max()
                     res = self._scale_by_reference_year(res, year)
+                elif tag == 'make_nonnegative':
+                    res = res.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
+                elif tag == 'make_nonpositive':
+                    res = res.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
 
         return res
 
@@ -1504,6 +1508,10 @@ class Node:
                                 edge_text += _('    - The node is used as the historical starting point.\n')
                             elif tag == 'goal':
                                 edge_text += _('    - The node is used as the goal for the action.\n')
+                            elif tag == 'make_nonnegative':
+                                edge_text += _('    - Negative result values are replaced with 0.\n')
+                            elif tag == 'make_nonpositive':
+                                edge_text += _('    - Positive result values are replaced with 0.\n')
                             else:
                                 edge_text += _('    - The tag "%s" is given.\n') % tag
 

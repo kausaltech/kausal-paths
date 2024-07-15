@@ -126,9 +126,9 @@ class SimpleNode(Node):
         return df
     
     # See also sister function in ActionNode
-    def apply_multiplier(self, df: ppl.PathsDataFrame, required, units) -> ppl.PathsDataFrame:
+    def apply_multiplier(self, df: ppl.PathsDataFrame, required: bool, units: bool) -> ppl.PathsDataFrame:
         multiplier = self.get_parameter_value('multiplier', required=required, units=units)
-        if multiplier:
+        if multiplier is not None:
             if isinstance(multiplier, Quantity):
                 df = df.multiply_quantity(VALUE_COLUMN, multiplier)
             else:
