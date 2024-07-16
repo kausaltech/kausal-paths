@@ -64,7 +64,7 @@ def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
     metric_col = df.metric_cols[0]
 
     gwp_items = list(AR5GWP100.items())
-    gwp = pl.DataFrame(gwp_items, schema=[dim_id, 'gwp_factor'])
+    gwp = pl.DataFrame(gwp_items, schema=[dim_id, 'gwp_factor'], orient='row')
     gdf = ppl.to_ppdf(gwp, meta=ppl.DataFrameMeta(units={}, primary_keys=[dim_id]))
     gdf = gdf.set_unit('gwp_factor', 'dimensionless')
 

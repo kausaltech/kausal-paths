@@ -245,7 +245,7 @@ class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
         df = ppl.from_pandas(df)
         geo = pl.col('building_heat_source')==pl.lit('geothermal')
         tst = df.filter(geo)
-        tst = tst.groupby(pl.col(YEAR_COLUMN)).sum()
+        tst = tst.group_by(pl.col(YEAR_COLUMN)).sum()
         tst1 = tst.filter(pl.col(YEAR_COLUMN) == 2018)[VALUE_COLUMN][0]
         tst = tst.filter(pl.col(YEAR_COLUMN) == 2019)[VALUE_COLUMN][0]
         if tst1 > tst * 2:
@@ -325,7 +325,7 @@ class MultiplicativeWithDataBackup(MultiplicativeNode):
         df_data = df_data.with_columns([pl.col('building_heat_source').cast(pl.Categorical)])
         df_data = df_data.with_columns([pl.col('building_use').cast(pl.Categorical)])
         on = list(set(pdf.get_meta().primary_keys + df_data.get_meta().primary_keys))
-        df = pdf.join(df_data, on=on, how='outer_coalesce')
+        df = pdf.join(df_data, on=on, how='outer', coalesce=True)
 
         # FIXME If you add actions to years without calculated values, you get zero-counting rather than double-counting.
         df = df.with_columns([

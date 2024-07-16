@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import base64
+from typing import TYPE_CHECKING, ClassVar, TypeVar
 from uuid import UUID, uuid4
 
 from django.contrib.auth.models import AbstractUser as DjangoAbstractUser, UserManager as DjangoUserManager
 from django.db import models
 
 from social_django.models import UserSocialAuth
+
+if TYPE_CHECKING:
+    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
 
 
 def uuid_to_username(uuid: UUID | str):
@@ -42,8 +47,10 @@ def username_to_uuid(username: str):
     return UUID(bytes=decoded)
 
 
-class UserManager(DjangoUserManager):
-    def create_superuser(self, username=None, email=None, password=None, **extra_fields):
+UMM = TypeVar('UMM', bound='AbstractUser')
+
+class UserManager(DjangoUserManager[UMM]):
+    def create_superuser(self, username=None, email=None, password=None, **extra_fields) -> UMM:
         uuid = uuid4()
         if not username:
             username = uuid_to_username(uuid)
@@ -54,9 +61,9 @@ class UserManager(DjangoUserManager):
 class AbstractUser(DjangoAbstractUser):
     uuid = models.UUIDField(unique=True)
 
-    objects = UserManager()
+    objects: ClassVar[UserManager] = UserManager()
 
-    social_auth: models.manager.RelatedManager[UserSocialAuth]
+    social_auth: RelatedManager[UserSocialAuth]
 
     def save(self, *args, **kwargs):
         self.clean()

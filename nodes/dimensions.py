@@ -62,6 +62,7 @@ class Dimension(I18nBaseModel):
     _hash: bytes | None = PrivateAttr(default=None)
     _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
     _group_map: OrderedDict[str, DimensionCategoryGroup] = PrivateAttr(default_factory=dict)
+    _pl_dt: pl.Enum = PrivateAttr()
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
@@ -69,6 +70,7 @@ class Dimension(I18nBaseModel):
         self._cat_map = cat_map
         group_map = OrderedDict([(str(g.id), g) for g in self.groups])
         self._group_map = group_map
+        self._pl_dt = pl.Enum(str(cat.id) for cat in self.categories)
         for cat in self.categories:
             if cat.group is not None:
                 cat._group = group_map[cat.group]
@@ -136,13 +138,13 @@ class Dimension(I18nBaseModel):
             if not cat._group:
                 raise Exception("Category %s does not have a group" % cat.id)
             id_map[cat.id] = cat._group.id
-        return expr.cast(pl.Utf8).map_dict(id_map)
+        return expr.cast(pl.Utf8).replace(id_map)
 
     def series_to_ids_pl(self, s: pl.Series) -> pl.Series:
         name = s.name
         if s.null_count():
             raise Exception("Series contains NaNs")
-        s = s.cast(str).str.strip()
+        s = s.cast(str).str.strip_chars()
         cat_map = self.labels_to_ids()
         label = cat_map.keys()
         id = cat_map.values()
@@ -162,7 +164,7 @@ class Dimension(I18nBaseModel):
             return self._hash
         h = hashlib.md5()
         h.update(self.json(exclude={
-            'label': True, 
+            'label': True,
             'categories': {'__all__': {'label'}},
             'groups': {'__all__': {'label'}},
         }).encode('utf8'))

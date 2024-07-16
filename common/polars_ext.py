@@ -233,7 +233,7 @@ class PathsExt:
         for dim in dims:
             remaining_keys.remove(dim)
 
-        zdf = df.groupby(remaining_keys).agg([
+        zdf = df.group_by(remaining_keys).agg([
             *[pl.sum(col).alias(col) for col in meta.metric_cols],
             *fc,
         ]).sort(YEAR_COLUMN)
@@ -299,7 +299,7 @@ class PathsExt:
         assert df._primary_keys
         ldf = df.lazy()
         dupes = (
-            ldf.groupby(df._primary_keys)
+            ldf.group_by(df._primary_keys)
             .agg(pl.count())
             .filter(pl.col('count') > 1)
             .collect()
@@ -311,7 +311,7 @@ class PathsExt:
         if not df._primary_keys:
             return False
         ldf = df.lazy()
-        dupes = ldf.groupby(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).limit(1).collect()
+        dupes = ldf.group_by(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).limit(1).collect()
         return len(dupes) > 0
 
     def cast_index_to_str(self) -> ppl.PathsDataFrame:

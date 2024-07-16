@@ -1,11 +1,8 @@
 import pandas as pd
 import polars as pl
-import numpy as np
 from params import StringParameter, BoolParameter
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, KNOWN_QUANTITIES
-from nodes.dimensions import Dimension
-from nodes.node import Node
 from nodes.simple import AdditiveNode
 from nodes.exceptions import NodeError
 from common import polars as ppl
@@ -85,7 +82,7 @@ class DatasetNode(AdditiveNode):
                 [q == self.quantity for q in quans]]
 
         return df
-    
+
     def implement_unit_col(self, df: pd.DataFrame) -> pd.DataFrame:
         unit = df['Unit'].unique()[0]
         df[VALUE_COLUMN] = df[VALUE_COLUMN].astype('pint[' + unit + ']')

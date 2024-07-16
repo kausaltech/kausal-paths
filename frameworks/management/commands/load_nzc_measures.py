@@ -97,12 +97,15 @@ class Command(BaseCommand):
             ref = item.get('referenceType', None)
             if ref:
                 assert ref == 'SECTION'
-                # Create a Section
-                section = parent.add_child(instance=Section(
-                    framework=parent.framework,
-                    name=item['label'],
-                    available_years=None,
-                ))
+                if item['label'] == 'Key assumptions for levers':
+                    section = parent
+                else:
+                    # Create a Section
+                    section = parent.add_child(instance=Section(
+                        framework=parent.framework,
+                        name=item['label'],
+                        available_years=None,
+                    ))
                 if 'items' in item:
                     self.process_items(item['items'], section)
             else:

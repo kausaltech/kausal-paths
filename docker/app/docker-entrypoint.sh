@@ -20,7 +20,7 @@ function populate_test_instances() {
 
 # Wait for the database to get ready when not running in Kubernetes.
 # In Kube, the migrations will be handled through a job.
-if [ "$KUBERNETES_MODE" != "1" -a "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'runserver' ]; then
+if [ "$KUBERNETES_MODE" != "1" ] && [ "$1" = 'uwsgi' -o "$1" = 'celery' -o "$1" = 'runserver' ]; then
     echo "Waiting for database to get ready..."
     $wait_for_it $DB_ENDPOINT
 
@@ -49,7 +49,11 @@ if [ "$1" = 'uwsgi' ]; then
     fi
     exec uwsgi --ini /uwsgi.ini $EXTRA_UWSGI_ARGS
 elif [ "$1" = 'celery' ]; then
-    exec celery -A paths "$2" -l INFO
+    CELERY_ARGS=""
+    if [ "$2" = "worker" -a "$KUBERNETES_MODE" = "1" ] ; then
+      CELERY_ARGS="--concurrency=1"
+    fi
+    exec celery -A paths "$2" -l INFO $CELERY_ARGS
 elif [ "$1" = 'runserver' ]; then
     cd /code
     exec python manage.py runserver 0.0.0.0:8000

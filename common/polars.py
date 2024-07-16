@@ -10,9 +10,8 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from pint_pandas import PintType
-from polars._utils.parse_expr_input import parse_as_list_of_expressions
+from polars._utils.parse import parse_into_list_of_expressions
 from polars.polars import PyDataFrame, PyExpr
-from polars.selectors import _selector_proxy_
 from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, TIME_INTERVAL
@@ -52,7 +51,8 @@ class PathsDataFrame(pl.DataFrame):
 
     @classmethod
     def _from_pydf(cls, py_df: PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
-        df = super()._from_pydf(py_df)
+        df = cls.__new__(cls)
+        df._df = py_df
         df._units = {}
         df._primary_keys = []
 
@@ -106,9 +106,13 @@ class PathsDataFrame(pl.DataFrame):
         df = super().rename(mapping)
         return to_ppdf(df, meta=meta)
 
-    def drop(self, *columns: str | _selector_proxy_ | Iterable[str | _selector_proxy_]) -> PathsDataFrame:
+    def drop(
+        self,
+        *columns: ColumnNameOrSelector | Iterable[ColumnNameOrSelector],
+        strict: bool = True,
+    ) -> PathsDataFrame:
         meta = self.get_meta()
-        df = super().drop(*columns)
+        df = super().drop(*columns, strict=strict)
         for col in list(meta.units.keys()):
             if col not in df.columns:
                 del meta.units[col]
@@ -136,7 +140,7 @@ class PathsDataFrame(pl.DataFrame):
         self, *exprs: IntoExpr | Iterable[IntoExpr], units: dict[str, Unit] | None = None, **named_exprs: IntoExpr
     ) -> PathsDataFrame:
         structify = False
-        pyexprs = parse_as_list_of_expressions(
+        pyexprs = parse_into_list_of_expressions(
             *exprs, **named_exprs, __structify=structify
         )
         df = super().select(*exprs, **named_exprs)
@@ -167,7 +171,7 @@ class PathsDataFrame(pl.DataFrame):
         **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
         structify = False
-        pyexprs = parse_as_list_of_expressions(
+        pyexprs = parse_into_list_of_expressions(
             *exprs, **named_exprs, __structify=structify
         )
         df = super().with_columns(*exprs, **named_exprs)
@@ -298,7 +302,7 @@ class PathsDataFrame(pl.DataFrame):
         df = self.paths.to_wide()
         for df_col in df.columns:
             if col + '@' in df_col or col == df_col:
-                df = df.with_columns(pl.col(df_col).cumsum())
+                df = df.with_columns(pl.col(df_col).cum_sum())
             else:
                 continue
         df = df.paths.to_narrow()
@@ -519,7 +523,7 @@ def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None
 
 def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
     dtypes = df.dtypes
-    units = {}
+    units: dict[str, Unit] = {}
     primary_keys: list[str] = []
     for col, dt in dtypes.items():
         assert isinstance(col, str)

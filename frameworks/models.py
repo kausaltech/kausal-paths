@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 import uuid
 
 from django.contrib.postgres.fields import ArrayField
@@ -43,7 +43,7 @@ class Framework(UUIDIdentifiedModel):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)
+    root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)  # pyright: ignore
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
@@ -55,6 +55,21 @@ class Framework(UUIDIdentifiedModel):
 
     def __str__(self):
         return self.name
+
+    def export_sections(self):
+        root_section: Section | None = getattr(self, 'root_section', None)
+        if not root_section:
+            return []
+        sections = root_section.get_descendants()
+        out: list[dict[str, Any]] = []
+        for section in sections:
+            sd = section.to_dict()
+            if section.get_parent() == root_section:
+                # Do not include the root section in the export
+                sd['parent'] = None
+            sd['measure_templates'] = [mt.to_dict(include_section=False) for mt in section.measure_templates.order_by('order')]
+            out.append(sd)
+        return out
 
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
@@ -129,7 +144,7 @@ class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
 
     measure_templates: RelatedManager[MeasureTemplate]
 
-    public_fields: ClassVar = ["identifier", "path", "name", "description", "available_years"]
+    public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years"]
 
     class Meta:
         constraints = [
@@ -153,6 +168,17 @@ class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
         # Recursively print subsections
         for child in self.get_children():
             child.print_tree(indent + 1)
+
+    def to_dict(self):
+        parent = self.get_parent()
+        return {
+            "uuid": str(self.uuid),
+            "identifier": self.identifier,
+            "name": self.name,
+            "description": self.description,
+            "available_years": self.available_years,
+            "parent": str(parent.uuid) if parent else None
+        }
 
 
 class MeasurePriority(models.TextChoices):
@@ -188,10 +214,11 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
     )
 
     default_data_points: RelatedManager[MeasureTemplateDefaultDataPoint]
+    measures: RelatedManager[Measure]
 
     objects: models.Manager[MeasureTemplate]
     public_fields: ClassVar = [
-        "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
+        "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
     ]
 
     class Meta:
@@ -206,6 +233,21 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(section=self.section)
+
+    def to_dict(self, include_section: bool = True):
+        out = {
+            "uuid": str(self.uuid),
+            "name": self.name,
+            "unit": self.unit,
+            "priority": self.priority,
+            "min_value": self.min_value,
+            "max_value": self.max_value,
+            "time_series_max": self.time_series_max,
+            "default_value_source": self.default_value_source,
+        }
+        if include_section:
+            out['section'] = str(self.section.uuid)
+        return out
 
 
 class MeasureTemplateDimension(OrderedModel):
@@ -272,6 +314,8 @@ class FrameworkConfig(models.Model):
     baseline_year = models.IntegerField()
     categories = models.ManyToManyField(FrameworkDimensionCategory)
 
+    measures: RelatedManager[Measure]
+
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year']
 
     class Meta:
@@ -306,8 +350,10 @@ class Measure(models.Model):
     unit = UnitField(null=True, blank=True)
     internal_notes = models.TextField(blank=True)
 
-    public_fields = [
-        'framework_config', 'measure_template', 'unit',
+    data_points: RelatedManager[MeasureDataPoint]
+
+    public_fields: ClassVar = [
+        'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes'
     ]
 
     class Meta:
@@ -331,8 +377,13 @@ class MeasureDataPoint(models.Model):
     year = models.IntegerField()
     value = models.FloatField()
 
+    public_fields: ClassVar = ['id', 'year', 'value']
+
     class Meta:
         ordering = ["measure", "year"]
+        constraints = [
+            models.UniqueConstraint(fields=['measure', 'year'], name='unique_measure_year_datapoints')
+        ]
 
     def __str__(self):
         return f"{self.measure.measure_template.name} - {self.year}"

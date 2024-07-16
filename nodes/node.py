@@ -910,7 +910,7 @@ class Node:
 
         ldf = df.lazy()
         dupe_rows = (
-            ldf.groupby(meta.primary_keys)
+            ldf.group_by(meta.primary_keys)
             .agg(pl.count())
             .filter(pl.col('count') > 1)
             .sort(YEAR_COLUMN)
@@ -1010,7 +1010,7 @@ class Node:
                 elif tag == 'complement':
                     if not res.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
                         raise NodeError(self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id)
-                    if not self.quantity in ['fraction', 'probability']:
+                    if self.quantity not in ['fraction', 'probability']:
                         raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
                     res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
                     res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))

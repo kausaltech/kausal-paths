@@ -7,11 +7,17 @@ import loguru
 from django.core.management.base import BaseCommand, CommandParser
 from recursive_diff import recursive_diff
 from rich import print
+from rich.traceback import Traceback
+from rich.console import Console
 
+from kausal_common.logging.warnings import register_warning_handler
 from nodes.datasets import JSONDataset
+from nodes.exceptions import NodeError
 from nodes.models import InstanceConfig
 
 logger = loguru.logger.opt(colors=True)
+
+console = Console()
 
 
 def make_comparable(table: dict):
@@ -44,7 +50,17 @@ class Command(BaseCommand):
         with ctx.run():
             for node in ctx.nodes.values():
                 logger.info("Checking node {}".format(node.id))
-                node.check()
+                try:
+                    node.check()
+                except NodeError as e:
+                    if e.__cause__:
+                        err = e.__cause__
+                        tb = Traceback.from_exception(type(err), err, err.__traceback__)
+                        console.print(tb)
+                        logger.error('Error in instance {}\nNode dependency path: {}', instance.id, e.get_dependency_path())
+                        exit(1)
+                    raise
+
                 if store:
                     df = node.get_output()
                     out = JSONDataset.serialize_df(df)
@@ -72,6 +88,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         instance_ids = options['instances']
+        register_warning_handler()
         if not instance_ids:
             instance_ids = list(InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True))
         if options['store']:

@@ -1,7 +1,7 @@
 -c requirements.txt
 -c requirements-lint.txt
 ipython
-pip-tools
+uv
 ipdb
 plotext
 pre-commit
