@@ -322,7 +322,7 @@ class PathsDataFrame(pl.DataFrame):
         df = df.paths.to_wide()
         for df_col in df.metric_cols:
             if col + '@' in df_col or col == df_col:
-                df = df.with_columns(pl.col(df_col).cumprod().alias(df_col))
+                df = df.with_columns(pl.col(df_col).cum_prod().alias(df_col))
             else:
                 continue
         df = df.paths.to_narrow()

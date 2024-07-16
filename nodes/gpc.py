@@ -24,7 +24,8 @@ class DatasetNode(AdditiveNode):
                'exposureresponse': 'exposure_response',
                'case_cost': 'unit_price',
                'unit_cost': 'unit_price',
-               'share': 'fraction'
+               'share': 'fraction',
+               'freight_quantity': 'freight_mileage'
                }
 
     # -----------------------------------------------------------------------------------
