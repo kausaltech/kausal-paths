@@ -5,3 +5,4 @@ uv
 ipdb
 plotext
 pre-commit
+pip

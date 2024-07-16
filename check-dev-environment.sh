@@ -70,7 +70,7 @@ check_package_versions() {
     echo "📦 Checking installed package versions..."
 
     # Extract requirements files from pyproject.toml
-    REQ_FILES=$(grep -E "^(dependencies|optional-dependencies\.dev)" pyproject.toml | grep -oP '(?<=\[)[^\]]+' | tr -d '"' | tr ',' ' ')
+    REQ_FILES=$(grep -E "^(dependencies|optional-dependencies\.dev)" pyproject.toml | sed -n 's/.*\[\([^]]*\)\].*/\1/p' | tr -d '"' | tr ',' ' ')
     if [ -z "$REQ_FILES" ]; then
         print_error "No requirements files found in pyproject.toml"
         return 1
@@ -78,10 +78,30 @@ check_package_versions() {
 
     echo "  📄 Requirements files: $(echo $REQ_FILES | xargs echo)"
 
-    # Run pip-sync with dry run
-    OUTPUT=$(pip-sync -n $REQ_FILES 2>&1)
-    EXIT_CODE=$?
+    # Check if `uv` command (a new Python package manager) is available in path
+    echo "📦 Checking for uv..."
 
+    if command -v uv >/dev/null 2>&1; then
+        print_success "uv found in PATH"
+        echo "  📍 Path: $(command -v uv)"
+    else
+        # If `uv` is not found, install it with pip
+        print_error "uv not found in PATH"
+        echo "Installing uv with pip..."
+        pip install uv
+        if command -v uv >/dev/null 2>&1; then
+            print_success "Successfully installed uv"
+            echo "  📍 Path: $(command -v uv)"
+        else
+            print_error "Failed to install uv"
+            return 1
+        fi
+    fi
+
+    # Executing pip-sync with dry run option
+    echo "🔄 Running 'uv pip sync' with dry run option..."
+    OUTPUT=$(uv pip sync --dry-run $REQ_FILES 2>&1)
+    EXIT_CODE=$?
     if [ $EXIT_CODE -gt 1 ]; then
         print_error "Error running pip-sync"
         echo "$OUTPUT"
@@ -96,7 +116,7 @@ check_package_versions() {
         echo
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             echo "Fixing package mismatches..."
-            pip-sync $REQ_FILES
+            uv pip sync $REQ_FILES
             if [ $? -eq 0 ]; then
                 print_success "Package mismatches resolved"
             else

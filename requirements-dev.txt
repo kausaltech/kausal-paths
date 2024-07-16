@@ -48,6 +48,8 @@ pexpect==4.9.0
     # via
     #   -c requirements.txt
     #   ipython
+pip==24.1.2
+    # via -r requirements-dev.in
 platformdirs==3.11.0
     # via
     #   -c requirements.txt
