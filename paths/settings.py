@@ -622,8 +622,8 @@ if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         send_default_pii=True,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0 if ENABLE_PERF_TRACING else 0.0,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1 if ENABLE_PERF_TRACING else 0.0,
         # instrumenter='otel',
         integrations=[DjangoIntegration()],
         environment=os.getenv('SENTRY_ENVIRONMENT', None) or DEPLOYMENT_TYPE,
