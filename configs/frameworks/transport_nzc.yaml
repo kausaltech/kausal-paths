@@ -12,7 +12,6 @@
 # energy_carrier
 # stakeholder
 # Required parameters from outside the framework:
-# population_growth_rate
 
 nodes:
 - id: transport_emissions
@@ -816,7 +815,7 @@ nodes:
   input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
   output_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
   input_nodes:
-  - id: transport_air_pollution_unit_price
+  - id: air_pollution_unit_price
     from_dimensions:
     - id: area_distance
       categories: [inside]
@@ -1280,8 +1279,8 @@ nodes:
   params:
     sector: Electricity consumption average vehicle
 
-- id: transport_air_pollution_unit_price
-  name: Transport air pollution unit price
+- id: air_pollution_unit_price
+  name: Air pollution unit price
   description: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
     (Essen et al., 2019). Datasets can be created from 1.1 Reduce transport need G129:G134 (CO2 and air pollutants),
     G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
@@ -1305,7 +1304,7 @@ nodes:
   input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
   output_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
   input_nodes:
-  - id: transport_air_pollution_unit_price
+  - id: air_pollution_unit_price
     from_dimensions:
     - id: area_distance
       categories: [inside]  # FIXME Check PM10: Does it drop out?
@@ -1372,7 +1371,6 @@ nodes:
 
 - id: transport_noise_unit_price
   name: Transport noise unit price
-  description: See transport_air_pollution_unit_price.
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm

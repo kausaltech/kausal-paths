@@ -7,7 +7,6 @@
 # ghg
 # scope
 # Required parameters from outside the framework:
-# population_growth_rate
 
 emission_sectors:
 
@@ -42,18 +41,17 @@ nodes:
 
 - id: projected_building_stock
   name: Projected building stock
-  type: costs.ExponentialNode
+  type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
   - id: existing_building_stock
-  params:
-  - id: annual_change
-    ref: population_growth_rate
-  - id: inventory_only
-    value: false
+    tags: [non_additive]
+  - id: population
+    tags: [ratio_to_last_historical_value]
+    to_dimensions: []
 
 - id: new_building_shares_historical
   name: New building shares historical
@@ -1236,7 +1234,7 @@ actions:
   - id: heating_fossil_share
 
 - id: fossil_electricity_replacement_fraction
-  name: 3.4.5 Fossil electriticy replacement fraction
+  name: 3.4.5 Fossil electricity replacement fraction
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'

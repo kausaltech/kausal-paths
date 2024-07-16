@@ -32,13 +32,10 @@ params:
   unit: '%'
   is_visible: true
   is_customizable: true
-- id: population_growth_rate
-  label: Population growth rate
-  value: 0.2
-  min_value: -2.0
-  max_value: 2.0
-  unit: '%'
-  is_visible: true
+- id: show_scenario_impacts
+  label: Show scenario impacts instead of node outputs?
+  value: false
+  is_visible: false
   is_customizable: true
 
 action_groups:
@@ -61,17 +58,17 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-# action_efficiency_pairs:
+action_efficiency_pairs:
 
-# - graph_type: cost_effectiveness
-#   cost_node: aggregated_discounted_total_cost
-#   impact_node: aggregated_net_emissions
-#   invert_cost: true
-#   invert_impact: true
-#   indicator_unit: kEUR/t
-#   cost_unit: MEUR
-#   impact_unit: kt
-#   label: Cost effectiveness
+- graph_type: cost_effectiveness
+  cost_node: aggregated_discounted_total_cost
+  impact_node: aggregated_net_emissions
+  invert_cost: true
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: kt
+  label: Cost efficiency
 
 dimensions:
 
@@ -606,6 +603,32 @@ nodes:
   params:
     sector: Value of CO2 reduction
 
+- id: co2_emissions_cost
+  name: CO2 emissions cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: co2_unit_price
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [city]
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: total_cost
+
 - id: total_cost
   name: Total cost
   type: simple.AdditiveNode
@@ -673,6 +696,8 @@ scenarios:
   params:
   - id: waste_recycling_share_goal.slice_category_at_edge
     value: parameter:baseline_scenario
+  - id: show_scenario_impacts
+    value: false
 
 # - id: frozen
 #   name: Frozen scenario
@@ -687,3 +712,14 @@ scenarios:
   params:  # FIXME Check that values get recalculated after scenario switch.
   - id: waste_recycling_share_goal.slice_category_at_edge
     value: parameter:decarbonisation_scenario
+  - id: show_scenario_impacts
+    value: false
+
+- id: difference
+  name: Difference between decarbonsation and baseline scenarios
+  all_actions_enabled: true
+  params:  # FIXME Check that values get recalculated after scenario switch.
+  - id: waste_recycling_share_goal.slice_category_at_edge
+    value: parameter:decarbonisation_scenario
+  - id: show_scenario_impacts
+    value: true

@@ -472,31 +472,6 @@ nodes:
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
-  # output_nodes:
-  # - id: waste_emissions
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: pollutant
-  #   - id: waste_treatment
-  #   - id: waste_type
-
-- id: waste_air_pollution_unit_price
-  name: Waste air pollution unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/t
-  input_dimensions: [pollutant, cost_type]
-  output_dimensions: [pollutant, cost_type]
-  input_datasets:
-  - id: nzc/defaults
-    filters:
-    - column: Area distance
-      value: outside
-  params:
-  - id: sector
-    value: Air pollution unit price
 
 - id: recycled_waste_unit_price
   name: Recycled waste unit price
@@ -625,7 +600,7 @@ nodes:
       flatten: true
     to_dimensions:
     - id: waste_treatment
-  - id: transport_air_pollution_unit_price
+  - id: air_pollution_unit_price
     from_dimensions:
     - id: pollutant
       flatten: true
@@ -639,8 +614,8 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
-- id: waste_cost_by_stakeholder
-  name: Waste cost by stakeholder
+- id: waste_cost
+  name: Waste cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -689,34 +664,82 @@ nodes:
   params:
     sector: Tonnes material used in for new buildings (2010)
 
-- id: building_renovation_material_ratios
-  name: Building renovation material ratios
+- id: building_materials_used_by_material
+  name: Building materials used by material
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_nodes:
+  - id: building_materials_used_in_new_buildings
+    tags: [non_additive]
+    to_dimensions: []
+  - id: building_material_shares
+    to_dimensions:
+    - id: material
+
+- id: building_construction_material_use
+  name: Building construction material use
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [building_energy_class, material]
+  output_dimensions: [building_energy_class, material]
+  input_nodes:
+  - id: new_building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_materials_used_by_material
+    to_dimensions:
+    - id: material
+
+- id: tonnes_material_used_for_renovations
+  name: Tonnes material used for renovations
   type: gpc.DatasetNode
-  quantity: ratio
-  unit: dimensionless
+  quantity: ratio  # FIXME mass
+  unit: t/m**2
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets: [nzc/defaults]
   params:
-    sector: Tonnes material used for renovations
+  - id: sector
+    value: Tonnes material used for renovations
+  - id: multiplier  # FIXME
+    value: 1
+    unit: t/m**2
 
 - id: building_renovation_material_use
   name: Building renovation material use
   type: simple.MultiplicativeNode
   quantity: mass
-  unit: t/m**2  # FIXME Make sure units make sense
+  unit: kt/a
   input_dimensions: [building_energy_class, material]
   output_dimensions: [building_energy_class, material]
   input_nodes:
-  - id: building_materials_used_in_new_buildings
-    tags: [non_additive]
-    to_dimensions: []
-  - id: building_renovation_material_ratios
+  - id: renovated_building_stock
+    from_dimensions:
+    - id: building_energy_class
+      categories: [minor_renovation, major_renovation]
+    to_dimensions:
+    - id: building_energy_class
+  - id: tonnes_material_used_for_renovations
     to_dimensions:
     - id: building_energy_class
   - id: building_material_shares
     to_dimensions:
     - id: material
+
+- id: building_material_use
+  name: Building material use
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [building_energy_class, material]
+  output_dimensions: [building_energy_class, material]
+  input_nodes:
+  - id: building_construction_material_use
+  - id: building_renovation_material_use
 
 - id: building_material_composition_historical
   name: Building material composition historical
@@ -760,37 +783,6 @@ nodes:
   input_nodes:
   - id: building_material_composition_historical
 
-- id: new_building_material_cost  # FIXME CHECK
-  name: New building material cost
-  type: simple.MultiplicativeNode
-  quantity: mass
-  unit: MEUR/a
-  input_dimensions: [material, building_energy_class, cost_type, stakeholder]
-  output_dimensions: [material, building_energy_class, cost_type, stakeholder]
-  input_nodes:
-  - id: building_material_composition
-    to_dimensions:
-    - id: material
-  - id: new_building_stock
-    to_dimensions:
-    - id: building_energy_class
-  - id: building_material_unit_price
-    to_dimensions:
-    - id: cost_type
-      categories: [capex]
-    - id: material
-  - id: new_building_cost_shares
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
-  output_nodes:
-  - id: building_cost
-    from_dimensions:
-    - id: material
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-
 - id: building_material_emission_factor
   name: Building material emission factor
   type: gpc.DatasetNode
@@ -810,17 +802,14 @@ nodes:
   input_dimensions: [material, building_energy_class]
   output_dimensions: [material, building_energy_class]
   input_nodes:
-  - id: building_renovation_material_use
+  - id: building_material_use
+    tags: [non_additive]
     to_dimensions:
     - id: building_energy_class
     - id: material
-  - id: building_stock
-    tags: [difference]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [minor_renovation, major_renovation]
+  - id: building_material_emission_factor
     to_dimensions:
-    - id: building_energy_class
+    - id: material
   output_nodes:
   - id: building_emissions
     from_dimensions:
@@ -850,10 +839,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [material]
-  output_dimensions: [material]
+  input_dimensions: [material, stakeholder, cost_type]
+  output_dimensions: [material, stakeholder, cost_type]
   input_nodes:
-  - id: building_renovation_material_use
+  - id: building_material_use
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -862,13 +851,18 @@ nodes:
   - id: building_material_unit_price
     to_dimensions:
     - id: material
-  - id: building_stock
-    tags: [difference]
+  - id: new_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
     from_dimensions:
-    - id: building_energy_class
-      categories: [major_renovation]
+    - id: material
       flatten: true
-    to_dimensions: []
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
 
 # ------------- Food -------------------
 
@@ -1068,8 +1062,8 @@ nodes:
   params:
     sector: forest costs and savings
 
-- id: monetary_tree_benefits
-  name: Monetary tree benefits
+- id: tree_co_benefits
+  name: Monetary co-benefits
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1146,13 +1140,16 @@ actions:
   unit: t/m**2
   input_dimensions: [material]
   output_dimensions: [material]
+  group: scope_3
   input_nodes:
   - id: building_material_composition_historical
     tags: [historical]
   - id: building_material_composition_goal
     tags: [goal]
   output_nodes:
-  - id: building_material_composition
+  - id: building_materials_used_by_material
+    to_dimensions:
+    - id: material
 
 # --------------- AFOLU -----------------
 
