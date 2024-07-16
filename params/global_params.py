@@ -187,3 +187,8 @@ class WeatherNormalization(BoolParameter):
 class ExtendHistoricalValues(BoolParameter):
     name = _('Is the last historical value extended into the future?')
     id = 'extend_historical_values'
+
+
+class ShowScenarioImpacts(BoolParameter):
+    name = _('On node graphs, show scenario impacts instead of outputs?')
+    id = 'show_scenario_impacts'

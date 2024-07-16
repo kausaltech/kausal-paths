@@ -311,6 +311,10 @@ class DimensionalMetric:
                     return False
             return True
 
+        # Add a functionality to show scenario impacts for nodes rather than outputs.
+        tst = node.context.get_parameter_value('show_scenario_impacts', required=True)
+        baseline = node.context.get_scenario('baseline')
+
         # Use inputs nodes as categories for the dimension "Sectors" in some cases.
         input_nodes = [node for node in node.input_nodes if include_as_input(node)]
         if (
@@ -318,6 +322,14 @@ class DimensionalMetric:
             and not node.input_dataset_instances and not isinstance(node, RelativeNode)
         ):
             df = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
+
+            if tst:
+                with baseline.override():
+                    ddf = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
+                df = df.paths.join_over_index(ddf)
+                df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+                df.drop(VALUE_COLUMN + '_right')
+
             cats = [MetricCategory(
                 id=make_id('node', n.id),
                 original_id=n.id,
@@ -333,6 +345,13 @@ class DimensionalMetric:
             dims.append(mdim)
         else:
             df = node.get_output_pl()
+
+            if tst:
+                with baseline.override():
+                    ddf = node.get_output_pl()
+                df = df.paths.join_over_index(ddf)
+                df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+                df.drop(VALUE_COLUMN + '_right')
 
         if node.context.active_normalization:
             normalizer, df = node.context.active_normalization.normalize_output(m, df)
