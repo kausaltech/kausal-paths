@@ -25,7 +25,77 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
-REQ_FILES="requirements-dev.txt requirements-lint.txt requirements.txt"
+check_git_submodules() {
+    echo "🧩 Checking git submodules..."
+
+    # Check if we're in a git repository
+    if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        print_error "Not in a git repository"
+        return 1
+    fi
+
+    # Check if there are any submodules
+    if ! git submodule status >/dev/null 2>&1; then
+        print_warning "No submodules found in this repository"
+        return 0
+    fi
+
+    # Check submodule status
+    submodule_status=$(git submodule status)
+    incorrect_submodules=0
+
+    while IFS= read -r line; do
+        status_char=${line:0:1}
+        submodule_path=$(echo "$line" | awk '{print $2}')
+
+        case $status_char in
+            "-")
+                print_error "Submodule not initialized: $submodule_path"
+                ((incorrect_submodules++))
+                ;;
+            "+")
+                print_error "Submodule not at the correct commit: $submodule_path"
+                ((incorrect_submodules++))
+                ;;
+            " ")
+                print_success "Submodule at correct commit: $submodule_path"
+                ;;
+            *)
+                print_warning "Unknown status for submodule: $submodule_path"
+                ;;
+        esac
+    done <<< "$submodule_status"
+
+    if [ $incorrect_submodules -eq 0 ]; then
+        print_success "All submodules are at the correct commit"
+    else
+        print_error "$incorrect_submodules submodule(s) are not at the correct commit"
+        echo -e "${BLUE}ℹ️ To update all submodules to the correct commit, run:${NC}"
+        echo -e "${GREEN}   git submodule update --init --recursive${NC}"
+
+        # Prompt user to run the update command
+        read -p "Would you like to run this command now? (Y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            echo "Updating submodules..."
+            if git submodule update --init --recursive; then
+                print_success "Submodules updated successfully"
+                incorrect_submodules=0
+            else
+                print_error "Failed to update submodules"
+            fi
+        else
+            print_warning "Submodules not updated"
+        fi
+
+        # Add information about git config submodule.recurse true
+        echo -e "${BLUE}ℹ️ To automatically update submodules on git operations, you can set:${NC}"
+        echo -e "${GREEN}   git config submodule.recurse true${NC}"
+        echo -e "${BLUE}ℹ️ This will ensure submodules are updated whenever you pull or checkout branches.${NC}"
+    fi
+
+    return $incorrect_submodules
+}
 
 check_python_version() {
     echo "📊 Checking Python version requirement..."
@@ -103,7 +173,7 @@ check_package_versions() {
     OUTPUT=$(uv pip sync --dry-run $REQ_FILES 2>&1)
     EXIT_CODE=$?
     if [ $EXIT_CODE -gt 1 ]; then
-        print_error "Error running pip-sync"
+        print_error "Error running uv pip sync"
         echo "$OUTPUT"
         return 1
     fi
@@ -218,6 +288,7 @@ else
     exit 1
 fi
 
+check_git_submodules
 check_python_version
 check_package_versions
 check_reviewdog
