@@ -48,11 +48,11 @@ jobs:
     needs: [build]
     uses: kausaltech/github-actions/.github/workflows/deploy.yaml@main
     secrets:
-      argocd_server: ${{ secrets.ARGOCD_SERVER }}
-      argocd_auth_token: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+      gitops_pat: ${{ secrets.GHA_GITOPS_PAT }}
     if: needs.build.outputs.deployment_env
     with:
       docker_image_repo: ${{ needs.build.outputs.image }}
       docker_image_tag: ${{ needs.build.outputs.image_tag }}
       project_id: paths-backend
       deployment_env: ${{ needs.build.outputs.deployment_env }}
+      build_id: ${{ needs.build.outputs.build_id }}
