@@ -35,13 +35,16 @@ check_git_submodules() {
     fi
 
     # Check if there are any submodules
-    if ! git submodule status >/dev/null 2>&1; then
-        print_warning "No submodules found in this repository"
-        return 0
-    fi
-
     # Check submodule status
     submodule_status=$(git submodule status)
+    if [ $? -ne 0 ] ; then
+      print_error "'git submodule status' failed"
+      return 1
+    fi
+    if [ -z "$submodule_status" ] ; then
+      print_success "No submodules found"
+      return 0
+    fi
     incorrect_submodules=0
 
     while IFS= read -r line; do
@@ -178,10 +181,9 @@ check_package_versions() {
         return 1
     fi
 
-    if echo "$OUTPUT" | grep -q "Would install" || echo "$OUTPUT" | grep -q "Would uninstall"; then
+    if ! echo "$OUTPUT" | grep -q "Would make no changes"; then
         print_warning "Package version mismatches detected"
         echo "$OUTPUT"
-
         read -p "Would you like to fix these mismatches? (Y/n) " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
