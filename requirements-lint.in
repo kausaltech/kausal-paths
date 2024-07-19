@@ -8,3 +8,4 @@ djangorestframework-stubs
 ruff
 types-factory-boy
 celery-types
+types-openpyxl

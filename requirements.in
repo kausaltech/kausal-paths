@@ -1,5 +1,5 @@
 -r kausal_common/requirements-common.txt
-psycopg[binary,pool]
+psycopg[pool]
 pandas
 python-dotenv
 wagtail>=5.2
@@ -57,3 +57,4 @@ PyGithub
 django-stubs-ext
 celery
 django-celery-results
+openpyxl
