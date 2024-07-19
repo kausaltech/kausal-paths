@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.urls import reverse
 import graphene
 from graphql import GraphQLError
 
 from kausal_common.graphene import DjangoNode, GQLInfo
 from kausal_common.models.general import public_fields
+from nodes.models import InstanceConfig
 from paths.graphql_types import resolve_unit
 from django.utils.translation import gettext_lazy as _
+
 
 from .models import Framework, FrameworkConfig, Measure, MeasureDataPoint, MeasureTemplate, MeasureTemplateDefaultDataPoint, Section
 
@@ -114,6 +118,8 @@ class MeasureType(DjangoNode):
 
 class FrameworkConfigType(DjangoNode):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
+    view_url = graphene.String(description=_("Public URL for instance dashboard"), required=False)
+    results_download_url = graphene.String(description=_("URL for downloading a results file"))
 
     class Meta:
         model = FrameworkConfig
@@ -122,6 +128,19 @@ class FrameworkConfigType(DjangoNode):
     @staticmethod
     def resolve_measures(root: FrameworkConfig, info: GQLInfo):
         return root.measures.all()
+
+    @staticmethod
+    def resolve_view_url(root: FrameworkConfig, info: GQLInfo):
+        fw = root.framework
+        if not fw.public_base_fqdn:
+            return None
+        return 'https://%s.%s' % (root.instance_config.identifier, fw.public_base_fqdn)
+
+    @staticmethod
+    def resolve_results_download_url(root: FrameworkConfig, info: GQLInfo):
+        req = info.context
+        path = reverse('framework_config_results_download', kwargs=dict(fwc_id=root.pk, token=root.token))
+        return req.build_absolute_uri(path)
 
 
 class MeasureDataPointType(DjangoNode):
@@ -144,13 +163,14 @@ class Query(graphene.ObjectType):
 class CreateFrameworkConfigMutation(graphene.Mutation):
     class Arguments:
         framework_id = graphene.ID(required=True)
+        instance_identifier = graphene.ID(required=True, description=_("Identifier for the model instance. Needs to be unique."))
         name = graphene.String(required=True, description=_("Name for the framework configuration instance. Typically the name of the organization."))
         baseline_year = graphene.Int(required=True)
 
     ok = graphene.Boolean()
     framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance."))
 
-    def mutate(self, info: GQLInfo, framework_id: str, name: str, baseline_year: int):
+    def mutate(self, info: GQLInfo, framework_id: str, instance_identifier: str, name: str, baseline_year: int):
         framework = Framework.objects.filter(identifier=framework_id).first()
         if framework is None:
             try:
@@ -161,7 +181,16 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         if framework is None:
             raise GraphQLError("Framework '%s' not found" % framework_id, info.field_nodes)
 
-        fc = FrameworkConfig.create_instance(framework, name, baseline_year)
+        id_field = InstanceConfig._meta.get_field('identifier')
+        try:
+            id_field.run_validators(instance_identifier)
+        except ValidationError:
+            raise GraphQLError("Invalid instance identifier", nodes=info.field_nodes)
+
+        if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
+            raise GraphQLError("Instance with identifier '%s' already exists", nodes=info.field_nodes)
+
+        fc = FrameworkConfig.create_instance(framework, instance_identifier, name, baseline_year)
         return dict(ok=True, framework_config=fc)
 
 
@@ -215,13 +244,14 @@ class DeleteFrameworkConfigMutation(graphene.Mutation):
 
     ok = graphene.Boolean()
 
-    def mutate(self, info: GQLInfo, id: str):
+    @classmethod
+    @transaction.atomic
+    def mutate(cls, root, info: GQLInfo, id: str):
         # FIXME: Permission checking
         fwc = FrameworkConfig.objects.filter(id=id).first()
         if fwc is None:
             raise GraphQLError("FrameworkConfig '%s' not found" % id, info.field_nodes)
-        fwc.delete()
-
+        fwc.instance_config.delete()
         return dict(ok=True)
 
 
@@ -229,7 +259,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
     class Arguments:
         framework_instance_id = graphene.ID(required=True, description=_("ID of the organization-specific framework instance"))
         measure_template_id = graphene.ID(required=True, description=_("ID of the measure template within a framework"))
-        value = graphene.Float(required=True)
+        value = graphene.Float(required=False, description=_("Value for the data point (set to null to remove)"))
         year = graphene.Int(
             description=_("Year of the data point. If not given, defaults to the baseline year for the framework instance"),
             required=False,
@@ -237,11 +267,11 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         internal_notes = graphene.String(description=_("Internal notes for the measure instance"), required=False)
 
     ok = graphene.Boolean()
-    measure_data_point = graphene.Field(MeasureDataPointType)
+    measure_data_point = graphene.Field(MeasureDataPointType, required=False)
 
     @classmethod
     @transaction.atomic
-    def mutate(cls, root, info: GQLInfo, framework_instance_id: str, measure_template_id: str, value: float, year: int | None = None, internal_notes: str | None = None):
+    def mutate(cls, root, info: GQLInfo, framework_instance_id: str, measure_template_id: str, value: float | None = None, year: int | None = None, internal_notes: str | None = None):
         try:
             framework_config = FrameworkConfig.objects.get(id=framework_instance_id)
         except FrameworkConfig.DoesNotExist:
@@ -258,6 +288,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         measure = Measure.objects.filter(
             framework_config=framework_config, measure_template=measure_template
         ).first()
+
         if measure is None:
             measure = Measure(framework_config=framework_config, measure_template=measure_template)
         if internal_notes is not None:
@@ -265,6 +296,11 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         measure.save()
 
         dp = measure.data_points.filter(year=year).first()
+        if value is None:
+            if dp is not None:
+                dp.delete()
+            return UpdateMeasureDataPoint(ok=True, measure_data_point=None)
+
         if dp is None:
             dp = MeasureDataPoint(measure=measure, year=year)
         dp.value = value

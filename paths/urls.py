@@ -17,7 +17,6 @@ from types import ModuleType
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
@@ -33,6 +32,7 @@ from .graphql_views import PathsGraphQLView
 from admin_site import urls as admin_urls
 from datasets.api import all_routers as datasets_routers
 from nodes.api import all_routers as nodes_routers
+from frameworks.urls import urlpatterns as framework_urls
 from .views import health_view
 from users.views import change_admin_instance
 
@@ -51,8 +51,6 @@ api_urls = [
     *[path(r'', include(r.urls)) for r in datasets_routers],
 ]
 
-
-from admin_site.api import check_login_method
 
 urlpatterns = [
     # path('django-admin/', admin.site.urls),
@@ -78,6 +76,7 @@ urlpatterns = [
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('sso/', include(social_urls, namespace='social')),
     path('healthz/', csrf_exempt(health_view)),
+    path('', include(framework_urls)),
 ]
 
 if kpe_urls is not None:

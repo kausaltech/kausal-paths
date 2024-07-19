@@ -223,6 +223,20 @@ class DVCDataset(Dataset):
 
 
 @dataclass
+class FrameworkMeasureDVCDataset(DVCDataset):
+    def load(self, context: Context) -> ppl.PathsDataFrame:
+        return super().load(context)
+        """
+        from nodes.models import InstanceConfig
+
+        ic = InstanceConfig.objects.get(identifier=context.instance.id)
+        fw = ic.framework_configs.first()
+        df = super().load(context)
+        if 'UUID' not in df.columns:
+            raise Exception("Dataset must have a 'UUID' column")
+        """
+
+@dataclass
 class FixedDataset(Dataset):
     """Dataset from fixed values."""
 

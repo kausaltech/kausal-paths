@@ -48,8 +48,10 @@ class AdminMiddleware:
             instance_config = InstanceConfig.objects.filter(id=admin_instance_id).first()
 
         # FIXME
-        adminable_instances = InstanceConfig.permission_policy.instances_user_has_any_permission_for(user, ['change'])
-
+        adminable_instances = (
+            InstanceConfig.permission_policy.instances_user_has_any_permission_for(user, ['change'])
+            .filter(site__isnull=False)
+        )
         if instance_config is not None:
             if instance_config not in adminable_instances:
                 instance_config = None
@@ -82,7 +84,6 @@ class AdminMiddleware:
         user = request.user
         assert isinstance(user, User)
         self.activate_language(ic, user)
-        assert ic is not None
         set_admin_instance(ic, request=request)
 
         assert ic.site is not None

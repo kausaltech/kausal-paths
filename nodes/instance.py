@@ -1,41 +1,42 @@
 import dataclasses
-from functools import cached_property
 import importlib
-import re
 import os
+import re
+import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-import threading
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional, Tuple, Type, overload
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
-import pint
 from loguru import logger
-from yaml import safe_load as yaml_load
+from pydantic.dataclasses import dataclass as pydantic_dataclass
+from rich import print
 from ruamel.yaml import YAML as RuamelYAML, CommentedMap
 from ruamel.yaml.comments import LineCol
-from rich import print
-from common import base32_crockford
+from yaml import safe_load as yaml_load
 
+from common import base32_crockford
 from common.i18n import I18nBaseModel, TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
+from nodes.datasets import FrameworkMeasureDVCDataset
 from nodes.exceptions import NodeError
 from nodes.goals import NodeGoalsEntry
 from nodes.node import Edge, Node, NodeMetric
 from nodes.normalization import Normalization
-from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
+from nodes.scenario import CustomScenario, Scenario
 from nodes.units import Unit
 from pages.config import OutcomePage, pages_from_config
-from params.param import ReferenceParameter, Parameter
+from params.param import Parameter, ReferenceParameter
 
 from .context import Context, Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
     from loguru import Logger
-    from .models import InstanceConfig
+
+    from .models import FrameworkConfig, InstanceConfig
 
 
 yaml = RuamelYAML()
@@ -157,6 +158,7 @@ class InstanceLoader:
     default_language: str
     yaml_file_path: Optional[str] = None
     config: CommentedMap | dict
+    fw_config: Optional['FrameworkConfig'] = None
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
@@ -266,13 +268,22 @@ class InstanceLoader:
             else:
                 ds_id = ds.pop('id')
                 dc = ds
-            ds_unit = dc.pop('unit', None)
-            if ds_unit is not None and not isinstance(ds_unit, pint.Unit):
-                ds_unit = self.context.unit_registry.parse_units(ds_unit)
-                assert isinstance(ds_unit, pint.Unit)
+            ds_unit_conf = dc.pop('unit', None)
+            if isinstance(ds_unit_conf, Unit):
+                ds_unit = ds_unit_conf
+            elif ds_unit_conf is not None:
+                ds_unit = self.context.unit_registry.parse_units(ds_unit_conf)
+            else:
+                ds_unit = None
             tags = dc.pop('tags', [])
-            o = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
-            datasets.append(o)
+            ds_obj: DVCDataset | None = None
+            if self.fw_config is not None:
+                from nodes.gpc import DatasetNode
+                if node_class is DatasetNode:
+                    ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            if ds_obj is None:
+                ds_obj = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:
             datasets.append(FixedDataset(
@@ -664,7 +675,7 @@ class InstanceLoader:
                         n[key] = val
 
     @classmethod
-    def from_yaml(cls, filename):
+    def from_yaml(cls, filename: str, fw_config: Optional['FrameworkConfig'] = None):
         data = yaml_load(open(filename, 'r', encoding='utf8'))
         if 'instance' in data:
             data = data['instance']
@@ -682,11 +693,12 @@ class InstanceLoader:
                 cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
                 # Some nodes, emission sectors and actions must exist in main yaml.
 
-        return cls(data, yaml_file_path=filename)
+        return cls(data, yaml_file_path=filename, fw_config=fw_config)
 
-    def __init__(self, config: dict, yaml_file_path: str | None = None):
+    def __init__(self, config: dict, yaml_file_path: str | None = None, fw_config: Optional['FrameworkConfig'] = None):
         self.yaml_file_path = os.path.abspath(yaml_file_path) if yaml_file_path else None
         self.config = config
+        self.fw_config = fw_config
         self.default_language = config['default_language']
         self.logger = logger.bind(instance=config['id'])
         with set_default_language(self.default_language):

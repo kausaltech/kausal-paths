@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 import uuid
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet
-from django.db import models
+from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from treebeard.mp_tree import MP_Node
 
 from kausal_common.models.ordered import OrderedModel
 from kausal_common.models.uuid import UUIDIdentifiedModel
+from nodes.instance import Instance, InstanceLoader
 from nodes.models import InstanceConfig
 from paths.utils import IdentifierField, UnitField
 
@@ -41,6 +44,7 @@ class Framework(UUIDIdentifiedModel):
     name = models.CharField(max_length=200, verbose_name=_("Name"))
     identifier = IdentifierField()
     description = models.TextField(blank=True)
+    public_base_fqdn = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)  # pyright: ignore
@@ -300,6 +304,10 @@ class MeasureTemplateDefaultDataPoint(models.Model):
         return f"{self.template.name} - {self.year}"
 
 
+def create_random_token():
+    return uuid.uuid4().hex
+
+
 class FrameworkConfig(models.Model):
     """
     Represents a configuration of a Framework for a specific instance.
@@ -313,6 +321,7 @@ class FrameworkConfig(models.Model):
     organization_name = models.CharField(max_length=200, blank=True)
     baseline_year = models.IntegerField()
     categories = models.ManyToManyField(FrameworkDimensionCategory)
+    token = models.CharField(max_length=50, default=create_random_token)
 
     measures: RelatedManager[Measure]
 
@@ -324,14 +333,30 @@ class FrameworkConfig(models.Model):
         ]
 
     @classmethod
-    def create_instance(cls, framework: Framework, org_name: str, baseline_year: int):
-        new_uuid = uuid.uuid4()
+    @transaction.atomic
+    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int):
         ic = InstanceConfig.objects.create(
-            name='%s: %s' % (framework.name, org_name), identifier=str(new_uuid),
-            primary_language="en", other_languages=[],
+            name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
+            primary_language="en", other_languages=[]
         )
         fc = cls.objects.create(framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year)
+        ic.site_url = fc.get_view_url()
+        if ic.site_url is not None:
+            ic.sync_nodes()
+            ic.create_default_content()
         return fc
+
+    def create_model_instance(self, ic: InstanceConfig) -> Instance:
+        fw = self.framework
+        config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % fw.identifier)
+        loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
+        return loader.instance
+
+    def get_view_url(self):
+        fw = self.framework
+        if not fw.public_base_fqdn:
+            return None
+        return 'https://%s.%s' % (self.instance_config.identifier, fw.public_base_fqdn)
 
     def __str__(self):
         return f"{self.framework.identifier}: {self.instance_config.name}"

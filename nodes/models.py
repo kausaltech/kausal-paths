@@ -33,6 +33,7 @@ from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
+    InstanceIdentifierValidator,
     UserModifiableModel,
     UUIDIdentifierField,
     get_default_language,
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
     from loguru import Logger
 
     from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
+    from frameworks.models import FrameworkConfig
     from pages.models import ActionListPage
     from users.models import User
     from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
@@ -107,7 +109,7 @@ if TYPE_CHECKING:
 
 
 class InstanceConfig(PathsModel):
-    identifier = IdentifierField(max_length=100, unique=True)
+    identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
     uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
     name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
@@ -140,8 +142,9 @@ class InstanceConfig(PathsModel):
     # Type annotations
     nodes: RelatedManager[NodeConfig]
     hostnames: RelatedManager[InstanceHostname]
-    dimensions: RelatedManager['DimensionModel']
-    datasets: RelatedManager['DatasetModel']
+    dimensions: RelatedManager[DimensionModel]
+    datasets: RelatedManager[DatasetModel]
+    framework_configs: RelatedManager[FrameworkConfig]
 
     permission_policy: ClassVar[InstancePermissionPolicy]
     _instance: Instance
@@ -208,9 +211,13 @@ class InstanceConfig(PathsModel):
         return instance
 
     def _create_new_instance(self) -> Instance:
-        config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
-        loader = InstanceLoader.from_yaml(config_fn)
-        instance = loader.instance
+        fwc = self.framework_configs.first()
+        if fwc is not None:
+            instance = fwc.create_model_instance(self)
+        else:
+            config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
+            loader = InstanceLoader.from_yaml(config_fn)
+            instance = loader.instance
         self.update_instance_from_configs(instance)
         instance.modified_at = timezone.now()
         instance.context.load_all_dvc_datasets()
@@ -233,12 +240,9 @@ class InstanceConfig(PathsModel):
         self._instance = instance
         return instance
 
-    def get_instance(self, generate_baseline: bool = False) -> Instance:
-        assert not generate_baseline
+    def get_instance(self) -> Instance:
         with instance_cache_lock:
             instance = self._get_instance()
-            if generate_baseline:
-                instance.context.generate_baseline_values()
         return instance
 
     def get_name(self) -> str:
@@ -314,7 +318,8 @@ class InstanceConfig(PathsModel):
 
     def get_outcome_nodes(self) -> list[NodeConfig]:
         instance = self.get_instance()
-        root_nodes = [node for node in instance.context.nodes.values() if node.is_outcome]
+        ctx = instance.context
+        root_nodes = ctx.get_outcome_nodes()
         pks = [node.database_id for node in root_nodes]
         return list(self.nodes.filter(pk__in=pks))
 
@@ -323,7 +328,7 @@ class InstanceConfig(PathsModel):
         from pages.models import ActionListPage, OutcomePage
 
         root = cast(Page, Page.get_first_root_node())
-        home_pages: models.QuerySet['Page'] = root.get_children()
+        home_pages: models.QuerySet['Page'] = root.get_children()  # pyright: ignore
 
         instance = self.get_instance()
         outcome_nodes = {node.identifier: node for node in self.get_outcome_nodes()}
@@ -336,6 +341,7 @@ class InstanceConfig(PathsModel):
                 home_page_conf = page
                 break
         assert home_page_conf is not None
+        assert home_page_conf.outcome_node is not None
 
         root_node: Page = cast(Page, Page.get_first_root_node())
         with override(self.primary_language):
@@ -352,7 +358,7 @@ class InstanceConfig(PathsModel):
                     outcome_node=outcome_nodes[home_page_conf.outcome_node]
                 ))
 
-            action_list_pages = home_page.get_children().type(ActionListPage)
+            action_list_pages: models.QuerySet[ActionListPage] = home_page.get_children().type(ActionListPage)  # type: ignore
             if not action_list_pages.exists():
                 home_page.add_child(instance=ActionListPage(
                     title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True

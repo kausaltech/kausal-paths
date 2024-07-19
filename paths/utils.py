@@ -14,6 +14,10 @@ class IdentifierValidator(RegexValidator):
     regex = r'^[a-z0-9-_]+$'
 
 
+class InstanceIdentifierValidator(RegexValidator):
+    regex = r'^[a-z0-9-]+$'
+
+
 class IdentifierField(models.CharField):
     def __init__(self, *args, **kwargs):
         validator_kwargs = {}
@@ -59,7 +63,7 @@ def validate_unit(s: str):
         else:
             unit_str = ', '.join(e.unit_names)
         raise ValidationError('%s: %s' % (gettext("Invalid unit"), unit_str))
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         raise ValidationError(gettext("Invalid unit"))
     return unit
 
