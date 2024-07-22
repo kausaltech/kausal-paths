@@ -280,11 +280,11 @@ if args.print_action_efficiencies:
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
                 pc.display('%s computed' % action.id)
-                e = out.cumulative_efficiency
-                if e:
-                    e = round_quantity(e)
+                # e = out.cumulative_efficiency
+                # if e:
+                #     e = round_quantity(e)
 
-                rows.append((action.id, e))
+                rows.append((action.id, None))
 
             console = Console()
             rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)
