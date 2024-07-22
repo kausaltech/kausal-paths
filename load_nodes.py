@@ -4,10 +4,8 @@ import cProfile
 from math import log10
 import math
 import os
-import sys
+from pathlib import Path
 import time
-import types
-from typing import cast
 
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
@@ -19,7 +17,6 @@ import rich.traceback
 from rich.table import Table
 from rich.console import Console
 import polars as pl
-import pandas as pd
 
 from nodes.units import Quantity
 
@@ -73,6 +70,7 @@ parser.add_argument('--show-perf', action='store_true', help='show performance i
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
+parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
 
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -209,6 +207,22 @@ all_filters = []
 for line in args.filter or []:
     for f in line.split(','):
         all_filters.append(f)
+
+
+if args.generate_result_excel:
+    from nodes.excel_results import create_result_excel
+    excel_path = Path(args.generate_result_excel)
+    existing_wb: Path | None
+    if excel_path.exists():
+        existing_wb = excel_path
+        context.log.info("Excel workbook '%s' exists; opening it as the base" % excel_path)
+    else:
+        context.log.info("Excel workbook '%s' does not exist; creating new" % excel_path)
+        existing_wb = None
+    out = create_result_excel(context, existing_wb=existing_wb)
+    with open(excel_path, 'wb') as f:
+        f.write(out.getvalue())
+
 
 for node_id in (args.node or []):
     node = context.get_node(node_id)
