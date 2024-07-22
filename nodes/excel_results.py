@@ -21,6 +21,8 @@ PARAM_SHEET_NAME = 'Parameters'
 
 NODES = '''
 net_emissions
+discounted_total_cost
+population
 transport_emissions
 freight_transport_emissions
 waste_emissions
