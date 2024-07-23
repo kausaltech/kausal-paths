@@ -20,7 +20,6 @@ from common import base32_crockford
 from common.i18n import I18nBaseModel, TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
-from nodes.datasets import FrameworkMeasureDVCDataset
 from nodes.exceptions import NodeError
 from nodes.goals import NodeGoalsEntry
 from nodes.node import Edge, Node, NodeMetric
@@ -214,6 +213,12 @@ class InstanceLoader:
             return None
         return TranslatedString(**langs, default_language=default_language or self.default_language)
 
+    def simple_trans_string(self, s: str) -> TranslatedString:
+        langs = {
+            self.default_language: s
+        }
+        return TranslatedString(**langs, default_language=self.default_language)
+
     def setup_processors(self, node: Node, confs: list[dict | str]):
         processors = []
         for idp_conf in confs:
@@ -279,7 +284,8 @@ class InstanceLoader:
             ds_obj: DVCDataset | None = None
             if self.fw_config is not None:
                 from nodes.gpc import DatasetNode
-                if node_class is DatasetNode:
+                if issubclass(node_class, DatasetNode):
+                    from frameworks.datasets import FrameworkMeasureDVCDataset
                     ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
             if ds_obj is None:
                 ds_obj = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
@@ -708,6 +714,9 @@ class InstanceLoader:
         config = self.config
         static_datasets = self.config.get('static_datasets')
         instance_id = config['id']
+        fwc = self.fw_config
+        if fwc is not None:
+            instance_id = fwc.instance_config.identifier
         dataset_repo_default_path = None
         if static_datasets is not None:
             if self.config.get('dataset_repo') is not None:
@@ -731,19 +740,33 @@ class InstanceLoader:
             agcs.append(ag)
 
         instance_attrs = [
-            'reference_year', 'minimum_historical_year', 'maximum_historical_year',
-            'supported_languages', 'site_url', 'theme_identifier',
+            'minimum_historical_year', 'supported_languages', 'theme_identifier',
         ]
+        if fwc is None:
+            owner = self.make_trans_string(self.config, 'owner', required=True)
+            name = self.make_trans_string(self.config, 'name', required=True)
+            max_hist_year = self.config.get('maximum_historical_year')
+            site_url = self.config.get('site_url')
+            reference_year = self.config.get('reference_year')
+        else:
+            owner = self.simple_trans_string(fwc.organization_name)
+            name = self.simple_trans_string(fwc.instance_config.get_name())
+            max_hist_year = fwc.baseline_year
+            site_url = fwc.get_view_url()
+            reference_year = max_hist_year
         self.instance = Instance(
-            id=self.config['id'],
-            name=self.make_trans_string(self.config, 'name', required=True),
-            owner=self.make_trans_string(self.config, 'owner', required=True),
+            id=instance_id,
+            name=name,
+            owner=owner,
             default_language=self.config['default_language'],
             action_groups=agcs,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
+            maximum_historical_year=max_hist_year,
+            site_url=site_url,
+            reference_year=reference_year,
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
