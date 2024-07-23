@@ -34,6 +34,7 @@ env = environ.FileAwareEnv(
     AZURE_AD_CLIENT_SECRET=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
+    DATABASE_CONN_MAX_AGE=(int, 20),
     REDIS_URL=(str, ''),
     CACHE_URL=(str, 'locmemcache://'),
     MEDIA_ROOT=(environ.Path(), root('media')),
@@ -75,7 +76,7 @@ ADMIN_BASE_URL = env('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))  # type: ignore
 DATABASES = {
-    'default': env.db_url(engine='paths.database')
+    'default': env.db_url(engine='kausal_common.database')
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -519,7 +520,7 @@ ENABLE_DEBUG_TOOLBAR = DEBUG and env('ENABLE_DEBUG_TOOLBAR')
 ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 
-if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
+if env('CONFIGURE_LOGGING'):
     from loguru import logger
     from kausal_common.logging import loguru_rich_sink, loguru_logfmt_sink
 
@@ -542,7 +543,10 @@ if env('CONFIGURE_LOGGING') and 'LOGGING' not in locals():
             level=level,
         )
 
-    #warnings.filterwarnings(action='ignore', category=RemovedInWagtail60Warning)
+    if True:
+        import warnings
+        from wagtail.utils.deprecation import RemovedInWagtail70Warning
+        warnings.filterwarnings(action='ignore', category=RemovedInWagtail70Warning)
 
     LOGGING = {
         'version': 1,
@@ -632,9 +636,7 @@ if SENTRY_DSN:
     ignore_logger('uwsgi-req')
 
 
-if 'DATABASES' in locals():
-    if DATABASES['default']['ENGINE'] in ('django.db.backends.postgresql', 'django.contrib.gis.db.backends.postgis'):
-        DATABASES['default']['CONN_MAX_AGE'] = 600
+DATABASES['default']['CONN_MAX_AGE'] = env('DATABASE_CONN_MAX_AGE')
 
 CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
 CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
