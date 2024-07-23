@@ -121,6 +121,7 @@ class FrameworkConfigType(DjangoNode):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
     view_url = graphene.String(description=_("Public URL for instance dashboard"), required=False)
     results_download_url = graphene.String(description=_("URL for downloading a results file"))
+    instance = graphene.Field('nodes.schema.InstanceType', required=False)
 
     class Meta:
         model = FrameworkConfig
@@ -142,6 +143,10 @@ class FrameworkConfigType(DjangoNode):
         req = info.context
         path = reverse('framework_config_results_download', kwargs=dict(fwc_id=root.pk, token=root.token))
         return req.build_absolute_uri(path)
+
+    @staticmethod
+    def resolve_instance(root: FrameworkConfig, info: GQLInfo):
+        return root.instance_config.get_instance()
 
 
 class MeasureDataPointType(DjangoNode):

@@ -310,7 +310,7 @@ def create_random_token():
     return uuid.uuid4().hex
 
 
-class FrameworkConfig(UserModifiableModel):
+class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
     """
     Represents a configuration of a Framework for a specific instance.
 
@@ -327,7 +327,7 @@ class FrameworkConfig(UserModifiableModel):
 
     measures: RelatedManager[Measure]
 
-    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year']
+    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
 
     class Meta:
         constraints = [
