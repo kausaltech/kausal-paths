@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from pint import DimensionalityError
 import polars as pl
 
 from common import polars as ppl
@@ -45,11 +46,24 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         meta = df.get_meta()
         dpdf = pl.DataFrame(data=list(dps), schema=schema, orient='row')
         jdf = df.join(dpdf, on=['UUID'], how='left')
-        uuids_to_replace = jdf.filter(pl.col('MeasureValue').is_not_null())['UUID'].unique()
-        jdf = jdf.filter((~pl.col('UUID').is_in(uuids_to_replace)).or_(pl.col('MeasureValue').is_not_null()).or_(pl.col('UUID').is_null()))
+
+        # Convert units
+        diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()
+        conversions = []
+        for m_unit_s, ds_unit_s in diff_unit.rows():
+            m_unit = context.unit_registry(m_unit_s)
+            ds_unit = context.unit_registry(ds_unit_s)
+            cf = context.unit_registry._get_conversion_factor(m_unit._units, ds_unit._units)
+            if isinstance(cf, DimensionalityError):
+                raise
+            conversions.append((m_unit_s, ds_unit_s, float(cf)))
+        if conversions:
+            conv_df = pl.DataFrame(data=conversions, schema=('MeasureUnit', 'Unit', 'ConversionFactor'), orient='row')
+            jdf = jdf.join(conv_df, on=['MeasureUnit', 'Unit'], how='left')
+            jdf = jdf.with_columns([pl.col('MeasureValue') * pl.col('ConversionFactor').fill_null(1.0)])
+
         jdf = jdf.with_columns([
             pl.coalesce(['MeasureValue', 'Value']).alias('Value'),
-            pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit')
         ])
         df = ppl.to_ppdf(jdf.select(df_cols), meta=meta)
         return df
@@ -60,5 +74,5 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         if 'UUID' not in df.columns:
             raise Exception("Dataset must have a 'UUID' column")
         # FIXME: Disable this for now in order not to break the model
-        # df = self._override_with_measure_datapoints(context, df)
+        df = self._override_with_measure_datapoints(context, df)
         return df
