@@ -1,0 +1,9 @@
+query GetFrameworkConfigIDs($frameworkId:ID!) {
+  framework(identifier:$frameworkId) {
+    identifier
+    configs {
+      id
+      uuid
+    }
+  }
+}
