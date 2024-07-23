@@ -173,6 +173,7 @@ nodes:
   output_dimensions: ['scope', 'residential_building_type', 'ghg']
   params:
     gpc_sector: I.1.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -191,6 +192,7 @@ nodes:
   output_dimensions: ['scope', 'residential_building_type', 'ghg']
   params:
     gpc_sector: I.1.2
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -210,6 +212,7 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'ici_subsector']
   params:
     gpc_sector: I.2.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -228,6 +231,7 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'ici_subsector']
   params:
     gpc_sector: I.2.2
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -247,6 +251,7 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'industry_type']
   params:
     gpc_sector: I.3.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -266,6 +271,7 @@ nodes:
   output_dimensions: ['scope', 'ghg']
   params:
     gpc_sector: I.5.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -284,6 +290,7 @@ nodes:
   output_dimensions: ['scope', 'equipment_type', 'ghg']
   params:
     gpc_sector: I.6.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -303,6 +310,7 @@ nodes:
   output_dimensions: ['vehicle_type', 'scope', 'ghg']
   params:
     gpc_sector: II.1.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -321,6 +329,7 @@ nodes:
   output_dimensions: ['vehicle_type', 'scope', 'ghg']
   params:
     gpc_sector: II.1.2
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -339,6 +348,7 @@ nodes:
   output_dimensions: ['vehicle_type', 'scope', 'ghg']
   params:
     gpc_sector: II.1.3
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -358,6 +368,7 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'rail_type']
   params:
     gpc_sector: II.2.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -377,6 +388,7 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'waterborne_type']
   params:
     gpc_sector: II.3.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -396,6 +408,7 @@ nodes:
   output_dimensions: ['scope', 'ghg']
   params:
     gpc_sector: II.4.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -414,6 +427,7 @@ nodes:
   output_dimensions: ['scope', 'equipment_type', 'ghg']
   params:
     gpc_sector: II.5.1
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -433,6 +447,7 @@ nodes:
   output_dimensions: ['scope', 'ghg']
   params:
     gpc_sector: III.1.2
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -451,6 +466,7 @@ nodes:
   output_dimensions: ['scope', 'ghg']
   params:
     gpc_sector: III.2.2
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:
@@ -469,6 +485,7 @@ nodes:
   output_dimensions: ['scope', 'ghg']
   params:
     gpc_sector: III.4.2
+    inventory_only: true
   input_datasets:
   - id: gpc/surrey
   output_nodes:

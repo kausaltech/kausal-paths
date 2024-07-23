@@ -182,8 +182,11 @@ class DatasetNode(AdditiveNode):
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
-        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
-        df = self.apply_multiplier(df, required=False, units=True)
+
+        if not self.get_parameter_value('inventory_only', required = False):
+            df = extend_last_historical_value_pl(df, end_year = self.get_end_year())
+
+        df = self.apply_multiplier(df, required = False, units = True)
         df = self.add_and_multiply_input_nodes(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
