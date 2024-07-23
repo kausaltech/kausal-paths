@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://surrey.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8dfe05210ab917693b3c1f18afe29bea007acc0f
+  commit: 98e2ae8125ded39d2e1b494f8929e33032ee7236
   dvc_remote: kausal-s3
 name: Surrey Greenhouse Gas Inventory
 owner: City of Surrey
