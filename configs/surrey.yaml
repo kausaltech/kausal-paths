@@ -1,7 +1,7 @@
 id: surrey
 default_language: en
 supported_languages: []
-site_url: https://surrey.paths.staging.kausal.tech
+site_url: https://surrey.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 98e2ae8125ded39d2e1b494f8929e33032ee7236
@@ -932,6 +932,7 @@ nodes:
   unit: t/a
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
+  is_outcome: true
 
 
 actions:
@@ -1656,9 +1657,18 @@ pages:
   name: Surrey Greenhouse Gas Inventory
   path: /
   type: emission
+  outcome_node: net_emissions_forecast
+  lead_title: Surrey Greenhouse Gas Inventory & Forecast
+  lead_paragraph: Greenhouse gas inventory (2007-2021) and forecast (2022-2050) for the City of Surrey.
+
+- id: inventory
+  name: Inventory
+  path: /inventory
+  type: outcome
   outcome_node: net_emissions
   lead_title: Surrey Greenhouse Gas Inventory
-  lead_paragraph: Greenhouse gas inventory (2007-2021) and forecast (2022-2050) for the City of Surrey.
+  lead_paragraph: Detailed greenhouse gas inventory (2007-2021) for the City of Surrey.
+  show_in_menus: true
 
 scenarios:
 - id: baseline
