@@ -2,13 +2,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import functools
-from typing import Any, Callable, Concatenate, ParamSpec, TypeAlias, TypeVar, TYPE_CHECKING, cast
+from typing import Any, Callable, Concatenate, ParamSpec, TypeVar, TYPE_CHECKING, cast
 
 from django.core.handlers.wsgi import WSGIRequest
 from graphql.type import GraphQLResolveInfo
 from graphql.language.ast import OperationDefinitionNode
 from graphql.error import GraphQLError
-from common.perf import PerfCounter
 
 from nodes.instance import Instance
 from nodes.perf import PerfContext

@@ -9,7 +9,7 @@ import polars as pl
 
 from common import polars as ppl
 from common.i18n import TranslatedString, gettext_lazy as _
-from common.perf import PerfCounter
+from kausal_common.debugging.perf import PerfCounter
 
 from nodes.node import Node, NodeError
 from nodes.constants import (
@@ -367,7 +367,7 @@ class ActionEfficiencyPair:
             # Dimensions that cost and impact nodes can have, and should if they are given:
             # cba i_out i_sta c_out c_sta
             # cea             c_out
-            # roi 
+            # roi
             # voi i_out                   c_iter
             match_dims_c = match_dims_i = [] # For cost and impact nodes, respectively
             if self.graph_type=='cost_effectiveness':

@@ -16,7 +16,7 @@ import redis
 import loguru
 
 from common import base32_crockford, polars as ppl
-from common.perf import PerfCounter
+from kausal_common.debugging.perf import PerfCounter
 from nodes.perf import PerfStats
 
 if TYPE_CHECKING:
@@ -88,7 +88,7 @@ class LocalLRUCache:
         self.current_size = 0
         self.discarded = 0
         self.log = log
- 
+
     # we return the value of the key
     # that is queried in O(1) and return -1 if we
     # don't find the key in out dict / cache.
@@ -100,7 +100,7 @@ class LocalLRUCache:
         else:
             self.cache.move_to_end(key)
             return self.cache[key]
- 
+
     # first, we add / update the key by conventional methods.
     # And also move the key to the end to show that it was recently used.
     # But here we will also check whether the length of our
@@ -139,13 +139,13 @@ class CacheKind(Enum):
             return 'blue'
         return 'yellow'
 
-O = TypeVar('O')
+CR = TypeVar('CR')
 
 @dataclass(slots=True)
-class CacheResult(Generic[O]):
+class CacheResult(Generic[CR]):
     is_hit: bool
     kind: CacheKind
-    obj: O
+    obj: CR
 
     @property
     def color(self) -> str:

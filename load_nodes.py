@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.instance import InstanceLoader
-from common.perf import PerfCounter
+from kausal_common.debugging.perf import PerfCounter
 from rich import print
 import rich.traceback
 from rich.table import Table
@@ -104,7 +104,7 @@ if args.show_perf:
 
 
 if args.cache_benchmark:
-    from common.perf import PerfCounter
+    from kausal_common.debugging.perf import PerfCounter
 
     pc = PerfCounter()
     context.skip_cache = True
