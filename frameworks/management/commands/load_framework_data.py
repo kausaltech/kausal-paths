@@ -1,7 +1,7 @@
 import json
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from frameworks.models import Framework, Section, MeasureTemplate, MeasurePriority
+from frameworks.models import Framework, MeasureTemplateDefaultDataPoint, Section, MeasureTemplate, MeasurePriority
 from nodes.units import unit_registry
 
 
@@ -50,6 +50,7 @@ class Command(BaseCommand):
             identifier=identifier,
             name=framework_data['name'],
             description=framework_data.get('description', ''),
+            public_base_fqdn=framework_data.get('public_base_fqdn'),
         )
         self.stdout.write(self.style.SUCCESS(f"Created new framework: {fw.name}"))
 
@@ -82,9 +83,11 @@ class Command(BaseCommand):
         section = parent.add_child(instance=obj)
         all_sections[str(section.uuid)] = section
 
+        dp_list: list[MeasureTemplateDefaultDataPoint] = []
+
         # Import measure templates
         for mt_data in section_data.get('measure_templates', []):
-            MeasureTemplate.objects.create(
+            mt = MeasureTemplate.objects.create(
                 section=section,
                 uuid=mt_data['uuid'],
                 name=mt_data['name'],
@@ -95,6 +98,12 @@ class Command(BaseCommand):
                 time_series_max=mt_data.get('time_series_max'),
                 default_value_source=mt_data.get('default_value_source', ''),
             )
+            ddps = mt_data.get('default_data_points', [])
+            for ddp in ddps:
+                dp_list.append(MeasureTemplateDefaultDataPoint(template=mt, year=ddp['year'], value=ddp['value']))
+
+        if dp_list:
+            MeasureTemplateDefaultDataPoint.objects.bulk_create(dp_list)
 
     def export_data(self, file_path: str, framework_identifier: str):
         try:
@@ -104,11 +113,7 @@ class Command(BaseCommand):
             return
 
         data = {
-            'framework': {
-                'identifier': framework.identifier,
-                'name': framework.name,
-                'description': framework.description,
-            },
+            'framework': framework.to_dict(),
             'sections': framework.export_sections(),
         }
 

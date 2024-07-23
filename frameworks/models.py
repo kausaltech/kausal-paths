@@ -8,7 +8,6 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet
 from django.db import models, transaction
-from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from treebeard.mp_tree import MP_Node
 
@@ -59,6 +58,14 @@ class Framework(UUIDIdentifiedModel):
 
     def __str__(self):
         return self.name
+
+    def to_dict(self):
+        return {
+            'identifier': self.identifier,
+            'name': self.name,
+            'description': self.description,
+            'public_base_fqdn': self.public_base_fqdn,
+        }
 
     def export_sections(self):
         root_section: Section | None = getattr(self, 'root_section', None)
@@ -248,6 +255,9 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
             "max_value": self.max_value,
             "time_series_max": self.time_series_max,
             "default_value_source": self.default_value_source,
+            "default_data_points": [
+                dict(year=dp.year, value=dp.value) for dp in self.default_data_points.all()
+            ],
         }
         if include_section:
             out['section'] = str(self.section.uuid)
@@ -283,22 +293,6 @@ class MeasureTemplateDefaultDataPoint(models.Model):
 
     class Meta:
         ordering = ["template", "year"]
-
-    def clean(self):
-        super().clean()
-        framework = self.template.framework
-        valid_categories = set(
-            FrameworkDimensionCategory.objects.filter(dimension__framework=framework).values_list("id", flat=True)
-        )
-        current_categories = set([cat.pk for cat in self.categories.all()])
-        invalid_categories = valid_categories - current_categories
-        if invalid_categories:
-            raise ValidationError(
-                {
-                    "categories": _("Invalid categories for this framework: %(categories)s")
-                    % {"categories": ", ".join(str(cat) for cat in invalid_categories)}
-                }
-            )
 
     def __str__(self):
         return f"{self.template.name} - {self.year}"
@@ -376,6 +370,7 @@ class Measure(models.Model):
     internal_notes = models.TextField(blank=True)
 
     data_points: RelatedManager[MeasureDataPoint]
+    measure_template_id: int
 
     public_fields: ClassVar = [
         'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes'
