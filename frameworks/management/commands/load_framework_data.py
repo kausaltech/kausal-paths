@@ -51,6 +51,8 @@ class Command(BaseCommand):
             name=framework_data['name'],
             description=framework_data.get('description', ''),
             public_base_fqdn=framework_data.get('public_base_fqdn'),
+            result_excel_url=framework_data.get('result_excel_url'),
+            result_excel_node_ids=framework_data.get('result_excel_node_ids'),
         )
         self.stdout.write(self.style.SUCCESS(f"Created new framework: {fw.name}"))
 

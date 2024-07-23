@@ -8,13 +8,17 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet
 from django.db import models, transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from treebeard.mp_tree import MP_Node
 
 from kausal_common.models.ordered import OrderedModel
 from kausal_common.models.uuid import UUIDIdentifiedModel
+from kausal_common.models.modification_tracking import UserModifiableModel
+from kausal_common.users import user_or_none
 from nodes.instance import Instance, InstanceLoader
 from nodes.models import InstanceConfig
+from paths.types import UserOrAnon
 from paths.utils import IdentifierField, UnitField
 
 if TYPE_CHECKING:
@@ -47,6 +51,8 @@ class Framework(UUIDIdentifiedModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)  # pyright: ignore
+    result_excel_url = models.URLField(max_length=250, null=True, blank=True)
+    result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
@@ -65,6 +71,8 @@ class Framework(UUIDIdentifiedModel):
             'name': self.name,
             'description': self.description,
             'public_base_fqdn': self.public_base_fqdn,
+            'result_excel_url': self.result_excel_url,
+            'result_excel_node_ids': self.result_excel_node_ids,
         }
 
     def export_sections(self):
@@ -302,7 +310,7 @@ def create_random_token():
     return uuid.uuid4().hex
 
 
-class FrameworkConfig(models.Model):
+class FrameworkConfig(UserModifiableModel):
     """
     Represents a configuration of a Framework for a specific instance.
 
@@ -328,12 +336,14 @@ class FrameworkConfig(models.Model):
 
     @classmethod
     @transaction.atomic
-    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int):
+    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, user: UserOrAnon | None = None):
         ic = InstanceConfig.objects.create(
             name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
             primary_language="en", other_languages=[]
         )
-        fc = cls.objects.create(framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year)
+        fc = cls.objects.create(
+            framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year, created_by=user_or_none(user)  # type: ignore[misc]
+        )
         ic.site_url = fc.get_view_url()
         if ic.site_url is not None:
             ic.sync_nodes()
@@ -354,6 +364,13 @@ class FrameworkConfig(models.Model):
 
     def __str__(self):
         return f"{self.framework.identifier}: {self.instance_config.name}"
+
+    def notify_change(self, user: UserOrAnon | None = None, save: bool = False):
+        self.last_modified_by = user_or_none(user)
+        self.last_modified_at = timezone.now()
+        if save:
+            self.save(update_fields=['last_modified_by', 'last_modified_at'])
+        self.instance_config.invalidate_cache()
 
 
 class Measure(models.Model):

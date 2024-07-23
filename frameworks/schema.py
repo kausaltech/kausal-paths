@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -188,9 +189,9 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             raise GraphQLError("Invalid instance identifier", nodes=info.field_nodes)
 
         if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
-            raise GraphQLError("Instance with identifier '%s' already exists", nodes=info.field_nodes)
+            raise GraphQLError("Instance with identifier '%s' already exists" % instance_identifier, nodes=info.field_nodes)
 
-        fc = FrameworkConfig.create_instance(framework, instance_identifier, name, baseline_year)
+        fc = FrameworkConfig.create_instance(framework, instance_identifier, name, baseline_year, info.context.user)
         return dict(ok=True, framework_config=fc)
 
 
@@ -213,19 +214,19 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
     @transaction.atomic
     def mutate(cls, root, info: GQLInfo, id: str, organization_name: str | None = None, baseline_year: int | None = None):
         try:
-            framework_config = FrameworkConfig.objects.get(id=id)
+            fwc = FrameworkConfig.objects.get(id=id)
         except FrameworkConfig.DoesNotExist:
             raise GraphQLError("FrameworkConfig not found", nodes=info.field_nodes)
 
         if organization_name is not None:
-            framework_config.organization_name = organization_name
+            fwc.organization_name = organization_name
 
         if baseline_year is not None:
-            old_baseline_year = framework_config.baseline_year
-            framework_config.baseline_year = baseline_year
+            old_baseline_year = fwc.baseline_year
+            fwc.baseline_year = baseline_year
 
             # Update datapoint years for measures with a single datapoint
-            measures = framework_config.measures.all()
+            measures = fwc.measures.all()
             for measure in measures:
                 datapoints = list(measure.data_points.all())
                 if len(datapoints) == 1 and datapoints[0].year == old_baseline_year:
@@ -233,9 +234,10 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
                     datapoint.year = baseline_year
                     datapoint.save()
 
-        framework_config.save()
+        fwc.notify_change(user=info.context.user)
+        fwc.save()
 
-        return UpdateFrameworkConfigMutation(ok=True, framework_config=framework_config)
+        return UpdateFrameworkConfigMutation(ok=True, framework_config=fwc)
 
 
 class DeleteFrameworkConfigMutation(graphene.Mutation):
@@ -273,7 +275,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
     @transaction.atomic
     def mutate(cls, root, info: GQLInfo, framework_instance_id: str, measure_template_id: str, value: float | None = None, year: int | None = None, internal_notes: str | None = None):
         try:
-            framework_config = FrameworkConfig.objects.get(id=framework_instance_id)
+            fwc = FrameworkConfig.objects.get(id=framework_instance_id)
         except FrameworkConfig.DoesNotExist:
             raise GraphQLError("Framework instance not found", nodes=info.field_nodes)
 
@@ -283,14 +285,14 @@ class UpdateMeasureDataPoint(graphene.Mutation):
             raise GraphQLError("Measure template not found", nodes=info.field_nodes)
 
         if year is None:
-            year = framework_config.baseline_year
+            year = fwc.baseline_year
 
         measure = Measure.objects.filter(
-            framework_config=framework_config, measure_template=measure_template
+            framework_config=fwc, measure_template=measure_template
         ).first()
 
         if measure is None:
-            measure = Measure(framework_config=framework_config, measure_template=measure_template)
+            measure = Measure(framework_config=fwc, measure_template=measure_template)
         if internal_notes is not None:
             measure.internal_notes = internal_notes
         measure.save()
@@ -306,11 +308,111 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         dp.value = value
         dp.save()
 
+        fwc.notify_change(info.context.user)
+
         return UpdateMeasureDataPoint(ok=True, measure_data_point=dp)
 
+
+class MeasureDataPointInput(graphene.InputObjectType):
+    value = graphene.Float(required=False, description=_("Value for the data point (set to null to remove)"))
+    year = graphene.Int(
+        description=_("Year of the data point. If not given, defaults to the baseline year for the framework instance"),
+        required=False,
+    )
+
+
+class MeasureInput(graphene.InputObjectType):
+    measure_template_id = graphene.ID(required=True, description=_("ID of the measure template within a framework"))
+    internal_notes = graphene.String(description=_("Internal notes for the measure instance"), required=False)
+    data_points = graphene.List(graphene.NonNull(MeasureDataPointInput), required=False)
+
+
+class UpdateMeasureDataPoints(graphene.Mutation):
+    class Arguments:
+        framework_config_id = graphene.ID(required=True)
+        measures = graphene.List(graphene.NonNull(MeasureInput), required=True)
+
+    ok = graphene.Boolean()
+    created_data_points = graphene.List(MeasureDataPointType)
+    updated_data_points = graphene.List(MeasureDataPointType)
+    deleted_data_point_count = graphene.Int(required=True)
+
+    @classmethod
+    @transaction.atomic
+    def mutate(cls, root, info: GQLInfo, framework_config_id: str, measures: list[dict[str, Any]]):
+        fwc = FrameworkConfig.objects.filter(id=framework_config_id).first()
+        if fwc is None:
+            raise GraphQLError("Framework instance not found", nodes=info.field_nodes)
+
+        # Extract all measure template IDs
+        mt_ids = set(m['measure_template_id'] for m in measures)
+        # Fetch all referenced measure templates in a single query
+        mt_qs = MeasureTemplate.objects.filter(id__in=mt_ids)
+        mt_by_id = {str(mt.pk): mt for mt in mt_qs}
+        # Check if all referenced measure templates were found
+        missing_templates = mt_ids - set(mt_by_id.keys())
+        if missing_templates:
+            raise GraphQLError(f"Measure templates not found: {', '.join(missing_templates)}")
+
+        # Fetch all existing measures for this framework config and measure templates
+        existing_measures = fwc.measures.filter(measure_template__in=mt_ids)
+        m_by_mtid: dict[str, Measure] = {str(m.measure_template_id): m for m in existing_measures}
+
+        created_data_points = []
+        updated_data_points = []
+        deleted_data_points = 0
+
+        for m_in in measures:
+            mt_id = m_in['measure_template_id']
+            measure_template = mt_by_id[mt_id]
+            measure = m_by_mtid.get(mt_id)
+
+            if measure is None:
+                measure = Measure(
+                    framework_config=fwc,
+                    measure_template=measure_template,
+                    internal_notes=m_in.get('internal_notes', ''),
+                )
+                m_by_mtid[mt_id] = measure
+                measure.save()
+            elif 'internal_notes' in m_in:
+                measure.internal_notes = m_in.get('internal_notes', '')
+                measure.save()
+
+            dps_in: list[dict] = m_in.get('data_points', [])
+            if not dps_in:
+                continue
+            for dp_input in dps_in:
+                year = dp_input.get('year', fwc.baseline_year)
+                value = dp_input['value']
+                mdp = measure.data_points.filter(year=year).first()
+                if mdp is None:
+                    if value is None:
+                        continue
+                    mdp = MeasureDataPoint(measure=measure, year=year, value=value)
+                    mdp.save()
+                    created_data_points.append(mdp)
+                else:
+                    if value is None:
+                        mdp.delete()
+                        deleted_data_points += 1
+                    else:
+                        mdp.value = value
+                        mdp.save()
+                        updated_data_points.append(mdp)
+
+        fwc.notify_change(info.context.user)
+
+        return UpdateMeasureDataPoints(
+            ok=True,
+            created_data_points=created_data_points,
+            updated_data_points=updated_data_points,
+            deleted_data_point_count=deleted_data_points
+        )
 
 class Mutations(graphene.ObjectType):
     create_framework_config = CreateFrameworkConfigMutation.Field()
     update_framework_config = UpdateFrameworkConfigMutation.Field()
     delete_framework_config = DeleteFrameworkConfigMutation.Field()
     update_measure_data_point = UpdateMeasureDataPoint.Field()
+    update_measure_data_points = UpdateMeasureDataPoints.Field()

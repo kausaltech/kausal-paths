@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+from loguru import logger
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Border, Side, Font
 from openpyxl.worksheet.worksheet import Worksheet
@@ -7,6 +8,7 @@ from openpyxl.cell.cell import Cell
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.utils import quote_sheetname, absolute_coordinate, get_column_letter
 import polars as pl
+import requests
 
 from nodes.actions.action import ActionNode
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
@@ -18,23 +20,6 @@ from nodes.node import Node
 DATA_SHEET_NAME = 'Data'
 PARAM_SHEET_NAME = 'Parameters'
 
-
-NODES = '''
-net_emissions
-discounted_total_cost
-population
-transport_emissions
-freight_transport_emissions
-waste_emissions
-forestation_emissions
-electricity_production_emissions
-building_emissions
-vehicle_kilometres
-freight_transport_vehicle_kilometres
-building_heat_energy_use
-consumer_electricity_use
-collected_waste
-'''.strip().splitlines()
 
 def _convert_to_camel_case(input_string: str):
     # Split the input string into words
@@ -128,12 +113,44 @@ def _add_param_sheet(context: Context, wb: Workbook):
             max_name_length = len(name)
 
     add_param_value('Baseline year', context.instance.maximum_historical_year, 'BaselineYear')
-    add_param_value('Target year', context.model_end_year)
+    add_param_value('Target year', context.target_year)
+    add_param_value('Model end year', context.model_end_year)
     ps.column_dimensions['A'].width = max_name_length
 
 
-def create_result_excel(context: Context, existing_wb: Path | None = None):
-    node_ids = NODES
+def create_result_excel(context: Context, existing_wb: Path | str | None = None, node_ids: list[str] | None = None):
+    """
+    Create or update an Excel workbook with simulation results.
+
+    This function generates an Excel workbook containing simulation results from the provided model (Context).
+    It creates or updates sheets for data and parameters, and defines named ranges for easy reference.
+
+    Args:
+        context (Context): The simulation context containing nodes, dimensions, and other data.
+        existing_wb (Path | str | None, optional): Path or URL to an existing workbook to update.
+                                                   If None, a new workbook is created. Defaults to None.
+                                                   If a string is provided, it's treated as a URL.
+        node_ids (list[str] | None, optional): List of node IDs to include in the output.
+                                               If None, all outcome nodes are included. Defaults to None.
+
+    Returns:
+        BytesIO: A buffer containing the Excel workbook data.
+
+    Notes:
+        - The function creates two sheets: 'Data' and 'Parameters'.
+        - It defines named ranges for each column in the 'Data' sheet and for parameters.
+        - If updating an existing workbook, it removes and recreates the 'Data' and 'Parameters' sheets.
+        - The 'Data' sheet includes columns for Node, Year, Unit, Value, BaselineValue, Forecast,
+          dimension values, and impact of actions.
+        - The 'Parameters' sheet includes simulation parameters like Baseline year and Target year.
+        - If a URL is provided for existing_wb, the function will attempt to download the workbook
+          from that URL before updating it.
+        - If node_ids is provided, only the specified nodes will be included in the output.
+          Otherwise, all outcome nodes from the context will be used.
+    """
+
+    if node_ids is None:
+        node_ids = [node.id for node in context.get_outcome_nodes()]
     context.generate_baseline_values()
     all_dims = set()
 
@@ -144,8 +161,23 @@ def create_result_excel(context: Context, existing_wb: Path | None = None):
                 all_dims.add(dim.id)
 
     created_sheet_names = (DATA_SHEET_NAME, PARAM_SHEET_NAME)
-    if existing_wb:
-        wb = load_workbook(str(existing_wb), rich_text=True)
+    if isinstance(existing_wb, Path):
+        wb_contents = BytesIO(existing_wb.read_bytes())
+    elif isinstance(existing_wb, str):
+        try:
+            logger.info("Downloading results excel from: %s" % existing_wb)
+            resp = requests.get(existing_wb, timeout=(10, 30))  # 5 seconds for connection, 30 seconds for read
+            logger.info("File downloaded, status %d" % resp.status_code)
+            resp.raise_for_status()
+            wb_contents = BytesIO(resp.content)
+        except requests.RequestException as e:
+            logger.error("Unable to download workbook from URL: %s" % str(e))
+            raise
+    else:
+        wb_contents = None
+
+    if wb_contents:
+        wb = load_workbook(wb_contents, rich_text=True)
         to_remove: set[str] = set()
         for name, defn in wb.defined_names.items():
             for sheet_name, _ in defn.destinations:
