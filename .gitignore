@@ -27,3 +27,7 @@ db.sqlite3
 /.mypy_cache/
 /bin
 /model-outputs/
+/query-store/
+/paths_client/
+.rgignore
+/celerybeat-schedule
