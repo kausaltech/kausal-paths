@@ -336,13 +336,13 @@ class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
 
     @classmethod
     @transaction.atomic
-    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, user: UserOrAnon | None = None):
+    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None, user: UserOrAnon | None = None):
         ic = InstanceConfig.objects.create(
             name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
             primary_language="en", other_languages=[]
         )
         fc = cls.objects.create(
-            framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year, created_by=user_or_none(user)  # type: ignore[misc]
+            framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year, uuid=uuid, created_by=user_or_none(user)  # type: ignore[misc]
         )
         ic.site_url = fc.get_view_url()
         if ic.site_url is not None:

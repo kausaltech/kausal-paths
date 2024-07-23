@@ -1,20 +1,30 @@
 from __future__ import annotations
+
 from typing import Any
 
-from django.db import transaction
-from django.core.exceptions import ValidationError
-from django.urls import reverse
 import graphene
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Q
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
 from kausal_common.graphene import DjangoNode, GQLInfo
 from kausal_common.models.general import public_fields
+from kausal_common.models.uuid import UUID_PATTERN, is_valid_pk_or_uuid, query_pk_or_uuid
 from nodes.models import InstanceConfig
 from paths.graphql_types import resolve_unit
-from django.utils.translation import gettext_lazy as _
 
-
-from .models import Framework, FrameworkConfig, Measure, MeasureDataPoint, MeasureTemplate, MeasureTemplateDefaultDataPoint, Section
+from .models import (
+    Framework,
+    FrameworkConfig,
+    Measure,
+    MeasureDataPoint,
+    MeasureTemplate,
+    MeasureTemplateDefaultDataPoint,
+    Section,
+)
 
 
 class MeasureTemplateDefaultDataPointType(DjangoNode):
@@ -172,11 +182,12 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         instance_identifier = graphene.ID(required=True, description=_("Identifier for the model instance. Needs to be unique."))
         name = graphene.String(required=True, description=_("Name for the framework configuration instance. Typically the name of the organization."))
         baseline_year = graphene.Int(required=True)
+        uuid = graphene.UUID(required=False, description=_("UUID for the new framework config. If not set, will be generated automatically."))
 
-    ok = graphene.Boolean()
+    ok = graphene.Boolean(required=True)
     framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance."))
 
-    def mutate(self, info: GQLInfo, framework_id: str, instance_identifier: str, name: str, baseline_year: int):
+    def mutate(self, info: GQLInfo, framework_id: str, instance_identifier: str, name: str, baseline_year: int, uuid: str | None = None):
         framework = Framework.objects.filter(identifier=framework_id).first()
         if framework is None:
             try:
@@ -196,7 +207,14 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
             raise GraphQLError("Instance with identifier '%s' already exists" % instance_identifier, nodes=info.field_nodes)
 
-        fc = FrameworkConfig.create_instance(framework, instance_identifier, name, baseline_year, info.context.user)
+        fc = FrameworkConfig.create_instance(
+            framework=framework,
+            instance_identifier=instance_identifier,
+            org_name=name,
+            baseline_year=baseline_year,
+            uuid=uuid,
+            user=info.context.user
+        )
         return dict(ok=True, framework_config=fc)
 
 
@@ -247,7 +265,7 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
 
 class DeleteFrameworkConfigMutation(graphene.Mutation):
     class Arguments:
-        id = graphene.ID(required=True)
+        id = graphene.ID(required=True, description="ID (or UUID) of the framework config to be deleted")
 
     ok = graphene.Boolean()
 
@@ -255,7 +273,7 @@ class DeleteFrameworkConfigMutation(graphene.Mutation):
     @transaction.atomic
     def mutate(cls, root, info: GQLInfo, id: str):
         # FIXME: Permission checking
-        fwc = FrameworkConfig.objects.filter(id=id).first()
+        fwc = FrameworkConfig.objects.filter(query_pk_or_uuid(id)).first()
         if fwc is None:
             raise GraphQLError("FrameworkConfig '%s' not found" % id, info.field_nodes)
         fwc.instance_config.delete()
@@ -327,7 +345,7 @@ class MeasureDataPointInput(graphene.InputObjectType):
 
 
 class MeasureInput(graphene.InputObjectType):
-    measure_template_id = graphene.ID(required=True, description=_("ID of the measure template within a framework"))
+    measure_template_id = graphene.ID(required=True, description=_("ID (or UUID) of the measure template within a framework"))
     internal_notes = graphene.String(description=_("Internal notes for the measure instance"), required=False)
     data_points = graphene.List(graphene.NonNull(MeasureDataPointInput), required=False)
 
@@ -345,22 +363,39 @@ class UpdateMeasureDataPoints(graphene.Mutation):
     @classmethod
     @transaction.atomic
     def mutate(cls, root, info: GQLInfo, framework_config_id: str, measures: list[dict[str, Any]]):
-        fwc = FrameworkConfig.objects.filter(id=framework_config_id).first()
+        if not is_valid_pk_or_uuid(framework_config_id):
+            raise GraphQLError("Invalid framework ID", nodes=info.field_nodes)
+        fwc = FrameworkConfig.objects.filter(query_pk_or_uuid(framework_config_id)).first()
         if fwc is None:
             raise GraphQLError("Framework instance not found", nodes=info.field_nodes)
 
         # Extract all measure template IDs
-        mt_ids = set(m['measure_template_id'] for m in measures)
+        mt_ids: set[str] = set()
+        mt_uuids: set[str] = set()
+        for m in measures:
+            mt_id = m['measure_template_id']
+            if mt_id.isnumeric():
+                mt_ids.add(mt_id)
+            elif UUID_PATTERN.match(mt_id):
+                mt_uuids.add(mt_id)
+            else:
+                raise GraphQLError("Invalid ID: %s" % mt_id, nodes=info.field_nodes)
+
         # Fetch all referenced measure templates in a single query
-        mt_qs = MeasureTemplate.objects.filter(id__in=mt_ids)
+        mt_qs = MeasureTemplate.objects.filter(Q(id__in=mt_ids) | Q(uuid__in=mt_uuids))
         mt_by_id = {str(mt.pk): mt for mt in mt_qs}
+        mt_by_uuid = {str(mt.uuid): mt for mt in mt_qs}
+
         # Check if all referenced measure templates were found
-        missing_templates = mt_ids - set(mt_by_id.keys())
-        if missing_templates:
-            raise GraphQLError(f"Measure templates not found: {', '.join(missing_templates)}")
+        missing_ids = mt_ids - set(mt_by_id.keys())
+        if missing_ids:
+            raise GraphQLError(f"Measure templates not found: {', '.join(missing_ids)}")
+        missing_uuids = mt_uuids - set(mt_by_uuid.keys())
+        if missing_uuids:
+            raise GraphQLError(f"Measure templates not found: {', '.join(missing_uuids)}")
 
         # Fetch all existing measures for this framework config and measure templates
-        existing_measures = fwc.measures.filter(measure_template__in=mt_ids)
+        existing_measures = fwc.measures.filter(measure_template__in=mt_qs)
         m_by_mtid: dict[str, Measure] = {str(m.measure_template_id): m for m in existing_measures}
 
         created_data_points = []
@@ -369,8 +404,10 @@ class UpdateMeasureDataPoints(graphene.Mutation):
 
         for m_in in measures:
             mt_id = m_in['measure_template_id']
-            measure_template = mt_by_id[mt_id]
-            measure = m_by_mtid.get(mt_id)
+            measure_template = mt_by_id.get(mt_id, mt_by_uuid[mt_id])
+            mt_id = str(measure_template.pk)
+
+            measure = m_by_mtid.get(str(measure_template.pk))
 
             if measure is None:
                 measure = Measure(
