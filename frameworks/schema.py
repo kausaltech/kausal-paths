@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 import graphene
 from django.core.exceptions import ValidationError
@@ -206,6 +207,9 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
 
         if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
             raise GraphQLError("Instance with identifier '%s' already exists" % instance_identifier, nodes=info.field_nodes)
+
+        if not uuid:
+            uuid = str(uuid4())
 
         fc = FrameworkConfig.create_instance(
             framework=framework,
