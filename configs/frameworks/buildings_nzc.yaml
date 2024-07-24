@@ -13,6 +13,7 @@ emission_sectors:
 - id: building_emissions
   name: Building emissions
   description: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
+  color: '#4E79A7'
   part_of: net_emissions
 
 nodes:

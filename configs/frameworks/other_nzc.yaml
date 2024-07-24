@@ -11,6 +11,7 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
+  color: '#59A14F'
   input_dimensions: [pollutant, energy_carrier]
   output_dimensions: [pollutant, energy_carrier]
   input_nodes:
@@ -399,6 +400,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
+  color: '#B07AA1'
   input_dimensions: [waste_type, waste_treatment, pollutant]
   output_dimensions: [waste_type, waste_treatment, pollutant]
   input_nodes:
@@ -990,6 +992,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
+  color: '#76B7B2'
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   output_nodes:

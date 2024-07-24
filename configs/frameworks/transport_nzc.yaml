@@ -19,9 +19,7 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
-  color: '#014B30'
-#  color: '#ff4f57'
-#  color: '#0047b6'
+  color: '#E15759'
   input_dimensions: [transport_mode, ghg, scope, energy_carrier]
   output_dimensions: [transport_mode, ghg, scope, energy_carrier]
   input_nodes:
@@ -709,8 +707,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  color: '#ff4f57'
-#  color: '#0047b6'
+  color: '#F28E2B'
   input_dimensions: [transport_mode, pollutant, energy_carrier]
   output_dimensions: [transport_mode, pollutant, energy_carrier]
   input_nodes:
