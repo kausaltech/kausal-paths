@@ -1,0 +1,4341 @@
+id: zuerich-dev
+default_language: de-CH
+supported_languages: [en]
+site_url: https://zuerich-dev.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: e2ba0c10796895a39139120d07f92f5619981b8d
+  dvc_remote: kausal-s3-private
+  default_path: zuerich
+name_en: Net Zero Cockpit
+name_de: Netto-Null-Cockpit
+owner_en: City of Zürich
+owner_de: Stadt Zürich
+theme_identifier: zurich
+target_year: 2040
+model_end_year: 2040
+# reference_year: 1990
+minimum_historical_year: 2010
+maximum_historical_year: 2020
+emission_unit: kt/a
+emission_forecast_from: 2023
+emission_dimensions: [emission_scope]
+emission_dataset: zuerich/emissions
+emission_sector_dimension: emission_sectors
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t/cap/a
+  - id: energy
+    unit: kWh/cap/a
+  - id: mileage
+    unit: km/cap/a
+  - id: vehicle_mileage
+    unit: vkm/cap/a
+  - id: passenger_mileage
+    unit: pkm/cap/a
+  default: true
+features:
+  baseline_visible_in_graphs: false
+  show_accumulated_effects: false
+  show_significant_digits: 2
+terms:
+  enabled_label_de: Wird umgesetzt
+  enabled_label_en: Is implemented
+  action_group_label_de: Bereich
+  action_group_label_en: Group
+
+action_groups:
+# Handlungsfeld
+- id: buildings
+  name: Gebäude
+  name_en: Buildings and Heat Supply
+  color: '#989898'
+- id: mobility
+  name: Mobilität
+  name_en: Transportation
+  color: '#0505A0'
+- id: waste
+  name: Entsorgung
+  name_en: Waste
+  color: '#007C78'
+- id: other
+  name: Andere
+  name_en: Other
+  color: '#cccccc'
+- id: optional
+  name: Options
+  name_en: Options
+  color: '#cccccc'
+
+dimensions:
+- id: emission_scope
+  label: Emissionsbereiche
+  label_en: Emission scopes
+  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten
+    Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten
+    indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und
+    bilden die bis 2040 angestrebte Reduktion noch nicht ab.
+  groups:
+  - id: direct
+    label: Direkte Emissionen
+    label_en: Direct emissions
+    color: '#0f05a0'
+    #id_match: ^scope1$
+    order: 1
+  - id: indirect
+    label: Indirekte Emissionen
+    label_en: Indirect emissions
+    color: '#6496ff'
+    #id_match: ^scope[23]$
+    order: 2
+  - id: negative
+    label: Negative Emissionen
+    label_en: Negative emissions
+    color: '#8ECF69'
+    #id_match: ^negative_emissions$
+    order: -1
+  categories:
+  - id: scope1
+    label_de: Scope 1
+    label_en: Scope 1
+    color: '#0f05a0'
+    group: direct
+    order: 0
+  - id: scope2
+    label_de: Scope 2
+    label_en: Scope 2
+    color: '#30505e'
+    group: indirect
+    order: 1
+  - id: scope3
+    label_de: Scope 3
+    label_en: Scope 3
+    color: '#6496ff'
+    group: indirect
+    order: 2
+  - id: negative_emissions
+    label_de: Negative Emissionen
+    label_en: Negative emissions
+    color: '#8ECF69'
+    order: -1
+    group: negative
+
+- id: renewable_energy
+  label_de: Erneuerbar
+  label_en: Renewable
+  categories:
+  - id: nonrenewable
+    label_de: Nicht erneuerbar
+    label_en: Non-renewable
+  - id: renewable
+    label_de: Erneuerbar
+    label_en: Renewable
+
+- id: emission_sectors
+  label_de: Emissionssektoren
+  label_en: Emission sectors
+  categories:
+  - id: buildings
+    label_de: Gebäude
+    label_en: Buildings
+  - id: transport
+    label_de: Mobilität
+    label_en: Transport
+  - id: waste_treatment
+    label_de: Entsorgung
+    label_en: Waste treastment
+  - id: ippu
+    label_de: Industrie- und Gewerbeprozesse
+    label_en: Industrial and commercial process emissions
+  - id: afolu
+    label_de: Land- und Forstwirtschaft
+    label_en: Agriculture and forestry emissions
+  - id: aviation
+    label_de: Flugverkehr
+    label_en: Aviation
+  - id: food_consumption
+    label_de: Ernährung
+    label_en: Food
+  - id: textile_consumption
+    label_de: Textilien
+    label_en: Textiles
+  - id: other_consumption
+    label_de: Übriger Konsum
+    label_en: Other consumption
+  - id: wood_heatings_disperse
+    label_de: Cheminées
+    label_en: Disperse wood heatings
+  - id: biowaste_digestion_plant
+    label_de: Vergärwerk
+    label_en: Biowaste digestion plant
+  - id: agricultural_land
+    label_de: Landwirtschaftliche Nutzflächen
+    label_en: Agricultural land
+  - id: livestock_farming
+    label_de: Nutztierhaltung
+    label_en: Livestock farming
+  - id: fgases_buildings
+    label_de: F-Gase (Gebäude)
+    label_en: F-Gase (Gebäude)
+  - id: fgases_transportation
+    label_de: F-Gase (Mobilität)
+    label_en: F-Gase (Mobilität)
+
+- id: building_other_emission_sources
+  label_de: Übrige Emissionsquellen Gebäude
+  label_en: Other buildings emission sources
+  categories:
+  - id: emergency_power_stations
+    label_de: Notstromanlagen
+    label_en: Emergency power stations
+  - id: process_energy
+    label_de: Prozessenergie
+    label_en: Process energy
+  - id: cogeneration_plants
+    label_de: Blockheizkraftwerke
+    label_en: Co-generation plans (CHP)
+  - id: disperse_wood_heatings
+    label_de: Cheminées
+    label_en: Disperse wood heatings
+
+- id: transport_mode
+  label: Verkehrsmittelwahl
+  label_en: Transport mode
+  categories:
+  - id: cars
+    label: Personenwagen
+    label_en: Cars
+  - id: motorbikes
+    label: Motorräder
+    label_en: Motorbikes
+  - id: buses
+    label: Linienbusse
+    label_en: Local buses
+  - id: trolleybuses
+    label: Trolleybusse
+    label_en: Trolley buses
+  - id: coaches
+    label: Reisebusse
+    label_en: Coaches
+  - id: lorries
+    label: Lastwagen
+    label_en: Lorries
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+  - id: tram
+    label: Tram
+    label_en: Tram
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+  - id: rail_passenger
+    label: Bahn ÖV
+    label_en: Rail (passenger transport)
+  - id: rail_goods
+    label: Bahn Gueterverkehr
+    label_en: Rail (goods transport)
+  - id: liner_ship
+    label: Linienschiffe
+    label_en: Liner ship
+  - id: private_ship
+    label: Private Bootsverkehr
+    label_en: Private ships
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt
+    label_en: Mobility ourside the city
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+  - id: bicycle
+    label: Velo
+    label_en: Cycling
+
+- id: vehicle_type
+  label: Fahrzeugtyp
+  label_en: Vehicle type
+  groups:
+  - id: cars
+    label: Personenwagen
+    label_en: Cars
+    id_match: ^car_.+
+  - id: motorbikes
+    label: Motorräder
+    label_en: Motorbikes
+    id_match: ^motorbike_.+
+  - id: buses
+    label: Linienbusse
+    label_en: Local buses
+    id_match: ^(buses_.+)|(trolley.*)
+  - id: trolleybuses
+    label: Trolleybusse
+    label_en: Trolley buses
+    id_match: ^trolley.*
+  - id: coaches
+    label: Reisebusse
+    label_en: Coaches
+    id_match: ^coach_.+
+  - id: lorries
+    label: Lastwagen
+    label_en: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+    id_match: ^van_.+
+  - id: tram
+    label: Tram
+    label_en: Tram
+    id_match: ^tram$
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+    id_match: ^small_railways$
+  - id: rail_passenger
+    label: Bahn (Personverkehr)
+    label_en: Rail (passenger transport)
+    id_match: ^rail_passenger.*
+  - id: rail_goods
+    label: Bahn (Gueterverkehr)
+    label_en: Rail (goods transport)
+    id_match: ^rail_goods.*
+  - id: liner_ship
+    label: Linienschiffe
+    label_en: Liner ship
+    id_match: ^liner_ship.*
+  - id: private_ship
+    label: Private Bootsverkehr
+    label_en: Private ships
+    id_match: ^private_ship.*
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt
+    label_en: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+    id_match: ^aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
+    id_match: ^bicycle
+
+  categories:
+  - id: car_petrol
+    label: Personenwagen / Benzin
+    label_en: Passenger cars / Petrol
+  - id: car_diesel
+    label: Personenwagen / Diesel
+    label_en: Passenger cars / Diesel
+  - id: car_natural_gas_biogas
+    label: Personenwagen / Erdgas/Biogas
+    label_en: Passenger cars / Natural gas / biogas
+  - id: car_plugin_hybrid
+    label: Personenwagen / Plug-in Hybrid
+    label_en: Passenger cars / Plug-in hybrid
+  - id: car_batteryelectric
+    label: Personenwagen / Elektrisch
+    label_en: Passenger cars / Battery-Electric
+  - id: car_fuel_cell
+    label: Personenwagen / Brennstoffzelle
+    label_en: Passenger cars / Fuel cell
+  - id: motorbike_petrol_4stroke
+    label: Motorräder / Benzin (4-Takt-Motor)
+    label_en: Motorbikes / Petrol 4-stroke engine
+  - id: motorbike_petrol_2stroke
+    label: Motorräder / Benzin (2-Takt-Motor)
+    label_en: Motorbikes / Petrol 2-stroke engine
+  - id: motorbike_batteryelectric
+    label: Motorräder / Elektrisch
+    label_en: Motorbikes / Battery-Electric
+  - id: buses_diesel
+    label: Linienbusse / Diesel
+    label_en: Regular buses / Diesel
+  - id: buses_diesel_hybrid
+    label: Linienbusse / Diesel Hybrid
+    label_en: Regular buses / Diesel hybrid
+  - id: buses_diesel_plugin_hybrid
+    label: Linienbusse / Diesel Plug- in Hybrid
+    label_en: Regular buses / Diesel plug-in hybrid
+  - id: buses_batteryelectric
+    label: Linienbusse / Elektrisch
+    label_en: Regular buses / Battery-Electric
+  - id: buses_fuel_cell
+    label: Linienbusse / Brennstoffzelle
+    label_en: Regular buses / Fuel cell
+  - id: trolley
+    label: Trolleybusse
+    label_en: Trolley buses
+  - id: coach_diesel
+    label: Reisebusse / Diesel
+    label_en: Coaches / Diesel
+  - id: coach_natural_gas_biogas
+    label: Reisebusse / Erdgas/Biogas
+    label_en: Coaches / Natural gas/Biogas
+  - id: coach_battery_electric
+    label: Reisebusse / Elektrisch
+    label_en: Coaches / Battery-Electric
+  - id: coach_fuel_cell
+    label: Reisebusse / Brennstoffzelle
+    label_en: Coaches / Fuel cell
+  - id: lorry_diesel
+    label: Lastwagen / Diesel
+    label_en: Lorries / Diesel
+  - id: lorry_natural_gas_biogas
+    label: Lastwagen / Erdgas/Biogas
+    label_en: Lorries / Natural gas/Biogas
+  - id: lorry_diesel_plugin_hybrid
+    label: Lastwagen / Diesel Plug-in Hybrid
+    label_en: Lorries / Diesel plug-in hybrid
+  - id: lorry_battery_electric
+    label: Lastwagen / Elektrisch
+    label_en: Lorries / Battery-Electric
+  - id: lorry_fuel_cell
+    label: Lastwagen / Brennstoffzelle
+    label_en: Lorries / Fuel cell
+  - id: van_petrol
+    label: Lieferwagen / Benzin
+    label_en: Vans / Petrol
+  - id: van_diesel
+    label: Lieferwagen / Diesel
+    label_en: Van / Diesel
+  - id: van_natural_gas_biogas
+    label: Lieferwagen / Erdgas/Biogas
+    label_en: Van / Natural gas/Biogas
+  - id: van_diesel_plugin_hybrid
+    label: Lieferwagen / Plug-in Hybrid
+    label_en: Van / Plug-in hybrid
+  - id: van_battery_electric
+    label: Lieferwagen / Elektrisch
+    label_en: Van / Battery-Electric
+  - id: van_fuel_cell
+    label: Lieferwagen / Brennstoffzelle
+    label_en: Van / Fuel cell
+  - id: tram
+    label: Tram
+    label_en: Tram
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+  - id: rail_passenger
+    label: Bahn (Personverkehr)
+    label_en: Rail (passenger transport)
+  - id: rail_goods
+    label: Bahn (Gueterverkehr)
+    label_en: Rail (goods transport)
+  - id: liner_ship_diesel
+    label: Linienschiffe / Diesel
+    label_en: Liner ship / Diesel
+  - id: liner_ship_battery_electric
+    label: Linienschiffe / Elektrisch
+    label_en: Liner ship / Battery-Electric
+  - id: private_ship_petrol
+    label: Private Bootsverkehr / Benzin
+    label_en: Private ships / Petrol
+  - id: private_ship_diesel
+    label: Private Bootsverkehr / Diesel
+    label_en: Private ships / Diesel
+  - id: private_ship_battery_electric
+    label: Private Bootsverkehr / Elektrisch
+    label_en: Private ships / Battery-Electric
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt (exkl. Flugverkehr)
+    label_en: Mobility ourside the city (excl. aviation)
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
+
+- id: non_road_machinery
+  label: Non-Road Maschinen
+  label_en: Non-road machinery
+  categories:
+  - id: building_construction_machinery
+    label: Maschinen Hochbau
+  - id: civil_construction_machinery
+    label: Maschinen Tiefbau
+  - id: industrial_vehicles
+    label: Industrielle Fahrzeuge
+  - id: forestry_vehicles
+    label: Forstwirtschaftliche Fahrzeuge
+  - id: agricultural_vehicles
+    label: Landwirtschaftliche Fahrzeuge
+
+- id: greenhouse_gases
+  label: Treibhausgase
+  label_en: Greenhouse gases
+  categories:
+  - id: co2_eq
+    label: CO2-Äquivalent
+    label_en: CO2 equivalent
+  - id: co2
+    label: CO2, fossil
+    label_en: CO2, fossil
+    aliases: [co2_fossil]
+  - id: ch4
+    label: CH4
+    label_en: CH4
+  - id: n2o
+    label: N2O
+    label_en: N2O
+  - id: hfc
+    label: HFC
+    label_en: HFC
+  - id: pfc
+    label: PFC
+    label_en: PFC
+  - id: sf6
+    label: SF6
+    label_en: SF6
+  - id: nf3
+    label: NF3
+    label_en: NF3
+  - id: co2_biogen
+    label: CO2, biogenic
+    label_en: CO2, biogen
+
+- id: energy_carrier
+  label: Energieträger
+  label_en: Energy carrier
+  categories:
+  - id: electricity
+    label: Strom
+    label_en: Electricity
+    color: '#0097C5'
+  - id: fuel_oil
+    label: Heizöl EL
+    label_en: Heating oil
+    color: '#B23A01'
+  - id: petrol
+    label: Benzin
+    label_en: Petrol
+    color: '#BF8500'
+  - id: diesel
+    label: Diesel
+    label_en: Diesel
+    color: '#EB5E00'
+  - id: kerosene
+    label: Kerosin
+    label_en: Kerosene
+    color: '#F6A960'
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+    color: '#7EE6E2'
+    order: 1
+  - id: biogas
+    label: Biogas CH
+    label_en: Biogas Domestic
+    color: '#65CC8B'
+    order: 2
+  - id: biogas_import
+    label: Biogas Import
+    label_en: Biogas Import
+    color: '#267342'
+    order: 3
+  - id: district_heat
+    label: Fernwärme
+    label_en: District heating
+    color: '#009655'
+  - id: wood
+    label: Holz
+    label_en: Wood
+    color: '#CBB910'
+  - id: wood_chips
+    label: Holzschnitzel
+    label_en: Wood chips
+    color: '#CBB910'
+  - id: wood_pellets
+    label: Holzpellets
+    label_en: Wood pellets
+    color: '#CBB910'
+  - id: environmental_heat
+    label: Umweltwärme
+    label_en: Environmental heat
+    color: '#91A110'
+  - id: solar_collectors
+    label: Sonnenkollektoren
+    label_en: Solar thermal collectors
+    color: '#F0D800'
+  - id: waste
+    label: Abfälle
+    label_en: Waste
+    color: '#007C78'
+
+- id: heating_system
+  label: Heizsystem
+  label_en: Heating system
+  categories:
+  - id: fuel_oil
+    label: Heizöl EL
+    label_en: Heating oil
+    color: '#B23A01'
+  - id: natural_gas
+    label: Erdgas/Biogas
+    label_en: Natural gas or biogas
+    color: '#7EE6E2'
+  - id: district_heat
+    label: Fernwärme
+    label_en: District heating
+    color: '#009655'
+  - id: heat_pumps
+    label: Wärmepumpe
+    label_en: Heat pumps
+    color: '#0097C5'
+  - id: wood
+    label: Holz
+    label_en: Wood
+    color: '#CBB910'
+  - id: solar_collectors
+    label: Sonnenkollektoren
+    label_en: Solar thermal collectors
+    color: '#F0D800'
+
+- id: electricity_source
+  label: Verfahren zur Stromerzeugung
+  label_de: Electricity generation method
+  categories:
+  - id: hydro
+    label: Wasserkraft
+    label_en: Hydropower
+  - id: nuclear
+    label: Kernenergie
+    label_en: Nuclear power
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+  - id: solar
+    label: Sonnenenergie
+    label_en: Solar
+  - id: biogas
+    label: Biogas
+    label_en: Biogas
+  - id: waste
+    label: Abfälle
+    label_en: Waste incineration
+  - id: wind
+    label: Windenergie
+    label_en: Wind
+  - id: wood
+    label: Biomasse
+    label_en: Wood
+  - id: fuel_oil
+    label: Heizöl
+    label_en: Heating oil
+  - id: import
+    label: Unbekannte Qualität (Strommix Europa)
+    label_en: European import
+    aliases:
+    - UCTE-Mix / ENTSO-E Mix
+    - Nicht deklariert (UCTE)
+    - Nicht deklariert (UCTE-Mix)
+  - id: subsidized
+    label: Geförderter Strom
+    label_en: Subsidized electricity
+
+- id: building_use_extended
+  label_de: Gebäudenutzungsart (erweitert)
+  label_en: Building use (extended)
+  categories:
+  - id: residential
+    label: Wohnen
+    label_en: Residential
+  - id: office
+    label: Büro
+    label_en: Office
+  - id: commercial_services
+    label: Verkauf und Gastgewerbe
+    label_en: Sales and Hospitality
+  - id: production
+    label: Produktion
+    label_en: Production
+  - id: other
+    label: Andere
+    label_en: Other
+
+- id: building_use
+  label_en: Building use
+  label_de: Building use
+  categories:
+  - id: residential
+    label: Wohnen
+    label_en: Residential
+  - id: nonresidential
+    label: Nicht-Wohnen
+    label_en: Non-residential
+
+- id: waste_incineration_plants
+  label_en: Waste incineration plants
+  label_de: Kehrichtverwertungsanlage
+  categories:
+  - id: hagenholz
+    label: Hagenholz
+    label_en: Hagenholz
+  - id: josefstrasse
+    label: Josefstrasse
+    label_en: Josefstrasse
+
+params:
+- id: municipality_name
+  value: zurich
+- id: action_impact_from_baseline
+  value: True
+
+emission_sectors:
+- id: net_emissions
+  name_en: Greenhouse gas emissions
+  name_de: Treibhausgasemissionen
+  minimum_year: 2010
+  goals:
+  - normalized_by: population
+    label_de: Direkte + negative Emissionen
+    label_en: Net direct emissions
+    default: true
+    dimensions:
+      emission_scope:
+        groups: [direct, negative]
+    linear_interpolation: true
+    values:
+    - year: 2022
+      value: 2.4
+    - year: 2040
+      value: 0
+    is_main_goal: true
+  - normalized_by: population
+    label_de: Direkte Emissionen
+    label_en: Direct emissions
+    dimensions:
+      emission_scope:
+        groups: [direct]
+    linear_interpolation: true
+    values:
+    - year: 2022
+      value: 2.4
+    - year: 2040
+      value: 0.5
+    is_main_goal: false
+  - normalized_by: population
+    label_de: Indirekte Emissionen
+    label_en: Indirect emissions
+    disabled: true
+    disable_reason: Werden später ergänzt
+    dimensions:
+      emission_scope:
+        groups: [indirect]
+    values:
+    - year: 2022
+      value: 7.9
+    - year: 2040
+      value: 6.0
+    is_main_goal: true
+  - normalized_by: population
+    label_de: Alle Emissionen
+    label_en: Total emissions
+    disabled: true
+    disable_reason: Werden später ergänzt
+    values:
+    - year: 2022
+      value: 10.3
+    - year: 2040
+      value: 6.5
+    is_main_goal: true
+  is_outcome: true
+
+- id: negative_emissions
+  name_de: Negative Emissionen
+  name_en: Negative emissions
+  part_of: net_emissions
+  color: '#8ECF69'
+  order: -1
+
+# - id: direct_emissions
+#   name_en: Direct emissions
+#   name_de: Direkte Emissionen
+#   target_year_goal: 0
+#   part_of: net_emissions
+#   color: '#0F05A0'
+#   order: 10
+
+# - id: ippu_emissions
+#   name_en: Industrial and commercial process emissions
+#   name_de: Industrie- und Gewerbeprozesse
+#   part_of: net_emissions
+#   category: ippu
+#   color: '#8DAFBC'
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: indirect_emissions
+#   name_en: Indirect emissions
+#   name_de: Indirekte Emissionen
+#   part_of: net_emissions
+#   color: '#6496FF'
+#   order: 11
+
+# - id: aviation_emissions
+#   name_en: Aviation
+#   name_de: Treibhausgasemissionen Flugverkehr
+#   short_name_de: Flugverkehr
+#   short_name_en: Aviation
+#   part_of: net_emissions
+#   category: aviation
+#   color: '#A174DE'
+#   input_dataset_processors: [LinearInterpolation]
+
+- id: food_consumption_emissions
+  name_en: Food consumption emissions
+  name_de: Treibhausgasemissionen Ernährung
+  short_name_de: Ernährung
+  short_name_en: Food consumption
+  category: food_consumption
+  part_of: net_emissions
+  color: '#002914'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: textile_consumption_emissions
+  name_en: Textile consumption emissions
+  name_de: Treibhausgasemissionen Textilien
+  short_name_de: Textilien
+  short_name_en: Textile consumption
+  category: textile_consumption
+  part_of: net_emissions
+  color: '#EB5E00'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: other_consumption_emissions
+  name_en: Other consumption emissions
+  name_de: Treibhausgasemissionen Übriger Konsum
+  short_name_de: Übriger Konsum
+  short_name_en: Other consumption
+  category: other_consumption
+  part_of: net_emissions
+  color: '#A174DE'
+  input_dataset_processors: [LinearInterpolation]
+
+nodes:
+- id: population
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  name_en: Inhabitants
+  name_de: Einwohner*in
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/population
+    forecast_from: 2023
+
+- id: residential_building_area_per_resident
+  type: simple.DivisiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  name_de: Geschossfläche Wohnen pro Einwohner*in
+  name_en: Residential building area per resident
+  input_nodes:
+  - id: building_floor_area_historical
+    from_dimensions:
+    - id: building_use
+      categories: [residential]
+      flatten: true
+  - id: population
+  params:
+    only_historical: true
+    extend_rows: true
+
+- id: residential_building_area
+  name_de: Geschossfläche Wohnen
+  name_en: Building floor area Residential
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: Msqm
+  input_nodes: [residential_building_area_per_resident, population]
+
+- id: number_of_jobs
+  name_de: Beschäftigungsentwicklung (Vollzeitäquivalente)
+  name_en: Number of jobs (full-time equivalents)
+  type: simple.AdditiveNode
+  unit: cap
+  quantity: number
+  input_datasets:
+  - id: zuerich/number_of_jobs
+    forecast_from: 2025
+  input_dataset_processors: [LinearInterpolation]
+
+- id: nonresidential_building_area_per_job
+  type: simple.DivisiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  name_de: Geschossfläche Nicht-Wohnen pro Vollzeitäquivalent
+  name_en: Non-residential building area per full-time equivalent
+  input_nodes:
+  - id: building_floor_area_historical
+    from_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+      flatten: true
+  - id: number_of_jobs
+  params:
+    only_historical: true
+    extend_rows: true
+
+- id: nonresidential_building_area
+  name_de: Geschossfläche Nicht-Wohnen
+  name_en: Non-residential building floor area
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: Msqm
+  input_nodes: [nonresidential_building_area_per_job, number_of_jobs]
+
+- id: building_floor_area_historical
+  name_de: Geschossfläche (historisch)
+  name_en: Building floor area (historical)
+  type: ch.zuerich.BuildingFloorAreaHistorical
+  quantity: floor_area
+  unit: Msqm
+  input_dimensions: [building_use_extended]
+  output_dimensions: [building_use]
+  input_datasets: [zuerich/building_floor_area]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_floor_area
+  name_de: Geschossfläche
+  name_en: Building floor area
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: residential_building_area
+    to_dimensions:
+    - id: building_use
+      categories: [residential]
+  - id: nonresidential_building_area
+    to_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+
+- id: building_heat_consumption_historical
+  name_de: Wärmebedarf (historisch)
+  name_en: Building heat consumption (historical)
+  type: ch.zuerich.BuildingHeatHistorical
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [consumption]
+  - id: heating_system_efficiency
+    tags: [heat_pump_cop]
+    from_dimensions:
+    - id: heating_system
+      categories: [heat_pumps]
+      flatten: true
+    to_dimensions: []
+
+- id: building_heat_per_area
+  name_de: Spezifischer Wärmebedarf Gebäude pro m2 Geschossfläche
+  name_en: Heat energy demand of buildings per area
+  type: ch.zuerich.BuildingHeatPerArea
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_heat_consumption_historical
+    to_dimensions:
+    - id: heating_system
+    tags: [consumption]
+  - id: building_floor_area
+    tags: [floor_area]
+    to_dimensions:
+    - id: building_use
+
+- id: building_heat_demand
+  name_de: Wärmebedarf Gebäude
+  name_en: Building heat demand
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  output_dimensions: [building_use]
+  input_dimensions: [building_use]
+  input_nodes: [building_floor_area, building_heat_per_area]
+
+- id: building_heat_mix_historical
+  name_de: Wärmemix (historisch)
+  name_en: Building heat mix (historical)
+  type: ch.zuerich.BuildingHeatUseMix
+  unit: '%'
+  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_consumption_historical
+    tags: [consumption]
+
+- id: building_heat_mix
+  name_de: Wärmemix
+  name_en: Building heat mix
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_mix_historical
+    tags: [activity]
+
+- id: building_heat_consumption
+  name_de: Wärmebedarf Gebäude nach Heizungssystem
+  name_en: Building heat use
+  type: simple.MultiplicativeNode
+  unit: GWh/a
+  quantity: energy
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_demand
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions: []
+    tags: [non_additive]
+  - id: building_heat_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_system
+
+- id: building_useful_heat_consumption
+  name_de: Nutzwärmebedarf Gebäude
+  name_en: Building useful heat demand
+  type: ch.zuerich.BuildingUsefulHeat
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_consumption
+    tags: [energy]
+  - id: heating_system_efficiency
+    tags: [cop]
+
+- id: gas_network_mix_historical
+  name_de: Anteil erneuerbares Gas (historisch)
+  name_en: Share of renewable gas (historical)
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [activity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas, biogas, biogas_import]
+
+- id: gas_network_mix
+  name_de: Biogasanteil im Gasnetz
+  name_en: Share of biogas in gas grid
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: gas_network_mix_historical
+    tags: [activity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas, biogas, biogas_import]
+
+- id: building_heat_consumption_by_carrier
+  name_de: Wärmebedarf nach Energieträger
+  name_en: Heat demand by energy carrier
+  type: ch.zuerich.BuildingHeatByCarrier
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [heating_system]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: gas_network_mix
+    tags: [biogas_share]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_heat_consumption
+    tags: [consumption]
+  - id: heating_system_efficiency
+    tags: [heat_pump_cop]
+    from_dimensions:
+    - id: heating_system
+      categories: [heat_pumps]
+      flatten: true
+    to_dimensions: []
+
+- id: building_general_electricity_efficiency
+  name_de: Strombedarf Gebäude exkl. Wärmeerzeugung
+  name_en: Non-heating electricity need of buildings
+  type: ch.zuerich.BuildingGeneralElectricityEfficiency
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_heat_consumption_by_carrier
+    tags: [heat_consumption]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_floor_area_historical
+    tags: [floor_area]
+  input_datasets: [zuerich/building_electricity_need]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_general_electricity_consumption
+  name_de: Nichtheizstromverbrauch von Gebäuden
+  name_en: Non-heating electricity consumption of buildings
+  short_name_de: Gebäude Strom
+  short_name_en: Building Electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_general_electricity_efficiency
+  - id: building_floor_area
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+
+- id: heating_system_efficiency
+  name_de: Nutzungsgrade Wärmeerzeugung in Gebäuden
+  name_en: COP of building heating systems
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  output_dimensions: [heating_system]
+  input_datasets: [zuerich/heating_system_efficiency]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: heat_pump_electricity_consumption
+  name_de: Stromverbrauch der Wärmeerzeugung
+  name_en: Heat generation electricity consumption
+  short_name_de: Wärmeerzeugung
+  short_name_en: Heat generation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  output_nodes: [electricity_consumption]
+
+- id: building_end_energy_consumption_historical
+  name_de: Endenergieverbrauch Gebäude (historisch)
+  name_en: Building end energy consumption (historical)
+  type: ch.zuerich.BuildingEnergy
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: other_transport_electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    tags: [transport_electricity]
+  input_datasets:
+  - id: zuerich/building_energy
+    tags: [energy]
+  - id: zuerich/other_building_emission_source_fuel_use
+    tags: [other_fuel_use]
+    filters:
+    - dimension: building_other_emission_sources
+      flatten: true
+    - dimension: energy_carrier
+      categories: [natural_gas]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: district_heat_production_gas_grid_share
+  type: simple.AdditiveNode
+  name_en: Share of district heat gas consumption from the gas grid
+  name_de: Share of district heat gas consumption from the gas grid
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 0]]
+
+- id: district_heat_production_mix
+  type: ch.zuerich.DistrictHeatProductionMix
+  name_en: District heat production mix
+  name_de: Fernwärmemix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - zuerich/district_heat_production_mix
+  params:
+    use_gas_network: true
+  input_nodes:
+  - id: gas_network_mix
+    tags: [gas_mix]
+  - id: district_heat_production_gas_grid_share
+    tags: [grid_share]
+    to_dimensions: []
+
+- id: district_heat_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Fernwärmeerzeugung
+  name_en: Share of CO2 captured with CCS in district heat production
+  type: simple.AdditiveNode
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: ratio
+
+- id: district_heat_emission_factor
+  name_de: Treibhausgasfaktoren Fernwärme
+  name_en: District heat emission factor
+  unit: g/kWh
+  quantity: emission_factor
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: emission_scope
+  - id: district_heat_production_mix
+    tags: [mix]
+  - id: district_heat_ccs_share
+    to_dimensions: []
+    tags: [ccs]
+  - id: building_energy_consumption_non_grid_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biogas_import]
+    to_dimensions:
+    - id: energy_carrier
+    - id: emission_scope
+    tags: [emission_factor]
+  input_datasets:
+  - zuerich/district_heat_emission_factor
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
+
+- id: electricity_consumption
+  name_de: Endenergieverbrauch Strom
+  name_en: Electricity consumption
+  short_name_de: Strom
+  short_name_en: Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  name_de: Strommix (Verbrauchermix)
+  name_en: Electricity consumer mix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/general_electricity_production_mix
+  - zuerich/subsidized_electricity_production_mix
+  - zuerich/externally_supplied_electricity
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [consumption]
+    from_dimensions:
+    - categories: [electricity]
+      flatten: true
+    to_dimensions: []
+
+- id: public_transport_electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  quantity: mix
+  unit: '%'
+  name_en: Public transport electricity production mix
+  name_de: Public transport electricity production mix
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/transport_electricity_production_mix
+  - zuerich/subsidized_transport_electricity_production_mix
+  - zuerich/transport_externally_supplied_electricity
+  input_nodes:
+  - id: public_transport_electricity_consumption
+    tags: [consumption]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions: []
+
+- id: electricity_emission_factor
+  name_de: Treibhausgasfaktoren Strom
+  name_en: Emission factor of electricity production
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+- id: public_transport_electricity_emission_factor
+  name_de: Treibhausgasfaktoren Strom Öffentlicher Verkehr
+  name_en: Emission factor of public transport electricity
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+- id: building_energy_consumption_non_grid_emission_factor
+  name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte (non-grid)
+  name_en: Emission factor of building energy consumption (non-grid)
+  type: ch.zuerich.EmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - zuerich/buildings_energy_consumption_emission_factor_revised
+  output_dimensions: [energy_carrier, emission_scope]
+
+- id: building_energy_consumption_emission_factor
+  name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte
+  name_en: Emission factor of housing and commerce energy consumption
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  output_dimensions: [energy_carrier, emission_scope]
+  input_dimensions: [energy_carrier, emission_scope]
+  input_nodes:
+  - id: building_energy_consumption_non_grid_emission_factor
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: emission_scope
+  - id: district_heat_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: emission_scope
+
+- id: building_heat_emissions
+  name_de: Treibhausgasemissionen Gebäudeheizung
+  name_en: Building heating emissions
+  short_name_de: Heizung
+  short_name_en: Heating
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope, energy_carrier]
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+  - id: building_energy_consumption_emission_factor
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: building_emissions_2kw
+
+- id: building_general_electricity_emissions
+  name_de: Treibhausgasemissionen allgemeiner Stromverbrauch des Gebäudes
+  name_en: Building general electricity use emissions
+  short_name_de: Gebäude Strom
+  short_name_en: Building Electricity
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [emission_scope, energy_carrier]
+  input_nodes:
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+  - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: net_emissions_2kw
+
+- id: building_other_fuel_gas_grid_share
+  type: simple.AdditiveNode
+  name_en: Share of other building fuel use from the gas grid
+  name_de: Share of other building fuel use from the gas grid
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 0]]
+
+- id: building_other_fuel_use
+  name_en: Other building fuel use
+  name_de: Other building fuel use
+  type: ch.zuerich.GasGridNode
+  unit: GJ/a
+  quantity: fuel_consumption
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier]
+  input_datasets:
+  - zuerich/other_building_emission_source_fuel_use
+  input_nodes:
+  - id: gas_network_mix
+    tags: [gas_mix, non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_other_fuel_gas_grid_share
+    tags: [grid_share, non_additive]
+    to_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_other_fuel_emission_factor
+  name_en: Other building fuel use emission factor
+  name_de: Other building fuel use emission factor
+  type: simple.AdditiveNode
+  unit: g/kWh
+  quantity: emission_factor
+  input_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
+  output_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
+  input_datasets:
+  - zuerich/other_building_emission_source_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_other_emissions
+  name_en: Other building emissions
+  name_de: Treibhausgasemissionen Übrige Emissionsquellen (Gebäude)
+  type: formula.FormulaNode
+  short_name_en: Other sources
+  short_name_de: Übrige Emissionsquellen
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier]
+  input_nodes:
+  - id: building_other_fuel_use
+  - id: building_other_fuel_emission_factor
+    to_dimensions:
+    - id: building_other_emission_sources
+    - id: energy_carrier
+    - id: greenhouse_gases
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_scope
+      categories: [scope1]
+      flatten: true
+    - dimension: emission_sectors
+      categories: [wood_heatings_disperse]
+      flatten: true
+    - dimension: building_other_emission_sources
+      assign_category: disperse_wood_heatings
+    - dimension: energy_carrier
+      assign_category: wood
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  - id: building_emissions_2kw
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+  params:
+    formula: convert_gwp(building_other_fuel_use * building_other_fuel_emission_factor)
+      + emissions
+
+- id: building_emissions
+  name_en: Building emissions
+  name_de: Treibhausgasemissionen Gebäude
+  short_name_de: Gebäude
+  short_name_en: Buildings
+  color: '#989898'
+  unit: kt/a
+  quantity: emissions
+  type: simple.SectorEmissions
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+
+#
+# TRANSPORT (MULTIDIMENSIONAL)
+#
+
+- id: transportation_emissions
+  name_en: Transportation emissions
+  name_de: Treibhausgasemissionen Mobilität
+  short_name_de: Mobilität
+  short_name_en: Transportation
+  quantity: emissions
+  unit: kt/a
+  type: simple.SectorEmissions
+  color: '#0505A0'
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: vehicle_mileage_historical
+  name_de: Verkehr Fahrleistung (historisch)
+  name_en: Vehicle kilometers (historical)
+  type: ch.zuerich.VehicleMileageHistorical
+  quantity: vehicle_mileage
+  unit: Mvkm/a
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/vehicle_mileage
+
+- id: transport_occupancy_factor
+  name_de: Verkehrsbelegungsfaktor
+  name_en: Transport occupancy factor
+  quantity: occupancy_factor
+  unit: passenger/vehicle
+  input_dataset_processors: [LinearInterpolation]
+  output_dimensions: [transport_mode]
+  type: simple.AdditiveNode
+  input_datasets:
+  - zuerich/transport_occupancy_factor
+
+- id: passenger_kilometers_historical
+  name_de: Personenkilometer (historisch)
+  name_en: Passenger kilometers (historical)
+  quantity: passenger_mileage
+  unit: Mpkm/a
+  type: ch.zuerich.PassengerKilometers
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: [vehicle_mileage]
+  - id: transport_occupancy_factor
+    tags: [occupancy_factor]
+    to_dimensions:
+    - id: transport_mode
+
+# - id: transport_electricity_consumption_historical
+#   name_de: Stromverbrauch Verkehr (historisch)
+#   name_en: Transport electricity consumption
+
+- id: mobility_demand_per_inhabitant
+  name_de: Mobilitätsnachfrage pro Einwohner
+  name_en: Mobility demand per inhabitant
+  quantity: per_capita
+  unit: pkm/cap/a
+  type: simple.DivisiveNode
+  params:
+    extend_rows: true
+  input_nodes:
+  - id: passenger_kilometers_historical
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+  - id: population
+
+- id: transport_modal_split
+  name_de: Verkehrsträgeranteil
+  name_en: Transport modal split
+  quantity: mix
+  unit: '%'
+  type: simple.MixNode
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometers_historical
+    tags: [activity]
+
+- id: passenger_kilometers
+  name_de: Personenkilometer
+  name_en: Passenger kilometers
+  quantity: passenger_mileage
+  unit: Mpkm/a
+  type: simple.MultiplicativeNode
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: mobility_demand_per_inhabitant
+    to_dimensions: []
+  - id: population
+    to_dimensions: []
+  - id: transport_modal_split
+
+- id: vehicle_mileage_per_inhabitant
+  name_de: Verkehr Fahrleistung pro Einwohner
+  name_en: Vehicle kilometers per inhabitant
+  quantity: per_capita
+  unit: vkm/cap/a
+  type: ch.zuerich.VehicleKilometersPerInhabitant
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometers
+    tags: [passenger_kilometers]
+  - id: transport_occupancy_factor
+    tags: [occupancy_factor]
+  - id: vehicle_mileage_historical
+    to_dimensions:
+    - id: vehicle_type
+    tags: [mileage_historical]
+  - id: population
+    to_dimensions: []
+    tags: [population]
+
+- id: vehicle_engine_type_split_historical
+  name_de: Vehicle engine type split (historical)
+  name_en: Vehicle engine type split (historical)
+  quantity: mix
+  unit: '%'
+  type: ch.zuerich.VehicleEngineTypeSplit
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: mileage
+
+- id: vehicle_engine_type_split
+  name_de: Vehicle engine type split
+  name_en: Vehicle engine type split
+  quantity: mix
+  unit: '%'
+  type: ch.zuerich.VehicleEngineTypeSplit
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: mileage
+
+- id: vehicle_mileage
+  name_de: Verkehr Fahrleistung
+  name_en: Vehicle kilometers
+  type: ch.zuerich.VehicleMileage
+  quantity: vehicle_mileage
+  unit: Mvkm/a
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_per_inhabitant
+    tags: [mileage_per_inhabitant]
+    to_dimensions:
+    - id: transport_mode
+  - id: vehicle_engine_type_split
+    tags: [engine_type_split]
+    to_dimensions:
+    - id: vehicle_type
+  - id: population
+    tags: [population]
+    to_dimensions: []
+  output_nodes:
+  - id: miv_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes]
+    to_dimensions:
+    - id: vehicle_type
+  - id: public_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+    to_dimensions:
+    - id: vehicle_type
+  - id: goods_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [lorries, vans, rail_goods]
+    to_dimensions:
+    - id: vehicle_type
+  - id: other_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes, buses, trolleybuses, tram, rail_passenger, small_railways,
+        lorries, vans, rail_goods]
+      exclude: true
+    to_dimensions:
+    - id: vehicle_type
+
+- id: transport_electricity_consumption_factor
+  name_de: Verkehr Stromverbrauch
+  name_en: Transport electricity consumption
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kWh/vkm
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Electricity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+
+- id: transport_consumption_factor_historical
+  name_de: Verkehr Kraftstofffaktor (historisch)
+  name_en: Transport fuel factors (historical)
+  type: ch.zuerich.TransportFuelFactor
+  unit: kg/vkm
+  allow_nulls: true
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
+
+- id: transport_fuel_factor
+  name_de: Verkehr Kraftstofffaktor
+  name_en: Transport fuel factors
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kg/vkm
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Fuel]
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+
+- id: transport_tank_respiration_for_fuel
+  name_en: Transport tank respiration for fuel
+  name_de: Transport tank respiration for fuel
+  output_dimensions: [vehicle_type]
+  type: formula.FormulaNode
+  unit: kg/kg
+  quantity: emissions
+  params:
+    formula: tank_respiration / (vehicle_mileage_historical * transport_fuel_factor)
+    extend_last_historical_value: true
+  input_nodes:
+  - id: vehicle_mileage_historical
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+  input_datasets:
+  - id: zuerich/vehicle_tank_respiration_emissions
+    tags: [tank_respiration]
+
+- id: transport_emissions_for_fuel
+  name_de: Verkehr Emissionen für den Kraftstoffverbrauch
+  name_en: Transport emissions for fuel consumption
+  type: ch.zuerich.TransportEmissionsForFuel
+  quantity: emission_factor
+  unit: kg/kg
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_nodes:
+  - id: transport_fuel_factor
+    tags: [fuel_factor]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_tank_respiration_for_fuel
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope1]
+    tags: [tank_respiration]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/transport_emission_factors
+    tags: [emission_factor]
+  #- id: zuerich/vehicle_tank_respiration_emissions
+  #  tags: [tank_respiration]
+
+- id: public_transport_electricity_consumption
+  name_de: Stromverbrauch im Öffentlicher Verkehr
+  name_en: Public transport electricity consumption
+  short_name_en: Public transport
+  short_name_de: Öffentlicher Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: other_transport_electricity_consumption
+  name_de: Stromverbrauch im Ubriger Verkehr
+  name_en: Other transportation electricity consumption
+  short_name_en: Other transportation
+  short_name_de: Ubriger Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+      exclude: true
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: transport_emission_factor
+  name_de: Verkehr Emissionsfaktor
+  name_en: Transport emission factors
+  type: ch.zuerich.TransportEmissionFactor
+  quantity: emission_factor
+  unit: g/vkm
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [general_electricity_ef]
+    to_dimensions:
+    - id: emission_scope
+  - id: public_transport_electricity_emission_factor
+    tags: [public_transport]
+    to_dimensions:
+    - id: emission_scope
+  - id: transport_electricity_consumption_factor
+    tags: [electricity_consumption_factor]
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_emission_factor
+    tags: [fuel_emission_factor]
+    to_dimensions:
+    - id: emission_scope
+    - id: greenhouse_gases
+    - id: vehicle_type
+    - id: energy_carrier
+  output_dimensions: [emission_scope, vehicle_type, energy_carrier]
+
+#- id: transport_fuel_consumption
+#  name_de: Transport fuel consumption
+#  name_en: Transport fuel consumption
+
+- id: transport_fuel_emission_factor
+  name_de: Verkehr Emissionsfaktor des Kraftstoffs
+  name_en: Transport emission factor for fuel
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_nodes:
+  - id: transport_fuel_factor
+    tags: [fuel_factor, non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emissions_for_fuel
+    tags: [emissions_for_fuel, non_additive]
+    to_dimensions:
+    - id: emission_scope
+    - id: greenhouse_gases
+    - id: vehicle_type
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+
+- id: miv_emissions
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
+  name_en: Individual motor transport emissions
+  short_name_de: Motorisierter Individualverkehr (MIV)
+  short_name_en: Individual motor transport
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: public_transport_emissions
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV)
+  name_en: Public transportation emissions
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: goods_transport_emissions
+  name_de: Treibhausgasemissionen Güterverkehr
+  name_en: Goods transport emissions
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: other_transport_emissions
+  name_de: Treibhausgasemissionen übriger Verkehr
+  name_en: Other transportation emissions
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: non_road_machinery_fuel_consumption
+  name_de: Kraftstoffverbrauch Non-Road Maschinen
+  name_en: Fuel consumption of non-road machinery
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: kg/a
+  input_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [energy_carrier, non_road_machinery]
+  input_datasets:
+  - id: zuerich/non_road_machinery_fuel_consumption
+  input_dataset_processors: [LinearInterpolation]
+
+- id: non_road_machinery_emission_factors
+  name_de: Treibhausgasfaktoren Non-Road Maschinen
+  name_en: Emission factors of non-road machinery
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/kg
+  input_dimensions: [energy_carrier, non_road_machinery, greenhouse_gases]
+  output_dimensions: [energy_carrier, non_road_machinery, greenhouse_gases]
+  input_datasets:
+  - id: zuerich/non_road_machinery_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: non_road_machinery_emissions
+  name_de: Treibhausgasemissionen Non-Road Maschinen
+  name_en: Fuel consumption of non-road machinery
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.NonroadMachineryEmissions
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [non_road_machinery, energy_carrier]
+  output_dimensions: [non_road_machinery, energy_carrier]
+  input_nodes:
+  - id: non_road_machinery_fuel_consumption
+    tags: [fuel]
+  - id: non_road_machinery_emission_factors
+    tags: [emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+    - id: greenhouse_gases
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+
+- id: waste_incineration_amount
+  name_de: Verbrannte Abfallmenge
+  name_en: Amount of incinerated waste
+  type: simple.AdditiveNode
+  input_datasets:
+  - id: zuerich/waste_incineration
+    column: amount_of_waste
+    forecast_from: 2023
+  unit: t/a
+  quantity: mass
+  output_dimensions: [waste_incineration_plants]
+
+- id: waste_incineration_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Kehrichtverwertungsanlage
+  name_en: Share of CO2 captured with CCS in waste incineration
+  type: simple.AdditiveNode
+  input_datasets:
+  - id: zuerich/waste_incineration
+    column: share_of_ccs
+    forecast_from: 2023
+    filters:
+    - column: waste_incineration_plants
+      value: hagenholz
+  unit: '%'
+  quantity: ratio
+
+- id: sewage_sludge_processing_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
+  name_en: Share of CO2 captured with CCS in sewage sludge processing
+  type: simple.AdditiveNode
+  historical_values: [[2015, 0], [2022, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: ratio
+
+- id: sewage_sludge_processing_emissions
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klärschlammverwertungsanlage
+  type: ch.zuerich.SewageSludgeProcessingEmissions
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+  input_datasets: [zuerich/sewage_sludge_processing]
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: sewage_sludge_processing_ccs_share
+    to_dimensions: []
+    tags: [ccs_share]
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct, indirect]
+  - id: negative_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
+
+- id: solid_waste_treatment_emissions_pre_ccs
+  name_en: Solid waste incineration emissions (pre-CCS)
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage ohne CCS
+  type: ch.zuerich.WasteIncinerationEmissions
+  unit: t/a
+  quantity: emissions
+  output_dimensions: [greenhouse_gases, waste_incineration_plants]
+  input_nodes:
+  - id: waste_incineration_amount
+    to_dimensions:
+    - id: waste_incineration_plants
+    tags: [amount]
+  input_datasets: [zuerich/waste_incineration, zuerich/waste_incineration_emission_factors]
+
+- id: solid_waste_treatment_emissions
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
+  short_name_en: Solid waste incineration
+  type: buildings.CCSNode
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: [waste_incineration_plants]
+  output_dimensions: [waste_incineration_plants, emission_scope]
+  input_nodes:
+  - id: solid_waste_treatment_emissions_pre_ccs
+    tags: [emissions]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: waste_incineration_plants
+  - id: waste_incineration_ccs_share
+    tags: [ccs_share]
+    to_dimensions:
+    - id: waste_incineration_plants
+      categories: [hagenholz]
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct, indirect]
+    - id: waste_incineration_plants
+      flatten: true
+  - id: negative_emissions
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
+    - id: waste_incineration_plants
+      flatten: true
+  params:
+    capture_efficiency: 90
+    storage_efficiency: 94.4
+
+- id: wastewater_treatment_emissions
+  name_en: Wastewater treatment emissions
+  short_name_en: Wastewater treatment
+  name_de: Treibhausgasemissionen Abwasserreinigungsanlage
+  short_name_de: Abwasserreinigungsanlage
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+  output_nodes: [waste_treatment_emissions]
+  type: ch.zuerich.WastewaterTreatmentEmissions
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  input_datasets:
+  - id: zuerich/wastewater_treatment_emission_factors
+    tags: [emission_factor]
+  - id: zuerich/wastewater_treatment_catchment_population
+    tags: [population]
+
+- id: biogas_processing_emissions_pre_ccs
+  name_en: Biogas processing emissions pre-CCS
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage ohne CCS
+  unit: kt/a
+  type: simple.AdditiveNode
+  quantity: emissions
+  output_dimensions: [greenhouse_gases]
+  input_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/biogas_processing_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: biogas_processing_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Biogasaufbereitungsanlage
+  name_en: Share of CO2 captured with CCS in biogas processing
+  type: simple.AdditiveNode
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: ratio
+  historical_values: [[2010, 0], [2025, 0]]
+
+- id: biogas_processing_emissions
+  name_en: Biogas processing emissions
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage
+  short_name_de: Biogasaufbereitungsanlage
+  short_name_en: Biogas processing
+  unit: kt/a
+  type: buildings.CCSNode
+  quantity: emissions
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: biogas_processing_emissions_pre_ccs
+    tags: [emissions]
+  - id: biogas_processing_ccs_share
+    tags: [ccs_share]
+    to_dimensions: []
+  output_nodes:
+  - id: negative_emissions
+    from_dimensions:
+    - id: emission_scope
+      categories: [negative_emissions]
+  params:
+    capture_efficiency: 85
+    storage_efficiency: 100
+
+- id: waste_treatment_emissions
+  name_en: Waste disposal emissions
+  name_de: Treibhausgasemissionen Entsorgung
+  short_name_de: Entsorgung
+  short_name_en: Waste disposal
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+  type: simple.SectorEmissions
+  color: '#007C78'
+
+- id: afolu_emissions
+  name_de: Treibhausgasemissionen Land- und Forstwirtschaft
+  type: simple.SectorEmissions
+  short_name_de: Land- und Forstwirtschaft
+  unit: kt/a
+  name_en: Agriculture and forestry emissions
+  short_name_en: Agriculture and forestry
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_datasets:
+  - id: zuerich/emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [agricultural_land, livestock_farming]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+  color: '#F1D900'
+
+- id: building_fgas_emissions
+  name_en: F-gas emissions from buildings
+  name_de: Treibhausgasemissionen F-Gase Gebäude
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [building_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_fgas_emissions
+  name_en: F-gas emissions from mobility
+  name_de: Treibhausgasemissionen F-Gase Mobilität
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [transportation_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_transportation]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+
+#
+# 2000-watt Society indicators
+#
+- id: primary_energy_power_per_inhabitant
+  name_de: Primärenergiebedarf nach Einwohner*in
+  name_en: Primary energy demand per inhabitant
+  type: formula.FormulaNode
+  quantity: energy
+  unit: W/cap
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  is_outcome: true
+  params:
+    formula: net_primary_energy_demand / population
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: renewable_energy
+      flatten: true
+
+- id: net_primary_energy_demand
+  name_de: Primärenergiebedarf
+  name_en: Primary energy demand
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+
+- id: building_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Heizung & Ubrige
+  name_en: Building heat & other primary energy consumption
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  output_nodes:
+  - id: net_primary_energy_demand
+
+- id: building_heating_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Heizung
+  name_en: Building primary energy consumption
+  short_name_de: Gebäude Heizung
+  short_name_en: Building Heat
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: building_primary_energy_consumption
+
+- id: building_general_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Strom
+  name_en: Building electricity primary energy consumption
+  short_name_de: Gebäude Strom
+  short_name_en: Building electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+  - id: building_general_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  output_nodes:
+  - id: net_primary_energy_demand
+
+- id: other_building_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Ubrige
+  name_en: Other building primary energy consumption
+  short_name_de: Gebäude Ubrige
+  short_name_en: Building Other
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: building_other_fuel_use
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_consumption
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+
+- id: public_transport_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Öffentlicher Verkehr (ÖV) Strom
+  name_en: Public transport electricity primary energy consumption
+  short_name_de: Öffentlicher Verkehr (ÖV) Strom
+  short_name_en: Public transport electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy]
+  output_dimensions: [vehicle_type, renewable_energy]
+  input_nodes:
+  - id: transport_electricity_primary_energy_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: renewable_energy
+  - id: public_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transport_primary_energy_demand
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+    - id: vehicle_type
+
+- id: other_transport_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Ubriger Verkehr Strom
+  name_en: Other transport electricity primary energy consumption
+  short_name_de: Ubriger Verkehr Strom
+  short_name_en: Other electric transport
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy]
+  output_dimensions: [vehicle_type, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    to_dimensions:
+    - id: renewable_energy
+  - id: other_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transport_primary_energy_demand
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+    - id: vehicle_type
+
+- id: transport_primary_energy_demand
+  name_de: Primärenergiebedarf Verkehr
+  name_en: Transportation primary energy consumption
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy, energy_carrier]
+  output_dimensions: [vehicle_type, renewable_energy, energy_carrier]
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: transport_fuel_primary_energy_consumption
+  name_en: Transport fuel primary energy consumption
+  name_de: Transport fuel primary energy consumption
+  input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  type: formula.FormulaNode
+  unit: GWh/a
+  quantity: energy
+  params:
+    formula: (transport_fuel_end_energy_consumption + aviation_fuel_consumption) *
+      transport_fuel_energy_factor
+  input_nodes:
+  - id: transport_fuel_energy_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: transport_fuel_end_energy_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_primary_energy_demand
+
+# - id: transport_fuel_primary_energy_consumption
+#   name_de: Transport fuel primary energy consumption
+#   name_en: Transport fuel primary energy consumption
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+#   output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+#   input_nodes:
+#   - id: transport_fuel_energy_factor
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: renewable_energy
+#   - id: transport_fuel_end_energy_consumption
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: transport_primary_energy_demand
+
+- id: building_primary_energy_factor
+  name_de: Primärenergiefaktoren Gebäude
+  name_en: Building primary energy factor
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/buildings_primary_energy_factors
+
+- id: building_electricity_primary_energy_factor
+  name_de: Primärenergiefaktoren Gebäude Strom
+  name_en: Building electricity primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [electricity_source, renewable_energy]
+  output_dimensions: [electricity_source, renewable_energy]
+  input_nodes:
+  - id: electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: electricity_production_energy_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+
+- id: district_heat_primary_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme
+  name_en: District heating primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: district_heat_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: district_heat_production_energy_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: renewable_energy
+
+- id: transport_electricity_primary_energy_factor
+  name_de: Transport electricity primary energy factor
+  name_en: Transport electricity primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [electricity_source, renewable_energy]
+  output_dimensions: [electricity_source, renewable_energy]
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: transport_electricity_production_energy_factor
+    tags: [non_additive]
+
+- id: electricity_production_energy_factor
+  name_de: Primärenergiefaktoren Stromerzeugung
+  name_en: Electricity primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [electricity_source, renewable_energy]
+  input_dimensions: [electricity_source, renewable_energy]
+  input_datasets:
+  - id: zuerich/electricity_primary_energy_factors
+
+- id: district_heat_production_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme je Energieträger
+  name_en: District heating primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/district_heating_primary_energy_factors
+
+- id: transport_electricity_production_energy_factor
+  name_de: Transport electricity primary energy factor by carrier
+  name_en: Transport electricity primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [electricity_source, renewable_energy]
+  input_dimensions: [electricity_source, renewable_energy]
+  input_datasets:
+  - id: zuerich/transport_electricity_production_energy_factor
+
+- id: transport_fuel_energy_factor
+  name_de: Transport fuel primary energy factor by carrier
+  name_en: Transport fuel primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/transport_fuel_primary_energy_factors
+
+# - id: fuel_energy_density
+#   name_de: Fuel energy density
+#   name_en: Fuel energy density
+#   type: simple.AdditiveNode
+#   quantity: ratio
+#   unit: MJ/kg
+#   output_dimensions: [vehicle_type, energy_carrier]
+#   input_dimensions: [vehicle_type, energy_carrier]
+#   input_datasets:
+#   - id: zuerich/fuel_energy_density
+
+- id: fuel_lower_heating_value
+  name_de: Fuel lower heating value (LHV)
+  name_en: Fuel lower heating value (LHV)
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: MJ/kg
+  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/fuel_lower_heating_values
+
+- id: fuel_heating_value_ratio
+  name_de: Fuel heating value ratio
+  name_en: Fuel heating value ratio
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: '%'
+  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/fuel_heating_value_ratios
+
+- id: fuel_higher_heating_value
+  name_de: Fuel higher heating value (HHV)
+  name_en: Fuel higher heating value (HHV)
+  type: simple.MultiplicativeNode
+  quantity: ratio
+  unit: MJ/kg
+  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier]
+  input_nodes:
+  - id: fuel_lower_heating_value
+    tags: [non_additive]
+  - id: fuel_heating_value_ratio
+    tags: [non_additive]
+
+- id: transport_fuel_consumption
+  name_de: Transport fuel consumption
+  name_en: Transport fuel consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: kg/a
+  input_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_factor
+
+- id: transport_fuel_end_energy_consumption
+  name_de: Transport fuel end energy consumption
+  name_en: Transport fuel end energy consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: MJ/a
+  input_nodes:
+  - id: transport_fuel_consumption
+  - id: fuel_higher_heating_value
+    to_dimensions:
+    - id: energy_carrier
+
+- id: transport_end_energy_consumption
+  name_de: Transportation total end energy consumption
+  name_en: Transportation total end energy consumption
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: transport_fuel_end_energy_consumption
+  - id: public_transport_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: other_transport_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+      categories: [aviation]
+
+- id: stationary_end_energy_consumption
+  name_de: Stationary heat & other end energy consumption
+  name_en: Stationary heat & other end energy consumption
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+  - id: building_other_fuel_use
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: end_energy_consumption
+  name_de: Total end energy consumption
+  name_en: Total end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: stationary_end_energy_consumption
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: transport_end_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: net_emissions_2kw
+  name_de: Treibhausgasemissionen (2000-Watt)
+  name_en: Greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  is_outcome: true
+
+- id: building_emissions_2kw
+  name_de: Treibhausgasemissionen Gebäude Heizung & Ubrige
+  name_en: Building heat & other greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+
+- id: transport_emission_factor_2kw
+  name_de: Verkehr Emissionsfaktor (2000-Watt)
+  name_en: Transport emission factors (2000-Watt)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/transport_emission_factors_2kw
+
+- id: miv_emissions_2kw
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV) (2000-Watt)
+  name_en: Individual motor transport emissions (2000-Watt)
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: miv_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: public_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV) (2000-Watt)
+  name_en: Public transportation emissions (2000-Watt)
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: public_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: goods_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Güterverkehr (2000-Watt)
+  name_en: Goods transport emissions (2000-Watt)
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: goods_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: other_transport_emissions_2kw
+  name_de: Treibhausgasemissionen übriger Verkehr (2000-Watt)
+  name_en: Other transportation emissions (2000-Watt)
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: other_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: non_road_machinery_emissions_2kw
+  name_de: Treibhausgasemissionen Non-Road Maschinen (2000-Watt)
+  name_en: Non-road machinery emissions (2000-Watt)
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  input_nodes:
+  - id: non_road_machinery_emissions
+    tags: [emissions]
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: non_road_machinery_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: transportation_emissions_2kw
+  name_de: Treibhausgasemissionen Verkehr (2000-Watt)
+  name_en: Transportation greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+  input_nodes:
+  - id: miv_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: public_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: goods_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: other_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: non_road_machinery_emissions_2kw
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+  - id: aviation_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+
+- id: european_electricity_renewable
+  name_en: Renewable European-import component of electricity production mix
+  name_de: Renewable European-import component of electricity production mix
+  type: simple.FixedMultiplierNode
+  quantity: fraction
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: '%'
+  params:
+  - id: multiplier
+    value: 0.247
+  input_nodes:
+  - id: electricity_production_mix
+
+- id: electricity_mix_renewable
+  name_de: Renewable component of electricity production mix
+  name_en: Renewable component of electricity production mix
+  type: simple.AdditiveNode
+  quantity: fraction
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: '%'
+  input_nodes:
+  - id: electricity_production_mix
+    from_dimensions:
+    - id: electricity_source
+      categories: [hydro, solar, biogas, wind, wood]
+  - id: european_electricity_renewable
+    from_dimensions:
+    - id: electricity_source
+      categories: [import]
+
+- id: public_transport_renewable_electricity_consumption
+  name_de: Renewable component of public transport electricity consumption
+  name_en: Renewable component of public transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source, vehicle_type]
+  output_dimensions: [electricity_source, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_source
+      categories: [hydro, solar, wind, wood]
+    to_dimensions:
+    - id: electricity_source
+  - id: public_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: other_transport_renewable_electricity_consumption
+  name_de: Renewable component of other transport electricity consumption
+  name_en: Renewable component of other transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source, vehicle_type]
+  output_dimensions: [electricity_source, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: electricity_mix_renewable
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: other_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: transport_end_renewable_energy_consumption
+  name_de: Renewable component of transport end energy consumption
+  name_en: Renewable component of transport end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: public_transport_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: other_transport_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: building_electricity_consumption
+  name_de: Building total electricity consumption
+  name_en: Building total electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: heat_pump_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: building_renewable_electricity_consumption
+  name_de: Renewable component of building electricity consumption
+  name_en: Renewable component of building electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: GWh/a
+  input_nodes:
+  - id: electricity_mix_renewable
+    tags: [non_additive]
+  - id: building_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions: []
+
+- id: building_renewable_district_heat_consumption
+  name_de: Renewable component of district heat energy consumption
+  name_en: Renewable component of district heat energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: district_heat_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat, wood, biogas]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+      flatten: true
+    to_dimensions: []
+
+- id: building_renewable_nonelectric_energy_consumption
+  name_de: Building total renewable non-electric energy consumption
+  name_en: Building total renewable non-electric energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+    from_dimensions:
+    - id: energy_carrier
+      categories: [solar_collectors, environmental_heat, wood, biogas, biogas_import]
+  - id: building_other_fuel_use
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biogas, wood_chips, wood_pellets]
+    - id: building_other_emission_sources
+      flatten: true
+  - id: building_renewable_district_heat_consumption
+
+- id: stationary_end_renewable_energy_consumption
+  name_de: Renewable component of stationary end energy consumption
+  name_en: Renewable component of stationary end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: building_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: building_renewable_nonelectric_energy_consumption
+
+- id: percent_renewable_end_energy_consumption
+  name_en: Renewable component of total end energy consumption
+  name_de: Renewable component of total end energy consumption
+  short_name_en: Renewable
+  short_name_de: Renewable
+  input_dimensions: []
+  output_dimensions: []
+  type: formula.FormulaNode
+  unit: '%'
+  quantity: fraction
+  params:
+    formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption)
+      / end_energy_consumption
+#    extend_last_historical_value: true
+  input_nodes:
+  - id: stationary_end_renewable_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: transport_end_renewable_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+  - id: end_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: aviation_fuel_consumption_per_inhabitant
+  name_de: Aviation fuel consumption per inhabitant
+  name_en: Aviation fuel consumption per inhabitant
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/cap/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/aviation_fuel_consumption
+  input_dataset_processors: [LinearInterpolation]
+  minimum_year: 2010
+
+- id: aviation_fuel_consumption
+  name_de: Aviation fuel consumption
+  name_en: Aviation fuel consumption
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
+  - id: aviation_fuel_consumption_per_inhabitant
+    tags: [non_additive]
+
+- id: aviation_emission_factor
+  name_de: Aviation fuel emission factor
+  name_en: Aviation fuel emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [greenhouse_gases, emission_scope]
+  output_dimensions: [greenhouse_gases, emission_scope]
+  input_datasets:
+  - id: zuerich/aviation_emission_factor
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name_de: Treibhausgasemissionen Flugverkehr
+  name_en: Aviation Emissions
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [greenhouse_gases, energy_carrier, emission_scope]
+  output_dimensions: [greenhouse_gases, energy_carrier, emission_scope]
+  unit: t/a
+  input_nodes:
+  - id: aviation_fuel_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: aviation_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: emission_scope
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: non_road_machinery_end_energy_consumption
+  name_de: Non-road machinery end energy consumption
+  name_en: Non-road machinery end energy consumption
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [energy_carrier, non_road_machinery]
+  unit: GWh/a
+  input_nodes:
+  - id: non_road_machinery_fuel_consumption
+  - id: fuel_higher_heating_value
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: end_energy_consumption
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+
+#
+# ------- ACTIONS --------
+#
+actions:
+
+#
+# Massnahmenpaket 1: Heizungsersatz und Ausbau thermische Netze
+#
+- id: heater_replacement_and_district_heat
+  name_en: Replacement of heaters and district heat expansion
+  name_de: Heizungsersatz und Ausbau thermische Netze
+  description_de: '<b>Hauptziel bis 2040: 100 Prozent der Wärmeenergie stammen aus
+    erneuerbaren Energiequellen, Abfall oder Abwärme.</b><br><br>Aktuell werden noch
+    19 800 Heizungen in der Stadt Zürich mit fossiler Energie betrieben (Stand 2022).
+    Sie verursachen 560 000 Tonnen CO<sub>2</sub>-Äquivalente pro Jahr und müssen
+    in den kommenden Jahren durch klimafreundliche Heizlösungen wie Wärmepumpen oder
+    Anschlüsse an thermische Netze ersetzt werden. Damit das Ziel von 100 Prozent
+    Wärme aus erneuerbaren Energiequellen, Abfall oder Abwärme erreicht werden kann,
+    müssen zudem die thermischen Netze weiter ausgebaut und bis 2040 vollständig dekarbonisiert
+    werden.<br><br> Grundsätzlich ist eine vollständige Dekarbonisierung des Gebäudesektors
+    aufgrund der beschränkten Verfügbarkeit von Wärme aus erneuerbarer Energie, Abfall
+    oder Abwärme nur dann möglich, wenn auch der Gesamtenergieverbrauch gesenkt wird
+    (vgl. Massnahmenpaket 2).'
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  group: buildings
+  indicator_nodes:
+  - id: building_heat_mix
+  output_dimensions: [emission_scope]
+
+- id: fossil_fuel_heater_to_district_heat
+  name_en: Replacement of fossil fuel heaters with district heat
+  name_de: Heizungsersatz durch Anschluss an thermische Netze
+  type: shift.ShiftAction
+  parent: heater_replacement_and_district_heat
+  group: buildings
+  quantity: mix
+  output_nodes:
+  - building_heat_mix
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          heating_system: fuel_oil
+      dests:
+      - categories:
+          heating_system: district_heat
+      amounts:
+      - {year: 2023, source_amount: -0.525, dest_amounts: [100]}
+      - {year: 2025, source_amount: -0.525, dest_amounts: [100]}
+      - {year: 2026, source_amount: -0.503, dest_amounts: [100]}
+      - {year: 2030, source_amount: -0.503, dest_amounts: [100]}
+      - {year: 2031, source_amount: -0.461, dest_amounts: [100]}
+      - {year: 2035, source_amount: -0.461, dest_amounts: [100]}
+      - {year: 2036, source_amount: -0.394, dest_amounts: [100]}
+      - {year: 2040, source_amount: -0.394, dest_amounts: [100]}
+
+    - source:
+        categories:
+          heating_system: natural_gas
+      dests:
+      - categories:
+          heating_system: district_heat
+      amounts:
+      - {year: 2023, source_amount: -1.259, dest_amounts: [100]}
+      - {year: 2025, source_amount: -1.259, dest_amounts: [100]}
+      - {year: 2026, source_amount: -1.297, dest_amounts: [100]}
+      - {year: 2030, source_amount: -1.297, dest_amounts: [100]}
+      - {year: 2031, source_amount: -1.14, dest_amounts: [100]}
+      - {year: 2035, source_amount: -1.14, dest_amounts: [100]}
+      - {year: 2036, source_amount: -1.206, dest_amounts: [100]}
+      - {year: 2040, source_amount: -1.206, dest_amounts: [100]}
+
+- id: fossil_fuel_heater_to_heat_pumps
+  name_en: Replacement of fossil fuel heaters with heat pumps
+  name_de: Heizungsersatz durch Wärmepumpen
+  type: shift.ShiftAction
+  parent: heater_replacement_and_district_heat
+  group: buildings
+  quantity: mix
+  output_nodes:
+  - building_heat_mix
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          heating_system: fuel_oil
+      dests:
+      - categories:
+          heating_system: heat_pumps
+      amounts:
+      - {year: 2023, source_amount: -0.553, dest_amounts: [100]}
+      - {year: 2025, source_amount: -0.553, dest_amounts: [100]}
+      - {year: 2026, source_amount: -0.539, dest_amounts: [100]}
+      - {year: 2030, source_amount: -0.539, dest_amounts: [100]}
+      - {year: 2031, source_amount: -0.576, dest_amounts: [100]}
+      - {year: 2035, source_amount: -0.576, dest_amounts: [100]}
+      - {year: 2036, source_amount: -0.407, dest_amounts: [100]}
+      - {year: 2040, source_amount: -0.407, dest_amounts: [100]}
+
+    - source:
+        categories:
+          heating_system: natural_gas
+      dests:
+      - categories:
+          heating_system: heat_pumps
+      amounts:
+      - {year: 2023, source_amount: -1.18, dest_amounts: [100]}
+      - {year: 2025, source_amount: -1.18, dest_amounts: [100]}
+      - {year: 2026, source_amount: -1.261, dest_amounts: [100]}
+      - {year: 2030, source_amount: -1.261, dest_amounts: [100]}
+      - {year: 2031, source_amount: -1.224, dest_amounts: [100]}
+      - {year: 2035, source_amount: -1.224, dest_amounts: [100]}
+      - {year: 2036, source_amount: -1.193, dest_amounts: [100]}
+      - {year: 2040, source_amount: -1.193, dest_amounts: [100]}
+
+- id: fossil_fuel_heater_to_other
+  name_en: Replacement of fossil fuel heaters with other heaters
+  name_de: Heizungsersatz durch übrige Systeme
+  type: shift.ShiftAction
+  parent: heater_replacement_and_district_heat
+  group: buildings
+  quantity: mix
+  output_nodes:
+  - building_heat_mix
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          heating_system: fuel_oil
+      dests:
+      - categories:
+          heating_system: wood
+      - categories:
+          heating_system: solar_collectors
+      amounts:
+      - {year: 2023, source_amount: -0.072, dest_amounts: [60.8, 39.2]}
+      - {year: 2025, source_amount: -0.072, dest_amounts: [60.8, 39.2]}
+      - {year: 2026, source_amount: -0.058, dest_amounts: [60.8, 39.2]}
+      - {year: 2030, source_amount: -0.058, dest_amounts: [60.8, 39.2]}
+      - {year: 2031, source_amount: -0.063, dest_amounts: [60.8, 39.2]}
+      - {year: 2035, source_amount: -0.063, dest_amounts: [60.8, 39.2]}
+      - {year: 2036, source_amount: -0.12, dest_amounts: [60.8, 39.2]}
+      - {year: 2040, source_amount: -0.12, dest_amounts: [60.8, 39.2]}
+
+    - source:
+        categories:
+          heating_system: natural_gas
+      dests:
+      - categories:
+          heating_system: wood
+      - categories:
+          heating_system: solar_collectors
+      amounts:
+      - {year: 2023, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
+      - {year: 2025, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
+      - {year: 2026, source_amount: -0.042, dest_amounts: [58.7, 41.3]}
+      - {year: 2030, source_amount: -0.042, dest_amounts: [58.7, 41.3]}
+      - {year: 2031, source_amount: -0.036, dest_amounts: [58.7, 41.3]}
+      - {year: 2035, source_amount: -0.036, dest_amounts: [58.7, 41.3]}
+      - {year: 2036, source_amount: 0, dest_amounts: [58.7, 41.3]}
+      - {year: 2040, source_amount: 0, dest_amounts: [58.7, 41.3]}
+
+- id: district_heat_decarbonisation
+  name_de: Dekarbonisierung der thermischen Netze
+  group: buildings
+  parent: heater_replacement_and_district_heat
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  indicator_nodes:
+  - id: building_heat_mix
+  output_dimensions: [emission_scope]
+
+- id: district_heat_ccs_installation
+  name_en: CCS installation district heat
+  name_de: CCS Thermische Netze
+  description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr
+    2022 auf 100% im Jahr 2040.
+  group: buildings
+  parent: district_heat_decarbonisation
+  quantity: ratio
+  unit: '%'
+  type: simple.CumulativeAdditiveAction
+  output_nodes: [district_heat_ccs_share]
+  forecast_values: [[2023, 0], [2035, 80]]
+
+- id: district_heat_production_mix_change
+  name_en: District heat production mix change
+  name_de: District heat production mix change
+  group: buildings
+  parent: district_heat_decarbonisation
+  type: linear.DatasetReduceAction
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/district_heat_production_mix
+    tags: [historical]
+  - id: zuerich/district_heat_production_mix_goals
+    tags: [goal]
+  output_nodes:
+  - id: district_heat_production_mix
+  unit: '%'
+
+- id: district_heat_to_biogas
+  name_en: District heat uses biogas
+  name_de: District heat uses biogas
+  type: linear.ReduceAction
+  group: buildings
+  parent: district_heat_decarbonisation
+  output_nodes:
+  - id: district_heat_production_gas_grid_share
+  unit: '%'
+  quantity: ratio
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target: {}
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2024
+        amount: 25
+      - year: 2027
+        amount: 25
+      - year: 2028
+        amount: 0
+
+- id: natural_gas_network_decarbonisation
+  name_de: Dekarbonisierung der Gasversorgung
+  name_en: Decarbonisation of gas network
+  group: buildings
+  parent: heater_replacement_and_district_heat
+  quantity: mix
+  unit: '%'
+  type: linear.DatasetReduceAction
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/gas_network_mix_goal
+    tags: [goal]
+  input_nodes:
+  - id: gas_network_mix_historical
+    tags: [historical]
+  output_nodes: [gas_network_mix]
+
+- id: other_building_fuel_to_biogas
+  name_en: Other building fuel use to biogas
+  name_de: Dekarbonisierung Prozessenergie und Blockheizkraftwerke
+  type: linear.ReduceAction
+  group: buildings
+  parent: heater_replacement_and_district_heat
+  output_nodes:
+  - id: building_other_fuel_gas_grid_share
+  unit: '%'
+  quantity: fraction
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target: {}
+      amounts:
+      - year: 2023
+        amount: 10
+      - year: 2032
+        amount: 10
+      - year: 2033
+        amount: 0
+
+
+#
+# Massnahmenpaket 2: Reduktion des Wärmeenergiebedarfes
+#
+- id: reduce_building_heat_demand
+  name_en: Replacement of heaters and district heat expansion
+  name_de: Reduktion des Wärmeenergiebedarfes
+  description_de: "Der absolute Wärmeverbrauch im Gebäudebereich muss reduziert werden,
+    damit das 2000 Watt-Ziel sowie die Zielsetzung von 100% Wärmeenergie aus erneuerbarer
+    Energie, Abfall oder Abwärme erreicht werden kann. Insgesamt soll eine Reduktion
+    des Wärmeenergieverbrauchs von 20% gegenüber dem Mittelwert 2018-2022 erreicht
+    werden (pro Einwohner\\*in: Reduktion um xx%).\nDiese Senkung des Energiebedarfes
+    bedarf Massnahmen in den Bereichen der Verbesserung der Gebäudehülle, der Optimierung
+    des Heizbetriebs und der suffizienten Nutzung der Wärme. Alle Massnahmen zusammen
+    haben das Potenzial den Wärmebedarf zu reduzieren. Die Liegenschaftsbesitzer*innen
+    sowie die Nutzer*innen von Liegenschaften haben für die Erreichung dieses Ziels
+    eine Schlüsselfunktion.\nAufgrund der Wetterabhängigkeit des Wärmeenergieverbrauches
+    wird jeweils der Fünfjahresdurchschnitt (FJDS) betrachtet."
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  group: buildings
+  output_dimensions: [emission_scope]
+
+- id: building_energy_retrofit
+  name_en: Energetic renovation of buildings
+  name_de: Verbesserung der Gebäudehülle
+  parent: reduce_building_heat_demand
+  group: buildings
+  description_de: Die energetische Sanierung von Bestandesbauten und erhöhte Anforderungen
+    an (Ersatz-)Neubauten führen dazu, dass die Wärme im Gebäude bleibt und die Energie
+    effizient genutzt wird. Während das kantonale Energiegesetz die Anforderungen
+    an Neubauten und Ersatzneubauten festlegt, gibt es aktuell keine regulativen Anforderungen
+    zur Beschleunigung der Sanierung von Bestandesbauten.
+  type: linear.ReduceAction
+  quantity: energy_per_area
+  output_nodes:
+  - id: building_heat_per_area
+  unit: kWh/m**2/a
+  params:
+  - id: reduce
+    unit: kWh/m**2/a
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          building_use: residential
+      amounts:
+      # - year: 2023
+      #   amount: -0.4
+      # - year: 2030
+      #   amount: -0.7
+      # - year: 2040
+      #   amount: 0
+      - year: 2023
+        amount: -1.62
+      - year: 2039
+        amount: -1.62
+      - year: 2040
+        amount: 0
+    - target:
+        categories:
+          building_use: nonresidential
+      amounts:
+      # - year: 2023
+      #   amount: -2
+      # - year: 2030
+      #   amount: -1
+      # - year: 2040
+      #   amount: 0
+      - year: 2023
+        amount: -1.65
+      - year: 2039
+        amount: -1.65
+      - year: 2040
+        amount: 0
+
+- id: more_efficient_building_use
+  name_en: More efficient building use
+  name_de: Suffiziente Nutzung der Wärme
+  parent: reduce_building_heat_demand
+  group: buildings
+  description_de: Die suffiziente Nutzung der Wärme senkt den Wärmebedarf ebenfalls.
+    Dazu gehören Temperatursenkungen während der Heizperiode und ein geringerer Flächenverbrauch
+    pro Person beim Wohnen und Arbeiten. Beim heutigen Gebäudemix kann durch die Senkung
+    der Temperatur um 1°C 6% der Wärmeenergie eingespart wer-den. Neben der Energiespar-Kampagne
+    im Jahr 2022 bestehen aktuell keine Mass-nahmen, zur suffizienten Nutzung der
+    Wärmeenergie.
+  type: linear.ReduceAction
+  quantity: per_capita
+  output_nodes:
+  - id: residential_building_area_per_resident
+  - id: nonresidential_building_area_per_job
+  unit: m**2/cap
+  params:
+  - id: reduce
+    unit: m**2/cap
+    is_customizable: false
+    value:
+    - target:
+        node: residential_building_area_per_resident
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2028
+        amount: -0.2
+      - year: 2030
+        amount: -0.3
+      - year: 2035
+        amount: -0.3
+      - year: 2040
+        amount: 0
+    - target:
+        node: nonresidential_building_area_per_job
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2030
+        amount: -0.15
+      - year: 2035
+        amount: -0.15
+      - year: 2040
+        amount: -0.15
+
+- id: optimize_building_technology
+  name_en: Optimal/efficient use and operation of building technology
+  name_de: Optimaler/effizienter Einsatz und Betrieb der Gebäudetechnik
+  parent: reduce_building_heat_demand
+  group: buildings
+  type: linear.ReduceAction
+  quantity: energy_per_area
+  output_nodes:
+  - id: building_heat_per_area
+  unit: kWh/m**2/a
+  params:
+  - id: reduce
+    unit: kWh/m**2/a
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          building_use: residential
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2040
+        amount: 0
+    - target:
+        categories:
+          building_use: nonresidential
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2040
+        amount: 0
+
+#
+# Massnahmenpaket 3: Vermeidung von Verkehrsaufkommen
+#
+- id: reduce_transportation_demand
+  name_en: Reduce transportation demand
+  name_de: Vermeidung von Verkehrsaufkommen
+  description_de: Durch eine Veränderung der räumlichen Nutzungsstrukturen sollen
+    ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die Weglängen und
+    somit die Verkehrsleistung reduziert werden. Die Weglängen umfassen alle Wege,
+    unabhängig davon, ob sie mit dem MIV, dem ÖV, dem Velo oder zu Fuss zurückgelegt
+    werden. Die Verringerung der Wegdistanzen wird durch eine "Stadt der kurzen Wege"
+    und durch vermehrte Arbeit zu Hause oder in der Nähe des Wohnortes erreicht. Die
+    entsprechenden stadtplanerischen Prozesse und Massnahmen werden erst mittel- bis
+    langfristig Wirkung zeigen.
+  group: mobility
+  type: linear.ReduceAction
+  unit: pkm/cap/a
+  quantity: per_capita
+  output_nodes:
+  - id: mobility_demand_per_inhabitant
+  params:
+  - id: reduce
+    unit: pkm/cap/a
+    is_customizable: false
+    value:
+    - target: {}
+      amounts:
+      - year: 2023
+        amount: -45
+      - year: 2039
+        amount: -45
+      - year: 2040
+        amount: 0
+
+#
+# Massnahmenpaket 4: Verlagerung des MIV in Richtung des Umweltverbundes
+#
+- id: shift_to_sustainable_transport_modes
+  name_en: Shift to sustainable transport modes
+  name_de: Verlagerung des MIV in Richtung des Umweltverbundes
+  description_de: Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr vom
+    motorisierten Individualverkehr hin zu öffentlichem Verkehr, Velo- oder Fussverkehr
+    (= Umweltverbund) zu verlagern. Es geht dabei insbesondere um Massnahmen auf der
+    Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige Verbesserung
+    des öffentlichen Verkehrs sowie die Bereitstellung von attraktiven und sicheren
+    Velo- und Fussverkehrsinfrastrukturen. Auch wird die Verlagerung durch eine optimale
+    Vernetzung der Verkehrsmittel untereinander unterstützt.\n Die Prozesse und Massnahmen
+    werden über eine längere Zeitdauer umgesetzt und sind entsprechend erst mittel-
+    bis langfristig wirksam.
+  group: mobility
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+
+- id: cars_to_transit
+  name_en: Shift from cars to public transportation
+  name_de: Verlagerung vom MIV auf den ÖV
+  parent: shift_to_sustainable_transport_modes
+  group: mobility
+  type: shift.ShiftAction
+  quantity: mix
+  output_nodes:
+  - id: transport_modal_split
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          transport_mode: cars
+      dests:
+      - categories:
+          transport_mode: tram
+      - categories:
+          transport_mode: buses
+      - categories:
+          transport_mode: rail_passenger
+      amounts:
+      - year: 2023
+        source_amount: -0.27
+        dest_amounts: [27.3, 13.9, 58.8]
+      - year: 2039
+        source_amount: -0.27
+        dest_amounts: [27.3, 13.9, 58.8]
+      - year: 2040
+        source_amount: 0
+        dest_amounts: [27.3, 13.9, 58.8]
+
+- id: cars_to_bicycling
+  name_en: Shift from cars to cycling
+  name_de: Verlagerung vom MIV auf den Velo- und Fussverkehr
+  group: mobility
+  parent: shift_to_sustainable_transport_modes
+  type: shift.ShiftAction
+  quantity: mix
+  output_nodes:
+  - id: transport_modal_split
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          transport_mode: cars
+      dests:
+      - categories:
+          transport_mode: bicycle
+      amounts:
+      - year: 2023
+        source_amount: -0.73
+        dest_amounts: [100]
+      - year: 2039
+        source_amount: -0.73
+        dest_amounts: [100]
+      - year: 2040
+        source_amount: 0
+        dest_amounts: [100]
+
+#
+# Massnahmenpaket 5: Verträgliche Abwicklung des Verkehrs
+#
+- id: improved_vehicle_fleet
+  name_en: Electrify vehicle fleet
+  name_de: Verträgliche Abwicklung des Verkehrs
+  description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
+    dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
+    erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung)
+    des Verkehrs spielen dafür eine Schlüsselfunktion.
+  group: mobility
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  output_dimensions: [emission_scope]
+
+- id: electrify_personal_transport
+  name_en: Electrify personal transport
+  name_de: Elektrifizierung des MIV
+  group: mobility
+  parent: improved_vehicle_fleet
+  type: linear.DatasetReduceAction
+  quantity: mix
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
+    tags: [historical]
+  output_nodes:
+  - id: vehicle_engine_type_split
+  input_datasets:
+  - id: zuerich/vehicle_electrification_goals
+    tags: [goal]
+    filters:
+    - dimension: vehicle_type
+      groups: [cars, motorbikes]
+  unit: '%'
+
+- id: electrify_goods_transport
+  name_en: Electrify goods transport
+  name_de: Elektrifizierung des Güterverkehr
+  parent: improved_vehicle_fleet
+  group: mobility
+  type: linear.DatasetReduceAction
+  quantity: mix
+  description_en: Vehicle fleet electrification.
+  description_de: Vehicle fleet electrification.
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
+    tags: [historical]
+  output_nodes:
+  - id: vehicle_engine_type_split
+  input_datasets:
+  - id: zuerich/vehicle_electrification_goals
+    tags: [goal]
+    filters:
+    - dimension: vehicle_type
+      groups: [vans, lorries]
+  unit: '%'
+
+- id: electrify_public_transportation
+  name_en: Electrify public transportation
+  name_de: Elektrifizierung des ÖV
+  parent: improved_vehicle_fleet
+  group: mobility
+  type: linear.DatasetReduceAction
+  quantity: mix
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
+    tags: [historical]
+  output_nodes:
+  - id: vehicle_engine_type_split
+  input_datasets:
+  - id: zuerich/vehicle_electrification_goals
+    tags: [goal]
+    filters:
+    - dimension: vehicle_type
+      groups: [buses, coaches]
+  unit: '%'
+
+- id: increase_vehicle_efficiency
+  name_de: Effizientere Fahrzeuge
+  name_en: Increase vehicle efficiency
+  parent: improved_vehicle_fleet
+  group: mobility
+  type: linear.DatasetReduceAction
+  quantity: fuel_consumption
+  allow_nulls: true
+  description_de: 'Wirkungsziel: Der Stromverbrauch von Personenwagen sinkt um xx%.
+    Der Treibstoffverbrauch von Personenwagen sinkt um xx%.'
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Electricity, Fuel]
+    tags: [historical]
+  output_metrics:
+  - id: Electricity
+    unit: kWh/vkm
+    quantity: consumption_factor
+  - id: Fuel
+    unit: kg/vkm
+    quantity: consumption_factor
+  output_nodes:
+  - id: transport_fuel_factor
+    metrics: [Fuel]
+  - id: transport_electricity_consumption_factor
+    metrics: [Electricity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: zuerich/vehicle_fuel_efficiency_improvement
+    tags: [goal]
+    filters:
+    - dimension: vehicle_type
+      groups: [cars]
+  params:
+  - id: relative_goal
+    value: true
+    is_customizable: false
+
+- id: electric_non_road_machinery
+  name_en: Non-road machinery electric +50 %
+  name_de: Non-road machinery electric +50 %
+  group: mobility
+  parent: improved_vehicle_fleet
+  type: linear.ReduceAction
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: non_road_machinery_emissions
+  output_dimensions: [non_road_machinery, energy_carrier]
+  params:
+  - id: reduce
+    unit: kt/a
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          non_road_machinery: civil_construction_machinery
+          energy_carrier: diesel
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -.271
+      - year: 2039
+        amount: -.271
+      - year: 2040
+        amount: 0
+
+    - target:
+        categories:
+          non_road_machinery: industrial_vehicles
+          energy_carrier: diesel
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -0.0817
+      - year: 2039
+        amount: -0.0817
+      - year: 2040
+        amount: 0
+    - target:
+        categories:
+          non_road_machinery: industrial_vehicles
+          energy_carrier: petrol
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -0.0167
+      - year: 2039
+        amount: -0.0167
+      - year: 2040
+        amount: 0
+
+    - target:
+        categories:
+          non_road_machinery: building_construction_machinery
+          energy_carrier: diesel
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -0.407
+      - year: 2039
+        amount: -0.407
+      - year: 2040
+        amount: 0
+    - target:
+        categories:
+          non_road_machinery: forestry_vehicles
+          energy_carrier: diesel
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -0.0091
+      - year: 2039
+        amount: -0.0091
+      - year: 2040
+        amount: 0
+    - target:
+        categories:
+          non_road_machinery: agricultural_vehicles
+          energy_carrier: diesel
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -0.023
+      - year: 2039
+        amount: -0.023
+      - year: 2040
+        amount: 0
+
+
+# Massnahmenpaket 6: CO2-Entnahme und -Speicherung (CCS)
+- id: install_waste_treatment_ccs
+  name_en: Install CCS in waste treatment
+  name_de: CO2-Entnahme und -Speicherung (CCS)
+  description_de: Dieses Massnahmenpaket beinhaltet die Anstrengungen zur CO<sub>2</sub>-Entnahme
+    und -Speicherung (CCS) bei der Klärschlammverwertungsanlage Werdhölzli und beim
+    Kehrichtverwertungsanlage (KVA) Hagenholz.
+  type: parent.ParentActionNode
+  unit: kt/a
+  quantity: emissions
+  group: waste
+  output_dimensions: [emission_scope]
+
+- id: waste_incineration_ccs_installation
+  name_en: Install CCS in solid waste incineration
+  name_de: CCS bei der Kehrichtverwertungsanlage Hagenholz
+  parent: install_waste_treatment_ccs
+  group: waste
+  type: linear.ReduceAction
+  quantity: ratio
+  unit: '%'
+  output_nodes: [waste_incineration_ccs_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node: waste_incineration_ccs_share
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2034
+        amount: 0
+      - year: 2035
+        amount: 100
+      - year: 2036
+        amount: 0
+
+- id: install_ccs_sludge_incineration
+  name_en: Install CCS in sewage sludge incineration
+  name_de: CCS bei der Klärschlammverwertungsanlage Werdhölzli
+  group: waste
+  type: linear.ReduceAction
+  quantity: ratio
+  parent: install_waste_treatment_ccs
+  unit: '%'
+  output_nodes: [sewage_sludge_processing_ccs_share]
+  params:
+  - id: reduce
+    unit: '%'
+    is_customizable: false
+    value:
+    - target:
+        node: sewage_sludge_processing_ccs_share
+      amounts:
+      - year: 2023
+        amount: 0
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: 91
+      - year: 2031
+        amount: 0
+
+- id: ccs_biogas_processing
+  name_en: CCS in biogas processing
+  name_de: Zusätzlich CCS Biogasaufbereitungsanlage Werdhölzli
+  group: waste
+  type: simple.CumulativeAdditiveAction
+  quantity: emissions
+  parent: install_waste_treatment_ccs
+  unit: '%'
+  output_nodes: [biogas_processing_ccs_share]
+  forecast_values: [[2030, 100]]
+
+- id: cleaner_electricity_production
+  group: other
+  decision_level: nation
+  name_en: Cleaner electricity production
+  name_de: Dekarbonisierung Stromversorgung
+  type: shift.ShiftAction
+  quantity: mix
+  description_en: Electricity production shift to cleaner methods.
+  description_de: Dieses Massnahmenpaket beinhaltet alle Massnahmen, welche dazu führen,
+    dass der Strombedarf in der Stadt Zürich vollständig durch erneuerbare Energieträger
+    gedeckt wird.
+  output_nodes:
+  - id: electricity_production_mix
+    to_dimensions:
+    - id: electricity_source
+  unit: '%'
+  params:
+  - id: shift
+    unit: '%'
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          electricity_source: import
+      dests:
+      - categories:
+          electricity_source: solar
+      - categories:
+          electricity_source: wind
+      - categories:
+          electricity_source: biogas
+      - categories:
+          electricity_source: waste
+      amounts:
+      - year: 2023
+        source_amount: -2
+        dest_amounts: [50, 50, 10, 5]
+      - year: 2030
+        source_amount: -1.65
+        dest_amounts: [50, 50, 10, 5]
+      - year: 2040
+        source_amount: 0
+        dest_amounts: [50, 50, 10, 5]
+    - source:
+        categories:
+          electricity_source: hydro
+      dests:
+      - categories:
+          electricity_source: solar
+      - categories:
+          electricity_source: wind
+      - categories:
+          electricity_source: biogas
+      amounts:
+      - year: 2023
+        source_amount: -2
+        dest_amounts: [70, 30, 50]
+      - year: 2030
+        source_amount: -1.7
+        dest_amounts: [70, 30, 50]
+      - year: 2035
+        source_amount: 0
+        dest_amounts: [70, 30, 50]
+
+- id: import_biogas_emission_accounting_agreement
+  group: other
+  decision_level: nation
+  name_en: Import biogas emission accounting agreement
+  name_de: Import biogas emission accounting agreement
+  type: linear.ReduceAction
+  quantity: mix
+  description_en: Agreement on how import biogas emissions should be accounted to
+    avoid double counting.
+  description_de: Agreement on how import biogas emissions should be accounted to
+    avoid double counting.
+  output_nodes:
+  - id: building_energy_consumption_non_grid_emission_factor
+  output_dimensions: [energy_carrier, emission_scope]
+  unit: g/kWh
+  params:
+  - id: reduce
+    unit: g/kWh
+    is_customizable: false
+    value:
+    - target:
+        categories:
+          energy_carrier: biogas_import
+          emission_scope: scope1
+      amounts:
+      - year: 2027
+        amount: 0
+      - year: 2028
+        amount: -182.18
+      - year: 2029
+        amount: 0
+
+- id: buses_use_synthetic_diesel
+  name_en: Buses use synthetic diesel
+  name_de: Buses use synthetic diesel
+  type: shift.ShiftAction
+  parent: improved_vehicle_fleet
+  group: mobility
+  is_visible: false
+  output_nodes:
+  - id: transport_emissions_for_fuel
+    tags: [additive]
+  unit: kg/kg
+  quantity: emission_factor
+  params:
+  - id: shift
+    unit: kg/kg
+    is_customizable: false
+    value:
+    - source:
+        categories:
+          vehicle_type: buses_batteryelectric
+          emission_scope: scope1
+          greenhouse_gases: co2
+      dests:
+      - categories:
+          vehicle_type: buses_batteryelectric
+          emission_scope: scope1
+          greenhouse_gases: co2_biogen
+      amounts:
+      - year: 2034
+        source_amount: 0
+        dest_amounts: [1]
+      - year: 2035
+        source_amount: -2.980769
+        dest_amounts: [1]
+      - year: 2036
+        source_amount: 0
+        dest_amounts: [1]
+
+
+# - id: increased_district_heat_ccs_efficiency
+#   name_en: Increased district heating CCS efficiency
+#   name_de: Increased district heating CCS efficiency
+#   type: simple.CumulativeAdditiveAction
+#   quantity: ratio
+#   unit: '%'
+#   forecast_values: [[2023, 0], [2035, 10]]
+#   output_nodes: [district_heat_ccs_share]
+#   group: optional
+#
+# - id: increased_car_electrification
+#   name_en: Increased car electrification
+#   name_de: Increased car electrification
+#   type: shift.ShiftAction
+#   group: optional
+#   output_nodes:
+#   - id: vehicle_engine_type_split
+#   unit: '%'
+#   quantity: mix
+#   params:
+#   - id: shift
+#     unit: '%'
+#     is_customizable: false
+#     value:
+#     - source:
+#         categories:
+#           vehicle_type: car_diesel
+#       dests:
+#       - categories:
+#           vehicle_type: car_batteryelectric
+#       amounts:
+#       - year: 2039
+#         source_amount: 0
+#         dest_amounts: [1]
+#       - year: 2040
+#         source_amount: -4.5
+#         dest_amounts: [1]
+#     - source:
+#         categories:
+#           vehicle_type: car_petrol
+#       dests:
+#       - categories:
+#           vehicle_type: car_batteryelectric
+#       amounts:
+#       - year: 2039
+#         source_amount: 0
+#         dest_amounts: [1]
+#       - year: 2040
+#         source_amount: -5.5
+#         dest_amounts: [1]
+
+
+pages:
+- id: home
+  name_en: Emissions
+  name_de: Treibhausgasemissionen
+  path: /
+  type: emission
+  outcome_node: net_emissions
+
+- id: 2000watt
+  name_en: 2000-Watt
+  name_de: 2000-Watt
+  path: /2000watt
+  type: outcome
+  outcome_node: primary_energy_power_per_inhabitant
+  lead_title_en: 2000-Watt indicators
+  lead_title_de: 2000-watt indicators
+  show_in_menus: true
+  show_in_footer: true
+
+scenarios:
+- id: baseline
+  name_en: Baseline
+  name_de: Basisszenario
+  params:
+  - id: import_biogas_emission_accounting_agreement.enabled
+    value: true
+
+- id: default
+  default: true
+  name_en: Net Zero 2040
+  name_de: Netto-Null 2040
+  all_actions_enabled: true
