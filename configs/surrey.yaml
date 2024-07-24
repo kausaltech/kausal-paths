@@ -159,7 +159,6 @@ dimensions:
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
-  is_outcome: true
 
 
 nodes:
