@@ -9,6 +9,7 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.utils import quote_sheetname, absolute_coordinate, get_column_letter
 import polars as pl
 import requests
+import re
 
 from nodes.actions.action import ActionNode
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
@@ -23,7 +24,7 @@ PARAM_SHEET_NAME = 'Parameters'
 
 def _convert_to_camel_case(input_string: str):
     # Split the input string into words
-    words = input_string.split()
+    words = re.split(r'[-\s]+', input_string)
 
     # Capitalize the first letter of each word
     capitalized_words = [word.capitalize() for word in words]
