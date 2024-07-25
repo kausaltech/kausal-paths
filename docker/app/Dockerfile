@@ -12,12 +12,10 @@ ARG runtime_deps="libpq5 postgresql-client gettext \
     libwebp7 libvoikko1 voikko-fi curl libpcre3 \
     iputils-ping inetutils-telnet redis-tools restic procps git \
     ca-certificates"
-ARG python_deps="libpython3.12t64 python3.12 python3.12-venv python3-pip-whl"
 ARG build_time_deps="libpq-dev build-essential \
     zlib1g-dev libjpeg-dev libtiff-dev libopenjp2-7-dev libwebp-dev \
     binutils libproj-dev libgdal-dev \
     libxml2-dev libxslt1-dev libffi-dev"
-ARG build_time_python_deps="libpython3.12-dev"
     # ARG node_install_url="https://deb.nodesource.com/setup_lts.x"
 ARG app_path=/code
 ARG app_user_uid=1000
