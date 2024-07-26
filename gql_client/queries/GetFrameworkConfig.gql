@@ -1,7 +1,9 @@
-query GetFrameworkConfigs($frameworkId:ID!) {
+query GetFrameworkConfig($frameworkId: ID!, $fwcId: ID!) {
   framework(identifier:$frameworkId) {
     identifier
-    configs {
+    name
+    config(id: $fwcId) {
+      id
       organizationName
       baselineYear
       uuid
