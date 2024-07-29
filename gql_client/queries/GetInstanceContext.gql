@@ -1,0 +1,120 @@
+query GetInstanceContext($instanceId: ID!) @instance(identifier:$instanceId) {
+  instance {
+    id
+    name
+    themeIdentifier
+    owner
+    defaultLanguage
+    supportedLanguages
+    targetYear
+    modelEndYear
+    referenceYear
+    minimumHistoricalYear
+    maximumHistoricalYear
+    leadTitle
+    leadParagraph
+    features {
+      baselineVisibleInGraphs
+      showAccumulatedEffects
+      showSignificantDigits
+      __typename
+    }
+    introContent {
+      ... on StreamFieldInterface {
+        ... on RichTextBlock {
+          field
+          value
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+    goals {
+      id
+      label
+      default
+      disabled
+      outcomeNode {
+        id
+        __typename
+      }
+      dimensions {
+        dimension
+        categories
+        groups
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+  scenarios {
+    ...ScenarioFragment
+    __typename
+  }
+  availableNormalizations {
+    id
+    label
+    isActive
+    __typename
+  }
+  menuPages: pages(inMenu: true) {
+    id
+    title
+    urlPath
+    parent {
+      id
+      __typename
+    }
+    __typename
+  }
+  parameters {
+    ...ActionParameter
+    __typename
+  }
+}
+
+fragment ScenarioFragment on ScenarioType {
+  id
+  isActive
+  isDefault
+  name
+  __typename
+}
+
+fragment ActionParameter on ParameterInterface {
+  __typename
+  id
+  label
+  description
+  nodeRelativeId
+  node {
+    id
+    __typename
+  }
+  isCustomized
+  isCustomizable
+  ... on NumberParameterType {
+    numberValue: value
+    numberDefaultValue: defaultValue
+    minValue
+    maxValue
+    unit {
+      htmlShort
+      __typename
+    }
+    step
+    __typename
+  }
+  ... on BoolParameterType {
+    boolValue: value
+    boolDefaultValue: defaultValue
+    __typename
+  }
+  ... on StringParameterType {
+    stringValue: value
+    stringDefaultValue: defaultValue
+    __typename
+  }
+}
