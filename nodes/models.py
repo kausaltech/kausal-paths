@@ -26,6 +26,7 @@ from wagtail.search import index
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
 from common.i18n import get_modeltrans_attrs_from_str
+from kausal_common.models.uuid import UUIDIdentifiedModel
 from nodes.node import Node
 from pages.blocks import CardListBlock
 from paths.permissions import PathsPermissionPolicy
@@ -43,14 +44,14 @@ from paths.utils import (
 from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
+    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
     from loguru import Logger
 
     from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from frameworks.models import FrameworkConfig
     from pages.models import ActionListPage
     from users.models import User
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
-    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
 
 
 instance_cache_lock = threading.Lock()
@@ -85,7 +86,7 @@ class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
 
 class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
     def __init__(self):
-        super().__init__(InstanceConfig, auth_model=None)
+        super().__init__(InstanceConfig)
 
     def instances_user_has_any_permission_for(self, user: User, actions: Sequence[str]) -> InstanceConfigQuerySet:
         qs = super().instances_user_has_any_permission_for(user, actions)
@@ -108,10 +109,9 @@ if TYPE_CHECKING:
         def for_hostname(self, hostname: str, request: HttpRequest | None = None) -> InstanceConfigQuerySet: ...
 
 
-class InstanceConfig(PathsModel):
+class InstanceConfig(PathsModel, UUIDIdentifiedModel):
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
-    uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
-    name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
+    name = models.CharField(max_length=150, verbose_name=_('name'))
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
@@ -163,12 +163,12 @@ class InstanceConfig(PathsModel):
         assert not cls.objects.filter(identifier=instance.id).exists()
         return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
 
-    def update_instance_from_configs(self, instance: Instance):
+    def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
         for node_config in self.nodes.all():
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
-            node_config.update_node_from_config(node)
+            node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_from_instance(self, instance: Instance, overwrite=False):
         """Update lead_title and lead_paragraph from instance but do not call save()."""
@@ -210,7 +210,7 @@ class InstanceConfig(PathsModel):
             return
         return instance
 
-    def _create_new_instance(self) -> Instance:
+    def _create_new_instance(self, node_refs: bool = False) -> Instance:
         fwc = self.framework_configs.first()
         if fwc is not None:
             instance = fwc.create_model_instance(self)
@@ -218,14 +218,14 @@ class InstanceConfig(PathsModel):
             config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
             loader = InstanceLoader.from_yaml(config_fn)
             instance = loader.instance
-        self.update_instance_from_configs(instance)
+        self.update_instance_from_configs(instance, node_refs=node_refs)
         instance.modified_at = timezone.now()
         instance.context.load_all_dvc_datasets()
         if settings.ENABLE_PERF_TRACING:
             instance.context.perf_context.enabled = True
         return instance
 
-    def _get_instance(self) -> Instance:
+    def _get_instance(self, node_refs: bool = False) -> Instance:
         if hasattr(self, '_instance'):
             return self._instance
 
@@ -235,14 +235,14 @@ class InstanceConfig(PathsModel):
             return instance
 
         self.log.info("Creating new instance")
-        instance = self._create_new_instance()
-        instance_cache[self.identifier] = instance
+        instance = self._create_new_instance(node_refs=node_refs)
+        #instance_cache[self.identifier] = instance
         self._instance = instance
         return instance
 
-    def get_instance(self) -> Instance:
+    def get_instance(self, node_refs: bool = False) -> Instance:
         with instance_cache_lock:
-            instance = self._get_instance()
+            instance = self._get_instance(node_refs=node_refs)
         return instance
 
     def get_name(self) -> str:
@@ -537,12 +537,11 @@ class NodeConfigManager(models.Manager):
         return self.get(instance=instance, identifier=identifier)
 
 
-class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
+class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
     )
     identifier = IdentifierField(max_length=200)
-    uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')
@@ -608,9 +607,10 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         setattr(self, '_node', node)
         return node
 
-    def update_node_from_config(self, node: Node):
+    def update_node_from_config(self, node: Node, keep_ref: bool = False):
         node.database_id = self.pk
-        node.db_obj = self
+        if keep_ref:
+            node.db_obj = self
         if self.order is not None:
             node.order = self.order
 

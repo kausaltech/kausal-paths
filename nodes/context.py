@@ -6,6 +6,7 @@ import os
 import sentry_sdk
 from types import FrameType
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, overload
+from opentelemetry import trace
 
 import dvc_pandas
 import networkx as nx
@@ -70,6 +71,7 @@ class Context:
     node_graph: nx.DiGraph
     baseline_values_generated: bool = False
     obj_id: str
+    tracer: trace.Tracer
 
     def __init__(
         self, instance: Instance, dataset_repo: dvc_pandas.Repository, target_year: int,
@@ -77,9 +79,16 @@ class Context:
     ):
         from nodes.actions import ActionNode
 
+        self.obj_id = base32_crockford.gen_obj_id(id(self))
+        self.tracer = trace.get_tracer(
+            'nodes.context', attributes=dict(
+                context_id=self.obj_id,
+                instance_id=instance.id,
+            )
+        )
+
         # Avoid circular import
         self.Action = ActionNode
-
         self.perf_context = PerfContext(supports_cache=True)
         self.nodes = {}
         self.datasets = {}
@@ -102,7 +111,6 @@ class Context:
         self.options = {}
         self.normalizations = {}
         self.instance = instance
-        self.obj_id = base32_crockford.gen_obj_id(id(self))
         self.log = self.instance.log.bind(context=self.obj_id)
         self.log.debug('Context initialized')
         self.cache = Cache(
@@ -141,7 +149,8 @@ class Context:
         if ds is None:
             if not self.dataset_repo.has_dataset(id):
                 raise Exception('Dataset %s not found in DVC repo' % id)
-            ds = self.dataset_repo.load_dataset(id, skip_pull_if_exists=True)
+            with self.tracer.start_as_current_span('load dataset: %s' % id):
+                ds = self.dataset_repo.load_dataset(id, skip_pull_if_exists=True)
             self.dvc_datasets[id] = ds
         return ds
 
@@ -152,7 +161,9 @@ class Context:
                 if not isinstance(ds, DVCDataset):
                     continue
                 all_datasets.add(ds.id)
-        self.dataset_repo.load_datasets(list(all_datasets))
+
+        with self.tracer.start_as_current_span('load all datasets'):
+            self.dataset_repo.load_datasets(list(all_datasets))
 
     def add_dataset(self, config: dict):
         assert config['id'] not in self.datasets
@@ -311,7 +322,7 @@ class Context:
         old_scenario = self.active_scenario
 
         scenario = self.scenarios['baseline']
-        with sentry_sdk.start_span(op='compute', description='Baseline'):
+        with self.tracer.start_as_current_span('baseline'):
             self.activate_scenario(scenario)
             self.log.info('Generating baseline values')
             pc = PerfCounter('generate baseline values')
@@ -421,8 +432,29 @@ class Context:
     @contextmanager
     def run(self):
         with ExitStack() as stack:
+            span_ctx = self.tracer.start_as_current_span("context run", attributes=dict(
+                instance_id=self.instance.id,
+                context_id=self.obj_id,
+            ))
+            stack.enter_context(span_ctx)
             stack.enter_context(self.cache)
             stack.enter_context(self.perf_context)
             if self.dataset_repo is not None:
                 stack.enter_context(self.dataset_repo.lock.lock)
             yield
+
+    def clean(self):
+        for param in self.get_all_parameters():
+            param.context = None
+            param.node = None
+        for node in self.nodes.values():
+            node.context = None  # type: ignore
+            node.edges = []
+            for p in node.input_dataset_processors:
+                p.context = None  # type: ignore
+            node.input_dataset_processors = []
+        self.nodes = {}
+        self.global_parameters = {}
+        for scenario in self.scenarios.values():
+            scenario.context = None  # type: ignore
+        self.scenarios = {}

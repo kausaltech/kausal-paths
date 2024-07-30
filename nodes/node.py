@@ -12,7 +12,6 @@ import typing
 from time import perf_counter_ns
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Set, Tuple, Union, overload
 
-import sentry_sdk
 import numpy as np
 import pandas as pd
 import pint_pandas
@@ -977,7 +976,8 @@ class Node:
 
     def get_output_pl(self, target_node: Node | None = None, metric: str | None = None) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
-        with sentry_sdk.start_span(op='node', description=self.id), perf_cm.exec_node(self) as node_run:
+        span_ctx = self.context.tracer.start_as_current_span('%s:get' % self.id, attributes=dict(node_id=self.id))
+        with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
                 res, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
             except Exception as e:
@@ -988,6 +988,10 @@ class Node:
                     raise NodeComputationError(self, "Error getting output for node '%s'" % target_node.id) from e
                 else:
                     raise NodeComputationError(self, "Error getting output") from e
+            if cache_res is None or not cache_res.is_hit:
+                span.set_attribute('cache', 'miss')
+            else:
+                span.set_attribute('cache', cache_res.kind.name)
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
 

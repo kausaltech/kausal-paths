@@ -28,6 +28,7 @@ ignore = "E309"
 
 [tool.ruff]
 line-length = 130
+preview = true
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = true
@@ -76,16 +77,19 @@ exclude = [
 ]
 check_untyped_defs = true
 sqlite_cache = true
-
+enable_incomplete_feature = ['NewGenericSyntax']
 
 [[tool.mypy.overrides]]
 module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
     "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
-    "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environs.*",
-    "wagtail_color_panel.*", "polars.polars.*",
+    "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environ.*",
+    "wagtail_color_panel.*", "polars.polars.*", "gunicorn.*",
 ]
 ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_typed = true
 
 [tool.pyright]
 stubPath = "./kausal_common/typings"
@@ -101,3 +105,9 @@ dependencies = {file = ["requirements.txt", "kausal_common/requirements-common.t
 optional-dependencies.dev = { file = ["requirements-dev.txt", "requirements-lint.txt"] }
 optional-dependencies.lint = { file = ["requirements-lint.txt"] }
 optional-dependencies.prod = { file = ["requirements-prod.txt"] }
+
+[tool.ariadne-codegen]
+#schema_path = "schema.graphql"
+remote_schema_url = "http://localhost:8000/v1/graphql/"
+target_package_name = "paths_client"
+enable_custom_operations = true

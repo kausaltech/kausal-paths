@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal, TypeAlias, Union, Annotated, overload
-from pydantic import errors, ValidationError, PositiveInt, Field, TypeAdapter
-from pydantic.types import constr
+from typing import Literal, Annotated, overload
+from uuid import uuid4
+from pydantic import Field, TypeAdapter
 
 
 MixedCaseIdentifier = Annotated[str, Field(pattern=r'^[A-Za-z0-9_]+$')]
-Identifier = Annotated[str, Field(pattern=r'^[a-z0-9_]+$')]
+Identifier = Annotated[str, Field(pattern=r'^[a-z0-9_]+$', default_factory=uuid4)]
 
 
 MixedCaseIdentifierAdapter = TypeAdapter(MixedCaseIdentifier)

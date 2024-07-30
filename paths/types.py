@@ -7,13 +7,12 @@ from django.db import models
 from django.http import HttpRequest
 from django.contrib.auth.models import AnonymousUser
 
-from paths.permissions import PathsPermissionPolicy
-
 if TYPE_CHECKING:
     from users.models import User
     from nodes.models import InstanceConfig
     from wagtail.models import Site
     from paths.cache import PathsObjectCache
+    from paths.permissions import PathsPermissionPolicy
 
 
 UserOrAnon: typing.TypeAlias = 'User | AnonymousUser'
@@ -32,7 +31,7 @@ class PathsAuthenticatedRequest(PathsRequest):
 
 class PathsAdminRequest(PathsAuthenticatedRequest):
     admin_instance: InstanceConfig
-    _wagtail_site: Site
+    _wagtail_site: Site | None
 
 
 class PathsAPIRequest(PathsAuthenticatedRequest):

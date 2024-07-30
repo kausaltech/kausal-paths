@@ -6,11 +6,12 @@ import uuid
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import QuerySet
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from treebeard.mp_tree import MP_Node
+from django_stubs_ext.db.models import TypedModelMeta
+from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
+from django.contrib.auth.models import Group
 
 from kausal_common.models.ordered import OrderedModel
 from kausal_common.models.uuid import UUIDIdentifiedModel
@@ -53,6 +54,11 @@ class Framework(UUIDIdentifiedModel):
     root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)  # pyright: ignore
     result_excel_url = models.URLField(max_length=250, null=True, blank=True)
     result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
+    admin_group = models.OneToOneField(
+        Group, on_delete=models.PROTECT, editable=False, related_name='admin_for_framework',
+        null=True
+    )
+    admin_group_id: int | None
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
@@ -89,6 +95,11 @@ class Framework(UUIDIdentifiedModel):
             sd['measure_templates'] = [mt.to_dict(include_section=False) for mt in section.measure_templates.order_by('order')]
             out.append(sd)
         return out
+
+    def save(self, *args, **kwargs):
+        from .permissions import framework_admin_role
+        super().save(*args, **kwargs)
+        framework_admin_role.create_or_update_instance_group(self)
 
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
@@ -146,7 +157,16 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
 # Monkeypatching MP_Node to make it work with type hints
 MP_Node.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
 
-class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
+class SectionQuerySet(MP_NodeQuerySet['Section']):
+    pass
+
+
+class SectionManager(MP_NodeManager['Section']):
+    def get_queryset(self) -> SectionQuerySet:
+        return SectionQuerySet(Section).order_by('path')
+
+
+class Section(MP_Node['Section', SectionQuerySet], UUIDIdentifiedModel):
     """
     Represents a section within a framework.
 
@@ -164,6 +184,8 @@ class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
     measure_templates: RelatedManager[MeasureTemplate]
 
     public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years"]
+
+    objects: ClassVar[SectionManager] = SectionManager()
 
     class Meta:
         constraints = [
@@ -416,7 +438,7 @@ class MeasureDataPoint(models.Model):
 
     public_fields: ClassVar = ['id', 'year', 'value']
 
-    class Meta:
+    class Meta(TypedModelMeta):
         ordering = ["measure", "year"]
         constraints = [
             models.UniqueConstraint(fields=['measure', 'year'], name='unique_measure_year_datapoints')

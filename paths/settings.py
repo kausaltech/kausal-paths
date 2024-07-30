@@ -16,9 +16,12 @@ from importlib.util import find_spec
 from threading import ExceptHookArgs
 from typing import Any, Literal
 
+from django.urls import reverse
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
 from django.utils.translation import gettext_lazy as _
+
+from kausal_common.sentry.init import init_sentry
 
 
 PROJECT_NAME = 'paths'
@@ -60,7 +63,9 @@ env = environ.FileAwareEnv(
     MEDIA_FILES_S3_CUSTOM_DOMAIN=(str, ''),
     WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech'),
     GITHUB_APP_ID=(str, ''),
-    GITHUB_APP_PRIVATE_KEY=(str, '')
+    GITHUB_APP_PRIVATE_KEY=(str, ''),
+    NZCPORTAL_CLIENT_ID=(str, ''),
+    NZCPORTAL_CLIENT_SECRET=(str, ''),
 )
 
 BASE_DIR = root()
@@ -216,11 +221,14 @@ SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 
 AUTHENTICATION_BACKENDS = (
     'admin_site.auth_backends.AzureADAuth',
+    'admin_site.auth_backends.NZCPortalOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
 
 SOCIAL_AUTH_AZURE_AD_KEY = env.str('AZURE_AD_CLIENT_ID')
 SOCIAL_AUTH_AZURE_AD_SECRET = env.str('AZURE_AD_CLIENT_SECRET')
+SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
+SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 
 SOCIAL_AUTH_PIPELINE = (
     'admin_site.auth_pipeline.log_login_attempt',
@@ -618,34 +626,14 @@ if env('CONFIGURE_LOGGING'):
     }
 
 
+
 if SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.integrations.logging import ignore_logger
-
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        send_default_pii=True,
-        traces_sample_rate=0.1,
-        profiles_sample_rate=0.1 if ENABLE_PERF_TRACING else 0.0,
-        # instrumenter='otel',
-        integrations=[DjangoIntegration()],
-        environment=os.getenv('SENTRY_ENVIRONMENT', None) or DEPLOYMENT_TYPE,
-        server_name=os.getenv('NODE_NAME', None),
-    )
-    ignore_logger('uwsgi-req')
-
+    init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE, enable_perf_tracing=ENABLE_PERF_TRACING)
 
 DATABASES['default']['CONN_MAX_AGE'] = env('DATABASE_CONN_MAX_AGE')
-
 CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
+
 CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
 CORS_ALLOW_HEADERS.append(WILDCARD_DOMAINS_HEADER)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
-
-try:
-    import django_stubs_ext
-    django_stubs_ext.monkeypatch()
-except ImportError:
-    pass

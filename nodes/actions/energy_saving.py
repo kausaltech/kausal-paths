@@ -5,8 +5,8 @@ import numpy as np
 import pint_pandas
 import polars as pl
 
-from numba import njit, int32, types as nbt
-import numba as nb
+#from numba import njit, int32, types as nbt
+#import numba as nb
 from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
@@ -19,7 +19,7 @@ from common import polars as ppl
 
 from .action import ActionNode
 
-
+"""
 @njit(cache=True)
 def simulate_led_retrofit(
     nr_trad: int, nr_led: int, nr_changed_per_year: int, nr_yearly_increase: int, nr_years: int
@@ -38,7 +38,7 @@ def simulate_led_retrofit(
         trad[year] = nr_trad
         led[year] = nr_led
     return nr_new_led, trad, led
-
+"""
 
 class LEDRetrofitAction(ActionNode):
     output_metrics = {
@@ -145,13 +145,15 @@ class LEDRetrofitAction(ActionNode):
         #  - new LED luminaires installed (retrofits + yearly increase)
         #  - traditional luminaires left
         #  - LED luminaires
+        """
         nr_new_led, trad, led = simulate_led_retrofit(
             nr_trad=nr_trad,
             nr_led=nr_led,
             nr_changed_per_year=yearly_baseline_change + yearly_change,
             nr_yearly_increase=self.get_parameter_value('yearly_demand_increase'),
             nr_years=model_end_year - last_hist_year,
-        )
+        )"""
+        nr_new_led = trad = led = 0
         df.loc[df.index > last_hist_year, 'NrTraditional'] = trad
         df.loc[df.index > last_hist_year, 'NrLED'] = led
         df.loc[df.index > last_hist_year, 'NrNewLED'] = nr_new_led
@@ -212,6 +214,7 @@ class BuildingEnergyRet(typing.NamedTuple):
     el_saving: np.ndarray
 
 
+"""
 def named_tuple_to_nb(cls: typing.Type[typing.NamedTuple]):
     nb_types = [nb.typeof(x()) for x in typing.get_type_hints(cls).values()]
     nb_param = nbt.NamedTuple(nb_types, cls)
@@ -260,7 +263,7 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
         year=years, forecast=forecast, total_renovated=total_renovated, cost=cost,
         he_saving=he_saving, el_saving=el_saving
     )
-
+"""
 
 class BuildingEnergySavingAction(ActionNode):
     """
@@ -364,8 +367,16 @@ class BuildingEnergySavingAction(ActionNode):
             all_in_investment=all_in_investment,
         )
 
-        ret = simulate_building_energy_saving(params)
-
+        # ret = simulate_building_energy_saving(params)
+        zero_arr = [0] * params.nr_years
+        ret = BuildingEnergyRet(
+            year=list(range(current_year, model_end_year)),
+            forecast=[1] * params.nr_years,
+            total_renovated=zero_arr,
+            cost=zero_arr,
+            he_saving=zero_arr,
+            el_saving=zero_arr
+        )
         cols = {
             VALUE_COLUMN: pint_pandas.PintArray(ret.total_renovated * 100, '%'),
             'RenovCost': pint_pandas.PintArray(ret.cost, cost_pt),
@@ -563,7 +574,7 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
             is_customizable=False
         )
     ]
-    
+
     def compute_effect(self) -> pd.DataFrame:
 
         df = self.get_input_dataset_pl(tag='floor', required=True)

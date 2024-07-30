@@ -26,6 +26,7 @@ from wagtail import urls as wagtail_urls
 from wagtail.documents import urls as wagtaildocs_urls
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from social_django import urls as social_urls
+from strawberry.django.views import GraphQLView
 
 from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
@@ -35,6 +36,7 @@ from nodes.api import all_routers as nodes_routers
 from frameworks.urls import urlpatterns as framework_urls
 from kausal_common.deployment.views import health_view
 from users.views import change_admin_instance
+from .v2_schema import schema as v2_schema
 
 
 
@@ -74,10 +76,15 @@ urlpatterns = [
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    path('sso/', include(social_urls, namespace='social')),
-    path('healthz/', csrf_exempt(health_view)),
+    path('v2/graphql/', csrf_exempt(GraphQLView.as_view(schema=v2_schema)), name='graphql_v2'),
+    path('auth/', include(social_urls, namespace='social')),
+    path('healthz/', csrf_exempt(health_view), name='healthcheck'),
     path('', include(framework_urls)),
 ]
+
+if settings.DEBUG:
+    from kausal_common.debugging.memory import memory_trace
+    urlpatterns.append(path('healthz/memory/', csrf_exempt(memory_trace)))
 
 if kpe_urls is not None:
     urlpatterns.append(path('', include(kpe_urls)))
@@ -85,5 +92,5 @@ if kpe_urls is not None:
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 if settings.DEBUG and settings.STATIC_URL == '/static/':
     urlpatterns += [
-        path('static/<path:path>', serve_static)
+        path('static/<path:path>', serve_static, {'document_root': settings.STATIC_ROOT})
     ]

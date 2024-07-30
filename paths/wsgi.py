@@ -9,32 +9,13 @@ https://docs.djangoproject.com/en/3.1/howto/deployment/wsgi/
 
 import os
 from datetime import datetime, UTC
-from loguru import logger
+from types import MethodType
+from kausal_common.deployment import run_deployment_checks
 from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
 django_application = get_wsgi_application()
-
-
-def run_deployment_checks():
-    from django.core import checks  # noqa
-
-    msgs: list[checks.CheckMessage] = checks.run_checks(include_deployment_checks=True)
-    LEVEL_MAP = {
-        checks.DEBUG: 'DEBUG',
-        checks.INFO: 'INFO',
-        checks.WARNING: 'WARNING',
-        checks.ERROR: 'ERROR',
-        checks.CRITICAL: 'CRITICAL',
-    }
-
-    for msg in msgs:
-        msg.hint = None
-        logger.log(LEVEL_MAP.get(msg.level, 'WARNING'), str(msg))
-
-
-
 
 # We execute all the checks when running under uWSGI, so that we:
 #   - load more of the code to save memory after uWSGI forks workers
@@ -62,6 +43,36 @@ def set_log_vars(resp):
         elif status >= 500:
             level = 'ERROR'
     uwsgi.set_logvar('level', level)
+
+import weakref
+
+df_count = 0
+df_map = {}
+
+if False:
+    import polars as pl
+    import weakref
+
+    def print_fin(*args, **kwargs):
+        print('DF fin')
+
+    old_new = pl.DataFrame.__new__
+    def new_df(cls, *args):
+        global df_count
+        print(cls)
+        print(args)
+        ret = old_new(cls)
+        df_count += 1
+        return ret
+
+    def del_df(self):
+        global df_count
+        df_count -= 1
+        print('del, now %d' % df_count)
+
+    pl.DataFrame.__new__ = classmethod(new_df)
+    pl.DataFrame.__del__ = del_df
+
 
 
 def application(env, start_response):

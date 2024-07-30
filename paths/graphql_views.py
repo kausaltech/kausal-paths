@@ -212,7 +212,7 @@ class PathsExecutionContext(ExecutionContext):
             return
 
         with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
-            instance = ic.get_instance()
+            instance = ic.get_instance(node_refs=True)
         self.context_value.instance = instance
         context = instance.context
 
@@ -320,6 +320,11 @@ class PathsGraphQLView(GraphQLView):
             self.log_reg('DEBUG', operation_name, 'request not cached: [red]{}[/]', reason, depth=1)
         if not query:
             return None
+
+        if os.getenv('DISABLE_GRAPHQL_CACHE', '') == '1':
+            log_reason("graphql cache disabled globally")
+            return None
+
         if request.user.is_authenticated:
             log_reason('user authenticated')
             return None

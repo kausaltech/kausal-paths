@@ -49,6 +49,10 @@ FIXED_COLUMNS = [
 
 
 def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str], actions: list[ActionNode]):
+    logger.info('Outputting node %s' % node.id)
+    if len(node.output_metrics) > 1:
+        logger.warning('Skipping multimetric node %s' % node.id)
+        return
     df = node.get_output_pl()
     if df.dim_ids:
         df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])

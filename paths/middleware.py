@@ -86,7 +86,6 @@ class AdminMiddleware:
         self.activate_language(ic, user)
         set_admin_instance(ic, request=request)
 
-        assert ic.site is not None
         request._wagtail_site = ic.site
 
         # If it's an admin method that changes something, invalidate GraphQL cache.

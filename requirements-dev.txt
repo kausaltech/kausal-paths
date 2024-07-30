@@ -21,6 +21,8 @@ filelock==3.15.4
     # via
     #   -c requirements.txt
     #   virtualenv
+guppy3==3.1.4.post1
+    # via -r requirements-dev.in
 identify==2.6.0
     # via pre-commit
 ipdb==0.13.13
@@ -48,7 +50,7 @@ pexpect==4.9.0
     # via
     #   -c requirements.txt
     #   ipython
-pip==24.1.2
+pip==24.2
     # via -r requirements-dev.in
 platformdirs==3.11.0
     # via
@@ -56,7 +58,7 @@ platformdirs==3.11.0
     #   virtualenv
 plotext==5.2.8
     # via -r requirements-dev.in
-pre-commit==3.7.1
+pre-commit==3.8.0
     # via -r requirements-dev.in
 prompt-toolkit==3.0.47
     # via
@@ -66,7 +68,7 @@ ptyprocess==0.7.0
     # via
     #   -c requirements.txt
     #   pexpect
-pure-eval==0.2.2
+pure-eval==0.2.3
     # via
     #   -c requirements.txt
     #   stack-data
@@ -92,7 +94,7 @@ traitlets==5.14.3
     #   -c requirements.txt
     #   ipython
     #   matplotlib-inline
-uv==0.2.23
+uv==0.2.30
     # via -r requirements-dev.in
 virtualenv==20.26.3
     # via pre-commit

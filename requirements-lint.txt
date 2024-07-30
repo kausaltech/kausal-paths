@@ -20,11 +20,11 @@ django==5.0.7
     #   -c requirements.txt
     #   django-stubs
     #   django-stubs-ext
-django-stubs==5.0.2
+django-stubs==5.0.4
     # via
     #   -r requirements-lint.in
     #   djangorestframework-stubs
-django-stubs-ext==5.0.2
+django-stubs-ext==5.0.4
     # via
     #   -c requirements.txt
     #   django-stubs
@@ -44,13 +44,13 @@ idna==3.7
     # via
     #   -c requirements.txt
     #   requests
-mypy==1.10.1
+mypy==1.11.0
     # via
     #   -r requirements-lint.in
     #   graphene-stubs
 mypy-extensions==1.0.0
     # via mypy
-numpy==2.0.0
+numpy==2.0.1
     # via
     #   -c requirements.txt
     #   pandas-stubs
@@ -64,13 +64,13 @@ requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.5.1
+ruff==0.5.5
     # via -r requirements-lint.in
 six==1.16.0
     # via
     #   -c requirements.txt
     #   python-dateutil
-sqlparse==0.5.0
+sqlparse==0.5.1
     # via
     #   -c requirements.txt
     #   django
@@ -82,11 +82,11 @@ types-orjson==3.6.2
     # via -r requirements-lint.in
 types-pytz==2024.1.0.20240417
     # via pandas-stubs
-types-pyyaml==6.0.12.20240311
+types-pyyaml==6.0.12.20240724
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.32.0.20240622
+types-requests==2.32.0.20240712
     # via djangorestframework-stubs
 typing-extensions==4.12.2
     # via

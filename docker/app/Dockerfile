@@ -125,10 +125,13 @@ ENV STATIC_ROOT=${STATIC_ROOT}
 ARG MEDIA_ROOT=/srv/media
 ENV MEDIA_ROOT=${MEDIA_ROOT}
 
-RUN mkdir -p ${MEDIA_ROOT} ${STATIC_ROOT}
+ARG DVC_CACHE_DIR=/cache/dvc
+ENV DVC_CACHE_DIR=${DVC_CACHE_DIR}
 
+RUN mkdir -p ${MEDIA_ROOT} ${STATIC_ROOT} ${DVC_CACHE_DIR}
 RUN groupadd -g ${app_user_gid} user && useradd --no-log-init -m -d /home/user -g ${app_user_gid} -u ${app_user_uid} -r user
-RUN chown -R user:user /code /srv/media /srv/static
+RUN chown -R user:user /code /srv/media /srv/static ${DVC_CACHE_DIR}
+
 
 # Switch to the app user
 USER user
@@ -150,6 +153,9 @@ ENV UWSGI_MODULE=paths.wsgi DJANGO_SETTINGS_MODULE=paths.settings
 ARG CADDY_PORT=6000
 ENV CADDY_PORT=${CADDY_PORT}
 ENV LC_CTYPE=C.UTF-8
+
+ENV DVC_NO_ANALYTICS=1
+RUN dvc cache dir --global ${DVC_CACHE_DIR}}
 
 ARG SENTRY_PROJECT=paths-backend
 ARG BUILD_ID

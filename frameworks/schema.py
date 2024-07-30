@@ -157,7 +157,7 @@ class FrameworkConfigType(DjangoNode):
 
     @staticmethod
     def resolve_instance(root: FrameworkConfig, info: GQLInfo):
-        return root.instance_config.get_instance()
+        return root.instance_config.get_instance(node_refs=True)
 
 
 class MeasureDataPointType(DjangoNode):
@@ -456,9 +456,28 @@ class UpdateMeasureDataPoints(graphene.Mutation):
             deleted_data_point_count=deleted_data_points
         )
 
+
+class DeleteMeasureTemplate(graphene.Mutation):
+    class Arguments:
+        measure_template_id = graphene.ID(required=True)
+
+    ok = graphene.Boolean()
+
+    @classmethod
+    def mutate(cls, root, info, measure_template_id: str):
+        if not info.context.user.is_superuser:
+            raise GraphQLError('Only superusers can delete measure templates')
+        if not is_valid_pk_or_uuid(measure_template_id):
+            raise GraphQLError("Invalid measure template id ID", nodes=info.field_nodes)
+        measure_template = MeasureTemplate.objects.get(query_pk_or_uuid(measure_template_id))
+        measure_template.delete()
+        return DeleteMeasureTemplate(ok=True)
+
+
 class Mutations(graphene.ObjectType):
     create_framework_config = CreateFrameworkConfigMutation.Field()
     update_framework_config = UpdateFrameworkConfigMutation.Field()
     delete_framework_config = DeleteFrameworkConfigMutation.Field()
     update_measure_data_point = UpdateMeasureDataPoint.Field()
     update_measure_data_points = UpdateMeasureDataPoints.Field()
+    delete_measure_template = DeleteMeasureTemplate.Field()

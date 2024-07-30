@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generic, Iterable, Type, TypeVar
+from typing import ClassVar, Generic, Iterable, Type, TypeVar, cast
 
 from django.db import models
+from django.db.models import Model, QuerySet
 from django.core.exceptions import FieldDoesNotExist
+from django.forms import BaseModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
 from wagtail.snippets.views.snippets import SnippetViewSet, EditView, CreateView
 from wagtail.admin.panels import Panel
@@ -14,12 +16,13 @@ from paths.admin_context import get_admin_instance
 from paths.types import PathsAdminRequest
 
 
-M = TypeVar('M', bound=models.Model)
+M = TypeVar('M', bound=Model)
+QS = TypeVar('QS', bound=QuerySet)
+MF = TypeVar('MF', bound=BaseModelForm)
 
 
-class PathsEditView(EditView, Generic[M]):
+class PathsEditView(EditView[M, QS, MF]):
     request: PathsAdminRequest
-    model: Type[M]
 
     def get_form_kwargs(self):
         return {
@@ -44,7 +47,7 @@ class PathsChooseViewMixin(Generic[M]):
     model: type[M]
 
     def get_object_list(self):
-        qs = super().get_object_list()  # type: ignore
+        qs: QuerySet[M] = super().get_object_list()  # type: ignore
         try:
             field = self.model._meta.get_field('instance')
         except FieldDoesNotExist:
@@ -72,23 +75,16 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[M]):
         super().__init__(*args, **kwargs)
 
 
-class PathsViewSet(SnippetViewSet, Generic[M]):
-    model: Type[M]
-    request: PathsAdminRequest
+class PathsViewSet[M: Model, QS: QuerySet](SnippetViewSet[M, QS, PathsAdminRequest]):
     add_view_class = PathsCreateView
     edit_view_class = PathsEditView
     add_to_admin_menu = True
     chooser_viewset_class = PathsChooserViewSet
 
-    icon: cached_property[str] | str
-    search_fields: Iterable[str]
-    menu_order: int
-    _edit_handler: cached_property[Panel]
-
-    def get_queryset(self, request: PathsAdminRequest) -> models.QuerySet[M]:
+    def get_queryset(self, request: PathsAdminRequest) -> QS:
         base_qs = super().get_queryset(request)
         if base_qs is None:
-            qs = self.model.objects.get_queryset()  # type: ignore[attr-defined]
+            qs = cast(QS, self.model.objects.get_queryset())
         else:
             qs = base_qs
         #if issubclass(self.model, PlanRelatedModel):
@@ -99,8 +95,9 @@ class PathsViewSet(SnippetViewSet, Generic[M]):
         return super().get_edit_handler()
 
     def get_form_class(self, for_update: bool = False):
-        if not self._edit_handler.base_form_class:
-            self._edit_handler.base_form_class = PathsAdminModelForm
+        if self._edit_handler:
+            if not self._edit_handler.base_form_class:
+                self._edit_handler.base_form_class = PathsAdminModelForm
         return super().get_form_class(for_update)
 
     @property

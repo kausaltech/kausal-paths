@@ -33,6 +33,7 @@ env:
   POSTGRES_PASSWORD: abcd
   POSTGRES_USER: app
   POSTGRES_DATABASE: app
+  ELASTICSEARCH_PASSWORD: abcde
 
 jobs:
   test:
@@ -45,19 +46,23 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DATABASE: ${{ env.POSTGRES_DATABASE }}
+      elasticsearch:
+        image: harbor.kausal.tech/library/elasticsearch:8-latest
+        env:
+          ELASTICSEARCH_PASSWORD: ${{ env.ELASTICSEARCH_PASSWORD }}
 
     container:
       image: ${{ inputs.docker_image_repo }}:${{ inputs.docker_image_tag }}
       env:
         DATABASE_URL: postgresql://${{env.POSTGRES_USER}}:${{env.POSTGRES_PASSWORD}}@localhost:5432/${{env.POSTGRES_DATABASE}}
-        # TODO
+        ELASTICSEARCH_URL: http://elastic:${{ env.ELASTICSEARCH_PASSWORD }}@localhost:9200
 
     steps:
       - name: Wait for DB
         run: /scripts/wait-for-it.sh localhost:5432 -t 30
 
-      # - name: Wait for ES
-      #   run: /scripts/wait-for-it.sh localhost:9200 -t 30
+      - name: Wait for ES
+        run: /scripts/wait-for-it.sh localhost:9200 -t 30
 
       - name: Run tests
         run: /scripts/run-tests.sh

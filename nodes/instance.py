@@ -105,6 +105,7 @@ class Instance:
         else:
             if self.default_language not in self.supported_languages:
                 self.supported_languages.append(self.default_language)
+        self.log.info("Instance created")
 
     def set_context(self, context: Context):
         self.context = context
@@ -740,18 +741,20 @@ class InstanceLoader:
             agcs.append(ag)
 
         instance_attrs = [
-            'minimum_historical_year', 'supported_languages', 'theme_identifier',
+            'supported_languages', 'theme_identifier',
         ]
         if fwc is None:
             owner = self.make_trans_string(self.config, 'owner', required=True)
             name = self.make_trans_string(self.config, 'name', required=True)
             max_hist_year = self.config.get('maximum_historical_year')
+            min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
         else:
             owner = self.simple_trans_string(fwc.organization_name)
             name = self.simple_trans_string(fwc.instance_config.get_name())
             max_hist_year = fwc.baseline_year
+            min_hist_year = fwc.baseline_year
             site_url = fwc.get_view_url()
             reference_year = max_hist_year
         self.instance = Instance(
@@ -765,6 +768,7 @@ class InstanceLoader:
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
             maximum_historical_year=max_hist_year,
+            minimum_historical_year=min_hist_year,
             site_url=site_url,
             reference_year=reference_year,
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore

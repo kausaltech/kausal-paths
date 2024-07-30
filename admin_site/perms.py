@@ -5,6 +5,7 @@ from typing import Sequence, TYPE_CHECKING, Tuple
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from wagtail.models import PAGE_PERMISSION_CODENAMES, GroupPagePermission
 
@@ -72,6 +73,7 @@ class Role:
             instance.log.info('Setting new %s permissions' % self.group_name)
             group.permissions.set(new_perms)
 
+    @transaction.atomic()
     def _update_page_perms(self, group: Group, instance: InstanceConfig):
         if instance.site is None:
             return
@@ -94,7 +96,6 @@ class Role:
                 group=group,
                 page=root_page,
                 permission=perm,
-                permission_type=perm.codename,
             ) for perm in new_perms]
             GroupPagePermission.objects.bulk_create(objs)
 

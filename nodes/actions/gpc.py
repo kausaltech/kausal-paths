@@ -503,7 +503,7 @@ class StockReplacementAction(ActionNode):
                 if scheme[cat] < 0:
                     reppool.append([(scheme[cat] * repcount) * -1, cat])
                     stock = self.stock_delta(stock, cat, (scheme[cat] * repcount), 'rep', '.')
-            
+
             for cat in catlist:
                 if scheme[cat] > 0:
                     catcount = scheme[cat] * repcount
@@ -590,7 +590,7 @@ class SCurveAction(DatasetAction2):
             units={VALUE_COLUMN: unit_registry('dimensionless')},
             primary_keys=[YEAR_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
-    
+
         return df
 
     # Extend the value on the selected row (based on year column) to the whole selected column

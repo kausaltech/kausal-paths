@@ -5,7 +5,7 @@ from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.node import NodeMetric, NodeError, Node
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
-from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, MIX_QUANTITY, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
+from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
 from nodes.units import Unit
 from params.param import BoolParameter
 
