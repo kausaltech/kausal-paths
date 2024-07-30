@@ -273,7 +273,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
@@ -286,7 +285,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
     filters:
     - column: Transport mode
       values: [light_trucks, heavy_trucks]
@@ -304,7 +302,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
@@ -318,7 +315,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of bus fleet as fully electric buses (not including hybrids)
 
@@ -430,7 +426,6 @@ nodes:
   unit: Mpkm/a
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
@@ -580,7 +575,6 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Utilisation of trucks in decarbonisation scenario
 
@@ -1717,7 +1711,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Electrification of transport fleet
   input_nodes:
@@ -1739,7 +1732,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Expected procurement schedule for buses
   output_nodes:
@@ -1772,7 +1764,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   group: freight_transport
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
@@ -1790,7 +1781,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Electrification of transport fleet
   input_nodes:

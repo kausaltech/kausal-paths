@@ -30,7 +30,7 @@ nodes:
     from_dimensions:
     - id: fuel_type
       categories: [fossil]
-      exlude: true
+      exclude: true
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -153,7 +153,6 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of total electricity demand produced by fossil/renewables
 
@@ -199,7 +198,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
-  forecast_from: 2023
   params:
     sector: Assumed uptime of wind/solar
 
@@ -752,10 +750,6 @@ nodes:
   output_dimensions: [material]
   input_datasets:  # FIXME
   - id: nzc/defaults
-    filters:
-    - column: Year
-      values: [2018, 2019, 2020]
-      drop_col: false
   params:
     sector: New materials composition due to materials efficiency
 
@@ -768,10 +762,6 @@ nodes:
   output_dimensions: [material]
   input_datasets:  # FIXME
   - id: nzc/defaults
-    filters:
-    - column: Year
-      value: 2023
-      drop_col: false
   params:
     sector: New materials composition due to materials efficiency # FIXME after
 
@@ -945,7 +935,6 @@ nodes:
   output_dimensions: [area_distance]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Population density outside city compared to inside city
 
@@ -956,7 +945,6 @@ nodes:
   unit: t/pcs/a
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
   - id: sector
     value: Annual CO2 capture per tree
@@ -1136,23 +1124,23 @@ actions:
 
 # --------------- Scope 3 ---------------
 
-- id: improve_building_material_composition
-  name: 6.1 Improve building material composition
-  type: linear.DatasetReduceAction
-  quantity: mass
-  unit: t/m**2
-  input_dimensions: [material]
-  output_dimensions: [material]
-  group: scope_3
-  input_nodes:
-  - id: building_material_composition_historical
-    tags: [historical]
-  - id: building_material_composition_goal
-    tags: [goal]
-  output_nodes:
-  - id: building_materials_used_by_material
-    to_dimensions:
-    - id: material
+# - id: improve_building_material_composition
+#   name: 6.1 Improve building material composition
+#   type: linear.DatasetReduceAction
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: [material]
+#   output_dimensions: [material]
+#   group: scope_3
+#   input_nodes:
+#   - id: building_material_composition_historical
+#     tags: [historical]
+#   - id: building_material_composition_goal
+#     tags: [goal]
+#   output_nodes:
+#   - id: building_materials_used_by_material
+#     to_dimensions:
+#     - id: material
 
 # --------------- AFOLU -----------------
 

@@ -36,7 +36,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Total floor area (residental & non-residential)
 
@@ -63,7 +62,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: 'Energy efficiency of new buildings, Share'
     inventory_only: true
@@ -99,7 +97,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
   - id: sector
     value: Demolition rate existing buildings
@@ -176,7 +173,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of building stock renovated each year
 
@@ -280,7 +276,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: energy use intensity
 
@@ -293,7 +288,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Energy efficiency improvements from building renovations
 
@@ -324,7 +318,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Improvement in energy efficiency relative to minimum requirement
 
@@ -361,7 +354,6 @@ nodes:
   output_dimensions: [heating_type, scope]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Heating technologies
 
@@ -375,7 +367,6 @@ nodes:
   output_dimensions: [heating_type, scope]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Heating technologies in 2030
 
@@ -399,7 +390,6 @@ nodes:
   output_dimensions: [energy_carrier, heating_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of heating fuel
 
@@ -412,7 +402,6 @@ nodes:
   output_dimensions: [energy_carrier, heating_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of heating in 2030
 
@@ -435,7 +424,6 @@ nodes:
   output_dimensions: [fuel_type, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of waste used in district heating that is fossil / non-fossil
 
@@ -448,7 +436,6 @@ nodes:
   output_dimensions: [fuel_type, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
 
@@ -566,7 +553,6 @@ nodes:
   output_dimensions: [pollutant, heating_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Emission factors from heat production
 
@@ -615,7 +601,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Building costs - new buildings
 
@@ -642,7 +627,6 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: investment costs in new buildings
 
@@ -655,7 +639,6 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: building renovation investments
 
@@ -689,7 +672,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Average electricity use for lighting & appliances
 
@@ -702,7 +684,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: 3.3 Efficient lighting & appliances
 
@@ -918,7 +899,6 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
     filters:
     - column: Energy carrier
       value: electricity
@@ -958,7 +938,6 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: building renovation investments
 
@@ -1244,7 +1223,6 @@ actions:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of current fossil production replaced by renewables (or nuclear)
 
@@ -1269,7 +1247,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   group: buildings
-  historical_values: [[2018, 0.0], [2022, 0.0]]
+  historical_values: [[2019, 0.0], [2022, 0.0]]
   forecast_values: [[2023, 1.0]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:

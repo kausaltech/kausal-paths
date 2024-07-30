@@ -74,7 +74,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             .alias('MeasureYear')
         )
         jdf = jdf.filter(
-            pl.col('UUID').is_null().and_(pl.col('Year') >= max_measure_year) |
+            pl.col('UUID').is_null().and_((pl.col('Year') == max_measure_year).or_(pl.col('Year') >= 2024)) |
             ~(pl.col('UUID').is_in(uuids_more_than_one).and_(pl.col('Year') != pl.col('MeasureYear')))
         )
 
