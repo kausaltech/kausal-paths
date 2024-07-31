@@ -65,9 +65,8 @@ check_git_submodules() {
                 ;;
             "+")
                 target_commit=$(git ls-tree --object-only HEAD "$submodule_path")
-                $GITSM fetch -q
 
-                if $GITSM merge-base --is-ancestor "$target_commit" "$current_commit"; then
+                if $GITSM merge-base --is-ancestor "$target_commit" "$current_commit" 2> /dev/null; then
                     if [ "$target_commit" = "$current_commit" ]; then
                         print_warning "Submodule has uncommitted changes: $submodule_path"
                     else
