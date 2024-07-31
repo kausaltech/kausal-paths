@@ -15,7 +15,7 @@ nodes:
   input_dimensions: [pollutant, energy_carrier]
   output_dimensions: [pollutant, energy_carrier]
   input_nodes:
-  - id: total_electricity_consumption
+  - id: statistical_electricity_consumption
     to_dimensions:
     - id: energy_carrier
   - id: electricity_production_shares
@@ -44,11 +44,11 @@ nodes:
       flatten: true
     to_dimensions:
     - id: scope
-      categories: [scope1]
+      categories: [scope2]
     - id: ghg
       categories: [co2e]
   params:
-    formula: electricity_production_emission_factor * (total_electricity_consumption + electricity_production_switched)
+    formula: electricity_production_emission_factor * (statistical_electricity_consumption + electricity_production_switched)
 
 - id: new_electricity_production_capacity
   name: New electricity production capacity
