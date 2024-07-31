@@ -166,6 +166,8 @@ class Node:
     is_visible: bool = True
     # if this node should have its own outcome page
     is_outcome: bool = False
+    # optional grouping information for nodes
+    node_group: str | None = None
 
     # output unit (from pint)
     unit: Optional[Unit]
@@ -333,6 +335,7 @@ class Node:
         self, id: str, context: Context, name: I18nString, short_name: I18nString | None = None,
         unit: Unit | None = None, quantity: str | None = None, minimum_year: int | None = None,
         description: I18nString | None = None, color: str | None = None, order: int | None = None,
+        node_group: str | None = None,
         is_visible: bool = True, is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
         allow_nulls: bool = False, input_datasets: List[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
@@ -351,6 +354,7 @@ class Node:
         self.name = name
         self.yaml_fn = yaml_fn
         self.yaml_lc = yaml_lc
+        self.node_group = node_group
         if self.name is None:
             raise NodeError(self, "Node has no name")
         self.short_name = short_name
@@ -719,7 +723,7 @@ class Node:
             mtime_hash = bytes()
 
             for klass in type(self).mro():
-                if klass == object:
+                if klass is object:
                     continue
                 if klass in cache:
                     mod_mtime = cache[klass]
@@ -1002,7 +1006,7 @@ class Node:
                 if tag == 'extend_values':
                     res = extend_last_historical_value_pl(res, self.get_end_year())
                 elif tag == 'inventory_only':
-                    res = res.filter(pl.col(FORECAST_COLUMN) == False)
+                    res = res.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
                 elif tag == 'arithmetic_inverse':
                     res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
                 elif tag == 'geometric_inverse':
@@ -1186,7 +1190,7 @@ class Node:
     def get_downstream_nodes(self, to_node: Node | None = None, max_depth: int | None = None) -> List[Node]:
         res = nx.bfs_successors(self.context.node_graph, self.id, depth_limit=max_depth)
         nodes = []
-        for _, children in res:
+        for __, children in res:
             for node_id in children:
                 nodes.append(self.context.get_node(node_id))
         return nodes
@@ -1305,7 +1309,7 @@ class Node:
         old_ds = self.input_dataset_instances[0]
         try:
             unit = old_ds.get_unit(self.context)
-        except:
+        except Exception:
             # FIXME: Make this more robust
             unit = self.unit  # type: ignore
         self.input_dataset_instances[0] = JSONDataset(

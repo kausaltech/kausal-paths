@@ -1,6 +1,7 @@
 import dataclasses
 import importlib
 import os
+from pathlib import Path
 import re
 import threading
 from dataclasses import asdict, dataclass, field
@@ -105,6 +106,7 @@ class Instance:
         else:
             if self.default_language not in self.supported_languages:
                 self.supported_languages.append(self.default_language)
+        self.log.info("Instance created")
 
     def set_context(self, context: Context):
         self.context = context
@@ -307,6 +309,7 @@ class InstanceLoader:
             short_name=self.make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
+            node_group=config.get('group', None),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
@@ -667,18 +670,26 @@ class InstanceLoader:
             self.context.add_normalization(n_id, n)
 
     @classmethod
-    def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict]):
-        by_id = {d['id']: d for d in confs}
-        for fwn in fw_confs:
-            n = by_id.get(fwn['id'])
-            if n is None:  # NOTE! The checking of double node ids does not work if the id is once in nodes and once in emission_sectors
-                confs.append(fwn)
-            else:
-                continue
-                # Merge the configs with the node config overriding framework config
-                for key, val in fwn.items():
-                    if key not in n:
-                        n[key] = val
+    def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict], entity_type: str):
+        cls.merge_config(confs, fw_confs, allow_override=False, entity_type=entity_type)
+
+    @classmethod
+    def merge_include_config(cls, existing: list[dict], newconf: list[dict], entity_type: str, apply_group: str | None):
+        cls.merge_config(existing, newconf, allow_override=False, entity_type=entity_type, apply_group=apply_group)
+
+    @classmethod
+    def merge_config(cls, existing: list[dict], newconf: list[dict], allow_override: bool, entity_type: str, apply_group: str | None = None):
+        by_id = {d['id']: d for d in existing}
+        for nc in newconf:
+            c = by_id.get(nc['id'])
+            if c is not None:
+                if not allow_override:
+                    raise Exception(f"{entity_type} '{nc["id"]}' was already defined")
+                else:
+                    continue
+            assert 'group' not in nc
+            nc['group'] = apply_group
+            existing.append(nc)
 
     @classmethod
     def from_yaml(cls, filename: str, fw_config: Optional['FrameworkConfig'] = None):
@@ -694,10 +705,20 @@ class InstanceLoader:
                 if not os.path.exists(framework_fn):
                     raise Exception("Config expects framework but %s does not exist" % framework_fn)
                 fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
-                cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
-                cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
-                cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
+                cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []), 'Node')
+                cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []), 'Emission sector')
+                cls.merge_framework_config(data['actions'], fw_data.get('actions', []), 'Action')
                 # Some nodes, emission sectors and actions must exist in main yaml.
+
+        includes = data.get('include', [])
+        for iconf in includes:
+            apply_group = iconf.get('group', None)
+            ifn = Path(filename).parent / Path(iconf['file'])
+            if not ifn.exists():
+                raise Exception('Include file "%s" not found' % str(ifn))
+            idata = yaml.load(ifn.open('r'))
+            cls.merge_include_config(data['nodes'], idata.get('nodes', []), 'Node', apply_group=apply_group)
+            cls.merge_include_config(data['dimensions'], idata.get('dimensions', []), 'Dimension', apply_group=apply_group)
 
         return cls(data, yaml_file_path=filename, fw_config=fw_config)
 
@@ -740,18 +761,20 @@ class InstanceLoader:
             agcs.append(ag)
 
         instance_attrs = [
-            'minimum_historical_year', 'supported_languages', 'theme_identifier',
+            'supported_languages', 'theme_identifier',
         ]
         if fwc is None:
             owner = self.make_trans_string(self.config, 'owner', required=True)
             name = self.make_trans_string(self.config, 'name', required=True)
             max_hist_year = self.config.get('maximum_historical_year')
+            min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
         else:
             owner = self.simple_trans_string(fwc.organization_name)
             name = self.simple_trans_string(fwc.instance_config.get_name())
             max_hist_year = fwc.baseline_year
+            min_hist_year = fwc.baseline_year
             site_url = fwc.get_view_url()
             reference_year = max_hist_year
         self.instance = Instance(
@@ -765,6 +788,7 @@ class InstanceLoader:
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
             maximum_historical_year=max_hist_year,
+            minimum_historical_year=min_hist_year,
             site_url=site_url,
             reference_year=reference_year,
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
