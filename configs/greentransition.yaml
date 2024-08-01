@@ -1,7 +1,7 @@
 id: greentransition
 default_language: fi
 supported_languages: [en]
-frameworks: [syke]  # In case we want to show full GPC
+# frameworks: [syke]  # In case we want to show full GPC
 site_url: https://greentransition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -580,7 +580,8 @@ nodes:
   unit: Mt/a
   input_nodes: [pulp_industry_emissions, high_price_wood_industry_emissions,
     carbon_capture_and_storage]
-  output_nodes: [agriculture_emissions]
+#  output_nodes: [agriculture_emissions]
+  output_nodes: [net_emissions]
 
 - id: biodiversity_in_forests
   name: Suomen metsien biodiversiteetti
@@ -618,7 +619,8 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: utility
   unit: Ut/a
-  input_nodes: [agriculture_emissions]
+#  input_nodes: [agriculture_emissions]
+  input_nodes: [forest_industry_emissions]
   output_nodes: [forestry_utility]
   params:
   - id: multiplier

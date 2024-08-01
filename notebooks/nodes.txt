@@ -1,0 +1,616 @@
+################### GPC Framework
+
+emission_sectors:
+
+################## Emissions 2nd level
+- id: residential_emissions
+  name: 'I.1 Residential Emissions'
+  part_of: building_emissions
+- id: commercial_emissions
+  name: 'I.2 Commercial & Institutional Emissions'
+  part_of: building_emissions
+- id: manufacturing_emissions
+  name: 'I.3 Manufacturing Emissions'
+  part_of: building_emissions
+- id: energy_emissions
+  name: 'I.4 Energy Emissions'
+  part_of: other_stationary_emissions
+- id: agriculture_emissions
+  name: 'I.5 Ag, Forestry & Fishing Emissions'
+  part_of: other_stationary_emissions
+- id: nonspecified_emissions
+  name: 'I.6 Non-Specified Emissions'
+  part_of: other_stationary_emissions
+- id: fugitive_emissions
+  name: 'I.7 Fugitive Emissions Emissions'
+  part_of: other_stationary_emissions
+- id: onroad_emissions
+  name: 'II.1 On-Road Transport Emissions'
+  part_of: transport_emissions
+- id: railways_emissions
+  name: 'II.2 Railways Emissions'
+  part_of: transport_emissions
+- id: waterborne_emissions
+  name: 'II.3 Waterborne Emissions'
+  part_of: transport_emissions
+- id: aviation_emissions
+  name: 'II.4 Aviation Emissions'
+  part_of: transport_emissions
+- id: offroad_emissions
+  name: 'II.5 Off-Road Transport Emissions'
+  part_of: transport_emissions
+- id: solidwaste_emissions
+  name: 'III.1 Solid Waste Emissions'
+  part_of: waste_emissions
+- id: biowaste_emissions
+  name: 'III.2 Biological Waste Emissions'
+  part_of: waste_emissions
+- id: incineration_emissions
+  name: 'III.3 Incineration Emissions'
+  part_of: waste_emissions
+- id: wastewater_emissions
+  name: 'III.4 Wastewater Emissions'
+  part_of: waste_emissions
+
+nodes:
+
+################### Emissions 1st level
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+- id: building_emissions
+  name: I Building Emissions
+  color: '#ff4f57'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: building_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+- id: other_stationary_emissions
+  name: I Other Stationary Emissions
+  color: '#ff5f67'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: other_stationary_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+- id: transport_emissions
+  name: II Transport Emissions
+  color: '#0047b6'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: transport_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+- id: waste_emissions
+  name: III Waste Emissions
+  color: '#014B30'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes:
+  - id: net_emissions
+  - id: waste_emission_costs
+    to_dimensions:
+    - id: account
+      categories: [payments]
+
+################## Emissions 3rd level
+- id: residential_fuel
+  name: 'I.1.1 Residential: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_activity, building_emission_factor]
+  output_nodes: [residential_emissions]
+- id: residential_grid
+  name: 'I.1.2 Residential: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_activity, building_emission_factor]
+  output_nodes: [residential_emissions]
+- id: commercial_fuel
+  name: 'I.2.1 Commercial & Institutional: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_activity, building_emission_factor]
+  output_nodes: [commercial_emissions]
+- id: commercial_grid
+  name: 'I.2.2 Commercial & Institutional: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_activity, building_emission_factor]
+  output_nodes: [commercial_emissions]
+- id: manufacturing_fuel
+  name: 'I.3.1 Manufacturing: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_activity, building_emission_factor]
+  output_nodes: [manufacturing_emissions]
+- id: manufacturing_grid
+  name: 'I.3.2 Manufacturing: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [building_activity, building_emission_factor]
+  output_nodes: [manufacturing_emissions]
+- id: energy_fuel
+  name: 'I.4.1 Energy: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [energy_emissions]
+- id: energy_grid
+  name: 'I.4.2 Energy: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [energy_emissions]
+- id: agriculture_fuel
+  name: 'I.5.1 Ag, Forestry & Fishing: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [agriculture_emissions]
+- id: agriculture_grid
+  name: 'I.5.2 Ag, Forestry & Fishing: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [agriculture_emissions]
+- id: nonspecified_fuel
+  name: 'I.6.1 Non-Specified: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [nonspecified_emissions]
+- id: nonspecified_grid
+  name: 'I.6.2 Non-Specified: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [nonspecified_emissions]
+- id: fugitive_coal
+  name: 'I.7.1 Fugitive Emissions: Coal Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [fugitive_emissions]
+- id: fugitive_oil
+  name: 'I.8.1 Fugitive Emissions: Oil & Natural Gas Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [other_stationary_activity, other_stationary_emission_factor]
+  output_nodes: [fugitive_emissions]
+- id: onroad_fuel
+  name: 'II.1.1 On-Road Transport: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [onroad_emissions]
+- id: onroad_grid
+  name: 'II.1.2 On-Road Transport: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [onroad_emissions]
+- id: railways_fuel
+  name: 'II.2.1 Railways: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [railways_emissions]
+- id: railways_grid
+  name: 'II.2.2 Railways: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [railways_emissions]
+- id: waterborne_fuel
+  name: 'II.3.1 Waterborne: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [waterborne_emissions]
+- id: waterborne_grid
+  name: 'II.3.2 Waterborne: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [waterborne_emissions]
+- id: aviation_fuel
+  name: 'II.4.1 Aviation: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [aviation_emissions]
+- id: aviation_grid
+  name: 'II.4.2 Aviation: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [aviation_emissions]
+- id: offroad_fuel
+  name: 'II.5.1 Off-Road Transport: Fuel Combustion Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [offroad_emissions]
+- id: offroad_grid
+  name: 'II.5.2 Off-Road Transport: Grid Energy Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [transport_activity, transport_emission_factor]
+  output_nodes: [offroad_emissions]
+- id: solidwaste_within
+  name: 'III.1.1 Solid Waste: Disposed Within City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [solidwaste_emissions]
+- id: solidwaste_outside
+  name: 'III.1.2 Solid Waste: Disposed Outside City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [solidwaste_emissions]
+- id: biowaste_within
+  name: 'III.2.1 Biological Waste: Treated Within City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [biowaste_emissions]
+- id: biowaste_outside
+  name: 'III.2.2 Biological Waste: Treated Outside City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [biowaste_emissions]
+- id: incineration_within
+  name: 'III.3.1 Incineration: Treated Within City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [incineration_emissions]
+- id: incineration_outside
+  name: 'III.3.2 Incineration: Treated Outside City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [incineration_emissions]
+- id: wastewater_within
+  name: 'III.4.1 Wastewater: Treated Within City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [wastewater_emissions]
+- id: wastewater_outside
+  name: 'III.4.2 Wastewater: Treated Outside City Emissions'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes: [waste_activity, waste_emission_factor]
+  output_nodes: [wastewater_emissions]
+
+################## Activity nodes
+
+- id: building_activity
+  name: building activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+- id: other_stationary_activity
+  name: other_stationary activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+- id: transport_activity
+  name: transport activity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  historical_values: [[2010, 1]]
+  output_nodes: [total_energy_consumption]
+
+- id: waste_activity
+  name: Waste activity
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: m**3/a
+  historical_values: [[2010, 1]]
+
+- id: total_energy_consumption
+  name: Total energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  is_outcome: true
+
+################## Emission factor nodes
+
+- id: building_emission_factor
+  name: building emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: electricity_emission_factor
+  name: electricity emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: other_stationary_emission_factor
+  name: other_stationary emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: transport_emission_factor
+  name: transport emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  historical_values: [[2010, 1]]
+- id: waste_emission_factor
+  name: waste emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/m**3
+  historical_values: [[2010, 1]]
+
+################## Cost nodes
+
+- id: building_action_costs
+  name: building action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [building_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: building_emission_costs
+  name: building emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [building_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: building_costs
+  name: building costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes:
+  - id: total_economic_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: other_stationary_action_costs
+  name: other_stationary action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [other_stationary_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: other_stationary_emission_costs
+  name: other_stationary emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [other_stationary_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: other_stationary_costs
+  name: other_stationary costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes:
+  - id: total_economic_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: transport_action_costs
+  name: transport action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [transport_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: transport_emission_costs
+  name: transport emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [transport_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: transport_costs
+  name: transport costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes:
+  - id: total_economic_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: waste_action_costs
+  name: waste action costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes: [waste_costs]
+  input_datasets:
+  - id: budget/action_costs
+    forecast_from: 2024
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: waste_emission_costs
+  name: waste emission costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_nodes:
+  - id: price_of_emissions
+    to_dimensions:
+    - id: account
+    - categories: [payments]
+  output_nodes: [waste_costs]
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: waste_costs
+  name: waste costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  output_nodes:
+  - id: total_economic_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+  input_dimensions: [account]
+  output_dimensions: [account]
+- id: price_of_emissions
+  name: Price of emissions
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2010, 100]]
+
+############### Collection nodes
+
+- id: collect_building
+  name: Collect building nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: building_emissions
+  - id: building_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+- id: collect_other_stationary
+  name: Collect other_stationary nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: other_stationary_emissions
+  - id: other_stationary_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+- id: collect_transport
+  name: Collect transport nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: transport_emissions
+  - id: transport_costs
+    from_dimensions:
+    - id: account
+      flatten: true
+- id: collect_waste
+  name: Collect waste nodes
+  description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
+  type: values.AssociationNode
+  quantity: number
+  unit: pcs
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: waste_emissions
+  - id: waste_costs
+    from_dimensions:
+    - id: account
+      flatten: true
