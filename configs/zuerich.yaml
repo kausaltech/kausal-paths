@@ -1781,14 +1781,14 @@ scenarios:
 
 include:
   - file: zuerich/buildings.yaml
-    group: Buildings
+    node_group: Buildings
   - file: zuerich/aviation.yaml
-    group: Aviation
+    node_group: Aviation
   - file: zuerich/waste.yaml
-    group: Waste
+    node_group: Waste
   - file: zuerich/mobility.yaml
-    group: Mobility
+    node_group: Mobility
   - file: zuerich/electricity.yaml
-    group: Electricity
+    node_group: Electricity
   - file: zuerich/energy.yaml
-    group: Energy
+    node_group: Energy
