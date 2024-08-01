@@ -1240,17 +1240,17 @@ actions:
     - id: building_energy_class
       categories: [new_top_performance]
 
-- id: electricity_need_reduction
-  name: 3.3 Electricity need reduction
-  description: The action looks at renovated and newly built buildings and improves their electricity use. The fractions of minor and major improvement come from the user. If the action is not done, no improvements are made.
-  type: simple.CumulativeAdditiveAction
-  quantity: fraction
-  unit: dimensionless
-  group: buildings
-  historical_values: [[2019, 0.0], [2022, 0.0]]
-  forecast_values: [[2023, 1.0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: efficiency_programme_shares_data
-    tags: [non_additive]
-    to_dimensions: []
+# - id: electricity_need_reduction
+#   name: 3.3 Electricity need reduction
+#   description: The action looks at renovated and newly built buildings and improves their electricity use. The fractions of minor and major improvement come from the user. If the action is not done, no improvements are made.
+#   type: simple.CumulativeAdditiveAction
+#   quantity: fraction
+#   unit: dimensionless
+#   group: buildings
+#   historical_values: [[2019, 0.0], [2022, 0.0]]
+#   forecast_values: [[2023, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+#   output_nodes:
+#   - id: efficiency_programme_shares_data
+#     tags: [non_additive]
+#     to_dimensions: []
