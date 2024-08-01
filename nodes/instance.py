@@ -671,7 +671,7 @@ class InstanceLoader:
 
     @classmethod
     def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict], entity_type: str):
-        cls.merge_config(confs, fw_confs, allow_override=False, entity_type=entity_type)
+        cls.merge_config(confs, fw_confs, allow_override=True, entity_type=entity_type)
 
     @classmethod
     def merge_include_config(cls, existing: list[dict], newconf: list[dict], entity_type: str, apply_group: str | None):
