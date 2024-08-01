@@ -309,7 +309,7 @@ class InstanceLoader:
             short_name=self.make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
-            node_group=config.get('group', None),
+            node_group=config.get('node_group', None),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
@@ -687,8 +687,8 @@ class InstanceLoader:
                     raise Exception(f"{entity_type} '{nc["id"]}' was already defined")
                 else:
                     continue
-            assert 'group' not in nc
-            nc['group'] = apply_group
+            assert 'node_group' not in nc
+            nc['node_group'] = apply_group
             existing.append(nc)
 
     @classmethod
@@ -712,7 +712,7 @@ class InstanceLoader:
 
         includes = data.get('include', [])
         for iconf in includes:
-            apply_group = iconf.get('group', None)
+            apply_group = iconf.get('node_group', None)
             ifn = Path(filename).parent / Path(iconf['file'])
             if not ifn.exists():
                 raise Exception('Include file "%s" not found' % str(ifn))

@@ -575,7 +575,6 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  group: freight_transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
