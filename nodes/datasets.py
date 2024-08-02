@@ -7,13 +7,15 @@ import json
 import uuid
 from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, cast, overload
 import orjson
+import re
 
 import pandas as pd
 import polars as pl
+import numpy as np
 import pint_pandas
 from dvc_pandas import Dataset as DVCPandasDataset
 
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, UNCERTAINTY_COLUMN, SAMPLE_SIZE
 from nodes.units import Unit
 from common import polars as ppl
 
@@ -57,6 +59,89 @@ class Dataset:
 
     def get_unit(self, context: Context) -> Unit:
         raise NotImplementedError()
+    
+    def interpret(self, df: pd.DataFrame, col: str, size: int = SAMPLE_SIZE) -> pd.DataFrame:
+        if df[col].dtype != 'object':
+            return df
+        df = ppl.from_pandas(df)
+        meta = df.get_meta()
+        meta.primary_keys += [UNCERTAINTY_COLUMN]
+        df = df.with_columns(pl.lit('A').alias('Temporary'))
+        out = pl.DataFrame()
+
+        for i in range(len(df)):
+            dfb = df.slice(i,1)
+            dist_string = dfb.select(col).row(0)[0]
+            s = self.get_sample(dist_string, size)
+
+            dfs = pl.DataFrame({
+                col: np.insert(s, 0, np.median(s)),
+                UNCERTAINTY_COLUMN: range(size + 1),
+                'Temporary': ['A'] * (size + 1)
+            })
+            dfj = dfb.drop(col).join(dfs, how='inner', on='Temporary')
+            out = pl.concat([out, dfj])
+
+        out = ppl.to_ppdf(out, meta=meta)
+        out = out.drop('Temporary').to_pandas()
+        return out
+
+    def get_sample(self, dist_string: str, size: int) -> np.ndarray:
+        distributions = {
+            'Loguniform': r'([-+]?\d*\.?\d+)\s*-\s*([-+]?\d*\.?\d+)\s*\(log\)',  # low - high (log)
+            'Uniform': r'([-+]?\d*\.?\d+)\s*-\s*([-+]?\d*\.?\d+)',  # low - high
+            'Lognormal_plusminus': r'([-+]?\d*\.?\d+)\s*(?:\+-|±)\s*([-+]?\d*\.?\d+)\s*\(log\)',  # mean +- sd (log)
+            'Normal_plusminus': r'([-+]?\d*\.?\d+)\s*(?:\+-|±)\s*([-+]?\d*\.?\d+)',  # mean + sd
+            'Normal_interval': r'([-+]?\d*\.?\d+)\s*\(([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)\)',  # mean (lower - upper) for 95 % CI
+            'Beta': r'(?i)beta\(([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)\)',  # Beta(a, b)
+            'Poisson': r'(?i)poisson\(([-+]?\d*\.?\d+)\)',  # Poisson(lambda)
+            'Exponential': r'(?i)exponential\(([-+]?\d*\.?\d+)\)',  # Exponential(mean)
+            'Scalar': r'([-+]?\d*\.?\d+)',  # value
+        }
+        for dist in distributions.keys():
+            match = re.search(distributions[dist], dist_string)
+            if match:
+                if dist=='Loguniform':
+                    low = np.log(float(match.group(1)))
+                    high = np.log(float(match.group(2)))
+                    return np.exp(np.random.uniform(low, high, size))
+                elif dist=='Uniform':
+                    low = float(match.group(1))
+                    high = float(match.group(2))
+                    return np.random.uniform(low, high, size)
+                elif dist=='Lognormal_plusminus':
+                    mean_lognormal = float(match.group(1))
+                    std_lognormal = float(match.group(2))
+                    sigma = np.sqrt(np.log(1 + (std_lognormal ** 2) / (mean_lognormal ** 2)))
+                    mu = np.log(mean_lognormal) - (sigma ** 2) / 2
+                    return np.random.lognormal(mu, sigma, size)
+                elif dist=='Normal_plusminus':
+                    loc = float(match.group(1))
+                    scale = float(match.group(2))
+                    return np.random.normal(loc, scale, size)
+                elif dist=='Normal_interval':
+                    loc = float(match.group(1))
+                    lower = float(match.group(2))
+                    upper = float(match.group(3))
+                    scale = (upper - lower) / 2 / 1.959963984540054
+                    return np.random.normal(loc, scale, size)
+                elif dist=='Beta':
+                    a = float(match.group(1))
+                    b = float(match.group(2))
+                    return np.random.beta(a, b, size)
+                elif dist=='Poisson':
+                    lam = float(match.group(1))
+                    s = np.random.poisson(lam, size)
+                    return [float(v) for v in s]
+                elif dist=='Exponential':
+                    mean = float(match.group(1))
+                    return np.random.exponential(scale=mean, size=size)
+                elif dist=='Scalar':
+                    value = float(match.group(1))
+                    return [value] * size
+            else:
+                continue
+        raise Exception(self, 'String %s is not a proper distribution.' % dist_string)
 
 
 @dataclass
@@ -194,6 +279,8 @@ class DVCDataset(Dataset):
         df = df.select(cols)
         ppl._validate_ppdf(df)
         ret = self._process_output(df, ds_hash, context)
+        # if VALUE_COLUMN in ret.columns:
+        #     ret = self.interpret(ret, VALUE_COLUMN, SAMPLE_SIZE)
         return ret
 
     def get_unit(self, context: Context) -> Unit:
@@ -275,6 +362,7 @@ class FixedDataset(Dataset):
         for col in df.columns:
             if col == FORECAST_COLUMN:
                 continue
+            df = self.interpret(df, col)
             df[col] = df[col].astype(float).astype(pt)
 
         self.df = ppl.from_pandas(df)

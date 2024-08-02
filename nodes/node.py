@@ -31,6 +31,7 @@ from nodes.constants import (
     NODE_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
+    UNCERTAINTY_COLUMN,
     ensure_known_quantity,
     get_quantity_icon,
 )
@@ -307,9 +308,9 @@ class Node:
         dims = class_dims.copy()
 
         for dim_id, dim in dims.items():
-            if not dim.is_internal:
+            if not dim.is_internal and dim_id is not UNCERTAINTY_COLUMN:
                 raise NodeError(self, "Dimensions defined in class can only be internal ones")
-            if dim_id in self.context.dimensions:
+            if dim_id in self.context.dimensions and dim_id is not UNCERTAINTY_COLUMN:
                 raise NodeError(self, "Internal dimension is also a global one")
 
         if arg_dims and class_dim_ids:
@@ -960,8 +961,8 @@ class Node:
             if dt not in (pl.Utf8, pl.Categorical):
                 raise NodeError(self, "Dimension column '%s' is of wrong type (%s)" % (dim_id, dt))
 
-            if dim.is_internal:
-                # Skip validation for internal dimensions
+            if dim.is_internal or dim_id == UNCERTAINTY_COLUMN:
+                # Skip validation for internal dimensions and uncertainty column
                 continue
 
             cats = set(df[dim_id].unique())

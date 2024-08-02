@@ -154,6 +154,13 @@ params:
   unit: vkm/a/pcs
 
 dimensions:
+
+- id: iteration
+  label: Iteration
+  categories:
+  - id: '0'
+    label: '0'
+
 - id: building_heat_source
   label: Lämmitystapa
   label_en: Heating method
@@ -387,6 +394,24 @@ nodes:
   params:
   - id: region
     value: Suomi
+
+- id: test
+  name: Test
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [iteration]
+  historical_values: [[2010, '0 (-1.96, 1.96)'], [2023, '100']]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: test2
+  name: Test2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_nodes: [test]
 
 # ------------------ Etelä-Suomen biodiversiteetti --------------
 
