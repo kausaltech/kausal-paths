@@ -1,0 +1,21 @@
+{
+  "recommendations": [
+    "ms-toolsai.jupyter",
+    "samuelcolvin.jinjahtml",
+    "tamasfe.even-better-toml",
+    "github.vscode-github-actions",
+    "eamodio.gitlens",
+    "GraphQL.vscode-graphql-syntax",
+    "VisualStudioExptTeam.vscodeintellicode",
+    "VisualStudioExptTeam.intellicode-api-usage-examples",
+    "ms-python.mypy-type-checker",
+    "ms-python.python",
+    "charliermarsh.ruff",
+    "mike-co.import-sorter",
+    "styled-components.vscode-styled-components",
+    "redhat.vscode-yaml",
+    "johnpapa.vscode-peacock",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint"
+  ]
+}
