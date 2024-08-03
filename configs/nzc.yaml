@@ -9,7 +9,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
-theme_identifier: default
+theme_identifier: eu-netzerocities
 target_year: 2030
 model_end_year: 2045
 minimum_historical_year: 2018
