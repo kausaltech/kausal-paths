@@ -160,6 +160,8 @@ dimensions:
   categories:
   - id: '0'
     label: '0'
+  - id: median
+    label: Median
 
 - id: building_heat_source
   label: Lämmitystapa
@@ -398,20 +400,33 @@ nodes:
 - id: test
   name: Test
   type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
+  quantity: currency
+  unit: EUR/a
   output_dimensions: [iteration]
-  historical_values: [[2010, '0 (-1.96, 1.96)'], [2023, '100']]
+  historical_values: [[2010, '[0, -80]']]
   input_dataset_processors: [LinearInterpolation]
 
 - id: test2
   name: Test2
   type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
+  quantity: currency
+  unit: EUR/a
   input_dimensions: [iteration]
   output_dimensions: [iteration]
-  input_nodes: [test]
+  input_nodes:
+  - id: test
+
+- id: test3
+  name: Test3
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  is_outcome: true
+  input_nodes:
+  - id: test2
+    tags: absolute
 
 # ------------------ Etelä-Suomen biodiversiteetti --------------
 
@@ -1532,6 +1547,18 @@ pages:
     be promoted.
 
 actions:
+
+- id: test_action
+  name: Test action
+  type: simple.AdditiveAction
+  quantity: currency
+  unit: EUR/a
+  historical_values: [[2010, '[0]'], [2023, '[0]']]
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2024, '[100]'], [2035, '[100]']]
+  output_dimensions: [iteration]
+  output_nodes: 
+  - id: test2
 
 # ------------ Finnish environmental policy --------------
 

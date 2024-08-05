@@ -20,7 +20,7 @@ from .actions.shift import ShiftAction
 from .constants import (
     BASELINE_VALUE_COLUMN, FLOW_ID_COLUMN, FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE,
     FLOW_ROLE_TARGET, FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES,
-    VALUE_COLUMN, YEAR_COLUMN,
+    VALUE_COLUMN, YEAR_COLUMN, UNCERTAINTY_COLUMN
 )
 from .exceptions import NodeError
 from .goals import NodeGoalsEntry
@@ -352,6 +352,10 @@ class DimensionalMetric:
                 df = df.paths.join_over_index(ddf)
                 df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
                 df.drop(VALUE_COLUMN + '_right')
+
+        # For now, slice for the median value if probabilistic.
+        if UNCERTAINTY_COLUMN in df.columns:
+            df = df.filter(pl.col(UNCERTAINTY_COLUMN).eq('median'))
 
         if node.context.active_normalization:
             normalizer, df = node.context.active_normalization.normalize_output(m, df)

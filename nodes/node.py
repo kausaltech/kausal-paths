@@ -1012,6 +1012,8 @@ class Node:
                     res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
                 elif tag == 'geometric_inverse':
                     res = res.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+                elif tag == 'absolute':
+                    res = res.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
                 elif tag == 'complement':
                     if not res.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
                         raise NodeError(self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id)
