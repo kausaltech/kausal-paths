@@ -234,22 +234,22 @@ class ActionNode(Node):
             meta = cost_df.get_meta()
             df = cost_df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
             last_forecast_year = df.filter(pl.col(FORECAST_COLUMN).eq(True)).select(YEAR_COLUMN).max()
-            df = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum('Cost'))
-            df = df.with_columns([
+            dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum('Cost'))
+            dfp = dfp.with_columns([
                 pl.when(pl.col('Cost') > 0.0).then(pl.col('Cost'))
                 .otherwise(pl.lit(0.0)).alias('under_knowledge')
             ])
 
-            df = df.select(pl.all().mean())
-            df = pl.concat([df, last_forecast_year], how='horizontal')
-            df = df.with_columns([
+            dfp = dfp.select(pl.all().mean())
+            dfp = pl.concat([dfp, last_forecast_year], how='horizontal')
+            dfp = dfp.with_columns([
                 (pl.col('under_knowledge') - pl.col('Cost')).alias('Cost'),
                 pl.lit(True).alias(FORECAST_COLUMN),
                 pl.lit(0.0).alias('Impact')  # Impact is not used with value of information
             ])
-            df = df.select([YEAR_COLUMN, FORECAST_COLUMN, 'Cost', 'Impact'])
+            dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, 'Cost', 'Impact'])
             meta.units['Impact'] = meta.units['Cost']
-            df = ppl.to_ppdf(df=df, meta=meta)
+            df = ppl.to_ppdf(df=dfp, meta=meta)
 
         else:
 

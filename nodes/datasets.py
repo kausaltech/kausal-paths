@@ -355,17 +355,17 @@ class FixedDataset(Dataset):
             fdf = None
 
         if hdf is not None and fdf is not None:
-            df = pd.concat([hdf, fdf])
+            dfp = pd.concat([hdf, fdf])
         elif hdf is not None:
-            df = hdf
+            dfp = hdf
         else:
-            df = fdf
+            dfp = fdf
 
-        assert df is not None
-        df = df.set_index(YEAR_COLUMN)
+        assert dfp is not None
+        dfp = dfp.set_index(YEAR_COLUMN)
 
         # Ensure value column has right units
-        df = ppl.from_pandas(df)
+        df = ppl.from_pandas(dfp)
         for col in df.columns:
             if col == FORECAST_COLUMN or col in df.primary_keys:
                 continue
