@@ -342,8 +342,9 @@ class FixedDataset(Dataset):
         if self.historical:
             hdf = pd.DataFrame(self.historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
             hdf[FORECAST_COLUMN] = False
+            hdfi = True
         else:
-            hdf = None
+            hdfi = False
 
         if self.forecast:
             if isinstance(self.forecast[0], dict):
@@ -351,12 +352,13 @@ class FixedDataset(Dataset):
             else:
                 fdf = pd.DataFrame(self.forecast, columns=[YEAR_COLUMN, VALUE_COLUMN])
             fdf[FORECAST_COLUMN] = True
+            fdfi = True
         else:
-            fdf = None
+            fdfi = False
 
-        if hdf is not None and fdf is not None:
+        if hdfi and fdfi:
             dfp = pd.concat([hdf, fdf])
-        elif hdf is not None:
+        elif hdfi:
             dfp = hdf
         else:
             dfp = fdf
