@@ -465,13 +465,15 @@ class DimensionalMetric:
             return ':'.join([action.id, *args])
         df = action_efficiency.df
         if col=='Cost':
-            dimensions = root.cost_node.output_dimensions.items()
+            dimensions = root.cost_node.output_dimensions
         elif col=='Impact':
-            dimensions = root.impact_node.output_dimensions.items()
+            dimensions = root.impact_node.output_dimensions
 
         dims: list[MetricDimension] = []
 
-        for dim_id, dim in dimensions:
+        for dim_id, dim in dimensions.items():
+            if dim_id == 'iteration':
+                continue
             df_cats = set(df[dim_id].unique())
             ordered_cats = []
             for cat in dim.categories:

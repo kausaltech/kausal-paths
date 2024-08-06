@@ -49,7 +49,7 @@ action_groups:
 
 
 action_efficiency_pairs:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: discounted_net_cost
   impact_node: net_emissions
   invert_cost: false

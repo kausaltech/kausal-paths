@@ -19,7 +19,7 @@ emission_dimensions: ['scope', 'ghg']
 features:
   baseline_visible_in_graphs: true
 action_efficiency_pairs:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: discounted_net_costs
   impact_node: total_emissions
   invert_cost: false
@@ -28,7 +28,7 @@ action_efficiency_pairs:
   cost_unit: MEUR
   impact_unit: kt
   label: Cost effectiveness
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: discounted_investment_costs
   impact_node: discounted_net_costs
   invert_cost: false

@@ -285,7 +285,7 @@ class DVCDataset(Dataset):
         ppl._validate_ppdf(df)
         ret = self._process_output(df, ds_hash, context)
         for col in df.columns:
-            if col == FORECAST_COLUMN or col in df.primary_keys:
+            if col in [FORECAST_COLUMN, 'Unit', 'UUID'] + df.primary_keys:
                 continue
             ret = self.interpret(ret, col, SAMPLE_SIZE)
         return ret

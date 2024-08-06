@@ -55,7 +55,7 @@ action_groups:
   color: '#50c878'
 
 action_efficiency_pairs:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: total_discounted_economic_costs
   impact_node: net_emissions
   invert_cost: true
@@ -64,7 +64,7 @@ action_efficiency_pairs:
   cost_unit: MEUR
   impact_unit: t
   label: Cost effectiveness
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: total_discounted_action_costs
   impact_node: total_discounted_economic_costs
   invert_cost: false
