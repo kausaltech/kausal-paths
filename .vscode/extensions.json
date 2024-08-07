@@ -11,11 +11,7 @@
     "ms-python.mypy-type-checker",
     "ms-python.python",
     "charliermarsh.ruff",
-    "mike-co.import-sorter",
-    "styled-components.vscode-styled-components",
     "redhat.vscode-yaml",
     "johnpapa.vscode-peacock",
-    "esbenp.prettier-vscode",
-    "dbaeumer.vscode-eslint"
   ]
 }
