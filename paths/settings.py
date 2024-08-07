@@ -14,11 +14,13 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 from importlib.util import find_spec
 from threading import ExceptHookArgs
-from typing import Any, Literal
+from typing import Any
 
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
 from django.utils.translation import gettext_lazy as _
+
+from kausal_common.sentry.init import init_sentry
 
 
 PROJECT_NAME = 'paths'
@@ -270,6 +272,8 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
     'baggage',
+    'tracecontext',
+    'tracestate',
     INSTANCE_IDENTIFIER_HEADER,
     INSTANCE_HOSTNAME_HEADER,
     WILDCARD_DOMAINS_HEADER
@@ -521,131 +525,19 @@ ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 
 if env('CONFIGURE_LOGGING'):
-    from loguru import logger
-    from kausal_common.logging import loguru_rich_sink, loguru_logfmt_sink
+    from kausal_common.logging.init import init_logging_django
 
     is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False) # type: ignore
-
-    if not DEBUG or is_kube:
-        loguru_handlers = [dict(sink=loguru_logfmt_sink, format="{message}")]
-    else:
-        loguru_handlers = [dict(sink=loguru_rich_sink, format="{message}")]
-    logger.configure(handlers=loguru_handlers)
-
-    def level(level: Literal['DEBUG', 'INFO', 'WARNING'], handler: str | None = None) -> dict[str, list[str] | bool | str]:
-        if not handler:
-            handlers = ['loguru']
-        else:
-            handlers = [handler]
-        return dict(
-            handlers=handlers,
-            propagate=False,
-            level=level,
-        )
-
-    if True:
-        import warnings
-        from wagtail.utils.deprecation import RemovedInWagtail70Warning
-        warnings.filterwarnings(action='ignore', category=RemovedInWagtail70Warning)
-
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
-            },
-            'simple': {
-                'format': '%(levelname)s %(name)s %(asctime)s %(message)s'
-            },
-            'plain': {
-                'format': '%(message)s'
-            },
-        },
-        'handlers': {
-            'null': {
-                'level': 'DEBUG',
-                'class': 'logging.NullHandler',
-            },
-            'console': {
-                'level': 'DEBUG',
-                'class': 'logging.StreamHandler',
-                'formatter': 'simple'
-            },
-            'loguru': {
-                'level': 'DEBUG',
-                'class': 'kausal_common.logging.LoguruLoggingHandler',
-                'formatter': 'plain',
-            },
-            'uwsgi-req': {
-                'level': 'DEBUG',
-                'class': 'kausal_common.logging.UwsgiReqLogHandler',
-            },
-        },
-        'loggers': {
-            'django.db': level('DEBUG' if LOG_SQL_QUERIES else 'INFO'),
-            'django.template': level('WARNING'),
-            'django.utils.autoreload': level('INFO'),
-            'django': level('DEBUG'),
-            'blib2to3': level('INFO'),
-            'generic': level('DEBUG'),
-            'parso': level('WARNING'),
-            'requests': level('WARNING'),
-            'urllib3.connectionpool': level('INFO'),
-            'elasticsearch': level('WARNING'),
-            'PIL': level('INFO'),
-            'faker': level('INFO'),
-            'factory': level('INFO'),
-            'watchfiles': level('INFO'),
-            'watchdog': level('INFO'),
-            'uwsgi-req': level('DEBUG', handler='uwsgi-req'),
-            'git': level('INFO'),
-            'pint': level('INFO'),
-            'matplotlib': level('INFO'),
-            'numba': level('INFO'),
-            'botocore': level('INFO'),
-            'filelock': level('INFO'),
-            'sentry_sdk.errors': level('INFO'),
-            'markdown_it': level('INFO'),
-            'colormath': level('INFO'),
-            'gql': level('WARNING'),
-            'psycopg': level('INFO'),
-            'aiobotocore': level('INFO'),
-            's3fs': level('INFO'),
-            'celery.utils': level('INFO'),
-            '': level('DEBUG'),
-        }
-    }
-
+    init_logging_django('logfmt' if is_kube or not DEBUG else 'rich', log_sql_queries=LOG_SQL_QUERIES)
 
 if SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.integrations.logging import ignore_logger
-
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        send_default_pii=True,
-        traces_sample_rate=0.1,
-        profiles_sample_rate=0.1 if ENABLE_PERF_TRACING else 0.0,
-        # instrumenter='otel',
-        integrations=[DjangoIntegration()],
-        environment=os.getenv('SENTRY_ENVIRONMENT', None) or DEPLOYMENT_TYPE,
-        server_name=os.getenv('NODE_NAME', None),
-    )
-    ignore_logger('uwsgi-req')
-
+    from kausal_common.sentry.init import init_sentry
+    init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE, enable_perf_tracing=ENABLE_PERF_TRACING)
 
 DATABASES['default']['CONN_MAX_AGE'] = env('DATABASE_CONN_MAX_AGE')
-
 CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
+
 CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
 CORS_ALLOW_HEADERS.append(WILDCARD_DOMAINS_HEADER)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
-
-try:
-    import django_stubs_ext
-    django_stubs_ext.monkeypatch()
-except ImportError:
-    pass
