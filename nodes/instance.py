@@ -160,6 +160,7 @@ class InstanceLoader:
     yaml_file_path: Optional[str] = None
     config: CommentedMap | dict
     fw_config: Optional['FrameworkConfig'] = None
+    context: Context
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
