@@ -55,7 +55,7 @@ action_groups:
   name: Luonnostoimenpiteet
   name_en: Draft actions
 
-action_efficiency_pairs:
+impact_overviews:
 - graph_type: cost_efficiency
   cost_node: action_costs
   impact_node: value_profile

@@ -15,7 +15,7 @@ from colormath.color_conversions import convert_color  # type: ignore
 from common import polars as ppl
 from common.i18n import gettext as _
 from .node import Node
-from .actions import ActionNode, ActionEfficiency, ActionEfficiencyPair
+from .actions import ActionNode, ActionImpact, ImpactOverview
 from .actions.shift import ShiftAction
 from .constants import (
     BASELINE_VALUE_COLUMN, FLOW_ID_COLUMN, FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE,
@@ -458,12 +458,12 @@ class DimensionalMetric:
         return dm
 
     @classmethod
-    def from_action_efficiency(cls, action_efficiency: ActionEfficiency,
-                               root: ActionEfficiencyPair, col: str) -> DimensionalMetric:
-        action = action_efficiency.action
+    def from_action_impact(cls, action_impact: ActionImpact,
+                               root: ImpactOverview, col: str) -> DimensionalMetric:
+        action = action_impact.action
         def make_id(*args: str):
             return ':'.join([action.id, *args])
-        df = action_efficiency.df
+        df = action_impact.df
         if col=='Cost':
             dimensions = root.cost_node.output_dimensions
         elif col=='Impact':
@@ -513,7 +513,7 @@ class DimensionalMetric:
         vals: list[float] = jdf[col].fill_null(0).to_list()
         goals: list[MetricDimensionGoal] = []
 
-        dm = dict(  # Normalization or grouping is not possible at the moment.
+        dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
             id=action.id,
             name=str(action.name),
             dimensions=dims,
@@ -522,7 +522,8 @@ class DimensionalMetric:
             unit=df.get_unit(col),
             forecast_from = forecast_from,
             stackable=True,  # Stackability checked already.
-            goals=goals
+            goals=goals,
+            normalized_by=None
         )
         return dm
 

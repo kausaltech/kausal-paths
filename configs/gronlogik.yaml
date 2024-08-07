@@ -45,7 +45,7 @@ action_groups:
   name: Allmän
   color: '#cccccc'
 
-action_efficiency_pairs:
+impact_overviews:
 - graph_type: cost_efficiency
   cost_node: discounted_net_cost
   impact_node: net_energy_consumption

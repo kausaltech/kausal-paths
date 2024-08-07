@@ -65,7 +65,7 @@ parser.add_argument('--update-instance', action='store_true', help='update an ex
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite contents in the database')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
-parser.add_argument('--print-action-efficiencies', action='store_true', help='calculate and print action efficiencies')
+parser.add_argument('--print-action-impacts', action='store_true', help='calculate and print action impacts')
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
@@ -263,10 +263,10 @@ def round_quantity(e: Quantity):
     return e
 
 
-if args.print_action_efficiencies:
-    def print_action_efficiencies():
-        pc = PerfCounter("Action efficiencies")
-        for aep in context.action_efficiency_pairs:
+if args.print_action_impacts:
+    def print_action_impacts():
+        pc = PerfCounter("Action impacts")
+        for aep in context.impact_overviews:
             title = '%s / %s' % (aep.cost_node.id, aep.impact_node.id)
             pc.display('%s starting' % title)
             table = Table(title=title)
@@ -334,13 +334,13 @@ if args.print_action_efficiencies:
         profile.enable()
 
     with context.run():
-        if context.action_efficiency_pairs:
-            print_action_efficiencies()
+        if context.impact_overviews:
+            print_action_impacts()
         else:
             print_impacts()
     if profile is not None:
         profile.disable()
-        profile.dump_stats('action_efficiencies_profile.out')
+        profile.dump_stats('action_impacts_profile.out')
 
 
 if False:

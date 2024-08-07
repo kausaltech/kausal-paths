@@ -58,7 +58,7 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-action_efficiency_pairs:
+impact_overviews:
 
 - graph_type: cost_efficiency
   cost_node: aggregated_discounted_total_cost

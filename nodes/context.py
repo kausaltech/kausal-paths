@@ -26,7 +26,7 @@ from .perf import PerfContext
 from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
-    from .actions.action import ActionEfficiencyPair, ActionNode
+    from .actions.action import ImpactOverview, ActionNode
     from .normalization import Normalization
     from .instance import Instance
     from .node import Dimension, Node
@@ -64,7 +64,7 @@ class Context:
     skip_cache: bool = False
     check_mode: bool = False
     instance: Instance
-    action_efficiency_pairs: list[ActionEfficiencyPair]
+    impact_overviews: list[ImpactOverview]
     setting_storage: Optional[SettingStorage]
     perf_context: PerfContext[Node]
     node_graph: nx.DiGraph
@@ -97,7 +97,7 @@ class Context:
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
         self.active_normalization = None
-        self.action_efficiency_pairs = []
+        self.impact_overviews = []
         self.dimensions = {}
         self.options = {}
         self.normalizations = {}
