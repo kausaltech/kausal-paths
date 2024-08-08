@@ -33,7 +33,7 @@ from admin_site import urls as admin_urls
 from datasets.api import all_routers as datasets_routers
 from nodes.api import all_routers as nodes_routers
 from frameworks.urls import urlpatterns as framework_urls
-from kausal_common.deployment.views import health_view
+from kausal_common.deployment.health_check_view import health_view
 from users.views import change_admin_instance
 
 

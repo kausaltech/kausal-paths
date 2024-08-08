@@ -1276,7 +1276,7 @@ nodes:
     unit: EUR/a/pcs
 
 - id: cost_ev_charging_infra_to_city
-  name: Latausjärjestelmän rakentamisekustannukset kaupungille
+  name: Latausjärjestelmän rakentamisen kustannukset kaupungille
   name_en: Building cost of EV charging infrastructure to the city
   type: simple.FixedMultiplierNode
   quantity: currency
