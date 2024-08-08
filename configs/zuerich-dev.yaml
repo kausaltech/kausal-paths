@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2e2969a03e5f89c2b2e385d474fa28b42392bbae
+  commit: 58ed3f7d2cbede8d1d18bd6b1f9c15931923da0f
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -376,8 +376,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: non_road_machinery_fuel_consumption
-  name_de: Kraftstoffverbrauch Non-Road Maschinen
-  name_en: Fuel consumption of non-road machinery
+  name_de: Kraftstoffverbrauch Baumaschinen und Spezialfahrzeuge
+  name_en: Fuel consumption of building machines and special vehicles
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: kg/a
@@ -388,8 +388,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: non_road_machinery_emission_factors
-  name_de: Treibhausgasfaktoren Non-Road Maschinen
-  name_en: Emission factors of non-road machinery
+  name_de: Treibhausgasfaktoren Baumaschinen und Spezialfahrzeuge
+  name_en: Emission factors of building machines and special vehicles
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/kg
@@ -552,8 +552,8 @@ nodes:
   is_outcome: true
 
 - id: non_road_machinery_emissions_2kw
-  name_de: Treibhausgasemissionen Non-Road Maschinen (2000-Watt)
-  name_en: Non-road machinery emissions (2000-Watt)
+  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge (2000-Watt)
+  name_en: Building machine and special vehicle emissions (2000-Watt)
   short_name_de: Non-Road Maschinen
   short_name_en: Non-road machinery
   type: ch.zuerich.TransportEmissions2kW
@@ -628,8 +628,8 @@ nodes:
       flatten: true
 
 - id: non_road_machinery_end_energy_consumption
-  name_de: Non-road machinery end energy consumption
-  name_en: Non-road machinery end energy consumption
+  name_de: Baumaschinen und Spezialfahrzeuge End Energy Consumption
+  name_en: Building machine and special vehicle end energy consumption
   short_name_de: Non-Road Maschinen
   short_name_en: Non-road machinery
   type: simple.MultiplicativeNode
@@ -1341,8 +1341,8 @@ actions:
     is_customizable: false
 
 - id: electric_non_road_machinery
-  name_en: Non-road machinery electric +50 %
-  name_de: Non-road machinery electric +50 %
+  name_en: Electrification of building machines and special vehicles
+  name_de: Elektrifizierung von Baumaschinen und Spezialfahrzeugen
   group: mobility
   parent: improved_vehicle_fleet
   type: linear.ReduceAction

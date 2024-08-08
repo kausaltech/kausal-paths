@@ -1,7 +1,7 @@
 dimensions:
 - id: non_road_machinery
-  label: Non-Road Maschinen
-  label_en: Non-road machinery
+  label: Baumaschinen und Spezialfahrzeuge
+  label_en: Building machines and special vehicles
   categories:
   - id: building_construction_machinery
     label: Maschinen Hochbau
@@ -120,7 +120,7 @@ dimensions:
     label_en: Liner ship
     id_match: ^liner_ship.*
   - id: private_ship
-    label: Private Bootsverkehr
+    label: Privater Bootsverkehr
     label_en: Private ships
     id_match: ^private_ship.*
   - id: mobility_outside_city
@@ -681,8 +681,8 @@ nodes:
       flatten: true
 
 - id: non_road_machinery_emissions
-  name_de: Treibhausgasemissionen Non-Road Maschinen
-  name_en: Fuel consumption of non-road machinery
+  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge
+  name_en: Fuel consumption of building machines and special vehicles
   short_name_de: Non-Road Maschinen
   short_name_en: Non-road machinery
   type: ch.zuerich.NonroadMachineryEmissions
