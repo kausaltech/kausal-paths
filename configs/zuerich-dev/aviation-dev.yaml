@@ -1,0 +1,70 @@
+nodes:
+- id: aviation_fuel_consumption_per_inhabitant
+  name_de: Aviation fuel consumption per inhabitant
+  name_en: Aviation fuel consumption per inhabitant
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/cap/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/aviation_fuel_consumption
+  input_dataset_processors: [LinearInterpolation]
+  minimum_year: 2010
+
+- id: aviation_fuel_consumption
+  name_de: Aviation fuel consumption
+  name_en: Aviation fuel consumption
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
+  - id: aviation_fuel_consumption_per_inhabitant
+    tags: [non_additive]
+
+- id: aviation_emission_factor
+  name_de: Aviation fuel emission factor
+  name_en: Aviation fuel emission factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [greenhouse_gases, emission_scope]
+  output_dimensions: [greenhouse_gases, emission_scope]
+  input_datasets:
+  - id: zuerich/aviation_emission_factor
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name_de: Treibhausgasemissionen Flugverkehr
+  name_en: Aviation Emissions
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [greenhouse_gases, energy_carrier, emission_scope]
+  output_dimensions: [greenhouse_gases, energy_carrier, emission_scope]
+  unit: t/a
+  input_nodes:
+  - id: aviation_fuel_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: aviation_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: emission_scope
+  output_nodes:
+  - id: transportation_emissions_outside_city
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    - id: energy_carrier
+      flatten: true

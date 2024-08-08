@@ -72,11 +72,13 @@ class DatasetNode(AdditiveNode):
 
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset()
+        if 'UUID' in df.columns:
+            df = df.drop(columns='UUID')
         df = df[df[VALUE_COLUMN].notnull()]
         quans = []
         for quan in df.index.get_level_values('Quantity'):
             quan = self.makeid(quan)
-            if not quan in KNOWN_QUANTITIES:
+            if quan not in KNOWN_QUANTITIES:
                 quan = self.qlookup[quan]
             quans.append(quan)
         df = df[(df.index.get_level_values('Sector') == sector) &
@@ -180,8 +182,11 @@ class DatasetNode(AdditiveNode):
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
-        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
-        df = self.apply_multiplier(df, required=False, units=True)
+
+        if not self.get_parameter_value('inventory_only', required = False):
+            df = extend_last_historical_value_pl(df, end_year = self.get_end_year())
+
+        df = self.apply_multiplier(df, required = False, units = True)
         df = self.add_and_multiply_input_nodes(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
@@ -246,7 +251,7 @@ class CorrectionNode(DatasetNode):  # FIXME Separate correction into another nod
         inventory_only = self.get_parameter_value('inventory_only', required=False)
         if inventory_only is not None:
             if inventory_only:
-                df = df.filter(pl.col(FORECAST_COLUMN) == False)
+                df = df.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
             else:
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 

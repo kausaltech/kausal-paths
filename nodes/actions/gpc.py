@@ -300,7 +300,8 @@ class DatasetActionMFM(ActionNode):
         jdf = jdf.join(fc)
 
         for dim in self.output_dimensions:
-            self.output_dimensions[dim].is_internal = True
+            if '' in jdf.index.get_level_values(dim).unique().to_list():
+                self.output_dimensions[dim].is_internal = True
 
         return(jdf)
 

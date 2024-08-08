@@ -1,0 +1,216 @@
+fragment OutcomeNodeFields on Node {
+  id
+  name
+  color
+  order
+  shortName
+  shortDescription
+  metric(goalId: $goal) {
+    id
+    name
+    unit {
+      short
+      htmlShort
+      htmlLong
+      __typename
+    }
+    forecastValues {
+      year
+      value
+      __typename
+    }
+    baselineForecastValues {
+      year
+      value
+      __typename
+    }
+    historicalValues {
+      year
+      value
+      __typename
+    }
+    __typename
+  }
+  targetYearGoal
+  goals(activeGoal: $goal) {
+    year
+    value
+    __typename
+  }
+  unit {
+    short
+    htmlShort
+    htmlLong
+    __typename
+  }
+  quantity
+  shortDescription
+  inputNodes {
+    id
+    name
+    __typename
+  }
+  outputNodes {
+    id
+    __typename
+  }
+  upstreamActions(onlyRoot: true, decisionLevel: MUNICIPALITY) {
+    id
+    name
+    goal
+    shortName
+    shortDescription
+    parameters {
+      __typename
+      id
+      nodeRelativeId
+      node {
+        id
+        __typename
+      }
+      isCustomized
+      ... on BoolParameterType {
+        boolValue: value
+        boolDefaultValue: defaultValue
+        __typename
+      }
+    }
+    group {
+      id
+      name
+      color
+      __typename
+    }
+    __typename
+  }
+  ...DimensionalNodeMetric
+  __typename
+}
+
+fragment DimensionalNodeMetric on NodeInterface {
+  metricDim {
+    ...DimensionalMetric
+    __typename
+  }
+  __typename
+}
+
+fragment DimensionalMetric on DimensionalMetricType {
+  id
+  name
+  dimensions {
+    id
+    label
+    originalId
+    helpText
+    categories {
+      id
+      originalId
+      label
+      color
+      order
+      group
+      __typename
+    }
+    groups {
+      id
+      originalId
+      label
+      color
+      order
+      __typename
+    }
+    __typename
+  }
+  goals {
+    categories
+    groups
+    values {
+      year
+      value
+      isInterpolated
+      __typename
+    }
+    __typename
+  }
+  unit {
+    htmlShort
+    short
+    __typename
+  }
+  stackable
+  normalizedBy {
+    id
+    name
+    __typename
+  }
+  forecastFrom
+  years
+  values
+  __typename
+}
+
+query GetPage($instanceId: ID!, $path: String!, $goal: ID) @instance(identifier: $instanceId) {
+  activeScenario {
+    id
+    __typename
+  }
+  page(path: $path) {
+    id
+    __typename
+    title
+    ... on OutcomePage {
+      leadTitle
+      leadParagraph
+      outcomeNode {
+        ...OutcomeNodeFields
+        upstreamNodes(sameQuantity: true, sameUnit: true, includeActions: false) {
+          ...OutcomeNodeFields
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+    ... on ActionListPage {
+      actionListLeadTitle: leadTitle
+      actionListLeadParagraph: leadParagraph
+      showOnlyMunicipalActions
+      defaultSortOrder
+      __typename
+    }
+    ... on StaticPage {
+      body {
+        ...StreamFieldFragment
+        __typename
+      }
+      __typename
+    }
+  }
+}
+
+fragment StreamFieldFragment on StreamFieldInterface {
+  id
+  blockType
+  field
+  ... on RichTextBlock {
+    value
+    rawValue
+    __typename
+  }
+  ... on TextBlock {
+    value
+    __typename
+  }
+  ... on CardListBlock {
+    blockType
+    title
+    cards {
+      __typename
+      title
+      shortDescription
+    }
+    __typename
+  }
+  __typename
+}

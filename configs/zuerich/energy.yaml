@@ -1,0 +1,318 @@
+dimensions:
+- id: energy_carrier
+  label: Energieträger
+  label_en: Energy carrier
+  categories:
+  - id: electricity
+    label: Strom
+    label_en: Electricity
+    color: '#0097C5'
+  - id: fuel_oil
+    label: Heizöl EL
+    label_en: Heating oil
+    color: '#B23A01'
+  - id: petrol
+    label: Benzin
+    label_en: Petrol
+    color: '#BF8500'
+  - id: diesel
+    label: Diesel
+    label_en: Diesel
+    color: '#EB5E00'
+  - id: kerosene
+    label: Kerosin
+    label_en: Kerosene
+    color: '#F6A960'
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+    color: '#7EE6E2'
+    order: 1
+  - id: biogas
+    label: Biogas CH
+    label_en: Biogas Domestic
+    color: '#65CC8B'
+    order: 2
+  - id: biogas_import
+    label: Biogas Import
+    label_en: Biogas Import
+    color: '#267342'
+    order: 3
+  - id: district_heat
+    label: Fernwärme
+    label_en: District heating
+    color: '#009655'
+  - id: wood
+    label: Holz
+    label_en: Wood
+    color: '#CBB910'
+  - id: wood_chips
+    label: Holzschnitzel
+    label_en: Wood chips
+    color: '#CBB910'
+  - id: wood_pellets
+    label: Holzpellets
+    label_en: Wood pellets
+    color: '#CBB910'
+  - id: environmental_heat
+    label: Umweltwärme
+    label_en: Environmental heat
+    color: '#91A110'
+  - id: solar_collectors
+    label: Sonnenkollektoren
+    label_en: Solar thermal collectors
+    color: '#F0D800'
+  - id: waste
+    label: Abfälle
+    label_en: Waste
+    color: '#007C78'
+
+nodes:
+- id: gas_network_mix_historical
+  name_de: Anteil erneuerbares Gas (historisch)
+  name_en: Share of renewable gas (historical)
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [activity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas, biogas, biogas_import]
+
+- id: gas_network_mix
+  name_de: Biogasanteil im Gasnetz
+  name_en: Share of biogas in gas grid
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: gas_network_mix_historical
+    tags: [activity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas, biogas, biogas_import]
+
+- id: building_heat_consumption_by_carrier
+  name_de: Wärmebedarf nach Energieträger
+  name_en: Heat demand by energy carrier
+  type: ch.zuerich.BuildingHeatByCarrier
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [heating_system]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: gas_network_mix
+    tags: [biogas_share]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_heat_consumption
+    tags: [consumption]
+  - id: heating_system_efficiency
+    tags: [heat_pump_cop]
+    from_dimensions:
+    - id: heating_system
+      categories: [heat_pumps]
+      flatten: true
+    to_dimensions: []
+
+- id: building_general_electricity_efficiency
+  name_de: Strombedarf Gebäude exkl. Wärmeerzeugung
+  name_en: Non-heating electricity need of buildings
+  type: ch.zuerich.BuildingGeneralElectricityEfficiency
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_heat_consumption_by_carrier
+    tags: [heat_consumption]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_floor_area_historical
+    tags: [floor_area]
+  input_datasets: [zuerich/building_electricity_need]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_general_electricity_consumption
+  name_de: Nichtheizstromverbrauch von Gebäuden
+  name_en: Non-heating electricity consumption of buildings
+  short_name_de: Gebäude Strom
+  short_name_en: Building Electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_general_electricity_efficiency
+  - id: building_floor_area
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+
+- id: heating_system_efficiency
+  name_de: Nutzungsgrade Wärmeerzeugung in Gebäuden
+  name_en: COP of building heating systems
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  output_dimensions: [heating_system]
+  input_datasets: [zuerich/heating_system_efficiency]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: heat_pump_electricity_consumption
+  name_de: Stromverbrauch der Wärmeerzeugung
+  name_en: Heat generation electricity consumption
+  short_name_de: Wärmeerzeugung
+  short_name_en: Heat generation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  output_nodes: [electricity_consumption]
+
+- id: building_end_energy_consumption_historical
+  name_de: Endenergieverbrauch Gebäude (historisch)
+  name_en: Building end energy consumption (historical)
+  type: ch.zuerich.BuildingEnergy
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: other_transport_electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    tags: [transport_electricity]
+  input_datasets:
+  - id: zuerich/building_energy
+    tags: [energy]
+  - id: zuerich/other_building_emission_source_fuel_use
+    tags: [other_fuel_use]
+    filters:
+    - dimension: building_other_emission_sources
+      flatten: true
+    - dimension: energy_carrier
+      categories: [natural_gas]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: district_heat_primary_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme
+  name_en: District heating primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: district_heat_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: district_heat_production_energy_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: renewable_energy
+
+- id: district_heat_production_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme je Energieträger
+  name_en: District heating primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/district_heating_primary_energy_factors
+
+- id: district_heat_production_gas_grid_share
+  type: simple.AdditiveNode
+  name_en: Share of district heat gas consumption from the gas grid
+  name_de: Share of district heat gas consumption from the gas grid
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 0]]
+
+- id: district_heat_production_mix
+  type: ch.zuerich.DistrictHeatProductionMix
+  name_en: District heat production mix
+  name_de: Fernwärmemix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - zuerich/district_heat_production_mix
+  params:
+    use_gas_network: true
+  input_nodes:
+  - id: gas_network_mix
+    tags: [gas_mix]
+  - id: district_heat_production_gas_grid_share
+    tags: [grid_share]
+    to_dimensions: []
+
+- id: district_heat_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Fernwärmeerzeugung
+  name_en: Share of CO2 captured with CCS in district heat production
+  type: simple.AdditiveNode
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: ratio
+
+- id: district_heat_emission_factor
+  name_de: Treibhausgasfaktoren Fernwärme
+  name_en: District heat emission factor
+  unit: g/kWh
+  quantity: emission_factor
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: emission_scope
+  - id: district_heat_production_mix
+    tags: [mix]
+  - id: district_heat_ccs_share
+    to_dimensions: []
+    tags: [ccs]
+  - id: building_energy_consumption_non_grid_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biogas_import]
+    to_dimensions:
+    - id: energy_carrier
+    - id: emission_scope
+    tags: [emission_factor]
+  input_datasets:
+  - zuerich/district_heat_emission_factor
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]

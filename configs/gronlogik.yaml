@@ -3174,11 +3174,10 @@ pages:
   lead_title_en: Grön logik project's emission scenarios
   lead_title: Projekt Grön logiks utsläppsscenarion
   lead_paragraph_fi: Grön logik -projekti tarkastelee rakennusten energiankulutusta
-    ja eri toimien vaikutusta sen kautta ilmastopäästöihin.
-  lead_paragraph_en: Grön logik project examines the energy consumption of buildings
-    and how different actions reduce it and thus climate emissions.
-  lead_paragraph: Grön logik projektet undersöker byggnaders energiförbrukning och
-    hur olika åtgärder minskar det och därmed klimatutsläppen.
+    ja eri toimien vaikutusta sen kautta ilmastopäästöihin. Sivuston ovat kehittäneet yhteistyössä Anthesis ja Kausal Oy. Malli kuvaa mahdollisia energiansäästöä ja ilmastonmuutoksen torjuntaa edistäviä toimia ruotsalaisessa rakennuskannassa.
+  lead_paragraph_en: The Grön logik project examines the energy consumption of buildings and the impact of various measures on climate emissions through it. The site has been developed in collaboration between Anthesis and Kausal Oy. The model describes potential energy-saving and climate change mitigation measures in the Swedish building stock.
+  lead_paragraph: Grön logik-projektet undersöker byggnaders energiförbrukning och hur olika åtgärder påverkar klimatutsläppen genom den. Webbplatsen har utvecklats i samarbete mellan Anthesis och Kausal Oy. Modellen beskriver potentiella energibesparande och klimatförändringsmildrande åtgärder i det svenska byggnadsbeståndet.
+
 - id: about
   name: About calculations
   path: /about

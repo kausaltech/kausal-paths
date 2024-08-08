@@ -51,7 +51,7 @@ if [ "$1" = 'uwsgi' ]; then
 elif [ "$1" = 'celery' ]; then
     CELERY_ARGS=""
     if [ "$2" = "worker" -a "$KUBERNETES_MODE" = "1" ] ; then
-      CELERY_ARGS="--concurrency=1"
+      CELERY_ARGS="--concurrency=2"
     fi
     exec celery -A paths "$2" -l INFO $CELERY_ARGS
 elif [ "$1" = 'runserver' ]; then

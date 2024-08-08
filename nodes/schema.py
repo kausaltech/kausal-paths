@@ -59,9 +59,9 @@ def create_from_dataclass(kls):
     gfields = {}
     for field in fields:
         gf: type[graphene.Scalar]
-        if field.type == bool:
+        if field.type is bool:
             gf = graphene.Boolean
-        elif field.type == int:
+        elif field.type is int:
             gf = graphene.Int
         else:
             raise Exception("Unsupported type: %s" % field.type)
@@ -429,9 +429,9 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_metric_dim(root: Node, info: GraphQLResolveInfo):
-        try: 
+        try:
             ret = DimensionalMetric.from_node(root)
-        except Exception as e:
+        except Exception:
             logging.exception("Exception while resolving metric_dim for node %s" % root.id)
             return None
         return ret

@@ -1,0 +1,679 @@
+dimensions:
+- id: building_other_emission_sources
+  label_de: Übrige Emissionsquellen Gebäude
+  label_en: Other buildings emission sources
+  categories:
+  - id: emergency_power_stations
+    label_de: Notstromanlagen
+    label_en: Emergency power stations
+  - id: process_energy
+    label_de: Prozessenergie
+    label_en: Process energy
+  - id: cogeneration_plants
+    label_de: Blockheizkraftwerke
+    label_en: Co-generation plans (CHP)
+  - id: disperse_wood_heatings
+    label_de: Cheminées
+    label_en: Disperse wood heatings
+
+- id: heating_system
+  label: Heizsystem
+  label_en: Heating system
+  categories:
+  - id: fuel_oil
+    label: Heizöl EL
+    label_en: Heating oil
+    color: '#B23A01'
+  - id: natural_gas
+    label: Erdgas/Biogas
+    label_en: Natural gas or biogas
+    color: '#7EE6E2'
+  - id: district_heat
+    label: Fernwärme
+    label_en: District heating
+    color: '#009655'
+  - id: heat_pumps
+    label: Wärmepumpe
+    label_en: Heat pumps
+    color: '#0097C5'
+  - id: wood
+    label: Holz
+    label_en: Wood
+    color: '#CBB910'
+  - id: solar_collectors
+    label: Sonnenkollektoren
+    label_en: Solar thermal collectors
+    color: '#F0D800'
+
+- id: building_use_extended
+  label_de: Gebäudenutzungsart (erweitert)
+  label_en: Building use (extended)
+  categories:
+  - id: residential
+    label: Wohnen
+    label_en: Residential
+  - id: office
+    label: Büro
+    label_en: Office
+  - id: commercial_services
+    label: Verkauf und Gastgewerbe
+    label_en: Sales and Hospitality
+  - id: production
+    label: Produktion
+    label_en: Production
+  - id: other
+    label: Andere
+    label_en: Other
+
+- id: building_use
+  label_en: Building use
+  label_de: Building use
+  categories:
+  - id: residential
+    label: Wohnen
+    label_en: Residential
+  - id: nonresidential
+    label: Nicht-Wohnen
+    label_en: Non-residential
+
+
+nodes:
+- id: residential_building_area_per_resident
+  type: simple.DivisiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  name_de: Geschossfläche Wohnen pro Einwohner*in
+  name_en: Residential building area per resident
+  input_nodes:
+  - id: building_floor_area_historical
+    from_dimensions:
+    - id: building_use
+      categories: [residential]
+      flatten: true
+  - id: population
+  params:
+    only_historical: true
+    extend_rows: true
+
+- id: residential_building_area
+  name_de: Geschossfläche Wohnen
+  name_en: Building floor area Residential
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: Msqm
+  input_nodes: [residential_building_area_per_resident, population]
+
+- id: nonresidential_building_area_per_job
+  type: simple.DivisiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  name_de: Geschossfläche Nicht-Wohnen pro Vollzeitäquivalent
+  name_en: Non-residential building area per full-time equivalent
+  input_nodes:
+  - id: building_floor_area_historical
+    from_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+      flatten: true
+  - id: number_of_jobs
+  params:
+    only_historical: true
+    extend_rows: true
+
+- id: nonresidential_building_area
+  name_de: Geschossfläche Nicht-Wohnen
+  name_en: Non-residential building floor area
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: Msqm
+  input_nodes: [nonresidential_building_area_per_job, number_of_jobs]
+
+- id: building_floor_area_historical
+  name_de: Geschossfläche (historisch)
+  name_en: Building floor area (historical)
+  type: ch.zuerich.BuildingFloorAreaHistorical
+  quantity: floor_area
+  unit: Msqm
+  input_dimensions: [building_use_extended]
+  output_dimensions: [building_use]
+  input_datasets: [zuerich/building_floor_area]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_floor_area
+  name_de: Geschossfläche
+  name_en: Building floor area
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: residential_building_area
+    to_dimensions:
+    - id: building_use
+      categories: [residential]
+  - id: nonresidential_building_area
+    to_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+
+- id: building_heat_consumption_historical
+  name_de: Wärmebedarf (historisch)
+  name_en: Building heat consumption (historical)
+  type: ch.zuerich.BuildingHeatHistorical
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [consumption]
+  - id: heating_system_efficiency
+    tags: [heat_pump_cop]
+    from_dimensions:
+    - id: heating_system
+      categories: [heat_pumps]
+      flatten: true
+    to_dimensions: []
+
+- id: building_heat_per_area
+  name_de: Spezifischer Wärmebedarf Gebäude pro m2 Geschossfläche
+  name_en: Heat energy demand of buildings per area
+  type: ch.zuerich.BuildingHeatPerArea
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_heat_consumption_historical
+    to_dimensions:
+    - id: heating_system
+    tags: [consumption]
+  - id: building_floor_area
+    tags: [floor_area]
+    to_dimensions:
+    - id: building_use
+
+- id: building_heat_demand
+  name_de: Wärmebedarf Gebäude
+  name_en: Building heat demand
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  output_dimensions: [building_use]
+  input_dimensions: [building_use]
+  input_nodes: [building_floor_area, building_heat_per_area]
+
+- id: building_heat_mix_historical
+  name_de: Wärmemix (historisch)
+  name_en: Building heat mix (historical)
+  type: ch.zuerich.BuildingHeatUseMix
+  unit: '%'
+  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_consumption_historical
+    tags: [consumption]
+
+- id: building_heat_mix
+  name_de: Wärmemix
+  name_en: Building heat mix
+  type: simple.MixNode
+  unit: '%'
+  quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_mix_historical
+    tags: [activity]
+
+- id: building_heat_consumption
+  name_de: Wärmebedarf Gebäude nach Heizungssystem
+  name_en: Building heat use
+  type: simple.MultiplicativeNode
+  unit: GWh/a
+  quantity: energy
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_demand
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions: []
+    tags: [non_additive]
+  - id: building_heat_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_system
+
+- id: building_useful_heat_consumption
+  name_de: Nutzwärmebedarf Gebäude
+  name_en: Building useful heat demand
+  type: ch.zuerich.BuildingUsefulHeat
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_consumption
+    tags: [energy]
+  - id: heating_system_efficiency
+    tags: [cop]
+
+- id: building_other_fuel_gas_grid_share
+  type: simple.AdditiveNode
+  name_en: Share of other building fuel use from the gas grid
+  name_de: Share of other building fuel use from the gas grid
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 0]]
+
+- id: building_other_fuel_use
+  name_en: Other building fuel use
+  name_de: Other building fuel use
+  type: ch.zuerich.GasGridNode
+  unit: GJ/a
+  quantity: fuel_consumption
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier]
+  input_datasets:
+  - zuerich/other_building_emission_source_fuel_use
+  input_nodes:
+  - id: gas_network_mix
+    tags: [gas_mix, non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_other_fuel_gas_grid_share
+    tags: [grid_share, non_additive]
+    to_dimensions: []
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_other_fuel_emission_factor
+  name_en: Other building fuel use emission factor
+  name_de: Other building fuel use emission factor
+  type: simple.AdditiveNode
+  unit: g/kWh
+  quantity: emission_factor
+  input_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
+  output_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
+  input_datasets:
+  - zuerich/other_building_emission_source_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Heizung & Ubrige
+  name_en: Building heat & other primary energy consumption
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  output_nodes:
+  - id: net_primary_energy_demand
+
+- id: building_heating_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Heizung
+  name_en: Building primary energy consumption
+  short_name_de: Gebäude Heizung
+  short_name_en: Building Heat
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: building_primary_energy_consumption
+
+- id: building_general_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Strom
+  name_en: Building electricity primary energy consumption
+  short_name_de: Gebäude Strom
+  short_name_en: Building electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+  - id: building_general_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  output_nodes:
+  - id: net_primary_energy_demand
+
+- id: other_building_primary_energy_consumption
+  name_de: Primärenergiebedarf Gebäude Ubrige
+  name_en: Other building primary energy consumption
+  short_name_de: Gebäude Ubrige
+  short_name_en: Building Other
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: building_other_fuel_use
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_consumption
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+
+- id: building_primary_energy_factor
+  name_de: Primärenergiefaktoren Gebäude
+  name_en: Building primary energy factor
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/buildings_primary_energy_factors
+
+- id: building_electricity_primary_energy_factor
+  name_de: Primärenergiefaktoren Gebäude Strom
+  name_en: Building electricity primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [electricity_source, renewable_energy]
+  output_dimensions: [electricity_source, renewable_energy]
+  input_nodes:
+  - id: electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: electricity_production_energy_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+
+- id: building_emissions_2kw
+  name_de: Treibhausgasemissionen Gebäude Heizung & Ubrige
+  name_en: Building heat & other greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+
+- id: building_other_emissions
+  name_en: Other building emissions
+  name_de: Treibhausgasemissionen Übrige Emissionsquellen (Gebäude)
+  type: formula.FormulaNode
+  short_name_en: Other sources
+  short_name_de: Übrige Emissionsquellen
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [building_other_emission_sources, energy_carrier]
+  output_dimensions: [building_other_emission_sources, energy_carrier]
+  input_nodes:
+  - id: building_other_fuel_use
+  - id: building_other_fuel_emission_factor
+    to_dimensions:
+    - id: building_other_emission_sources
+    - id: energy_carrier
+    - id: greenhouse_gases
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_scope
+      categories: [scope1]
+      flatten: true
+    - dimension: emission_sectors
+      categories: [wood_heatings_disperse]
+      flatten: true
+    - dimension: building_other_emission_sources
+      assign_category: disperse_wood_heatings
+    - dimension: energy_carrier
+      assign_category: wood
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  - id: building_emissions_2kw
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+  params:
+    formula: convert_gwp(building_other_fuel_use * building_other_fuel_emission_factor)
+      + emissions
+
+- id: building_electricity_consumption
+  name_de: Building total electricity consumption
+  name_en: Building total electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: heat_pump_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: building_renewable_electricity_consumption
+  name_de: Renewable component of building electricity consumption
+  name_en: Renewable component of building electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: GWh/a
+  input_nodes:
+  - id: electricity_mix_renewable
+    tags: [non_additive]
+  - id: building_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions: []
+
+- id: building_renewable_district_heat_consumption
+  name_de: Renewable component of district heat energy consumption
+  name_en: Renewable component of district heat energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: district_heat_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat, wood, biogas]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+      flatten: true
+    to_dimensions: []
+
+- id: building_renewable_nonelectric_energy_consumption
+  name_de: Building total renewable non-electric energy consumption
+  name_en: Building total renewable non-electric energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+    from_dimensions:
+    - id: energy_carrier
+      categories: [solar_collectors, environmental_heat, wood, biogas, biogas_import]
+  - id: building_other_fuel_use
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biogas, wood_chips, wood_pellets]
+    - id: building_other_emission_sources
+      flatten: true
+  - id: building_renewable_district_heat_consumption
+
+- id: building_energy_consumption_non_grid_emission_factor
+  name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte (non-grid)
+  name_en: Emission factor of building energy consumption (non-grid)
+  type: ch.zuerich.EmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - zuerich/buildings_energy_consumption_emission_factor_revised
+  output_dimensions: [energy_carrier, emission_scope]
+
+- id: building_energy_consumption_emission_factor
+  name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte
+  name_en: Emission factor of housing and commerce energy consumption
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  output_dimensions: [energy_carrier, emission_scope]
+  input_dimensions: [energy_carrier, emission_scope]
+  input_nodes:
+  - id: building_energy_consumption_non_grid_emission_factor
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: emission_scope
+  - id: district_heat_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: emission_scope
+
+- id: building_heat_emissions
+  name_de: Treibhausgasemissionen Gebäudeheizung
+  name_en: Building heating emissions
+  short_name_de: Heizung
+  short_name_en: Heating
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope, energy_carrier]
+  input_nodes:
+  - id: building_heat_consumption_by_carrier
+  - id: building_energy_consumption_emission_factor
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: building_emissions_2kw
+
+- id: building_general_electricity_emissions
+  name_de: Treibhausgasemissionen allgemeiner Stromverbrauch des Gebäudes
+  name_en: Building general electricity use emissions
+  short_name_de: Gebäude Strom
+  short_name_en: Building Electricity
+  type: ch.zuerich.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  output_dimensions: [emission_scope, energy_carrier]
+  input_nodes:
+  - id: building_general_electricity_consumption
+    from_dimensions:
+    - id: building_use
+      flatten: true
+  - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: emission_scope
+    - id: energy_carrier
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: net_emissions_2kw
+
+- id: building_emissions
+  name_en: Building emissions
+  name_de: Treibhausgasemissionen Gebäude
+  short_name_de: Gebäude
+  short_name_en: Buildings
+  color: '#989898'
+  unit: kt/a
+  quantity: emissions
+  type: simple.SectorEmissions
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+
+- id: building_fgas_emissions
+  name_en: F-gas emissions from buildings
+  name_de: Treibhausgasemissionen F-Gase Gebäude
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [building_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_buildings]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]

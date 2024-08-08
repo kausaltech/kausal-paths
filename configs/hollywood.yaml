@@ -1,12 +1,12 @@
 id: hollywood
 default_language: en
 supported_languages: []
-site_url: https://hollywood-c4c.paths.staging.kausal.tech
+site_url: https://hollywood.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 791d34a61e64f4cbf07a1c40c1efe13aad954a2c
   dvc_remote: kausal-s3
-name: Hollywood BASIC+ Greenhouse Gas Inventory
+name: Hollywood Greenhouse Gas Inventory
 owner_en: City of Hollywood
 theme_identifier: us-fl-hollywood
 target_year: 2021
@@ -990,13 +990,9 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Hollywood Greenhouse Gas Inventory
-  lead_paragraph: GPC BASIC+ greenhouse gas inventory (2019-2021) for the City of Hollywood, Florida.
+  lead_paragraph: Greenhouse gas inventory (2019-2021) for the City of Hollywood, Florida.
 
 scenarios:
 - id: baseline
-  name: Business as Usual
-
-- id: default
+  name: Baseline
   default: true
-  name: Climate Action Plan
-  all_actions_enabled: true

@@ -19,9 +19,7 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
-  color: '#014B30'
-#  color: '#ff4f57'
-#  color: '#0047b6'
+  color: '#E15759'
   input_dimensions: [transport_mode, ghg, scope, energy_carrier]
   output_dimensions: [transport_mode, ghg, scope, energy_carrier]
   input_nodes:
@@ -275,7 +273,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
@@ -288,7 +285,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
     filters:
     - column: Transport mode
       values: [light_trucks, heavy_trucks]
@@ -306,7 +302,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
@@ -320,7 +315,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Share of bus fleet as fully electric buses (not including hybrids)
 
@@ -432,7 +426,6 @@ nodes:
   unit: Mpkm/a
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
@@ -577,12 +570,10 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  group: freight_transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Utilisation of trucks in decarbonisation scenario
 
@@ -709,8 +700,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  color: '#ff4f57'
-#  color: '#0047b6'
+  color: '#F28E2B'
   input_dimensions: [transport_mode, pollutant, energy_carrier]
   output_dimensions: [transport_mode, pollutant, energy_carrier]
   input_nodes:
@@ -1720,7 +1710,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Electrification of transport fleet
   input_nodes:
@@ -1742,7 +1731,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Expected procurement schedule for buses
   output_nodes:
@@ -1775,7 +1763,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   group: freight_transport
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
@@ -1793,7 +1780,6 @@ actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAc
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
   params:
     sector: Electrification of transport fleet
   input_nodes:

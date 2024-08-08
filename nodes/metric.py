@@ -312,7 +312,7 @@ class DimensionalMetric:
             return True
 
         # Add a functionality to show scenario impacts for nodes rather than outputs.
-        tst = node.context.get_parameter_value('show_scenario_impacts', required=True)
+        tst = node.context.get_parameter_value('show_scenario_impacts', required=False)
         baseline = node.context.get_scenario('baseline')
 
         # Use inputs nodes as categories for the dimension "Sectors" in some cases.

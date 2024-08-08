@@ -1,0 +1,1167 @@
+dimensions:
+- id: transport_mode
+  label: Verkehrsmittelwahl
+  label_en: Transport mode
+  categories:
+  - id: cars
+    label: Personenwagen
+    label_en: Cars
+  - id: motorbikes
+    label: Motorräder
+    label_en: Motorbikes
+  - id: buses
+    label: Linienbusse
+    label_en: Local buses
+  - id: trolleybuses
+    label: Trolleybusse
+    label_en: Trolley buses
+  - id: coaches
+    label: Reisebusse
+    label_en: Coaches
+  - id: lorries
+    label: Lastwagen
+    label_en: Lorries
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+  - id: tram
+    label: Tram
+    label_en: Tram
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+  - id: rail_passenger
+    label: Bahn ÖV
+    label_en: Rail (passenger transport)
+  - id: rail_goods
+    label: Bahn Gueterverkehr
+    label_en: Rail (goods transport)
+  - id: liner_ship
+    label: Linienschiffe
+    label_en: Liner ship
+  - id: private_ship
+    label: Private Bootsverkehr
+    label_en: Private ships
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt
+    label_en: Mobility ourside the city
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+  - id: bicycle
+    label: Velo
+    label_en: Cycling
+
+- id: vehicle_type
+  label: Fahrzeugtyp
+  label_en: Vehicle type
+  groups:
+  - id: cars
+    label: Personenwagen
+    label_en: Cars
+    id_match: ^car_.+
+  - id: motorbikes
+    label: Motorräder
+    label_en: Motorbikes
+    id_match: ^motorbike_.+
+  - id: buses
+    label: Linienbusse
+    label_en: Local buses
+    id_match: ^(buses_.+)|(trolley.*)
+  - id: trolleybuses
+    label: Trolleybusse
+    label_en: Trolley buses
+    id_match: ^trolley.*
+  - id: coaches
+    label: Reisebusse
+    label_en: Coaches
+    id_match: ^coach_.+
+  - id: lorries
+    label: Lastwagen
+    label_en: Lorries
+    id_match: ^lorry_.+
+  - id: vans
+    label: Lieferwagen
+    label_en: Vans
+    id_match: ^van_.+
+  - id: tram
+    label: Tram
+    label_en: Tram
+    id_match: ^tram$
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+    id_match: ^small_railways$
+  - id: rail_passenger
+    label: Bahn (Personverkehr)
+    label_en: Rail (passenger transport)
+    id_match: ^rail_passenger.*
+  - id: rail_goods
+    label: Bahn (Gueterverkehr)
+    label_en: Rail (goods transport)
+    id_match: ^rail_goods.*
+  - id: liner_ship
+    label: Linienschiffe
+    label_en: Liner ship
+    id_match: ^liner_ship.*
+  - id: private_ship
+    label: Private Bootsverkehr
+    label_en: Private ships
+    id_match: ^private_ship.*
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt
+    label_en: Mobility ourside the city
+    id_match: ^mobility_outside_city
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+    id_match: ^aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
+    id_match: ^bicycle
+
+  categories:
+  - id: car_petrol
+    label: Personenwagen / Benzin
+    label_en: Passenger cars / Petrol
+  - id: car_diesel
+    label: Personenwagen / Diesel
+    label_en: Passenger cars / Diesel
+  - id: car_natural_gas_biogas
+    label: Personenwagen / Erdgas/Biogas
+    label_en: Passenger cars / Natural gas / biogas
+  - id: car_plugin_hybrid
+    label: Personenwagen / Plug-in Hybrid
+    label_en: Passenger cars / Plug-in hybrid
+  - id: car_batteryelectric
+    label: Personenwagen / Elektrisch
+    label_en: Passenger cars / Battery-Electric
+  - id: car_fuel_cell
+    label: Personenwagen / Brennstoffzelle
+    label_en: Passenger cars / Fuel cell
+  - id: motorbike_petrol_4stroke
+    label: Motorräder / Benzin (4-Takt-Motor)
+    label_en: Motorbikes / Petrol 4-stroke engine
+  - id: motorbike_petrol_2stroke
+    label: Motorräder / Benzin (2-Takt-Motor)
+    label_en: Motorbikes / Petrol 2-stroke engine
+  - id: motorbike_batteryelectric
+    label: Motorräder / Elektrisch
+    label_en: Motorbikes / Battery-Electric
+  - id: buses_diesel
+    label: Linienbusse / Diesel
+    label_en: Regular buses / Diesel
+  - id: buses_diesel_hybrid
+    label: Linienbusse / Diesel Hybrid
+    label_en: Regular buses / Diesel hybrid
+  - id: buses_diesel_plugin_hybrid
+    label: Linienbusse / Diesel Plug- in Hybrid
+    label_en: Regular buses / Diesel plug-in hybrid
+  - id: buses_batteryelectric
+    label: Linienbusse / Elektrisch
+    label_en: Regular buses / Battery-Electric
+  - id: buses_fuel_cell
+    label: Linienbusse / Brennstoffzelle
+    label_en: Regular buses / Fuel cell
+  - id: trolley
+    label: Trolleybusse
+    label_en: Trolley buses
+  - id: coach_diesel
+    label: Reisebusse / Diesel
+    label_en: Coaches / Diesel
+  - id: coach_natural_gas_biogas
+    label: Reisebusse / Erdgas/Biogas
+    label_en: Coaches / Natural gas/Biogas
+  - id: coach_battery_electric
+    label: Reisebusse / Elektrisch
+    label_en: Coaches / Battery-Electric
+  - id: coach_fuel_cell
+    label: Reisebusse / Brennstoffzelle
+    label_en: Coaches / Fuel cell
+  - id: lorry_diesel
+    label: Lastwagen / Diesel
+    label_en: Lorries / Diesel
+  - id: lorry_natural_gas_biogas
+    label: Lastwagen / Erdgas/Biogas
+    label_en: Lorries / Natural gas/Biogas
+  - id: lorry_diesel_plugin_hybrid
+    label: Lastwagen / Diesel Plug-in Hybrid
+    label_en: Lorries / Diesel plug-in hybrid
+  - id: lorry_battery_electric
+    label: Lastwagen / Elektrisch
+    label_en: Lorries / Battery-Electric
+  - id: lorry_fuel_cell
+    label: Lastwagen / Brennstoffzelle
+    label_en: Lorries / Fuel cell
+  - id: van_petrol
+    label: Lieferwagen / Benzin
+    label_en: Vans / Petrol
+  - id: van_diesel
+    label: Lieferwagen / Diesel
+    label_en: Van / Diesel
+  - id: van_natural_gas_biogas
+    label: Lieferwagen / Erdgas/Biogas
+    label_en: Van / Natural gas/Biogas
+  - id: van_diesel_plugin_hybrid
+    label: Lieferwagen / Plug-in Hybrid
+    label_en: Van / Plug-in hybrid
+  - id: van_battery_electric
+    label: Lieferwagen / Elektrisch
+    label_en: Van / Battery-Electric
+  - id: van_fuel_cell
+    label: Lieferwagen / Brennstoffzelle
+    label_en: Van / Fuel cell
+  - id: tram
+    label: Tram
+    label_en: Tram
+  - id: small_railways
+    label: Kleinbahnen
+    label_en: Small railways
+  - id: rail_passenger
+    label: Bahn (Personverkehr)
+    label_en: Rail (passenger transport)
+  - id: rail_goods
+    label: Bahn (Gueterverkehr)
+    label_en: Rail (goods transport)
+  - id: liner_ship_diesel
+    label: Linienschiffe / Diesel
+    label_en: Liner ship / Diesel
+  - id: liner_ship_battery_electric
+    label: Linienschiffe / Elektrisch
+    label_en: Liner ship / Battery-Electric
+  - id: private_ship_petrol
+    label: Private Bootsverkehr / Benzin
+    label_en: Private ships / Petrol
+  - id: private_ship_diesel
+    label: Private Bootsverkehr / Diesel
+    label_en: Private ships / Diesel
+  - id: private_ship_battery_electric
+    label: Private Bootsverkehr / Elektrisch
+    label_en: Private ships / Battery-Electric
+  - id: mobility_outside_city
+    label: Mobilität ausserhalb der Stadt (exkl. Flugverkehr)
+    label_en: Mobility ourside the city (excl. aviation)
+  - id: aviation
+    label: Flugverkehr
+    label_en: Aviation
+  - id: bicycle
+    label: Veloverkehr
+    label_en: Cycling
+
+nodes:
+- id: vehicle_mileage_historical
+  name_de: Verkehr Fahrleistung (historisch)
+  name_en: Vehicle kilometers (historical)
+  type: ch.zuerich.VehicleMileageHistorical
+  quantity: vehicle_mileage
+  unit: Mvkm/a
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/vehicle_mileage
+
+- id: transport_occupancy_factor
+  name_de: Verkehrsbelegungsfaktor
+  name_en: Transport occupancy factor
+  quantity: occupancy_factor
+  unit: passenger/vehicle
+  input_dataset_processors: [LinearInterpolation]
+  output_dimensions: [transport_mode]
+  type: simple.AdditiveNode
+  input_datasets:
+  - zuerich/transport_occupancy_factor
+
+- id: passenger_kilometers_historical
+  name_de: Personenkilometer (historisch)
+  name_en: Passenger kilometers (historical)
+  quantity: passenger_mileage
+  unit: Mpkm/a
+  type: ch.zuerich.PassengerKilometers
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: [vehicle_mileage]
+  - id: transport_occupancy_factor
+    tags: [occupancy_factor]
+    to_dimensions:
+    - id: transport_mode
+
+# - id: transport_electricity_consumption_historical
+#   name_de: Stromverbrauch Verkehr (historisch)
+#   name_en: Transport electricity consumption
+
+- id: mobility_demand_per_inhabitant
+  name_de: Mobilitätsnachfrage pro Einwohner
+  name_en: Mobility demand per inhabitant
+  quantity: per_capita
+  unit: pkm/cap/a
+  type: simple.DivisiveNode
+  params:
+    extend_rows: true
+  input_nodes:
+  - id: passenger_kilometers_historical
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+  - id: population
+
+- id: transport_modal_split
+  name_de: Verkehrsträgeranteil
+  name_en: Transport modal split
+  quantity: mix
+  unit: '%'
+  type: simple.MixNode
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometers_historical
+    tags: [activity]
+
+- id: passenger_kilometers
+  name_de: Personenkilometer
+  name_en: Passenger kilometers
+  quantity: passenger_mileage
+  unit: Mpkm/a
+  type: simple.MultiplicativeNode
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: mobility_demand_per_inhabitant
+    to_dimensions: []
+  - id: population
+    to_dimensions: []
+  - id: transport_modal_split
+
+- id: vehicle_mileage_per_inhabitant
+  name_de: Verkehr Fahrleistung pro Einwohner
+  name_en: Vehicle kilometers per inhabitant
+  quantity: per_capita
+  unit: vkm/cap/a
+  type: ch.zuerich.VehicleKilometersPerInhabitant
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometers
+    tags: [passenger_kilometers]
+  - id: transport_occupancy_factor
+    tags: [occupancy_factor]
+  - id: vehicle_mileage_historical
+    to_dimensions:
+    - id: vehicle_type
+    tags: [mileage_historical]
+  - id: population
+    to_dimensions: []
+    tags: [population]
+
+- id: vehicle_engine_type_split_historical
+  name_de: Vehicle engine type split (historical)
+  name_en: Vehicle engine type split (historical)
+  quantity: mix
+  unit: '%'
+  type: ch.zuerich.VehicleEngineTypeSplit
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: mileage
+
+- id: vehicle_engine_type_split
+  name_de: Vehicle engine type split
+  name_en: Vehicle engine type split
+  quantity: mix
+  unit: '%'
+  type: ch.zuerich.VehicleEngineTypeSplit
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_historical
+    tags: mileage
+
+- id: vehicle_mileage
+  name_de: Verkehr Fahrleistung
+  name_en: Vehicle kilometers
+  type: ch.zuerich.VehicleMileage
+  quantity: vehicle_mileage
+  unit: Mvkm/a
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: vehicle_mileage_per_inhabitant
+    tags: [mileage_per_inhabitant]
+    to_dimensions:
+    - id: transport_mode
+  - id: vehicle_engine_type_split
+    tags: [engine_type_split]
+    to_dimensions:
+    - id: vehicle_type
+  - id: population
+    tags: [population]
+    to_dimensions: []
+  output_nodes:
+  - id: miv_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes]
+    to_dimensions:
+    - id: vehicle_type
+  - id: public_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+    to_dimensions:
+    - id: vehicle_type
+  - id: goods_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [lorries, vans, rail_goods]
+    to_dimensions:
+    - id: vehicle_type
+  - id: other_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes, buses, trolleybuses, tram, rail_passenger, small_railways,
+        lorries, vans, rail_goods]
+      exclude: true
+    to_dimensions:
+    - id: vehicle_type
+
+- id: transport_electricity_consumption_factor
+  name_de: Verkehr Stromverbrauch
+  name_en: Transport electricity consumption
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kWh/vkm
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Electricity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+
+- id: transport_consumption_factor_historical
+  name_de: Verkehr Kraftstofffaktor (historisch)
+  name_en: Transport fuel factors (historical)
+  type: ch.zuerich.TransportFuelFactor
+  unit: kg/vkm
+  allow_nulls: true
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - zuerich/fuel_consumption_factor
+
+- id: transport_fuel_factor
+  name_de: Verkehr Kraftstofffaktor
+  name_en: Transport fuel factors
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kg/vkm
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Fuel]
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+
+- id: transport_tank_respiration_for_fuel
+  name_en: Transport tank respiration for fuel
+  name_de: Transport tank respiration for fuel
+  output_dimensions: [vehicle_type]
+  type: formula.FormulaNode
+  unit: kg/kg
+  quantity: emissions
+  params:
+    formula: tank_respiration / (vehicle_mileage_historical * transport_fuel_factor)
+    extend_last_historical_value: true
+  input_nodes:
+  - id: vehicle_mileage_historical
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+  input_datasets:
+  - id: zuerich/vehicle_tank_respiration_emissions
+    tags: [tank_respiration]
+
+- id: transport_emissions_for_fuel
+  name_de: Verkehr Emissionen für den Kraftstoffverbrauch
+  name_en: Transport emissions for fuel consumption
+  type: ch.zuerich.TransportEmissionsForFuel
+  quantity: emission_factor
+  unit: kg/kg
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_nodes:
+  - id: transport_fuel_factor
+    tags: [fuel_factor]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_tank_respiration_for_fuel
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope1]
+    tags: [tank_respiration]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/transport_emission_factors
+    tags: [emission_factor]
+  #- id: zuerich/vehicle_tank_respiration_emissions
+  #  tags: [tank_respiration]
+
+- id: other_transport_electricity_consumption
+  name_de: Stromverbrauch im Ubriger Verkehr
+  name_en: Other transportation electricity consumption
+  short_name_en: Other transportation
+  short_name_de: Ubriger Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+      exclude: true
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: transport_emission_factor
+  name_de: Verkehr Emissionsfaktor
+  name_en: Transport emission factors
+  type: ch.zuerich.TransportEmissionFactor
+  quantity: emission_factor
+  unit: g/vkm
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [general_electricity_ef]
+    to_dimensions:
+    - id: emission_scope
+  - id: public_transport_electricity_emission_factor
+    tags: [public_transport]
+    to_dimensions:
+    - id: emission_scope
+  - id: transport_electricity_consumption_factor
+    tags: [electricity_consumption_factor]
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_emission_factor
+    tags: [fuel_emission_factor]
+    to_dimensions:
+    - id: emission_scope
+    - id: greenhouse_gases
+    - id: vehicle_type
+    - id: energy_carrier
+  output_dimensions: [emission_scope, vehicle_type, energy_carrier]
+
+#- id: transport_fuel_consumption
+#  name_de: Transport fuel consumption
+#  name_en: Transport fuel consumption
+
+- id: transport_fuel_emission_factor
+  name_de: Verkehr Emissionsfaktor des Kraftstoffs
+  name_en: Transport emission factor for fuel
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_nodes:
+  - id: transport_fuel_factor
+    tags: [fuel_factor, non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emissions_for_fuel
+    tags: [emissions_for_fuel, non_additive]
+    to_dimensions:
+    - id: emission_scope
+    - id: greenhouse_gases
+    - id: vehicle_type
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+
+- id: miv_emissions
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
+  name_en: Individual motor transport emissions
+  short_name_de: Motorisierter Individualverkehr (MIV)
+  short_name_en: Individual motor transport
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: public_transport_emissions
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV)
+  name_en: Public transportation emissions
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: goods_transport_emissions
+  name_de: Treibhausgasemissionen Güterverkehr
+  name_en: Goods transport emissions
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: other_transport_emissions
+  name_de: Treibhausgasemissionen übriger Verkehr
+  name_en: Other transportation emissions
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: ch.zuerich.TransportEmissions
+  input_nodes: [transport_emission_factor]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: public_transport_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Öffentlicher Verkehr (ÖV) Strom
+  name_en: Public transport electricity primary energy consumption
+  short_name_de: Öffentlicher Verkehr (ÖV) Strom
+  short_name_en: Public transport electricity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy]
+  output_dimensions: [vehicle_type, renewable_energy]
+  input_nodes:
+  - id: transport_electricity_primary_energy_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: renewable_energy
+  - id: public_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transport_primary_energy_demand
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+    - id: vehicle_type
+
+- id: other_transport_electricity_primary_energy_consumption
+  name_de: Primärenergiebedarf Ubriger Verkehr Strom
+  name_en: Other transport electricity primary energy consumption
+  short_name_de: Ubriger Verkehr Strom
+  short_name_en: Other electric transport
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy]
+  output_dimensions: [vehicle_type, renewable_energy]
+  input_nodes:
+  - id: building_primary_energy_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    to_dimensions:
+    - id: renewable_energy
+  - id: other_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transport_primary_energy_demand
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: renewable_energy
+    - id: vehicle_type
+
+- id: transport_primary_energy_demand
+  name_de: Primärenergiebedarf Verkehr
+  name_en: Transportation primary energy consumption
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, renewable_energy, energy_carrier]
+  output_dimensions: [vehicle_type, renewable_energy, energy_carrier]
+  output_nodes:
+  - id: net_primary_energy_demand
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: transport_fuel_primary_energy_consumption
+  name_en: Transport fuel primary energy consumption
+  name_de: Transport fuel primary energy consumption
+  input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+  type: formula.FormulaNode
+  unit: GWh/a
+  quantity: energy
+  params:
+    formula: (transport_fuel_end_energy_consumption + aviation_fuel_consumption) *
+      transport_fuel_energy_factor
+  input_nodes:
+  - id: transport_fuel_energy_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: transport_fuel_end_energy_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_primary_energy_demand
+
+# - id: transport_fuel_primary_energy_consumption
+#   name_de: Transport fuel primary energy consumption
+#   name_en: Transport fuel primary energy consumption
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+#   output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
+#   input_nodes:
+#   - id: transport_fuel_energy_factor
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: renewable_energy
+#   - id: transport_fuel_end_energy_consumption
+#     tags: [non_additive]
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: transport_primary_energy_demand
+
+- id: transport_electricity_primary_energy_factor
+  name_de: Transport electricity primary energy factor
+  name_en: Transport electricity primary energy factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [electricity_source, renewable_energy]
+  output_dimensions: [electricity_source, renewable_energy]
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: transport_electricity_production_energy_factor
+    tags: [non_additive]
+
+- id: transport_electricity_production_energy_factor
+  name_de: Transport electricity primary energy factor by carrier
+  name_en: Transport electricity primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [electricity_source, renewable_energy]
+  input_dimensions: [electricity_source, renewable_energy]
+  input_datasets:
+  - id: zuerich/transport_electricity_production_energy_factor
+
+- id: transport_fuel_energy_factor
+  name_de: Transport fuel primary energy factor by carrier
+  name_en: Transport fuel primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/transport_fuel_primary_energy_factors
+
+- id: transport_fuel_consumption
+  name_de: Transport fuel consumption
+  name_en: Transport fuel consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: kg/a
+  input_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: vehicle_type
+  - id: transport_fuel_factor
+
+- id: transport_fuel_end_energy_consumption
+  name_de: Transport fuel end energy consumption
+  name_en: Transport fuel end energy consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: MJ/a
+  input_nodes:
+  - id: transport_fuel_consumption
+  - id: fuel_higher_heating_value
+    to_dimensions:
+    - id: energy_carrier
+
+- id: transport_end_energy_consumption
+  name_de: Transportation total end energy consumption
+  name_en: Transportation total end energy consumption
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: transport_fuel_end_energy_consumption
+  - id: public_transport_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: other_transport_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+      categories: [aviation]
+
+- id: transport_emission_factor_2kw
+  name_de: Verkehr Emissionsfaktor (2000-Watt)
+  name_en: Transport emission factors (2000-Watt)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/transport_emission_factors_2kw
+
+- id: miv_emissions_2kw
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV) (2000-Watt)
+  name_en: Individual motor transport emissions (2000-Watt)
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: miv_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: public_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV) (2000-Watt)
+  name_en: Public transportation emissions (2000-Watt)
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: public_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: goods_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Güterverkehr (2000-Watt)
+  name_en: Goods transport emissions (2000-Watt)
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: goods_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: other_transport_emissions_2kw
+  name_de: Treibhausgasemissionen übriger Verkehr (2000-Watt)
+  name_en: Other transportation emissions (2000-Watt)
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: other_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: public_transport_renewable_electricity_consumption
+  name_de: Renewable component of public transport electricity consumption
+  name_en: Renewable component of public transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source, vehicle_type]
+  output_dimensions: [electricity_source, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_source
+      categories: [hydro, solar, wind, wood]
+    to_dimensions:
+    - id: electricity_source
+  - id: public_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: other_transport_renewable_electricity_consumption
+  name_de: Renewable component of other transport electricity consumption
+  name_en: Renewable component of other transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [electricity_source, vehicle_type]
+  output_dimensions: [electricity_source, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: electricity_mix_renewable
+    tags: [non_additive]
+    to_dimensions:
+    - id: electricity_source
+  - id: other_transport_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: transport_end_renewable_energy_consumption
+  name_de: Renewable component of transport end energy consumption
+  name_en: Renewable component of transport end energy consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: public_transport_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+  - id: other_transport_renewable_electricity_consumption
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: public_transport_electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  quantity: mix
+  unit: '%'
+  name_en: Public transport electricity production mix
+  name_de: Public transport electricity production mix
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/transport_electricity_production_mix
+  - zuerich/subsidized_transport_electricity_production_mix
+  - zuerich/transport_externally_supplied_electricity
+  input_nodes:
+  - id: public_transport_electricity_consumption
+    tags: [consumption]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions: []
+
+- id: public_transport_electricity_emission_factor
+  name_de: Treibhausgasfaktoren Strom Öffentlicher Verkehr
+  name_en: Emission factor of public transport electricity
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+- id: transportation_emissions
+  name_en: Transportation emissions
+  name_de: Treibhausgasemissionen Mobilität
+  short_name_de: Mobilität
+  short_name_en: Transportation
+  quantity: emissions
+  unit: kt/a
+  type: simple.SectorEmissions
+  color: '#0505A0'
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: public_transport_electricity_consumption
+  name_de: Stromverbrauch im Öffentlicher Verkehr
+  name_en: Public transport electricity consumption
+  short_name_en: Public transport
+  short_name_de: Öffentlicher Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: transportation_fgas_emissions
+  name_en: F-gas emissions from mobility
+  name_de: Treibhausgasemissionen F-Gase Mobilität
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [transportation_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_transportation]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_emissions_2kw
+  name_de: Treibhausgasemissionen Verkehr (2000-Watt)
+  name_en: Transportation greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+  input_nodes:
+  - id: miv_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: public_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: goods_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: other_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: non_road_machinery_emissions_2kw
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+  - id: aviation_emissions
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true

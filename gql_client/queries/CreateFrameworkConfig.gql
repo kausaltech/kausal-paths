@@ -1,0 +1,9 @@
+mutation CreateFrameworkConfig($frameworkId: ID!, $baselineYear: Int!, $instanceIdentifier: ID!, $name: String!, $uuid: UUID) {
+  createFrameworkConfig(frameworkId:$frameworkId, baselineYear:$baselineYear, instanceIdentifier:$instanceIdentifier, name:$name, uuid: $uuid) {
+    frameworkConfig {
+      id
+      uuid
+    }
+    ok
+  }
+}

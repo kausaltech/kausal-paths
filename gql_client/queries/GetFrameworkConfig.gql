@@ -1,0 +1,24 @@
+query GetFrameworkConfig($frameworkId: ID!, $fwcId: ID!) {
+  framework(identifier:$frameworkId) {
+    identifier
+    name
+    config(id: $fwcId) {
+      id
+      organizationName
+      baselineYear
+      uuid
+      instance {
+        id
+      }
+      measures {
+        measureTemplate {
+          uuid
+        }
+        dataPoints {
+          year
+          value
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+# input MeasureInput {
+#   """ID (or UUID) of the measure template within a framework"""
+#   measureTemplateId: ID!
+
+#   """Internal notes for the measure instance"""
+#   internalNotes: String
+#   dataPoints: [MeasureDataPointInput!]
+# }
+
+# input MeasureDataPointInput {
+#   """Value for the data point (set to null to remove)"""
+#   value: Float
+
+#   """
+#   Year of the data point. If not given, defaults to the baseline year for the framework instance
+#   """
+#   year: Int
+# }
+
+mutation UpdateMeasures($frameworkConfigId:ID!, $measures: [MeasureInput!]!) {
+  updateMeasureDataPoints(frameworkConfigId:$frameworkConfigId, measures:$measures) {
+    ok
+    updatedDataPoints {
+      id
+      year
+      value
+    }
+    createdDataPoints {
+      id
+      year
+      value
+    }
+    deletedDataPointCount
+  }
+}

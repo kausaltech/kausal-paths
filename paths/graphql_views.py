@@ -212,7 +212,7 @@ class PathsExecutionContext(ExecutionContext):
             return
 
         with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
-            instance = ic.get_instance(generate_baseline=False)
+            instance = ic.get_instance()
         self.context_value.instance = instance
         context = instance.context
 

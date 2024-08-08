@@ -4,22 +4,19 @@ import cProfile
 from math import log10
 import math
 import os
-import sys
+from pathlib import Path
 import time
-import types
-from typing import cast
 
 from dotenv import load_dotenv
 from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.instance import InstanceLoader
-from common.perf import PerfCounter
+from kausal_common.debugging.perf import PerfCounter
 from rich import print
 import rich.traceback
 from rich.table import Table
 from rich.console import Console
 import polars as pl
-import pandas as pd
 
 from nodes.units import Quantity
 
@@ -73,6 +70,7 @@ parser.add_argument('--show-perf', action='store_true', help='show performance i
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
+parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
 
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -106,7 +104,7 @@ if args.show_perf:
 
 
 if args.cache_benchmark:
-    from common.perf import PerfCounter
+    from kausal_common.debugging.perf import PerfCounter
 
     pc = PerfCounter()
     context.skip_cache = True
@@ -210,6 +208,22 @@ for line in args.filter or []:
     for f in line.split(','):
         all_filters.append(f)
 
+
+if args.generate_result_excel:
+    from nodes.excel_results import create_result_excel
+    excel_path = Path(args.generate_result_excel)
+    existing_wb: Path | None
+    if excel_path.exists():
+        existing_wb = excel_path
+        context.log.info("Excel workbook '%s' exists; opening it as the base" % excel_path)
+    else:
+        context.log.info("Excel workbook '%s' does not exist; creating new" % excel_path)
+        existing_wb = None
+    out = create_result_excel(context, existing_wb=existing_wb)
+    with open(excel_path, 'wb') as f:
+        f.write(out.getvalue())
+
+
 for node_id in (args.node or []):
     node = context.get_node(node_id)
     with context.run():
@@ -266,11 +280,11 @@ if args.print_action_efficiencies:
             for out in aep.calculate_iter(context, actions=actions):
                 action = out.action
                 pc.display('%s computed' % action.id)
-                e = out.cumulative_efficiency
-                if e:
-                    e = round_quantity(e)
+                # e = out.cumulative_efficiency
+                # if e:
+                #     e = round_quantity(e)
 
-                rows.append((action.id, e))
+                rows.append((action.id, None))
 
             console = Console()
             rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)

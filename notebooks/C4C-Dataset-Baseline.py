@@ -63,7 +63,10 @@ def pconvert(value):
 # ---------------------------------------------------------------------------------------
 df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
 
-df = df.drop(['Description', 'Action'])
+for c in ['Description', 'Action']:
+    if c in df.columns:
+        df = df.drop(c)
+
 context = []
 values = []
 for c in df.columns:
@@ -74,7 +77,7 @@ for c in df.columns:
 
 dims = [c for c in context if c not in ['Quantity', 'Unit']]
 
-df = df.with_columns(pl.col('Quantity').map_dict(qtypelookup).alias('Quantity Type'))
+df = df.with_columns(pl.col('Quantity').replace(qtypelookup).alias('Quantity Type'))
 
 unitcol = df.select('Unit').to_series(0).to_list()
 for ur in unitreplace:
@@ -125,7 +128,7 @@ def factorfinder(df, dimcols, factorframe, accumcols, aunit, rfile):
         joinkeys.remove('Scope')
         joinkeys.reverse()
 
-        df = df.with_row_count(name = 'Index')
+        df = df.with_row_index(name = 'Index')
         for i in range(len(df)):
             dfi = df.filter(pl.col('Index') == i)
             dfj = dfi.join(factorframe, on = joinkeys)
@@ -257,7 +260,7 @@ for sector in sectors:
 dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
                                                   (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
-dfaccum = dfaccum.with_row_count(name = 'Index')
+dfaccum = dfaccum.with_row_index(name = 'Index')
 for i in range(len(dfaccum)):
     for y in values:
         mcols = list(context)

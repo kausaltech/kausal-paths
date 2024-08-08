@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 import uuid
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet
-from django.db import models
-from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from treebeard.mp_tree import MP_Node
 
 from kausal_common.models.ordered import OrderedModel
 from kausal_common.models.uuid import UUIDIdentifiedModel
+from kausal_common.models.modification_tracking import UserModifiableModel
+from kausal_common.users import user_or_none
+from nodes.instance import Instance, InstanceLoader
 from nodes.models import InstanceConfig
+from paths.types import UserOrAnon
 from paths.utils import IdentifierField, UnitField
 
 if TYPE_CHECKING:
@@ -41,9 +47,12 @@ class Framework(UUIDIdentifiedModel):
     name = models.CharField(max_length=200, verbose_name=_("Name"))
     identifier = IdentifierField()
     description = models.TextField(blank=True)
+    public_base_fqdn = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)  # pyright: ignore
+    result_excel_url = models.URLField(max_length=250, null=True, blank=True)
+    result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
@@ -55,6 +64,16 @@ class Framework(UUIDIdentifiedModel):
 
     def __str__(self):
         return self.name
+
+    def to_dict(self):
+        return {
+            'identifier': self.identifier,
+            'name': self.name,
+            'description': self.description,
+            'public_base_fqdn': self.public_base_fqdn,
+            'result_excel_url': self.result_excel_url,
+            'result_excel_node_ids': self.result_excel_node_ids,
+        }
 
     def export_sections(self):
         root_section: Section | None = getattr(self, 'root_section', None)
@@ -244,6 +263,9 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
             "max_value": self.max_value,
             "time_series_max": self.time_series_max,
             "default_value_source": self.default_value_source,
+            "default_data_points": [
+                dict(year=dp.year, value=dp.value) for dp in self.default_data_points.all()
+            ],
         }
         if include_section:
             out['section'] = str(self.section.uuid)
@@ -280,27 +302,15 @@ class MeasureTemplateDefaultDataPoint(models.Model):
     class Meta:
         ordering = ["template", "year"]
 
-    def clean(self):
-        super().clean()
-        framework = self.template.framework
-        valid_categories = set(
-            FrameworkDimensionCategory.objects.filter(dimension__framework=framework).values_list("id", flat=True)
-        )
-        current_categories = set([cat.pk for cat in self.categories.all()])
-        invalid_categories = valid_categories - current_categories
-        if invalid_categories:
-            raise ValidationError(
-                {
-                    "categories": _("Invalid categories for this framework: %(categories)s")
-                    % {"categories": ", ".join(str(cat) for cat in invalid_categories)}
-                }
-            )
-
     def __str__(self):
         return f"{self.template.name} - {self.year}"
 
 
-class FrameworkConfig(models.Model):
+def create_random_token():
+    return uuid.uuid4().hex
+
+
+class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
     """
     Represents a configuration of a Framework for a specific instance.
 
@@ -313,10 +323,11 @@ class FrameworkConfig(models.Model):
     organization_name = models.CharField(max_length=200, blank=True)
     baseline_year = models.IntegerField()
     categories = models.ManyToManyField(FrameworkDimensionCategory)
+    token = models.CharField(max_length=50, default=create_random_token)
 
     measures: RelatedManager[Measure]
 
-    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year']
+    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
 
     class Meta:
         constraints = [
@@ -324,17 +335,42 @@ class FrameworkConfig(models.Model):
         ]
 
     @classmethod
-    def create_instance(cls, framework: Framework, org_name: str, baseline_year: int):
-        new_uuid = uuid.uuid4()
+    @transaction.atomic
+    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None, user: UserOrAnon | None = None):
         ic = InstanceConfig.objects.create(
-            name='%s: %s' % (framework.name, org_name), identifier=str(new_uuid),
-            primary_language="en", other_languages=[],
+            name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
+            primary_language="en", other_languages=[]
         )
-        fc = cls.objects.create(framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year)
+        fc = cls.objects.create(
+            framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year, uuid=uuid, created_by=user_or_none(user)  # type: ignore[misc]
+        )
+        ic.site_url = fc.get_view_url()
+        if ic.site_url is not None:
+            ic.sync_nodes()
+            ic.create_default_content()
         return fc
+
+    def create_model_instance(self, ic: InstanceConfig) -> Instance:
+        fw = self.framework
+        config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % fw.identifier)
+        loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
+        return loader.instance
+
+    def get_view_url(self):
+        fw = self.framework
+        if not fw.public_base_fqdn:
+            return None
+        return 'https://%s.%s' % (self.instance_config.identifier, fw.public_base_fqdn)
 
     def __str__(self):
         return f"{self.framework.identifier}: {self.instance_config.name}"
+
+    def notify_change(self, user: UserOrAnon | None = None, save: bool = False):
+        self.last_modified_by = user_or_none(user)
+        self.last_modified_at = timezone.now()
+        if save:
+            self.save(update_fields=['last_modified_by', 'last_modified_at'])
+        self.instance_config.invalidate_cache()
 
 
 class Measure(models.Model):
@@ -351,6 +387,7 @@ class Measure(models.Model):
     internal_notes = models.TextField(blank=True)
 
     data_points: RelatedManager[MeasureDataPoint]
+    measure_template_id: int
 
     public_fields: ClassVar = [
         'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes'

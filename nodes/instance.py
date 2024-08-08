@@ -1,23 +1,23 @@
 import dataclasses
-from functools import cached_property
 import importlib
-import re
 import os
+from pathlib import Path
+import re
+import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-import threading
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional, Tuple, Type, overload
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import dvc_pandas
-import pint
 from loguru import logger
-from yaml import safe_load as yaml_load
+from pydantic.dataclasses import dataclass as pydantic_dataclass
+from rich import print
 from ruamel.yaml import YAML as RuamelYAML, CommentedMap
 from ruamel.yaml.comments import LineCol
-from rich import print
-from common import base32_crockford
+from yaml import safe_load as yaml_load
 
+from common import base32_crockford
 from common.i18n import I18nBaseModel, TranslatedString, gettext_lazy as _, set_default_language
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
@@ -25,17 +25,18 @@ from nodes.exceptions import NodeError
 from nodes.goals import NodeGoalsEntry
 from nodes.node import Edge, Node, NodeMetric
 from nodes.normalization import Normalization
-from nodes.scenario import CustomScenario, Scenario
 from nodes.processors import Processor
+from nodes.scenario import CustomScenario, Scenario
 from nodes.units import Unit
 from pages.config import OutcomePage, pages_from_config
-from params.param import ReferenceParameter, Parameter
+from params.param import Parameter, ReferenceParameter
 
 from .context import Context, Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
     from loguru import Logger
-    from .models import InstanceConfig
+
+    from .models import FrameworkConfig, InstanceConfig
 
 
 yaml = RuamelYAML()
@@ -105,6 +106,7 @@ class Instance:
         else:
             if self.default_language not in self.supported_languages:
                 self.supported_languages.append(self.default_language)
+        self.log.info("Instance created")
 
     def set_context(self, context: Context):
         self.context = context
@@ -157,6 +159,7 @@ class InstanceLoader:
     default_language: str
     yaml_file_path: Optional[str] = None
     config: CommentedMap | dict
+    fw_config: Optional['FrameworkConfig'] = None
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
@@ -212,6 +215,12 @@ class InstanceLoader:
             return None
         return TranslatedString(**langs, default_language=default_language or self.default_language)
 
+    def simple_trans_string(self, s: str) -> TranslatedString:
+        langs = {
+            self.default_language: s
+        }
+        return TranslatedString(**langs, default_language=self.default_language)
+
     def setup_processors(self, node: Node, confs: list[dict | str]):
         processors = []
         for idp_conf in confs:
@@ -266,13 +275,23 @@ class InstanceLoader:
             else:
                 ds_id = ds.pop('id')
                 dc = ds
-            ds_unit = dc.pop('unit', None)
-            if ds_unit is not None and not isinstance(ds_unit, pint.Unit):
-                ds_unit = self.context.unit_registry.parse_units(ds_unit)
-                assert isinstance(ds_unit, pint.Unit)
+            ds_unit_conf = dc.pop('unit', None)
+            if isinstance(ds_unit_conf, Unit):
+                ds_unit = ds_unit_conf
+            elif ds_unit_conf is not None:
+                ds_unit = self.context.unit_registry.parse_units(ds_unit_conf)
+            else:
+                ds_unit = None
             tags = dc.pop('tags', [])
-            o = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
-            datasets.append(o)
+            ds_obj: DVCDataset | None = None
+            if self.fw_config is not None:
+                from nodes.gpc import DatasetNode
+                if issubclass(node_class, DatasetNode):
+                    from frameworks.datasets import FrameworkMeasureDVCDataset
+                    ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            if ds_obj is None:
+                ds_obj = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:
             datasets.append(FixedDataset(
@@ -290,6 +309,7 @@ class InstanceLoader:
             short_name=self.make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
+            node_group=config.get('node_group', None),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
@@ -650,21 +670,29 @@ class InstanceLoader:
             self.context.add_normalization(n_id, n)
 
     @classmethod
-    def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict]):
-        by_id = {d['id']: d for d in confs}
-        for fwn in fw_confs:
-            n = by_id.get(fwn['id'])
-            if n is None:  # NOTE! The checking of double node ids does not work if the id is once in nodes and once in emission_sectors
-                confs.append(fwn)
-            else:
-                continue
-                # Merge the configs with the node config overriding framework config
-                for key, val in fwn.items():
-                    if key not in n:
-                        n[key] = val
+    def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict], entity_type: str):
+        cls.merge_config(confs, fw_confs, allow_override=True, entity_type=entity_type)
 
     @classmethod
-    def from_yaml(cls, filename):
+    def merge_include_config(cls, existing: list[dict], newconf: list[dict], entity_type: str, apply_group: str | None):
+        cls.merge_config(existing, newconf, allow_override=False, entity_type=entity_type, apply_group=apply_group)
+
+    @classmethod
+    def merge_config(cls, existing: list[dict], newconf: list[dict], allow_override: bool, entity_type: str, apply_group: str | None = None):
+        by_id = {d['id']: d for d in existing}
+        for nc in newconf:
+            c = by_id.get(nc['id'])
+            if c is not None:
+                if not allow_override:
+                    raise Exception(f"{entity_type} '{nc["id"]}' was already defined")
+                else:
+                    continue
+            assert 'node_group' not in nc
+            nc['node_group'] = apply_group
+            existing.append(nc)
+
+    @classmethod
+    def from_yaml(cls, filename: str, fw_config: Optional['FrameworkConfig'] = None):
         data = yaml_load(open(filename, 'r', encoding='utf8'))
         if 'instance' in data:
             data = data['instance']
@@ -677,16 +705,27 @@ class InstanceLoader:
                 if not os.path.exists(framework_fn):
                     raise Exception("Config expects framework but %s does not exist" % framework_fn)
                 fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
-                cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []))
-                cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []))
-                cls.merge_framework_config(data['actions'], fw_data.get('actions', []))
+                cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []), 'Node')
+                cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []), 'Emission sector')
+                cls.merge_framework_config(data['actions'], fw_data.get('actions', []), 'Action')
                 # Some nodes, emission sectors and actions must exist in main yaml.
 
-        return cls(data, yaml_file_path=filename)
+        includes = data.get('include', [])
+        for iconf in includes:
+            apply_group = iconf.get('node_group', None)
+            ifn = Path(filename).parent / Path(iconf['file'])
+            if not ifn.exists():
+                raise Exception('Include file "%s" not found' % str(ifn))
+            idata = yaml.load(ifn.open('r'))
+            cls.merge_include_config(data['nodes'], idata.get('nodes', []), 'Node', apply_group=apply_group)
+            cls.merge_include_config(data['dimensions'], idata.get('dimensions', []), 'Dimension', apply_group=apply_group)
 
-    def __init__(self, config: dict, yaml_file_path: str | None = None):
+        return cls(data, yaml_file_path=filename, fw_config=fw_config)
+
+    def __init__(self, config: dict, yaml_file_path: str | None = None, fw_config: Optional['FrameworkConfig'] = None):
         self.yaml_file_path = os.path.abspath(yaml_file_path) if yaml_file_path else None
         self.config = config
+        self.fw_config = fw_config
         self.default_language = config['default_language']
         self.logger = logger.bind(instance=config['id'])
         with set_default_language(self.default_language):
@@ -696,6 +735,9 @@ class InstanceLoader:
         config = self.config
         static_datasets = self.config.get('static_datasets')
         instance_id = config['id']
+        fwc = self.fw_config
+        if fwc is not None:
+            instance_id = fwc.instance_config.identifier
         dataset_repo_default_path = None
         if static_datasets is not None:
             if self.config.get('dataset_repo') is not None:
@@ -719,19 +761,36 @@ class InstanceLoader:
             agcs.append(ag)
 
         instance_attrs = [
-            'reference_year', 'minimum_historical_year', 'maximum_historical_year',
-            'supported_languages', 'site_url', 'theme_identifier',
+            'supported_languages', 'theme_identifier',
         ]
+        if fwc is None:
+            owner = self.make_trans_string(self.config, 'owner', required=True)
+            name = self.make_trans_string(self.config, 'name', required=True)
+            max_hist_year = self.config.get('maximum_historical_year')
+            min_hist_year: int = self.config['minimum_historical_year']
+            site_url = self.config.get('site_url')
+            reference_year = self.config.get('reference_year')
+        else:
+            owner = self.simple_trans_string(fwc.organization_name)
+            name = self.simple_trans_string(fwc.instance_config.get_name())
+            max_hist_year = fwc.baseline_year
+            min_hist_year = fwc.baseline_year
+            site_url = fwc.get_view_url()
+            reference_year = max_hist_year
         self.instance = Instance(
-            id=self.config['id'],
-            name=self.make_trans_string(self.config, 'name', required=True),
-            owner=self.make_trans_string(self.config, 'owner', required=True),
+            id=instance_id,
+            name=name,
+            owner=owner,
             default_language=self.config['default_language'],
             action_groups=agcs,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
+            maximum_historical_year=max_hist_year,
+            minimum_historical_year=min_hist_year,
+            site_url=site_url,
+            reference_year=reference_year,
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
