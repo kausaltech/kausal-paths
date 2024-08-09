@@ -20,6 +20,7 @@ import environ
 from corsheaders.defaults import default_headers as default_cors_headers  # noqa
 from django.utils.translation import gettext_lazy as _
 
+from kausal_common.deployment import set_secret_file_vars
 from kausal_common.sentry.init import init_sentry
 
 
@@ -65,6 +66,7 @@ env = environ.FileAwareEnv(
     NZCPORTAL_CLIENT_SECRET=(str, ''),
     GITHUB_APP_ID=(str, ''),
     GITHUB_APP_PRIVATE_KEY=(str, ''),
+    MOUNTED_SECRET_PATHS=(list, []),
 )
 
 BASE_DIR = root()
@@ -74,6 +76,11 @@ if env('ENV_FILE'):
     environ.Env.read_env(env('ENV_FILE'))
 elif os.path.exists(os.path.join(BASE_DIR, '.env')):
     environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+# Read all files in the directories given in MOUNTED_SECRET_PATHS whose names look like environment variables and use
+# the contents of the files for the corresponding variables
+for directory in env('MOUNTED_SECRET_PATHS'):
+    set_secret_file_vars(env, directory)
 
 DEBUG = env('DEBUG')
 ADMIN_BASE_URL = env('ADMIN_BASE_URL')
