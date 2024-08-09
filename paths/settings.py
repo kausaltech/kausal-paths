@@ -32,8 +32,6 @@ env = environ.FileAwareEnv(
     DEPLOYMENT_TYPE=(str, 'development'),
     KUBERNETES_MODE=(bool, False),
     SECRET_KEY=(str, ''),
-    AZURE_AD_CLIENT_ID=(str, ''),
-    AZURE_AD_CLIENT_SECRET=(str, ''),
     ALLOWED_HOSTS=(list, ['*']),
     DATABASE_URL=(str, f'postgresql:///{PROJECT_NAME}'),
     DATABASE_CONN_MAX_AGE=(int, 20),
@@ -61,8 +59,12 @@ env = environ.FileAwareEnv(
     MEDIA_FILES_S3_SECRET_ACCESS_KEY=(str, ''),
     MEDIA_FILES_S3_CUSTOM_DOMAIN=(str, ''),
     WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech'),
+    AZURE_AD_CLIENT_ID=(str, ''),
+    AZURE_AD_CLIENT_SECRET=(str, ''),
+    NZCPORTAL_CLIENT_ID=(str, ''),
+    NZCPORTAL_CLIENT_SECRET=(str, ''),
     GITHUB_APP_ID=(str, ''),
-    GITHUB_APP_PRIVATE_KEY=(str, '')
+    GITHUB_APP_PRIVATE_KEY=(str, ''),
 )
 
 BASE_DIR = root()
@@ -101,8 +103,9 @@ SECRET_KEY = env('SECRET_KEY')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
-
 LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/admin/'
+LOGOUT_REDIRECT_URL = '/admin/'
 
 # Application definition
 
@@ -218,11 +221,14 @@ SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 
 AUTHENTICATION_BACKENDS = (
     'admin_site.auth_backends.AzureADAuth',
+    'admin_site.auth_backends.NZCPortalOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
 
 SOCIAL_AUTH_AZURE_AD_KEY = env.str('AZURE_AD_CLIENT_ID')
 SOCIAL_AUTH_AZURE_AD_SECRET = env.str('AZURE_AD_CLIENT_SECRET')
+SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
+SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 
 SOCIAL_AUTH_PIPELINE = (
     'admin_site.auth_pipeline.log_login_attempt',
