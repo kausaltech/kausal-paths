@@ -9,7 +9,8 @@ NODE_COLUMN = 'Node'
 # Impact constants
 IMPACT_COLUMN = 'Impact'
 # Probability iterations for Monte Carlo
-UNCERTAINTY_COLUMN = 'Iteration'
+UNCERTAINTY_COLUMN = 'iteration'
+SAMPLE_SIZE = 10  # FIXME Convert this into a global parameter?
 
 # Action as it is in the active scenario
 SCENARIO_ACTION_GROUP = 'Scenario'
