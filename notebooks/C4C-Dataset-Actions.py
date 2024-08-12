@@ -17,12 +17,17 @@ unitreplace = [['tCO2e', 't'],
 # ---------------------------------------------------------------------------------------
 df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
 
+# Drop columns from 'droplist' if present, and empty columns.
 droplist = ['Description']
+for col in droplist:
+    if col in df.columns:
+        df = df.drop(col)
+
 for col in df.columns:
     if df.select(col).unique().to_series(0).to_list() == [None]:
-        droplist.append(col)
-df = df.drop(droplist)
+        df = df.drop(col)
 
+# Find context, value, and dimension columns.
 context = []
 values = []
 for c in df.columns:
@@ -33,6 +38,7 @@ for c in df.columns:
 
 dims = [c for c in context if c not in ['Quantity', 'Unit']]
 
+# Check input dataset for duplicated dimension sets.
 duplicates = df.group_by(dims).agg(pl.len()).filter(pl.col('len') > 1)
 if len(duplicates) > 0:
     print('There are duplicate values. Remove them and try again.')
@@ -41,6 +47,7 @@ if len(duplicates) > 0:
 else:
     print('No duplicates, continuing...')
 
+# Check input dataset for rows containing null values in required columns.
 missing_data = df.filter((pl.col('Sector') + pl.col('Quantity') + pl.col('Unit')).is_null())
 if missing_data.is_empty():
     print('No missing data in columns Sector, Quantity, Unit. Continuing...')
@@ -49,12 +56,14 @@ else:
     print(missing_data.select(['Sector', 'Quantity', 'Unit']))
     exit()
 
+# Replace units as specified in the 'unitreplace' list.
 unitcol = df.select('Unit').to_series(0).to_list()
 for ur in unitreplace:
     unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
 df = df.with_columns(pl.Series(name = 'Unit', values = unitcol))
 
-if 'Scope' in df.columns:   # Detailed actions have no 'Scope' column.
+# Replace scope numbers with labels. Detailed actions have no 'Scope' column.
+if 'Scope' in df.columns:
     scopecol = df.select('Scope').to_series(0).to_list()
     labels = []
     for x in scopecol:
@@ -70,7 +79,7 @@ dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').ca
 
 df = df.with_row_index(name = 'Index')
 for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the length of the df increases: 2s/row 
-    print('Row', i, 'out of', len(df))
+    print('Row %i of %i' % ((i + 1), len(df)))
     for y in values:
         mcols = list(context)
         mcols.extend([y])
@@ -79,7 +88,7 @@ for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the
         mframe.columns = dfmain.columns
         if mframe['Value'][0] is not None:
             dfmain = pl.concat([dfmain, mframe], rechunk=False)
-df = df.rechunk()  # This helped speed a bit.
+dfmain = dfmain.rechunk()   # This helped speed a bit.
 
 if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)
