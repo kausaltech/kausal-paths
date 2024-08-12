@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 2e2cf0999436d8d4247bca9434dbce4b34d3d1da
+  commit: 9f66f14a074b048d36017f00f8c692e7bdffd97b
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -21,6 +21,14 @@ minimum_historical_year: 2010
 params:
 - id: municipality_name
   value: Lappeenranta
+- id: discount_rate
+  label: Diskonttokorko
+  value: 4.0
+  min_value: 0.0
+  max_value: 6.0
+  unit: '%'
+  is_visible: true
+  is_customizable: true
 - id: extend_historical_values
   value: true
 - id: selected_framework
@@ -39,6 +47,7 @@ action_groups:
   color: '#93c572'
 
 dimensions:
+
 - id: pollutant
   label_fi: Saaste
   label_en: Pollutant
@@ -110,6 +119,7 @@ dimensions:
 - id: response
   label_fi: Terveysvaikutus
   label_en: Response
+  aliases: [outcome]
   categories:
   - id: mortality
     label_fi: Kuolleisuus
@@ -138,6 +148,27 @@ dimensions:
   - id: infection  # FIXME Add causative agent to response
     label_fi: Infektio
     label_en: Infection
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+  - id: air_pollution
+    label: Ilmansaasteet
+  - id: crash_risk
+    label: Liikenneonnettomuus
+  - id: carbon_emissions
+    label: Hiilidioksidipäästöt
+
+- id: transport_mode
+  label: Liikkumismuoto
+  categories:
+  - id: walking
+    label: Kävely
+  - id: cycling
+    label: Pyöräily
+  - id: ebike
+    label: Sähköpyörä
+  - id: citybike
+    aliases: [bikeshare]
+    label: Kaupunkipyörä
 
 - id: emission_height
   label_fi: Päästökorkeus
@@ -241,6 +272,118 @@ nodes:
   - id: fossil_plant_air_pollution_emissions
     tags: [non_additive]
     to_dimensions: []
+
+- id: amount_of_active_mobility
+  name: Aktiivisen liikkumisen määrä
+  type: simple.AdditiveNode
+  quantity: exposure
+  unit: min/person/d
+  historical_values: [[2010, 10.0], [2023, 10.0]]
+
+- id: health_factor_of_active_mobility
+  name: Aktiivisen liikkumisen terveyskerroin
+  description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
+    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
+    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
+    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
+  type: gpc.DatasetNode
+  quantity: exposure_response
+  unit: incident/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: health_factor_of_active_mobility
+
+- id: health_effect_of_active_mobility
+  name: Aktiivisen liikkumisen terveysvaikutus
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: cases/a
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_factor_of_active_mobility
+  - id: amount_of_active_mobility
+    to_dimensions: []
+
+- id: carbon_factor_of_active_mobility
+  name: Aktiivisen liikkumisen päästökerroin
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: carbon_factor_of_active_mobility
+
+- id: emissions_of_active_mobility
+  name: Aktiivisen liikkumisen päästöt
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [transport_mode, response]
+  output_dimensions: [transport_mode, response]
+  input_nodes:
+  - id: carbon_factor_of_active_mobility
+  - id: amount_of_active_mobility
+    to_dimensions: []
+
+- id: discount_rate
+  name: Diskonttokorko
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: discount_rate
+
+- id: value_of_statistical_life
+  name: Kuolemanriskin tilastollinen hinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/case
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: value_of_statistical_life
+
+- id: active_mobility_costs
+  name: Aktiivisen liikkumisen terveyskustannukset
+  type: simple.MultiplicativeNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [transport_mode, response]
+  output_dimensions: [transport_mode, response]
+  input_nodes:
+  - id: health_effect_of_active_mobility
+  - id: value_of_statistical_life
+    to_dimensions: []
+    tags: [arithmetic_inverse]
+
+- id: discounted_active_mobility_costs
+  name: Diskontatut aktiivisen liikkumisen terveyskustannukset
+  type: costs.ExponentialNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [transport_mode, response]
+  output_dimensions: [transport_mode, response]
+  input_nodes:
+  - id: active_mobility_costs
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: co2_unit_price
+  name: Hiilidioksidin hinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: co2_unit_price
 
 actions:
 - id: convert_cars_to_evs
