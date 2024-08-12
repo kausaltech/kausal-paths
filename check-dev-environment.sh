@@ -36,9 +36,13 @@ print_warning() {
 
 print_findings() {
     local message="$1"
-    local icon="${2:-📍}"  # Default to a pin
-    local findings="${3}"
-    echo -e "   ${icon} ${message}${DIM}${findings}${NC}"
+    local findings="${2}"
+    local icon="${3:-📍}"  # Default to a pin
+    if [ -n "$findings" ]; then
+        echo -e "   ${icon} ${message}: ${DIM}${findings}${NC}"
+    else
+        echo -e "   ${icon} ${message}"
+    fi
 }
 
 print_check() {
@@ -59,12 +63,12 @@ prompt_user() {
         options="(y/N)"
     fi
 
-    # Flush stdin
-    # shellcheck disable=SC2162
-    while read -t 0.1 -n 1; do : ; done
-
     while true; do
-        read -p "$prompt $options: " -r REPLY
+        read -p "$prompt $options: " -n 1 -r REPLY
+
+        if [ -n "$REPLY" ] ; then
+            echo
+        fi
 
         REPLY=${REPLY:-$default}
 
