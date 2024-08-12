@@ -70,7 +70,7 @@ class DatasetAction(ActionNode):
     def makeid(self, label: str):  # FIXME Move all makeid() functions to .calc.py.
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
@@ -189,7 +189,7 @@ class DatasetActionMFM(ActionNode):
     def makeid(self, label: str):
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
@@ -309,7 +309,7 @@ class StockReplacementAction(ActionNode):
     def makeid(self, label: str):
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
