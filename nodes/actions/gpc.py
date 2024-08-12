@@ -170,7 +170,9 @@ class DatasetAction(ActionNode):
 
 
 class DatasetActionMFM(ActionNode):
-    allowed_parameters = [StringParameter('action', description = 'Action Name', is_customizable = False)]
+    allowed_parameters = [StringParameter('action', description = 'Action name', is_customizable = False)]
+
+    allow_null_categories = True
 
     no_effect_value = 0.0
 
@@ -298,11 +300,6 @@ class DatasetActionMFM(ActionNode):
             jdf = jdf.join(qdf, how = 'outer')
 
         jdf = jdf.join(fc)
-
-        for dim in self.output_dimensions:
-            if '' in jdf.index.get_level_values(dim).unique().to_list():
-                self.output_dimensions[dim].is_internal = True
-
         return(jdf)
 
 class StockReplacementAction(ActionNode):
