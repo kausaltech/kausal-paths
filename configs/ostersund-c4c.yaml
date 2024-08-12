@@ -655,6 +655,7 @@ nodes:
 - id: i_stationary_total_price
   name: I Stationary Total Price
   type: simple.AdditiveNode
+  color: '#4e79a7'
   quantity: currency
   unit: kSEK/a
   input_dimensions: ['owner', 'scope']
@@ -707,6 +708,7 @@ nodes:
 - id: ii_transportation_total_price
   name: II Transportation Total Price
   type: simple.AdditiveNode
+  color: '#e15759'
   quantity: currency
   unit: kSEK/a
   input_dimensions: ['owner', 'scope']
