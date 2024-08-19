@@ -1,4 +1,4 @@
-ARG base_image=debian:testing-slim
+ARG base_image=debian:bookworm-slim
 
 FROM caddy:2 AS caddy
 
@@ -8,8 +8,8 @@ FROM caddy:2 AS caddy
 FROM ${base_image} AS base
 
 ARG runtime_deps="libpq5 postgresql-client gettext \
-    libproj25 ^libgdal3[4567]$ libjpeg6[2345]-turbo$ libtiff6 libxml2 libffi8 libxslt1.1 \
-    libwebp7 libvoikko1 voikko-fi curl libpcre3 \
+    libproj25 ^libgdal3[2-9]$ libjpeg6[2345]-turbo$ libtiff6 libxml2 libffi8 libxslt1.1 \
+    libwebp7 libvoikko1 voikko-fi curl \
     iputils-ping inetutils-telnet redis-tools restic procps git \
     ca-certificates"
 ARG build_time_deps="libpq-dev build-essential \
