@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ade9c148ef1d76f8a451a44fbbc448da3701c822
+  commit: 80c9fd99d5bc81dd42ff34d0e4b988d06addfc69
   dvc_remote: kausal-s3
 name: Potsdam BASIC+ Treibhausgasinventar
 owner: Stadt Potsdam
@@ -597,7 +597,7 @@ actions:
 #   input_datasets:
 #   - id: gpc/potsdam_master_plan_actions
 #     forecast_from: 2022
-#   output_dimensions: [energietrager, scope]
+#   output_dimensions: [energietrager, scope, ghg]
 #   params:
 #     gpc_sector: I.1.1
 #   output_nodes: [i11_residential_fuel_consumption]
