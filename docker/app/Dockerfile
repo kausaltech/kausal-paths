@@ -77,7 +77,7 @@ ENV CC=gcc
 ENV PIP_INSTALL="$UV_BIN pip install --link-mode=copy --compile-bytecode"
 RUN --mount=type=cache,target=${XDG_CACHE_HOME} \
   LIBRARY_PATH=$(cat /etc/ld.so.conf.d/uv-python.conf) \
-  ${PIP_INSTALL} -r ${app_path}/requirements-prod.txt -r ${app_path}/requirements.txt
+  ${PIP_INSTALL} --no-binary uwsgi -r ${app_path}/requirements-prod.txt -r ${app_path}/requirements.txt
 
 # Install extra dependencies
 COPY requirements-kausal.txt ${app_path}/
