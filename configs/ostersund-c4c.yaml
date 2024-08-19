@@ -909,7 +909,7 @@ nodes:
   name: II.1.1 On-Road Transport Fuel Mileage Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kg/a
+  unit: kt/a
   input_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'scope', 'ghg']
   output_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'scope', 'ghg']
   output_nodes:
@@ -1170,7 +1170,7 @@ nodes:
   name: II.1.1 On-Road Transport Fuel Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kg/a
+  unit: kt/a
   input_dimensions: ['scope', 'ghg', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'vehicle_type']
   output_nodes:
@@ -1184,7 +1184,7 @@ nodes:
   name: II.1 On-Road Transport Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kg/a
+  unit: kt/a
   input_dimensions: ['scope', 'ghg', 'vehicle_type']
   output_dimensions: ['scope', 'ghg', 'vehicle_type']
   output_nodes:
@@ -1219,7 +1219,7 @@ nodes:
   type: simple.AdditiveNode
   color: '#e15759'
   quantity: emissions
-  unit: kg/a
+  unit: kt/a
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   output_nodes:
