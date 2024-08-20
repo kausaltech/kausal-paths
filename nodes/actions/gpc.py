@@ -1,6 +1,5 @@
 import pandas as pd
 import polars as pl
-import numpy as np
 from params import StringParameter
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
 from nodes.actions import ActionNode
@@ -108,8 +107,9 @@ class DatasetAction(ActionNode):
 
         droplist = ['Sector', 'Quantity']
         for i in df.index.names:
-            empty = df.index.get_level_values(i).all()
-            if empty is np.nan or empty == '.':
+            # Check if all values are either "." or NaN
+            values = df.index.get_level_values(i)
+            if ((values == '.') | (values.isna())).all():
                 droplist.append(i)
 
         df.index = df.index.droplevel(droplist)
