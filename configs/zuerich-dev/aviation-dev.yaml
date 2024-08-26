@@ -1,3 +1,15 @@
+dimensions:
+- id: flight_type
+  label: Flugtyp
+  label_en: Flight type
+  categories:
+  - id: europe
+    label: Europa
+    label_en: Europe
+  - id: intercontinental
+    label: Interkontinental
+    label_en: Intercontinental
+
 nodes:
 - id: aviation_fuel_consumption_per_inhabitant
   name_de: Aviation fuel consumption per inhabitant
