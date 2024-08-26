@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8dfe05210ab917693b3c1f18afe29bea007acc0f
+  commit: e328b4a4ef7580f9022c4cc05cd8f97f9a138976
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -58,17 +58,17 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-action_efficiency_pairs:
+# action_efficiency_pairs:
 
-- graph_type: cost_effectiveness
-  cost_node: aggregated_discounted_total_cost
-  impact_node: aggregated_net_emissions
-  invert_cost: true
-  invert_impact: true
-  indicator_unit: EUR/t
-  cost_unit: MEUR
-  impact_unit: kt
-  label: Cost efficiency
+# - graph_type: cost_effectiveness
+#   cost_node: aggregated_discounted_total_cost
+#   impact_node: aggregated_net_emissions
+#   invert_cost: true
+#   invert_impact: true
+#   indicator_unit: EUR/t
+#   cost_unit: MEUR
+#   impact_unit: kt
+#   label: Cost efficiency
 
 dimensions:
 
@@ -183,6 +183,12 @@ dimensions:
     label: Depreciation costs
   - id: labour_costs
     label: Labour costs
+  - id: industry_ippu
+    label: Industry (IPPU)
+  - id: agriculture_afolu
+    label: Agriculture (AFOLU)
+  - id: other_sources
+    label: Other sources
 
 - id: ghg
   label: Greenhouse gas
@@ -204,7 +210,7 @@ dimensions:
   - id: trains
     label: Trains
     label_fi: Junat
-    aliases: [Metro/tram, metro/tram]
+    aliases: [Metro/tram, metro/tram, metro_tram]
   - id: public_transport
     label: Public transport
   - id: walking
@@ -513,6 +519,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
+  is_outcome: true
   input_nodes:
   - id: net_emissions
     from_dimensions:
@@ -683,10 +690,10 @@ pages:
   lead_paragraph: Climate budgeting is about including climate emissions systematically
     in the city's planning and budgeting. In the first phase, the Global Protocol
     for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing
-    these emissions are considered. C40 Network's website describes <a
+    these emissions are considered. C40 Network's website describes <a 
     href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why
     this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer
-    city</a> in this area. They have also made a practical <a
+    city</a> in this area. They have also made a practical <a 
     href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual
     for cities</a> to guide through the climate budgeting process.
 
@@ -694,8 +701,6 @@ scenarios:
 - id: baseline
   name: Baseline scenario
   params:
-  - id: waste_recycling_share_goal.slice_category_at_edge
-    value: parameter:baseline_scenario
   - id: show_scenario_impacts
     value: false
 
@@ -710,8 +715,6 @@ scenarios:
   name: Decarbonsation scenario
   all_actions_enabled: true
   params:  # FIXME Check that values get recalculated after scenario switch.
-  - id: waste_recycling_share_goal.slice_category_at_edge
-    value: parameter:decarbonisation_scenario
   - id: show_scenario_impacts
     value: false
 
@@ -719,7 +722,5 @@ scenarios:
   name: Difference between decarbonsation and baseline scenarios
   all_actions_enabled: true
   params:  # FIXME Check that values get recalculated after scenario switch.
-  - id: waste_recycling_share_goal.slice_category_at_edge
-    value: parameter:decarbonisation_scenario
   - id: show_scenario_impacts
     value: true

@@ -8,31 +8,23 @@ nodes:
 
 - id: electricity_production_emissions  # FIXME Move to main yaml?
   name_en: Electricity production emissions
-  type: formula.FormulaNode
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   color: '#59A14F'
-  input_dimensions: [pollutant, energy_carrier]
-  output_dimensions: [pollutant, energy_carrier]
+  input_dimensions: [fuel_type, pollutant, energy_carrier]
+  output_dimensions: [fuel_type, pollutant, energy_carrier]
   input_nodes:
-  - id: statistical_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
-  - id: electricity_production_shares
-    to_dimensions:
+  - id: electricity_production_by_fuel_type
+    from_dimensions:
     - id: fuel_type
+      categories: [fossil, other]
+    to_dimensions:
     - id: energy_carrier
+    - id: fuel_type
   - id: electricity_production_emission_factor
     to_dimensions:
     - id: pollutant
-    - id: energy_carrier
-  - id: electricity_production_switched
-    from_dimensions:
-    - id: fuel_type
-      categories: [fossil]
-      exclude: true
-      flatten: true
-    to_dimensions:
     - id: energy_carrier
   output_nodes:
   - id: net_emissions
@@ -42,13 +34,31 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+    - id: fuel_type
+      flatten: true
     to_dimensions:
     - id: scope
       categories: [scope2]
     - id: ghg
       categories: [co2e]
-  params:
-    formula: electricity_production_emission_factor * (statistical_electricity_consumption + electricity_production_switched)
+
+- id: electricity_production_by_fuel_type
+  name_en: Electricity production by fuel type
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: statistical_electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_production_shares
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: electricity_production_switched
 
 - id: new_electricity_production_capacity
   name: New electricity production capacity
@@ -298,8 +308,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [energy_carrier, fuel_type]
-  output_dimensions: [energy_carrier, fuel_type]
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
   - id: statistical_electricity_consumption
     tags: [non_additive]
@@ -330,8 +340,8 @@ nodes:
   params:
     sector: Total collected waste within city boundaries by type
 
-- id: waste_recycling_shares_historical
-  name: Waste recycling shares historical
+- id: waste_recycling_shares_baseline
+  name: Waste recycling shares baseline
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -341,18 +351,20 @@ nodes:
   params:
     sector: Share recycling/incineration/landfill
 
-- id: waste_recycling_share_goal
-  name: Waste recycling share goal
+- id: waste_recycling_shares_goal
+  name: Waste recycling shares goal
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [waste_treatment, waste_type, parameter]
-  output_dimensions: [waste_treatment, waste_type, parameter]
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/defaults
+    filters:
+    - column: Parameter
+      value: Decarbonisation scenario
   params:
     sector: 5.1. Increased recycling of waste
-    slice_category_at_edge: 'parameter:decarbonisaton_scenario'
 
 - id: waste_recycling_shares
   name: Waste recycling shares
@@ -697,7 +709,7 @@ nodes:
 - id: tonnes_material_used_for_renovations
   name: Tonnes material used for renovations
   type: gpc.DatasetNode
-  quantity: ratio  # FIXME mass
+  quantity: mass
   unit: t/m**2
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
@@ -705,9 +717,6 @@ nodes:
   params:
   - id: sector
     value: Tonnes material used for renovations
-  - id: multiplier  # FIXME
-    value: 1
-    unit: t/m**2
 
 - id: building_renovation_material_use
   name: Building renovation material use
@@ -895,7 +904,7 @@ nodes:
 - id: tree_planting_unit_price
   name: Tree planting unit price
   type: gpc.DatasetNode
-  quantity: emission_factor # FIXME unit_price
+  quantity: unit_price
   unit: EUR/pcs
   input_dimensions: [area_distance, cost_type]
   output_dimensions: [area_distance, cost_type]
@@ -938,6 +947,26 @@ nodes:
   params:
     sector: Population density outside city compared to inside city
 
+- id: emissions_from_other_sectors
+  name: Emissions from other sectors
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [scope, cost_type, ghg]
+  output_dimensions: [scope, cost_type, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Emissions from other sectors
+
 - id: annual_co2_capture_by_trees
   name: Annual CO2 capture by trees
   type: gpc.DatasetNode
@@ -948,9 +977,6 @@ nodes:
   params:
   - id: sector
     value: Annual CO2 capture per tree
-  - id: multiplier  # FIXME
-    value: 1
-    unit: 1/a
 
 - id: co2_reduction_by_trees
   name: CO2 reduction by trees
@@ -984,7 +1010,12 @@ nodes:
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   output_nodes:
-  - id: net_emissions
+  - id: emissions_from_other_sectors
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: cost_type
+      categories: [agriculture_afolu]
   
 - id: forestation_co2_cost
   name: Forestation CO2 cost
@@ -1030,7 +1061,7 @@ nodes:
 - id: tree_benefit_unit_price
   name: Tree benefit unit price
   type: gpc.DatasetNode
-  quantity: emission_factor # FIXME unit_price
+  quantity: unit_price
   unit: MEUR/pcs/a
   input_dimensions: [cost_type]
   output_dimensions: [cost_type]
@@ -1038,9 +1069,6 @@ nodes:
   params:
   - id: sector
     value: 'Benefits from planting trees '
-  - id: multiplier  # FIXME
-    value: 1
-    unit: 1/a
 
 - id: tree_benefit_stakeholders
   name: Tree benefit stakeholders
@@ -1109,13 +1137,10 @@ actions:
   input_dimensions: [waste_treatment, waste_type]
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
-  - id: waste_recycling_shares_historical
+  - id: waste_recycling_shares_baseline
     tags: [historical]
-  - id: waste_recycling_share_goal
+  - id: waste_recycling_shares_goal
     tags: [goal]
-    from_dimensions:
-    - id: parameter
-      flatten: true
     to_dimensions:
     - id: waste_treatment
     - id: waste_type

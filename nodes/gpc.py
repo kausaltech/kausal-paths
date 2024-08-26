@@ -81,8 +81,7 @@ class DatasetNode(AdditiveNode):
             if quan not in KNOWN_QUANTITIES:
                 quan = self.qlookup[quan]
             quans.append(quan)
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                [q == self.quantity for q in quans]]
+        df = df[[s == sector and q == self.quantity for s, q in zip(df.index.get_level_values('Sector'), quans)]]
 
         return df
 
