@@ -227,9 +227,12 @@ AUTH_PASSWORD_VALIDATORS = [
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 
+SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
+SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
+
 AUTHENTICATION_BACKENDS = (
     'admin_site.auth_backends.AzureADAuth',
-    'admin_site.auth_backends.NZCPortalOAuth2',
+    *(['admin_site.auth_backends.NZCPortalOAuth2'] if SOCIAL_AUTH_NZCPORTAL_CLIENT_ID else []),
     'django.contrib.auth.backends.ModelBackend',
 )
 
