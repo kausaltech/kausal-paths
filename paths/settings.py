@@ -117,6 +117,7 @@ LOGOUT_REDIRECT_URL = '/admin/'
 # Application definition
 
 INSTALLED_APPS = [
+    'kausal_common',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',
@@ -238,7 +239,7 @@ SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
 SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 
 SOCIAL_AUTH_PIPELINE = (
-    'admin_site.auth_pipeline.log_login_attempt',
+    'kausal_common.auth.pipeline.log_login_attempt',
 
     # Get the information we can about the user and return it in a simple
     # format to create the user instance later. On some cases the details are
@@ -251,16 +252,16 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_uid',
 
     # Generate username from UUID
-    'admin_site.auth_pipeline.get_username',
+    'kausal_common.auth.pipeline.get_username',
 
     # Checks if the current social-account is already associated in the site.
     'social_core.pipeline.social_auth.social_user',
 
     # Finds user by email address
-    'admin_site.auth_pipeline.find_user_by_email',
+    'kausal_common.auth.pipeline.find_user_by_email',
 
     # Get or create the user and update user data
-    'admin_site.auth_pipeline.create_or_update_user',
+    'kausal_common.auth.pipeline.create_or_update_user',
 
     # Create the record that associated the social account with this user.
     'social_core.pipeline.social_auth.associate_user',
@@ -270,7 +271,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',
 
     # Update avatar photo from MS Graph
-    'admin_site.auth_pipeline.update_avatar',
+    # 'kausal_common.auth.pipeline.update_avatar',
 )
 
 
@@ -538,10 +539,16 @@ ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
 
 if env('CONFIGURE_LOGGING'):
-    from kausal_common.logging.init import init_logging_django
+    from kausal_common.logging.init import LogFormat, init_logging_django
 
     is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False) # type: ignore
-    init_logging_django('logfmt' if is_kube or not DEBUG else 'rich', log_sql_queries=LOG_SQL_QUERIES)
+    log_format: LogFormat | None
+    if not is_kube and DEBUG:
+        # If logfmt hasn't been explicitly selected and DEBUG is on, fall back to autodetection.
+        log_format = None
+    else:
+        log_format = 'logfmt'
+    init_logging_django(log_format, log_sql_queries=LOG_SQL_QUERIES)
 
 if SENTRY_DSN:
     from kausal_common.sentry.init import init_sentry
