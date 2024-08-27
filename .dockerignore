@@ -3,7 +3,7 @@
 /.hooks/
 /static/
 /.direnv/
-/.env*
+/.*env*/**
 /.git/
 /.github/
 /.pytest_cache/
@@ -16,9 +16,11 @@ env
 /kausal_watch_extensions/
 /Attic/
 /tmp/
-/node_modules/
+node_modules/**
 /e2e-tests/
 /.ruff_cache/
 /local_settings.py
+/query-story/**
 **/*~
+.secrets/**
 /bin
