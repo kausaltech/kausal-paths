@@ -763,6 +763,163 @@ nodes:
 
 # ----- EMISSIONS: Mobility Outside the City -----
 
+- id: passenger_mileage_outside_city_per_inhabitant
+  name_de: Passenger mileage outside the city per inhabitant
+  name_en: Passenger mileage outside the city per inhabitant
+  type: simple.AdditiveNode
+  quantity: passenger_mileage
+  unit: pkm/cap/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: zuerich/vehicle_mileage_outside_city
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: passenger_mileage_outside_city
+  name_de: Passenger mileage outside the city
+  name_en: Passenger mileage outside the city
+  type: simple.MultiplicativeNode
+  quantity: passenger_mileage
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: pkm/a
+  input_nodes:
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
+  - id: passenger_mileage_outside_city_per_inhabitant
+    tags: [non_additive]
+
+- id: transport_emission_factors_outside_city
+  name_de: Verkehr Emissionsfaktor (ausserhalb des Stadtgebiets)
+  name_en: Transport emission factors (outside the city)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/pkm
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: zuerich/transport_emission_factors_outside_city
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: miv_emissions_outside_city
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV)
+  name_en: Individual motor transport emissions
+  short_name_de: Motorisierter Individualverkehr (MIV)
+  short_name_en: Individual motor transport
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  output_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: transport_emission_factors_outside_city
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope3]
+  - id: passenger_mileage_outside_city
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      groups: [cars, motorbikes]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transportation_emissions_outside_city
+
+- id: non_motorized_emissions_outside_city
+  name_de: Treibhausgasemissionen Langsamverkehr
+  name_en: Slow transport emissions
+  short_name_de: Langsamverkehr
+  short_name_en: Slow transport
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  output_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: transport_emission_factors_outside_city
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope3]
+  - id: passenger_mileage_outside_city
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      groups: [bicycle, ebike, micromobility]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transportation_emissions_outside_city
+
+- id: public_transport_emissions_outside_city
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV)
+  name_en: Public transportation emissions
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  output_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: transport_emission_factors_outside_city
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope3]
+  - id: passenger_mileage_outside_city
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, tram, rail_passenger]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transportation_emissions_outside_city
+
+- id: other_transport_emissions_outside_city
+  name_de: Treibhausgasemissionen übriger Verkehr
+  name_en: Other transportation emissions
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  output_dimensions: [vehicle_type, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: transport_emission_factors_outside_city
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope3]
+  - id: passenger_mileage_outside_city
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      groups: [liner_ship, coaches]
+    to_dimensions:
+    - id: vehicle_type
+  output_nodes:
+  - id: transportation_emissions_outside_city
+
 - id: transportation_emissions_outside_city
   name_en: Emissions from transportation outside the city
   name_de: Treibhausgasemissionen Mobilität der Stadtbevölkerung ausserhalb des Stadtgebiets

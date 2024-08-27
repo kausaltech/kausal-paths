@@ -15,7 +15,7 @@ nodes:
   name_de: Aviation mileage per inhabitant
   name_en: Aviation mileage per inhabitant
   type: simple.AdditiveNode
-  quantity: vehicle_mileage
+  quantity: passenger_mileage
   unit: pkm/cap/a
   input_dimensions: [flight_type]
   output_dimensions: [flight_type]
@@ -27,10 +27,8 @@ nodes:
 - id: aviation_mileage
   name_de: Aviation mileage
   name_en: Aviation mileage
-  short_name_de: Flugverkehr
-  short_name_en: Aviation
   type: simple.MultiplicativeNode
-  quantity: vehicle_mileage
+  quantity: passenger_mileage
   input_dimensions: [flight_type]
   output_dimensions: [flight_type]
   unit: pkm/a
