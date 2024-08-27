@@ -74,8 +74,8 @@ urlpatterns = [
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    path('sso/', include(social_urls, namespace='social')),
-    path('healthz/', csrf_exempt(health_view)),
+    path('auth/', include(social_urls, namespace='social')),
+    path('healthz/', csrf_exempt(health_view), name='healthcheck'),
     path('', include(framework_urls)),
 ]
 
