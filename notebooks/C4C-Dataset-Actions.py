@@ -36,10 +36,10 @@ for c in df.columns:
     else:
         context.append(c)
 
-dims = [c for c in context if c not in ['Quantity', 'Unit']]
+dims = [c for c in context if c not in ['Quantity', 'Unit', 'UUID', 'Is_action']]
 
 # Check input dataset for duplicated dimension sets.
-duplicates = df.group_by(dims).agg(pl.len()).filter(pl.col('len') > 1)
+duplicates = df.group_by(dims + ['UUID']).agg(pl.len()).filter(pl.col('len') > 1)
 if len(duplicates) > 0:
     print('There are duplicate values. Remove them and try again.')
     print(duplicates)
@@ -78,7 +78,7 @@ dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').ca
                                                   (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
 df = df.with_row_index(name = 'Index')
-for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the length of the df increases: 2s/row 
+for i in range(len(df)):
     print('Row %i of %i' % ((i + 1), len(df)))
     for y in values:
         mcols = list(context)
@@ -89,6 +89,13 @@ for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the
         if mframe['Value'][0] is not None:
             dfmain = pl.concat([dfmain, mframe], rechunk=False)
 dfmain = dfmain.rechunk()   # This helped speed a bit.
+
+if 'Is_action' in dfmain.columns:
+    dfmain = dfmain.with_columns([pl.when(
+        (pl.col('Is_action')) &
+        (pl.col('Year').eq(0))
+    ).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')])
+    dfmain = dfmain.drop('Is_action')
 
 if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)

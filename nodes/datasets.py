@@ -179,6 +179,24 @@ class DVCDataset(Dataset):
 
         if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
             df = df.add_to_index(YEAR_COLUMN)
+        
+        baseline_year = context.instance.maximum_historical_year
+        df = df.with_columns([
+            pl.when(pl.col(YEAR_COLUMN).lt(100))
+            .then(pl.col(YEAR_COLUMN) + baseline_year)
+            .otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN)
+        ])
+        # Duplicates may occur when baseline year overlaps with existing data poins.
+        # FIXME Maybe move unique() function to ppl.PathsDataFrame?
+        def unique(df: ppl.PathsDataFrame, subset = None,
+                   keep: Literal['first', 'last', 'any', 'none'] = 'any',
+                   maintain_order: bool = False) -> ppl.PathsDataFrame:
+            meta = df.get_meta()
+            df2 = pl.DataFrame.unique(df, subset=subset, keep=keep, maintain_order=maintain_order)
+            df = ppl.to_ppdf(df2, meta=meta)
+            return df
+
+        df = unique(df, subset=df._primary_keys, keep='last', maintain_order=True)
 
         if FORECAST_COLUMN in df.columns:
             cols.append(FORECAST_COLUMN)

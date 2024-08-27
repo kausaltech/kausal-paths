@@ -5,7 +5,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e328b4a4ef7580f9022c4cc05cd8f97f9a138976
+  commit: 6ac45b849bc452e29c62ec451c7be2f2e23f1349
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -203,7 +203,6 @@ dimensions:
   - id: cars
     label: Cars
     label_fi: Autot
-    aliases: ['']
   - id: buses
     label: Buses
     label_fi: Bussit
@@ -235,7 +234,6 @@ dimensions:
     label: Petrol and diesel
   - id: electricity
     label: Electricity
-    aliases: ['']  # FIXME
   - id: fossil
     label: Fossil (oil, coal, gas) + direct electric
   - id: heat_pump
@@ -360,7 +358,6 @@ dimensions:
   categories:
   - id: district_heating
     label: District heating
-    aliases: ['']  # FIXME
   - id: local_heating
     label: Local heating
 
