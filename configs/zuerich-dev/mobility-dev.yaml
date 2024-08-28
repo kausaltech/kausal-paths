@@ -320,6 +320,39 @@ dimensions:
     label_en: E-scooter
 
 nodes:
+- id: transportation_emissions
+  name_en: Transportation emissions
+  name_de: Treibhausgasemissionen Mobilität
+  short_name_de: Mobilität
+  short_name_en: Transportation
+  quantity: emissions
+  unit: kt/a
+  type: simple.SectorEmissions
+  color: '#0505A0'
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+
+- id: transportation_fgas_emissions
+  name_en: F-gas emissions from mobility
+  name_de: Treibhausgasemissionen F-Gase Mobilität
+  type: simple.SectorEmissions
+  short_name_en: F-gases
+  short_name_de: F-Gase
+  unit: kt/a
+  output_dimensions: [emission_scope]
+  output_nodes: [transportation_emissions]
+  input_datasets:
+  - id: zuerich/emissions
+    tags: [emissions]
+    filters:
+    - dimension: emission_sectors
+      categories: [fgases_transportation]
+      flatten: true
+  input_dataset_processors: [LinearInterpolation]
+
+# ----- Vehicle Kilometers Inside the City -----
+
 - id: vehicle_mileage_historical
   name_de: Verkehr Fahrleistung (historisch)
   name_en: Vehicle kilometers (historical)
@@ -354,10 +387,6 @@ nodes:
     tags: [occupancy_factor]
     to_dimensions:
     - id: transport_mode
-
-# - id: transport_electricity_consumption_historical
-#   name_de: Stromverbrauch Verkehr (historisch)
-#   name_en: Transport electricity consumption
 
 - id: mobility_demand_per_inhabitant
   name_de: Mobilitätsnachfrage pro Einwohner
@@ -493,6 +522,8 @@ nodes:
     to_dimensions:
     - id: vehicle_type
 
+# ----- Transportation Emission Factors Inside the City -----
+
 - id: transport_electricity_consumption_factor
   name_de: Verkehr Stromverbrauch
   name_en: Transport electricity consumption
@@ -584,29 +615,6 @@ nodes:
   #- id: zuerich/vehicle_tank_respiration_emissions
   #  tags: [tank_respiration]
 
-- id: other_transport_electricity_consumption
-  name_de: Stromverbrauch im Ubriger Verkehr
-  name_en: Other transportation electricity consumption
-  short_name_en: Other transportation
-  short_name_de: Ubriger Verkehr
-  type: simple.MultiplicativeNode
-  quantity: energy
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  unit: GWh/a
-  input_nodes:
-  - id: vehicle_mileage
-    from_dimensions:
-    - id: vehicle_type
-      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
-      exclude: true
-  - id: transport_electricity_consumption_factor
-  output_nodes:
-  - id: electricity_consumption
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-
 - id: transport_emission_factor
   name_de: Verkehr Emissionsfaktor
   name_en: Transport emission factors
@@ -657,7 +665,21 @@ nodes:
   output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
   input_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
 
-# ----- EMISSIONS: Mobility Inside the City -----
+- id: public_transport_electricity_emission_factor
+  name_de: Treibhausgasfaktoren Strom Öffentlicher Verkehr
+  name_en: Emission factor of public transport electricity
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: public_transport_electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+# ----- Transportation Emissions Inside the City -----
 
 - id: transportation_emissions_inside_city
   name_en: Emissions from transportation inside the city
@@ -731,37 +753,7 @@ nodes:
     - id: energy_carrier
       flatten: true
 
-- id: non_road_machinery_emissions
-  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge
-  name_en: Fuel consumption of building machines and special vehicles
-  short_name_de: Non-Road Maschinen
-  short_name_en: Non-road machinery
-  type: ch.zuerich.NonroadMachineryEmissions
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [non_road_machinery, energy_carrier]
-  output_dimensions: [non_road_machinery, energy_carrier]
-  input_nodes:
-  - id: non_road_machinery_fuel_consumption
-    tags: [fuel]
-  - id: non_road_machinery_emission_factors
-    tags: [emission_factor]
-    to_dimensions:
-    - id: energy_carrier
-    - id: non_road_machinery
-    - id: greenhouse_gases
-  output_nodes:
-  - id: transportation_emissions_inside_city
-    from_dimensions:
-    - id: non_road_machinery
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-# ----- EMISSIONS: Mobility Outside the City -----
+# ----- Transportation Emissions Outside the City -----
 
 - id: passenger_mileage_outside_city_per_inhabitant
   name_de: Passenger mileage outside the city per inhabitant
@@ -938,8 +930,7 @@ nodes:
     - id: greenhouse_gases
       flatten: true
 
-
-# -----
+# ----- Transportation Primary Energy Consumption -----
 
 - id: public_transport_electricity_primary_energy_consumption
   name_de: Primärenergiebedarf Öffentlicher Verkehr (ÖV) Strom
@@ -1084,6 +1075,72 @@ nodes:
   input_datasets:
   - id: zuerich/transport_fuel_primary_energy_factors
 
+# ----- Transportation End Energy Consumption -----
+
+- id: public_transport_electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  quantity: mix
+  unit: '%'
+  name_en: Public transport electricity production mix
+  name_de: Public transport electricity production mix
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - zuerich/transport_electricity_production_mix
+  - zuerich/subsidized_transport_electricity_production_mix
+  - zuerich/transport_externally_supplied_electricity
+  input_nodes:
+  - id: public_transport_electricity_consumption
+    tags: [consumption]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions: []
+
+- id: public_transport_electricity_consumption
+  name_de: Stromverbrauch im Öffentlicher Verkehr
+  name_en: Public transport electricity consumption
+  short_name_en: Public transport
+  short_name_de: Öffentlicher Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: other_transport_electricity_consumption
+  name_de: Stromverbrauch im Ubriger Verkehr
+  name_en: Other transportation electricity consumption
+  short_name_en: Other transportation
+  short_name_de: Ubriger Verkehr
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  unit: GWh/a
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
+      exclude: true
+  - id: transport_electricity_consumption_factor
+  output_nodes:
+  - id: electricity_consumption
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
 - id: transport_fuel_consumption
   name_de: Transport fuel consumption
   name_en: Transport fuel consumption
@@ -1143,6 +1200,8 @@ nodes:
     - id: energy_carrier
     - id: vehicle_type
       categories: [aviation]
+
+# ----- Transportation 2kW Emissions -----
 
 - id: transport_emission_factor_2kw
   name_de: Verkehr Emissionsfaktor (2000-Watt)
@@ -1246,6 +1305,52 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
+- id: transportation_emissions_2kw
+  name_de: Treibhausgasemissionen Verkehr (2000-Watt)
+  name_en: Transportation greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+  input_nodes:
+  - id: miv_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: public_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: goods_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: other_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: non_road_machinery_emissions_2kw
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+  - id: aviation_emissions
+    from_dimensions:
+    - id: flight_type
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [kerosene]
+    - id: emission_scope
+
+# ----- Transportation Renewable Energy Consumption -----
+
 - id: public_transport_renewable_electricity_consumption
   name_de: Renewable component of public transport electricity consumption
   name_en: Renewable component of public transport electricity consumption
@@ -1310,126 +1415,3 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
       categories: [electricity]
-
-- id: public_transport_electricity_production_mix
-  type: ch.zuerich.ElectricityProductionMix
-  quantity: mix
-  unit: '%'
-  name_en: Public transport electricity production mix
-  name_de: Public transport electricity production mix
-  output_dimensions: [electricity_source]
-  input_datasets:
-  - zuerich/transport_electricity_production_mix
-  - zuerich/subsidized_transport_electricity_production_mix
-  - zuerich/transport_externally_supplied_electricity
-  input_nodes:
-  - id: public_transport_electricity_consumption
-    tags: [consumption]
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    to_dimensions: []
-
-- id: public_transport_electricity_emission_factor
-  name_de: Treibhausgasfaktoren Strom Öffentlicher Verkehr
-  name_en: Emission factor of public transport electricity
-  type: ch.zuerich.EnergyProductionEmissionFactor
-  quantity: emission_factor
-  unit: g/kWh
-  input_nodes:
-  - id: public_transport_electricity_production_mix
-    tags: mix
-  input_datasets:
-  - zuerich/electricity_consumption_emission_factor
-  input_dimensions: [electricity_source]
-  output_dimensions: [emission_scope]
-
-- id: transportation_emissions
-  name_en: Transportation emissions
-  name_de: Treibhausgasemissionen Mobilität
-  short_name_de: Mobilität
-  short_name_en: Transportation
-  quantity: emissions
-  unit: kt/a
-  type: simple.SectorEmissions
-  color: '#0505A0'
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  output_nodes: [net_emissions]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: public_transport_electricity_consumption
-  name_de: Stromverbrauch im Öffentlicher Verkehr
-  name_en: Public transport electricity consumption
-  short_name_en: Public transport
-  short_name_de: Öffentlicher Verkehr
-  type: simple.MultiplicativeNode
-  quantity: energy
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  unit: GWh/a
-  input_nodes:
-  - id: vehicle_mileage
-    from_dimensions:
-    - id: vehicle_type
-      groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
-  - id: transport_electricity_consumption_factor
-  output_nodes:
-  - id: electricity_consumption
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-
-- id: transportation_fgas_emissions
-  name_en: F-gas emissions from mobility
-  name_de: Treibhausgasemissionen F-Gase Mobilität
-  type: simple.SectorEmissions
-  short_name_en: F-gases
-  short_name_de: F-Gase
-  unit: kt/a
-  output_dimensions: [emission_scope]
-  output_nodes: [transportation_emissions]
-  input_datasets:
-  - id: zuerich/emissions
-    tags: [emissions]
-    filters:
-    - dimension: emission_sectors
-      categories: [fgases_transportation]
-      flatten: true
-  input_dataset_processors: [LinearInterpolation]
-
-- id: transportation_emissions_2kw
-  name_de: Treibhausgasemissionen Verkehr (2000-Watt)
-  name_en: Transportation greenhouse gas emissions (2000-watt)
-  type: simple.SectorEmissions
-  short_name_de: Verkehr
-  short_name_en: Transportation
-  unit: kt/a
-  input_dimensions: [energy_carrier, emission_scope]
-  output_dimensions: [energy_carrier, emission_scope]
-  output_nodes: [net_emissions_2kw]
-  input_nodes:
-  - id: miv_emissions_2kw
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  - id: public_transport_emissions_2kw
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  - id: goods_transport_emissions_2kw
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  - id: other_transport_emissions_2kw
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  - id: non_road_machinery_emissions_2kw
-    from_dimensions:
-    - id: non_road_machinery
-      flatten: true
-  # - id: aviation_emissions
-  #   from_dimensions:
-  #   - id: greenhouse_gases
-  #     flatten: true
