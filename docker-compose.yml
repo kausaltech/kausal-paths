@@ -1,66 +1,89 @@
+x-database-creds: &database-creds
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-defaultpass}
+  POSTGRES_USER: paths
+  POSTGRES_DB: paths
+  DATABASE_URL: ${DATABASE_URL:-postgres://paths:defaultpass@db/paths}
+x-django-environment: &django-environment
+  <<: *database-creds
+  DATABASE_URL: ${DATABASE_URL:-postgres://paths:defaultpass@db/paths}
+  ENV_FILE:
+  REDIS_URL: redis://redis
+  STATIC_ROOT: /srv/static
+  MEDIA_ROOT: /srv/media
+  LC_CTYPE: C.UTF-8
+  DEBUG:
+  DEPLOYMENT_TYPE:
+  ALLOWED_HOSTS:
+  COOKIE_PREFIX:
+  INTERNAL_IPS:
+  SENTRY_DSN:
+  SECRET_KEY:
+  AWS_ACCESS_KEY_ID:
+  AWS_SECRET_ACCESS_KEY:
+
+x-django-build: &django-build
+  context: .
+  dockerfile: kausal_common/docker/Dockerfile
+  args:
+    - STATIC_ROOT
+    - DJANGO_PROJECT=paths
+    - SENTRY_PROJECT=paths-backend
+  secrets:
+    - EXTRA_PYPI_INDEX
+
+x-common-runtime: &common-runtime
+  restart: 'unless-stopped'
+
 services:
   db:
-    # Set DB_IMAGE to specify the image name and tag for docker-compose push
-    image: postgres:13
-    # image: ${DB_IMAGE-kausal-paths-postgres}
-    # build:
-    #   context: .
-    #   dockerfile: ./docker/db/Dockerfile
-    restart: always
+    image: postgis/postgis:16-3.4-alpine
     environment:
-      - POSTGRES_USER=paths
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-defaultpass}
-      # - POSTGRES_INITDB_ARGS=--locale-provider=icu --icu-locale=und
+      <<: *database-creds
+    <<: *common-runtime
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "paths", "-d", "paths"]
+      interval: 30s
+      timeout: 5s
+      start_period: 2s
+      retries: 3
     volumes:
       - db_data:/var/lib/postgresql/data/
 
   redis:
     image: ${REDIS_IMAGE-redis:7-alpine}
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli","ping"]
+      interval: 30s
+      timeout: 5s
+      start_period: 2s
+      retries: 3
 
   app:
-    # Set APP_IMAGE to specify the image name and tag for docker-compose push
-    image: ${APP_IMAGE-kausal-paths}
-    build:
-      context: .
-      dockerfile: docker/app/Dockerfile
-      args:
-        - STATIC_ROOT=/srv/static
-        - MEDIA_ROOT=/srv/media
-        - XDG_CACHE_HOME=/cache
-        - EXTRA_PYPI_INDEX
-    restart: always
+    build: *django-build
+    restart: "no"
+    user: '1000:1000'
     volumes:
-      - paths_media:/srv/media
-      - paths_dataset_cache:/cache/dvc-pandas
+      - media:/srv/media
+      - dataset_cache:/cache
+    command: ["gunicorn"]
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgres://paths:defaultpass@db/paths}
-      - ENV_FILE
-      - REDIS_URL=redis://redis
-      - STATIC_ROOT=/srv/static
-      - MEDIA_ROOT=/srv/media
-      - LC_CTYPE=C.UTF-8
-      - DEBUG
-      - DEPLOYMENT_TYPE
-      - ALLOWED_HOSTS
-      - COOKIE_PREFIX
-      - INTERNAL_IPS
-      - SENTRY_DSN
-      - SECRET_KEY
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+      <<: *django-environment
     depends_on:
       - db
       - redis
     healthcheck:
-      # test: ["CMD", "curl", "-f", "http://127.0.0.1/healthz/"]
       test: ["CMD", "wget", "-O", "/dev/null", "-q", "--tries=1", "http://127.0.0.1:8000/healthz/"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 0s
+      start_period: 2s
 
 volumes:
   db_data:
-  paths_media:
-  paths_dataset_cache:
+  media:
+  dataset_cache:
+
+secrets:
+  EXTRA_PYPI_INDEX:
+    file: ./.secrets/EXTRA_PYPI_INDEX

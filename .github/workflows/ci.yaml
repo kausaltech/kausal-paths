@@ -17,6 +17,8 @@ jobs:
     with:
       project_id: paths-backend
       project_type: django
+      django_project: paths
+      dockerfile: kausal_common/docker/Dockerfile
 
   test:
     needs: [build]

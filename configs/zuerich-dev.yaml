@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ee56864a6f90cabdc791ffa985c5e163e43904de
+  commit: 320c2d33b89be7d46f869075e11f6ba8d6924cc5
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -312,16 +312,6 @@ emission_sectors:
 #   color: '#6496FF'
 #   order: 11
 
-# - id: aviation_emissions
-#   name_en: Aviation
-#   name_de: Treibhausgasemissionen Flugverkehr
-#   short_name_de: Flugverkehr
-#   short_name_en: Aviation
-#   part_of: net_emissions
-#   category: aviation
-#   color: '#A174DE'
-#   input_dataset_processors: [LinearInterpolation]
-
 - id: food_consumption_emissions
   name_en: Food consumption emissions
   name_de: Treibhausgasemissionen Ernährung
@@ -375,6 +365,8 @@ nodes:
     forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
 
+# ----- Non-Road Machinery -----
+
 - id: non_road_machinery_fuel_consumption
   name_de: Kraftstoffverbrauch Baumaschinen und Spezialfahrzeuge
   name_en: Fuel consumption of building machines and special vehicles
@@ -399,6 +391,87 @@ nodes:
   - id: zuerich/non_road_machinery_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
+- id: non_road_machinery_emissions
+  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge
+  name_en: Fuel consumption of building machines and special vehicles
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.NonroadMachineryEmissions
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [non_road_machinery, energy_carrier]
+  output_dimensions: [non_road_machinery, energy_carrier]
+  input_nodes:
+  - id: non_road_machinery_fuel_consumption
+    tags: [fuel]
+  - id: non_road_machinery_emission_factors
+    tags: [emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+    - id: greenhouse_gases
+  output_nodes:
+  - id: transportation_emissions_inside_city
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+
+- id: non_road_machinery_end_energy_consumption
+  name_de: Baumaschinen und Spezialfahrzeuge End Energy Consumption
+  name_en: Building machine and special vehicle end energy consumption
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [energy_carrier, non_road_machinery]
+  unit: GWh/a
+  input_nodes:
+  - id: non_road_machinery_fuel_consumption
+  - id: fuel_higher_heating_value
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: end_energy_consumption
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+
+- id: non_road_machinery_emissions_2kw
+  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge (2000-Watt)
+  name_en: Building machine and special vehicle emissions (2000-Watt)
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  input_nodes:
+  - id: non_road_machinery_emissions
+    tags: [emissions]
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: non_road_machinery_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+# ----- Agriculture Emissions -----
+
 - id: afolu_emissions
   name_de: Treibhausgasemissionen Land- und Forstwirtschaft
   type: simple.SectorEmissions
@@ -421,9 +494,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   color: '#F1D900'
 
-#
-# 2000-watt Society indicators
-#
+# ----- 2kW Society Indicators -----
+
 - id: primary_energy_power_per_inhabitant
   name_de: Primärenergiebedarf nach Einwohner*in
   name_en: Primary energy demand per inhabitant
@@ -452,16 +524,46 @@ nodes:
   input_dimensions: [energy_carrier, renewable_energy]
   output_dimensions: [energy_carrier, renewable_energy]
 
-# - id: fuel_energy_density
-#   name_de: Fuel energy density
-#   name_en: Fuel energy density
-#   type: simple.AdditiveNode
-#   quantity: ratio
-#   unit: MJ/kg
-#   output_dimensions: [vehicle_type, energy_carrier]
-#   input_dimensions: [vehicle_type, energy_carrier]
-#   input_datasets:
-#   - id: zuerich/fuel_energy_density
+- id: net_emissions_2kw
+  name_de: Treibhausgasemissionen (2000-Watt)
+  name_en: Greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  is_outcome: true
+
+- id: percent_renewable_end_energy_consumption
+  name_en: Renewable component of total end energy consumption
+  name_de: Renewable component of total end energy consumption
+  short_name_en: Renewable
+  short_name_de: Renewable
+  input_dimensions: []
+  output_dimensions: []
+  type: formula.FormulaNode
+  unit: '%'
+  quantity: fraction
+  params:
+    formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption)
+      / end_energy_consumption
+#    extend_last_historical_value: true
+  input_nodes:
+  - id: stationary_end_renewable_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: transport_end_renewable_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+  - id: end_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+# ----- Fuel Heating Values -----
 
 - id: fuel_lower_heating_value
   name_de: Fuel lower heating value (LHV)
@@ -498,6 +600,8 @@ nodes:
     tags: [non_additive]
   - id: fuel_heating_value_ratio
     tags: [non_additive]
+
+# ----- End Energy Consumption -----
 
 - id: stationary_end_energy_consumption
   name_de: Stationary heat & other end energy consumption
@@ -542,43 +646,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
-- id: net_emissions_2kw
-  name_de: Treibhausgasemissionen (2000-Watt)
-  name_en: Greenhouse gas emissions (2000-watt)
-  type: simple.SectorEmissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, emission_scope]
-  output_dimensions: [energy_carrier, emission_scope]
-  is_outcome: true
-
-- id: non_road_machinery_emissions_2kw
-  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge (2000-Watt)
-  name_en: Building machine and special vehicle emissions (2000-Watt)
-  short_name_de: Non-Road Maschinen
-  short_name_en: Non-road machinery
-  type: ch.zuerich.TransportEmissions2kW
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
-  output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
-  input_nodes:
-  - id: non_road_machinery_emissions
-    tags: [emissions]
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-    - id: energy_carrier
-    - id: non_road_machinery
-  - id: non_road_machinery_end_energy_consumption
-    tags: [consumption]
-    to_dimensions:
-    - id: energy_carrier
-    - id: non_road_machinery
-  - id: transport_emission_factor_2kw
-    tags: [emission_factors]
-    to_dimensions:
-    - id: energy_carrier
-
 - id: stationary_end_renewable_energy_consumption
   name_de: Renewable component of stationary end energy consumption
   name_en: Renewable component of stationary end energy consumption
@@ -597,62 +664,7 @@ nodes:
       categories: [electricity]
   - id: building_renewable_nonelectric_energy_consumption
 
-- id: percent_renewable_end_energy_consumption
-  name_en: Renewable component of total end energy consumption
-  name_de: Renewable component of total end energy consumption
-  short_name_en: Renewable
-  short_name_de: Renewable
-  input_dimensions: []
-  output_dimensions: []
-  type: formula.FormulaNode
-  unit: '%'
-  quantity: fraction
-  params:
-    formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption)
-      / end_energy_consumption
-#    extend_last_historical_value: true
-  input_nodes:
-  - id: stationary_end_renewable_energy_consumption
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-  - id: transport_end_renewable_energy_consumption
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: vehicle_type
-      flatten: true
-  - id: end_energy_consumption
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
-- id: non_road_machinery_end_energy_consumption
-  name_de: Baumaschinen und Spezialfahrzeuge End Energy Consumption
-  name_en: Building machine and special vehicle end energy consumption
-  short_name_de: Non-Road Maschinen
-  short_name_en: Non-road machinery
-  type: simple.MultiplicativeNode
-  quantity: energy
-  input_dimensions: [energy_carrier, non_road_machinery]
-  output_dimensions: [energy_carrier, non_road_machinery]
-  unit: GWh/a
-  input_nodes:
-  - id: non_road_machinery_fuel_consumption
-  - id: fuel_higher_heating_value
-    to_dimensions:
-    - id: energy_carrier
-  output_nodes:
-  - id: end_energy_consumption
-    from_dimensions:
-    - id: non_road_machinery
-      flatten: true
-
-#
-# ------- ACTIONS --------
-#
 actions:
-
 #
 # Massnahmenpaket 1: Heizungsersatz und Ausbau thermische Netze
 #
@@ -933,7 +945,6 @@ actions:
         amount: 10
       - year: 2033
         amount: 0
-
 
 #
 # Massnahmenpaket 2: Reduktion des Wärmeenergiebedarfes
@@ -1437,8 +1448,9 @@ actions:
       - year: 2040
         amount: 0
 
-
+#
 # Massnahmenpaket 6: CO2-Entnahme und -Speicherung (CCS)
+#
 - id: install_waste_treatment_ccs
   name_en: Install CCS in waste treatment
   name_de: CO2-Entnahme und -Speicherung (CCS)
@@ -1647,59 +1659,6 @@ actions:
       - year: 2036
         source_amount: 0
         dest_amounts: [1]
-
-
-# - id: increased_district_heat_ccs_efficiency
-#   name_en: Increased district heating CCS efficiency
-#   name_de: Increased district heating CCS efficiency
-#   type: simple.CumulativeAdditiveAction
-#   quantity: ratio
-#   unit: '%'
-#   forecast_values: [[2023, 0], [2035, 10]]
-#   output_nodes: [district_heat_ccs_share]
-#   group: optional
-#
-# - id: increased_car_electrification
-#   name_en: Increased car electrification
-#   name_de: Increased car electrification
-#   type: shift.ShiftAction
-#   group: optional
-#   output_nodes:
-#   - id: vehicle_engine_type_split
-#   unit: '%'
-#   quantity: mix
-#   params:
-#   - id: shift
-#     unit: '%'
-#     is_customizable: false
-#     value:
-#     - source:
-#         categories:
-#           vehicle_type: car_diesel
-#       dests:
-#       - categories:
-#           vehicle_type: car_batteryelectric
-#       amounts:
-#       - year: 2039
-#         source_amount: 0
-#         dest_amounts: [1]
-#       - year: 2040
-#         source_amount: -4.5
-#         dest_amounts: [1]
-#     - source:
-#         categories:
-#           vehicle_type: car_petrol
-#       dests:
-#       - categories:
-#           vehicle_type: car_batteryelectric
-#       amounts:
-#       - year: 2039
-#         source_amount: 0
-#         dest_amounts: [1]
-#       - year: 2040
-#         source_amount: -5.5
-#         dest_amounts: [1]
-
 
 pages:
 - id: home

@@ -2,7 +2,7 @@
 *.mo
 *.pyc
 /.django_secret
-oidc.key
+*.key
 **/__pycache__
 **/node_modules
 *.sqlite3
@@ -18,6 +18,7 @@ media/**
 *.sublime-project
 *.sublime-workspace
 data/**
+notebooks/data/**
 .vscode/**
 .idea/**
 .direnv/**
@@ -34,3 +35,5 @@ data/**
 /model-outputs/**
 /store/**
 celerybeat-schedule
+.aider*
+.secrets/**
