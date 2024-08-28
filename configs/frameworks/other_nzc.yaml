@@ -16,15 +16,16 @@ nodes:
   output_dimensions: [fuel_type, pollutant, energy_carrier]
   input_nodes:
   - id: electricity_production_by_fuel_type
-    from_dimensions:
-    - id: fuel_type
-      categories: [fossil, other]
     to_dimensions:
     - id: energy_carrier
     - id: fuel_type
   - id: electricity_production_emission_factor
     to_dimensions:
     - id: pollutant
+    - id: energy_carrier
+  - id: fossil_electricity_factor
+    to_dimensions:
+    - id: fuel_type
     - id: energy_carrier
   output_nodes:
   - id: net_emissions
@@ -60,6 +61,32 @@ nodes:
     - id: energy_carrier
   - id: electricity_production_switched
 
+- id: effective_electricity_emission_factor
+  name: Effective electricity emission factor
+  description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, pollutant]
+  output_dimensions: [energy_carrier, pollutant]
+  input_nodes:
+  - id: electricity_production_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+  - id: electricity_production_by_fuel_type
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  
 - id: new_electricity_production_capacity
   name: New electricity production capacity
   type: simple.MultiplicativeNode
@@ -878,74 +905,74 @@ nodes:
 
 # ----------- AFOLU --------------
 
-- id: distribution_between_trees_in_grey_and_green_area
-  name: Distribution between trees in grey and green area
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [city_area, area_distance]
-  output_dimensions: [city_area, area_distance]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Distribution between trees in grey and green area
+# - id: distribution_between_trees_in_grey_and_green_area
+#   name: Distribution between trees in grey and green area
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: dimensionless
+#   input_dimensions: [city_area, area_distance]
+#   output_dimensions: [city_area, area_distance]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Distribution between trees in grey and green area
 
-- id: number_of_new_trees
-  name: Number of new trees
-  type: gpc.DatasetNode
-  quantity: number
-  unit: pcs
-  input_dimensions: [area_distance]
-  output_dimensions: [area_distance]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Number of planted trees until 2030
-    inventory_only: true
+# - id: number_of_new_trees
+#   name: Number of new trees
+#   type: gpc.DatasetNode
+#   quantity: number
+#   unit: pcs
+#   input_dimensions: [area_distance]
+#   output_dimensions: [area_distance]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Number of planted trees until 2030
+#     inventory_only: true
 
-- id: tree_planting_unit_price
-  name: Tree planting unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/pcs
-  input_dimensions: [area_distance, cost_type]
-  output_dimensions: [area_distance, cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Cost of planting trees  by area distance
+# - id: tree_planting_unit_price
+#   name: Tree planting unit price
+#   type: gpc.DatasetNode
+#   quantity: unit_price
+#   unit: EUR/pcs
+#   input_dimensions: [area_distance, cost_type]
+#   output_dimensions: [area_distance, cost_type]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Cost of planting trees  by area distance
 
-- id: tree_planting_cost
-  name: Tree planting cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [area_distance, cost_type]
-  output_dimensions: [area_distance, cost_type]
-  input_nodes:
-  - id: tree_planting_unit_price
-  - id: number_of_new_trees
-    tags: [difference]
-    to_dimensions:
-    - id: area_distance
-  output_nodes:
-  - id: forestation_cost
-    from_dimensions:
-    - id: area_distance
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: stakeholder
-      categories: [city]
+# - id: tree_planting_cost
+#   name: Tree planting cost
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [area_distance, cost_type]
+#   output_dimensions: [area_distance, cost_type]
+#   input_nodes:
+#   - id: tree_planting_unit_price
+#   - id: number_of_new_trees
+#     tags: [difference]
+#     to_dimensions:
+#     - id: area_distance
+#   output_nodes:
+#   - id: forestation_cost
+#     from_dimensions:
+#     - id: area_distance
+#       flatten: true
+#     to_dimensions:
+#     - id: cost_type
+#     - id: stakeholder
+#       categories: [city]
 
-- id: population_density_outside_city_compared_to_inside_city
-  name: Population density outside city compared to inside city
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [area_distance]
-  output_dimensions: [area_distance]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Population density outside city compared to inside city
+# - id: population_density_outside_city_compared_to_inside_city
+#   name: Population density outside city compared to inside city
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [area_distance]
+#   output_dimensions: [area_distance]
+#   input_datasets:
+#   - id: nzc/defaults
+#   params:
+#     sector: Population density outside city compared to inside city
 
 - id: emissions_from_other_sectors
   name: Emissions from other sectors
@@ -967,144 +994,144 @@ nodes:
   params:
     sector: Emissions from other sectors
 
-- id: annual_co2_capture_by_trees
-  name: Annual CO2 capture by trees
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/pcs/a
-  input_datasets:
-  - id: nzc/defaults
-  params:
-  - id: sector
-    value: Annual CO2 capture per tree
+# - id: annual_co2_capture_by_trees
+#   name: Annual CO2 capture by trees
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/pcs/a
+#   input_datasets:
+#   - id: nzc/defaults
+#   params:
+#   - id: sector
+#     value: Annual CO2 capture per tree
 
-- id: co2_reduction_by_trees
-  name: CO2 reduction by trees
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [area_distance]
-  output_dimensions: [area_distance]
-  input_nodes:
-  - id: number_of_new_trees
-  - id: annual_co2_capture_by_trees
-    to_dimensions: []
-  output_nodes:
-  - id: forestation_emissions
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: area_distance
-      flatten: true
-    to_dimensions:
-    - id: scope
-      categories: [scope1]
-    - id: ghg
-      categories: [co2e]
+# - id: co2_reduction_by_trees
+#   name: CO2 reduction by trees
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [area_distance]
+#   output_dimensions: [area_distance]
+#   input_nodes:
+#   - id: number_of_new_trees
+#   - id: annual_co2_capture_by_trees
+#     to_dimensions: []
+#   output_nodes:
+#   - id: forestation_emissions
+#     tags: [arithmetic_inverse]
+#     from_dimensions:
+#     - id: area_distance
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#       categories: [scope1]
+#     - id: ghg
+#       categories: [co2e]
 
-- id: forestation_emissions
-  name: Forestation emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  color: '#76B7B2'
-  input_dimensions: [ghg, scope]
-  output_dimensions: [ghg, scope]
-  output_nodes:
-  - id: emissions_from_other_sectors
-    to_dimensions:
-    - id: ghg
-    - id: scope
-    - id: cost_type
-      categories: [agriculture_afolu]
+# - id: forestation_emissions
+#   name: Forestation emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: kt/a
+#   color: '#76B7B2'
+#   input_dimensions: [ghg, scope]
+#   output_dimensions: [ghg, scope]
+#   output_nodes:
+#   - id: emissions_from_other_sectors
+#     to_dimensions:
+#     - id: ghg
+#     - id: scope
+#     - id: cost_type
+#       categories: [agriculture_afolu]
   
-- id: forestation_co2_cost
-  name: Forestation CO2 cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [scope, cost_type, ghg]
-  output_dimensions: [scope, cost_type, ghg]
-  input_nodes:
-  - id: forestation_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-  - id: co2_unit_price
-    to_dimensions:
-    - id: cost_type
-    - id: ghg
-  output_nodes:
-  - id: forestation_cost
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: stakeholder
-      categories: [city]
+# - id: forestation_co2_cost
+#   name: Forestation CO2 cost
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [scope, cost_type, ghg]
+#   output_dimensions: [scope, cost_type, ghg]
+#   input_nodes:
+#   - id: forestation_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+#   - id: co2_unit_price
+#     to_dimensions:
+#     - id: cost_type
+#     - id: ghg
+#   output_nodes:
+#   - id: forestation_cost
+#     from_dimensions:
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: cost_type
+#     - id: stakeholder
+#       categories: [city]
 
-- id: forestation_cost
-  name: Forestation cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  output_nodes:
-  - id: total_cost
-    to_dimensions:
-    - id: cost_type
-    - id: stakeholder
+# - id: forestation_cost
+#   name: Forestation cost
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [cost_type, stakeholder]
+#   output_dimensions: [cost_type, stakeholder]
+#   output_nodes:
+#   - id: total_cost
+#     to_dimensions:
+#     - id: cost_type
+#     - id: stakeholder
 
-- id: tree_benefit_unit_price
-  name: Tree benefit unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: MEUR/pcs/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-  - id: sector
-    value: 'Benefits from planting trees '
+# - id: tree_benefit_unit_price
+#   name: Tree benefit unit price
+#   type: gpc.DatasetNode
+#   quantity: unit_price
+#   unit: MEUR/pcs/a
+#   input_dimensions: [cost_type]
+#   output_dimensions: [cost_type]
+#   input_datasets: [nzc/defaults]
+#   params:
+#   - id: sector
+#     value: 'Benefits from planting trees '
 
-- id: tree_benefit_stakeholders
-  name: Tree benefit stakeholders
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: forest costs and savings
+# - id: tree_benefit_stakeholders
+#   name: Tree benefit stakeholders
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [stakeholder, cost_type]
+#   output_dimensions: [stakeholder, cost_type]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: forest costs and savings
 
-- id: tree_co_benefits
-  name: Monetary co-benefits
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, area_distance, stakeholder]
-  output_dimensions: [cost_type, area_distance, stakeholder]
-  input_nodes:
-  - id: number_of_new_trees
-    to_dimensions:
-    - id: area_distance
-  - id: tree_benefit_unit_price
-    to_dimensions:
-    - id: cost_type
-  - id: tree_benefit_stakeholders
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
-  output_nodes:
-  - id: forestation_cost
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: area_distance
-      flatten: true
+# - id: tree_co_benefits
+#   name: Monetary co-benefits
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [cost_type, area_distance, stakeholder]
+#   output_dimensions: [cost_type, area_distance, stakeholder]
+#   input_nodes:
+#   - id: number_of_new_trees
+#     to_dimensions:
+#     - id: area_distance
+#   - id: tree_benefit_unit_price
+#     to_dimensions:
+#     - id: cost_type
+#   - id: tree_benefit_stakeholders
+#     to_dimensions:
+#     - id: stakeholder
+#     - id: cost_type
+#   output_nodes:
+#   - id: forestation_cost
+#     tags: [arithmetic_inverse]
+#     from_dimensions:
+#     - id: area_distance
+#       flatten: true
 
 actions:
 
@@ -1169,19 +1196,19 @@ actions:
 
 # --------------- AFOLU -----------------
 
-- id: tree_planting
-  name: 7.1 Tree planting
-  type: gpc.DatasetAction2
-  quantity: number
-  unit: pcs
-  group: reforestation
-  input_dimensions: [area_distance]
-  output_dimensions: [area_distance]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Number of planted trees until 2030
-  output_nodes:
-  - id: number_of_new_trees
+# - id: tree_planting
+#   name: 7.1 Tree planting
+#   type: gpc.DatasetAction2
+#   quantity: number
+#   unit: pcs
+#   group: reforestation
+#   input_dimensions: [area_distance]
+#   output_dimensions: [area_distance]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Number of planted trees until 2030
+#   output_nodes:
+#   - id: number_of_new_trees
 
 - id: reduced_co2_emissions_in_other_sectors
   name: '6? Reduced CO2 emissions in other sectors'

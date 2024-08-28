@@ -1,6 +1,5 @@
 id: nzc
 default_language: en
-supported_languages: [fi]
 frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
@@ -74,46 +73,34 @@ dimensions:
 
 - id: pollutant
   label: Pollutant
-  label_fi: Saaste
   categories:
   - id: co2
     label: CO2
-    label_fi: CO2
     aliases: [co2e]
   - id: nox
     label: NOx
-    label_fi: NOx
   - id: pm25_combustion
     label: PM2.5 combustion
-    label_fi: PM2.5-polttoperäinen
     aliases: [pm25]
   - id: pm25_wear_tear
     label: PM2.5 wear & tear
-    label_fi: PM2.5-kuluminen
   - id: pm10_combustion
     label: PM10 combustion
-    label_fi: PM10-polttoperäinen
     aliases: [pm10]
   - id: pm10_wear_tear
     label: PM10 wear & tear
-    label_fi: PM10-kuluminen
 
 - id: transport_pollutant
   label: Transport pollutant
-  label_fi: Liikennesaaste
   categories:
   - id: co2
     label: CO2
-    label_fi: CO2
   - id: nox
     label: NOx
-    label_fi: NOx
   - id: pm25
     label: PM2.5
-    label_fi: PM2.5
   - id: pm10
     label: PM10
-    label_fi: PM10
 
 - id: scope
   label: Scope
@@ -202,22 +189,17 @@ dimensions:
   categories:
   - id: cars
     label: Cars
-    label_fi: Autot
   - id: buses
     label: Buses
-    label_fi: Bussit
   - id: trains
     label: Trains
-    label_fi: Junat
     aliases: [Metro/tram, metro/tram, metro_tram]
   - id: public_transport
     label: Public transport
   - id: walking
     label: Walking
-    label_fi: Kävely
   - id: cycling
     label: Cycling
-    label_fi: Pyöräily
   - id: light_trucks
     label: Light duty trucks <3.5 tonne
   - id: heavy_trucks
@@ -553,9 +535,26 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
+- id: fossil_electricity_factor
+  name: Fossil electricity factor
+  description: The historical emission factor is for the whole mix of electricity production, but the CO2 emissions come mainly from fossil fuels. Therefore, the emission factor is scaled so that it matches the fossil fraction, while other categories are assumed to have zero CO2 emissions.
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+
 - id: electricity_production_emission_factor
   name: Electricity production emission factor
-  description: TODO Update calculations
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -655,6 +654,20 @@ nodes:
     ref: discount_rate
   - id: is_decreasing_rate
     value: true
+
+- id: discounted_co_benefits
+  name: Discounted co-benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: discounted_total_cost
+    from_dimensions:
+    - id: cost_type
+      categories: ['accidents', 'aesthetics', 'air_pollution', 'co2_cost', 'forest_management', 'health', 'noise', 'shading', 'water_regulation']
 
 - id: aggregated_discounted_total_cost
   name: Aggregated discounted total cost

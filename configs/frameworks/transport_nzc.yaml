@@ -202,7 +202,7 @@ nodes:
   input_dimensions: [pollutant, transport_mode, energy_carrier]
   output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: effective_electricity_emission_factor
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
@@ -412,7 +412,7 @@ nodes:
   name: Transport efficiency
   type: gpc.DatasetNode
   quantity: occupancy_factor
-  unit: pkm/vkm
+  unit: passenger/vehicle
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
