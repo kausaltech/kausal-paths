@@ -41,12 +41,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         if fwc is None:
             return df
 
-        uuid_counts = df.group_by('UUID').agg(
-            pl.count('UUID').alias('count')
-        )
-        uuids_more_than_one = uuid_counts.filter(pl.col('count') > 1)['UUID']
-        uuids_just_one = uuid_counts.filter(pl.col('count') == 1)['UUID']
-        uuids = uuid_counts['UUID']
+        uuids = df['UUID'].unique().to_list()
         measures = fwc.measures.filter(measure_template__uuid__in=uuids).select_related('template')
         dps = (
             MeasureDataPoint.objects.filter(measure__in=measures)
@@ -59,24 +54,23 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             ('MeasureValue', pl.Float64),
             ('MeasureUnit', pl.String)
         )
-        df_cols = df.columns
-        meta = df.get_meta()
         dpdf = pl.DataFrame(data=list(dps), schema=schema, orient='row')
-        max_measure_year = cast(int, dpdf['MeasureYear'].max())
+
+        meta = df.get_meta()
+        df_cols = df.columns
+        df_cols.remove('UUID')
+
+        baseline_year = cast(int, dpdf['MeasureYear'].max())
+        df = df.with_columns(
+            pl.when(pl.col('Year').lt(100))
+            .then(pl.col('Year') + baseline_year)
+            .otherwise(pl.col('Year')).alias('Year')
+        )
+
+        # Duplicates may occur when baseline year overlaps with existing data points.
+        df = ppl.to_ppdf(df.unique(subset = meta.primary_keys, keep = 'last', maintain_order = True), meta = meta)
 
         jdf = df.join(dpdf, on=['UUID'], how='left')
-        jdf = jdf.with_columns(
-            pl.when(
-                pl.col('UUID').is_in(uuids_just_one).or_(pl.col('Year') >= 2024)
-            )
-            .then(pl.col('Year'))
-            .otherwise(pl.col('MeasureYear'))
-            .alias('MeasureYear')
-        )
-        jdf = jdf.filter(
-            pl.col('UUID').is_null().and_((pl.col('Year') == max_measure_year).or_(pl.col('Year') >= 2024)) |
-            ~(pl.col('UUID').is_in(uuids_more_than_one).and_(pl.col('Year') != pl.col('MeasureYear')))
-        )
 
         # Convert units
         diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()

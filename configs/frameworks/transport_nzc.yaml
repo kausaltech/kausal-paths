@@ -202,7 +202,7 @@ nodes:
   input_dimensions: [pollutant, transport_mode, energy_carrier]
   output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: effective_electricity_emission_factor
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
@@ -412,7 +412,7 @@ nodes:
   name: Transport efficiency
   type: gpc.DatasetNode
   quantity: occupancy_factor
-  unit: pkm/vkm
+  unit: passenger/vehicle
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
@@ -593,8 +593,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: freight_mileage
   unit: Mvkm/a
-  input_dimensions: [energy_carrier, transport_mode]
-  output_dimensions: [energy_carrier, transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
   - id: freight_transport_need
     tags: [non_additive]
@@ -784,7 +784,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-- id: freight_transport_electricity_consumption
+- id: freight_transport_electricity_consumption  # FIXME Leads nowhere. Was there double counting?
   name: freight transport electricity consumption
   type: simple.MultiplicativeNode
   quantity: energy

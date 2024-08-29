@@ -267,7 +267,18 @@ nodes:
 
 # --------------------- Heating ---------------------
 
-- id: energy_use_intensity_data  # FIXME Calculate from relative changes, not data
+
+- id: total_building_heat_energy_use
+  name: Total building heat energy use
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+
+- id: energy_use_intensity_data
   name: Energy use intensity data for heating
   type: gpc.DatasetNode
   quantity: energy_factor
@@ -278,6 +289,19 @@ nodes:
   - id: nzc/defaults
   params:
     sector: energy use intensity
+
+- id: energy_use_intensity_ratio
+  name: Energy use intensity ratio for heating
+  description: Relative energy use intensity by building energy class. Old, no renovations gets value 1.
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes: [energy_use_intensity_data]
+  params:
+    use_input_node_unit_when_adding: true
+    reference_category: 'building_energy_class:old_no_renovations'
 
 - id: energy_use_intensity_relative_old
   name: Relative energy use intensity of existing building classes
@@ -299,7 +323,15 @@ nodes:
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
-  - id: energy_use_intensity_data
+  - id: total_building_heat_energy_use
+    to_dimensions: []
+  - id: existing_building_stock
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions: []
+  - id: energy_use_intensity_ratio
     tags: [non_additive]
     from_dimensions:
     - id: building_energy_class
@@ -344,6 +376,18 @@ nodes:
   input_nodes:
   - id: energy_use_intensity_new
   - id: energy_use_intensity_old
+
+- id: electric_heating_type_shares
+  name: Electric heating type shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, heating_type, energy_carrier, scope]
+  output_dimensions: [fuel_type, heating_type, energy_carrier, scope]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of heating electricity
 
 - id: building_heating_type_share_historical
   name: Building heating type share historical
@@ -494,6 +538,48 @@ nodes:
     - id: energy_carrier
     - id: scope
     - id: fuel_type
+  - id: electric_heat_energy_use
+
+- id: electric_heat_energy_use
+  name: Electric heat energy use
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  input_nodes:
+  - id: building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: energy_use_intensity
+    to_dimensions:
+    - id: building_energy_class
+  - id: electric_heating_type_shares
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: scope
+    - id: fuel_type
+  - id: heating_fuel_share
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
 
 - id: efficiency_of_heat_pumps
   name: Efficiency of heat pumps

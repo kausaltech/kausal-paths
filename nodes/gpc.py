@@ -72,8 +72,6 @@ class DatasetNode(AdditiveNode):
 
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset()
-        if 'UUID' in df.columns:
-            df = df.drop(columns='UUID')
         df = df[df[VALUE_COLUMN].notnull()]
         quans = []
         for quan in df.index.get_level_values('Quantity'):
@@ -81,8 +79,7 @@ class DatasetNode(AdditiveNode):
             if quan not in KNOWN_QUANTITIES:
                 quan = self.qlookup[quan]
             quans.append(quan)
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                [q == self.quantity for q in quans]]
+        df = df[[s == sector and q == self.quantity for s, q in zip(df.index.get_level_values('Sector'), quans)]]
 
         return df
 
