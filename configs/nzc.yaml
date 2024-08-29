@@ -204,7 +204,7 @@ dimensions:
   - id: trains
     label: Trains
     label_fi: Junat
-    aliases: [Metro/tram, metro/tram]
+    aliases: [Metro/tram, metro/tram, metro_tram]
   - id: public_transport
     label: Public transport
   - id: walking
