@@ -1,13 +1,9 @@
 import pandas as pd
 import polars as pl
-import numpy as np
 from params import StringParameter
-from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
-from nodes.dimensions import Dimension
 from nodes.actions import ActionNode
 from nodes.gpc import DatasetNode
-from nodes.processors import LinearInterpolation
 from nodes.units import unit_registry
 from common import polars as ppl
 from nodes.exceptions import NodeError
@@ -70,7 +66,7 @@ class DatasetAction(ActionNode):
     def makeid(self, label: str):  # FIXME Move all makeid() functions to .calc.py.
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
@@ -111,8 +107,9 @@ class DatasetAction(ActionNode):
 
         droplist = ['Sector', 'Quantity']
         for i in df.index.names:
-            empty = df.index.get_level_values(i).all()
-            if empty is np.nan or empty == '.':
+            # Check if all values are either "." or NaN
+            values = df.index.get_level_values(i)
+            if ((values == '.') | (values.isna())).all():
                 droplist.append(i)
 
         df.index = df.index.droplevel(droplist)
@@ -170,7 +167,9 @@ class DatasetAction(ActionNode):
 
 
 class DatasetActionMFM(ActionNode):
-    allowed_parameters = [StringParameter('action', description = 'Action Name', is_customizable = False)]
+    allowed_parameters = [StringParameter('action', description = 'Action name', is_customizable = False)]
+
+    allow_null_categories = True
 
     no_effect_value = 0.0
 
@@ -187,7 +186,7 @@ class DatasetActionMFM(ActionNode):
     def makeid(self, label: str):
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
@@ -298,11 +297,6 @@ class DatasetActionMFM(ActionNode):
             jdf = jdf.join(qdf, how = 'outer')
 
         jdf = jdf.join(fc)
-
-        for dim in self.output_dimensions:
-            if '' in jdf.index.get_level_values(dim).unique().to_list():
-                self.output_dimensions[dim].is_internal = True
-
         return(jdf)
 
 class StockReplacementAction(ActionNode):
@@ -312,7 +306,7 @@ class StockReplacementAction(ActionNode):
     def makeid(self, label: str):
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
@@ -494,7 +488,6 @@ class StockReplacementAction(ActionNode):
             irepcost = repcost.loc[repcost.index.get_level_values(YEAR_COLUMN) == yearlist[i]][VALUE_COLUMN].item()
 
             repneed = ((targets[0][0] - stats[targetcat][1]) * total) / scheme[targetcat]
-            repneed_cost = repneed * irepcost
             repfunded = iinvestment / irepcost
 
             repcount = min([repneed, repfunded])
@@ -503,7 +496,7 @@ class StockReplacementAction(ActionNode):
                 if scheme[cat] < 0:
                     reppool.append([(scheme[cat] * repcount) * -1, cat])
                     stock = self.stock_delta(stock, cat, (scheme[cat] * repcount), 'rep', '.')
-            
+
             for cat in catlist:
                 if scheme[cat] > 0:
                     catcount = scheme[cat] * repcount
@@ -590,7 +583,7 @@ class SCurveAction(DatasetAction2):
             units={VALUE_COLUMN: unit_registry('dimensionless')},
             primary_keys=[YEAR_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
-    
+
         return df
 
     # Extend the value on the selected row (based on year column) to the whole selected column

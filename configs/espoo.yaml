@@ -30,6 +30,11 @@ target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2022
+features:
+  baseline_visible_in_graphs: true
+  show_accumulated_effects: true
+  show_significant_digits: 3
+
 action_groups:
 - id: transportation
   name: Liikenne
@@ -63,6 +68,7 @@ params:
   value: default
 
 dimensions:
+
 - id: building_heat_source
   label: Lämmitystapa
   label_en: Heating method
@@ -89,6 +95,7 @@ dimensions:
     label_en: Other or unknown
     label_sv: Annan eller okänd
     aliases: [Muu]
+
 - id: building_use
   label: Rakennuksen käyttötarkoitus
   label_en: Purpose of use of the building
@@ -184,6 +191,7 @@ dimensions:
     label: Rahtilaivat
     label_en: Cargo ships
     label_sv: Fraktfartyg
+
 - id: transportation_class
   label: Liikennemuoto
   label_en: Mode of transport
@@ -595,8 +603,6 @@ nodes:
   - id: building_heat_consumption_new
     to_dimensions:
     - id: building_use
-    - id: building_heat_source
-      categories: [district_heat]  # FIXME Should apply to all building_heat_sources but then gives error
 
 - id: building_floor_area_new
   type: finland.aluesarjat.FutureBuildingStock
@@ -1225,7 +1231,7 @@ actions:
   unit: g/kWh
   group: buildings
 
-- id: reduce_oil_heating_residence
+- id: reduce_oil_heating_residence  # FIXME Combine the next three actions into one.
   name: Öljylämmityksen vähentäminen (Asuminen)
   name_en: Reducing oil heating (housing)
   name_sv: Minskning av oljeuppvärmning (Boende)

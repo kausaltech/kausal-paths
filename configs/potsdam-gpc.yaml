@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ade9c148ef1d76f8a451a44fbbc448da3701c822
+  commit: 80c9fd99d5bc81dd42ff34d0e4b988d06addfc69
   dvc_remote: kausal-s3
 name: Potsdam BASIC+ Treibhausgasinventar
 owner: Stadt Potsdam
@@ -45,7 +45,6 @@ dimensions:
   categories:
   - id: co2e
     label: CO2e
-    aliases: ['']
 
 - id: energietrager
   label: Energieträger
@@ -588,19 +587,19 @@ nodes:
 
 actions:
 
-# - id: i11_residential_fuel_consumption_action
-#   name: I.1.1 Aktion Brennstoffverbrauch Wohngebäude
-#   type: gpc.DatasetAction
-#   quantity: energy
-#   unit: MWh/a
-#   group: stationary
-#   input_datasets:
-#   - id: gpc/potsdam_master_plan_actions
-#     forecast_from: 2022
-#   output_dimensions: [energietrager, scope]
-#   params:
-#     gpc_sector: I.1.1
-#   output_nodes: [i11_residential_fuel_consumption]
+- id: i11_residential_fuel_consumption_action
+  name: I.1.1 Aktion Brennstoffverbrauch Wohngebäude
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  group: stationary
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, scope]
+  params:
+    gpc_sector: I.1.1
+  output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
   name: I.1.1 Aktion Emissionsfaktor Brennstoffverbrauch Wohngebäude
@@ -616,19 +615,20 @@ actions:
     gpc_sector: I.1.1
   output_nodes: [i11_residential_fuel_emission_factor]
 
-# - id: i12_residential_grid_energy_consumption_action
-#   name: I.1.2 Aktion Netzenergieverbrauch Wohngebäude
-#   type: gpc.DatasetAction
-#   quantity: energy
-#   unit: MWh/a
-#   group: stationary
-#   input_datasets:
-#   - id: gpc/potsdam_master_plan_actions
-#     forecast_from: 2022
-#   output_dimensions: [energietrager, scope]
-#   params:
-#     gpc_sector: I.1.2
-#   output_nodes: [i12_residential_grid_energy_consumption]
+- id: i12_residential_grid_energy_consumption_action
+  name: I.1.2 Aktion Netzenergieverbrauch Wohngebäude
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  group: stationary
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, scope]
+  params:
+    gpc_sector: I.1.2
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption
 
 - id: i12_residential_grid_energy_emission_factor_action
   name: I.1.2 Aktion Emissionsfaktor Netzenergieverbrauch Wohngebäude
@@ -644,19 +644,19 @@ actions:
     gpc_sector: I.1.2
   output_nodes: [i12_residential_grid_energy_emission_factor]
 
-# - id: i42_energy_grid_energy_consumption_action  # FIXME Something wrong with data
-#   name: I.4.2 Aktion Netzenergieverbrauch Energiesektor
-#   type: gpc.DatasetAction
-#   quantity: energy
-#   unit: MWh/a
-#   group: stationary
-#   input_datasets:
-#   - id: gpc/potsdam_master_plan_actions
-#     forecast_from: 2022
-#   output_dimensions: [energietrager, ghg, scope]
-#   params:
-#     gpc_sector: I.4.2
-#   output_nodes: [i42_energy_grid_energy_consumption]
+- id: i42_energy_grid_energy_consumption_action
+  name: I.4.2 Aktion Netzenergieverbrauch Energiesektor
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  group: stationary
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, scope]
+  params:
+    gpc_sector: I.4.2
+  output_nodes: [i42_energy_grid_energy_consumption]
 
 - id: i42_energy_grid_energy_emission_factor_action
   name: I.4.2 Aktion Emissionsfaktor Netzenergieverbrauch Energiesektor
@@ -672,19 +672,19 @@ actions:
     gpc_sector: I.4.2
   output_nodes: [i42_energy_grid_energy_emission_factor]
 
-# - id: ii11_onroad_transport_fuel_consumption_action
-#   name: II.1.1 Aktion Brennstoffverbrauch Straßenverkehr
-#   type: gpc.DatasetAction
-#   quantity: energy
-#   unit: MWh/a
-#   group: transport
-#   input_datasets:
-#   - id: gpc/potsdam_master_plan_actions
-#     forecast_from: 2022
-#   output_dimensions: [energietrager, scope]
-#   params:
-#     gpc_sector: II.1.1
-#   output_nodes: [ii11_onroad_transport_fuel_consumption]
+- id: ii11_onroad_transport_fuel_consumption_action
+  name: II.1.1 Aktion Brennstoffverbrauch Straßenverkehr
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  group: transport
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, scope]
+  params:
+    gpc_sector: II.1.1
+  output_nodes: [ii11_onroad_transport_fuel_consumption]
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
   name: II.1.1 Aktion Emissionsfaktor Brennstoffverbrauch Straßenverkehr
@@ -700,19 +700,19 @@ actions:
     gpc_sector: II.1.1
   output_nodes: [ii11_onroad_transport_fuel_emission_factor]
 
-# - id: ii12_onroad_transport_grid_energy_consumption_action
-#   name: II.1.2 Aktion Netzenergieverbrauch Straßenverkehr
-#   type: gpc.DatasetAction
-#   quantity: energy
-#   unit: MWh/a
-#   group: transport
-#   input_datasets:
-#   - id: gpc/potsdam_master_plan_actions
-#     forecast_from: 2022
-#   output_dimensions: [energietrager, scope]
-#   params:
-#     gpc_sector: II.1.2
-#   output_nodes: [ii12_onroad_transport_grid_energy_consumption]
+- id: ii12_onroad_transport_grid_energy_consumption_action
+  name: II.1.2 Aktion Netzenergieverbrauch Straßenverkehr
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  group: transport
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, scope]
+  params:
+    gpc_sector: II.1.2
+  output_nodes: [ii12_onroad_transport_grid_energy_consumption]
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
   name: II.1.2 Aktion Emissionsfaktor Netzenergieverbrauch Straßenverkehr

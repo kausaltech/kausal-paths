@@ -1,0 +1,1464 @@
+id: ostersund-c4c
+default_language: en
+supported_languages: []
+site_url: https://ostersund-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: d849de1d3167f3781fb0b14fa75fe408adb7fc88
+  dvc_remote: kausal-s3
+name: Östersund Greenhouse Gas Inventory
+owner: City of Östersund
+theme_identifier: eu-climate-4-cast
+target_year: 2030
+model_end_year: 2030
+minimum_historical_year: 2010
+maximum_historical_year: 2023
+emission_unit: t/a
+emission_forecast_from: 2024
+emission_dimensions: ['owner', 'ghg']
+features:
+  baseline_visible_in_graphs: true
+
+dimensions:
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: 'Scope 1'
+  - id: scope2
+    label: 'Scope 2'
+
+- id: product_type
+  label: Product Type
+  categories:
+  - id: fluorinated_gases
+    label: 'Fluorinated Gases'
+  - id: nitrous_oxide
+    label: 'Nitrous Oxide'
+  - id: other
+    label: 'Other'
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: alkylate_gasoline
+    label: 'Alkylate Gasoline'
+  - id: aviation_gasoline
+    label: 'Aviation Gasoline'
+  - id: biogas
+    label: 'Biogas'
+  - id: diesel
+    label: 'Diesel'
+  - id: district_heat
+    label: 'District Heat'
+  - id: electricity
+    label: 'Electricity'
+  - id: ethanol
+    label: 'Ethanol'
+  - id: fuel_oil
+    label: 'Fuel Oil'
+  - id: gasoline
+    label: 'Gasoline'
+  - id: gasoline_electricity
+    label: 'Gasoline/Electricity'
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2
+    label: 'CO2'
+  - id: co2e
+    label: 'CO2e'
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: 'Municipal'
+  - id: private
+    label: 'Private'
+
+- id: business_travel_type
+  label: Business Travel Type
+  categories:
+  - id: other
+    label: 'Other'
+  - id: private_car
+    label: 'Private Car'
+  - id: rental_car
+    label: 'Rental Car'
+
+- id: building_type
+  label: Building Type
+  categories:
+  - id: apartment_building
+    label: 'Apartment Building'
+  - id: commercial
+    label: 'Commercial'
+  - id: commercial_and_public
+    label: 'Commercial & Public'
+  - id: detached_house
+    label: 'Detached House'
+  - id: holiday_home
+    label: 'Holiday Home'
+  - id: public
+    label: 'Public'
+
+- id: equipment_type
+  label: Equipment Type
+  categories:
+  - id: agriculture_and_forestry
+    label: 'Agriculture & Forestry'
+  - id: commercial_and_public_activities
+    label: 'Commercial & Public Activities'
+  - id: household_work_machines
+    label: 'Household Work Machines'
+  - id: industry_and_construction_sector_
+    label: 'Industry & Construction Sector '
+  - id: other
+    label: 'Other'
+  - id: snowmobiles_and_atvs
+    label: 'Snowmobiles & ATVs'
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: buses
+    label: 'Buses'
+  - id: motorcycles
+    label: 'Motorcycles'
+  - id: passenger_cars
+    label: 'Passenger Cars'
+  - id: trucks
+    label: 'Trucks'
+  - id: vans
+    label: 'Vans'
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+nodes:
+- id: net_price
+  name: Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  is_outcome: true
+
+- id: i1_residential_combustion
+  name: I.1 Residential Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: I.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: i1_residential_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: i1_residential_combustion_emissions
+  name: I.1 Residential Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: i1_residential_emission_factor
+  name: I.1 Residential Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/l
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: I.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: i1_residential_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
+- id: i1_residential_price
+  name: I.1 Residential Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  params:
+    gpc_sector: I.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: i42_energy_grid_energy_consumption
+  name: I.4.2 Energy Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: i42_energy_grid_energy_consumption_emissions
+  name: I.4.2 Energy Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: i4_energy_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: i42_energy_grid_energy_emission_factor
+  name: I.4.2 Energy Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_combustion
+  name: II.1.1 On-Road Transport Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['owner', 'scope', 'energy_carrier']
+  output_dimensions: ['owner', 'scope', 'energy_carrier']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: energy_carrier
+
+- id: ii11_onroad_transport_fuel_combustion_emissions
+  name: II.1.1 On-Road Transport Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/l
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_price
+  name: II.1.1 On-Road Transport Fuel Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii1_onroad_transport_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii31_waterborne_fuel_combustion
+  name: II.3.1 Waterborne Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii31_waterborne_fuel_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: ii31_waterborne_fuel_combustion_emissions
+  name: II.3.1 Waterborne Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: ii3_waterborne_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: ii31_waterborne_fuel_emission_factor
+  name: II.3.1 Waterborne Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/l
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii31_waterborne_fuel_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
+- id: ii31_waterborne_fuel_price
+  name: II.3.1 Waterborne Fuel Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii3_waterborne_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii41_aviation_fuel_emissions
+  name: II.4.1 Aviation Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: II.4.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii4_aviation_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
+- id: ii51_offroad_transport_fuel_combustion
+  name: II.5.1 Off-Road Transport Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: II.5.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii51_offroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: ii51_offroad_transport_fuel_combustion_emissions
+  name: II.5.1 Off-Road Transport Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: ii5_offroad_transport_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: ii51_offroad_transport_fuel_emission_factor
+  name: II.5.1 Off-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/l
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: II.5.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii51_offroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
+- id: ii51_offroad_transport_fuel_price
+  name: II.5.1 Off-Road Transport Fuel Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  params:
+    gpc_sector: II.5.1
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii5_offroad_transport_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii_transportation_emissions
+  name: II Transportation Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'owner', 'business_travel_type']
+  output_dimensions: ['ghg', 'owner', 'business_travel_type']
+  params:
+    gpc_sector: II
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: business_travel_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: owner
+
+- id: i4_energy_total_emissions
+  name: I.4 Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: ghg
+
+- id: ii1_onroad_transport_total_emissions
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: ghg
+
+- id: ii3_waterborne_total_emissions
+  name: II.3 Waterborne Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: ghg
+
+- id: ii4_aviation_total_emissions
+  name: II.4 Aviation Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: owner
+
+- id: ii5_offroad_transport_total_emissions
+  name: II.5 Off-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: ghg
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'ghg']
+  output_dimensions: ['owner', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: owner
+    - id: ghg
+
+- id: i_stationary_total_price
+  name: I Stationary Total Price
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii1_onroad_transport_total_price
+  name: II.1 On-Road Transport Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii3_waterborne_total_price
+  name: II.3 Waterborne Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii5_offroad_transport_total_price
+  name: II.5 Off-Road Transport Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  output_nodes:
+  - id: ii_transportation_total_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: ii_transportation_total_price
+  name: II Transportation Total Price
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+# ----- Territorial Emissions -----
+
+- id: net_emissions_territorial
+  name: Net Emissions (Territorial)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+
+- id: i11_residential_fuel_emissions_territorial
+  name: I.1.1 Residential Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: i1_residential_total_emissions_territorial
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i12_residential_grid_energy_emissions_territorial
+  name: I.1.2 Residential Grid Energy Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'building_type']
+  output_dimensions: ['scope', 'ghg', 'building_type']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: i1_residential_total_emissions_territorial
+    from_dimensions:
+    - id: building_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i21_commercial_and_institutional_fuel_emissions_territorial
+  name: I.2.1 Commercial & Institutional Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'building_type']
+  output_dimensions: ['scope', 'ghg', 'building_type']
+  params:
+    gpc_sector: I.2.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: building_type
+
+- id: i22_commercial_and_institutional_grid_energy_emissions_territorial
+  name: I.2.2 Commercial & Institutional Grid Energy Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'building_type']
+  output_dimensions: ['scope', 'ghg', 'building_type']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: building_type
+
+- id: i3_manufacturing_emissions_territorial
+  name: I.3 Manufacturing Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    gpc_sector: I.3
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: i_stationary_total_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: i5_ag_forestry_and_fishing_emissions_territorial
+  name: I.5 Ag, Forestry, & Fishing Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    gpc_sector: I.5
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: i_stationary_total_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: ii11_onroad_transport_fuel_emission_factor_territorial
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/km
+  input_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: owner
+    - id: ghg
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_emissions_territorial
+  name: II.1.1 On-Road Transport Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_mileage_territorial
+  name: II.1.1 On-Road Transport Fuel Mileage
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: km/a
+  input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: owner
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_mileage_emissions_territorial
+  name: II.1.1 On-Road Transport Fuel Mileage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'scope', 'ghg']
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_total_emissions_territorial
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: ghg
+
+- id: ii2_railway_emissions_territorial
+  name: II.2 Railway Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    gpc_sector: II.2
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii_transportation_total_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: ii3_waterborne_emissions_territorial
+  name: II.3 Waterborne Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    gpc_sector: II.3
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii_transportation_total_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: ii4_aviation_emissions_territorial
+  name: II.4 Aviation Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    gpc_sector: II.4
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii_transportation_total_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: ii51_offroad_transport_fuel_emissions_territorial
+  name: II.5.1 Off-Road Transport Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'equipment_type']
+  output_dimensions: ['scope', 'ghg', 'equipment_type']
+  params:
+    gpc_sector: II.5.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: ii5_offroad_transport_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: equipment_type
+
+- id: iii11_solid_waste_disposed_in_city_emissions_territorial
+  name: III.1.1 Solid Waste Disposed in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.1.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: iii1_solid_waste_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii21_biological_waste_treated_in_city_emissions_territorial
+  name: III.2.1 Biological Waste Treated in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.2.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: iii2_biological_waste_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii41_wastewater_treated_in_city_emissions_territorial
+  name: III.4.1 Wastewater Treated in City Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: III.4.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: iii4_wastewater_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iv2_product_use_emissions_territorial
+  name: IV.2 Product Use Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'product_type', 'ghg']
+  output_dimensions: ['scope', 'product_type', 'ghg']
+  params:
+    gpc_sector: IV.2
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: iv_ippu_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: product_type
+    - id: ghg
+
+- id: v1_livestock_emissions_territorial
+  name: V.1 Livestock Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.1
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: v_afolu_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v2_land_emissions_territorial
+  name: V.2 Land Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.2
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: v_afolu_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v3_aggregate_sources_emissions_territorial
+  name: V.3 Aggregate Sources Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.3
+  input_datasets:
+  - id: gpc/ostersund_territorial
+    forecast_from: 2024
+  output_nodes:
+  - id: v_afolu_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i1_residential_total_emissions_territorial
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: i2_commercial_and_institutional_total_emissions_territorial
+  name: I.2 Commercial & Institutional Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'building_type', 'ghg']
+  output_dimensions: ['scope', 'building_type', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: building_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: i_stationary_total_emissions_territorial
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  output_nodes:
+  - id: net_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: ii11_onroad_transport_fuel_total_emissions_territorial
+  name: II.1.1 On-Road Transport Fuel Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+
+- id: ii1_onroad_transport_total_emissions_territorial
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  output_nodes:
+  - id: ii_transportation_total_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: ii5_offroad_transport_total_emissions_territorial
+  name: II.5 Off-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg', 'equipment_type']
+  output_dimensions: ['scope', 'ghg', 'equipment_type']
+  output_nodes:
+  - id: ii_transportation_total_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: equipment_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: ii_transportation_total_emissions_territorial
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  output_nodes:
+  - id: net_emissions_territorial
+    to_dimensions:
+    - id: ghg
+
+- id: iii1_solid_waste_total_emissions_territorial
+  name: III.1 Solid Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii2_biological_waste_total_emissions_territorial
+  name: III.2 Biological Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii4_wastewater_total_emissions_territorial
+  name: III.4 Wastewater Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions_territorial
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii_waste_total_emissions_territorial
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  color: '#59A14F'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: iv_ippu_total_emissions_territorial
+  name: IV IPPU Total Emissions
+  type: simple.AdditiveNode
+  color: '#F28E2B'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'product_type', 'ghg']
+  output_dimensions: ['scope', 'product_type', 'ghg']
+  output_nodes:
+  - id: net_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: product_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: v_afolu_total_emissions_territorial
+  name: V AFOLU Total Emissions
+  type: simple.AdditiveNode
+  color: '#B07AA1'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions_territorial
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+actions:
+- id: replace_city_fleet_with_electric_vehicles
+  name: Replace City Fleet with Electric Vehicles
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  params:
+    action: Replace City Fleet with Electric Vehicles
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+  output_metrics:
+  - id: ii11_fuel_consumption
+    unit: l/a
+    quantity: fuel_consumption
+  - id: ii11_currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion
+    metrics: [ii11_fuel_consumption]
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: owner
+  - id: ii11_onroad_transport_fuel_price
+    metrics: [ii11_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: owner
+
+- id: replace_diesel_with_hvo100_in_ms_thomee
+  name: Replace Diesel with HVO100 in M/S Thomée
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  params:
+    action: Replace Diesel with HVO100 in M/SThomée
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+  output_metrics:
+  - id: ii31_fuel_consumption
+    unit: l/a
+    quantity: fuel_consumption
+  - id: ii31_currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: ii31_waterborne_fuel_combustion
+    metrics: [ii31_fuel_consumption]
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: owner
+  - id: ii31_waterborne_fuel_price
+    metrics: [ii31_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: owner
+
+- id: electrify_light_work_machines
+  name: Electrify Light Work Machines
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  params:
+    action: Electrify Light Work Machines
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+  output_metrics:
+  - id: ii51_fuel_consumption
+    unit: l/a
+    quantity: fuel_consumption
+  - id: ii51_currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: ii51_offroad_transport_fuel_combustion
+    metrics: [ii51_fuel_consumption]
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: owner
+  - id: ii51_offroad_transport_fuel_price
+    metrics: [ii51_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: owner
+
+- id: replace_fuel_oil_heating_with_geothermal
+  name: Replace Fuel Oil Heating with Geothermal
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['scope', 'energy_carrier', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  params:
+    action: Replace Fuel Oil Heating with Geothermal
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+  output_metrics:
+  - id: i1_fuel_consumption
+    unit: l/a
+    quantity: fuel_consumption
+  - id: i1_currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_combustion
+    metrics: [i1_fuel_consumption]
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: owner
+  - id: i1_residential_price
+    metrics: [i1_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: owner
+
+pages:
+- id: home
+  name: Östersund Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Östersund Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2010-2023) and forecast (2024-2030) for the City of Östersund.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Plan
+  all_actions_enabled: true

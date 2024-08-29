@@ -1,0 +1,736 @@
+id: riga-c4c
+default_language: en
+supported_languages: []
+site_url: https://riga-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 8740dbd8bb4230ca35db31788a9a2441ec94fbed
+  dvc_remote: kausal-s3
+name: Riga Greenhouse Gas Inventory
+owner: City of Riga
+theme_identifier: eu-climate-4-cast
+target_year: 2030
+model_end_year: 2030
+minimum_historical_year: 2015
+maximum_historical_year: 2022
+emission_unit: t/a
+emission_forecast_from: 2023
+emission_dimensions: ['scope', 'ghg']
+features:
+  baseline_visible_in_graphs: false
+
+dimensions:
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: 'Scope 1'
+  - id: scope2
+    label: 'Scope 2'
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: biofuel
+    label: 'Biofuel'
+  - id: diesel
+    label: 'Diesel'
+  - id: electricity
+    label: 'Electricity'
+  - id: hydrogen
+    label: 'Hydrogen'
+  - id: natural_gas
+    label: 'Natural Gas'
+  - id: peat
+    label: 'Peat'
+  - id: wood_chips
+    label: 'Wood Chips'
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: buses
+    label: 'Buses'
+  - id: other
+    label: 'Other'
+
+- id: use
+  label: Use
+  categories:
+  - id: municipal_buildings
+    label: 'Municipal Buildings'
+  - id: service_sector
+    label: 'Service Sector'
+  - id: streetlighting
+    label: 'Streetlighting'
+
+- id: heating
+  label: Heating
+  categories:
+  - id: district_heat
+    label: 'District Heat'
+  - id: na
+    label: 'NA'
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2
+    label: 'CO2'
+
+- id: source
+  label: Source
+  categories:
+  - id: independent_boiler_houses
+    label: 'Independent Boiler Houses'
+  - id: rigas_siltums_boiler_houses
+    label: 'Rīgas Siltums Boiler Houses'
+  - id: rigas_siltums_cogeneration_stations
+    label: 'Rīgas Siltums Cogeneration Stations'
+  - id: rigas_siltums_total
+    label: 'Rīgas Siltums Total'
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: 'Municipal'
+  - id: private
+    label: 'Private'
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+
+nodes:
+- id: net_price
+  name: Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  is_outcome: true
+
+- id: i12_residential_grid_energy_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'heating', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'heating', 'owner']
+  minimum_year: 2015
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: heating
+    - id: owner
+  - id: i12_residential_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: heating
+    - id: owner
+
+- id: i12_residential_grid_energy_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'heating', 'ghg', 'owner', 'energy_carrier']
+  output_dimensions: ['scope', 'heating', 'ghg', 'owner', 'energy_carrier']
+  output_nodes:
+  - id: i12_residential_grid_energy_total_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: owner
+
+- id: i12_residential_grid_energy_consumption_price
+  name: I.1.2 Residential Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
+  output_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
+  output_nodes:
+  - id: i1_residential_total_price
+    to_dimensions:
+    - id: scope
+    - id: owner
+    - id: energy_carrier
+    - id: heating
+
+- id: i12_residential_grid_energy_emission_factor
+  name: I.1.2 Residential Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['scope', 'energy_carrier', 'heating', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'heating', 'ghg']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/riga
+    forecast_from: 2023
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: heating
+    - id: ghg
+
+- id: i12_residential_grid_energy_emissions
+  name: I.1.2 Residential Grid Energy Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'source', 'owner']
+  output_dimensions: ['scope', 'ghg', 'source', 'owner']
+  minimum_year: 2020
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i12_residential_grid_energy_total_emissions
+    from_dimensions:
+    - id: source
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: owner
+
+- id: i12_residential_grid_energy_unit_price
+  name: I.1.2 Residential Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: ['scope', 'heating']
+  output_dimensions: ['scope', 'heating']
+  minimum_year: 2020
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: heating
+
+- id: i22_commercial_and_institutional_grid_energy_consumption
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'use']
+  output_dimensions: ['scope', 'energy_carrier', 'use']
+  minimum_year: 2015
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/riga
+    forecast_from: 2022
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: use
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_price
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'use', 'energy_carrier']
+  output_dimensions: ['scope', 'use', 'energy_carrier']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_price
+    to_dimensions:
+    - id: scope
+    - id: use
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_unit_price
+  name: I.2.2 Commercial & Institutional Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2020
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i32_manufacturing_grid_energy_consumption
+  name: I.3.2 Manufacturing Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2015
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i32_manufacturing_grid_energy_consumption_price
+  name: I.3.2 Manufacturing Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: i3_manufacturing_total_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i32_manufacturing_grid_energy_unit_price
+  name: I.3.2 Manufacturing Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2020
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i52_ag_forestry_and_fishing_grid_energy_consumption
+  name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2020
+  params:
+    gpc_sector: I.5.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i52_ag_forestry_and_fishing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i52_ag_forestry_and_fishing_grid_energy_consumption_price
+  name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: i5_ag_forestry_and_fishing_total_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i52_ag_forestry_and_fishing_grid_energy_unit_price
+  name: I.5.2 Ag, Forestry, & Fishing Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2020
+  params:
+    gpc_sector: I.5.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i52_ag_forestry_and_fishing_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: ii12_onroad_transport_grid_energy_consumption
+  name: II.1.2 On-Road Transport Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['scope', 'energy_carrier', 'vehicle_type', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'vehicle_type', 'owner']
+  minimum_year: 2015
+  params:
+    gpc_sector: II.1.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii12_onroad_transport_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: vehicle_type
+    - id: owner
+
+- id: ii12_onroad_transport_grid_energy_consumption_emissions
+  name: II.1.2 On-Road Transport Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: vehicle_type
+    - id: owner
+    - id: energy_carrier
+
+- id: ii12_onroad_transport_grid_energy_emission_factor
+  name: II.1.2 On-Road Transport Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: II.1.2
+  input_datasets:
+  - id: gpc/riga
+    forecast_from: 2023
+  output_nodes:
+  - id: ii12_onroad_transport_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: ii31_waterborne_fuel_combustion
+  name: II.3.1 Waterborne Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: MWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  minimum_year: 2021
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii31_waterborne_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: ii31_waterborne_fuel_combustion_emissions
+  name: II.3.1 Waterborne Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: ii3_waterborne_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: ii31_waterborne_fuel_emission_factor
+  name: II.3.1 Waterborne Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: II.3.1
+  input_datasets:
+  - id: gpc/riga
+    forecast_from: 2023
+  output_nodes:
+  - id: ii31_waterborne_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+- id: i12_residential_grid_energy_total_emissions
+  name: I.1.2 Residential Grid Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: i1_residential_total_emissions
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: ii1_onroad_transport_total_emissions
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: ii3_waterborne_total_emissions
+  name: II.3 Waterborne Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i1_residential_total_price
+  name: I.1 Residential Total Price
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
+  output_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
+  output_nodes:
+  - id: i_stationary_total_price
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i2_commercial_and_institutional_total_price
+  name: I.2 Commercial & Institutional Total Price
+  type: simple.AdditiveNode
+  color: '#f28e2b'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'use', 'energy_carrier']
+  output_dimensions: ['scope', 'use', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_price
+    from_dimensions:
+    - id: use
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i3_manufacturing_total_price
+  name: I.3 Manufacturing Total Price
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i5_ag_forestry_and_fishing_total_price
+  name: I.5 Ag, Forestry, & Fishing Total Price
+  type: simple.AdditiveNode
+  color: '#59a14f'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i_stationary_total_price
+  name: I Stationary Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_combustion
+  name: II.1.1 On-Road Transport Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: MWh/a
+  input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  minimum_year: 2020
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: owner
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_combustion_emissions
+  name: II.1.1 On-Road Transport Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+    - id: owner
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/riga
+    forecast_from: 2023
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+pages:
+- id: home
+  name: Riga Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Riga Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2010-2022) and forecast (2023-2030) for the City of Riga.
+
+scenarios:
+- id: baseline
+  name: Baseline
+
+- id: default
+  name: SECAP
+  default: true
+  all_actions_enabled: true

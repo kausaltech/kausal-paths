@@ -1,0 +1,23 @@
+{
+  "name": "kausal-paths",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kausal Paths backend",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kausaltech/kausal-paths.git"
+  },
+  "author": "",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/kausaltech/kausal-paths/issues"
+  },
+  "homepage": "https://github.com/kausaltech/kausal-paths#readme",
+  "dependencies": {
+    "mjml": "^4.15.3"
+  }
+}

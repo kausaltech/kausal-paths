@@ -966,6 +966,9 @@ class Node:
                 continue
 
             cats = set(df[dim_id].unique())
+            if getattr(self, 'allow_null_categories', None):
+                cats -= set([''])
+
             dim_cats = dim.get_cat_ids()
             diff = cats - dim_cats
             if diff:

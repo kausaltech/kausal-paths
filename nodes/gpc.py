@@ -32,7 +32,7 @@ class DatasetNode(AdditiveNode):
     def makeid(self, label: str):  # FIXME This and all other copies of makeid() functions should go to .calc.py.
         # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
         idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' '],
+                    '_': [' ', '/'],
                     'and': ['&'],
                     'a': ['ä', 'å', 'ą', 'á', 'ā'],
                     'c': ['ć', 'č'],
