@@ -23,6 +23,11 @@ on:
         description: 'UI image to test (full path including registry, repo and tag)'
         required: true
         type: string
+      ui_npm_registry_server:
+        description: 'npm registry URL for the UI image'
+        required: false
+        type: string
+        default: https://npm.kausal.tech
       backend_image:
         description: 'Backend image tag to test (full path including registry, repo and tag)'
         required: true
@@ -44,6 +49,8 @@ on:
       AWS_ACCESS_KEY_ID:
         required: false
       AWS_SECRET_ACCESS_KEY:
+        required: false
+      NPM_TOKEN:
         required: false
 
     outputs:
@@ -101,7 +108,7 @@ jobs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
 
     container:
-      image: harbor.kausal.tech/library/playwright:latest
+      image: harbor.kausal.tech/library/playwright:v1.46.1
     env:
       CI: 1
       NEXT_PUBLIC_API_URL: http://localhost:8000/v1
@@ -113,7 +120,15 @@ jobs:
           ref: ${{ inputs.ui_repo_ref }}
 
       - name: Install dependencies
-        run: npm ci
+        env:
+          NPM_REGISTRY_SERVER: ${{ inputs.ui_npm_registry_server }}
+          NPM_TOKEN: ${{  secrets.NPM_TOKEN }}
+        run: |
+          if [ ! -z "${NPM_REGISTRY_SERVER}" ] && [ ! -z "${NPM_TOKEN}" ]; then
+            npm set "$(echo ${NPM_REGISTRY_SERVER} | sed -e 's/https://')/:_authToken=${NPM_TOKEN}"
+            echo "Using custom registry at: ${NPM_REGISTRY_SERVER}" ; \
+          fi
+          npm ci
         working-directory: ./e2e-tests
 
       - name: Wait for backend to get ready
