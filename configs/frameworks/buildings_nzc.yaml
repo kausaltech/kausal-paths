@@ -520,6 +520,7 @@ nodes:
 
 - id: building_heat_energy_use
   name: Building heat energy use
+  description: Building heat energy use does not include electricity (neither direct electric heating nor heat pumps). That is calculated separately.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -538,10 +539,21 @@ nodes:
     - id: energy_carrier
     - id: scope
     - id: fuel_type
-  - id: electric_heat_energy_use
 
-- id: electric_heat_energy_use
-  name: Electric heat energy use
+- id: efficiency_of_heat_pumps
+  name: Efficiency of heat pumps
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: MWh/MWh
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Efficiency of heat pumps
+
+- id: building_heat_electricity_use
+  name: Building heat electricity use
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -561,70 +573,28 @@ nodes:
     - id: scope
     - id: fuel_type
   - id: heating_fuel_share
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
     to_dimensions:
     - id: energy_carrier
     - id: heating_type
-  output_nodes:
-  - id: total_electricity_consumption
-    from_dimensions:
-    - id: fuel_type
-      flatten: true
-    - id: heating_type
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-
-- id: efficiency_of_heat_pumps
-  name: Efficiency of heat pumps
-  type: gpc.DatasetNode
-  quantity: energy_factor
-  unit: MWh/MWh
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Efficiency of heat pumps
-
-- id: building_heat_electricity_use
-  name: Building heat electricity use
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, scope, fuel_type, energy_carrier]
-  output_dimensions: [heating_type, building_energy_class, scope, fuel_type, energy_carrier]
-  input_nodes:
-  - id: building_stock
-    to_dimensions:
-    - id: building_energy_class
-  - id: energy_use_intensity
-    to_dimensions:
-    - id: building_energy_class
   - id: building_heating_type_share
     to_dimensions:
     - id: heating_type
     - id: scope
   - id: efficiency_of_heat_pumps
+    tags: [geometric_inverse]
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
   output_nodes:
   - id: total_electricity_consumption
     from_dimensions:
+    - id: fuel_type
+      flatten: true
     - id: heating_type
       flatten: true
     - id: building_energy_class
       flatten: true
     - id: scope
-      flatten: true
-    - id: fuel_type
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -773,106 +743,35 @@ nodes:
   params:
     sector: 3.3 Efficient lighting & appliances
 
-- id: efficiency_programme_done_in_old_buildings
-  name: Efficiency programme done in old buildings
-  type: simple.MultiplicativeNode
-  quantity: fraction
-  unit: km**2
-  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
-  output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: efficient_appliances_rate
-    tags: [complement_cumulative_product, complement]
-    to_dimensions:
-    - id: energy_carrier
-  - id: building_stock
-    tags: [non_additive]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [old_no_renovations, minor_renovation, major_renovation]
-    to_dimensions:
-    - id: building_energy_class
-  - id: efficiency_programme_shares
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  output_nodes:
-  - id: building_stock_by_efficiency_programme
-    to_dimensions:
-    - id: building_energy_class
-    - id: efficiency_programme
-    - id: energy_carrier
-
-- id: efficiency_programme_not_done_in_old_buildings
-  name: Efficiency programme not done in old buildings
-  type: simple.MultiplicativeNode
-  quantity: fraction
-  unit: km**2
-  input_dimensions: [building_energy_class, energy_carrier]
-  output_dimensions: [building_energy_class, energy_carrier]
-  input_nodes:
-  - id: efficient_appliances_rate
-    tags: [complement_cumulative_product]
-    to_dimensions:
-    - id: energy_carrier
-  - id: building_stock
-    tags: [non_additive]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [old_no_renovations, minor_renovation, major_renovation]
-    to_dimensions:
-    - id: building_energy_class
-  output_nodes:
-  - id: building_stock_by_efficiency_programme
-    to_dimensions:
-    - id: building_energy_class
-    - id: energy_carrier
-    - id: efficiency_programme
-      categories: [no_improvements]
-
-- id: efficiency_programme_shares_data
-  name: Efficiency programme shares data
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Assumed share of type of efficiency programme for lever
 
 - id: efficiency_programme_shares
   name: Efficiency programme shares
-  type: simple.FillNewCategoryNode
+  type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes: [efficiency_programme_shares_data]
-  params:
-    new_category: 'efficiency_programme:no_improvements'
-
-- id: efficiency_improved_new_buildings
-  name: Efficiency improved new buildings
-  type: simple.MultiplicativeNode
-  quantity: floor_area
-  unit: km**2
   input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
   output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Assumed share of type of efficiency programme for lever
+
+- id: consumer_electricity_intensity
+  name: Electricity use intensity for lighting & appliances
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
+  output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   input_nodes:
-  - id: building_stock
-    tags: [non_additive]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [new_standard, new_top_performance]
-    to_dimensions:
-    - id: building_energy_class
   - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
-  output_nodes:
-  - id: building_stock_by_efficiency_programme
+    - id: building_energy_class
+  - id: consumer_electricity_intensity_baseline
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
 
 - id: relative_electricity_need_reduction
   name: Reduced electricity need
@@ -885,14 +784,6 @@ nodes:
   params:
     sector: Efficiency improvements for each renovation
 
-- id: building_stock_by_efficiency_programme
-  name: Building stock by efficiency programme
-  type: simple.AdditiveNode
-  quantity: floor_area
-  unit: km**2
-  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
-  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
-
 - id: consumer_electricity_use
   name: Electricity use for lighting & appliances
   type: simple.MultiplicativeNode
@@ -901,15 +792,14 @@ nodes:
   input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   input_nodes:
-  - id: building_stock_by_efficiency_programme
-  - id: consumer_electricity_intensity_baseline
+  - id: building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: consumer_electricity_intensity
     to_dimensions:
     - id: energy_carrier
-  - id: relative_electricity_need_reduction
-    tags: [complement]
-    to_dimensions:
     - id: efficiency_programme
-    - id: energy_carrier
+    - id: building_energy_class
   output_nodes:
   - id: total_electricity_consumption
     from_dimensions:
@@ -1032,19 +922,17 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
-  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type, building_energy_class]
+  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type, building_energy_class]
   input_nodes:
-  - id: building_stock_by_efficiency_programme
+  - id: building_stock
     tags: [difference]
-    from_dimensions:
-    - id: efficiency_programme
-      categories: [no_improvements]
-      exclude: true
+    to_dimensions:
     - id: building_energy_class
-      flatten: true
+  - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
+    - id: building_energy_class
     - id: energy_carrier
   - id: efficiency_programme_unit_price
     to_dimensions:
@@ -1169,6 +1057,8 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+    - id: building_energy_class
+      flatten: true
     to_dimensions:  # FIXME Allocate categories correctly
     - id: stakeholder
     - id: cost_type
@@ -1245,11 +1135,6 @@ actions:
   input_nodes:
   - id: building_heating_type_share_historical
     tags: [historical, inventory_only]
-    # from_dimensions:
-    # - id: scope
-    #   flatten: true
-    # to_dimensions:
-    # - id: heating_type
   - id: building_heating_type_share_goal
     tags: [goal]
     to_dimensions:
@@ -1260,7 +1145,6 @@ actions:
     to_dimensions:
     - id: heating_type
     - id: scope
-#      categories: [scope1]
 
 - id: heating_energy_improvement
   name: 3.4.2 Heating energy improvement
@@ -1313,12 +1197,12 @@ actions:
     sector: Share of current fossil production replaced by renewables (or nuclear)
 
 - id: top_performance_improvement
-  name: '? Top performance standard improvement compared with the regular new buildings'
+  name: '3.4.4 Top performance standard improvement compared with the regular new buildings'
   type: simple.CumulativeAdditiveAction
   quantity: fraction
   unit: '%'
   group: buildings
-  historical_values: [[2021, 0], [2022, 0]]
+  historical_values: [[2021, 0], [2022, 0]]  # FIXME
   forecast_values: [[2023, 50]]
   output_nodes:
   - id: energy_use_intensity_change_new
@@ -1326,17 +1210,20 @@ actions:
     - id: building_energy_class
       categories: [new_top_performance]
 
-# - id: electricity_need_reduction
-#   name: 3.3 Electricity need reduction
-#   description: The action looks at renovated and newly built buildings and improves their electricity use. The fractions of minor and major improvement come from the user. If the action is not done, no improvements are made.
-#   type: simple.CumulativeAdditiveAction
-#   quantity: fraction
-#   unit: dimensionless
-#   group: buildings
-#   historical_values: [[2019, 0.0], [2022, 0.0]]
-#   forecast_values: [[2023, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: efficiency_programme_shares_data
-#     tags: [non_additive]
-#     to_dimensions: []
+- id: electricity_need_reduction
+  name: 3.3 Electricity need reduction
+  description: The action looks at renovated and newly built buildings and improves their electricity use. The fractions of minor and major improvement come from the user, but the action is about relative changes in electricity use intensity, and they cannot be adjusted by the user.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  output_nodes:
+  - id: consumer_electricity_intensity
+    tags: [complement]
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Efficiency improvements for each renovation

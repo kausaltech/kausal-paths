@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6ac45b849bc452e29c62ec451c7be2f2e23f1349
+  commit: 38b845694e345aff885f9c4e385896839bc7df5e
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -217,7 +217,7 @@ dimensions:
   - id: electricity
     label: Electricity
   - id: fossil
-    label: Fossil (oil, coal, gas) + direct electric
+    label: Fossil (oil, coal, gas)
   - id: heat_pump
     label: Electric heat pumps / geothermal
   - id: bioenergy
@@ -515,7 +515,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
 
-- id: statistical_electricity_consumption
+- id: statistical_electricity_consumption  # FIXME Is this needed for something?
   name: Statistical electricity consumption
   type: gpc.DatasetNode
   quantity: energy
@@ -530,14 +530,17 @@ nodes:
     to_dimensions: []
   params:
     sector: Total electricity demand within city boundaries
-  output_nodes:
-  - id: total_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
+  # output_nodes:
+  # - id: total_electricity_consumption
+  #   to_dimensions:
+  #   - id: energy_carrier
 
 - id: fossil_electricity_factor
   name: Fossil electricity factor
-  description: The historical emission factor is for the whole mix of electricity production, but the CO2 emissions come mainly from fossil fuels. Therefore, the emission factor is scaled so that it matches the fossil fraction, while other categories are assumed to have zero CO2 emissions.
+  description: The historical emission factor is for the whole mix of electricity
+    production, but the CO2 emissions come mainly from fossil fuels. Therefore, the
+    emission factor is scaled so that it matches the fossil fraction, while other
+    categories are assumed to have zero CO2 emissions.
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -667,7 +670,8 @@ nodes:
   - id: discounted_total_cost
     from_dimensions:
     - id: cost_type
-      categories: ['accidents', 'aesthetics', 'air_pollution', 'co2_cost', 'forest_management', 'health', 'noise', 'shading', 'water_regulation']
+      categories: [accidents, aesthetics, air_pollution, co2_cost, forest_management,
+        health, noise, shading, water_regulation]
 
 - id: aggregated_discounted_total_cost
   name: Aggregated discounted total cost

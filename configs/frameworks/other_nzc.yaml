@@ -838,18 +838,18 @@ nodes:
   - id: building_material_emission_factor
     to_dimensions:
     - id: material
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: material
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: scope
-      categories: [scope3]
-    - id: ghg
-      categories: [co2e]
+  # output_nodes:
+  # - id: building_emissions
+  #   from_dimensions:
+  #   - id: material
+  #     flatten: true
+  #   - id: building_energy_class
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: scope
+  #     categories: [scope3]
+  #   - id: ghg
+  #     categories: [co2e]
 
 - id: building_material_unit_price
   name: Building material unit_price
