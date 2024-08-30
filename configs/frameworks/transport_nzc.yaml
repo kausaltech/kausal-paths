@@ -925,10 +925,10 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: freight_transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: freight_transport_accident_unit_price
   name: Freight transport accident unit price
@@ -962,10 +962,10 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: freight_transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: freight_transport_ownership_costs
   name: Freight transport ownership costs
@@ -1402,10 +1402,10 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: transport_accident_unit_price
   name: Transport accident unit price

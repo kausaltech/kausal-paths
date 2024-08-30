@@ -150,6 +150,27 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
           Otherwise, all outcome nodes from the context will be used.
     """
 
+    # node_ids = [
+    #     'net_emissions',
+    #     'discounted_total_cost',
+    #     'discounted_co_benefits',
+    #     'population',
+    #     'transport_emissions',
+    #     'freight_transport_emissions',
+    #     'waste_emissions',
+    #     'electricity_production_emissions',
+    #     'building_emissions',
+    #     'emissions_from_other_sectors',
+    #     'vehicle_kilometres',
+    #     'freight_transport_vehicle_kilometres',
+    #     'freight_transport_need',
+    #     'building_heat_energy_use',
+    #     'total_building_heat_energy_use',
+    #     'consumer_electricity_use',
+    #     'statistical_electricity_consumption',
+    #     'collected_waste'
+    # ]
+
     if node_ids is None:
         node_ids = [node.id for node in context.get_outcome_nodes()]
     context.generate_baseline_values()
