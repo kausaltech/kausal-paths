@@ -10,159 +10,23 @@ from nodes.exceptions import NodeError
 from django.utils.translation import gettext_lazy as _
 
 
-class DatasetAction2(ActionNode, DatasetNode):
+class DatasetAction(ActionNode, DatasetNode):
     allowed_parameters = ActionNode.allowed_parameters + DatasetNode.allowed_parameters
-
     no_effect_value = 0.0
-
-    # A copy of LinearInterpolation processor. What is a good location for this?
-    def linear_interpolation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        years = df[YEAR_COLUMN].unique().sort()
-        min_year = years.min()
-        assert isinstance(min_year, int)
-        max_year = years.max()
-        assert isinstance(max_year, int)
-        df = df.paths.to_wide()
-        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
-        meta = df.get_meta()
-        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
-        df = ppl.to_ppdf(zdf, meta=meta)
-        cols = [pl.col(col).interpolate() for col in df.metric_cols]
-        df = df.with_columns(cols)
-        df = df.paths.to_narrow()
-        return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = DatasetNode.compute(self)
-        df = self.linear_interpolation(df)
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
 
         return df
 
-class DatasetAction(ActionNode):
-    allowed_parameters = ActionNode.allowed_parameters + [
-        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)
-    ]
+    def compute(self) -> ppl.PathsDataFrame:
+        return self.compute_effect()
 
-    no_effect_value = 0.0
-
-    qlookup = {'currency': 'Price',  # FIXME Make a generic qlookup to constants.py and use that.
-               'emission_factor': 'Emission Factor',
-               'emissions': 'Emissions',
-               'energy': 'Energy Consumption',
-               'fuel_consumption': 'Fuel Consumption',
-               'mass': 'Waste Disposal',
-               'mileage': 'Mileage',
-               'unit_price': 'Unit Price',
-               'occupancy_factor': 'Occupancy Factor',
-               'energy_factor': 'Energy Factor',
-               'fraction': 'Fraction',
-               'number': 'Amount'}
-
-    # -----------------------------------------------------------------------------------
-    def makeid(self, label: str):  # FIXME Move all makeid() functions to .calc.py.
-        # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' ', '/'],
-                    'and': ['&'],
-                    'a': ['ä', 'å', 'ą', 'á', 'ā'],
-                    'c': ['ć', 'č'],
-                    'd': ['ď'],
-                    'e': ['ę', 'é', 'ě', 'ē'],
-                    'g': ['ģ'],
-                    'i': ['í', 'ī'],
-                    'k': ['ķ'],
-                    'l': ['ł', 'ļ'],
-                    'n': ['ń', 'ň', 'ņ'],
-                    'o': ['ö', 'ø', 'ó'],
-                    'r': ['ř'],
-                    's': ['ś', 'š'],
-                    't': ['ť'],
-                    'u': ['ü', 'ú', 'ů', 'ū'],
-                    'y': ['ý'],
-                    'z': ['ź', 'ż', 'ž'],
-                    'ae': ['æ'],
-                    'ss': ['ß']}
-
-        idtext = label.lower()
-        if idtext[:5] == 'scope':
-            idtext = idtext.replace(' ', '')
-
-        for tochar in idlookup:
-            for fromchar in idlookup[tochar]:
-                idtext = idtext.replace(fromchar, tochar)
-
-        return idtext
-
-    # -----------------------------------------------------------------------------------
-    def compute_effect(self) -> pd.DataFrame:  # FIXME use sub-functions like DatasetNode
-        sector = self.get_parameter_value('gpc_sector')
-
-        df = self.get_input_dataset()
-        df = df[(df.index.get_level_values('Sector') == sector) &
-                (df.index.get_level_values('Quantity') == self.qlookup[self.quantity])]
-
-        droplist = ['Sector', 'Quantity']
-        for i in df.index.names:
-            # Check if all values are either "." or NaN
-            values = df.index.get_level_values(i)
-            if ((values == '.') | (values.isna())).all():
-                droplist.append(i)
-
-        df.index = df.index.droplevel(droplist)
-
-        unit = df['Unit'].unique()[0]
-        df['Value'] = df['Value'].astype('pint[' + unit + ']')
-        df = df.drop(columns = ['Unit'])
-
-        # Convert index level names from labels to IDs.
-        dims = []
-        for i in df.index.names:
-            if i == YEAR_COLUMN:
-                dims.append(i)
-            else:
-                dims.append(self.makeid(i))
-        df.index = df.index.set_names(dims)
-
-        # Convert levels within each index level from labels to IDs.
-        dfi = df.index.to_frame(index = False)
-        for col in list(set(dims) - {YEAR_COLUMN}):
-            for cat in dfi[col].unique():
-                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
-
-        df.index = pd.MultiIndex.from_frame(dfi)
-
-        # Add forecast column if needed.
-        if 'Forecast' not in df.columns:
-            df['Forecast'] = False
-
-        # Add missing years and interpolate missing values.
-        df = ppl.from_pandas(df)
-        df = df.paths.to_wide()
-
-        yeardf = pd.DataFrame({'Year': range(dfi['Year'].min(), dfi['Year'].max() + 1)})
-        yeardf = yeardf.set_index(['Year'])
-        yeardf = ppl.from_pandas(yeardf)
-
-        df = df.paths.join_over_index(yeardf, how = 'outer')
-        for col in list(set(df.columns) - set(['Year', 'Forecast'])):
-            df = df.with_columns(pl.col(col).interpolate())
-
-        df = df.with_columns(pl.col('Forecast').fill_null(strategy = 'forward'))
-
-        df = df.paths.to_narrow()
-        df = self.apply_multiplier(df, required=False, units=True)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
-        df = df.to_pandas()
-
-        if not self.is_enabled():
-            df[VALUE_COLUMN] *= self.no_effect_value
-
-#       df = extend_last_historical_value(df, self.get_end_year())
-
-        return df
+class DatasetAction2(DatasetAction):
+    pass
 
 class DatasetActionMFM(ActionNode):
     allowed_parameters = [StringParameter('action', description = 'Action name', is_customizable = False)]
@@ -537,7 +401,7 @@ class StockReplacementAction(ActionNode):
         base = base.paths.to_narrow()
         return base
 
-class SCurveAction(DatasetAction2):
+class SCurveAction(DatasetAction):
     explanation = _("This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint.")
     allowed_parameters = DatasetAction2.allowed_parameters
 

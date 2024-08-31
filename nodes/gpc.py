@@ -14,54 +14,45 @@ class DatasetNode(AdditiveNode):
     allowed_parameters = AdditiveNode.allowed_parameters + [
         StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),   # FIXME To be removed, replaced by 'sector' below.
         StringParameter('sector', description = 'Sector', is_customizable = False),
-        StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False)
+        StringParameter('rename_dimensions', description = 'Rename incompatible dimensions', is_customizable = False)
     ]
 
-    quantitylookup = {'price': 'currency',
-               'energy_consumption': 'energy',
-               'waste_disposal': 'mass',
-               'amount': 'number',
-               'exposureresponse': 'exposure_response',
-               'case_cost': 'unit_price',
-               'unit_cost': 'unit_price',
-               'share': 'fraction',
-               'freight_quantity': 'freight_mileage'
-               }
+    quantitylookup = {
+        'price': 'currency',
+        'energy_consumption': 'energy',
+        'waste_disposal': 'mass',
+        'amount': 'number',
+        'exposureresponse': 'exposure_response',
+        'case_cost': 'unit_price',
+        'unit_cost': 'unit_price',
+        'share': 'fraction',
+        'freight_quantity': 'freight_mileage'
+    }
 
-    # -----------------------------------------------------------------------------------
-    def makeid(self, label: str):  # FIXME This and all other copies of makeid() functions should go to .calc.py.
-        # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' ', '/'],
-                    'and': ['&'],
-                    'a': ['ä', 'å', 'ą', 'á', 'ā'],
-                    'c': ['ć', 'č'],
-                    'd': ['ď'],
-                    'e': ['ę', 'é', 'ě', 'ē'],
-                    'g': ['ģ'],
-                    'i': ['í', 'ī'],
-                    'k': ['ķ'],
-                    'l': ['ł', 'ļ'],
-                    'n': ['ń', 'ň', 'ņ'],
-                    'o': ['ö', 'ø', 'ó'],
-                    'r': ['ř'],
-                    's': ['ś', 'š'],
-                    't': ['ť'],
-                    'u': ['ü', 'ú', 'ů', 'ū'],
-                    'y': ['ý'],
-                    'z': ['ź', 'ż', 'ž'],
-                    'ae': ['æ'],
-                    'ss': ['ß']}
-
-        idtext = label.lower()
-        if idtext[:5] == 'scope':
-            idtext = idtext.replace(' ', '')
-
-        for tochar in idlookup:
-            for fromchar in idlookup[tochar]:
-                idtext = idtext.replace(fromchar, tochar)
-
-        return idtext
+    # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
+    characterlookup = str.maketrans({
+        '.':'', ',':'', ':':'', '-':'', '(':'', ')':'',
+        ' ':'_', '/':'_',
+        '&':'and',
+        'ä':'a', 'å':'a', 'ą':'a', 'á':'a', 'ā':'a',
+        'ć':'c', 'č':'c',
+        'ď':'d',
+        'ę':'e', 'é':'e', 'ě':'e', 'ē':'e',
+        'ģ':'g',
+        'í':'i', 'ī':'i',
+        'ķ':'k',
+        'ł':'l', 'ļ':'l',
+        'ń':'n', 'ň':'n', 'ņ':'n',
+        'ö':'o', 'ø':'o', 'ó':'o',
+        'ř':'r',
+        'ś':'s', 'š':'s',
+        'ť':'t',
+        'ü':'u', 'ú':'u', 'ů':'u', 'ū':'u',
+        'ý':'y',
+        'ź':'z', 'ż':'z', 'ž':'z',
+        'æ':'ae',
+        'ß':'ss'
+    })
 
     # -----------------------------------------------------------------------------------
     def get_gpc_dataset(self) -> ppl.PathsDataFrame:
@@ -78,7 +69,7 @@ class DatasetNode(AdditiveNode):
 
         qlookup = {}
         for quantity in df['Quantity'].unique():
-            qlookup[quantity] = self.makeid(quantity)
+            qlookup[quantity] = quantity.lower().translate(self.characterlookup)
 
         df = df.with_columns(df['Quantity'].replace(qlookup).replace(self.quantitylookup))
         df = df.filter(pl.col('Quantity') == self.quantity)
@@ -111,19 +102,28 @@ class DatasetNode(AdditiveNode):
         # Convert index level names from labels to IDs.
         collookup = {}
         for col in list(set(df.columns) - exset):
-            collookup[col] = self.makeid(col)
+            collookup[col] = col.lower().translate(self.characterlookup)
         df = df.rename(collookup)
 
         # Convert levels within each index level from labels to IDs.
+        if 'scope' in df.columns:
+            catlookup = {}
+            for cat in df['scope'].unique():
+                catlookup[cat] = cat.lower().replace(' ', '')
+            df = df.with_columns(df['scope'].replace(catlookup))
+            exset.add('scope')
+
         for col in list(set(df.columns) - exset):
             catlookup = {}
             for cat in df[col].unique():
-                catlookup[cat] = self.makeid(cat)
+                catlookup[cat] = cat.lower().translate(self.characterlookup)
             df = df.with_columns(df[col].replace(catlookup))
 
             if col in self.context.dimensions:
-                df = df.with_columns(self.context.dimensions[col].series_to_ids_pl(df[col]))
-
+                for cat in self.context.dimensions[col].categories:
+                    if cat.aliases:
+                        df = df.with_columns(self.context.dimensions[col].series_to_ids_pl(df[col]))
+                        break
         return df
 
     # -----------------------------------------------------------------------------------
@@ -198,6 +198,7 @@ class DatasetNode(AdditiveNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
+
 class DetailedDatasetNode(DatasetNode):
     allowed_parameters = DatasetNode.allowed_parameters + [
         StringParameter('action', description = 'Detailed action module', is_customizable = False)]
@@ -217,27 +218,6 @@ class DetailedDatasetNode(DatasetNode):
         df = self.add_missing_years(df)
         df = self.rename_dimensions(df)  # FIXME Should we add add_and_multiply_input_nodes() and ensure_unit()?
         df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
-
-        return df
-
-
-class DatasetRatioNode(DatasetNode):  # FIXME Use edge process instead?
-    allowed_parameters = DatasetNode.allowed_parameters + [
-        StringParameter('reference_category', description='Category to which all others are compared', is_customizable=False)]
-
-    def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_gpc_dataset()
-        df = self.drop_unnecessary_levels(df, droplist=['Description'])
-        df = self.convert_names_to_ids(df)
-        df = self.implement_unit_col(df)
-        df = self.add_missing_years(df)
-        df = self.rename_dimensions(df)  # FIXME Should we add add_and_multiply_input_nodes() and ensure_unit()?
-        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
-
-        col, cat = self.get_parameter_value('reference_category', required=True).split(':')
-        reference = df.filter(pl.col(col).eq(cat)).drop(col)
-        df = df.paths.join_over_index(reference)
-        df = df.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
 
         return df
 
