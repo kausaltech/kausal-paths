@@ -1,23 +1,23 @@
-import pandas as pd
 import polars as pl
+from common import polars as ppl
 from params import StringParameter, BoolParameter
 from nodes.calc import extend_last_historical_value_pl
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, KNOWN_QUANTITIES
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
 from nodes.simple import AdditiveNode
 from nodes.exceptions import NodeError
-from common import polars as ppl
 from django.utils.translation import gettext_lazy as _
 
 
 class DatasetNode(AdditiveNode):
     explanation = _("""This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""")
+
     allowed_parameters = AdditiveNode.allowed_parameters + [
         StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),   # FIXME To be removed, replaced by 'sector' below.
         StringParameter('sector', description = 'Sector', is_customizable = False),
         StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False)
     ]
 
-    qlookup = {'price': 'currency',
+    quantitylookup = {'price': 'currency',
                'energy_consumption': 'energy',
                'waste_disposal': 'mass',
                'amount': 'number',
@@ -63,7 +63,8 @@ class DatasetNode(AdditiveNode):
 
         return idtext
 
-    def get_gpc_dataset(self) -> pd.DataFrame:
+    # -----------------------------------------------------------------------------------
+    def get_gpc_dataset(self) -> ppl.PathsDataFrame:
         sector = self.get_parameter_value('gpc_sector', required=False)
         if not sector:
             sector = self.get_parameter_value('sector', required=False)
@@ -71,90 +72,99 @@ class DatasetNode(AdditiveNode):
             raise NodeError(self, 'You must give either gpc_sector or sector parameter.')
 
         # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
-        df = df[df[VALUE_COLUMN].notnull()]
-        quans = []
-        for quan in df.index.get_level_values('Quantity'):
-            quan = self.makeid(quan)
-            if quan not in KNOWN_QUANTITIES:
-                quan = self.qlookup[quan]
-            quans.append(quan)
-        df = df[[s == sector and q == self.quantity for s, q in zip(df.index.get_level_values('Sector'), quans)]]
+        df = self.get_input_dataset_pl()
+        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
+                       (pl.col('Sector') == sector))
 
+        qlookup = {}
+        for quantity in df['Quantity'].unique():
+            qlookup[quantity] = self.makeid(quantity)
+
+        df = df.with_columns(df['Quantity'].replace(qlookup).replace(self.quantitylookup))
+        df = df.filter(pl.col('Quantity') == self.quantity)
+
+        df = df.drop(['Sector', 'Quantity'])
         return df
 
-    def implement_unit_col(self, df: pd.DataFrame) -> pd.DataFrame:
-        unit = df['Unit'].unique()[0]
-        df[VALUE_COLUMN] = df[VALUE_COLUMN].astype('pint[' + unit + ']')
-        df = df.drop(columns = ['Unit'])
+    # -----------------------------------------------------------------------------------
+    def implement_unit_col(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = df.set_unit(VALUE_COLUMN, df['Unit'].unique()[0])
+        df = df.drop('Unit')
         return df
 
-    def rename_dimensions(self, df: pd.DataFrame) -> pd.DataFrame:
-        renams = self.get_parameter_value('rename_dimensions', required=False)
-        if renams:
-            for renam in renams.split(','):
-                dimfrom, dimto = renam.split(':')
-                nam = list(df.index.names)
-                loc = nam.index(dimfrom)
-                nam[loc] = dimto
-                df.index.names = nam
+    # -----------------------------------------------------------------------------------
+    def rename_dimensions(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        renames = self.get_parameter_value('rename_dimensions', required=False)
+        if renames:
+            dlookup = {}
+            for rename in renames.split(','):
+                dimfrom, dimto = rename.split(':')
+                dlookup[dimfrom] = dimto
+
+            df = df.rename(dlookup)
         return df
 
-    def convert_names_to_ids(self, df: pd.DataFrame, use_dims=True) -> pd.DataFrame:
+    # -----------------------------------------------------------------------------------
+    def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        exset = set([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, 'Unit'])
+
         # Convert index level names from labels to IDs.
-        dims = []
-        for i in df.index.names:
-            if i == YEAR_COLUMN:
-                dims.append(i)
-            else:
-                dims.append(self.makeid(i))
-        df.index = df.index.set_names(dims)
+        collookup = {}
+        for col in list(set(df.columns) - exset):
+            collookup[col] = self.makeid(col)
+        df = df.rename(collookup)
 
         # Convert levels within each index level from labels to IDs.
-        dfi = df.index.to_frame(index = False)
-        for col in list(set(dims) - {YEAR_COLUMN}):
-            for cat in dfi[col].unique():
-                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
-            if use_dims:
-                dim = self.context.dimensions[col]
-                dfi[col] = dim.series_to_ids(dfi[col])
+        for col in list(set(df.columns) - exset):
+            catlookup = {}
+            for cat in df[col].unique():
+                catlookup[cat] = self.makeid(cat)
+            df = df.with_columns(df[col].replace(catlookup))
 
-        df.index = pd.MultiIndex.from_frame(dfi)
+            if col in self.context.dimensions:
+                df = df.with_columns(self.context.dimensions[col].series_to_ids_pl(df[col]))
+
         return df
 
-    def drop_unnecessary_levels(self, df: pd.DataFrame, droplist: list) -> pd.DataFrame:
+    # -----------------------------------------------------------------------------------
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
         # Drop filter levels and empty dimension levels.
-        if 'Description' in df.index.names:
-            droplist.append('Description')
-        for col in df.index.names:
-            vals = df.index.get_level_values(col).unique().to_list()
-            if vals == ['.']:
-                droplist.append(col)
-        df.index = df.index.droplevel(droplist)
+        drops = [d for d in droplist if d in df.columns]
+
+        for col in list(set(df.columns) - set(drops)):
+            vals = df[col].unique().to_list()
+            if vals in [['.'], [None]]:
+                drops.append(col)
+
+        df = df.drop(drops)
         return df
 
-    def add_missing_years(self, df: pd.DataFrame) -> ppl.PathsDataFrame:
+    # -----------------------------------------------------------------------------------
+    def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add forecast column if needed.
         if FORECAST_COLUMN not in df.columns:
-            df[FORECAST_COLUMN] = False
+            df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
 
         # Add missing years and interpolate missing values.
-        df = ppl.from_pandas(df)
         df = df.paths.to_wide()
+        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))
+        nullcount = df.null_count().sum_horizontal()[0]
 
-        yeardf = pd.DataFrame({YEAR_COLUMN: range(df[YEAR_COLUMN].min(), df[YEAR_COLUMN].max() + 1)})
-        yeardf = yeardf.set_index([YEAR_COLUMN])
-        yeardf = ppl.from_pandas(yeardf)
+        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0) :
+            yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
+            yeardf._units = {}
+            yeardf._primary_keys = [YEAR_COLUMN]
 
-        df = df.paths.join_over_index(yeardf, how = 'outer')
-        for col in list(set(df.columns) - set([YEAR_COLUMN, FORECAST_COLUMN])):
-            df = df.with_columns(pl.col(col).interpolate())
+            df = df.paths.join_over_index(yeardf, how = 'outer')
+            for col in list(set(df.columns) - set([YEAR_COLUMN, FORECAST_COLUMN])):
+                df = df.with_columns(pl.col(col).interpolate())
 
-        df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy = 'forward'))
+            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy = 'backward'))
 
         df = df.paths.to_narrow()
         return df
 
+    # -----------------------------------------------------------------------------------
     def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
         na_nodes = self.get_input_nodes(tag = 'non_additive')
@@ -174,7 +184,7 @@ class DatasetNode(AdditiveNode):
     # -----------------------------------------------------------------------------------
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
-        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
@@ -194,12 +204,12 @@ class DetailedDatasetNode(DatasetNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
+        df = self.get_input_dataset_pl()
 
-        df = df[df[VALUE_COLUMN].notnull()]
-        df = df[(df.index.get_level_values('Sector') == self.get_parameter_value('sector')) &
-                (df.index.get_level_values('Action') == self.get_parameter_value('action')) &
-                (df.index.get_level_values('Node Name') == str(self.name).split(' ', 1)[1])]
+        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
+                       (pl.col('Sector') == self.get_parameter_value('sector')) &
+                       (pl.col('Action') == self.get_parameter_value('action')) &
+                       (pl.col('Node Name') == str(self.name).split(' ', 1)[1]))
 
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action', 'Node Name'])
         df = self.convert_names_to_ids(df)
@@ -217,7 +227,7 @@ class DatasetRatioNode(DatasetNode):  # FIXME Use edge process instead?
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
-        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Quantity'])
+        df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)

@@ -41,7 +41,6 @@ class DatasetAction2(ActionNode, DatasetNode):
 
         return df
 
-
 class DatasetAction(ActionNode):
     allowed_parameters = ActionNode.allowed_parameters + [
         StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False)
@@ -164,7 +163,6 @@ class DatasetAction(ActionNode):
 #       df = extend_last_historical_value(df, self.get_end_year())
 
         return df
-
 
 class DatasetActionMFM(ActionNode):
     allowed_parameters = [StringParameter('action', description = 'Action name', is_customizable = False)]
@@ -539,32 +537,6 @@ class StockReplacementAction(ActionNode):
         base = base.paths.to_narrow()
         return base
 
-
-#                cattarget = target.loc[target.index.get_level_values(YEAR_COLUMN) == yearlist[i]]
-#                for subcat in cat.split('/'):
-#                    subcat = subcat.split(':')
-#                    cattarget = cattarget.loc[cattarget.index.get_level_values(subcat[0]) == subcat[1]]
-#                cattargets.append([cattarget[VALUE_COLUMN].item(), cat])
-
-
-        # For each unique combination of dimension categories...
-#        base_index = base_frame.index.droplevel(YEAR_COLUMN).unique().to_frame(index = False)
-
-#        baseline = {}
-#        for row in base_index.iterrows():
-#            type_frame = base_frame.xs(tuple(row[1].values), level = list(row[1].index), drop_level = False).copy()
-
-#            # ...calculate the annual difference.
-#            type_frame['Value_Diff'] = type_frame[VALUE_COLUMN].diff().fillna(0)
-#            type_frame = type_frame.reset_index().to_dict(orient = 'list')
-
-#            if len(baseline):
-#                for key in list(baseline.keys()):
-#                    baseline[key].extend(type_frame[key])
-#            else:
-#                baseline = type_frame
-
-
 class SCurveAction(DatasetAction2):
     explanation = _("This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint.")
     allowed_parameters = DatasetAction2.allowed_parameters
@@ -601,11 +573,10 @@ class SCurveAction(DatasetAction2):
         df = self.get_input_node().get_output_pl(target_node=self)
 
         params = self.get_gpc_dataset()
-        params = self.drop_unnecessary_levels(params, droplist=['Sector', 'Quantity'])
+        params = self.drop_unnecessary_levels(params, droplist=['Description'])
         params = self.rename_dimensions(params)
         params = self.convert_names_to_ids(params)
         params = self.implement_unit_col(params)
-        params = ppl.from_pandas(params)
         params = self.apply_multiplier(params, required=False, units=True)
         row = params[YEAR_COLUMN].unique()
         if len(row) != 1:
