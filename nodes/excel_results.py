@@ -168,7 +168,18 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
     #     'total_building_heat_energy_use',
     #     'consumer_electricity_use',
     #     'statistical_electricity_consumption',
-    #     'collected_waste'
+    #     'collected_waste',
+    #     'reduce_all_motorised_transport',
+    #     'modal_switch_from_cars_to_other_modes',
+    #     "transport_efficiency",
+    #     "fully_electric_vehicle_share",
+    #     "fully_electric_truck_share",
+    #     'old_building_renovation_rate',
+    #     'new_building_shares',
+    #     'building_heating_type_share',
+    #     'building_heating_shares',
+    #     'heating_fuel_share',
+    #     'waste_recycling_shares'
     # ]
 
     if node_ids is None:

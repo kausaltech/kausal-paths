@@ -495,6 +495,7 @@ nodes:
 
 - id: building_heating_shares
   name: Building heating shares
+  description: The shares of heating type do not sum up to 100 %, because electric heating is excluded in this node.
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -826,12 +827,14 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
-  - id: electricity_production_emission_factor
+  - id: effective_electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
   output_nodes:
-  - id: building_emissions
+  - id: electricity_emissions
     from_dimensions:
     - id: pollutant
-      categories: [co2]
       flatten: true
     - id: energy_carrier
       flatten: true
@@ -841,11 +844,21 @@ nodes:
     - id: scope
       categories: [scope2]
 
+- id: electricity_emissions
+  name: Electricity emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  output_nodes:
+  - id: net_emissions
+
 - id: building_air_pollutant_emissions
   name: Building air pollutant emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_nodes:
@@ -862,7 +875,8 @@ nodes:
     - id: energy_carrier
       flatten: true
     - id: pollutant
-      categories: [nox, pm25_combustion, pm10_combustion]
+      categories: [co2]
+      exclude: true
 
 # --------------- Costs ----------------
 
@@ -1226,4 +1240,4 @@ actions:
     - id: energy_carrier
   input_datasets: [nzc/defaults]
   params:
-    gpc_sector: Efficiency improvements for each renovation
+    gpc_sector: Efficiency improvements for each renovation  # Get the own rate for appliances
