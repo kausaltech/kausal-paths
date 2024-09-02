@@ -1010,6 +1010,8 @@ class Node:
                     res = extend_last_historical_value_pl(res, self.get_end_year())
                 elif tag == 'inventory_only':
                     res = res.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
+                elif tag == 'forecast_only':
+                    res = res.filter(pl.col(FORECAST_COLUMN))
                 elif tag == 'arithmetic_inverse':
                     res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
                 elif tag == 'geometric_inverse':
