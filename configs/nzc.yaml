@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6e9e94ceff6e3ea09475f19da1b94e107db9ea02
+  commit: fdaf072a643c48c178c47018a92e1cf6e06d35c8
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -35,6 +35,11 @@ params:
   label: Show scenario impacts instead of node outputs?
   value: false
   is_visible: false
+  is_customizable: true
+- id: statistical_correction
+  label: Statistical correction
+  value: true
+  is_visible: true
   is_customizable: true
 
 action_groups:
@@ -472,6 +477,14 @@ emission_sectors:
   is_outcome: true
 
 nodes:
+- id: delete_redundant_nodes
+  name: Delete the redundant nodes from upstream
+  type: values.AssociationNode
+  quantity: fraction
+  unit: dimensionless
+  historical_values: [[2018, 0], [2023, 0]]
+  input_dataset_processors: [LinearInterpolation]
+
 - id: population
   name: Population
   type: gpc.DatasetNode
@@ -508,14 +521,57 @@ nodes:
       flatten: true
 
 - id: total_electricity_consumption
-  name: Total electricity consumption
+  name: Total electricity consumption, uncorrected
+  description: Consumption is not corrected for the actual consumption statistics.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
 
-- id: statistical_electricity_consumption  # FIXME Is this needed for something?
+- id: total_electricity_consumption2
+  name: Total electricity consumption
+  description: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [non_additive]
+
+- id: electricity_emissions2
+  name: Total electricity emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption2
+    to_dimensions:
+    - id: energy_carrier
+  - id: effective_electricity_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+
+- id: statistical_electricity_consumption
   name: Statistical electricity consumption
   type: gpc.DatasetNode
   quantity: energy
@@ -530,10 +586,40 @@ nodes:
     to_dimensions: []
   params:
     sector: Total electricity demand within city boundaries
-  # output_nodes:
-  # - id: total_electricity_consumption
-  #   to_dimensions:
-  #   - id: energy_carrier
+
+- id: electricity_consumption_ratio
+  name: Electricity consumption ratio between statistics and modelled
+  type: simple.MultiplicativeNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: statistical_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_correction
+  name: Electricity statistics correction
+  type: gpc.CorrectionNode2
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_consumption_ratio
+    tags: [inventory_only, extend_values]
+  params:
+  - id: do_correction
+    ref: statistical_correction
+  # - id: inventory_only
+  #   value: false
+  output_nodes:
+  - id: total_electricity_consumption2
 
 - id: fossil_electricity_factor
   name: Fossil electricity factor

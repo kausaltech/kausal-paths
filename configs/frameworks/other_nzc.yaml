@@ -71,6 +71,13 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
+  output_nodes:
+  - id: delete_redundant_nodes
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      flatten: true
   
 - id: effective_electricity_emission_factor
   name: Effective electricity emission factor
@@ -141,7 +148,7 @@ nodes:
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption2
     tags: [difference, non_additive]
     to_dimensions:
     - id: energy_carrier

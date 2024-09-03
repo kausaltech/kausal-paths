@@ -732,20 +732,62 @@ nodes:
   params:
     sector: Average electricity use for lighting & appliances
 
-- id: efficient_appliances_rate
-  name: Efficient appliances rate
-  type: gpc.DatasetNode
+- id: non_efficient_fraction
+  name: Non-efficient fraction
+  type: simple.AdditiveNode
   quantity: fraction
-  unit: '%/a'
+  unit: '%'
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: 3.3 Efficient lighting & appliances
+  input_nodes:
+  - id: efficient_appliances_rate
+    tags: [complement_cumulative_product]
+    to_dimensions:
+    - id: energy_carrier
 
+- id: efficient_fraction
+  name: Efficient fraction
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: non_efficient_fraction
+    tags: [non_additive, complement]
+    to_dimensions:
+    - id: energy_carrier
+  - id: efficiency_programme_shares
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new_standard]
+      flatten: true
+    - id: efficiency_programme
+      categories: [minor_improvements, aggressive_improvements]
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
 
-- id: efficiency_programme_shares
+- id: efficiency_shares
+  name: Efficiency shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: non_efficient_fraction
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+      categories: [no_improvements]
+  - id: efficient_fraction
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+
+- id: efficiency_programme_shares  # TODO This could be simplified because only two values are used.
   name: Efficiency programme shares
   type: gpc.DatasetNode
   quantity: fraction
@@ -756,10 +798,10 @@ nodes:
   params:
     gpc_sector: Assumed share of type of efficiency programme for lever
 
-- id: consumer_electricity_intensity
+- id: consumer_electricity_intensity2
   name: Electricity use intensity for lighting & appliances
   type: simple.MultiplicativeNode
-  quantity: energy
+  quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
   output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
@@ -769,6 +811,46 @@ nodes:
     - id: efficiency_programme
     - id: energy_carrier
     - id: building_energy_class
+  - id: consumer_electricity_intensity_baseline
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: delete_redundant_nodes
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: efficiency_programme
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: electricity_need_reduction
+  name: Electricity need reduction after improvements
+  description: Relative changes in electricity use intensity.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  output_nodes:
+  - id: consumer_electricity_intensity
+    tags: [complement]
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  input_datasets: [nzc/defaults]
+  params:
+    gpc_sector: Efficiency improvements for each renovation
+
+- id: consumer_electricity_intensity
+  name: Electricity use intensity for lighting & appliances
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
   - id: consumer_electricity_intensity_baseline
     tags: [non_additive]
     to_dimensions:
@@ -790,22 +872,25 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
-  output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
   - id: building_stock
-    to_dimensions:
+    from_dimensions:
     - id: building_energy_class
+      flatten: true
+    to_dimensions: []
   - id: consumer_electricity_intensity
     to_dimensions:
     - id: energy_carrier
     - id: efficiency_programme
-    - id: building_energy_class
+  - id: efficiency_shares
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
   output_nodes:
   - id: total_electricity_consumption
     from_dimensions:
-    - id: building_energy_class
-      flatten: true
     - id: efficiency_programme
       flatten: true
 
@@ -822,8 +907,6 @@ nodes:
   - id: consumer_electricity_use
     from_dimensions:
     - id: efficiency_programme
-      flatten: true
-    - id: building_energy_class
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -851,8 +934,8 @@ nodes:
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  output_nodes:
-  - id: net_emissions
+  # output_nodes:
+  # - id: net_emissions
 
 - id: building_air_pollutant_emissions
   name: Building air pollutant emissions
@@ -1224,20 +1307,15 @@ actions:
     - id: building_energy_class
       categories: [new_top_performance]
 
-- id: electricity_need_reduction
-  name: 3.3 Electricity need reduction
-  description: The action looks at renovated and newly built buildings and improves their electricity use. The fractions of minor and major improvement come from the user, but the action is about relative changes in electricity use intensity, and they cannot be adjusted by the user.
+- id: efficient_appliances_rate
+  name: 3.3 Efficient lighting & appliances
   type: gpc.DatasetAction
   quantity: fraction
-  unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  output_nodes:
-  - id: consumer_electricity_intensity
-    tags: [complement]
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  input_datasets: [nzc/defaults]
+  unit: '%/a'
+  group: buildings
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
   params:
-    gpc_sector: Efficiency improvements for each renovation  # Get the own rate for appliances
+    gpc_sector: 3.3 Efficient lighting & appliances
