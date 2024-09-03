@@ -154,7 +154,11 @@ class InstanceModelCache(TypedDict):
     datasets: dict[str, DatasetCache]
 
 
+_pytest_instances: dict[str, Instance] = {}
+"""Used only in unittests to work around having to parse YAML configs."""
+
 instance_context: ContextVar[Instance | None] = ContextVar('instance_context', default=None)
+"""Global instance context for e.g. GraphQL queries."""
 
 
 class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
@@ -202,8 +206,6 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     dimensions: RevMany[DimensionModel]
     datasets: RevMany[DatasetModel]
     framework_configs: RevMany[FrameworkConfig]
-
-    _instance: Instance
 
     search_fields = [
         index.SearchField('identifier'),
@@ -272,7 +274,10 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
 
     @contextmanager
     def enter_instance_context(self):
-        instance = self._initialize_instance(node_refs=True)
+        if self.identifier in _pytest_instances:
+            instance = _pytest_instances[self.identifier]
+        else:
+            instance = self._initialize_instance(node_refs=True)
         token = instance_context.set(instance)
         try:
             yield instance
@@ -280,6 +285,9 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             instance_context.reset(token)
 
     def _get_instance(self, node_refs: bool = False) -> Instance:
+        if self.identifier in _pytest_instances:
+            return _pytest_instances[self.identifier]
+
         current_instance = instance_context.get()
         if current_instance is not None and current_instance.id == self.identifier:
             return current_instance
@@ -290,6 +298,8 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         return instance
 
     def get_instance(self, node_refs: bool = False) -> Instance:
+        # Unit tests will set the Instance to `_instance` so that we don't need
+        # to read the YAML configs
         instance = self._get_instance(node_refs=node_refs)
         return instance
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
+from pathlib import Path
 import re
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Tuple, TypeAlias, Unpack, cast
 import os
+from loguru import logger
 import pint
 from pint.facets.plain import PlainUnit
 from pint.babel_names import _babel_units
@@ -17,6 +19,7 @@ from pint.delegates.formatter._compound_unit_helpers import (
     prepare_compount_unit,
 )
 from pint.delegates.formatter._format_helpers import formatter
+import platformdirs
 
 
 if TYPE_CHECKING:
@@ -89,13 +92,33 @@ class CachingUnitRegistry(  # type: ignore[misc]
         return name
 
 
-unit_registry = CachingUnitRegistry(
-    preprocessors=[
-        lambda s: s.replace('%', ' percent '),
-    ],
-    on_redefinition='raise',
-    cache_folder=os.getenv('PINT_CACHE_DIR', ":auto:"),
-)
+def create_unit_registry():
+    cache_dir = os.getenv('PINT_CACHE_DIR', None)
+    if cache_dir is None:
+        cache_dir = platformdirs.user_cache_dir(appname="pint", appauthor=False)
+
+    def try_create(cache_path: Path) -> CachingUnitRegistry:
+        return CachingUnitRegistry(
+            preprocessors=[
+                lambda s: s.replace('%', ' percent '),
+            ],
+            on_redefinition='raise',
+            cache_folder=str(cache_path),
+        )
+
+    cache_path = Path(cache_dir)
+    try:
+        reg = try_create(cache_path)
+    except FileNotFoundError:
+        logger.exception("Unit registry creation failed; removing pint cache and trying again")
+        # This can sometimes happen with stale cache
+        for fn in list(cache_path.glob('*.json')) + list(cache_path.glob('*.pickle')):
+            fn.unlink()
+        reg = try_create(cache_path)
+    return reg
+
+
+unit_registry = create_unit_registry()
 
 
 def prepare_units_for_babel(unit: Unit, html: bool = False):

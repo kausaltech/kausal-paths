@@ -145,7 +145,7 @@ class InstanceYAMLConfig:
     @classmethod
     def _get_cache_fn(cls, entrypoint: Path) -> Path:
         cache_dir = platformdirs.user_cache_dir(appname='paths', appauthor='kausaltech', ensure_exists=True)
-        cache_fn = Path(str(entrypoint.absolute()).replace('/', '-').replace(' ', '_')).with_suffix('.pickle')
+        cache_fn = Path(str(entrypoint.absolute()).replace('/', '-').lstrip('-').replace(' ', '_')).with_suffix('.pickle')
         cache_path = Path(cache_dir) / cache_fn
         return cache_path
 
@@ -288,6 +288,12 @@ class Instance:
         return goals
 
     def clean(self):
+        # Workaround for pytests; if we have a globally set instance, do not
+        # clean it.
+        from nodes.models import _pytest_instances
+        if _pytest_instances.get(self.id) == self:
+            return
+
         self.log.debug("Cleaning instance")
         self.context.clean()  # type: ignore
         self.context.instance = None  # type: ignore

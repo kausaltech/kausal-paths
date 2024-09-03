@@ -80,11 +80,11 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:
         instance = kwargs.get('instance', None)
-        obj = super().create(**kwargs)
+        obj: InstanceConfig = super().create(**kwargs)
         if instance:
-            obj._instance = instance
-            from nodes.models import instance_cache
-            instance_cache[obj.identifier] = instance
+            from nodes.models import _pytest_instances
+            # For tests we want to avoid reading a YAML file to configure the Instance
+            _pytest_instances[instance.id] = instance
 
         return obj
 
