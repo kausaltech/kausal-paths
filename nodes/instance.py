@@ -1,20 +1,23 @@
+from __future__ import annotations
+
 import dataclasses
+import hashlib
 import importlib
-import os
-from pathlib import Path
+import pickle
 import re
 import threading
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional, Tuple, Type, overload
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 import dvc_pandas
+import orjson
+import platformdirs
 from loguru import logger
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from rich import print
-from ruamel.yaml import YAML as RuamelYAML, CommentedMap
-from ruamel.yaml.comments import LineCol
+from ruamel.yaml import YAML as RuamelYAML, CommentedMap  # noqa: N811
 from yaml import safe_load as yaml_load
 
 from common import base32_crockford
@@ -22,10 +25,8 @@ from common.i18n import I18nBaseModel, TranslatedString, gettext_lazy as _, set_
 from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
-from nodes.goals import NodeGoalsEntry
 from nodes.node import Edge, Node, NodeMetric
 from nodes.normalization import Normalization
-from nodes.processors import Processor
 from nodes.scenario import CustomScenario, Scenario
 from nodes.units import Unit
 from pages.config import OutcomePage, pages_from_config
@@ -34,13 +35,19 @@ from params.param import Parameter, ReferenceParameter
 from .context import Context, Dataset, DVCDataset, FixedDataset
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from datetime import datetime
+
     from loguru import Logger
+    from ruamel.yaml.comments import LineCol
+
+    from nodes.goals import NodeGoalsEntry
+    from nodes.simple import SectorEmissions
 
     from .models import FrameworkConfig, InstanceConfig
 
 
 yaml = RuamelYAML()
-
 
 class InstanceTerms(I18nBaseModel):
     action: TranslatedString | None = None
@@ -55,21 +62,153 @@ class InstanceFeatures:
 
 
 @dataclass
+class InstanceYAMLConfig:
+    entrypoint: Path
+    dependencies: list[Path] = field(default_factory=list)
+    mtime_hash: str | None = None
+    data: dict | None = None
+
+    def _merge_framework_config(self, confs: list[dict], fw_confs: list[dict], entity_type: str) -> None:
+        self._merge_config(confs, fw_confs, allow_override=True, entity_type=entity_type)
+
+    def _merge_include_config(self, existing: list[dict], newconf: list[dict], entity_type: str, apply_group: str | None) -> None:
+        self._merge_config(existing, newconf, allow_override=False, entity_type=entity_type, apply_group=apply_group)
+
+    def _merge_config(
+        self, existing: list[dict], newconf: list[dict], allow_override: bool, entity_type: str, apply_group: str | None = None,
+    ) -> None:
+        by_id = {d['id']: d for d in existing}
+        for nc in newconf:
+            c = by_id.get(nc['id'])
+            if c is not None:
+                if not allow_override:
+                    msg = f"{entity_type} '{nc["id"]}' was already defined"
+                    raise Exception(msg)
+                continue
+            assert 'node_group' not in nc
+            nc['node_group'] = apply_group
+            existing.append(nc)
+
+    def load(self) -> dict:
+        with self.entrypoint.open('r', encoding='utf8') as f:
+            data: dict = yaml_load(f)
+        if 'instance' in data:
+            data = data['instance']
+
+        self.dependencies = []
+        frameworks = data.get('frameworks')
+        if frameworks:
+            for framework in frameworks:
+                framework_fn = self.entrypoint.parent.joinpath('frameworks', framework).with_suffix('.yaml')
+                if not framework_fn.exists():
+                    raise Exception("Config expects framework but %s does not exist" % framework_fn)
+                with framework_fn.open('r') as fw_f:
+                    fw_data = yaml.load(fw_f)
+                self.dependencies.append(framework_fn)
+                self._merge_framework_config(data['nodes'], fw_data.get('nodes', []), 'Node')
+                self._merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []), 'Emission sector')
+                self._merge_framework_config(data['actions'], fw_data.get('actions', []), 'Action')
+                # Some nodes, emission sectors and actions must exist in main yaml.
+
+        includes = data.get('include', [])
+        for iconf in includes:
+            apply_group = iconf.get('node_group', None)
+            ifn = Path(self.entrypoint).parent / Path(iconf['file'])
+            if not ifn.exists():
+                raise Exception('Include file "%s" not found' % str(ifn))
+            with ifn.open('r') as f:
+                idata = yaml.load(ifn.open('r'))
+            self.dependencies.append(ifn)
+            self._merge_include_config(data['nodes'], idata.get('nodes', []), 'Node', apply_group=apply_group)
+            self._merge_include_config(data['dimensions'], idata.get('dimensions', []), 'Dimension', apply_group=apply_group)
+        self.data = data
+        return data
+
+    def to_dict(self):
+        return dict(
+            entrypoint=str(self.entrypoint),
+            dependencies=[str(p) for p in self.dependencies],
+            mtime_hash=self._get_config_mtime_hash(),
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Self | None:
+        conf = cls(
+            entrypoint=Path(data['entrypoint']),
+            dependencies=[Path(s) for s in data['dependencies']],
+        )
+        if conf._get_config_mtime_hash() != data['mtime_hash']:
+            logger.info('Stale YAML cache for %s' % data['entrypoint'])
+            return None
+        return conf
+
+    @classmethod
+    def _get_cache_fn(cls, entrypoint: Path) -> Path:
+        cache_dir = platformdirs.user_cache_dir(appname='paths', appauthor='kausaltech', ensure_exists=True)
+        cache_fn = Path(str(entrypoint.absolute()).replace('/', '-').replace(' ', '_')).with_suffix('.pickle')
+        cache_path = Path(cache_dir) / cache_fn
+        return cache_path
+
+    @classmethod
+    def load_from_cache(cls, entrypoint: Path) -> dict | None:
+        cache_path = cls._get_cache_fn(entrypoint)
+        cache_meta_path = cache_path.with_suffix('.json')
+        if not cache_path.exists() or not cache_meta_path.exists():
+            return None
+        try:
+            with cache_meta_path.open('rb') as f:
+                meta = orjson.loads(f.read())
+        except Exception:
+            logger.exception("Unable to load cache metadata for '%s' from '%s'" % (entrypoint, cache_meta_path))
+            return None
+
+        conf = cls.from_dict(meta)
+        if conf is None:
+            return None
+
+        try:
+            with cache_path.open('rb') as f:
+                data = pickle.load(f)  # noqa: S301
+        except Exception:
+            logger.exception("Unable to load cache metadata for '%s' from '%s'" % (entrypoint, cache_meta_path))
+            return None
+        assert isinstance(data, dict)
+        return data
+
+    def save_to_cache(self):
+        cache_path = self._get_cache_fn(self.entrypoint)
+        cache_meta_path = cache_path.with_suffix('.json')
+
+        with cache_path.open('wb') as f:
+            pickle.dump(self.data, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        meta = self.to_dict()
+        with cache_meta_path.open('wb') as f:
+            f.write(orjson.dumps(meta))
+
+    def _get_config_mtime_hash(self) -> str:
+        h = hashlib.md5(usedforsecurity=False)
+        for p in (self.entrypoint, *self.dependencies):
+            h.update(bytes(str(p.stat().st_mtime_ns), encoding='ascii'))
+        return h.hexdigest()
+
+
+@dataclass
 class Instance:
     id: str
     name: TranslatedString
     owner: TranslatedString
     default_language: str
     _: dataclasses.KW_ONLY
-    yaml_file_path: Optional[str] = None
-    site_url: Optional[str] = None
-    reference_year: Optional[int] = None
+    yaml_file_path: Path | None = None
+    site_url: str | None = None
+    reference_year: int | None = None
     minimum_historical_year: int
-    maximum_historical_year: Optional[int] = None
+    maximum_historical_year: int | None = None
     supported_languages: list[str] = field(default_factory=list)
-    lead_title: Optional[TranslatedString] = None
-    lead_paragraph: Optional[TranslatedString] = None
-    theme_identifier: Optional[str] = None
+    lead_title: TranslatedString | None = None
+    lead_paragraph: TranslatedString | None = None
+    theme_identifier: str | None = None
     features: InstanceFeatures = field(default_factory=InstanceFeatures)
     terms: InstanceTerms = field(default_factory=InstanceTerms)
     action_groups: list[ActionGroup] = field(default_factory=list)
@@ -88,7 +227,7 @@ class Instance:
         return self.context.model_end_year
 
     @cached_property
-    def config(self) -> 'InstanceConfig':
+    def config(self) -> InstanceConfig:
         from .models import InstanceConfig
         return InstanceConfig.objects.get(identifier=self.id)
 
@@ -103,27 +242,22 @@ class Instance:
             self.terms = InstanceTerms(**self.terms)
         if not self.supported_languages:
             self.supported_languages = [self.default_language]
-        else:
-            if self.default_language not in self.supported_languages:
-                self.supported_languages.append(self.default_language)
-        self.log.info("Instance created")
+        elif self.default_language not in self.supported_languages:
+            self.supported_languages.append(self.default_language)
 
     def set_context(self, context: Context):
         self.context = context
 
     def update_dataset_repo_commit(self, commit_id: str):
-        assert self.yaml_file_path
-        with open(self.yaml_file_path, 'r', encoding='utf8') as f:
+        assert self.yaml_file_path is not None
+        with self.yaml_file_path.open('r', encoding='utf8') as f:
             data = yaml.load(f)
-        if 'instance' in data:
-            instance_data = data['instance']
-        else:
-            instance_data = data
+        instance_data = data.get('instance', data)
         instance_data['dataset_repo']['commit'] = commit_id
-        with open(self.yaml_file_path, 'w', encoding='utf8') as f:
+        with self.yaml_file_path.open('w', encoding='utf8') as f:
             yaml.dump(data, f)
 
-    def warning(self, msg: Any, *args):
+    def warning(self, msg: str, *args):
         self.log.opt(depth=1).warning(msg, *args)
 
     @overload
@@ -142,9 +276,8 @@ class Instance:
             for ge in node.goals.root:
                 if not ge.is_main_goal:
                     continue
-                if goal_id is not None:
-                    if ge.get_id() != goal_id:
-                        continue
+                if goal_id is not None and ge.get_id() != goal_id:
+                    continue
                 goals.append(ge)
 
         if goal_id:
@@ -154,12 +287,21 @@ class Instance:
 
         return goals
 
+    def clean(self):
+        self.log.debug("Cleaning instance")
+        self.context.clean()  # type: ignore
+        self.context.instance = None  # type: ignore
+        self.config = None  # type: ignore
+        self.fw_config = None
+        self.context = None  # type: ignore
+
+
 class InstanceLoader:
     instance: Instance
     default_language: str
-    yaml_file_path: Optional[str] = None
+    yaml_file_path: Path | None = None
     config: CommentedMap | dict
-    fw_config: Optional['FrameworkConfig'] = None
+    fw_config: FrameworkConfig | None = None
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
@@ -167,22 +309,22 @@ class InstanceLoader:
 
     @overload
     def make_trans_string(
-        self, config: Dict, attr: str, pop: bool = False, required: Literal[True] = True,
-        default_language=None
+        self, config: dict, attr: str, pop: bool = False, required: Literal[True] = True,
+        default_language=None,
     ) -> TranslatedString: ...
 
     @overload
     def make_trans_string(
-        self, config: Dict, attr: str, pop: bool = False, required: Literal[False] = False,
-        default_language=None
+        self, config: dict, attr: str, pop: bool = False, required: Literal[False] = False,
+        default_language=None,
     ) -> TranslatedString | None: ...
 
-    def make_trans_string(
-        self, config: Dict, attr: str, pop: bool = False, required: bool = False,
-        default_language=None
-    ):
+    def make_trans_string(  # noqa: C901
+        self, config: dict, attr: str, pop: bool = False, required: bool = False,
+        default_language=None,
+    ) -> None | TranslatedString:
         default_language = default_language or self.config['default_language']
-        all_langs = set([self.config['default_language']])
+        all_langs = {self.config['default_language']}
         all_langs.update(set(self.config.get('supported_languages', [])))
 
         default = config.get(attr)
@@ -217,42 +359,28 @@ class InstanceLoader:
 
     def simple_trans_string(self, s: str) -> TranslatedString:
         langs = {
-            self.default_language: s
+            self.default_language: s,
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def setup_processors(self, node: Node, confs: list[dict | str]):
-        processors = []
-        for idp_conf in confs:
-            if isinstance(idp_conf, str):
-                class_path = idp_conf
-                idp_conf = {}
-            else:
-                class_path = idp_conf.pop('type')
-
-            params = idp_conf.get('params', {})
-            p_class: Type[Processor] = self.import_class(
-                class_path, 'nodes.processors', allowed_classes=[Processor]
-            )
-            processors.append(p_class(self.context, node, params=params))
-        return processors
-
-    def make_node(self, node_class: Type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:
-        ds_config = config.get('input_datasets', None)
+    def make_node(self, node_class: type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:  # noqa: C901, PLR0912, PLR0915
+        ds_config = config.get('input_datasets')
         datasets: list[Dataset] = []
 
-        metrics_conf = config.get('output_metrics', None)
+        metrics_conf = config.get('output_metrics')
         metrics: dict[str, NodeMetric] | None
         if metrics_conf is not None:
             metrics = {m['id']: NodeMetric.from_config(m) for m in metrics_conf}
+            class_metrics = None
         else:
-            metrics = getattr(node_class, 'output_metrics', None)
+            metrics = None
+            class_metrics = getattr(node_class, 'output_metrics', None)
         unit = config.get('unit')
         if unit is None:
             unit = getattr(node_class, 'default_unit', None)
             if unit is None:
                 unit = getattr(node_class, 'unit', None)
-            if not unit and not metrics:
+            if not unit and not metrics and not class_metrics:
                 raise Exception('Node %s has no unit set' % config['id'])
         if unit and not isinstance(unit, Unit):
             unit = self.context.unit_registry.parse_units(unit)
@@ -260,7 +388,7 @@ class InstanceLoader:
         quantity = config.get('quantity')
         if quantity is None:
             quantity = getattr(node_class, 'quantity', None)
-            if not quantity and not metrics:
+            if not quantity and not metrics and not class_metrics:
                 raise Exception('Node %s has no quantity set' % config['id'])
 
         # If the graph doesn't specify input datasets, the node
@@ -268,6 +396,15 @@ class InstanceLoader:
         if ds_config is None:
             ds_config = getattr(node_class, 'input_datasets', [])
 
+        ds_interpolate = False
+        idp_confs = config.get('input_dataset_processors', [])
+        if idp_confs:
+            if len(idp_confs) != 1:
+                raise Exception("Only one dataset processor supported")
+            proc = idp_confs[0]
+            if proc != 'LinearInterpolation':
+                raise Exception("Only LinearInterpolation dataset processor supported")
+            ds_interpolate = True
         for ds in ds_config:
             if isinstance(ds, str):
                 ds_id = ds
@@ -283,6 +420,7 @@ class InstanceLoader:
             else:
                 ds_unit = None
             tags = dc.pop('tags', [])
+
             ds_obj: DVCDataset | None = None
             if self.fw_config is not None:
                 from nodes.gpc import DatasetNode
@@ -291,17 +429,20 @@ class InstanceLoader:
                     ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
             if ds_obj is None:
                 ds_obj = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            ds_obj.interpolate = ds_interpolate
             datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:
-            datasets.append(FixedDataset(
+            fds = FixedDataset(
                 id=config['id'], unit=unit,  # type: ignore
                 tags=config.get('tags', []),
                 historical=config.get('historical_values'),
                 forecast=config.get('forecast_values'),
-            ))
+                use_interpolation=ds_interpolate,
+            )
+            datasets.append(fds)
 
-        yaml_lct: Tuple[int, int] | None = (yaml_lc.line + 1, yaml_lc.col) if yaml_lc else None  # type: ignore
+        yaml_lct: tuple[int, int] | None = (yaml_lc.line + 1, yaml_lc.col) if yaml_lc else None  # type: ignore
         node: Node = node_class(
             id=config['id'],
             context=self.context,
@@ -309,13 +450,13 @@ class InstanceLoader:
             short_name=self.make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
-            node_group=config.get('node_group', None),
+            node_group=config.get('node_group'),
             description=self.make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
             is_outcome=config.get('is_outcome', False),
-            minimum_year=config.get('minimum_year', None),
+            minimum_year=config.get('minimum_year'),
             target_year_goal=config.get('target_year_goal'),
             goals=config.get('goals'),
             allow_nulls=config.get('allow_nulls', False),
@@ -360,11 +501,11 @@ class InstanceLoader:
 
                     if not isinstance(target, param_class):
                         raise NodeError(node, "Node requires parameter of type %s, but referenced parameter %s is %s" % (
-                            param_class, ref, type(target)
+                            param_class, ref, type(target),
                         ))
                     param = ReferenceParameter(
                         local_id=param_obj.local_id, label=param_obj.label, target=target,
-                        context=self.context
+                        context=self.context,
                     )
                     node.add_parameter(param)
                     continue
@@ -379,9 +520,8 @@ class InstanceLoader:
                 fields['context'] = self.context
 
                 unit = fields.get('unit', None)
-                if unit is not None:
-                    if isinstance(unit, str):
-                        fields['unit'] = self.context.unit_registry.parse_units(unit)
+                if unit is not None and isinstance(unit, str):
+                    fields['unit'] = self.context.unit_registry.parse_units(unit)
 
                 value = fields.pop('value', None)
                 param = param_class(**fields)
@@ -399,7 +539,7 @@ class InstanceLoader:
                     sv = self._scenario_values.setdefault(scenario_id, list())
                     sv.append((param, param.clean(value)))
 
-        tags = config.get('tags', None)
+        tags = config.get('tags')
         if isinstance(tags, str):
             tags = [tags]
         if tags:
@@ -408,17 +548,14 @@ class InstanceLoader:
                     raise NodeError(node, "'tags' must be a list of strings")
             node.tags.update(tags)
 
-        idp_confs = config.get('input_dataset_processors', [])
-        node.input_dataset_processors = self.setup_processors(node, idp_confs)
-
         return node
 
     def import_class(
         self, path: str, path_prefix: str | None = None,
-        allowed_classes: Iterable[Type] | None = None,
-        disallowed_classes: Iterable[Type] | None = None,
-        node_id: str | None = None
-    ) -> Type:
+        allowed_classes: Iterable[type] | None = None,
+        disallowed_classes: Iterable[type] | None = None,
+        node_id: str | None = None,
+    ) -> type:
         if not path:
             raise Exception("Node %s: no class path given" % node_id)
         parts = path.split('.')
@@ -429,13 +566,12 @@ class InstanceLoader:
 
         mod = importlib.import_module('.'.join(parts))
         klass = getattr(mod, class_name)
-        if allowed_classes:
-            if not issubclass(klass, tuple(allowed_classes)):
-                raise Exception("%s is not a subclass of %s" % (klass, allowed_classes))
+        if allowed_classes and not issubclass(klass, tuple(allowed_classes)):
+            raise Exception("%s is not a subclass of %s" % (klass, allowed_classes))
         if disallowed_classes:
             for k in disallowed_classes:
                 if issubclass(klass, k):
-                    raise Exception("%s is a subclass of disallowed %s" % (klass, disallowed_classes))
+                    raise TypeError("%s is a subclass of disallowed %s" % (klass, disallowed_classes))
         return klass
 
     def setup_dimensions(self):
@@ -458,18 +594,14 @@ class InstanceLoader:
                     node_id=nc['id'],
                 )
             except ImportError:
-                logger.error('Unable to import node class for %s' % nc.get('id'))
+                self.logger.error('Unable to import node class for %s' % nc.get('id'))
                 raise
-
-            try:
-                node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
-            except NodeError:
-                raise
+            node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
             self.context.add_node(node)
 
     def generate_nodes_from_emission_sectors(self):
         mod = importlib.import_module('nodes.simple')
-        node_class = getattr(mod, 'SectorEmissions')
+        node_class: type[SectorEmissions] = mod.SectorEmissions
         dataset_id = self.config.get('emission_dataset')
         emission_unit = self.config.get('emission_unit')
         assert emission_unit is not None
@@ -479,9 +611,8 @@ class InstanceLoader:
             parent_id = ec.pop('part_of', None)
             data_col = ec.pop('column', None)
             data_category = ec.pop('category', None)
-            if 'name_en' in ec:
-                if 'emissions' not in ec['name_en']:
-                    ec['name_en'] += ' emissions'
+            if 'name_en' in ec and 'emissions' not in ec['name_en']:
+                ec['name_en'] += ' emissions'
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
                 input_dimensions=self.config.get('emission_dimensions', []),
@@ -494,7 +625,7 @@ class InstanceLoader:
                 )] if data_col or data_category else [],
                 unit=emission_unit,
                 params=dict(category=data_category) if data_category else [],
-                **ec
+                **ec,
             )
             node = self.make_node(node_class, nc, yaml_lc=getattr(ec, 'lc', None))
             self.context.add_node(node)
@@ -516,10 +647,10 @@ class InstanceLoader:
             if decision_level is not None:
                 for name, val in DecisionLevel.__members__.items():
                     if decision_level == name.lower():
+                        node.decision_level = val
                         break
                 else:
                     raise Exception('Invalid decision level for action %s: %s' % (nc['id'], decision_level))
-                node.decision_level = val
 
             ag_id = nc.get('group', None)
             if ag_id is not None:
@@ -555,7 +686,7 @@ class InstanceLoader:
                     node.add_edge(edge)
                     edge.input_node.add_edge(edge)
             except Exception:
-                logger.error("Error setting up edges for node %s" % node)
+                self.logger.error("Error setting up edges for node %s" % node)
                 raise
 
         for parent_id, subs in self._subactions.items():
@@ -563,7 +694,7 @@ class InstanceLoader:
             if parent is None:
                 raise Exception("Action parent '%s' not found" % parent_id)
             if not isinstance(parent, ParentActionNode):
-                raise Exception("Action '%s' is marked as a parent but is not a ParentActionNode" % parent_id)
+                raise TypeError("Action '%s' is marked as a parent but is not a ParentActionNode" % parent_id)
             for sub_id in subs:
                 node = ctx.get_node(sub_id)
                 assert isinstance(node, ActionNode)
@@ -608,13 +739,8 @@ class InstanceLoader:
                 id='custom',
                 name=_('Custom'),
                 base_scenario=default_scenario,
-            )
+            ),
         )
-
-    # deprecated
-    def load_datasets(self, datasets):
-        for ds in datasets:
-            self.context.add_dataset(ds)
 
     def setup_global_parameters(self):
         context = self.context
@@ -639,7 +765,8 @@ class InstanceLoader:
             param.set(param_val)
             context.add_global_parameter(param)
 
-    def setup_action_efficiency_pairs(self):  # TODO add an ID so that there can be several impact overviews for different decision makers.
+    def setup_action_efficiency_pairs(self):
+        # TODO add an ID so that there can be several impact overviews for different decision makers.
         conf = self.config.get('action_efficiency_pairs', [])
         for aepc in conf:
             label = self.make_trans_string(aepc, 'label', pop=False)
@@ -670,60 +797,33 @@ class InstanceLoader:
             self.context.add_normalization(n_id, n)
 
     @classmethod
-    def merge_framework_config(cls, confs: list[dict], fw_confs: list[dict], entity_type: str):
-        cls.merge_config(confs, fw_confs, allow_override=True, entity_type=entity_type)
+    def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
+        yaml_path = config.get('yaml_file_path')
+        return cls(
+            config=config, yaml_file_path=Path(yaml_path) if yaml_path else None,
+            fw_config=fw_config,
+        )
 
     @classmethod
-    def merge_include_config(cls, existing: list[dict], newconf: list[dict], entity_type: str, apply_group: str | None):
-        cls.merge_config(existing, newconf, allow_override=False, entity_type=entity_type, apply_group=apply_group)
+    def from_yaml(cls, filename: Path, fw_config: FrameworkConfig | None = None) -> Self:
+        yaml_fn = Path(filename).absolute().relative_to(Path(__file__).parent.parent.absolute())
 
-    @classmethod
-    def merge_config(cls, existing: list[dict], newconf: list[dict], allow_override: bool, entity_type: str, apply_group: str | None = None):
-        by_id = {d['id']: d for d in existing}
-        for nc in newconf:
-            c = by_id.get(nc['id'])
-            if c is not None:
-                if not allow_override:
-                    raise Exception(f"{entity_type} '{nc["id"]}' was already defined")
-                else:
-                    continue
-            assert 'node_group' not in nc
-            nc['node_group'] = apply_group
-            existing.append(nc)
+        config = InstanceYAMLConfig.load_from_cache(yaml_fn)
+        if config is None:
+            yaml_conf = InstanceYAMLConfig(yaml_fn)
+            yaml_conf.load()
+            try:
+                yaml_conf.save_to_cache()
+            except Exception:
+                logger.exception("Unable to save instance configuration to cache")
+            config = yaml_conf.data
+            assert config is not None
+        return cls(config=config, yaml_file_path=yaml_fn, fw_config=fw_config)
 
-    @classmethod
-    def from_yaml(cls, filename: str, fw_config: Optional['FrameworkConfig'] = None):
-        data = yaml_load(open(filename, 'r', encoding='utf8'))
-        if 'instance' in data:
-            data = data['instance']
-
-        frameworks = data.get('frameworks')
-        if frameworks:
-            for framework in frameworks:
-                base_dir = os.path.dirname(filename)
-                framework_fn = os.path.join(base_dir, 'frameworks', framework + '.yaml')
-                if not os.path.exists(framework_fn):
-                    raise Exception("Config expects framework but %s does not exist" % framework_fn)
-                fw_data = yaml.load(open(framework_fn, 'r', encoding='utf8'))
-                cls.merge_framework_config(data['nodes'], fw_data.get('nodes', []), 'Node')
-                cls.merge_framework_config(data['emission_sectors'], fw_data.get('emission_sectors', []), 'Emission sector')
-                cls.merge_framework_config(data['actions'], fw_data.get('actions', []), 'Action')
-                # Some nodes, emission sectors and actions must exist in main yaml.
-
-        includes = data.get('include', [])
-        for iconf in includes:
-            apply_group = iconf.get('node_group', None)
-            ifn = Path(filename).parent / Path(iconf['file'])
-            if not ifn.exists():
-                raise Exception('Include file "%s" not found' % str(ifn))
-            idata = yaml.load(ifn.open('r'))
-            cls.merge_include_config(data['nodes'], idata.get('nodes', []), 'Node', apply_group=apply_group)
-            cls.merge_include_config(data['dimensions'], idata.get('dimensions', []), 'Dimension', apply_group=apply_group)
-
-        return cls(data, yaml_file_path=filename, fw_config=fw_config)
-
-    def __init__(self, config: dict, yaml_file_path: str | None = None, fw_config: Optional['FrameworkConfig'] = None):
-        self.yaml_file_path = os.path.abspath(yaml_file_path) if yaml_file_path else None
+    def __init__(
+        self, config: dict, yaml_file_path: Path | None = None, fw_config: FrameworkConfig | None = None,
+    ):
+        self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
         self.config = config
         self.fw_config = fw_config
         self.default_language = config['default_language']
@@ -731,28 +831,24 @@ class InstanceLoader:
         with set_default_language(self.default_language):
             self._init_instance()
 
-    def _init_instance(self):
+    def _init_instance(self) -> None:  # noqa: PLR0915
         config = self.config
-        static_datasets = self.config.get('static_datasets')
-        instance_id = config['id']
+        instance_id: str = config['id']
         fwc = self.fw_config
         if fwc is not None:
             instance_id = fwc.instance_config.identifier
         dataset_repo_default_path = None
-        if static_datasets is not None:
-            if self.config.get('dataset_repo') is not None:
-                raise Exception('static_datasets and dataset_repo may not be specified at the same time')
-            dataset_repo = dvc_pandas.StaticRepository(static_datasets)
-        else:
-            dataset_repo_config = self.config['dataset_repo']
-            repo_url = dataset_repo_config['url']
-            commit = dataset_repo_config.get('commit')
-            dataset_repo = dvc_pandas.Repository(
-                repo_url=repo_url, dvc_remote=dataset_repo_config.get('dvc_remote'),
-                cache_prefix=instance_id,
-            )
-            dataset_repo.set_target_commit(commit)
-            dataset_repo_default_path = dataset_repo_config.get('default_path')
+
+        dataset_repo_config = self.config['dataset_repo']
+        repo_url = dataset_repo_config['url']
+        commit = dataset_repo_config.get('commit')
+        dataset_repo = dvc_pandas.Repository(
+            repo_url=repo_url, dvc_remote=dataset_repo_config.get('dvc_remote'),
+            # cache_prefix=instance_id,
+        )
+        dataset_repo.set_target_commit(commit)
+        dataset_repo_default_path = dataset_repo_config.get('default_path')
+
         agc_all = self.config.get('action_groups', [])
         agcs = []
         for agc in agc_all:
@@ -763,6 +859,7 @@ class InstanceLoader:
         instance_attrs = [
             'supported_languages', 'theme_identifier',
         ]
+
         if fwc is None:
             owner = self.make_trans_string(self.config, 'owner', required=True)
             name = self.make_trans_string(self.config, 'name', required=True)
@@ -810,7 +907,6 @@ class InstanceLoader:
         self._output_nodes = {}
         self._subactions = {}
         self._scenario_values = {}
-
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()

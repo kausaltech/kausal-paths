@@ -1,9 +1,10 @@
 from __future__ import annotations
-from datetime import datetime, timezone, timedelta
 
-from factory import Factory, LazyFunction, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
-from factory.django import DjangoModelFactory
+from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from factory import Factory, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
+from factory.django import DjangoModelFactory
 
 from common.i18n import TranslatedString
 from nodes.actions import ActionNode
@@ -11,10 +12,10 @@ from nodes.actions.simple import AdditiveAction
 from nodes.context import Context, unit_registry
 from nodes.datasets import FixedDataset
 from nodes.instance import Instance
-from nodes.models import NodeConfig, InstanceConfig
+from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
-from nodes.simple import SimpleNode
 from nodes.scenario import CustomScenario, Scenario
+from nodes.simple import SimpleNode
 
 
 class ContextFactory(Factory[Context]):
@@ -28,12 +29,12 @@ class ContextFactory(Factory[Context]):
     target_year = 2030
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Instance:
+    def create(cls, **kwargs: Any) -> Context:  # noqa: ANN401
         return super().create(**kwargs)
 
     @post_generation
     @staticmethod
-    def post(obj: Context, create: bool, extracted, **kwargs):
+    def post(obj: Context, create: bool, extracted, **kwargs) -> None:
         obj.instance.set_context(obj)
         default_scenario = ScenarioFactory.create(id='default', context=obj, default=True, all_actions_enabled=True)
         obj.add_scenario(default_scenario)
@@ -57,16 +58,16 @@ class InstanceFactory(Factory[Instance]):
     # content_refreshed_at: Optional[datetime] = field(init=False)
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Instance:
+    def create(cls, **kwargs: Any) -> Instance:  # noqa: ANN401
         ret = super().create(**kwargs)
         return ret
 
     @post_generation
     @staticmethod
     def post(obj: Instance, create: bool, extracted, **kwargs):
-        obj.modified_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        obj.modified_at = datetime.now(UTC) + timedelta(hours=1)
 
-class InstanceConfigFactory(DjangoModelFactory):
+class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     class Meta:
         model = InstanceConfig
         exclude = ('instance',)
@@ -74,7 +75,7 @@ class InstanceConfigFactory(DjangoModelFactory):
     identifier = Sequence(lambda i: f'ic{i}')
     lead_title = "lead title"
     lead_paragraph = "Lead paragraph"
-    instance = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
+    instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
 
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:
@@ -86,7 +87,6 @@ class InstanceConfigFactory(DjangoModelFactory):
             instance_cache[obj.identifier] = instance
 
         return obj
-
 
 class NodeConfigFactory(DjangoModelFactory):
     class Meta:

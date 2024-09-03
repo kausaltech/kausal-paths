@@ -94,7 +94,7 @@ unit_registry = CachingUnitRegistry(
         lambda s: s.replace('%', ' percent '),
     ],
     on_redefinition='raise',
-    cache_folder=":auto:",
+    cache_folder=os.getenv('PINT_CACHE_DIR', ":auto:"),
 )
 
 

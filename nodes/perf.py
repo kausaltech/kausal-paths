@@ -90,7 +90,7 @@ class PerfNodeEntry(Generic[T]):
         self.total_exec_time += self.own_exec_time
         self.debug('leave at %s (total %s, own %s, new own %s)' % (
             self.time_ms(self.left_at), self.time_ms(self.total_exec_time),
-            self.time_ms(self.own_exec_time), self.time_ms(own_time)
+            self.time_ms(self.own_exec_time), self.time_ms(own_time),
         ))
         if self.parent is not None:
             self.parent.return_from_child(self)
@@ -133,7 +133,7 @@ class PerfRunContext(Generic[T]):
             assert cur == self.roots[-1]
         self.tip = cur.parent
 
-    def _dump_recurse(self, siblings: list[PerfNodeEntry[T]], depth: int, table: Table):
+    def _dump_recurse(self, siblings: list[PerfNodeEntry[T]], depth: int, table: Table) -> None:
         for pse in siblings:
             total_exec = pse.total_exec_time / 1000000.0
             if total_exec < self.ctx.min_ms:
@@ -151,13 +151,13 @@ class PerfRunContext(Generic[T]):
                 ]
             else:
                 cache_cols = []
-            def format_num(num: float):
+            def format_num(num: float) -> Text:
                 return Text('%.2f' % num, style='italic')
             table.add_row(
                 '%s%s' % ('  ' * depth, node_id),
                 Text('  ' * depth) + format_num(total_exec),
                 format_num(pse.own_exec_time / 1000000),
-                *cache_cols
+                *cache_cols,
             )
             self._dump_recurse(pse.children, depth + 1, table)
 
@@ -178,7 +178,7 @@ class PerfRunContext(Generic[T]):
 
 
 class PerfContext(contextlib.AbstractContextManager, Generic[T]):
-    run: ContextVar[PerfRunContext[T] | None]
+    run: PerfRunContext[T] | None
     enabled: bool = False
     min_ms: float
     description: str | None
@@ -187,19 +187,20 @@ class PerfContext(contextlib.AbstractContextManager, Generic[T]):
         self.supports_cache = supports_cache
         self.min_ms = float(min_ms)
         self.description = description
-        self.run = ContextVar('run', default=None)
+        self.run = None
 
     def __enter__(self):
         run_ctx = PerfRunContext(self)
-        self.run.set(run_ctx)
+        assert self.run is None
+        self.run = run_ctx
         return run_ctx
 
     def __exit__(self, __exc_type: type[BaseException] | None, __exc_value: BaseException | None, __traceback: TracebackType | None) -> bool | None:
-        run = self.run.get()
+        run = self.run
         if run is None:
             raise Exception("Exiting context with no previous run active")
         run.end(__exc_type is not None)
-        self.run.set(None)
+        self.run = None
         return None
 
     @contextlib.contextmanager
@@ -208,13 +209,12 @@ class PerfContext(contextlib.AbstractContextManager, Generic[T]):
             yield None
             return
 
-        run = self.run.get()
-        if run is None:
+        if self.run is None:
             yield None
             return
 
-        yield run.enter(node)
-        run.leave()
+        yield self.run.enter(node)
+        self.run.leave()
 
     def record_cache(self, node: T, is_hit: bool):
         if not self.enabled:

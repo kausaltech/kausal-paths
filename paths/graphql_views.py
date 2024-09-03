@@ -211,14 +211,13 @@ class PathsExecutionContext(ExecutionContext):
             yield
             return
 
-        with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
-            instance = ic.get_instance()
-        self.context_value.instance = instance
-        context = instance.context
-
         with ExitStack() as stack:
             with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
                 stack.enter_context(self.activate_language(ic, operation))
+                with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
+                    instance = stack.enter_context(ic.enter_instance_context())
+                    self.context_value.instance = instance
+                context = instance.context
                 stack.enter_context(instance.lock)
                 stack.enter_context(context.run())
                 if not context.baseline_values_generated:
@@ -229,6 +228,7 @@ class PathsExecutionContext(ExecutionContext):
                         context.generate_baseline_values()
                 self.activate_instance(instance)
             yield
+        instance.clean()
 
     def execute_fields(
         self,

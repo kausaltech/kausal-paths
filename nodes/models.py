@@ -1,33 +1,35 @@
 from __future__ import annotations
 
-import os
 import threading
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar, Optional, Self, Sequence, Tuple, Union, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, TypedDict, cast
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
-from django.db import models
-from django.http import HttpRequest
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
-from loguru import logger
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
+from modeltrans.manager import MultilingualQuerySet
 from wagtail import blocks
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
+
+from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
-from common.i18n import get_modeltrans_attrs_from_str
-from nodes.node import Node
-from pages.blocks import CardListBlock
+from kausal_common.models.types import FK, MLModelManager, RevMany, copy_signature
+from kausal_common.models.uuid import UUIDIdentifiedModel
+
 from paths.permissions import PathsPermissionPolicy
 from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
@@ -40,35 +42,42 @@ from paths.utils import (
     get_supported_languages,
 )
 
+from common.i18n import get_modeltrans_attrs_from_str
+from pages.blocks import CardListBlock
+from users.models import User
+
 from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from django.http import HttpRequest
+
     from loguru import Logger
 
     from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from frameworks.models import FrameworkConfig
+    from nodes.node import Node
     from pages.models import ActionListPage
     from users.models import User
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
-    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
 
 
 instance_cache_lock = threading.Lock()
-instance_cache: dict[str, Instance] = {}
 
 
-def get_instance_identifier_from_wildcard_domain(hostname: str, request: HttpRequest | None = None) -> Union[Tuple[str, str], Tuple[None, None]]:
+def get_instance_identifier_from_wildcard_domain(
+    hostname: str, request: HttpRequest | None = None,
+) -> tuple[str, str] | tuple[None, None]:
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
     req_wildcards = getattr(request, 'wildcard_domains', None) or []
     wildcard_domains = (settings.HOSTNAME_INSTANCE_DOMAINS or []) + req_wildcards
     if len(parts) == 2 and parts[1].lower() in wildcard_domains:
         return (parts[0], parts[1])
-    else:
-        return (None, None)
+    return (None, None)
 
 
-class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
+class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig']):
     def for_hostname(self, hostname: str, request: HttpRequest | None = None):
         hostname = hostname.lower()
         hostnames = InstanceHostname.objects.filter(hostname=hostname)
@@ -81,37 +90,78 @@ class InstanceConfigQuerySet(models.QuerySet['InstanceConfig']):
         return self.filter(lookup)
 
     def adminable_for(self, user: User):
-        return InstanceConfig.permission_policy.adminable_instances(user)
+        return InstanceConfig.permission_policy().adminable_instances(user)
 
-class InstancePermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
+
+_InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
+class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore
+    def get_by_natural_key(self, identifier: str) -> InstanceConfig:
+        return self.get(identifier=identifier)
+del _InstanceConfigManager
+
+
+class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig']):
     def __init__(self):
-        super().__init__(InstanceConfig, auth_model=None)
+        super().__init__(InstanceConfig)
+
+    """
+    @cached_property
+    def admin_role(self) -> InstanceAdminRole:
+        from .roles import instance_admin_role
+        return instance_admin_role
+    """
 
     def instances_user_has_any_permission_for(self, user: User, actions: Sequence[str]) -> InstanceConfigQuerySet:
         qs = super().instances_user_has_any_permission_for(user, actions)
         if not user.is_superuser:
             qs = qs.filter(admin_group__in=user.groups.all())
-        return qs
+        return qs # type: ignore
+
+        """
+        qs = InstanceConfig.objects.get_queryset()
+        if user.is_superuser:
+            return qs
+
+
+        aset = set(actions)
+        admin_actions = self.admin_role.get_actions_for_model(InstanceConfig)
+        if aset.intersection(admin_actions):
+            return qs.filter(id__in=self.admin_role.get_instances_for_user(user))
+
+        return qs.none()
+        """
+
+    """
+    def user_has_permission_for_instance(self, user: User, action: str, instance: InstanceConfig) -> bool:
+        admin_actions = self.admin_role.get_actions_for_model(InstanceConfig)
+    """
 
     def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
         return self.instances_user_has_any_permission_for(user, ['change'])
 
 
-class InstanceConfigManager(models.Manager['InstanceConfig']):
-    def get_by_natural_key(self, identifier: str):
-        return self.get(identifier=identifier)
+class NodeCache(TypedDict):
+    pass
 
 
-if TYPE_CHECKING:
-    class InstanceConfigManagerType(InstanceConfigManager):
-        def adminable_for(self, user: User) -> InstanceConfigQuerySet: ...
-        def for_hostname(self, hostname: str, request: HttpRequest | None = None) -> InstanceConfigQuerySet: ...
+class DatasetCache(TypedDict):
+    dvc_hash: str
+    dvc_metadata: dict[str, Any]
 
 
-class InstanceConfig(PathsModel):
+class InstanceModelCache(TypedDict):
+    nodes: dict[str, NodeCache]
+    datasets: dict[str, DatasetCache]
+
+
+instance_context: ContextVar[Instance | None] = ContextVar('instance_context', default=None)
+
+
+class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
+    """Metadata for one Paths computational model instance."""
+
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
-    uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
-    name = models.CharField(max_length=150, verbose_name=_('name'), null=True)
+    name = models.CharField(max_length=150, verbose_name=_('name'))
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
@@ -130,23 +180,29 @@ class InstanceConfig(PathsModel):
         default=list,
     )
 
-    admin_group = models.ForeignKey(
+    admin_group: FK[Group | None] = models.ForeignKey(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
-        null=True
+        null=True,
     )
 
-    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))  # pyright: ignore
+    """
+    model_cache = JSONField[InstanceModelCache | None, InstanceModelCache | None](
+        verbose_name='cached model data', null=True, blank=True,
+    )
+    """
+    """Used to store data to speed up model runs"""
 
-    objects: InstanceConfigManagerType = InstanceConfigManager.from_queryset(InstanceConfigQuerySet)()  # type: ignore
+    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
+
+    objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()  # pyright: ignore
 
     # Type annotations
-    nodes: RelatedManager[NodeConfig]
-    hostnames: RelatedManager[InstanceHostname]
-    dimensions: RelatedManager[DimensionModel]
-    datasets: RelatedManager[DatasetModel]
-    framework_configs: RelatedManager[FrameworkConfig]
+    nodes: RevMany[NodeConfig]
+    hostnames: RevMany[InstanceHostname]
+    dimensions: RevMany[DimensionModel]
+    datasets: RevMany[DatasetModel]
+    framework_configs: RevMany[FrameworkConfig]
 
-    permission_policy: ClassVar[InstancePermissionPolicy]
     _instance: Instance
 
     search_fields = [
@@ -154,21 +210,25 @@ class InstanceConfig(PathsModel):
         index.SearchField('name_i18n'),
     ]
 
-    class Meta:
+    class Meta:  # pyright: ignore
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
+
+    @classmethod
+    def permission_policy(cls) -> InstanceConfigPermissionPolicy:
+        return InstanceConfigPermissionPolicy()
 
     @classmethod
     def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
         return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
 
-    def update_instance_from_configs(self, instance: Instance):
+    def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
         for node_config in self.nodes.all():
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
-            node_config.update_node_from_config(node)
+            node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_from_instance(self, instance: Instance, overwrite=False):
         """Update lead_title and lead_paragraph from instance but do not call save()."""
@@ -187,62 +247,50 @@ class InstanceConfig(PathsModel):
         if self.primary_language != instance.default_language:
             self.log.info('Updating instance.primary_language to %s' % instance.default_language)
             self.primary_language = instance.default_language
-        other_langs = set(instance.supported_languages) - set([self.primary_language])
+        other_langs = set(instance.supported_languages) - {self.primary_language}
         if set(self.other_languages or []) != other_langs:
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
-    def _get_instance_from_memory(self):
-        if self.identifier not in instance_cache:
-            return
-        instance: Instance = instance_cache[self.identifier]
-        assert instance.modified_at is not None
-        if self.modified_at > instance.modified_at:
-            return
-
-        if not self.nodes.exists():
-            return instance
-        latest_node_edit = self.nodes.all().order_by('-modified_at').values_list('modified_at', flat=True).first()
-        assert isinstance(latest_node_edit, datetime)
-        more_recent_nodes = latest_node_edit > instance.modified_at
-        ic_recently_saved = self.modified_at > instance.modified_at
-        if more_recent_nodes or ic_recently_saved:
-            return
-        return instance
-
-    def _create_new_instance(self) -> Instance:
+    def _create_from_config(self) -> Instance:
         fwc = self.framework_configs.first()
         if fwc is not None:
             instance = fwc.create_model_instance(self)
         else:
-            config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
+            config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
             loader = InstanceLoader.from_yaml(config_fn)
             instance = loader.instance
-        self.update_instance_from_configs(instance)
+        return instance
+
+    def _initialize_instance(self, node_refs: bool = False) -> Instance:
+        instance = self._create_from_config()
+        self.update_instance_from_configs(instance, node_refs=node_refs)
         instance.modified_at = timezone.now()
-        instance.context.load_all_dvc_datasets()
         if settings.ENABLE_PERF_TRACING:
             instance.context.perf_context.enabled = True
         return instance
 
-    def _get_instance(self) -> Instance:
-        if hasattr(self, '_instance'):
-            return self._instance
+    @contextmanager
+    def enter_instance_context(self):
+        instance = self._initialize_instance(node_refs=True)
+        token = instance_context.set(instance)
+        try:
+            yield instance
+        finally:
+            instance_context.reset(token)
 
-        instance = self._get_instance_from_memory()
-        if instance:
-            setattr(self, '_instance', instance)
-            return instance
+    def _get_instance(self, node_refs: bool = False) -> Instance:
+        current_instance = instance_context.get()
+        if current_instance is not None and current_instance.id == self.identifier:
+            return current_instance
 
         self.log.info("Creating new instance")
-        instance = self._create_new_instance()
-        instance_cache[self.identifier] = instance
-        self._instance = instance
+        with instance_cache_lock:
+            instance = self._initialize_instance(node_refs=node_refs)
         return instance
 
-    def get_instance(self) -> Instance:
-        with instance_cache_lock:
-            instance = self._get_instance()
+    def get_instance(self, node_refs: bool = False) -> Instance:
+        instance = self._get_instance(node_refs=node_refs)
         return instance
 
     def get_name(self) -> str:
@@ -328,7 +376,7 @@ class InstanceConfig(PathsModel):
         from pages.models import ActionListPage, OutcomePage
 
         root = cast(Page, Page.get_first_root_node())
-        home_pages: models.QuerySet['Page'] = root.get_children()  # pyright: ignore
+        home_pages: models.QuerySet[Page] = root.get_children()  # pyright: ignore
 
         instance = self.get_instance()
         outcome_nodes = {node.identifier: node for node in self.get_outcome_nodes()}
@@ -395,6 +443,8 @@ class InstanceConfig(PathsModel):
             self.site = site
             self.save(update_fields=['site'])
 
+    @transaction.atomic
+    @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
         site = self.site
         if site is not None:
@@ -403,6 +453,13 @@ class InstanceConfig(PathsModel):
             self.save()
             site.delete()
             rp.get_descendants(inclusive=True).delete()
+        if self.admin_group is not None:
+            g_id = self.admin_group
+            has_others = InstanceConfig.objects.filter(admin_group=g_id).exclude(pk=self.pk).exists()
+            if not has_others:
+                self.admin_group = None
+                super().save(update_fields=['admin_group'])
+                Group.objects.get(id=g_id).delete()
         self.nodes.all().delete()
         super().delete(**kwargs)
 
@@ -459,11 +516,11 @@ class InstanceHostname(models.Model):
         verbose_name_plural = _('Instance hostnames')
         unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
 
-    def natural_key(self):
-        return self.instance.natural_key() + (self.hostname, self.base_path)
-
     def __str__(self):
         return '%s at %s [basepath %s]' % (self.instance, self.hostname, self.base_path)
+
+    def natural_key(self):
+        return self.instance.natural_key() + (self.hostname, self.base_path)
 
 
 class InstanceTokenManager(models.Manager):
@@ -474,7 +531,7 @@ class InstanceTokenManager(models.Manager):
 
 class InstanceToken(models.Model):
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='tokens'
+        InstanceConfig, on_delete=models.CASCADE, related_name='tokens',
     )
     token = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -484,6 +541,9 @@ class InstanceToken(models.Model):
     class Meta:
         verbose_name = _('Instance token')
         verbose_name_plural = _('Instance tokens')
+
+    def __str__(self) -> str:
+        return 'Token for %s' % str(self.instance)
 
     def natural_key(self):
         return self.instance.natural_key() + (self.token, self.created_at)
@@ -496,9 +556,11 @@ class DataSourceManager(models.Manager):
 
 class DataSource(UserModifiableModel):
     """
-    A DataSource represents a reusable reference to some published data source
-    and is used to track where specific data values in datasets have come from.
+    Reusable reference to some published data source.
+
+    DataSource is used to track where specific data values in datasets have come from.
     """
+
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True,
         verbose_name=_('instance')
@@ -531,18 +593,25 @@ class DataSource(UserModifiableModel):
         return (str(self.uuid),)
 
 
-class NodeConfigManager(models.Manager):
+class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig']):
+    pass
+
+
+_NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
+class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # pyright: ignore
+    """Model manager for NodeConfig."""
+
     def get_by_natural_key(self, instance_identifier, identifier):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, identifier=identifier)
 
+del _NodeConfigManager
 
-class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
-    instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False
+class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False,
     )
     identifier = IdentifierField(max_length=200)
-    uuid = models.UUIDField(verbose_name=_('UUID'), editable=False, null=True, unique=True)
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_('Order')
@@ -563,7 +632,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         ('paragraph', blocks.RichTextBlock()),
     ], use_json_field=True, blank=True)
 
-    indicator_node: models.ForeignKey[Self | None] = models.ForeignKey(  # type: ignore[type-arg]
+    indicator_node: FK[NodeConfig | None] = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
     )
 
@@ -591,26 +660,31 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         index.FilterField('instance'),
     ]
 
-    objects: models.Manager[Self] = NodeConfigManager()
+    objects: ClassVar[NodeConfigManager] = NodeConfigManager()
+
+    _node: Node | None
+
+    indicates_nodes: RevMany[NodeConfig]
 
     class Meta:
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
 
-    def get_node(self, visible_for_user: UserOrAnon | None = None) -> Optional[Node]:
+    def get_node(self, visible_for_user: UserOrAnon | None = None) -> Node | None:
         if hasattr(self, '_node'):
-            return getattr(self, '_node')
+            return self._node
 
         instance = self.instance.get_instance()
         # FIXME: Node visibility restrictions
         node = instance.context.nodes.get(self.identifier)
-        setattr(self, '_node', node)
+        self._node = node
         return node
 
-    def update_node_from_config(self, node: Node):
+    def update_node_from_config(self, node: Node, keep_ref: bool = False):
         node.database_id = self.pk
-        node.db_obj = self
+        if keep_ref:
+            node.db_obj = self
         if self.order is not None:
             node.order = self.order
 
@@ -622,7 +696,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         # FIXME: Override params
 
     def update_from_node(self, node: Node, overwrite=False):
-        """Sets attributes of this instance from revelant fields of the given node but does not save."""
+        """Set attributes of this instance from revelant fields of the given node but does not save."""
 
         overwritten = False
 
@@ -675,7 +749,8 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
             name = self.name
         return f'{prefix}{name}'
 
-    def save(self, **kwargs):
+    @copy_signature(models.Model.save)
+    def save(self, **kwargs) -> None:
         if self.uuid is None:
             self.uuid = uuid.uuid4()
         return super().save(**kwargs)
@@ -684,4 +759,4 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed):
         return self.instance.natural_key() + (self.identifier,)
 
 
-InstanceConfig.permission_policy = InstancePermissionPolicy()
+#InstanceConfig.permission_policy = InstanceConfigPermissionPolicy()

@@ -37,3 +37,5 @@ notebooks/data/**
 celerybeat-schedule
 .aider*
 .secrets/**
+.prompts/**
+/*.code-workspace

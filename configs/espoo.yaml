@@ -309,17 +309,25 @@ nodes:
     laskennassa kehittyvän Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon
     mukaisesti ja olevan 362690 vuonna 2035. Tässä työkalussa käytetään Tilastokeskuksen
     väestöennustetta, joka on 345000 vuodelle 2035. Toteutunut väestönkehitys (1990,
-    2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
+    2000-2022) on saatu Tilastokeskuksen tilastoista. <a
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
   input_datasets:
   - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
     filters:
     - column: Alue
       value: Espoo
+    - dimension: Sukupuoli
+      flatten: true
+    - dimension: Ikä
+      flatten: true
   - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
     filters:
     - column: Alue
       value: Espoo
+    - dimension: Sukupuoli
+      flatten: true
+    - dimension: Ikä
+      flatten: true
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -886,7 +894,7 @@ pages:
     avoimella lisenssillä CC-BY 4.0.</p> '
   lead_paragraph_en: '<p>Espoo emission scenarios visualise the development of Espoo’s
     greenhouse gas emissions. You can look at where emissions in the City of Espoo
-    come from and how they are predicted to change by 2030. Options available: 
+    come from and how they are predicted to change by 2030. Options available:
     <ul><li><b>Finland 2035 scenario</b>, which assumes that the climate policy measures and
     decisions taken at national level will affect Espoo’s emissions development;</li><li>the
     <b>Carbon-neutral Espoo 2030 scenario (HNE2030)</b>, which assumes that the city’s

@@ -1,14 +1,20 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, cast
+
 import pandas as pd
 import pint_pandas
 import polars as pl
 
-from nodes.node import Node, NodeMetric
 from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
-from nodes.constants import ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, CONSUMPTION_FACTOR_QUANTITY
-from nodes.simple import AdditiveNode, SimpleNode, DivisiveNode
-from common import polars as ppl
+from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
+from nodes.node import Node, NodeMetric
+from nodes.simple import AdditiveNode, DivisiveNode, SimpleNode
 
+if TYPE_CHECKING:
+    from common import polars as ppl
 
 INDUSTRY_USES = '''
 Teollisuuden ja kaivannaistoiminnan rakennukset
@@ -98,7 +104,7 @@ class BuildingStock(AdditiveNode):
         df[YEAR_COLUMN] = df['Vuosi'].astype(int)
         m = self.output_metrics[FLOOR_AREA]
         s = df.groupby(['building_heat_source', 'building_use', YEAR_COLUMN])['value'].sum()
-        s = m.ensure_output_unit(s)
+        s = m.ensure_output_unit(self, s)
         df = pd.DataFrame(data=s.values, index=s.index, columns=[VALUE_COLUMN])
         df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(s.dtype)
         df[FORECAST_COLUMN] = False
@@ -133,7 +139,7 @@ class FutureBuildingStock(SimpleNode):
         pop_node = self.get_input_node(quantity='population')
         pop_df = pop_node.get_output()
 
-        df = hist_df
+        df: pd.DataFrame = hist_df
         df = df.rename(columns={VALUE_COLUMN: 'Area'})
         area_dt = df.dtypes['Area']
         pop_dt = pop_df.dtypes[VALUE_COLUMN]
@@ -164,11 +170,11 @@ class FutureBuildingStock(SimpleNode):
         df = area_per_new_cap_df
         future_index = pd.RangeIndex(last_hist_year + 1, self.context.model_end_year + 1, name=YEAR_COLUMN)
         df = df.reindex(df.index.append(future_index))
-        df = df.fillna(method='pad')
+        df = df.ffill()
         df = df.mul(pop_diff, axis=0).dropna().cumsum()
         df = df.astype(area_dt)
 
-        df = df.stack(self.output_dimension_ids)  # type: ignore
+        df = cast(pd.DataFrame, df.stack(cast(Sequence[str], self.output_dimension_ids), future_stack=True))  # noqa: PD013
         assert isinstance(df, pd.DataFrame)
         df = df.rename(columns={'Area': VALUE_COLUMN})
         df[FORECAST_COLUMN] = True
@@ -234,7 +240,7 @@ class BuildingHeatPredict(Node):
         s = s.astype(dt)
         s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
         df['PerArea'] = s
-        df['PerArea'] = df['PerArea'].fillna(method='pad')
+        df['PerArea'] = df['PerArea'].ffill()
 
         rows = df[FORECAST_COLUMN]
         df.loc[rows, 'HeatConsumption'] = df.loc[rows, 'Area'] * df.loc[rows, 'PerArea']
@@ -294,7 +300,7 @@ class BuildingHeatPerAreaOld(Node):
         s = s.astype(dt)
         s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
         df['PerArea'] = s
-        df['PerArea'] = df['PerArea'].fillna(method='pad')
+        df['PerArea'] = df['PerArea'].ffill()
         # FIXME Oil heating (services) gets wrongly copied to all future years. PathsDataFrames should be used.
         df['PerArea'] = self.ensure_output_unit(df['PerArea'])
 

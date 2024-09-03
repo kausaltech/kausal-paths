@@ -7,6 +7,7 @@ import pandas as pd
 from pydantic import BaseModel
 from common.i18n import I18nString
 from typing import Any, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar, cast
+from common.polars import from_pandas
 from nodes.datasets import JSONDataset
 from nodes.units import Unit, Quantity
 
@@ -269,7 +270,7 @@ class DatasetParameter(Parameter):
 
     def serialize_value(self) -> Any:
         assert self.value is not None
-        return JSONDataset.serialize_df(self.value)
+        return JSONDataset.serialize_df(from_pandas(self.value))
 
     def clean(self, value: Any) -> Any:
         if not isinstance(value, dict):

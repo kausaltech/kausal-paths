@@ -4,20 +4,24 @@ import re
 import typing
 from dataclasses import dataclass
 from functools import reduce
-from typing import Any, Callable, Collection, Iterable, Sequence, cast
+from typing import Any, cast
 
-import numpy as np
 import pandas as pd
 import polars as pl
 from pint_pandas import PintType
 from polars._utils.parse import parse_into_list_of_expressions
-from polars.polars import PyDataFrame, PyExpr
-from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
 
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, TIME_INTERVAL
+from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Iterable, Sequence
+
+    import numpy as np
+    from dvc_pandas.dataset import Dataset as DVCDataset
+    from polars.polars import PyDataFrame, PyExpr
+    from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
+
     from .polars_ext import PathsExt
 
 
@@ -47,7 +51,7 @@ class DataFrameMeta:
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
     _primary_keys: typing.List[str]
-    paths: 'PathsExt'
+    paths: PathsExt
 
     @classmethod
     def _from_pydf(cls, py_df: PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
@@ -329,7 +333,7 @@ class PathsDataFrame(pl.DataFrame):
 
         return df
 
-    def diff(self, col: str, n: Any = 1) -> PathsDataFrame:
+    def diff(self, col: str, n: int = 1) -> PathsDataFrame:
         meta = self.get_meta()
         unit = unit_registry(TIME_INTERVAL)
         meta.units[col] /= unit
@@ -542,6 +546,17 @@ def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
     #        raise Exception("Column name is not a string (it is %s)" % type(col))
     pldf._units = units
     pldf._primary_keys = primary_keys
+    return pldf
+
+
+def from_dvc_dataset(ds: DVCDataset):
+    assert ds.df is not None
+    units: dict[str, Unit] = {}
+    if ds.units:
+        for col, unit in ds.units.items():
+            units[col] = unit_registry.parse_units(unit)
+    primary_keys = ds.index_columns or []
+    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))
     return pldf
 
 

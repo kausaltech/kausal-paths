@@ -6,3 +6,5 @@ ipdb
 plotext
 pre-commit
 pip
+textual
+inotify

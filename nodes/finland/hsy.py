@@ -90,7 +90,7 @@ class HsyNode(Node):
             global BELOW_ZERO_WARNED
 
             if not BELOW_ZERO_WARNED:
-                self.logger.warn('HSY dataset has negative emissions, filling with zero')
+                self.logger.warning('HSY dataset has negative emissions, filling with zero')
                 BELOW_ZERO_WARNED = True
             df.loc[below_zero, [EMISSION_QUANTITY, ENERGY_QUANTITY]] = 0
 
