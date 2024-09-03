@@ -255,3 +255,26 @@ class CorrectionNode(DatasetNode):  # FIXME Separate correction into another nod
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 
         return df
+    
+
+class CorrectionNode2(AdditiveNode):
+    allowed_parameters = AdditiveNode.allowed_parameters + [
+        BoolParameter('do_correction', description = 'Should the values be corrected?')
+    ]
+    def compute(self):
+        df = AdditiveNode.compute(self)
+
+        do_correction = self.get_parameter_value('do_correction', required=True)
+
+        if not do_correction:
+            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(1.0))
+
+        # FIXME Should this code be in the DatasetNode instead?
+        inventory_only = self.get_parameter_value('inventory_only', required=False)
+        if inventory_only is not None:
+            if inventory_only:
+                df = df.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
+            else:
+                df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        return df
