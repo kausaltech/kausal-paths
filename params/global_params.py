@@ -184,6 +184,11 @@ class WeatherNormalization(BoolParameter):
     id = 'weather_correction'
 
 
+class StatisticalNormalization(BoolParameter):
+    name = _('Normalization for matching statistical data')
+    id = 'statistical_correction'
+
+
 class ExtendHistoricalValues(BoolParameter):
     name = _('Is the last historical value extended into the future?')
     id = 'extend_historical_values'

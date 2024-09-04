@@ -49,6 +49,28 @@ nodes:
     - id: transport_mode
       flatten: true
     - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+
+- id: transport_electricity_emissions
+  name: Transport electricity emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  output_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
       flatten: true
 
 - id: baseline_year_fleet_emission_factor_pre
@@ -925,10 +947,10 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: freight_transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: freight_transport_accident_unit_price
   name: Freight transport accident unit price
@@ -962,10 +984,10 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: freight_transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: freight_transport_ownership_costs
   name: Freight transport ownership costs
@@ -1402,10 +1424,10 @@ nodes:
     - id: cost_type
   output_nodes:
   - id: transport_cost
-    to_categories:
-    - transport_mode
-    - stakeholder
-    - cost_type
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
 
 - id: transport_accident_unit_price
   name: Transport accident unit price

@@ -158,7 +158,8 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
     #     'transport_emissions',
     #     'freight_transport_emissions',
     #     'waste_emissions',
-    #     'electricity_production_emissions',
+    #     'electricity_production_emissions',  # FIXME Why is there such a difference in production and consumption?
+    #     'electricity_emissions2',
     #     'building_emissions',
     #     'emissions_from_other_sectors',
     #     'vehicle_kilometres',
@@ -166,9 +167,25 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
     #     'freight_transport_need',
     #     'building_heat_energy_use',
     #     'total_building_heat_energy_use',
+    #     'electricity_shares',
     #     'consumer_electricity_use',
     #     'statistical_electricity_consumption',
-    #     'collected_waste'
+    #     'collected_waste',
+    #     'reduce_all_motorised_transport',
+    #     'modal_switch_from_cars_to_other_modes',
+    #     'efficient_appliances_rate',
+    #     'transport_efficiency',
+    #     'fully_electric_vehicle_share',  # FIXME Remove
+    #     'fully_electric_car_share',
+    #     'fully_electric_bus_share',
+    #     'fully_electric_truck_share',
+    #     'average_truck_utilisation',
+    #     'old_building_renovation_rate',
+    #     'new_building_shares',
+    #     'building_heating_type_share',
+    #     'building_heating_shares',
+    #     'heating_fuel_share',
+    #     'waste_recycling_shares'
     # ]
 
     if node_ids is None:
