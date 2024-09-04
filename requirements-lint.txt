@@ -15,46 +15,48 @@ charset-normalizer==3.3.2
     # via
     #   -c requirements.txt
     #   requests
-django==5.0.7
+django==5.0.8
     # via
     #   -c requirements.txt
     #   django-stubs
     #   django-stubs-ext
-django-stubs==5.0.2
+django-stubs==5.0.4
     # via
     #   -r requirements-lint.in
     #   djangorestframework-stubs
-django-stubs-ext==5.0.2
+django-stubs-ext==5.0.4
     # via
     #   -c requirements.txt
     #   django-stubs
 djangorestframework-stubs==3.15.0
     # via -r requirements-lint.in
-factory-boy==3.3.0
+factory-boy==3.3.1
     # via
     #   -c requirements.txt
     #   types-factory-boy
-faker==26.0.0
+faker==28.0.0
     # via
     #   -c requirements.txt
     #   factory-boy
 graphene-stubs==0.16
     # via -r requirements-lint.in
-idna==3.7
+idna==3.8
     # via
     #   -c requirements.txt
     #   requests
-mypy==1.10.1
+mypy==1.11.1
     # via
     #   -r requirements-lint.in
     #   graphene-stubs
 mypy-extensions==1.0.0
     # via mypy
-numpy==2.0.0
+numpy==2.0.1
     # via
     #   -c requirements.txt
     #   pandas-stubs
-pandas-stubs==2.2.2.240603
+pandas-stubs==2.2.2.240807
+    # via -r requirements-lint.in
+pyarrow-stubs==10.0.1.9
     # via -r requirements-lint.in
 python-dateutil==2.9.0.post0
     # via
@@ -64,30 +66,36 @@ requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.5.1
+ruff==0.6.2
     # via -r requirements-lint.in
 six==1.16.0
     # via
     #   -c requirements.txt
     #   python-dateutil
-sqlparse==0.5.0
+sqlparse==0.5.1
     # via
     #   -c requirements.txt
     #   django
+types-cffi==1.16.0.20240331
+    # via types-pygit2
 types-factory-boy==0.4.1
     # via -r requirements-lint.in
-types-openpyxl==3.1.5.20240719
+types-openpyxl==3.1.5.20240822
     # via -r requirements-lint.in
 types-orjson==3.6.2
     # via -r requirements-lint.in
+types-pygit2==1.15.0.20240822
+    # via -r requirements-lint.in
 types-pytz==2024.1.0.20240417
     # via pandas-stubs
-types-pyyaml==6.0.12.20240311
+types-pyyaml==6.0.12.20240808
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.32.0.20240622
+types-requests==2.32.0.20240712
     # via djangorestframework-stubs
+types-setuptools==74.0.0.20240831
+    # via types-cffi
 typing-extensions==4.12.2
     # via
     #   -c requirements.txt

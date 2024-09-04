@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 320c2d33b89be7d46f869075e11f6ba8d6924cc5
+  commit: 00e59399314ad8c173e0dc88bd1283c815aaf359
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -215,6 +215,35 @@ dimensions:
   - id: co2_biogen
     label: CO2, biogenic
     label_en: CO2, biogen
+
+- id: livestock
+  label: Nutztier
+  label_en: Livestock
+  categories:
+  - id: calves_and_cattle
+    label: Kälber und Rinder
+    label_en: Calves and cattle
+  - id: dairy_cows
+    label: Milchkühe
+    label_en: Dairy cows
+  - id: poultry
+    label: Geflügel
+    label_en: Poultry
+  - id: laying_hens
+    label: Legehennen
+    label_en: Laying hens
+  - id: horses
+    label: Pferde
+    label_en: Horses
+  - id: sheep
+    label: Schafe
+    label_en: Sheep
+  - id: goats
+    label: Ziegen
+    label_en: Goats
+  - id: pigs
+    label: Schweine
+    label_en: Pigs
 
 params:
 - id: municipality_name
@@ -474,25 +503,89 @@ nodes:
 
 - id: afolu_emissions
   name_de: Treibhausgasemissionen Land- und Forstwirtschaft
-  type: simple.SectorEmissions
-  short_name_de: Land- und Forstwirtschaft
-  unit: kt/a
   name_en: Agriculture and forestry emissions
+  short_name_de: Land- und Forstwirtschaft
   short_name_en: Agriculture and forestry
-  input_dimensions: [emission_sectors, emission_scope]
-  output_dimensions: [emission_sectors, emission_scope]
+  color: '#F1D900'
+  type: simple.SectorEmissions
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes:
+  - id: net_emissions
+
+- id: agricultural_land_emissions
+  name_de: Treibhausgasemissionen Landwirtschaftliche Nutzflächen
+  name_en: Agricultural land emissions
+  short_name_de: Landwirtschaftliche Nutzflächen
+  short_name_en: Agricultural land
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
   input_datasets:
   - id: zuerich/emissions
     filters:
     - dimension: emission_sectors
-      categories: [agricultural_land, livestock_farming]
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: emission_sectors
+      categories: [agricultural_land]
       flatten: true
   input_dataset_processors: [LinearInterpolation]
-  color: '#F1D900'
+  output_nodes: [afolu_emissions]
+
+- id: livestock_farming_emissions
+  name_de: Treibhausgasemissionen Nutztierhaltung
+  name_en: Livestock farming emissions
+  short_name_de: Nutztierhaltung
+  short_name_en: Livestock farming
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [livestock, greenhouse_gases, emission_scope]
+  output_dimensions: [livestock, greenhouse_gases, emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: livestock_counts
+    tags: [non_additive]
+    to_dimensions:
+    - id: livestock
+  - id: livestock_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: livestock
+    - id: greenhouse_gases
+    - id: emission_scope
+      categories: [scope1]
+  output_nodes:
+  - id: afolu_emissions
+    from_dimensions:
+    - id: livestock
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+
+- id: livestock_counts
+  name_de: Livestock counts
+  name_en: Livestock counts
+  type: simple.AdditiveNode
+  quantity: number
+  unit: cap
+  input_dimensions: [livestock]
+  output_dimensions: [livestock]
+  input_datasets:
+  - id: zuerich/livestock_counts
+  input_dataset_processors: [LinearInterpolation]
+
+- id: livestock_emission_factors
+  name_de: Nutztier Emissionsfaktor
+  name_en: Livestock emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/cap/a
+  input_dimensions: [livestock, greenhouse_gases]
+  output_dimensions: [livestock, greenhouse_gases]
+  input_datasets:
+  - id: zuerich/livestock_emission_factors
+  input_dataset_processors: [LinearInterpolation]
 
 # ----- 2kW Society Indicators -----
 

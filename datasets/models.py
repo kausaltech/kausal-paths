@@ -1,52 +1,60 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
-from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
-from modelcluster.models import ClusterableModel, ParentalKey
+from modelcluster.fields import ParentalKey
+from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
+from modeltrans.manager import MultilingualQuerySet
 from wagtail.admin.panels import FieldPanel, InlinePanel
 
 import pandas as pd
 import pint_pandas
 import polars as pl
-from dvc_pandas import Dataset as DVCDataset, Repository
+from dvc_pandas import Dataset as DVCDataset, DatasetMeta as DVCDatasetMeta, Repository
 
-from common.i18n import (
-    get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
-)
+from kausal_common.models.types import FK, M2M, MLModelManager
+
+from paths.utils import IdentifierField, OrderedModel, UnitField, UserModifiableModel, UUIDIdentifierField
+
+from common import polars as ppl
+from common.i18n import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
 from nodes.constants import YEAR_COLUMN
 from nodes.datasets import JSONDataset
-from nodes.dimensions import Dimension as NodeDimension
 from nodes.models import InstanceConfig
-from paths.utils import (
-    IdentifierField, OrderedModel, UnitField, UserModifiableModel,
-    UUIDIdentifierField
-)
-
 
 if TYPE_CHECKING:
-    from django.db.models.manager import RelatedManager  # type: ignore
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+    from collections.abc import Sequence
+
+    from wagtail.admin.panels.base import Panel
+
+    from kausal_common.models.types import RevMany
+
+    from nodes.dimensions import Dimension as NodeDimension
 
 
-class DatasetQuerySet(QuerySet['Dataset']):
+class DatasetQuerySet(MultilingualQuerySet['Dataset']):
     pass
 
 
-class DatasetManager(models.Manager):
+_DatasetManager = models.Manager.from_queryset(DatasetQuerySet)
+class DatasetManager(MLModelManager['Dataset', DatasetQuerySet], _DatasetManager):  # pyright: ignore
+    """Model manager for Dataset."""
+
     def get_by_natural_key(self, instance_identifier, dataset_identifier):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, identifier=dataset_identifier)
 
+del _DatasetManager
+
 
 class Dataset(ClusterableModel, UserModifiableModel):
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='datasets'
+        InstanceConfig, on_delete=models.CASCADE, related_name='datasets',
     )
     identifier = IdentifierField(max_length=150)
     dvc_identifier = IdentifierField(max_length=200, regex=r'[a-z0-9_/]+$', null=True)  # type:ignore
@@ -54,14 +62,14 @@ class Dataset(ClusterableModel, UserModifiableModel):
     years = ArrayField(models.IntegerField())
     name = models.CharField(max_length=200)
 
-    metrics: RelatedManager[DatasetMetric]
-    dimension_selections: RelatedManager[DatasetDimension]
+    metrics: RevMany[DatasetMetric]
+    dimension_selections: RevMany[DatasetDimension]
 
     table = models.JSONField()
 
     i18n = TranslationField(fields=('name',))
 
-    objects = DatasetManager.from_queryset(DatasetQuerySet)()
+    objects: ClassVar[DatasetManager] = DatasetManager()  # pyright: ignore
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -110,21 +118,21 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
     def generate_empty_table(self) -> dict:
         df = self.generate_empty_df()
-        data = JSONDataset.serialize_df(df, add_uuids=True)
+        data = JSONDataset.serialize_df(ppl.from_pandas(df), add_uuids=True)
         return data
 
     def generate_rows_for_missing_years(self) -> dict:
         df = self.generate_empty_df()
         existing = self.table
         if existing:
-            edf = JSONDataset.deserialize_df(self.table)
+            edf = JSONDataset.deserialize_df(self.table).to_pandas()
             if isinstance(edf.index, pd.MultiIndex):
                 levels = edf.index.levels[0]
             else:
                 levels = edf.index.unique()
             rows = df.index.get_level_values(YEAR_COLUMN).isin(levels)
             df = pd.concat([edf, df.loc[~rows]])
-        data = JSONDataset.serialize_df(df, add_uuids=True)
+        data = JSONDataset.serialize_df(ppl.from_pandas(df), add_uuids=True)
         return data
 
     def remove_extra_rows(self) -> dict:
@@ -161,7 +169,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
 
         if set(dim_ids) != set(old_dim_ids):
             instance = self.instance.get_instance()
-            instance.log.warn("New dimensions do not match the old ones, generating empty dataset")
+            instance.log.warning("New dimensions do not match the old ones, generating empty dataset")
             self.table = self.generate_empty_table()
 
     def get_dimension_categories(self) -> dict[str, list[str]]:
@@ -199,8 +207,10 @@ class Dataset(ClusterableModel, UserModifiableModel):
         assert self.table is not None
         df = JSONDataset.deserialize_df(self.table)
         if 'uuid' in df.columns:
-            df = df.drop(columns=['uuid'])
-        df = df.dropna(how='all')
+            df = df.drop('uuid')
+
+        # Drop rows where all values are null or NaNs
+        df = df.filter(~pl.all_horizontal(pl.all().is_null() | pl.all().is_nan()))
 
         # Configure and push to the DVC repo
         r = ctx.dataset_repo
@@ -212,9 +222,12 @@ class Dataset(ClusterableModel, UserModifiableModel):
             label=get_translated_string_from_modeltrans(m, 'label', ctx.instance.default_language).i18n,
         ) for m in self.metrics.all()]
         metadata = dict(name=name, identifier=self.identifier, metrics=metrics)
-        dvc_ds = DVCDataset(
-            df, identifier=dvc_path, modified_at=self.updated_at, metadata=metadata
+        str_units = {col: str(unit) for col, unit in df.get_meta().units.items()}
+        meta = DVCDatasetMeta(
+            identifier=dvc_path, modified_at=self.updated_at, units=str_units,
+            index_columns=df.primary_keys, metadata=metadata,
         )
+        dvc_ds = DVCDataset(pl.DataFrame._from_pydf(df._df), meta)
         repo.push_dataset(dvc_ds)
 
         # Update DVC identifier
@@ -229,7 +242,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
             filter=(
                 models.Q(datasets_datasetcomment__type=DatasetComment.CommentType.REVIEW) &
                 ~models.Q(datasets_datasetcomment__state=DatasetComment.State.RESOLVED)
-            )
+            ),
         )
         qs = qs.annotate(nr_unresolved_comments=unresolved)
         return qs
@@ -238,18 +251,22 @@ class Dataset(ClusterableModel, UserModifiableModel):
         return self.instance.natural_key() + (self.identifier,)
 
 
-class DatasetMetricQuerySet(QuerySet['DatasetMetric']):
+class DatasetMetricQuerySet(MultilingualQuerySet['DatasetMetric']):
     pass
 
 
-class DatasetMetricManager(models.Manager):
+_DatasetMetricManager = models.Manager.from_queryset(DatasetMetricQuerySet)
+class DatasetMetricManager(MLModelManager['DatasetMetric', DatasetMetricQuerySet], _DatasetMetricManager):  # pyright: ignore
+    """Model manager for DatasetMetric."""
+
     def get_by_natural_key(self, instance_identifier, dataset_identifier, metric_identifier):
         dataset = Dataset.objects.get_by_natural_key(instance_identifier, dataset_identifier)
         return self.get(dataset=dataset, identifier=metric_identifier)
 
+del _DatasetMetricManager
 
 class DatasetMetric(OrderedModel):
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='metrics')
+    dataset: FK[Dataset] = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='metrics')
     identifier = IdentifierField()
     label = models.CharField(verbose_name=_('label'), max_length=80)
     uuid = UUIDIdentifierField()
@@ -257,7 +274,7 @@ class DatasetMetric(OrderedModel):
 
     i18n = TranslationField(fields=('label',))
 
-    objects = DatasetMetricManager.from_queryset(DatasetQuerySet)()
+    objects: ClassVar[DatasetMetricManager] = DatasetMetricManager()
 
     class Meta:
         unique_together = (('dataset', 'identifier'),)
@@ -344,14 +361,19 @@ class DatasetComment(CellMetadata):
         verbose_name_plural = _('comments')
 
 
-class DimensionQuerySet(QuerySet['DatasetMetric']):
+class DimensionQuerySet(MultilingualQuerySet['DatasetMetric']):
     pass
 
 
-class DimensionManager(models.Manager):
+_DimensionManager = models.Manager.from_queryset(DimensionQuerySet)
+class DimensionManager(MLModelManager['Dimension', DimensionQuerySet], _DimensionManager):  # pyright: ignore
+    """Model manager for Dimension."""
+
     def get_by_natural_key(self, instance_identifier, dimension_identifier):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, identifier=dimension_identifier)
+
+del _DimensionManager
 
 
 class Dimension(ClusterableModel, UserModifiableModel):
@@ -362,19 +384,19 @@ class Dimension(ClusterableModel, UserModifiableModel):
 
     i18n = TranslationField(fields=('label',), default_language_field='instance__primary_language')
 
-    categories: models.manager.RelatedManager[DimensionCategory]
+    categories: RevMany[DimensionCategory]
 
-    objects = DimensionManager.from_queryset(DimensionQuerySet)()
+    objects: ClassVar[DimensionManager] = DimensionManager()
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
         ordering = ('instance', 'label')
 
-    panels = [
+    panels: Sequence[Panel] = [
         FieldPanel('instance'),
         FieldPanel('identifier'),
         FieldPanel('label'),
-        InlinePanel('categories', [
+        InlinePanel('categories', panels=[
             FieldPanel('label'),
             FieldPanel('identifier'),
         ]),
@@ -457,12 +479,12 @@ class DatasetDimensionManager(models.Manager):
 class DatasetDimension(OrderedModel):
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='dimension_selections')
     dimension = models.ForeignKey(Dimension, on_delete=models.CASCADE)
-    selected_categories = models.ManyToManyField(
+    selected_categories: M2M[DimensionCategory, DatasetDimensionSelectedCategory] = models.ManyToManyField(
         to='DimensionCategory',
-        through='DatasetDimensionSelectedCategory'
+        through='DatasetDimensionSelectedCategory',
     )
 
-    objects = DatasetDimensionManager()
+    objects: ClassVar[DatasetDimensionManager] = DatasetDimensionManager()
 
     class Meta:
         unique_together = (('dataset', 'dimension'),)
@@ -493,10 +515,18 @@ class DatasetDimension(OrderedModel):
         return self.dataset.natural_key() + self.dimension.natural_key()
 
 
-class DimensionCategoryManager(models.Manager):
+_DimensionCategoryManager = models.Manager.from_queryset(MultilingualQuerySet)
+class DimensionCategoryManager(
+    MLModelManager['DimensionCategory', MultilingualQuerySet['DimensionCategory']],
+    _DimensionCategoryManager,
+):
+    """Model manager for DimensionCategory."""
+
     def get_by_natural_key(self, dimension_instance_identifier, dimension_identifier, category_identifier):
         dimension = Dimension.objects.get_by_natural_key(dimension_instance_identifier, dimension_identifier)
         return self.get(dimension=dimension, identifier=category_identifier)
+
+del _DimensionCategoryManager
 
 
 class DimensionCategory(UserModifiableModel, OrderedModel):
@@ -507,7 +537,7 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
 
     i18n = TranslationField(fields=('label',), default_language_field='dimension__instance__primary_language')
 
-    objects = DimensionCategoryManager()
+    objects: ClassVar[DimensionCategoryManager] = DimensionCategoryManager()
 
     class Meta:
         ordering = ('dimension', 'order')
@@ -516,7 +546,7 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
     def __str__(self):
         return self.label
 
-    def filter_siblings(self, qs: models.QuerySet['DimensionCategory']):
+    def filter_siblings(self, qs: models.QuerySet[DimensionCategory]):
         return qs.filter(dimension=self.dimension)
 
     def natural_key(self):

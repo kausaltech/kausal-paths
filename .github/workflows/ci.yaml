@@ -35,11 +35,12 @@ jobs:
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     with:
       product_id: paths
       instance_identifiers: sunnydale
       ui_repo: kausaltech/kausal-paths-ui
-      ui_repo_ref: deployment/testing
+      ui_repo_ref: main
       ui_image: "${{ vars.DOCKER_REGISTRY }}/paths-ui/paths-ui:latest"
       backend_image: "${{ needs.build.outputs.image }}:${{ needs.build.outputs.image_tag }}"
       build_id: "${{ needs.build.outputs.build_id }}"

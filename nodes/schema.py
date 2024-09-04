@@ -1,37 +1,37 @@
-from typing import Any, Optional
-import logging
+from __future__ import annotations
+
 import dataclasses
+import logging
+from typing import TYPE_CHECKING, Any, Optional, get_type_hints
 
 import graphene
-from graphql import GraphQLResolveInfo
 from graphql.error import GraphQLError
-from grapple.types.streamfield import StreamFieldInterface
-from grapple.types.rich_text import RichText
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
+from grapple.types.rich_text import RichText
+from grapple.types.streamfield import StreamFieldInterface
 from markdown_it import MarkdownIt
 
+from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
 
-from common import polars as ppl
-from nodes.context import Context
-from nodes.goals import NodeGoalsEntry
-from nodes.normalization import Normalization
-from paths.graphql_helpers import (
-    GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
-)
-
-from .node import Node
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
-from .constants import (
-    FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
-)
+from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 from .instance import Instance, InstanceFeatures
 from .metric import DimensionalFlow, DimensionalMetric, Metric
 from .models import InstanceConfig
-from .scenario import Scenario
 
+if TYPE_CHECKING:
+    from graphql import GraphQLResolveInfo
+
+    from common import polars as ppl
+    from nodes.context import Context
+    from nodes.goals import NodeGoalsEntry
+    from nodes.normalization import Normalization
+
+    from .node import Node
+    from .scenario import Scenario
 
 logger = logging.getLogger(__name__)
 markdown = MarkdownIt('commonmark', {'html': True})
@@ -55,13 +55,15 @@ class ActionGroupType(graphene.ObjectType):
 
 
 def create_from_dataclass(kls):
+    field_types = get_type_hints(kls)
     fields = dataclasses.fields(kls)
     gfields = {}
     for field in fields:
         gf: type[graphene.Scalar]
-        if field.type is bool:
+        field_type = field_types[field.name]
+        if field_type is bool or field_type == 'bool':
             gf = graphene.Boolean
-        elif field.type is int:
+        elif field_type is int:
             gf = graphene.Int
         else:
             raise Exception("Unsupported type: %s" % field.type)

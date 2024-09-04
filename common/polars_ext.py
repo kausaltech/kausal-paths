@@ -233,10 +233,18 @@ class PathsExt:
         for dim in dims:
             remaining_keys.remove(dim)
 
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        sum_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                sum_cols.append(col)
+
         zdf = df.group_by(remaining_keys).agg([
-            *[pl.sum(col).alias(col) for col in meta.metric_cols],
+            *[pl.sum(col).alias(col) for col in sum_cols],
             *fc,
-        ]).sort(YEAR_COLUMN)
+        ]).sort(remaining_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
     def join_over_index(

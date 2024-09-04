@@ -10,7 +10,7 @@ from .simple import AdditiveNode, FixedMultiplierNode, SimpleNode, Multiplicativ
 from .gpc import DatasetNode
 from .ovariable import Ovariable, OvariableFrame
 from .exceptions import NodeError
-from .calc import extend_last_historical_value
+from .calc import extend_last_historical_value_pl
 from common import polars as ppl
 
 
@@ -23,20 +23,20 @@ class AttributableFractionRR(DatasetNode):
 
     def compute(self):
         df = self.get_gpc_dataset()
-        df = self.convert_names_to_ids(df, use_dims=False)
+        df = self.convert_names_to_ids(df)
 
-        test = df.index.get_level_values('er_function').unique()
+        test = df['er_function'].unique()
         if len(test) != 1 or test[0] != 'relative_risk':
             raise NodeError(self, 'All of the rows must be for relative_risk as Er_function.')
 
         droplist = ['sector', 'quantity', 'parameter', 'er_function']
         params = {}
         for param in ['beta', 'threshold', 'rr_min']:
-            dfp = df.loc[df.index.get_level_values('parameter') == param].copy()
+            dfp = df.filter(pl.col('parameter') == param)
             dfp = self.drop_unnecessary_levels(dfp, droplist)
             dfp = self.implement_unit_col(dfp)
-            dfp = extend_last_historical_value(dfp, end_year=self.get_end_year())
-            params[param] = ppl.from_pandas(dfp)
+            dfp = extend_last_historical_value_pl(dfp, end_year=self.get_end_year())
+            params[param] = dfp
 
         if len(self.input_nodes) != 1:
             raise NodeError(self, 'The node must have exactly one input node for exposure.')

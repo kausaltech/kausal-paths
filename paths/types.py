@@ -1,22 +1,24 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+import abc
 import typing
+from typing import TYPE_CHECKING, Self
 
 from django.db import models
 from django.http import HttpRequest
-from django.contrib.auth.models import AnonymousUser
-
-from paths.permissions import PathsPermissionPolicy
 
 if TYPE_CHECKING:
-    from users.models import User
-    from nodes.models import InstanceConfig
+    from django.contrib.auth.models import AnonymousUser
     from wagtail.models import Site
+
     from paths.cache import PathsObjectCache
+    from paths.permissions import PathsPermissionPolicy
+
+    from nodes.models import InstanceConfig
+    from users.models import User
 
 
-UserOrAnon: typing.TypeAlias = 'User | AnonymousUser'
+type UserOrAnon = 'User | AnonymousUser'
 
 
 class PathsRequest(HttpRequest):
@@ -32,7 +34,7 @@ class PathsAuthenticatedRequest(PathsRequest):
 
 class PathsAdminRequest(PathsAuthenticatedRequest):
     admin_instance: InstanceConfig
-    _wagtail_site: Site
+    _wagtail_site: Site | None
 
 
 class PathsAPIRequest(PathsAuthenticatedRequest):
@@ -40,7 +42,9 @@ class PathsAPIRequest(PathsAuthenticatedRequest):
 
 
 class PathsModel(models.Model):
-    permission_policy: ClassVar[PathsPermissionPolicy]
-
     class Meta:
         abstract = True
+
+    @classmethod
+    @abc.abstractmethod
+    def permission_policy(cls) -> PathsPermissionPolicy[Self]: ...

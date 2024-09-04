@@ -3,10 +3,14 @@
 import os
 import sys
 
+from kausal_common.telemetry import init_django_telemetry
 
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
+
+    init_django_telemetry()
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

@@ -85,5 +85,5 @@ if kpe_urls is not None:
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 if settings.DEBUG and settings.STATIC_URL == '/static/':
     urlpatterns += [
-        path('static/<path:path>', serve_static)
+        path('static/<path:path>', serve_static, {'document_root': settings.STATIC_ROOT}),
     ]

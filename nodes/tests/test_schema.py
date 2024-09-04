@@ -132,17 +132,19 @@ def test_forecast_metric_type(
 
 
 def test_node_type(graphql_client_query_data, additive_action, instance_config):
+    from nodes.models import _pytest_instances
+
     node_config = NodeConfigFactory(instance=instance_config, identifier=additive_action.id)  # noqa
-    ctx = instance_config._instance.context
-    assert ctx.instance == instance_config._instance
+    instance = _pytest_instances[instance_config.identifier]
+    ctx = instance.context
+    assert ctx.instance == instance
     input_node = NodeFactory.create(context=ctx)
     additive_action.add_input_node(input_node)
     output_node = NodeFactory.create(context=ctx)
     additive_action.add_output_node(output_node)
     upstream_action = ActionNodeFactory.create(context=ctx)
     input_node.add_input_node(upstream_action)
-    data = graphql_client_query_data(
-        '''
+    data = graphql_client_query_data("""
         query($id: ID!) {
           node(id: $id) {
             __typename
@@ -200,9 +202,8 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
             }
           }
         }
-        ''',
-        variables={'id': additive_action.id}
-    )
+    """, variables={'id': additive_action.id})
+
     expected = {
         'node': {
             '__typename': 'ActionNode',

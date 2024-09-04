@@ -9,3 +9,5 @@ ruff
 types-factory-boy
 celery-types
 types-openpyxl
+pyarrow-stubs
+types-pygit2

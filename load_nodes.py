@@ -7,7 +7,10 @@ import os
 from pathlib import Path
 import time
 
+from opentelemetry import trace
 from dotenv import load_dotenv
+from kausal_common.logging.init import init_logging
+from kausal_common.telemetry import init_django_telemetry, init_telemetry
 from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.instance import InstanceLoader
@@ -19,8 +22,6 @@ from rich.console import Console
 import polars as pl
 
 from nodes.units import Quantity
-
-
 
 load_dotenv()
 
@@ -42,6 +43,7 @@ def init_django():
     import os
     import django
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
+    init_django_telemetry()
     django.setup()
     django_initialized = True
 
@@ -84,14 +86,22 @@ if args.disable_ext_cache:
 
 if args.instance:
     init_django()
-    from nodes.models import InstanceConfig
-    instance_obj: InstanceConfig = InstanceConfig.objects.get(identifier=args.instance)
-    instance = instance_obj.get_instance()
-    context = instance.context
+    tracer = trace.get_tracer('load-nodes')
+
+    with tracer.start_as_current_span('django-init', attributes={'instance_id': args.instance}) as span:
+        from nodes.models import InstanceConfig
+        instance_obj: InstanceConfig = InstanceConfig.objects.get(identifier=args.instance)
+        instance = instance_obj.get_instance()
+        context = instance.context
+
 else:
-    loader = InstanceLoader.from_yaml(args.config)
-    context = loader.context
-    instance = loader.instance
+    tracer = trace.get_tracer('load-nodes')
+    init_telemetry()
+    init_logging()
+    with tracer.start_as_current_span('yaml-init', attributes={'config_id': args.config}) as span:
+        loader = InstanceLoader.from_yaml(args.config)
+        context = loader.context
+        instance = loader.instance
 
 if args.pull_datasets:
     context.pull_datasets()
@@ -229,6 +239,7 @@ for node_id in (args.node or []):
     with context.run():
         node.print_output(filters=all_filters or None)
         #node.plot_output(filters=all_filters or None)
+
 
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes

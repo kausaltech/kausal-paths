@@ -1,30 +1,30 @@
 from __future__ import annotations
 
 import base64
-from functools import wraps
 import hashlib
 import inspect
 import io
 import json
-import logging
 import os
 import typing
+from functools import wraps
 from time import perf_counter_ns
-from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Set, Tuple, Union, overload
+from typing import Any, ClassVar, Dict, List, Literal, Optional, Self, Set, Tuple, Union, cast, overload
 
-import sentry_sdk
+from django.utils.translation import gettext_lazy as _
+
+import networkx as nx
 import numpy as np
 import pandas as pd
 import pint_pandas
 import polars as pl
 from rich import print as pprint
-import networkx as nx
 
 from common import polars as ppl
-from django.utils.translation import gettext_lazy as _
 from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
+from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -35,26 +35,30 @@ from nodes.constants import (
     get_quantity_icon,
 )
 from nodes.goals import NodeGoals
-from nodes.calc import extend_last_historical_value_pl
-from params import Parameter
 from params.param import ParameterWithUnit
 
-from .context import Context
 from .datasets import Dataset, JSONDataset
-from .dimensions import Dimension
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeHashingError
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
-    from .processors import Processor
-    from .scenario import Scenario
-    from .models import NodeConfig
+    from collections.abc import Callable
+    from pathlib import Path
+
+    import loguru
+
     from common.cache import CacheResult
+    from params import Parameter
+
+    from .context import Context
+    from .dimensions import Dimension
+    from .models import NodeConfig
+    from .scenario import Scenario
 
 
 class_fname_cache: dict[type, str] = {}
-DEBUG_CACHE_MISSES = os.environ.get('DEBUG_CACHE_MISSES', '0') == '1'
+DEBUG_CACHE_MISSES: bool = os.environ.get('DEBUG_CACHE_MISSES', '0') == '1'
 
 
 class NodeMetric:
@@ -62,14 +66,13 @@ class NodeMetric:
     column_id: str
     unit: Unit
     quantity: str
-    node: Node
     label: I18nString | None
     default_unit: str | Unit
 
-    __slots__ = ('id', 'unit', 'quantity', 'default_unit', 'label', 'column_id', 'node')
+    #__slots__ = ('id', 'unit', 'quantity', 'default_unit', 'label', 'column_id')
 
     def __init__(
-        self, unit: Union[str, Unit], quantity: str, id: str | None = None,
+        self, unit: str | Unit, quantity: str, id: str | None = None,
         label: I18nString | None = None, column_id: str | None = None,
     ):
         if id is not None:
@@ -86,14 +89,15 @@ class NodeMetric:
             self.column_id = None  # type: ignore
 
     @classmethod
-    def from_config(cls, config: dict):
+    def from_config(cls, config: dict) -> Self:
         return cls(
             unit=config['unit'], quantity=config['quantity'], id=config['id'],
-            label=None, column_id=None
+            label=None, column_id=None,
         )
 
     def copy(self) -> NodeMetric:
-        return NodeMetric(unit=self.unit, quantity=self.quantity, id=self.id, label=self.label, column_id=self.column_id)
+        unit = getattr(self, 'unit', self.default_unit)
+        return NodeMetric(unit=unit, quantity=self.quantity, id=self.id, label=self.label, column_id=self.column_id)
 
     def populate_unit(self, context: Context):
         unit = self.default_unit
@@ -106,7 +110,7 @@ class NodeMetric:
         s = '%s:%s:%s' % (self.id, self.quantity, self.column_id)
         return s.encode('utf-8') + hash_unit(self.unit)
 
-    def ensure_output_unit(self, s: pd.Series, input_node: Node | None = None):
+    def ensure_output_unit(self, node: Node, s: pd.Series, input_node: Node | None = None):
         if hasattr(s, 'pint'):
             s_u: Unit = s.pint.u
             if self.unit.dimensionality != s_u.dimensionality:
@@ -114,8 +118,8 @@ class NodeMetric:
                     node_str = ' from node %s' % input_node.id
                 else:
                     node_str = ''
-                raise NodeError(self.node, 'Series with type %s%s is not compatible with %s' % (
-                    s_u, node_str, self.unit
+                raise NodeError(node, 'Series with type %s%s is not compatible with %s' % (
+                    s_u, node_str, self.unit,
                 ))
             # Units match exactly
             if s_u == self.unit:
@@ -207,7 +211,6 @@ class Node:
     input_datasets: List[str]
 
     input_dataset_instances: List[Dataset]
-    input_dataset_processors: List[Processor]
 
     edges: List[Edge]
 
@@ -233,15 +236,15 @@ class Node:
     metrics_hash: bytes | None = None
 
     # Cache last historical year
-    _last_historical_year: Optional[int]
+    _last_historical_year: int | None
     context: Context
 
-    logger: logging.Logger
+    logger: loguru.Logger
     debug: bool = False
     disable_cache: bool = False
-    yaml_fn: str | None
+    yaml_fn: Path | None
     """YAML filename"""
-    yaml_lc: Tuple[int, int] | None
+    yaml_lc: tuple[int, int] | None
     """YAML line and column information"""
 
     def __post_init__(self): ...
@@ -254,9 +257,9 @@ class Node:
         self, unit: Unit | None, quantity: str | None, output_metrics: dict[str, NodeMetric] | None = None
     ):
         if output_metrics is not None:
-            self.output_metrics = output_metrics.copy()
+            self.output_metrics = {metric_id: metric.copy() for metric_id, metric in output_metrics.items()}
         else:
-            self.output_metrics = self.output_metrics.copy()
+            self.output_metrics = self.__class__.output_metrics.copy()
         if self.output_metrics:
             for met_id, met in self.output_metrics.items():
                 met.populate_unit(self.context)
@@ -286,7 +289,7 @@ class Node:
                 raise NodeError(self, "Attempting to initialize node without a unit")
             # Create the default metric automatically for now
             self.output_metrics[DEFAULT_METRIC] = NodeMetric(
-                unit, self.quantity, id=DEFAULT_METRIC, column_id=VALUE_COLUMN
+                unit, self.quantity, id=DEFAULT_METRIC, column_id=VALUE_COLUMN,
             )
 
         metric_cols = set()
@@ -294,9 +297,6 @@ class Node:
             if metric.column_id in metric_cols:
                 raise NodeError(self, "Duplicate metric column IDs: %s" % metric.column_id)
             metric_cols.add(metric.column_id)
-
-        for m in self.output_metrics.values():
-            m.node = self
 
     def _init_dimensions(
         self,
@@ -337,10 +337,10 @@ class Node:
         description: I18nString | None = None, color: str | None = None, order: int | None = None,
         node_group: str | None = None,
         is_visible: bool = True, is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
-        allow_nulls: bool = False, input_datasets: List[Dataset] | None = None,
+        allow_nulls: bool = False, input_datasets: list[Dataset] | None = None,
         output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
-        yaml_fn: str | None = None, yaml_lc: Tuple[int, int] | None = None,
+        yaml_fn: Path | None = None, yaml_lc: tuple[int, int] | None = None,
     ):
         self.id = validate_identifier(id)
         self.context = context
@@ -383,10 +383,9 @@ class Node:
         self.baseline_values = None
         self.parameters = {}
         self.tags = set()
-        self.input_dataset_processors = []
 
         kls = type(self)
-        self.logger = logging.getLogger('%s.%s' % (kls.__module__, kls.__name__))
+        self.logger = context.log.bind(node=self.id, node_class='%s.%s' % (kls.__module__, kls.__qualname__))
 
         if not hasattr(self, 'global_parameters'):
             self.global_parameters = []
@@ -521,17 +520,13 @@ class Node:
                         break
                 if exclude:
                     continue
+
             df = ds.get_copy(self.context)
             if df.paths.index_has_duplicates():
                 raise NodeError(self, "Input dataset has duplicate index rows")
             assert isinstance(df, ppl.PathsDataFrame)
             dfs.append(df)
 
-        if self.input_dataset_processors:
-            for proc in self.input_dataset_processors:
-                for idx, df in enumerate(list(dfs)):
-                    df = proc.process_input_dataset(df)
-                    dfs[idx] = df
         return dfs
 
     def get_input_datasets(self) -> List[pd.DataFrame]:
@@ -984,7 +979,8 @@ class Node:
 
     def get_output_pl(self, target_node: Node | None = None, metric: str | None = None) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
-        with sentry_sdk.start_span(op='node', description=self.id), perf_cm.exec_node(self) as node_run:
+        span_ctx = self.context.tracer.start_as_current_span('%s:get' % self.id, attributes=dict(node_id=self.id))
+        with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
                 res, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
             except Exception as e:
@@ -995,6 +991,10 @@ class Node:
                     raise NodeComputationError(self, "Error getting output for node '%s'" % target_node.id) from e
                 else:
                     raise NodeComputationError(self, "Error getting output") from e
+            if cache_res is None or not cache_res.is_hit:
+                span.set_attribute('cache', 'miss')
+            else:
+                span.set_attribute('cache', cache_res.kind.name)
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
 
@@ -1032,7 +1032,7 @@ class Node:
                 elif tag == 'complement_cumulative_product':
                     res = res.cumprod(VALUE_COLUMN, complement=True)
                 elif tag == 'ratio_to_last_historical_value':
-                    year = res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max()
+                    year = cast(int, res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max())
                     res = self._scale_by_reference_year(res, year)
                 elif tag == 'make_nonnegative':
                     res = res.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
@@ -1048,15 +1048,15 @@ class Node:
         cache_res = None
         out = None
         if use_cache:
-            node_hash = '%s:%s' % (self.id, self.calculate_hash().hex())
-            cache_res = self.context.cache.get(node_hash)
+            cache_key = 'node:%s:%s' % (self.id, self.calculate_hash().hex())
+            cache_res = self.context.cache.get(cache_key)
             if not cache_res.is_hit and DEBUG_CACHE_MISSES:
                 self.logger.debug("Cache miss for node %s" % self.id)
             out = cache_res.obj
         else:
-            node_hash = ''
+            cache_key = ''
 
-        if False and out is None and self.prev_hash_parts:
+        if DEBUG_CACHE_MISSES and out is None and self.prev_hash_parts:
             print(self.id)
             if len(self.prev_hash_parts) != len(self.last_hash_parts):
                 pprint('Length mismatch!!')
@@ -1086,7 +1086,7 @@ class Node:
         assert isinstance(out, ppl.PathsDataFrame)
 
         if cache_res and not cache_res.is_hit:
-            self.context.cache.set(node_hash, out.copy())
+            self.context.cache.set(cache_key, out.copy())
 
         meta = out.get_meta()
 
@@ -1190,7 +1190,7 @@ class Node:
         if metric is None:
             assert len(self.output_metrics) == 1
             metric = list(self.output_metrics.values())[0]
-        return metric.ensure_output_unit(s, input_node)
+        return metric.ensure_output_unit(self, s, input_node)
 
     def get_downstream_nodes(self, to_node: Node | None = None, max_depth: int | None = None) -> List[Node]:
         res = nx.bfs_successors(self.context.node_graph, self.id, depth_limit=max_depth)
@@ -1285,7 +1285,7 @@ class Node:
         if not isinstance(df, ppl.PathsDataFrame) or FORECAST_COLUMN not in df.columns:
             raise Exception(f'Dataset {ds.id} is not suitable for serialization')
 
-        out = JSONDataset.serialize_df(df.to_pandas())
+        out = JSONDataset.serialize_df(df)
         return out
 
     def validate_input_data(self, data: dict):
@@ -1297,7 +1297,7 @@ class Node:
         old_pks = sorted(data['schema']['primaryKey'])
         new_pks = sorted(old['schema']['primaryKey'])
         if old_pks != new_pks:
-            self.logger.warn('Primary keys do not match (%s vs. %s) in node %s input_data; disregarding' % (self.id, old_pks, new_pks))
+            self.logger.warning('Primary keys do not match (%s vs. %s) in node %s input_data; disregarding' % (self.id, old_pks, new_pks))
             return None
         old['data'] = data['data']
         _ = pd.read_json(sio, orient='table')
