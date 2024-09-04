@@ -41,6 +41,11 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         if fwc is None:
             return df
 
+        df = df.with_columns(pl.when(pl.col('UUID') == 'ADD UUID HERE')
+                               .then(pl.lit(None))
+                               .otherwise(pl.col('UUID'))
+                               .alias('UUID'))
+
         uuids = df['UUID'].unique().to_list()
         measures = fwc.measures.filter(measure_template__uuid__in=uuids).select_related('template')
         dps = (
