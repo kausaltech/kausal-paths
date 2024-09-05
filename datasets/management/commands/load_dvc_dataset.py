@@ -9,7 +9,7 @@ from datasets.models import Dataset, DatasetDimension, Dimension, DatasetMetric
 from common import polars as ppl
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
-from nodes.node import Context
+from nodes.context import Context
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 
 

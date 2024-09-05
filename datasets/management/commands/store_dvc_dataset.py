@@ -5,7 +5,7 @@ from rich.table import Table
 
 from datasets.models import Dataset
 from nodes.models import InstanceConfig
-from nodes.node import Context
+from nodes.context import Context
 
 
 class Command(BaseCommand):
