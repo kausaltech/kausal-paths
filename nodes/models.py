@@ -188,6 +188,7 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
         null=True,
     )
+    admin_group_id: int | None
 
     """
     model_cache = JSONField[InstanceModelCache | None, InstanceModelCache | None](
@@ -464,7 +465,7 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             site.delete()
             rp.get_descendants(inclusive=True).delete()
         if self.admin_group is not None:
-            g_id = self.admin_group
+            g_id = self.admin_group_id
             has_others = InstanceConfig.objects.filter(admin_group=g_id).exclude(pk=self.pk).exists()
             if not has_others:
                 self.admin_group = None
