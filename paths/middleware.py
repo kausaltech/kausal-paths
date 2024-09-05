@@ -49,7 +49,7 @@ class AdminMiddleware:
 
         # FIXME
         adminable_instances = (
-            InstanceConfig.permission_policy.instances_user_has_any_permission_for(user, ['change'])
+            InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['change'])
             .filter(site__isnull=False)
         )
         if instance_config is not None:
