@@ -1,11 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.core.management.base import BaseCommand
 
 from rich.console import Console
 from rich.table import Table
 
-from datasets.models import Dataset
 from nodes.models import InstanceConfig
-from nodes.context import Context
+
+if TYPE_CHECKING:
+    from datasets.models import Dataset
+    from nodes.context import Context
 
 
 class Command(BaseCommand):
@@ -29,7 +35,14 @@ class Command(BaseCommand):
         console = Console()
         console.print(table)
 
-    def store_dataset(self, ic: InstanceConfig, ctx: Context, ds_id: str, dvc_path: str | None = None, repo_url: str | None = None):
+    def store_dataset(
+        self,
+        ic: InstanceConfig,
+        ctx: Context,
+        ds_id: str,
+        dvc_path: str | None = None,
+        repo_url: str | None = None,
+    ):
         ds: Dataset | None = ic.datasets.filter(identifier=ds_id).first()
         if ds is None:
             print("Dataset '%s' not found" % ds_id)
