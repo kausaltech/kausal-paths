@@ -1,0 +1,854 @@
+id: lappeenranta-nzc
+default_language: fi
+supported_languages: [en]
+frameworks: [health_air_pollution]
+site_url: https://lappeenranta-nzc.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  dvc_remote: kausal-s3
+  commit: 3bb3b8b1408c89d5811bc92f1e4fd4406700c5d2
+theme_identifier: lpr-ilmasto
+name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
+name_en: Lappeenranta Mission City Climate Action Plan 2030
+owner: Lappeenrannan kaupunki
+owner_en: City of Lappeenranta
+emission_unit: kt/a
+target_year: 2030
+model_end_year: 2030
+reference_year: 2005
+minimum_historical_year: 2010
+
+params:
+- id: municipality_name
+  value: Lappeenranta
+- id: discount_rate
+  label: Diskonttokorko
+  value: 4.0
+  min_value: 0.0
+  max_value: 6.0
+  unit: '%'
+  is_visible: true
+  is_customizable: true
+- id: extend_historical_values
+  value: true
+- id: selected_framework
+  value: Hinku-laskenta päästöhyvityksillä
+  # Currently available options:
+  # Hinku-laskenta ilman päästöhyvityksiä
+  # Hinku-laskenta päästöhyvityksillä
+  # Kaikki ALas-päästöt
+  # Taakanjakosektorin kaikki ALas-päästöt
+  # Päästökaupan alaiset ALas-päästöt
+
+action_groups:
+- id: transport
+  name: 1. Transport
+  color: '#93c572'
+- id: freight_transport
+  name: 2. Freight transport
+- id: buildings
+  name: 3. Buildings
+  color: '#32cd32'
+- id: electricity
+  name: 4. Electricity
+  color: '#29ab87'
+- id: waste
+  name: 5. Waste
+  color: '#50c878'
+- id: scope_3
+  name: 6. Scope 3
+- id: reforestation
+  name: 7. Reforestation
+
+dimensions:
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  aliases: [outcome]
+  categories:
+  - id: mortality
+    label_fi: Kuolleisuus
+    label_en: Mortality
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # FIXME Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # FIXME Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+  - id: air_pollution
+    label: Ilmansaasteet
+  - id: crash_risk
+    label: Liikenneonnettomuus
+  - id: carbon_emissions
+    label: Hiilidioksidipäästöt
+
+- id: emission_height
+  label_fi: Päästökorkeus
+  label_en: Emission height
+  categories:
+  - id: high
+    label_fi: Korkea
+    label_en: High
+  - id: low
+    label_fi: Matala
+    label_en: Low
+  - id: ground
+    label_fi: Maan taso
+    label_en: Ground
+  - id: average
+    label_fi: Keskimääräinen
+    label_en: Average
+
+- id: statistical_correction
+  label: Statistical correction
+  value: true
+  is_visible: true
+  is_customizable: true
+
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label: PM2.5 combustion
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label: PM10 combustion
+  - id: dioxin
+    label_fi: Dioksiini
+    label_en: Dioxin
+  - id: omega3
+    label_fi: Omega-3
+    label_en: Omega 3
+  - id: vitamin_d
+    label_fi: D-vitamiini
+    label_en: Vitamin D
+  - id: campylobacter
+    label_fi: Kampylobakteeri
+    label_en: Campylobacter
+  - id: rotavirus
+    label_fi: Rotavirus
+    label_en: Rotavirus
+  - id: norovirus
+    label_fi: Norovirus
+    label_en: Norovirus
+  - id: sapovirus
+    label_fi: Sapovirus
+    label_en: Sapovirus
+  - id: cryptosporidium
+    label_fi: Cryptosporidium
+    label_en: Cryptosporidium
+  - id: e_coli
+    label_fi: E. coli
+    label_en: E. coli
+  - id: giardia
+    label_fi: Giardia
+    label_en: Giardia
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+  - id: pm25_wear_tear
+    label: PM2.5 wear & tear
+  - id: pm10_wear_tear
+    label: PM10 wear & tear
+
+- id: transport_pollutant
+  label: Transport pollutant
+  categories:
+  - id: co2
+    label: CO2
+  - id: nox
+    label: NOx
+  - id: pm25
+    label: PM2.5
+  - id: pm10
+    label: PM10
+
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+    aliases: [scope_1]
+  - id: scope2
+    label: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label: Scope 3
+    aliases: [scope_3]
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
+  - id: opex
+    label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label: Sales income
+  - id: air_pollution
+    label: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
+  - id: health
+    label: Health
+  - id: co2_cost
+    label: CO2 Cost
+  - id: aesthetics
+    label: Aesthetics and amenity
+  - id: shading
+    label: Shading
+  - id: water_regulation
+    label: Water regulation
+    aliases: [water_regulations]
+  - id: forest_management
+    label: Forest management
+  - id: bus_costs
+    label: Bus costs
+  - id: charging_infrastructure_costs
+    label: Charging infrastructure costs
+  - id: vehicle_costs
+    label: Vehicle costs
+  - id: infrastructure_costs
+    label: Infrastructure costs
+  - id: fuel
+    label: Fuel costs
+  - id: tires
+    label: Tire costs
+  - id: depreciation
+    label: Depreciation costs
+  - id: labour_costs
+    label: Labour costs
+  - id: industry_ippu
+    label: Industry (IPPU)
+  - id: agriculture_afolu
+    label: Agriculture (AFOLU)
+  - id: other_sources
+    label: Other sources
+
+- id: aggregated_cost_type
+  label: Aggregated cost type
+  categories:
+  - id: capex
+    label: CAPEX
+  - id: opex
+    label: OPEX
+  - id: co_benefits
+    label: Co-benefits
+  - id: co2_cost
+    label: CO2 cost
+
+- id: ghg
+  label: Greenhouse gas
+  categories:
+  - id: co2e
+    label: CO2e
+    aliases: [co2]
+
+- id: transport_mode
+  label: Liikkumismuoto
+  categories:
+  - id: walking
+    label: Kävely
+  - id: cycling
+    label: Pyöräily
+  - id: ebike
+    label: Sähköpyörä
+  - id: citybike
+    aliases: [bikeshare]
+    label: Kaupunkipyörä
+  - id: cars
+    label: Cars
+  - id: buses
+    label: Buses
+  - id: trains
+    label: Trains
+    aliases: [Metro/tram, metro/tram, metro_tram]
+  - id: public_transport
+    label: Public transport
+  - id: light_trucks
+    label: Light duty trucks <3.5 tonne
+  - id: heavy_trucks
+    label: Heavy duty trucks >3.5 tonne
+  - id: trucks
+    label: Trucks
+  - id: other_motorized
+    label: Other motorized transport
+
+- id: energy_carrier
+  label: Energy carrier
+  categories:
+  - id: petrol_diesel
+    label: Petrol and diesel
+  - id: electricity
+    label: Electricity
+  - id: fossil
+    label: Fossil (oil, coal, gas)
+  - id: heat_pump
+    label: Electric heat pumps / geothermal
+  - id: bioenergy
+    label: Bio (biogas, biomass) and solar heaters
+  - id: waste
+    label: Waste (fossil & non-fossil waste)
+
+- id: fuel_type
+  label: Fuel type
+  categories:
+  - id: fossil
+    label: Fossil
+  - id: non_fossil
+    label: Non-fossil
+    aliases: [nonfossil, non-fossil]
+  - id: other
+    label: Other (e.g. nuclear)
+  - id: local_pv
+    label: Local photovoltaics
+  - id: centralised_pv
+    label: Centralised photovoltaics
+  - id: pv
+    label: Photovoltaics
+  - id: flexibility
+    label: Flexibility
+  - id: direct_electricity
+    label: Direct electricity
+  - id: heat_pump
+    label: Heat pump
+
+- id: waste_type
+  label: Waste type
+  categories:
+  - id: paper
+    label: Paper and cardboard
+  - id: metal
+    label: Metal
+  - id: plastics
+    label: Plastics
+  - id: glass
+    label: Glass
+  - id: organic_waste
+    label: Organic waste
+  - id: other_waste
+    label: Other waste (e.g. textiles, rubble, wood)
+  - id: mixed_waste
+    label: Mixed waste
+  - id: aluminium
+    label: Aluminiium
+
+- id: waste_treatment
+  label: Waste treatment
+  categories:
+  # - id: other
+  #   label: Other waste management
+  - id: incinerated
+    label: Incinerated (e.g. energy recovery)
+  - id: recycled
+    label: Recycled
+  - id: decay
+    label: Organic decay (waste)
+  - id: sorting
+    label: Sorting
+  - id: plastic_sorting
+    label: Plastic sorting
+  - id: landfill
+    label: Landfill
+    aliases: [other, Other waste management]
+  - id: landfill_gas
+    label: Landfill gas
+  - id: composting
+    label: Composting
+
+- id: building_energy_class
+  label: Building energy class
+  categories:
+  - id: new_standard
+    label: New, standard
+  - id: new_top_performance
+    label: New, top performance
+  - id: old_no_renovations
+    label: Old, no renovation
+  - id: minor_renovation
+    aliases: [minor_renovations]
+    label: Old, minor heating renovation
+  - id: major_renovation
+    aliases: [major_renovations]
+    label: Old, extensive heating renovation
+  - id: no_improvement  # FIXME Remove redundant
+    label: No improvement
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
+  - id: moderate_renovation
+    aliases: [moderate_renovations]
+    label: Moderate renovation
+
+- id: efficiency_programme
+  label: Energy efficiency programme
+  categories:
+  - id: no_improvements
+    label: No improvements
+    aliases: [no_improvement]
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
+
+- id: city_area
+  label: City area
+  categories:
+  - id: grey
+    label: Grey area
+  - id: green
+    label: Green area
+  - id: grey_inside
+    label: Grey area inside city
+  - id: green_inside
+    label: Green area inside city
+  - id: green_outside
+    label: Green area outside city
+  - id: grey_outside
+    label: Grey area outside city
+
+- id: area_distance
+  label: Area distance
+  categories:
+  - id: metropolitan
+    label: Metropolitan
+  - id: inside
+    label: Inside city
+  - id: outside
+    label: Outside city
+  - id: average
+    label: Average
+
+- id: diet
+  label: Diet
+  categories:
+  - id: current_average
+    label: Current average
+  - id: flexitarian
+    label: Flexitarian
+  - id: pescetarian
+    label: Pescetarian
+  - id: vegetarian
+    label: Vegetarian
+  - id: vegan
+    label: Vegan
+
+- id: material
+  label: Material
+  categories:
+  - id: concrete
+    label: Concrete
+  - id: steel
+    label: Steel
+  - id: plastics
+    label: Plastics
+  - id: aluminium
+    label: Aluminium
+
+- id: stakeholder
+  label: Stakeholder
+  categories:
+  - id: citizens
+    label: Citizens
+  - id: property_owners
+    label: Property owners
+  - id: city
+    label: City
+    aliases: [cities, Cities]
+  - id: healthcare_providers
+    label: Healthcare providers
+  - id: transport_operators
+    label: Transport operators
+  - id: utilities
+    label: Utilities
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
+
+- id: parameter
+  label: Parameter
+  categories:
+  - id: max_impact
+    label: Maximum impact
+  - id: max_year
+    label: Year to reach maximum impact
+  - id: baseline_scenario
+    label: Baseline scenario
+  - id: decarbonisation_scenario
+    label: Decarbonisation scenario
+  - id: frozen_scenario
+    label: Frozen scenario
+
+- id: country
+  label: Country
+  categories:
+  - id: at
+    label: Austria
+  - id: be
+    label: Belgium
+  - id: cz
+    label: Czeck Republic
+  - id: dk
+    label: Denmark
+  - id: fr
+    label: France
+  - id: de
+    label: Germany
+  - id: it
+    label: Italy
+  - id: lt
+    label: Latvia
+  - id: 'no'
+    label: Norway
+  - id: pl
+    label: Poland
+  - id: ro
+    label: Romania
+  - id: sk
+    label: Slovakia
+  - id: es
+    label: Spain
+  - id: se
+    label: Sweden
+  - id: average
+    label: Average
+
+- id: age
+  label: age
+  categories:
+  - id: '20_49'
+    label: 20-49
+  - id: '50_64'
+    label: 50-64
+  - id: '65_79'
+    label: 65-79
+  - id: '80_99'
+    label: 80-99
+
+emission_sectors:
+
+- id: net_emissions
+  name_fi: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  description_fi: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä
+    vähennetään vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan
+    20 % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
+  description_en: 'The emissions goal is to be carbon neutral in 2030. At least 80%
+    of emissions will be reduced compared to the situation in 2020 (363.7 kt) and
+    a maximum of 20% (72.7 kt) will be compensated. (Source: Lappeenranta Climate
+    City Contract)'
+  type: simple.AdditiveNode
+  is_outcome: true
+  target_year_goal: 72.7
+
+nodes:
+- id: population
+  type: finland.Population
+  name_fi: Väestö
+  name_en: Population
+  description_fi: Kohdeväestön koko
+  description_en: Size of the target population
+
+- id: all_alas_emissions
+  type: finland.syke.AlasNode
+  name: SYKE:n ALaS-päästöinventaario
+
+- id: road_transport_emissions2
+  name_fi: Tieliikenteen CO2-päästöt
+  name_en: CO2 emissions from road transport
+  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välissä
+  description_en: Intermediate node between the main model and the air pollution module
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+#  input_nodes: [road_transport_emissions]
+  historical_values: [[2020, 0]]
+  output_nodes:
+  - id: transport_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: district_heating_emissions2
+  name_fi: Kaukolämmön CO2-päästöt
+  name_en: CO2 emissions from district heating
+  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välillä
+  description_en: Intermediate node between the main model and the air pollution module
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+#  input_nodes: [district_heating_emissions]
+  historical_values: [[2020, 0]]
+  output_nodes:
+  - id: fossil_plant_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: amount_of_active_mobility
+  name: Aktiivisen liikkumisen määrä
+  type: simple.AdditiveNode
+  quantity: exposure
+  unit: min/person/d
+  historical_values: [[2010, 10.0], [2023, 10.0]]
+
+- id: health_factor_of_active_mobility
+  name: Aktiivisen liikkumisen terveyskerroin
+  description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
+    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
+    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
+    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
+  type: gpc.DatasetNode
+  quantity: exposure_response
+  unit: incident/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: health_factor_of_active_mobility
+
+- id: health_effect_of_active_mobility
+  name: Aktiivisen liikkumisen terveysvaikutus
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: cases/a
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_factor_of_active_mobility
+  - id: amount_of_active_mobility
+    to_dimensions: []
+
+- id: carbon_factor_of_active_mobility
+  name: Aktiivisen liikkumisen päästökerroin
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: carbon_factor_of_active_mobility
+
+- id: emissions_of_active_mobility
+  name: Aktiivisen liikkumisen päästöt
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [transport_mode, response]
+  output_dimensions: [transport_mode, response]
+  input_nodes:
+  - id: carbon_factor_of_active_mobility
+  - id: amount_of_active_mobility
+    to_dimensions: []
+
+- id: discount_rate
+  name: Diskonttokorko
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: discount_rate
+
+- id: value_of_statistical_life
+  name: Kuolemanriskin tilastollinen hinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/case
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: value_of_statistical_life
+
+- id: active_mobility_costs
+  name: Aktiivisen liikkumisen terveyskustannukset
+  type: simple.MultiplicativeNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [transport_mode, response]
+  output_dimensions: [transport_mode, response]
+  input_nodes:
+  - id: health_effect_of_active_mobility
+  - id: value_of_statistical_life
+    to_dimensions: []
+    tags: [arithmetic_inverse]
+
+- id: discounted_active_mobility_costs
+  name: Diskontatut aktiivisen liikkumisen terveyskustannukset
+  type: costs.ExponentialNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [transport_mode, response]
+  output_dimensions: [transport_mode, response]
+  input_nodes:
+  - id: active_mobility_costs
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: co2_unit_price
+  name: Hiilidioksidin hinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: co2_unit_price
+
+# ----------------------- Active mobility ------------------
+
+- id: population_group_sizes
+  name: Population group sizes
+  type: gpc.DatasetNode
+  quantity: population
+  unit: inh
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: hia/exposure/lappeenranta_active_mobility
+  params:
+    sector: Population groups
+
+- id: active_mover_fraction
+  name: Active mover fraction
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: hia/exposure/lappeenranta_active_mobility
+  params:
+    sector: Fraction of movers
+
+- id: active_mover_distance
+  name: Active mover distance
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: inh
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: hia/exposure/lappeenranta_active_mobility
+  params:
+    sector: Moving distance
+
+actions:
+- id: convert_cars_to_evs
+  name_fi: Muuta autokanta sähköiseksi
+  name_en: Electrify car fleed
+  description_fi: Kannustetaan sähköautojen käyttöön. Täyssähköautoja ja ladattavia
+    hybridejä oli Etelä-Karjalassa 700 ja 1680 vuonna 2022. Niiden määrän arvioidaan
+    nousevan lukemaan 4180 ja 5280 vuonna 2030.
+  description_en: Nudging people to buy electric cars. The numbers of full EVs and
+    loadable hybrids were 700 and 1680, respectively, in 2022. The projected numbers
+    are 4180 and 5280 in 2030.
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: emissions
+  group: transport
+  unit: kt/a
+  forecast_values: [[2022, 0.0], [2030, -78.4]]  # 123.3 - 44.9
+#  output_nodes: [road_transport_emissions]
+
+pages:
+- id: home
+  name: Hiilineutraali Lappeenranta -päästöskenaario
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Lappeenrannan päästöskenaariot
+  lead_title_en: Lappeenranta emission scenarios
+  lead_paragraph: Lappeenrannan päästöskenaariot visualisoi Lappeenrannan kasvihuonekaasupäästöjen
+    kehityksen. Voit tarkastella, mistä Lappeenrannan kaupungin alueen päästöt syntyvät
+    ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario,
+    Lappeenrannan ilmasto-ohjelman mukainen skenaario sekä skenaario, jota voit itse
+    muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
+    riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
+
+scenarios:
+- id: baseline
+  name: Nykykehitys
+  name_en: Baseline
+
+- id: default
+  default: true
+  name: Lappeenrannan ilmasto-ohjelma
+  name_en: Lappeenranta Climate Action Plan
+  all_actions_enabled: true
