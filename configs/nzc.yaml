@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fdaf072a643c48c178c47018a92e1cf6e06d35c8
+  commit: 3bb3b8b1408c89d5811bc92f1e4fd4406700c5d2
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -181,6 +181,18 @@ dimensions:
     label: Agriculture (AFOLU)
   - id: other_sources
     label: Other sources
+
+- id: aggregated_cost_type
+  label: Aggregated cost type
+  categories:
+  - id: capex
+    label: CAPEX
+  - id: opex
+    label: OPEX
+  - id: co_benefits
+    label: Co-benefits
+  - id: co2_cost
+    label: CO2 cost
 
 - id: ghg
   label: Greenhouse gas
@@ -653,7 +665,7 @@ nodes:
   params:
     sector: Emission factors from electricity generation
 
-- id: electricity_production_unit_price
+- id: electricity_production_unit_price  # FIXME Check how this should be used
   name: Electricity production unit_price
   type: gpc.DatasetNode
   quantity: unit_price
@@ -675,6 +687,27 @@ nodes:
   params:
     sector: Retail price of electricity
 
+- id: electricity_consumption_cost
+  name: Electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type]
+  input_nodes:
+  - id: consumer_electricity_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption2
+    to_dimensions:
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [citizens]  # FIXME Actually affects other stakeholders as well
+    - id: cost_type
+      categories: [opex]
+  output_nodes:
+  - id: electricity_cost
+
 - id: consumer_heating_unit_price
   name: Consumer heating unit_price
   type: gpc.DatasetNode
@@ -683,6 +716,41 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Retail price of heating
+
+- id: consumer_heating_cost
+  name: Consumer heating cost (excluding electricity)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
+  input_nodes:
+  - id: consumer_heating_unit_price
+    to_dimensions: []
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    # - id: heating_type
+    #   flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [citizens]
+    - id: cost_type
+      categories: [opex]
+    - id: heating_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: co2_unit_price
   name: CO2 unit price
@@ -744,20 +812,35 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
+- id: aggregated_cost_types
+  name: Aggregated cost types
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [cost_type, aggregated_cost_type]
+  output_dimensions: [cost_type, aggregated_cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Aggregated cost types
+
 - id: discounted_co_benefits
-  name: Discounted co-benefits
-  type: simple.AdditiveNode
+  name: Discounted costs by aggregated types
+  type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
   is_outcome: true
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
+  input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
   input_nodes:
   - id: discounted_total_cost
-    from_dimensions:
+    tags: [non_additive]
+    to_dimensions:
     - id: cost_type
-      categories: [accidents, aesthetics, air_pollution, co2_cost, forest_management,
-        health, noise, shading, water_regulation]
+    - id: stakeholder
+  - id: aggregated_cost_types
+    to_dimensions:
+    - id: aggregated_cost_type
+    - id: cost_type
 
 - id: aggregated_discounted_total_cost
   name: Aggregated discounted total cost

@@ -387,7 +387,8 @@ nodes:
     - id: fuel_type
 
 - id: fossil_electricity_goal
-  name: Fossil electricity goal
+  name: Fossil electricity reduction goal
+  description: Share of current fossil production replaced by renewables (or nuclear)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -867,39 +868,39 @@ nodes:
   - id: building_construction_material_use
   - id: building_renovation_material_use
 
-- id: building_material_composition_historical
-  name: Building material composition historical
-  type: gpc.DatasetNode
-  quantity: mass
-  unit: t/m**2
-  input_dimensions: [material]
-  output_dimensions: [material]
-  input_datasets:  # FIXME
-  - id: nzc/defaults
-  params:
-    sector: New materials composition due to materials efficiency
+# - id: building_material_composition
+#   name: Building material composition
+#   type: gpc.DatasetNode
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: [material]
+#   output_dimensions: [material] 
+#   input_datasets:  # FIXME
+#   - id: nzc/defaults
+#   params:
+#     sector: New materials composition due to materials efficiency
 
-- id: building_material_composition_goal
-  name: Building material composition goal
-  type: gpc.DatasetNode
-  quantity: mass
-  unit: t/m**2
-  input_dimensions: [material]
-  output_dimensions: [material]
-  input_datasets:  # FIXME
-  - id: nzc/defaults
-  params:
-    sector: New materials composition due to materials efficiency # FIXME after
+# - id: building_material_composition_goal
+#   name: Building material composition goal
+#   type: gpc.DatasetNode
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: [material]
+#   output_dimensions: [material]
+#   input_datasets:  # FIXME
+#   - id: nzc/defaults
+#   params:
+#     sector: New materials composition due to materials efficiency # FIXME after
 
-- id: building_material_composition
-  name: Building material composition
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: t/m**2
-  input_dimensions: [material]
-  output_dimensions: [material]
-  input_nodes:
-  - id: building_material_composition_historical
+# - id: building_material_composition
+#   name: Building material composition
+#   type: simple.AdditiveNode
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: [material]
+#   output_dimensions: [material]
+#   input_nodes:
+#   - id: building_material_composition_historical
 
 - id: building_material_emission_factor
   name: Building material emission factor
@@ -928,7 +929,13 @@ nodes:
   - id: building_material_emission_factor
     to_dimensions:
     - id: material
-  # output_nodes:
+  output_nodes:
+  - id: delete_redundant_nodes
+    from_dimensions:
+    - id: material
+      flatten: true
+    - id: building_energy_class
+      flatten: true
   # - id: building_emissions
   #   from_dimensions:
   #   - id: material
@@ -984,14 +991,14 @@ nodes:
 
 # ------------- Food -------------------
 
-- id: food_consumption_per_person
-  name: Food consumption per person
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: kcal/cap/d
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Average food Consumption per capita
+# - id: food_consumption_per_person
+#   name: Food consumption per person
+#   type: gpc.DatasetNode
+#   quantity: energy
+#   unit: kcal/cap/d
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Average food Consumption per capita
 
 # ----------- AFOLU --------------
 

@@ -192,7 +192,7 @@ nodes:
     value: 0.5
     unit: dimensionless
 
-- id: fleet_emission_factor
+- id: fleet_emission_factor  #  FIXME Node dilutes too little. Should go 130-->107 2020-->2030 but goes onlt 120 in cars.
   name: Fleet emission factor
   description: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
   type: costs.DilutionNode
@@ -351,6 +351,40 @@ nodes:
   - id: nzc/defaults
   params:
     sector: Number of buses in city bus fleet
+
+- id: vehicle_kilometres_per_bus
+  name: Vehicle kilometres per bus
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: transport_mode
+      categories: [buses]
+  - id: number_of_buses_historical
+    tags: [inventory_only, geometric_inverse]
+
+- id: number_of_buses
+  name: Number of buses
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_nodes:
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: transport_mode
+      categories: [buses]
+  - id: vehicle_kilometres_per_bus
+    tags: [geometric_inverse, extend_values]
+    to_dimensions:
+    - id: transport_mode
 
 - id: fully_electric_train_share
   name: Fully electric train share
@@ -1166,8 +1200,35 @@ nodes:
   params:
     sector: Cost of driving a car per kilometre (excluding fuel)
 
+- id: car_driving_costs
+  name: Car driving costs (excluding fuel)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_nodes:
+  - id: car_driving_unit_price
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: stakeholder
+      categories: [citizens]
+
 - id: charging_infrastructure_unit_price
-  name: Car driving unit price
+  name: Charging infrastructure unit price
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/v
@@ -1176,6 +1237,71 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Charging infrastructure costs
+
+- id: total_number_of_cars  # FIXME Does not change by time
+  name: Total number of cars
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicle
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total number of cars + motorcycles in city
+
+- id: vehicle_kilometres_per_car
+  name: Vehicle kilometres per car
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: total_number_of_cars
+    tags: [geometric_inverse]
+  - id: vehicle_kilometres
+    tags: [inventory_only]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: number_of_new_evs
+  name: Number of new EVs
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: v/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres
+    tags: [difference]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: vehicle_kilometres_per_car
+    tags: [geometric_inverse, extend_values]
+    to_dimensions:
+    - id: transport_mode
+
+- id: charging_infrastructure_costs
+  name: Charging infrastructure costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_nodes:
+  - id: charging_infrastructure_unit_price
+    tags: [non_additive]
+  - id: number_of_new_evs
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
 - id: total_cost_of_ownership_historical
   name: Total cost of ownership historical
@@ -1253,8 +1379,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_datasets: [nzc/defaults]
   params:
-  - id: sector
-    value: Additional costs for electric vehicles
+    sector: Additional costs for electric vehicles
 
 - id: electric_vehicles_unit_price_rate
   name: Electric vehicles additional unit price rate
@@ -1279,6 +1404,34 @@ nodes:
     tags: [non_additive]
   - id: electric_vehicles_unit_price_rate
     tags: [arithmetic_inverse, complement_cumulative_product]
+
+- id: additional_cost_of_buying_electric_buses
+  name: Additional cost of buying electric buses
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: electric_vehicles_additional_unit_price
+    from_dimensions:
+    - id: transport_mode
+      categories: [buses]
+  - id: number_of_buses
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: transport_mode
+    - id: cost_type
 
 - id: electricity_consumption_for_electric_vehicles
   name: Electricity consumption for electric vehicles
