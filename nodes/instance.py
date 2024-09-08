@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import importlib
+import os
 import pickle
 import re
 import threading
@@ -848,9 +849,16 @@ class InstanceLoader:
         dataset_repo_config = self.config['dataset_repo']
         repo_url = dataset_repo_config['url']
         commit = dataset_repo_config.get('commit')
+        creds = dvc_pandas.RepositoryCredentials(
+            git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
+            git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
+            git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
+            git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
+        )
         dataset_repo = dvc_pandas.Repository(
             repo_url=repo_url, dvc_remote=dataset_repo_config.get('dvc_remote'),
-            # cache_prefix=instance_id,
+            repo_credentials=creds,
+            # cache_prefix=instance_id
         )
         dataset_repo.set_target_commit(commit)
         dataset_repo_default_path = dataset_repo_config.get('default_path')
