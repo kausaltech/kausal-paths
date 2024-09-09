@@ -97,7 +97,7 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        exset = set([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, 'Unit'])
+        exset = set([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, 'Unit', 'UUID'])
 
         # Convert index level names from labels to IDs.
         collookup = {}

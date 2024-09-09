@@ -74,7 +74,8 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE
     EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
     'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration',
-    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate'
+    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate',
+    'speed'
 ])
 
 

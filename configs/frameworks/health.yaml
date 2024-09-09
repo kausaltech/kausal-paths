@@ -203,19 +203,22 @@ nodes:
 
 - id: active_mobility_speed
   name: Aktiivisen liikkumisen keskinopeus
-  type: simple.AdditiveNode
-  quantity: mileage
+  type: gpc.DatasetNode
+  quantity: speed
   unit: km/h
-  historical_values: [[2018, 5.3]]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [hia/heat/lappeenranta_active_mobility]  # TODO Use a generic dataset instead
+  params:
+    sector: Average speed
 
 - id: active_mobility
   name: Aktiivisen liikkumisen määrä
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/person/d
-  # input_dimensions: [transport_mode]
-  # output_dimensions: [transport_mode]
-  historical_values: [[2018, 1.0]]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
 
 - id: amount_of_active_mobility
   name: Aktiivisen liikkumiseen käytetty aika
@@ -228,18 +231,16 @@ nodes:
   - id: active_mobility
     to_dimensions:
     - id: transport_mode
-      categories: [walking]
   - id: active_mobility_speed
     tags: [geometric_inverse]
     to_dimensions:
     - id: transport_mode
-      categories: [walking]
 
 - id: health_factor_of_active_mobility
   name: Aktiivisen liikkumisen terveyskerroin
   description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
     arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
+    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalyn osalta tarkastellaan
     20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
   type: gpc.DatasetNode
   quantity: exposure_response
@@ -401,10 +402,10 @@ nodes:
   input_dimensions: [response]
   output_dimensions: [response]
   input_datasets:
-  - id: hia/exposure_response/air_pollution_erf
+  - id: hia/heat/lappeenranta_active_mobility
     forecast_from: 2023
   params:
-    sector: Air pollution
+    sector: Case burden
 
 - id: disease_burden_of_air_pollution
   name_fi: Ilmansaasteiden tautitaakka
@@ -423,3 +424,45 @@ nodes:
     to_dimensions:
     - id: response
   - id: total_exposure_related_cases
+
+# --------------- Health costs ----------------
+
+- id: value_of_statistical_life
+  name: Kuolemanriskin tilastollinen hinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/case
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: value_of_statistical_life
+
+- id: health_costs_attributed_to_exposure
+  name: Altistumiseen kohdentuvat terveyskustannukset
+  type: simple.MultiplicativeNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: response
+      categories: [mortality, physical_activity, air_pollution, crash_risk]
+  - id: value_of_statistical_life
+    to_dimensions: []
+    tags: [arithmetic_inverse]
+
+- id: discounted_health_costs
+  name: Diskontatut terveyskustannukset
+  type: costs.ExponentialNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: health_costs_attributed_to_exposure
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
