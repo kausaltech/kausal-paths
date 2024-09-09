@@ -768,6 +768,3 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
 
     def natural_key(self):
         return self.instance.natural_key() + (self.identifier,)
-
-
-#InstanceConfig.permission_policy = InstanceConfigPermissionPolicy()
