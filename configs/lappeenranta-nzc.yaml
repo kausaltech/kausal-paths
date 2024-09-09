@@ -1,7 +1,7 @@
 id: lappeenranta-nzc
 default_language: fi
 supported_languages: [en]
-frameworks: [health_air_pollution]
+# frameworks: [health]
 site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -626,9 +626,9 @@ nodes:
   description_fi: Kohdeväestön koko
   description_en: Size of the target population
 
-- id: all_alas_emissions
-  type: finland.syke.AlasNode
-  name: SYKE:n ALaS-päästöinventaario
+# - id: all_alas_emissions
+#   type: finland.syke.AlasNode
+#   name: SYKE:n ALaS-päästöinventaario
 
 - id: road_transport_emissions2
   name_fi: Tieliikenteen CO2-päästöt
