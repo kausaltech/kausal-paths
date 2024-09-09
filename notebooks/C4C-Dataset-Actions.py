@@ -1,6 +1,8 @@
 import pandas as pd
 import polars as pl
 import sys
+import os
+import dvc_pandas
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -38,8 +40,13 @@ for c in df.columns:
 
 dims = [c for c in context if c not in ['Quantity', 'Unit', 'UUID', 'Is_action']]
 
+if 'UUID' in df.columns:
+    groups = dims + ['UUID']
+else:
+    groups = dims
+
 # Check input dataset for duplicated dimension sets.
-duplicates = df.group_by(dims + ['UUID']).agg(pl.len()).filter(pl.col('len') > 1)
+duplicates = df.group_by(groups).agg(pl.len()).filter(pl.col('len') > 1)
 if len(duplicates) > 0:
     print('There are duplicate values. Remove them and try again.')
     print(duplicates)
@@ -101,7 +108,7 @@ if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)
 
 if outdvcpath.upper() not in ['N', 'NONE']:
-    from dvc_pandas import Dataset, Repository
+    from dvc_pandas import Dataset, DatasetMeta, Repository
 
     indexcols = list(dims)
     indexcols.extend(['Year'])
@@ -112,6 +119,17 @@ if outdvcpath.upper() not in ['N', 'NONE']:
     valuecols = list(set(dfmain.columns) - set(indexcols))
     pdframe = pd.DataFrame(dfmain.select(valuecols), index = pdindex, columns = valuecols)
 
-    ds = Dataset(pdframe, identifier = outdvcpath)
-    repo = Repository(repo_url = 'git@github.com:kausaltech/dvctest.git', dvc_remote = 'kausal-s3')
+    meta = DatasetMeta(identifier = outdvcpath)
+    ds = Dataset(pdframe, meta = meta)
+
+    pl_df = pl.from_pandas(pdframe.reset_index())
+    meta = DatasetMeta(identifier=outdvcpath, index_columns=indexcols)
+    ds = Dataset(pl_df, meta=meta)
+    creds = dvc_pandas.RepositoryCredentials(
+        git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
+        git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
+        git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
+        git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
+    )
+    repo = Repository(repo_url='https://github.com/kausaltech/dvctest.git', dvc_remote='kausal-s3', repo_credentials=creds)
     repo.push_dataset(ds)
