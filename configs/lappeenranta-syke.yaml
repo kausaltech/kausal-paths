@@ -1,12 +1,12 @@
 id: lappeenranta-syke
 default_language: fi
 supported_languages: [en]
-frameworks: [syke, health_air_pollution]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
+frameworks: [syke, health]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
 site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 3bb3b8b1408c89d5811bc92f1e4fd4406700c5d2
+  commit: cc7a349407db2799ded68db2298346edbbff5b1b
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -273,40 +273,6 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: amount_of_active_mobility
-  name: Aktiivisen liikkumisen määrä
-  type: simple.AdditiveNode
-  quantity: exposure
-  unit: min/person/d
-  historical_values: [[2010, 10.0], [2023, 10.0]]
-
-- id: health_factor_of_active_mobility
-  name: Aktiivisen liikkumisen terveyskerroin
-  description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
-    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
-    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
-  type: gpc.DatasetNode
-  quantity: exposure_response
-  unit: incident/a/(min/d/person)
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: health_factor_of_active_mobility
-
-- id: health_effect_of_active_mobility
-  name: Aktiivisen liikkumisen terveysvaikutus
-  type: simple.MultiplicativeNode
-  quantity: health_effect
-  unit: cases/a
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_nodes:
-  - id: health_factor_of_active_mobility
-  - id: amount_of_active_mobility
-    to_dimensions: []
-
 - id: carbon_factor_of_active_mobility
   name: Aktiivisen liikkumisen päästökerroin
   type: gpc.DatasetNode
@@ -328,7 +294,8 @@ nodes:
   input_nodes:
   - id: carbon_factor_of_active_mobility
   - id: amount_of_active_mobility
-    to_dimensions: []
+    to_dimensions:
+    - id: transport_mode
 
 - id: discount_rate
   name: Diskonttokorko
@@ -384,6 +351,59 @@ nodes:
   input_datasets: [hia/heat/lappeenranta_heat]
   params:
     sector: co2_unit_price
+
+# ----------------------- HEAT Active mobility ------------------
+
+# - id: population_group_sizes
+#   name: Väestöryhmien koko
+#   type: gpc.DatasetNode
+#   quantity: population
+#   unit: inh
+#   input_dimensions: [age]
+#   output_dimensions: [age]
+#   input_datasets:
+#   - id: hia/heat/lappeenranta_active_mobility
+#   params:
+#     sector: Population groups
+
+# - id: active_mover_fraction
+#   name: Aktiivisten liikkujien osuus
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [transport_mode, age]
+#   output_dimensions: [transport_mode, age]
+#   input_datasets:
+#   - id: hia/heat/lappeenranta_active_mobility
+#   params:
+#     sector: Fraction of movers
+
+# - id: active_mover_distance
+#   name: Aktiivisten liikkujien matkat
+#   type: gpc.DatasetNode
+#   quantity: mileage
+#   unit: km/person/d
+#   input_dimensions: [transport_mode, age]
+#   output_dimensions: [transport_mode, age]
+#   input_datasets:
+#   - id: hia/heat/lappeenranta_active_mobility
+#   params:
+#     sector: Moving distance
+
+# - id: active_mobility2
+#   name: Aktiivisen liikkumisen määrä
+#   type: simple.MultiplicativeNode
+#   quantity: mileage
+#   unit: km/person/d
+#   input_nodes:
+#   - id: active_mover_fraction
+#   - id: active_mover_distance
+#     tags: [non_additive]
+#   output_nodes:
+#   - id: active_mobility
+#     to_dimensions:
+#     - id: transport_mode
+#       categories: [walking]
 
 actions:
 - id: convert_cars_to_evs

@@ -66,7 +66,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: heat emission factor
+    sector: heat emission factor
 
 - id: fossil_plant_emission_ratio
   name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
@@ -121,7 +121,7 @@ nodes:
     - column: Population density
       value: average
   params:
-    gpc_sector: Air pollution
+    sector: Air pollution
 
 - id: breathing_rate
   name_fi: Hengitystilavuus
@@ -199,6 +199,76 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
 
+# -------------- HEAT Active mobility ---------
+
+- id: active_mobility_speed
+  name: Aktiivisen liikkumisen keskinopeus
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/h
+  historical_values: [[2018, 5.3]]
+
+- id: active_mobility
+  name: Aktiivisen liikkumisen määrä
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/person/d
+  # input_dimensions: [transport_mode]
+  # output_dimensions: [transport_mode]
+  historical_values: [[2018, 1.0]]
+
+- id: amount_of_active_mobility
+  name: Aktiivisen liikkumiseen käytetty aika
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: min/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: active_mobility
+    to_dimensions:
+    - id: transport_mode
+      categories: [walking]
+  - id: active_mobility_speed
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+      categories: [walking]
+
+- id: health_factor_of_active_mobility
+  name: Aktiivisen liikkumisen terveyskerroin
+  description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
+    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
+    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
+    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
+  type: gpc.DatasetNode
+  quantity: exposure_response
+  unit: incident/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: health_factor_of_active_mobility
+
+- id: health_effect_of_active_mobility
+  name: Aktiivisen liikkumisen ehkäisemät tapaukset
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: cases/a
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_factor_of_active_mobility
+    tags: [arithmetic_inverse]
+  - id: amount_of_active_mobility
+    to_dimensions:
+    - id: transport_mode
+  output_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+
 # -------------- Health effects ---------------
 
 - id: planetary_health
@@ -228,7 +298,7 @@ nodes:
     - column: Population
       value: default
   params:
-    gpc_sector: Environmental health
+    sector: Environmental health
 
 - id: air_pollution_attributable_fraction
   name_fi: Ilmansaasteiden syyosuus
@@ -250,7 +320,7 @@ nodes:
     to_dimensions:
     - id: pollutant
   params:
-    gpc_sector: Air pollution
+    sector: Air pollution
 
 - id: total_number_of_cases
   name_fi: Kokonaistapausmäärä
@@ -289,6 +359,19 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: response
+  output_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+
+- id: total_exposure_related_cases
+  name: Altisteisiin kohdentuva tapausmäärä yhteensä
+  type: simple.AdditiveNode
+  quantity: health_effect
+  unit: case/a
+  input_dimensions: [response]
+  output_dimensions: [response]
 
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
@@ -321,7 +404,7 @@ nodes:
   - id: hia/exposure_response/air_pollution_erf
     forecast_from: 2023
   params:
-    gpc_sector: Air pollution
+    sector: Air pollution
 
 - id: disease_burden_of_air_pollution
   name_fi: Ilmansaasteiden tautitaakka
@@ -331,12 +414,12 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
+  input_dimensions: [response]
+  output_dimensions: [response]
   is_outcome: true
   input_nodes:
   - id: case_burden
     tags: [non_additive]
     to_dimensions:
     - id: response
-  - id: attributable_cases
+  - id: total_exposure_related_cases
