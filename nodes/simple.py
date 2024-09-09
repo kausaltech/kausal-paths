@@ -44,6 +44,11 @@ class SimpleNode(Node):
             description='Year to which all others are compared',
             is_customizable=False
         ),
+        StringParameter(
+            local_id='share_dimension',
+            description='Dimension over which values are converted to shares',
+            is_customizable=False
+        ),
         NumberParameter(  # FIXME Make sure that the treatment is systematic in all node classes.
             local_id='multiplier',
             description='Multiplier to implement after operation and before additions',
@@ -124,7 +129,15 @@ class SimpleNode(Node):
             df = self._scale_by_reference_year(df, year)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
-    
+
+    def get_shares(self, df: ppl.PathsDataFrame, dim: str | None = None) -> ppl.PathsDataFrame:
+        if not dim:
+            dim = self.get_parameter_value('share_dimension', required = False)
+        if dim:
+            df = df.paths.calculate_shares(VALUE_COLUMN, VALUE_COLUMN, [dim])
+        
+        return df
+
     # See also sister function in ActionNode
     def apply_multiplier(self, df: ppl.PathsDataFrame, required: bool, units: bool) -> ppl.PathsDataFrame:
         multiplier = self.get_parameter_value('multiplier', required=required, units=units)
@@ -217,6 +230,7 @@ Missing values are assumed to be zero.""")
             df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
         df = self.scale_by_reference_category(df)
         df = self.scale_by_reference_year(df)
+        df = self.get_shares(df)
 
         return df
 

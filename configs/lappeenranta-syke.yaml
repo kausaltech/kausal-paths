@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 8fc66a2b555eb2eba2eae7ced0cd53811de7bf47
+  commit: 6b12b72fec0c688b3886d45ea63cc94891b2f2ab
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -242,7 +242,7 @@ nodes:
 - id: road_transport_emissions2
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
-  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välissä
+  description_fi: Välisolmu Syke-päämallin ja terveysvaikutusmoduulin välissä
   description_en: Intermediate node between the main model and the air pollution module
   type: simple.AdditiveNode
   quantity: emissions
@@ -256,7 +256,7 @@ nodes:
 - id: district_heating_emissions2
   name_fi: Kaukolämmön CO2-päästöt
   name_en: CO2 emissions from district heating
-  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välillä
+  description_fi: Välisolmu Syke-päämallin ja terveysvaikutusmoduulin välillä
   description_en: Intermediate node between the main model and the air pollution module
   type: simple.AdditiveNode
   quantity: emissions
@@ -323,6 +323,19 @@ nodes:
   params:
     sector: Population groups
 
+- id: population_group_shares
+  name: Väestöryhmien suhteet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_nodes:
+  - id: population_group_sizes
+  params:
+    share_dimension: age
+    use_input_node_unit_when_adding: true
+
 - id: active_mover_fraction
   name: Aktiivisten liikkujien osuus
   type: gpc.DatasetNode
@@ -360,6 +373,9 @@ nodes:
   - id: active_mover_fraction
   - id: active_mover_distance
     tags: [non_additive]
+  - id: population_group_shares
+    to_dimensions:
+    - id: age
   output_nodes:
   - id: active_mobility
     from_dimensions:
