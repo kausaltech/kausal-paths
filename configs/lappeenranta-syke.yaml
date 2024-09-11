@@ -327,7 +327,7 @@ nodes:
   name: Väestöryhmien suhteet
   type: simple.AdditiveNode
   quantity: fraction
-  unit: '%'
+  unit: dimensionless
   input_dimensions: [age]
   output_dimensions: [age]
   input_nodes:
