@@ -286,44 +286,23 @@ class DilutionNode(SimpleNode):
     ''')
 
     def compute(self)-> ppl.PathsDataFrame:
-        existing = self.get_input_node(tag='existing')
-        incoming = self.get_input_node(tag='incoming')
-        removing = self.get_input_node(tag='removing')
-        inserting = self.get_input_node(tag='inserting')
+        dfs = {}
+        for tag in ['existing', 'incoming', 'removing', 'inserting']:
+            dfs[tag] = self.get_input_node(tag = tag).get_output_pl(target_node = self)
 
-        df_e = existing.get_output_pl(target_node=self)
-        df_c = incoming.get_output_pl(target_node=self)
-        df_r = removing.get_output_pl(target_node=self)
-        df_n = inserting.get_output_pl(target_node=self)
+        jdf = dfs['incoming'].rename({VALUE_COLUMN: 'incoming'})
+        for tag in ['removing', 'inserting']:
+            jdf = jdf.paths.join_over_index(dfs[tag].ensure_unit(VALUE_COLUMN, '1/a')).rename({VALUE_COLUMN: tag})
 
-        df = df_e.paths.join_over_index(df_c).rename({VALUE_COLUMN + '_right': 'incoming'})
-        df = df.paths.join_over_index(df_r).rename({VALUE_COLUMN + '_right': 'removing'})
-        df = df.paths.join_over_index(df_n).rename({VALUE_COLUMN + '_right': 'inserting'})
-        df = df.drop_nulls()
+        df = dfs['existing']
+        for year in range(df[YEAR_COLUMN].max(), self.get_end_year()):
+            ydf = df.filter(pl.col(YEAR_COLUMN).eq(year))
+            ydf = ydf.with_columns(pl.lit(year + 1).alias(YEAR_COLUMN))
 
-        df = df.ensure_unit('removing', '1/a')
-        df = df.ensure_unit('inserting', '1/a')
+            ydf = ydf.paths.join_over_index(jdf)
+            ydf = ydf.with_columns(((pl.col(VALUE_COLUMN) * (pl.lit(1.0) - pl.col('removing'))) +
+                                    (pl.col('incoming') * pl.col('inserting'))).alias(VALUE_COLUMN))
 
-        df = df.paths.to_wide()
-        dims = list(set([s.split('@')[1] for s in df.metric_cols]))
-        years = range(df[YEAR_COLUMN].max() + 1, self.get_end_year() + 1)
-
-        for year in years:
-            out = df.filter(pl.col(YEAR_COLUMN).eq(year - 1))
-            out = out.with_columns([
-                pl.lit(year).cast(pl.Int64).alias(YEAR_COLUMN),
-                pl.lit(True).alias(FORECAST_COLUMN),
-            ])
-
-            for dim in dims:
-                dim = '@' + dim
-                out = out.with_columns([
-                    (pl.col(VALUE_COLUMN + dim) * (pl.lit(1.0) - pl.col('removing' + dim))
-                        + pl.col('incoming' + dim) * pl.col('inserting' + dim)
-                        ).alias(VALUE_COLUMN + dim)
-                ])
-
-            df = df.paths.concat_vertical(out)
-        df = df.paths.to_narrow().drop(['incoming', 'removing', 'inserting'])
+            df = df.paths.concat_vertical(ydf.drop('incoming', 'removing', 'inserting'))
 
         return df
