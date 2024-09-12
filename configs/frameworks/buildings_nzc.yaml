@@ -748,6 +748,18 @@ nodes:
 
 # -------------------- Electricity --------------------
 
+- id: efficient_appliances_rate3
+  name: 3.3 Efficient lighting & appliances rate
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    gpc_sector: 3.3 Efficient lighting & appliances
+
 - id: consumer_electricity_intensity_baseline
   name: Electricity use intensity for lighting & appliances
   type: gpc.DatasetNode
@@ -825,6 +837,42 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     gpc_sector: Assumed share of type of efficiency programme for lever
+
+- id: non_efficiency_renovation_fraction
+  name: Non-efficiency renovation fraction
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares
+    tags: [complement]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new_standard]
+      flatten: true
+    - id: efficiency_programme
+      flatten: true
+
+- id: efficiency_programme_shares2
+  name: Efficiency programme shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new_standard]
+      flatten: true
+  - id: non_efficiency_renovation_fraction
+    to_dimensions:
+    - id: efficiency_programme
+      categories: [no_improvements]
+    - id: energy_carrier
 
 - id: consumer_electricity_intensity2
   name: Electricity use intensity for lighting & appliances
@@ -916,6 +964,95 @@ nodes:
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
+  # output_nodes:
+  # - id: total_electricity_consumption
+  #   from_dimensions:
+  #   - id: efficiency_programme
+  #     flatten: true
+
+- id: electricity_non_renovated_old_buildings
+  name: Electricity-non-renovated old buildings
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_rate
+    tags: [complement_cumulative_product]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations, minor_renovation, major_renovation]
+      flatten: true
+    to_dimensions: []
+#    - id: building_energy_class
+
+- id: electricity_renovated_buildings
+  name: Electricity-renovated buildings
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_non_renovated_old_buildings
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_stock
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: consumer_electricity_use2
+  name: Electricity use for lighting & appliances in renovated buildings
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: electricity_renovated_buildings
+    to_dimensions:
+    - id: energy_carrier
+  - id: consumer_electricity_intensity
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+  - id: efficiency_programme_shares2
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+
+- id: consumer_electricity_use3
+  name: Electricity use for lighting & appliances in non-renovated buildings
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: electricity_non_renovated_old_buildings
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+      categories: [no_improvements]
+  - id: consumer_electricity_intensity
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
   output_nodes:
   - id: total_electricity_consumption
     from_dimensions:
@@ -1331,6 +1468,13 @@ actions:
   quantity: fraction
   unit: dimensionless
   group: buildings
-  historical_values: [[2018, 0], [2022, 0]]
-  forecast_values: [[2023, 1], 2045, 1]
+  historical_values: [[2020, 0], [2022, 0]]  # FIXME This is sensitive to year mismatch
+  forecast_values: [[2023, 1], [2045, 1]]
   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: efficient_appliances_rate3
+    tags: [non_additive]
+    to_dimensions: []
+  - id: efficiency_programme_shares
+    tags: [non_additive]
+    to_dimensions: []
