@@ -498,6 +498,7 @@ nodes:
 
 - id: heating_fossil_share
   name: Heating fossil shares
+  description: This node applies to fossil shares of waste used in district heating. Many other fuel types and energy carriers are included but for technical purposes only.
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -508,7 +509,6 @@ nodes:
 
 - id: building_heating_shares
   name: Building heating shares without electricity
-  description: The shares of heating type do not sum up to 100 %, because electric heating is excluded in this node.
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -534,7 +534,7 @@ nodes:
 
 - id: building_heat_energy_use
   name: Building heat energy use
-  description: Building heat energy use does not include electricity (neither direct electric heating nor heat pumps). That is calculated separately.
+  description: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed. Electricity is here classified as non-fossil for technical purposes and it carries no information about the actual electricity production types.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -568,32 +568,31 @@ nodes:
 
 - id: building_heat_electricity_use
   name: Building heat electricity use
+  description: Electricity used to produce heat with heat pumps and direct electricity.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
   output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
   input_nodes:
-  - id: building_stock
+  - id: building_heat_energy_use
+    tags: [non_additive]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
     to_dimensions:
     - id: building_energy_class
-  - id: energy_use_intensity
-    to_dimensions:
-    - id: building_energy_class
+    - id: heating_type
+    - id: energy_carrier
+    - id: scope
   - id: electric_heating_type_shares
     to_dimensions:
     - id: heating_type
     - id: energy_carrier
     - id: scope
     - id: fuel_type
-  - id: heating_fuel_share
-    to_dimensions:
-    - id: energy_carrier
-    - id: heating_type
-  - id: building_heating_type_share
-    to_dimensions:
-    - id: heating_type
-    - id: scope
   - id: efficiency_of_heat_pumps
     tags: [geometric_inverse]
     to_dimensions:
@@ -613,6 +612,19 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
+- id: building_heat_energy_use2
+  name: Building heat energy use without electricity
+  description: This node should be fixed, as building heat energy use contains the heat produced, not the electricity used to produce the heat.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
+  input_nodes:
+  - id: building_heat_energy_use
+  - id: building_heat_electricity_use
+    tags: [arithmetic_inverse]
+
 - id: heating_emission_factor
   name: Heating emission factor
   description: Emission factor for building heating
@@ -628,17 +640,20 @@ nodes:
 
 - id: building_heating_emissions
   name: Building heating emissions
+  description: Building heating emissions exclude emissions from electricity, which are calculated elsewhere.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [heating_type, pollutant, scope]
   output_dimensions: [heating_type, pollutant, scope]
   input_nodes:
-  - id: building_heat_energy_use
+  - id: building_heat_energy_use2
     from_dimensions:
     - id: building_energy_class
       flatten: true
     - id: energy_carrier
+      # categories: [electricity]
+      # exclude: true
       flatten: true
     - id: fuel_type
       flatten: true
@@ -1309,3 +1324,13 @@ actions:
   - id: nzc/defaults
   params:
     gpc_sector: 3.3 Efficient lighting & appliances
+
+- id: efficient_appliances_rate2
+  name: 3.3 Efficient lighting & appliances on/off
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: dimensionless
+  group: buildings
+  historical_values: [[2018, 0], [2022, 0]]
+  forecast_values: [[2023, 1], 2045, 1]
+  input_dataset_processors: [LinearInterpolation]
