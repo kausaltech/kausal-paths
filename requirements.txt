@@ -222,7 +222,7 @@ dvc-objects==5.1.0
     # via
     #   dvc
     #   dvc-data
-dvc-pandas==0.3.1
+dvc-pandas==0.3.2
     # via -r requirements.in
 dvc-render==1.0.2
     # via dvc
