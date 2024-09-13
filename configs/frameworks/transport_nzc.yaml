@@ -65,13 +65,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    - id: energy_carrier
-      flatten: true
+  # output_nodes:
+  # - id: electricity_emissions
+  #   from_dimensions:
+  #   - id: transport_mode
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
 
 - id: baseline_year_fleet_emission_factor_pre
   name: Baseline year car and bus fleet emission factor before splitting

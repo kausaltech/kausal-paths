@@ -880,73 +880,16 @@ nodes:
 #   params:
 #     sector: New materials composition due to materials efficiency
 
-# - id: building_material_composition_goal
-#   name: Building material composition goal
+# - id: building_material_emission_factor
+#   name: Building material emission factor
 #   type: gpc.DatasetNode
-#   quantity: mass
-#   unit: t/m**2
+#   quantity: emission_factor
+#   unit: t/t
 #   input_dimensions: [material]
 #   output_dimensions: [material]
-#   input_datasets:  # FIXME
-#   - id: nzc/defaults
+#   input_datasets: [nzc/defaults]
 #   params:
-#     sector: New materials composition due to materials efficiency # FIXME after
-
-# - id: building_material_composition
-#   name: Building material composition
-#   type: simple.AdditiveNode
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   input_nodes:
-#   - id: building_material_composition_historical
-
-- id: building_material_emission_factor
-  name: Building material emission factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/t
-  input_dimensions: [material]
-  output_dimensions: [material]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Emissions from production
-
-- id: building_material_emissions
-  name: Building material emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [material, building_energy_class]
-  output_dimensions: [material, building_energy_class]
-  input_nodes:
-  - id: building_material_use
-    tags: [non_additive]
-    to_dimensions:
-    - id: building_energy_class
-    - id: material
-  - id: building_material_emission_factor
-    to_dimensions:
-    - id: material
-  output_nodes:
-  - id: delete_redundant_nodes
-    from_dimensions:
-    - id: material
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-  # - id: building_emissions
-  #   from_dimensions:
-  #   - id: material
-  #     flatten: true
-  #   - id: building_energy_class
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: scope
-  #     categories: [scope3]
-  #   - id: ghg
-  #     categories: [co2e]
+#     sector: Emissions from production
 
 - id: building_material_unit_price
   name: Building material unit_price

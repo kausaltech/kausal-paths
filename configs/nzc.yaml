@@ -556,7 +556,7 @@ nodes:
   - id: total_electricity_consumption
     tags: [non_additive]
 
-- id: electricity_emissions2
+- id: electricity_emissions
   name: Total electricity emissions
   type: simple.MultiplicativeNode
   quantity: emissions

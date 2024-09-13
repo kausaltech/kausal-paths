@@ -791,8 +791,8 @@ nodes:
 
 # -------------------- Electricity --------------------
 
-- id: efficient_appliances_rate  # FIXME Remove this node when the multiplication problem is fixed.
-  name: Lighting & appliances renovation rate, technical node
+- id: efficient_appliances_rate
+  name: Lighting & appliances renovation rate
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%/a'
@@ -802,11 +802,11 @@ nodes:
   - id: do_efficient_appliances
     tags: [non_additive]
     to_dimensions: []
-  - id: efficient_appliances_rate2
+  - id: lighting_and_appliances_renovation_rate_if_done
     tags: [non_additive]
 
-- id: efficient_appliances_rate2
-  name: Lighting & appliances renovation rate
+- id: lighting_and_appliances_renovation_rate_if_done
+  name: Lighting & appliances renovation rate if done
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -818,7 +818,7 @@ nodes:
     gpc_sector: 3.3 Efficient lighting & appliances
 
 - id: consumer_electricity_intensity_baseline
-  name: Electricity use intensity for lighting & appliances
+  name: Electricity use intensity for lighting & appliances, baseline
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -829,63 +829,8 @@ nodes:
   params:
     sector: Average electricity use for lighting & appliances
 
-- id: non_efficient_fraction
-  name: Non-efficient fraction
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: efficient_appliances_rate
-    tags: [complement_cumulative_product]
-    to_dimensions:
-    - id: energy_carrier
-
-- id: efficient_fraction
-  name: Efficient fraction
-  type: simple.MultiplicativeNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: non_efficient_fraction
-    tags: [non_additive, complement]
-    to_dimensions:
-    - id: energy_carrier
-  - id: efficiency_programme_shares
-    tags: [non_additive]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [new_standard]
-      flatten: true
-    - id: efficiency_programme
-      categories: [minor_improvements, aggressive_improvements]
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-
-- id: efficiency_shares
-  name: Efficiency shares
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: non_efficient_fraction
-    to_dimensions:
-    - id: energy_carrier
-    - id: efficiency_programme
-      categories: [no_improvements]
-  - id: efficient_fraction
-    to_dimensions:
-    - id: energy_carrier
-    - id: efficiency_programme
-
-- id: efficiency_programme_shares3  # TODO This could be simplified because only two values are used.
-  name: Efficiency programme shares
+- id: efficiency_programme_shares_data  # TODO This could be simplified because only two values are used.
+  name: Efficiency programme shares data
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -895,19 +840,23 @@ nodes:
   params:
     gpc_sector: Assumed share of type of efficiency programme for lever
 
-- id: efficiency_programme_shares
-  name: Efficiency programme shares, technical node
+- id: efficiency_programme_shares_pre
+  name: Electricity efficiency programme intensity shares
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
-  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
   - id: do_efficient_appliances  # FIXME Fix the multiplication problem and remove this technical node
     tags: [non_additive]
     to_dimensions: []
-  - id: efficiency_programme_shares3
+  - id: efficiency_programme_shares_data
     tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new_standard]
+      flatten: true
 
 - id: non_efficiency_renovation_fraction
   name: Non-efficiency renovation fraction
@@ -917,16 +866,13 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: efficiency_programme_shares
+  - id: efficiency_programme_shares_pre
     tags: [complement]
     from_dimensions:
-    - id: building_energy_class
-      categories: [new_standard]
-      flatten: true
     - id: efficiency_programme
       flatten: true
 
-- id: efficiency_programme_shares2
+- id: efficiency_programme_shares
   name: Efficiency programme shares
   type: simple.AdditiveNode
   quantity: fraction
@@ -934,43 +880,12 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
-  - id: efficiency_programme_shares
-    from_dimensions:
-    - id: building_energy_class
-      categories: [new_standard]
-      flatten: true
+  - id: efficiency_programme_shares_pre
   - id: non_efficiency_renovation_fraction
     to_dimensions:
     - id: efficiency_programme
       categories: [no_improvements]
     - id: energy_carrier
-
-- id: consumer_electricity_intensity2
-  name: Electricity use intensity for lighting & appliances
-  type: simple.MultiplicativeNode
-  quantity: energy_factor
-  unit: kWh/m**2/a
-  input_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
-  output_dimensions: [building_energy_class, efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: efficiency_programme_shares
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-    - id: building_energy_class
-  - id: consumer_electricity_intensity_baseline
-    tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-  output_nodes:
-  - id: delete_redundant_nodes
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    - id: efficiency_programme
-      flatten: true
-    - id: energy_carrier
-      flatten: true
 
 - id: electricity_need_reduction
   name: Electricity need reduction after improvements
@@ -1013,33 +928,6 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Efficiency improvements for each renovation
-
-- id: consumer_electricity_use
-  name: Electricity use for lighting & appliances
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: building_stock
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions: []
-  - id: consumer_electricity_intensity
-    to_dimensions:
-    - id: energy_carrier
-    - id: efficiency_programme
-  - id: efficiency_shares
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
-  # output_nodes:
-  # - id: total_electricity_consumption
-  #   from_dimensions:
-  #   - id: efficiency_programme
-  #     flatten: true
 
 - id: electricity_non_renovated_old_buildings
   name: Electricity-non-renovated old buildings
@@ -1097,7 +985,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: efficiency_programme
-  - id: efficiency_programme_shares2
+  - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
     - id: energy_carrier
@@ -1132,47 +1020,6 @@ nodes:
 
 # --------------- Emissions ------------
 
-- id: consumer_electricity_emissions
-  name: Consumer electricity emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [pollutant, energy_carrier]
-  output_dimensions: [pollutant, energy_carrier]
-  input_nodes:
-  - id: consumer_electricity_use
-    from_dimensions:
-    - id: efficiency_programme
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-  - id: effective_electricity_emission_factor
-    to_dimensions:
-    - id: energy_carrier
-    - id: pollutant
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: pollutant
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: ghg
-      categories: [co2e]
-    - id: scope
-      categories: [scope2]
-
-- id: electricity_emissions
-  name: Electricity emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [ghg, scope]
-  output_dimensions: [ghg, scope]
-  # output_nodes:
-  # - id: net_emissions
-
 - id: building_air_pollutant_emissions
   name: Building air pollutant emissions
   type: simple.AdditiveNode
@@ -1191,13 +1038,13 @@ nodes:
       flatten: true
     - id: pollutant
       categories: [nox, pm25_combustion, pm10_combustion]
-  - id: consumer_electricity_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: pollutant
-      categories: [co2]
-      exclude: true
+  # - id: consumer_electricity_emissions
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: pollutant
+  #     categories: [co2]
+  #     exclude: true
 
 # --------------- Costs ----------------
 
@@ -1244,7 +1091,6 @@ nodes:
   - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
-    - id: building_energy_class
     - id: energy_carrier
   - id: efficiency_programme_unit_price
     to_dimensions:
@@ -1539,6 +1385,6 @@ actions:
   # - id: efficient_appliances_rate
   #   tags: [non_additive]
   #   to_dimensions: []
-  # - id: efficiency_programme_shares
+  # - id: efficiency_programme_shares_pre
   #   tags: [non_additive]
   #   to_dimensions: []
