@@ -37,10 +37,11 @@ django_initialized = False
 
 
 def init_django():
-    global django_initialized
+    global django_initialized  # noqa: PLW0603
     if django_initialized:
         return
     import os
+
     import django
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
     init_django_telemetry()

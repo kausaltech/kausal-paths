@@ -454,10 +454,11 @@ class DimensionalMetric:
         return dm
 
     @classmethod
-    def from_action_efficiency(cls, action_efficiency: ActionEfficiency,
-                               root: ActionEfficiencyPair, col: str) -> DimensionalMetric:
+    def from_action_efficiency(
+        cls, action_efficiency: ActionEfficiency, root: ActionEfficiencyPair, col: str,
+    ) -> DimensionalMetric:
         action = action_efficiency.action
-        def make_id(*args: str):
+        def make_id(*args: str) -> str:
             return ':'.join([action.id, *args])
         df = action_efficiency.df
         if col=='Cost':
@@ -476,7 +477,7 @@ class DimensionalMetric:
                 cat_id = make_id(dim.id, 'cat', cat.id)
                 ordered_cats.append(MetricCategory(
                     id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
-                    original_id=cat.id
+                    original_id=cat.id,
                 ))
 
             assert len(df_cats) == len(ordered_cats)
@@ -490,7 +491,7 @@ class DimensionalMetric:
             )
             dims.append(mdim)
 
-        forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min()
+        forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(other=True))[YEAR_COLUMN].min()
         if forecast_from is not None:
             assert isinstance(forecast_from, int)
 
@@ -507,7 +508,7 @@ class DimensionalMetric:
         vals: list[float] = jdf[col].fill_null(0).to_list()
         goals: list[MetricDimensionGoal] = []
 
-        dm = dict(  # Normalization or grouping is not possible at the moment.
+        dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
             id=action.id,
             name=str(action.name),
             dimensions=dims,
@@ -516,7 +517,8 @@ class DimensionalMetric:
             unit=df.get_unit(col),
             forecast_from = forecast_from,
             stackable=True,  # Stackability checked already.
-            goals=goals
+            goals=goals,
+            normalized_by=None,
         )
         return dm
 
@@ -547,7 +549,7 @@ class DimensionalFlow:
     links: list[FlowLinks]
 
     @classmethod
-    def from_action_node(cls, node: ActionNode):
+    def from_action_node(cls, node: ActionNode) -> None | DimensionalFlow:  # noqa: C901, PLR0915
         if not isinstance(node, ShiftAction):
             return None
 
@@ -559,7 +561,7 @@ class DimensionalFlow:
             .drop([YEAR_COLUMN, VALUE_COLUMN]).unique()
         )
 
-        source_nodes: dict[str, Node] = {id: node.context.get_node(id) for id in source_rows[NODE_COLUMN].unique()}
+        source_nodes: dict[str, Node] = {node_id: node.context.get_node(node_id) for node_id in source_rows[NODE_COLUMN].unique()}
 
         # By node id
         source_dfs: dict[str, ppl.PathsDataFrame] = {}
@@ -577,7 +579,7 @@ class DimensionalFlow:
 
         flow_nodes: dict[str, FlowNode] = {}
 
-        def get_flow_node(row: dict, is_source: bool):
+        def get_flow_node(row: dict, is_source: bool) -> FlowNode:
             path_parts = []
             label_parts = []
 
@@ -639,7 +641,7 @@ class DimensionalFlow:
         links[first_forecast_year - 1] = FlowLinks(
             year=year,
             is_forecast=False,
-            absolute_source_values=[source_values[src_id][year] for src_id in source_list]
+            absolute_source_values=[source_values[src_id][year] for src_id in source_list],
         )
 
         target_rows = df.filter(pl.col(FLOW_ROLE_COLUMN) == FLOW_ROLE_TARGET)
@@ -662,6 +664,6 @@ class DimensionalFlow:
             id=node.id,
             nodes=list(flow_nodes.values()),
             unit=node.unit,
-            links=sorted(list(links.values()), key=lambda x: x.year),
-            sources=source_list
+            links=sorted(links.values(), key=lambda x: x.year),
+            sources=source_list,
         )

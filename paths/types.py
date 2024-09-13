@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import typing
 from typing import TYPE_CHECKING, Self
 
 from django.db import models

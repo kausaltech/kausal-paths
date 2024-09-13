@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from frameworks.models import FrameworkConfig
     from nodes.node import Node
+    from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage
     from users.models import User
 
@@ -383,11 +384,10 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_default_pages(self) -> Page:
-        from pages.config import OutcomePage as OutcomePageConfig
         from pages.models import ActionListPage, OutcomePage
 
         root = cast(Page, Page.get_first_root_node())
-        home_pages: models.QuerySet[Page] = root.get_children()  # pyright: ignore
+        home_pages = root.get_children()
 
         instance = self.get_instance()
         outcome_nodes = {node.identifier: node for node in self.get_outcome_nodes()}
@@ -414,21 +414,21 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
                     title=self.get_name(),
                     slug=self.identifier,
                     url_path='',
-                    outcome_node=outcome_nodes[home_page_conf.outcome_node]
+                    outcome_node=outcome_nodes[home_page_conf.outcome_node],
                 ))
 
             action_list_pages: models.QuerySet[ActionListPage] = home_page.get_children().type(ActionListPage)  # type: ignore
             if not action_list_pages.exists():
                 home_page.add_child(instance=ActionListPage(
-                    title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True
+                    title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True,
                 ))
 
             for page_config in instance.pages:
-                id = page_config.id
-                if id == 'home':
+                slug = page_config.id
+                if slug == 'home':
                     continue
 
-                page = home_page.get_children().filter(slug=id).first()
+                page = cast(OutcomePage, home_page.get_children().filter(slug=slug).first())
                 if page is not None:
                     continue
 
@@ -436,7 +436,7 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
                 home_page.add_child(instance=OutcomePage(
                     locale=locale,
                     title=str(page_config.name),
-                    slug=id,
+                    slug=slug,
                     url_path=page_config.path,
                     outcome_node=outcome_nodes[page_config.outcome_node],
                     show_in_menus=page_config.show_in_menus,
@@ -513,7 +513,7 @@ class InstanceHostnameManager(models.Manager):
 
 class InstanceHostname(models.Model):
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='hostnames'
+        InstanceConfig, on_delete=models.CASCADE, related_name='hostnames',
     )
     hostname = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100, blank=True, default='')
@@ -574,7 +574,7 @@ class DataSource(UserModifiableModel):
 
     instance = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True,
-        verbose_name=_('instance')
+        verbose_name=_('instance'),
     )
     uuid = UUIDIdentifierField(null=False, blank=False)
     name = models.CharField(max_length=200, null=False, blank=False, verbose_name=_('name'))
@@ -582,7 +582,7 @@ class DataSource(UserModifiableModel):
 
     authority = models.CharField(
         max_length=200, verbose_name=_('authority'), help_text=_('The organization responsible for the data source'),
-        null=True, blank=True
+        null=True, blank=True,
     )
     description = models.TextField(null=True, blank=True, verbose_name=_('description'))
     url = models.URLField(verbose_name=_('URL'), null=True, blank=True)
@@ -625,7 +625,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
     identifier = IdentifierField(max_length=200)
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name=_('Order')
+        null=True, blank=True, verbose_name=_('Order'),
     )
     is_visible = models.BooleanField(default=True)
     goal = RichTextField(
@@ -636,7 +636,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
         null=True, blank=True, verbose_name=_('Short description'), editor='limited',
     ) # pyright: ignore
     description = RichTextField(
-        null=True, blank=True, verbose_name=_('Description')
+        null=True, blank=True, verbose_name=_('Description'),
     ) # -> StreamField
     body = StreamField([
         ('card_list', CardListBlock()),

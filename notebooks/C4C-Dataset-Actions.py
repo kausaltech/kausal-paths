@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+import os
+import sys
+
+import dvc_pandas
 import pandas as pd
 import polars as pl
-import sys
-import os
-import dvc_pandas
-
 from dotenv import load_dotenv
+from dvc_pandas import DatasetMeta
+
 load_dotenv()
 
 incsvpath = sys.argv[1]
@@ -118,9 +122,6 @@ if outdvcpath.upper() not in ['N', 'NONE']:
 
     valuecols = list(set(dfmain.columns) - set(indexcols))
     pdframe = pd.DataFrame(dfmain.select(valuecols), index = pdindex, columns = valuecols)
-
-    meta = DatasetMeta(identifier = outdvcpath)
-    ds = Dataset(pdframe, meta = meta)
 
     pl_df = pl.from_pandas(pdframe.reset_index())
     meta = DatasetMeta(identifier=outdvcpath, index_columns=indexcols)

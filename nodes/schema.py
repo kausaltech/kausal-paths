@@ -417,7 +417,7 @@ class NodeInterface(graphene.Interface):
                 if isinstance(node, ActionNode):
                     return False
             return True
-        return root.get_upstream_nodes(filter=filter_nodes)
+        return root.get_upstream_nodes(filter_func=filter_nodes)
 
     @staticmethod
     def resolve_metric(root: Node, info: GQLInstanceInfo, goal_id: str | None = None):
@@ -611,7 +611,7 @@ class NodeType(graphene.ObjectType):
                 if n.decision_level != decision_level:
                     return False
             return True
-        return root.get_upstream_nodes(filter=filter_action)
+        return root.get_upstream_nodes(filter_func=filter_action)
 
 
 class ActionNodeType(graphene.ObjectType):

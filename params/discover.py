@@ -1,7 +1,9 @@
-import inspect
+from __future__ import annotations
+
 import importlib
-import os
+import inspect
 import pkgutil
+from pathlib import Path
 
 from . import param as param_base
 
@@ -10,8 +12,8 @@ def discover_parameter_types():
     """Discover all the supported parameter classes by iterating through package modules."""
 
     this_pkg = __package__
-    this_path = os.path.dirname(__file__)
-    pkgs = pkgutil.iter_modules([this_path], prefix='%s.' % this_pkg)
+    this_path = Path(__file__).parent
+    pkgs = pkgutil.iter_modules([str(this_path)], prefix='%s.' % this_pkg)
 
     all_params = {}
 
@@ -32,10 +34,11 @@ def discover_parameter_types():
                 continue
             if not issubclass(attr, param_base.Parameter):
                 continue
-            if not hasattr(attr, 'id'):
+            param_id: str | None = getattr(attr, 'id', None)
+            if param_id is None:
                 continue
-            if attr.id in all_params:
-                raise Exception("Module %s has duplicated parameter id: %s" % (p.name, attr.id))
-            all_params[attr.id] = attr
+            if param_id in all_params:
+                raise Exception("Module %s has duplicated parameter id: %s" % (p.name, param_id))
+            all_params[param_id] = attr
 
     return all_params

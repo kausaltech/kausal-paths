@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import re
 import hashlib
+import re
 import typing
-from typing import Any, List, OrderedDict, Type, overload
+from collections import OrderedDict
+from typing import overload
+
 import polars as pl
+from pydantic import BaseModel, Field, PrivateAttr, validator
 
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator, model_validator
-
-from common.i18n import I18nBaseModel, I18nString, I18nStringInstance, TranslatedString, get_default_language
-from common.types import Identifier
+from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString
+from common.types import Identifier  # noqa: TCH001
 
 if typing.TYPE_CHECKING:
     import pandas as pd
@@ -38,11 +39,11 @@ class DimensionCategory(I18nBaseModel):
     color: str | None = None
     group: str | None = None
     order: int | None = None
-    aliases: List[str] = Field(default_factory=list)
+    aliases: list[str] = Field(default_factory=list)
     _group: DimensionCategoryGroup | None = PrivateAttr(default=None)
 
     def all_labels(self) -> set[str]:
-        labels = set([str(self.id)])
+        labels = {str(self.id)}
         if isinstance(self.label, TranslatedString):
             labels.update(self.label.all())
         elif isinstance(self.label, str):
@@ -56,8 +57,8 @@ class Dimension(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
     help_text: I18nStringInstance | None = None
-    groups: List[DimensionCategoryGroup] = Field(default_factory=list)
-    categories: List[DimensionCategory] = Field(default_factory=list)
+    groups: list[DimensionCategoryGroup] = Field(default_factory=list)
+    categories: list[DimensionCategory] = Field(default_factory=list)
     is_internal: bool = False
     _hash: bytes | None = PrivateAttr(default=None)
     _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
@@ -115,7 +116,7 @@ class Dimension(I18nBaseModel):
                 all_labels[label] = cat.id
         return all_labels
 
-    def series_to_ids(self, s: 'pd.Series') -> 'pd.Series':
+    def series_to_ids(self, s: pd.Series) -> pd.Series:
         if s.hasnans:
             raise Exception("Series contains NaNs")
         cat_map = self.labels_to_ids()
@@ -146,9 +147,9 @@ class Dimension(I18nBaseModel):
             raise Exception("Series contains NaNs")
         s = s.cast(str).str.strip_chars()
         cat_map = self.labels_to_ids()
-        label = cat_map.keys()
-        id = cat_map.values()
-        map_df = pl.DataFrame(dict(label=label, id=id))
+        labels = list(cat_map.keys())
+        ids = list(cat_map.values())
+        map_df = pl.DataFrame(dict(label=labels, id=ids))
         df = pl.DataFrame(dict(cat=s))
         df = df.join(map_df, left_on='cat', right_on='label', how='left')
         if df['id'].null_count():
@@ -162,7 +163,7 @@ class Dimension(I18nBaseModel):
     def calculate_hash(self) -> bytes:
         if self._hash is not None:
             return self._hash
-        h = hashlib.md5()
+        h = hashlib.md5(usedforsecurity=False)
         h.update(self.json(exclude={
             'label': True,
             'categories': {'__all__': {'label'}},

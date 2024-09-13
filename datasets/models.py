@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from kausal_common.models.types import RevMany
 
     from nodes.dimensions import Dimension as NodeDimension
+    from users.models import User
 
 
 class DatasetQuerySet(MultilingualQuerySet['Dataset']):
@@ -154,7 +155,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
                 dim = old_dims.get(dim_id)
                 if dim is None:
                     dim = DatasetDimension(
-                        dimension=all_dims[dim_id], dataset=self, order=idx
+                        dimension=all_dims[dim_id], dataset=self, order=idx,
                     )
                     dim.save()
                     dim.set_categories(instance.context.dimensions[dim_id].get_cat_ids_ordered())
@@ -188,7 +189,7 @@ class Dataset(ClusterableModel, UserModifiableModel):
     def store_to_dvc(
         self,
         dvc_path: str | None = None,
-        repo_url: str | None = None
+        repo_url: str | None = None,
     ):
         """Store the dataset to DVC."""
         ctx = self.instance.get_instance().context
@@ -280,7 +281,7 @@ class DatasetMetric(OrderedModel):
         unique_together = (('dataset', 'identifier'),)
         ordering = ('order',)
 
-    def filter_siblings(self, qs: models.QuerySet['DatasetMetric']):
+    def filter_siblings(self, qs: models.QuerySet[DatasetMetric]):
         return qs.filter(dataset=self.dataset)
 
     def __str__(self):
@@ -324,12 +325,12 @@ class DatasetSourceReference(CellMetadata):
 
 class DatasetComment(CellMetadata):
     class CommentType(models.TextChoices):
-        REVIEW = 'review', _('Review comment'),
-        STICKY = 'sticky', _('Sticky comment'),
+        REVIEW = 'review', _('Review comment')
+        STICKY = 'sticky', _('Sticky comment')
 
     class State(models.TextChoices):
-        RESOLVED = 'resolved', _('Resolved'),
-        UNRESOLVED = 'unresolved', _('Unresolved'),
+        RESOLVED = 'resolved', _('Resolved')
+        UNRESOLVED = 'unresolved', _('Unresolved')
 
     uuid = UUIDIdentifierField(null=True, blank=True)
     text = models.TextField()
@@ -337,19 +338,19 @@ class DatasetComment(CellMetadata):
         null=True,
         blank=True,
         max_length=20,
-        choices=CommentType.choices
+        choices=CommentType.choices,
     )
     state = models.CharField(
         null=True,
         blank=True,
         max_length=20,
-        choices=State.choices
+        choices=State.choices,
     )
     resolved_at = models.DateTimeField(
-        verbose_name=_('resolved at'), editable=False, null=True
+        verbose_name=_('resolved at'), editable=False, null=True,
     )
-    resolved_by = models.ForeignKey(
-        'users.User', null=True, on_delete=models.SET_NULL, related_name='resolved_comments'
+    resolved_by: FK[User | None] = models.ForeignKey(
+        'users.User', null=True, on_delete=models.SET_NULL, related_name='resolved_comments',
     )
 
     def __str__(self):
@@ -432,7 +433,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
             cat_obj.delete()
 
     @classmethod
-    def sync_dimension(cls, ic: InstanceConfig, dim: NodeDimension, update_existing=False, delete_stale=False):
+    def sync_dimension(cls, ic: InstanceConfig, dim: NodeDimension, update_existing=False, delete_stale=False) -> Dimension:
         dim_obj = ic.dimensions.filter(identifier=dim.id).first()
         if dim_obj is None:
             dim_obj = cls(instance=ic, identifier=dim.id)
@@ -449,7 +450,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
         return dim_obj
 
     @classmethod
-    def sync_dimensions(cls, ic: InstanceConfig, update_existing=False, delete_stale=False):
+    def sync_dimensions(cls, ic: InstanceConfig, update_existing=False, delete_stale=False) -> None:
         instance = ic.get_instance()
         # dims = {dim.identifier: dim for dim in self.dimensions.all()}
         found_dims = set()
@@ -468,7 +469,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
 
 class DatasetDimensionManager(models.Manager):
     def get_by_natural_key(
-        self, dataset_instance_identifier, dataset_identifier, dimension_instance_identifier, dimension_identifier
+        self, dataset_instance_identifier, dataset_identifier, dimension_instance_identifier, dimension_identifier,
     ):
         assert dataset_instance_identifier == dimension_instance_identifier
         dataset = Dataset.objects.get_by_natural_key(dataset_instance_identifier, dataset_identifier)
@@ -493,7 +494,7 @@ class DatasetDimension(OrderedModel):
     def __str__(self):
         return '%s in %s' % (self.dimension, self.dataset)
 
-    def filter_siblings(self, qs: models.QuerySet['DatasetDimension']):
+    def filter_siblings(self, qs: models.QuerySet[DatasetDimension]):
         return qs.filter(dataset=self.dataset)
 
     def set_categories(self, cats: list[str]):
@@ -579,10 +580,11 @@ class DatasetDimensionSelectedCategory(OrderedModel):
 
     def save(self, *args, **kwargs):
         if self.category not in self.dataset_dimension.dimension.categories.all():
-            raise ValueError(f'{self.category} is not part of {self.dataset_dimension.dimension}')
+            msg = f'{self.category} is not part of {self.dataset_dimension.dimension}'
+            raise ValueError(msg)
         super().save(*args, **kwargs)
 
-    def filter_siblings(self, qs: models.QuerySet['DatasetDimensionSelectedCategory']):
+    def filter_siblings(self, qs: models.QuerySet[DatasetDimensionSelectedCategory]):
         return qs.filter(dataset_dimension=self.dataset_dimension)
 
     class Meta:

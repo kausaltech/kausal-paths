@@ -1,22 +1,24 @@
 from __future__ import annotations
 
-from typing import Type
-import graphene
 import re
-from django.utils.module_loading import import_string
+from typing import TYPE_CHECKING
+
+import graphene
 from django.contrib.contenttypes.models import ContentType
-from grapple.settings import grapple_settings
+from django.utils.module_loading import import_string
 
-from grapple.utils import resolve_queryset
-from grapple.types.structures import QuerySetList
 from grapple.registry import registry
+from grapple.settings import grapple_settings
+from grapple.types.structures import QuerySetList
+from grapple.utils import resolve_queryset
 
-from paths.graphql_helpers import GQLInstanceInfo
+if TYPE_CHECKING:
+    from paths.graphql_helpers import GQLInstanceInfo
 
-from .models import PathsPage
+    #from .models import PathsPage
 
 
-def get_page_interface() -> Type[PageInterface]:
+def get_page_interface() -> type[PageInterface]:
     return import_string(grapple_settings.PAGE_INTERFACE)
 
 
@@ -110,7 +112,7 @@ class PageInterface(graphene.Interface):
         return getattr(self, "search_score", None)
 
     @staticmethod
-    def resolve_parent(root: PathsPage, info: GQLInstanceInfo, **kwargs):
+    def resolve_parent(root, info: GQLInstanceInfo, **kwargs):
         if root.depth <= 2:
             return None
         parent = root.get_parent()
@@ -119,13 +121,13 @@ class PageInterface(graphene.Interface):
         return parent.specific
 
     @staticmethod
-    def resolve_ancestors(root: PathsPage, info: GQLInstanceInfo, **kwargs):
+    def resolve_ancestors(root, info: GQLInstanceInfo, **kwargs):
         return resolve_queryset(
             root.get_ancestors().live().public().specific().filter(depth__gte=2), info, **kwargs
         )
 
     @staticmethod
-    def resolve_siblings(root: PathsPage, info: GQLInstanceInfo, **kwargs):
+    def resolve_siblings(root, info: GQLInstanceInfo, **kwargs):
         return resolve_queryset(
             root.get_siblings().exclude(pk=root.pk).filter(depth__gte=3).live().public().specific(),
             info,
@@ -133,7 +135,7 @@ class PageInterface(graphene.Interface):
         )
 
     @staticmethod
-    def resolve_url_path(root: PathsPage, info: GQLInstanceInfo, **kwargs):
+    def resolve_url_path(root, info: GQLInstanceInfo, **kwargs):
         url_path = root.url_path
         # FIXME: This is a dirty way to work around the issue of the slug having the form <instance>-1 or so for translated
         # pages.

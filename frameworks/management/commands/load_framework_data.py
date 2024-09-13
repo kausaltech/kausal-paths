@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 import json
+from pathlib import Path
+
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from frameworks.models import Framework, MeasureTemplateDefaultDataPoint, Section, MeasureTemplate, MeasurePriority
+
+from frameworks.models import Framework, MeasurePriority, MeasureTemplate, MeasureTemplateDefaultDataPoint, Section
 from nodes.units import unit_registry
 
 
@@ -17,7 +22,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         action = options['action']
-        file_path = options['file']
+        file_path = Path(options['file'])
         force = options['force']
 
         if action == 'import':
@@ -29,8 +34,8 @@ class Command(BaseCommand):
                 return
             self.export_data(file_path, framework_identifier)
 
-    def import_data(self, file_path: str, force: bool):
-        with open(file_path, 'r') as file:
+    def import_data(self, file_path: Path, force: bool):
+        with file_path.open('r') as file:
             data = json.load(file)
 
         framework_data = data['framework']
@@ -43,7 +48,9 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"Deleting existing framework: {existing_framework.name}"))
                 existing_framework.delete()
             else:
-                self.stderr.write(self.style.ERROR(f"Framework with identifier '{identifier}' already exists. Use --force to override."))
+                self.stderr.write(
+                    self.style.ERROR(f"Framework with identifier '{identifier}' already exists. Use --force to override."),
+                )
                 return
 
         fw = Framework.objects.create(
@@ -101,13 +108,12 @@ class Command(BaseCommand):
                 default_value_source=mt_data.get('default_value_source', ''),
             )
             ddps = mt_data.get('default_data_points', [])
-            for ddp in ddps:
-                dp_list.append(MeasureTemplateDefaultDataPoint(template=mt, year=ddp['year'], value=ddp['value']))
+            dp_list += [MeasureTemplateDefaultDataPoint(template=mt, year=ddp['year'], value=ddp['value']) for ddp in ddps]
 
         if dp_list:
             MeasureTemplateDefaultDataPoint.objects.bulk_create(dp_list)
 
-    def export_data(self, file_path: str, framework_identifier: str):
+    def export_data(self, file_path: Path, framework_identifier: str):
         try:
             framework = Framework.objects.get(identifier=framework_identifier)
         except Framework.DoesNotExist:
@@ -119,7 +125,7 @@ class Command(BaseCommand):
             'sections': framework.export_sections(),
         }
 
-        with open(file_path, 'w') as file:
+        with file_path.open('w') as file:
             json.dump(data, file, indent=2)
 
         self.stdout.write(self.style.SUCCESS(f"Successfully exported framework data to {file_path}"))
