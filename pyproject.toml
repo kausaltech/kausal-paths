@@ -37,7 +37,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "kausal_common/typings/*" = ["D"]
 "kausal_common/typings/django/*" = ["ALL"]
-
+"**/migrations/*" = ["I002", "E501"]
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = true
@@ -50,7 +50,7 @@ section-order = ["future", "standard-library", "django", "third-party", "kausal-
 # sections = ['FUTURE', 'STDLIB', 'DJANGO', 'THIRDPARTY', 'FIRSTPARTY', 'LOCALFOLDER']
 django = [
     'django', 'rest_framework', 'graphene', 'graphql', 'graphene_django', 'modelcluster', 'modeltrans', 'wagtail', 'reversion',
-    'django_stubs_ext',
+    'django_stubs_ext', 'pydantic'
 ]
 kausal-common = [
     'kausal_common'
@@ -94,7 +94,8 @@ module = [
     "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
     "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environ.*",
     "wagtail_color_panel.*", "polars.polars.*", "gunicorn.*", "uwsgi.*", "uwsgidecorators.*", "psutil.*",
-    "gunicorn.*", "environ.*", "dvc.*", "appdirs.*",
+    "gunicorn.*", "environ.*", "dvc.*", "appdirs.*", "wagtail_localize.*", "laces.*", "taggit.*", "permissionedforms.*",
+    "diffsync.*",
 ]
 ignore_missing_imports = true
 

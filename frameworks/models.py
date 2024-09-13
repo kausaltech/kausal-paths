@@ -1,34 +1,42 @@
 from __future__ import annotations
 
-import os
-from typing import TYPE_CHECKING, Any, ClassVar, Self
 import uuid
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import QuerySet
 from django.db import models, transaction
+from django.db.models import Case, OuterRef
+from django.db.models.expressions import Subquery, When
+from django.db.models.functions import Length, Substr
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from treebeard.mp_tree import MP_Node
+from django_stubs_ext.db.models import TypedModelMeta
 
-from kausal_common.models.ordered import OrderedModel
-from kausal_common.models.uuid import UUIDIdentifiedModel
+from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
+
 from kausal_common.models.modification_tracking import UserModifiableModel
+from kausal_common.models.ordered import OrderedModel
+from kausal_common.models.types import FK, M2M, OneToOne, copy_signature
+from kausal_common.models.uuid import UUIDIdentifiedModel
 from kausal_common.users import user_or_none
-from nodes.instance import Instance, InstanceLoader
-from nodes.models import InstanceConfig
-from paths.types import UserOrAnon
+
 from paths.utils import IdentifierField, UnitField
 
+from nodes.instance import Instance, InstanceLoader
+from nodes.models import InstanceConfig
+
 if TYPE_CHECKING:
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
-    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
+    from kausal_common.models.types import RevMany
+
+    from paths.types import UserOrAnon
 
 
 class Framework(UUIDIdentifiedModel):
     """
-    Represents a framework for Paths models
+    Represents a framework for Paths models.
 
     A framework is a combination of a common computation model,
     a set of measures (with their default, fallback values),
@@ -39,9 +47,11 @@ class Framework(UUIDIdentifiedModel):
     and description. It serves as the top-level container for related components
     such as dimensions, sections, and measure templates.
 
-    Attributes:
+    Attributes
+    ----------
         name (CharField): The name of the framework, limited to 200 characters.
         description (TextField): An optional description of the framework.
+
     """
 
     name = models.CharField(max_length=200, verbose_name=_("Name"))
@@ -50,20 +60,32 @@ class Framework(UUIDIdentifiedModel):
     public_base_fqdn = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    root_section = models.OneToOneField("Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True)  # pyright: ignore
+    root_section: OneToOne[Section | None] = models.OneToOneField(
+        "frameworks.Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True,
+    )
     result_excel_url = models.URLField(max_length=250, null=True, blank=True)
     result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
+    admin_group: OneToOne[Group | None] = models.OneToOneField(
+        Group, on_delete=models.PROTECT, editable=False, related_name='admin_for_framework',
+        null=True,
+    )
+    admin_group_id: int | None
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
-    objects: models.Manager[Framework]
+    objects: ClassVar[models.Manager[Framework]]
 
-    dimensions: RelatedManager[FrameworkDimension]
-    sections: RelatedManager[Section]
-    configs: RelatedManager[FrameworkConfig]
+    dimensions: RevMany[FrameworkDimension]
+    sections: RevMany[Section]
+    configs: RevMany[FrameworkConfig]
 
     def __str__(self):
         return self.name
+
+    def __rich_repr__(self):
+        yield self.name
+        yield 'identifier', self.identifier
+        yield 'uuid', self.uuid
 
     def to_dict(self):
         return {
@@ -90,6 +112,24 @@ class Framework(UUIDIdentifiedModel):
             out.append(sd)
         return out
 
+    @transaction.atomic
+    @copy_signature(models.Model.delete)
+    def delete(self, **kwargs):
+        if self.admin_group_id is not None:
+            g_id = self.admin_group
+            has_others = type(self).objects.filter(admin_group=g_id).exclude(pk=self.pk).exists()
+            if not has_others:
+                self.admin_group = None
+                super().save(update_fields=['admin_group'])
+                Group.objects.get(id=g_id).delete()
+        return super().delete(**kwargs)
+
+    @copy_signature(models.Model.save)
+    def save(self, *args, **kwargs):
+        #from .permissions import framework_admin_role
+        super().save(*args, **kwargs)
+        #framework_admin_role.create_or_update_instance_group(self)
+
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
     """
@@ -104,9 +144,9 @@ class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
     name = models.CharField(max_length=200)
     identifier = IdentifierField()
 
-    categories: RelatedManager[FrameworkDimensionCategory]
+    categories: RevMany[FrameworkDimensionCategory]
 
-    class Meta:
+    class Meta:  # pyright: ignore
         ordering = ["framework", "order"]
 
     def __str__(self):
@@ -125,16 +165,18 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
     of the framework. For example, a 'Region' dimension might have categories such as
     'Northern Europe', 'Southern Europe', etc.
 
-    Attributes:
+    Attributes
+    ----------
         dimension (ForeignKey): A reference to the FrameworkDimension this category belongs to.
+
     """
 
     dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name="categories")
     name = models.CharField(max_length=200)
 
-    objects: models.Manager[FrameworkDimensionCategory]
+    objects: models.Manager[FrameworkDimensionCategory]  # pyright: ignore
 
-    class Meta:
+    class Meta:  # pyright: ignore
         ordering = ["dimension", "order"]
 
     def __str__(self):
@@ -143,10 +185,31 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(dimension=self.dimension)
 
-# Monkeypatching MP_Node to make it work with type hints
-MP_Node.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
 
-class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
+class SectionQuerySet(MP_NodeQuerySet['Section']):
+    def _parents(self) -> SectionQuerySet:
+        model = cast(type[Section], self.model)
+        qs = cast(SectionQuerySet, model._default_manager.get_queryset())
+        parents = qs.filter(
+            path=Substr(OuterRef('path'), 1, Length(OuterRef('path')) - model.steplen),
+        )
+        return parents
+
+    def annotate_parent_field(self, annotation_name: str, parent_field: str, min_depth: int = 1) -> Self:
+        parents = self._parents()
+        sq = Case(
+            When(depth__gt=min_depth, then=Subquery(parents.values(parent_field)[:1])),
+            default=None,
+        )
+        return self.annotate(**{annotation_name: sq})
+
+
+class SectionManager(MP_NodeManager['Section']):
+    def get_queryset(self) -> SectionQuerySet:
+        return SectionQuerySet(Section).order_by('path')
+
+
+class Section(MP_Node[SectionQuerySet], UUIDIdentifiedModel):
     """
     Represents a section within a framework.
 
@@ -154,29 +217,36 @@ class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
     Each section can contain subsections and measure templates.
     """
 
-    framework = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="sections")
+    framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="sections")
     identifier = IdentifierField(null=True, blank=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     # validation_rules?
     available_years = ArrayField(models.IntegerField(), null=True, blank=True)
 
-    measure_templates: RelatedManager[MeasureTemplate]
+    measure_templates: RevMany[MeasureTemplate]
 
     public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years"]
 
-    class Meta:
+    objects: ClassVar[SectionManager] = SectionManager()  # pyright: ignore
+    _default_manager: ClassVar[SectionManager]
+
+    class Meta:  # pyright: ignore
         constraints = [
-            models.UniqueConstraint(name='section_identifier', fields=['framework', 'identifier'], nulls_distinct=True)
+            models.UniqueConstraint(name='section_identifier', fields=['framework', 'identifier'], nulls_distinct=True),
         ]
 
     def __str__(self):
         return self.name
 
+    def __rich_repr__(self):
+        yield self.name
+        yield "framework", self.framework.identifier
+        yield "uuid", self.uuid
+
     def print_tree(self, indent: int = 0):
-        """
-        Prints the subsections and measures in each section as an indented hierarchical tree.
-        """
+        """Print the subsections and measures in each section as an indented hierarchical tree."""
+
         # Print the current section
         print("  " * indent + f"Section: {self.name}")
 
@@ -196,7 +266,7 @@ class Section(MP_Node['Section', QuerySet['Section']], UUIDIdentifiedModel):
             "name": self.name,
             "description": self.description,
             "available_years": self.available_years,
-            "parent": str(parent.uuid) if parent else None
+            "parent": str(parent.uuid) if parent else None,
         }
 
 
@@ -214,11 +284,13 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
     which is used to hold the metadata for the organization-specific
     measure instances.
 
-    Attributes:
+    Attributes
+    ----------
         section (ForeignKey): A reference to the Section this measure template belongs to.
+
     """
 
-    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="measure_templates")
+    section: FK[Section] = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="measure_templates")
     name = models.CharField(max_length=200)
     unit = UnitField()
     priority = models.CharField(max_length=10, choices=MeasurePriority.choices, default=MeasurePriority.MEDIUM)
@@ -229,26 +301,32 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
     default_value_source = models.TextField(blank=True)
 
     dimensions: models.ManyToManyField[FrameworkDimension, MeasureTemplateDimension] = models.ManyToManyField(
-        FrameworkDimension, through="MeasureTemplateDimension", blank=True, related_name="measure_templates"
+        FrameworkDimension, through="MeasureTemplateDimension", blank=True, related_name="measure_templates",
     )
 
-    default_data_points: RelatedManager[MeasureTemplateDefaultDataPoint]
-    measures: RelatedManager[Measure]
+    default_data_points: RevMany[MeasureTemplateDefaultDataPoint]
+    measures: RevMany[Measure]
 
-    objects: models.Manager[MeasureTemplate]
+    objects: ClassVar[models.Manager[MeasureTemplate]]
     public_fields: ClassVar = [
         "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
     ]
 
-    class Meta:
+    class Meta:  # pyright: ignore
         ordering = ["section", "order"]
 
     @property
-    def framework(self):
+    def framework(self) -> Framework:
         return self.section.framework
 
     def __str__(self):
         return f"{self.section.name} - {self.name}"
+
+    def __rich_repr__(self):
+        yield self.name
+        yield "unit", self.unit
+        yield "framework", self.framework.identifier
+        yield "section", self.section.name
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(section=self.section)
@@ -276,7 +354,7 @@ class MeasureTemplateDimension(OrderedModel):
     template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="dimensions_through")
     dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name="measure_templates_through")
 
-    class Meta:
+    class Meta:  # pyright: ignore
         ordering = ["template", "order"]
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
@@ -292,8 +370,10 @@ class MeasureTemplateDefaultDataPoint(models.Model):
     is not available for a specific instance.
     """
 
-    template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="default_data_points")
-    categories = models.ManyToManyField(FrameworkDimensionCategory)
+    template: FK[MeasureTemplate] = models.ForeignKey(
+        MeasureTemplate, on_delete=models.CASCADE, related_name='default_data_points',
+    )
+    categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     year = models.IntegerField()
     value = models.FloatField()
 
@@ -304,6 +384,12 @@ class MeasureTemplateDefaultDataPoint(models.Model):
 
     def __str__(self):
         return f"{self.template.name} - {self.year}"
+
+    def __rich_repr__(self):
+        yield "template", self.template.name
+        yield "year", self.year
+        yield "value", self.value
+        yield "unit", self.template.unit
 
 
 def create_random_token():
@@ -318,31 +404,42 @@ class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
     of framework settings for each organization or instance. It includes fields
     for specifying the organization name, baseline year, and associated categories.
     """
-    framework = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="configs")
-    instance_config = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name="framework_configs")
+
+    framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="configs")
+    instance_config: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig, on_delete=models.CASCADE, related_name='framework_configs',
+    )
     organization_name = models.CharField(max_length=200, blank=True)
     baseline_year = models.IntegerField()
-    categories = models.ManyToManyField(FrameworkDimensionCategory)
+    categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     token = models.CharField(max_length=50, default=create_random_token)
 
-    measures: RelatedManager[Measure]
+    measures: RevMany[Measure]
 
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
 
-    class Meta:
+    class Meta:  # pyright: ignore
         constraints = [
-            models.UniqueConstraint(fields=['framework', 'instance_config'], name='unique_framework_instance')
+            models.UniqueConstraint(fields=['framework', 'instance_config'], name='unique_framework_instance'),
         ]
 
     @classmethod
     @transaction.atomic
-    def create_instance(cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None, user: UserOrAnon | None = None):
+    def create_instance(  # noqa: PLR0913
+        cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
+        user: UserOrAnon | None = None,
+    ) -> Self:
         ic = InstanceConfig.objects.create(
             name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
-            primary_language="en", other_languages=[]
+            primary_language="en", other_languages=[],
         )
         fc = cls.objects.create(
-            framework=framework, instance_config=ic, organization_name=org_name, baseline_year=baseline_year, uuid=uuid, created_by=user_or_none(user)  # type: ignore[misc]
+            framework=framework,
+            instance_config=ic,
+            organization_name=org_name,
+            baseline_year=baseline_year,
+            uuid=uuid,
+            created_by=user_or_none(user),  # type: ignore[misc]
         )
         ic.site_url = fc.get_view_url()
         if ic.site_url is not None:
@@ -352,7 +449,7 @@ class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
 
     def create_model_instance(self, ic: InstanceConfig) -> Instance:
         fw = self.framework
-        config_fn = os.path.join(settings.BASE_DIR, 'configs', '%s.yaml' % fw.identifier)
+        config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % fw.identifier)
         loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
         return loader.instance
 
@@ -381,26 +478,31 @@ class Measure(models.Model):
     organization-specific instances of measures. It can override the unit
     from the template and store internal notes.
     """
-    framework_config = models.ForeignKey(FrameworkConfig, on_delete=models.CASCADE, related_name="measures")
-    measure_template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="measures")
+
+    framework_config: FK[FrameworkConfig] = models.ForeignKey(FrameworkConfig, on_delete=models.CASCADE, related_name="measures")
+    measure_template: FK[MeasureTemplate] = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="measures")
     unit = UnitField(null=True, blank=True)
     internal_notes = models.TextField(blank=True)
 
-    data_points: RelatedManager[MeasureDataPoint]
+    data_points: RevMany[MeasureDataPoint]
     measure_template_id: int
 
     public_fields: ClassVar = [
-        'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes'
+        'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes',
     ]
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['framework_config', 'measure_template'], name='unique_instance_measure')
+            models.UniqueConstraint(fields=['framework_config', 'measure_template'], name='unique_instance_measure'),
         ]
 
     def __str__(self):
         return f"{self.framework_config.framework.name} - {self.measure_template.name}"
 
+    def __rich_repr__(self):
+        yield "framework", self.framework_config.framework.name
+        yield "instance", self.framework_config.organization_name
+        yield "template", self.measure_template.name
 
 class MeasureDataPoint(models.Model):
     """
@@ -410,17 +512,24 @@ class MeasureDataPoint(models.Model):
     It provides a way to record and track the data points over time for each
     organization-specific measure instance.
     """
-    measure = models.ForeignKey(Measure, on_delete=models.CASCADE, related_name="data_points")
+
+    measure: FK[Measure] = models.ForeignKey(Measure, on_delete=models.CASCADE, related_name="data_points")
     year = models.IntegerField()
-    value = models.FloatField()
+    value = models.FloatField(null=True)
+    default_value = models.FloatField(null=True)
 
     public_fields: ClassVar = ['id', 'year', 'value']
 
-    class Meta:
+    class Meta(TypedModelMeta):
         ordering = ["measure", "year"]
         constraints = [
-            models.UniqueConstraint(fields=['measure', 'year'], name='unique_measure_year_datapoints')
+            models.UniqueConstraint(fields=['measure', 'year'], name='unique_measure_year_datapoints'),
         ]
 
     def __str__(self):
         return f"{self.measure.measure_template.name} - {self.year}"
+
+    def __rich_repr__(self):
+        yield "year", self.year
+        yield "value", self.value
+        yield "measure", self.measure

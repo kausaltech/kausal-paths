@@ -64,3 +64,4 @@ opentelemetry-exporter-otlp-proto-http
 opentelemetry-instrumentation-threading
 #strawberry-graphql
 #strawberry-graphql-django
+diffsync
