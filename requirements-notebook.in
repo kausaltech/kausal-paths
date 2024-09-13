@@ -1,10 +1,12 @@
 -c requirements.txt
+-c requirements-dev.txt
 #-c requirements-dev.txt
 #-c requirements-lint.txt
 jupyterlab>4.0
 jupyterlab-lsp
-python-lsp-server
 seaborn[stats]
 plotly
-#pygwalker
-#pandas>2.0
+#python-lsp-server[all]
+jedi-language-server
+pyright
+ipympl
