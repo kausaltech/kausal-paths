@@ -791,7 +791,21 @@ nodes:
 
 # -------------------- Electricity --------------------
 
-- id: efficient_appliances_rate
+- id: efficient_appliances_rate  # FIXME Remove this node when the multiplication problem is fixed.
+  name: Lighting & appliances renovation rate, technical node
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: do_efficient_appliances
+    tags: [non_additive]
+    to_dimensions: []
+  - id: efficient_appliances_rate2
+    tags: [non_additive]
+
+- id: efficient_appliances_rate2
   name: Lighting & appliances renovation rate
   type: gpc.DatasetNode
   quantity: fraction
@@ -870,7 +884,7 @@ nodes:
     - id: energy_carrier
     - id: efficiency_programme
 
-- id: efficiency_programme_shares  # TODO This could be simplified because only two values are used.
+- id: efficiency_programme_shares3  # TODO This could be simplified because only two values are used.
   name: Efficiency programme shares
   type: gpc.DatasetNode
   quantity: fraction
@@ -880,6 +894,20 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     gpc_sector: Assumed share of type of efficiency programme for lever
+
+- id: efficiency_programme_shares
+  name: Efficiency programme shares, technical node
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  input_nodes:
+  - id: do_efficient_appliances  # FIXME Fix the multiplication problem and remove this technical node
+    tags: [non_additive]
+    to_dimensions: []
+  - id: efficiency_programme_shares3
+    tags: [non_additive]
 
 - id: non_efficiency_renovation_fraction
   name: Non-efficiency renovation fraction
@@ -1504,13 +1532,13 @@ actions:
   quantity: fraction
   unit: dimensionless
   group: buildings
-  historical_values: [[2020, 0], [2022, 0]]  # FIXME This is sensitive to year mismatch
+  historical_values: [[2018, 0.0], [2022, 0.0]]
   forecast_values: [[2023, 1], [2045, 1]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: efficient_appliances_rate
-    tags: [non_additive]
-    to_dimensions: []
-  - id: efficiency_programme_shares
-    tags: [non_additive]
-    to_dimensions: []
+  # output_nodes:
+  # - id: efficient_appliances_rate
+  #   tags: [non_additive]
+  #   to_dimensions: []
+  # - id: efficiency_programme_shares
+  #   tags: [non_additive]
+  #   to_dimensions: []
