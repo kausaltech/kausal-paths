@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d81b96b97da05bb02186e4ff247a658e0c0a3703
+  commit: cbae505f1cb94b2ae472becde1b13ce4c1af33aa
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -250,6 +250,8 @@ dimensions:
   - id: non_fossil
     label: Non-fossil
     aliases: [nonfossil, non-fossil]
+  - id: mixed
+    label: Mixed fossil and non-fossil
   - id: other
     label: Other (e.g. nuclear)
   - id: local_pv
@@ -731,8 +733,8 @@ nodes:
     from_dimensions:
     - id: fuel_type
       flatten: true
-    - id: scope
-      flatten: true
+    # - id: scope
+    #   flatten: true
     - id: building_energy_class
       flatten: true
     # - id: heating_type

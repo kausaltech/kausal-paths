@@ -101,44 +101,44 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
-  
-- id: heat_electricity_emissions
-  name: Heat electricity emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [building_energy_class, heating_type, scope, fuel_type, pollutant, energy_carrier]
-  output_dimensions: [building_energy_class, heating_type, scope, fuel_type, pollutant, energy_carrier]
-  input_nodes:
-  - id: building_heat_electricity_use
-    to_dimensions:
-    - id: energy_carrier
-    - id: building_energy_class
-    - id: heating_type
-    - id: fuel_type
-    - id: scope
-    - id: energy_carrier
-  - id: effective_electricity_emission_factor
-    to_dimensions:
-    - id: pollutant
-    - id: energy_carrier
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: pollutant
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    - id: heating_type
-      flatten: true
-    - id: fuel_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-      categories: [co2e]
+
+# - id: heat_electricity_emissions  # FIXME
+#   name: Heat electricity emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [building_energy_class, heating_type, scope, fuel_type, pollutant, energy_carrier]
+#   output_dimensions: [building_energy_class, heating_type, scope, fuel_type, pollutant, energy_carrier]
+#   input_nodes:
+#   - id: building_heat_electricity_use
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: building_energy_class
+#     - id: heating_type
+#     - id: fuel_type
+#     - id: scope
+#     - id: energy_carrier
+#   - id: effective_electricity_emission_factor
+#     to_dimensions:
+#     - id: pollutant
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: electricity_emissions
+#     from_dimensions:
+#     - id: pollutant
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: building_energy_class
+#       flatten: true
+#     - id: heating_type
+#       flatten: true
+#     - id: fuel_type
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+#       categories: [co2e]
 
 - id: new_electricity_production_capacity
   name: New electricity production capacity

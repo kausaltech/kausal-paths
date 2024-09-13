@@ -350,8 +350,8 @@ nodes:
       flatten: true
     - id: fuel_type
       flatten: true
-    - id: scope
-      flatten: true
+    # - id: scope
+    #   flatten: true
     to_dimensions: []
 
 - id: energy_use_intensity_change_new
@@ -390,17 +390,17 @@ nodes:
   - id: energy_use_intensity_new
   - id: energy_use_intensity_old
 
-- id: electric_heating_type_shares
-  name: Electric heating type shares
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [fuel_type, heating_type, energy_carrier, scope]
-  output_dimensions: [fuel_type, heating_type, energy_carrier, scope]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Share of heating electricity
+# - id: electric_heating_type_shares
+#   name: Electric heating type shares
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [fuel_type, heating_type, energy_carrier, scope]
+#   output_dimensions: [fuel_type, heating_type, energy_carrier, scope]
+#   input_datasets:
+#   - id: nzc/defaults
+#   params:
+#     sector: Share of heating electricity
 
 - id: building_heating_type_share_historical
   name: Building heating type share historical
@@ -433,18 +433,21 @@ nodes:
   quantity: fraction
   unit: '%'
   group: buildings
-  input_dimensions: [heating_type, scope]
-  output_dimensions: [heating_type, scope]
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
   input_nodes:
   - id: building_heating_type_share_historical
+    from_dimensions:
+    - id: scope
+      flatten: true
 
 - id: heating_fuel_share_historical
   name: Heating fuel share historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [energy_carrier, heating_type]
-  output_dimensions: [energy_carrier, heating_type]
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -455,8 +458,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [energy_carrier, heating_type]
-  output_dimensions: [energy_carrier, heating_type]
+  input_dimensions: [heating_type, fuel_type, energy_carrier]
+  output_dimensions: [heating_type, fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -467,8 +470,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [energy_carrier, heating_type]
-  output_dimensions: [energy_carrier, heating_type]
+  input_dimensions: [heating_type, fuel_type, energy_carrier]
+  output_dimensions: [heating_type, fuel_type, energy_carrier]
   input_nodes:
   - id: heating_fuel_share_historical
 
@@ -496,7 +499,7 @@ nodes:
   params:
     sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
 
-- id: heating_fossil_share
+- id: heating_waste_fossil_share
   name: Heating fossil shares
   description: This node applies to fossil shares of waste used in district heating. Many other fuel types and energy carriers are included but for technical purposes only.
   type: simple.AdditiveNode
@@ -512,25 +515,59 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [heating_type, energy_carrier, fuel_type, scope]
-  output_dimensions: [heating_type, energy_carrier, fuel_type, scope]
+  input_dimensions: [heating_type, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, energy_carrier, fuel_type]
   input_nodes:
   - id: building_heating_type_share
     tags: [non_additive]
     to_dimensions:
     - id: heating_type
-    - id: scope
-  - id: heating_fossil_share
-    tags: [non_additive]
-    to_dimensions:
-    - id: heating_type
-    - id: energy_carrier
-    - id: fuel_type
   - id: heating_fuel_share
     tags: [non_additive]
     to_dimensions:
     - id: heating_type
     - id: energy_carrier
+    - id: fuel_type
+
+- id: waste_energy_fraction
+  name: Waste energy fraction of total building energy
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, energy_carrier, fuel_type]
+  input_nodes:
+  - id: building_heating_shares
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [waste]
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+  - id: heating_waste_fossil_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: building_heating_shares2
+  name: building_heating_shares2
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, energy_carrier, fuel_type]
+  input_nodes:
+  - id: building_heating_shares
+    from_dimensions:
+    - id: fuel_type
+      categories: [mixed]
+      exclude: true
+  - id: waste_energy_fraction
 
 - id: building_heat_energy_use
   name: Building heat energy use
@@ -538,8 +575,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
-  output_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
   input_nodes:
   - id: building_stock
     to_dimensions:
@@ -547,11 +584,10 @@ nodes:
   - id: energy_use_intensity
     to_dimensions:
     - id: building_energy_class
-  - id: building_heating_shares
+  - id: building_heating_shares2
     to_dimensions:
     - id: heating_type
     - id: energy_carrier
-    - id: scope
     - id: fuel_type
 
 - id: efficiency_of_heat_pumps
@@ -566,64 +602,65 @@ nodes:
   params:
     sector: Efficiency of heat pumps
 
-- id: building_heat_electricity_use
-  name: Building heat electricity use
-  description: Electricity used to produce heat with heat pumps and direct electricity.
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
-  output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
-  input_nodes:
-  - id: building_heat_energy_use
-    tags: [non_additive]
-    from_dimensions:
-    - id: fuel_type
-      flatten: true
-    - id: energy_carrier
-      categories: [electricity]
-    to_dimensions:
-    - id: building_energy_class
-    - id: heating_type
-    - id: energy_carrier
-    - id: scope
-  - id: electric_heating_type_shares
-    to_dimensions:
-    - id: heating_type
-    - id: energy_carrier
-    - id: scope
-    - id: fuel_type
-  - id: efficiency_of_heat_pumps
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
-  output_nodes:
-  - id: total_electricity_consumption
-    from_dimensions:
-    - id: fuel_type
-      flatten: true
-    - id: heating_type
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
+# - id: building_heat_electricity_use  # FIXME Not needed because electricity is in total energy.
+#   name: Building heat electricity use
+#   description: Electricity used to produce heat with heat pumps and direct electricity.
+#   type: simple.MultiplicativeNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+#   output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+#   input_nodes:
+#   - id: building_heat_energy_use
+#     tags: [non_additive]
+#     from_dimensions:
+#     - id: fuel_type
+#       flatten: true
+#     - id: energy_carrier
+#       categories: [electricity]
+#     to_dimensions:
+#     - id: building_energy_class
+#     - id: heating_type
+#     - id: energy_carrier
+#     - id: scope
+#       categories: [scope2]
+#   - id: heating_type_shares
+#     to_dimensions:
+#     - id: heating_type
+#     - id: energy_carrier
+#     - id: scope
+#     - id: fuel_type
+#   - id: efficiency_of_heat_pumps
+#     tags: [geometric_inverse]
+#     to_dimensions:
+#     - id: fuel_type
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: total_electricity_consumption
+#     from_dimensions:
+#     - id: fuel_type
+#       flatten: true
+#     - id: heating_type
+#       flatten: true
+#     - id: building_energy_class
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     to_dimensions:
+#     - id: energy_carrier
 
-- id: building_heat_energy_use2
-  name: Building heat energy use without electricity
-  description: This node should be fixed, as building heat energy use contains the heat produced, not the electricity used to produce the heat.
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
-  output_dimensions: [heating_type, building_energy_class, energy_carrier, scope, fuel_type]
-  input_nodes:
-  - id: building_heat_energy_use
-  - id: building_heat_electricity_use
-    tags: [arithmetic_inverse]
+# - id: building_heat_energy_use2
+#   name: Building heat energy use without electricity
+#   description: This node should be fixed, as building heat energy use contains the heat produced, not the electricity used to produce the heat.
+#   type: simple.AdditiveNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
+#   output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
+#   input_nodes:
+#   - id: building_heat_energy_use
+#   - id: building_heat_electricity_use
+#     tags: [arithmetic_inverse]
 
 - id: heating_emission_factor
   name: Heating emission factor
@@ -644,10 +681,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [heating_type, pollutant, scope]
-  output_dimensions: [heating_type, pollutant, scope]
+  input_dimensions: [heating_type, fuel_type, pollutant, scope]
+  output_dimensions: [heating_type, fuel_type, pollutant, scope]
   input_nodes:
-  - id: building_heat_energy_use2
+  - id: building_heat_energy_use
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -655,15 +692,19 @@ nodes:
       # categories: [electricity]
       # exclude: true
       flatten: true
-    - id: fuel_type
-      flatten: true
+    # - id: fuel_type
+    #   flatten: true
     to_dimensions:
     - id: heating_type
     - id: scope
+      categories: [scope1]  # FIXME
+    - id: fuel_type
   - id: heating_emission_factor
     to_dimensions:
     - id: pollutant
     - id: heating_type
+    - id: fuel_type
+      categories: [fossil]
   output_nodes:
   - id: building_emissions
     from_dimensions:
@@ -671,6 +712,8 @@ nodes:
       categories: [co2]
       flatten: true
     - id: heating_type
+      flatten: true
+    - id: fuel_type
       flatten: true
     to_dimensions:
     - id: ghg
@@ -1116,6 +1159,8 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+    - id: fuel_type
+      flatten: true
     - id: pollutant
       categories: [nox, pm25_combustion, pm10_combustion]
   - id: consumer_electricity_emissions
@@ -1205,8 +1250,8 @@ nodes:
   - id: building_heat_energy_use
     tags: [non_additive, difference, make_nonnegative]  # FIXME Should we look also at negative investments?
     from_dimensions:
-    - id: scope
-      flatten: true
+    # - id: scope
+    #   flatten: true
     - id: building_energy_class
       flatten: true
     - id: fuel_type
@@ -1369,21 +1414,25 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
-  input_dimensions: [heating_type, scope]
-  output_dimensions: [heating_type, scope]
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
   input_nodes:
   - id: building_heating_type_share_historical
     tags: [historical, inventory_only]
+    from_dimensions:  # FIXME
+    - id: scope
+      flatten: true
   - id: building_heating_type_share_goal
     tags: [goal]
+    from_dimensions:  # FIXME
+    - id: scope
+      flatten: true
     to_dimensions:
     - id: heating_type
-    - id: scope
   output_nodes:
   - id: building_heating_type_share
     to_dimensions:
     - id: heating_type
-    - id: scope
 
 - id: heating_energy_improvement
   name: 3.4.2 Heating energy improvement
@@ -1392,8 +1441,8 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
-  input_dimensions: [energy_carrier, heating_type]
-  output_dimensions: [energy_carrier, heating_type]
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_nodes:
   - id: heating_fuel_share_historical
     tags: [historical]
@@ -1420,7 +1469,7 @@ actions:
     - id: energy_carrier
     - id: heating_type
   output_nodes:
-  - id: heating_fossil_share
+  - id: heating_waste_fossil_share
 
 - id: fossil_electricity_replacement_fraction
   name: 3.4.5 Fossil electricity replacement fraction
