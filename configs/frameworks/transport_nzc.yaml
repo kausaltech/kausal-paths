@@ -1829,6 +1829,23 @@ nodes:
   params:
     sector: relative transport efficiency
 
+- id: electrification_year_of_transport  # FIXME Make this work
+  name: 1.4.1 Electrification of passenger cars
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  # input_dimensions: [transport_mode, energy_carrier]
+  # output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduced Pkm cars + motorcycles by 2030
+#     filters:
+#     column: Parameter
+#     value: Max year
+#   params:
+#     sector: Electrification of transport fleet
+
 actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
 
 - id: reduce_all_motorised_transport

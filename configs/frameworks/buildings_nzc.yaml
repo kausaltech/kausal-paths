@@ -174,7 +174,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    sector: Share of building stock renovated each year
+    sector: Share of building stock renovated each year  # FIXME This is rate for appliance efficiency renovations
 
 - id: old_building_renovation_rate_goal
   name: Old building renovation rate goal
@@ -341,7 +341,7 @@ nodes:
     to_dimensions: []
   - id: energy_use_intensity_relative_old
     tags: [complement]
-  - id: building_heating_shares
+  - id: building_heating_shares_pre
     tags: [geometric_inverse, inventory_only, extend_values]
     from_dimensions:
     - id: heating_type
@@ -415,7 +415,7 @@ nodes:
     sector: Heating technologies
 
 - id: building_heating_type_share_goal
-  name: Building heating type share goal
+  name: District heating share goal
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -510,8 +510,8 @@ nodes:
   input_nodes:
   - id: heating_fossil_share_historical
 
-- id: building_heating_shares
-  name: Building heating shares without electricity
+- id: building_heating_shares_pre
+  name: Building heating shares unadjusted
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -537,7 +537,7 @@ nodes:
   input_dimensions: [heating_type, energy_carrier, fuel_type]
   output_dimensions: [heating_type, energy_carrier, fuel_type]
   input_nodes:
-  - id: building_heating_shares
+  - id: building_heating_shares_pre
     tags: [non_additive]
     from_dimensions:
     - id: energy_carrier
@@ -554,15 +554,15 @@ nodes:
     - id: energy_carrier
     - id: fuel_type
 
-- id: building_heating_shares2
-  name: building_heating_shares2
+- id: building_heating_shares
+  name: Building heating shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type, energy_carrier, fuel_type]
   output_dimensions: [heating_type, energy_carrier, fuel_type]
   input_nodes:
-  - id: building_heating_shares
+  - id: building_heating_shares_pre
     from_dimensions:
     - id: fuel_type
       categories: [mixed]
@@ -584,7 +584,7 @@ nodes:
   - id: energy_use_intensity
     to_dimensions:
     - id: building_energy_class
-  - id: building_heating_shares2
+  - id: building_heating_shares
     to_dimensions:
     - id: heating_type
     - id: energy_carrier
@@ -791,8 +791,8 @@ nodes:
 
 # -------------------- Electricity --------------------
 
-- id: efficient_appliances_rate3
-  name: 3.3 Efficient lighting & appliances rate
+- id: efficient_appliances_rate
+  name: Lighting & appliances renovation rate
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -1408,7 +1408,7 @@ actions:
   - id: new_building_shares
 
 - id: heating_technology_improvement  # FIXME Add 20 a lifetime
-  name: 3.4.1 Heating technology improvement
+  name: 3.4.1 Increase distrcit heating
   description: Switch from local to district heating.
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -1435,7 +1435,7 @@ actions:
     - id: heating_type
 
 - id: heating_energy_improvement
-  name: 3.4.2 Heating energy improvement
+  name: 3.4.2 Increase low-emission heating
   description: Improve the fuel shares of heating.
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -1452,7 +1452,7 @@ actions:
   - id: heating_fuel_share
 
 - id: change_heating_fossil_share
-  name: 3.4.3 Change heating fossil share
+  name: 3.4.3 Reduce fossil heating
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1498,21 +1498,8 @@ actions:
     - id: building_energy_class
       categories: [new_top_performance]
 
-- id: efficient_appliances_rate
-  name: 3.3 Efficient lighting & appliances
-  type: gpc.DatasetAction
-  quantity: fraction
-  unit: '%/a'
-  group: buildings
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    gpc_sector: 3.3 Efficient lighting & appliances
-
-- id: efficient_appliances_rate2
-  name: 3.3 Efficient lighting & appliances on/off
+- id: do_efficient_appliances
+  name: 3.3 Do efficient lighting & appliances renovation
   type: simple.AdditiveAction
   quantity: fraction
   unit: dimensionless
@@ -1521,7 +1508,7 @@ actions:
   forecast_values: [[2023, 1], [2045, 1]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: efficient_appliances_rate3
+  - id: efficient_appliances_rate
     tags: [non_additive]
     to_dimensions: []
   - id: efficiency_programme_shares
