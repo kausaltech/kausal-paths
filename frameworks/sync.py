@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypedDict, cast
-from uuid import UUID  # noqa: TCH003
+from uuid import UUID, uuid4
 
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db.models.expressions import F, OuterRef
@@ -15,19 +15,19 @@ from frameworks.models import Framework, MeasureTemplate, MeasureTemplateDefault
 if TYPE_CHECKING:
     from django.db.models import QuerySet
 
-    from diffsync import DiffSyncModel
-
 
 class SectionModel(DjangoDiffModel[Section]):
     _model = Section
     _modelname = 'section'
     _identifiers = ('uuid',)
-    _attributes = ('parent', 'identifier', 'name', 'description', 'available_years')
+    _attributes = ('parent', 'identifier', 'name', 'description', 'available_years', 'framework')
+    _parent_key = 'parent'
     _children = {
         'measure_template': 'measure_templates',
         'section': 'children',
     }
 
+    framework: str
     parent: UUID | None
     children: list[UUID] = Field(default_factory=list)
     measure_templates: list[str] = Field(default_factory=list)
@@ -38,12 +38,28 @@ class SectionModel(DjangoDiffModel[Section]):
             qs_base = cls._model.objects.get_queryset().none()
         else:
             qs_base = fw.root_section.get_descendants().order_by('path')
+        plain_fields = list(cls._django_fields.plain_fields.keys())
+        plain_fields.remove('framework')
         sections = (
             qs_base
             .annotate_parent_field('parent', 'uuid', min_depth=2)
-            .values(*cls._django_fields.plain_fields, 'parent', 'depth', _instance_pk=F('pk'))
+            .values(*plain_fields, 'parent', _instance_pk=F('pk'))
         )
         return sections
+
+    @classmethod
+    def get_mpnode_root_instance(cls, instance: Section) -> Section | None:
+        assert instance.framework.root_section is not None
+        return instance.framework.root_section
+
+    @classmethod
+    def get_create_kwargs(cls, adapter: DjangoAdapter, ids: dict, attrs: dict) -> dict:
+        kwargs = super().get_create_kwargs(adapter, ids, attrs)
+        fw_id = kwargs.pop('framework')
+        fw = adapter.get(FrameworkModel, fw_id)
+        fw_obj = fw.get_django_instance()
+        kwargs['framework'] = fw_obj
+        return kwargs
 
 
 class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
@@ -54,6 +70,8 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'name', 'unit', 'priority', 'min_value', 'max_value', 'time_series_max', 'default_value_source',
         'default_data_points', 'section',
     )
+    _parent_key = 'section'
+    _parent_type = 'section'
 
     class DefaultDataPoint(TypedDict):
         year: int
@@ -107,6 +125,12 @@ class FrameworkModel(DjangoDiffModel[Framework]):
 
     sections: list[str] = Field(default_factory=list)
     identifier: str
+    uuid: UUID = Field(default_factory=uuid4)
+
+    @classmethod
+    def create_related(cls, adapter: DjangoAdapter, ids: dict, attrs: dict, instance: Framework, /) -> None:  # noqa: ARG003
+        assert instance.root_section is None
+        instance.create_root_section()
 
 
 class FrameworkAdapter(TypedAdapter):
@@ -115,9 +139,9 @@ class FrameworkAdapter(TypedAdapter):
     measure_template = MeasureTemplateModel
     top_level = ['framework']
 
-    def add_child(self, parent: DiffSyncModel, child: DiffSyncModel):
+    def add_child(self, parent: DjangoDiffModel, child: DjangoDiffModel):
         self.add(child)
-        parent.add_child(child)
+        parent.add_child(child, initial=True)
 
 
 class FrameworkDjangoAdapter(FrameworkAdapter, DjangoAdapter):
@@ -125,7 +149,9 @@ class FrameworkDjangoAdapter(FrameworkAdapter, DjangoAdapter):
         if fw.root_section is None:
             return
         sections = self.section.get_queryset(fw)
+        fw_uid = fw_model.get_unique_id()
         for sec in sections:
+            sec['framework'] = fw_uid
             sec_model = self.section.from_django(sec)
             if sec_model.parent:
                 parent_sec = self.get(self.section, str(sec_model.parent))
@@ -159,7 +185,7 @@ class FrameworkJSONAdapter(JSONAdapter, FrameworkAdapter):
         self.add(fw_model)
         for sec in data['sections']:
             measure_templates = sec.pop('measure_templates', [])
-            sec_model = self.section(**sec)
+            sec_model = self.section(framework=fw_model.identifier, **sec)
             if sec_model.parent:
                 parent_sec = self.get(self.section, str(sec_model.parent))
                 self.add_child(parent_sec, sec_model)

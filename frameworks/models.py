@@ -69,12 +69,13 @@ class Framework(UUIDIdentifiedModel):
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_for_framework',
         null=True,
     )
-    admin_group_id: int | None
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
     objects: ClassVar[models.Manager[Framework]]
 
+    root_section_id: int | None
+    admin_group_id: int | None
     dimensions: RevMany[FrameworkDimension]
     sections: RevMany[Section]
     configs: RevMany[FrameworkConfig]
@@ -116,8 +117,8 @@ class Framework(UUIDIdentifiedModel):
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
         if self.admin_group_id is not None:
-            g_id = self.admin_group
-            has_others = type(self).objects.filter(admin_group=g_id).exclude(pk=self.pk).exists()
+            g_id = self.admin_group_id
+            has_others = type(self).objects.filter(admin_group_id=g_id).exclude(pk=self.pk).exists()
             if not has_others:
                 self.admin_group = None
                 super().save(update_fields=['admin_group'])
@@ -126,9 +127,17 @@ class Framework(UUIDIdentifiedModel):
 
     @copy_signature(models.Model.save)
     def save(self, *args, **kwargs):
-        #from .permissions import framework_admin_role
+        #from .roles import framework_admin_role
         super().save(*args, **kwargs)
         #framework_admin_role.create_or_update_instance_group(self)
+
+    def create_root_section(self) -> Section:
+        if self.root_section:
+            return self.root_section
+        root_section = Section.add_root(instance=Section(framework=self, name=f"{self.name} Root"))
+        self.root_section = root_section
+        self.save(update_fields=['root_section'])
+        return root_section
 
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
