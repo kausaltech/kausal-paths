@@ -62,11 +62,7 @@ class Command(BaseCommand):
             result_excel_node_ids=framework_data.get('result_excel_node_ids'),
         )
         self.stdout.write(self.style.SUCCESS(f"Created new framework: {fw.name}"))
-
-        # Create root section
-        root_section = Section.add_root(instance=Section(framework=fw, name=f"{fw.name} Root"))
-        fw.root_section = root_section  # pyright: ignore
-        fw.save()
+        root_section = fw.create_root_section()
 
         # Import sections and measures
         all_sections: dict[str, Section] = {}
