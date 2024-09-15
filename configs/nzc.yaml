@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cbae505f1cb94b2ae472becde1b13ce4c1af33aa
+  commit: ba13779c60d1ae36b9494668f8c30407bab86a8c
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -711,7 +711,7 @@ nodes:
   - id: electricity_cost
 
 - id: consumer_heating_unit_price
-  name: Consumer heating unit_price
+  name: Consumer heating unit price
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -733,12 +733,13 @@ nodes:
     from_dimensions:
     - id: fuel_type
       flatten: true
-    # - id: scope
-    #   flatten: true
+    - id: scope
+      flatten: true
     - id: building_energy_class
       flatten: true
-    # - id: heating_type
-    #   flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
     to_dimensions:
     - id: energy_carrier
     - id: stakeholder
@@ -888,6 +889,8 @@ scenarios:
   params:
   - id: show_scenario_impacts
     value: false
+  - id: waste_recycling_trend.enabled
+    value: true
 
 # - id: frozen
 #   name: Frozen scenario
@@ -908,4 +911,6 @@ scenarios:
   all_actions_enabled: true
   params:  # FIXME Check that values get recalculated after scenario switch.
   - id: show_scenario_impacts
+    value: true
+  - id: waste_recycling_trend.enabled
     value: true

@@ -407,8 +407,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [heating_type, scope]
-  output_dimensions: [heating_type, scope]
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -420,8 +420,8 @@ nodes:
   quantity: fraction
   unit: '%'
   group: buildings
-  input_dimensions: [heating_type, scope]
-  output_dimensions: [heating_type, scope]
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -437,9 +437,6 @@ nodes:
   output_dimensions: [heating_type]
   input_nodes:
   - id: building_heating_type_share_historical
-    from_dimensions:
-    - id: scope
-      flatten: true
 
 - id: heating_fuel_share_historical
   name: Heating fuel share historical
@@ -569,14 +566,26 @@ nodes:
       exclude: true
   - id: waste_energy_fraction
 
+- id: scope_of_energy_carriers
+  name: Scope of energy carriers
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [scope, heating_type, energy_carrier]
+  output_dimensions: [scope, heating_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Scope of energy carriers
+
 - id: building_heat_energy_use
   name: Building heat energy use
   description: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed. Electricity is here classified as non-fossil for technical purposes and it carries no information about the actual electricity production types.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
-  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
   input_nodes:
   - id: building_stock
     to_dimensions:
@@ -589,6 +598,11 @@ nodes:
     - id: heating_type
     - id: energy_carrier
     - id: fuel_type
+  - id: scope_of_energy_carriers
+    to_dimensions:
+    - id: scope
+    - id: heating_type
+    - id: energy_carrier
 
 - id: efficiency_of_heat_pumps
   name: Efficiency of heat pumps
@@ -697,7 +711,6 @@ nodes:
     to_dimensions:
     - id: heating_type
     - id: scope
-      categories: [scope1]  # FIXME
     - id: fuel_type
   - id: heating_emission_factor
     to_dimensions:
@@ -829,13 +842,13 @@ nodes:
   params:
     sector: Average electricity use for lighting & appliances
 
-- id: efficiency_programme_shares_data  # TODO This could be simplified because only two values are used.
+- id: efficiency_programme_shares_data
   name: Efficiency programme shares data
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
-  output_dimensions: [efficiency_programme, energy_carrier, building_energy_class]
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
     gpc_sector: Assumed share of type of efficiency programme for lever
@@ -853,10 +866,6 @@ nodes:
     to_dimensions: []
   - id: efficiency_programme_shares_data
     tags: [non_additive]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [new_standard]
-      flatten: true
 
 - id: non_efficiency_renovation_fraction
   name: Non-efficiency renovation fraction
@@ -1124,8 +1133,8 @@ nodes:
   - id: building_heat_energy_use
     tags: [non_additive, difference, make_nonnegative]  # FIXME Should we look also at negative investments?
     from_dimensions:
-    # - id: scope
-    #   flatten: true
+    - id: scope
+      flatten: true
     - id: building_energy_class
       flatten: true
     - id: fuel_type
@@ -1293,14 +1302,8 @@ actions:
   input_nodes:
   - id: building_heating_type_share_historical
     tags: [historical, inventory_only]
-    from_dimensions:  # FIXME
-    - id: scope
-      flatten: true
   - id: building_heating_type_share_goal
     tags: [goal]
-    from_dimensions:  # FIXME
-    - id: scope
-      flatten: true
     to_dimensions:
     - id: heating_type
   output_nodes:

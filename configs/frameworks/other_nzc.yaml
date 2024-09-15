@@ -331,7 +331,7 @@ nodes:
       flatten: true
 
 - id: electricity_cost_shares
-  name: Electrcity cost shares
+  name: Electricity cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -342,7 +342,7 @@ nodes:
     sector: fossil/current electricity supply
 
 - id: electricity_cost_by_stakeholder  # FIXME Should this be additive renewable + non-renewable?
-  name: Electrcity cost by stakeholder
+  name: Electricity cost by stakeholder
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -458,8 +458,8 @@ nodes:
   params:
     sector: Total collected waste within city boundaries by type
 
-- id: waste_recycling_shares_baseline
-  name: Waste recycling shares baseline
+- id: waste_recycling_shares_frozen
+  name: Waste recycling shares frozen scenario
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -468,6 +468,27 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Share recycling/incineration/landfill
+
+- id: waste_recycling_future_baseline_shares
+  name: Waste recycling future baseline shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share recycling/incineration/landfill baseline
+
+- id: waste_recycling_shares_baseline
+  name: Waste recycling shares baseline
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_frozen
 
 - id: waste_recycling_shares_goal
   name: Waste recycling shares goal
@@ -486,14 +507,13 @@ nodes:
 
 - id: waste_recycling_shares
   name: Waste recycling shares
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
   input_dimensions: [waste_treatment, waste_type]
   output_dimensions: [waste_treatment, waste_type]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Share recycling/incineration/landfill
+  input_nodes:
+  - id: waste_recycling_shares_baseline
 
 - id: waste_management_amount
   name: Waste management amount
@@ -1190,6 +1210,24 @@ actions:
     tags: [goal, forecast_only]
   output_nodes:
   - id: electricity_shares
+
+- id: waste_recycling_trend
+  name: Waste recycling trend
+  type: linear.DatasetReduceAction  # FIXME Make a node that does not use the last historical value but value for each year.
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_frozen
+    tags: [historical]
+  - id: waste_recycling_future_baseline_shares
+    tags: [goal]
+    to_dimensions:
+    - id: waste_treatment
+    - id: waste_type
+  output_nodes:
+  - id: waste_recycling_shares_baseline
 
 - id: increase_waste_recycling
   name: 5.1 Increase waste recycling
