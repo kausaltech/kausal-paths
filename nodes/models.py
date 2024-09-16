@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
@@ -27,10 +28,11 @@ from wagtail.search import index
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
-from kausal_common.models.types import FK, MLModelManager, RevMany, copy_signature
+from paths.types import PathsQuerySet
+from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from paths.permissions import PathsPermissionPolicy
+from paths.permissions import BaseObjectAction, PathsPermissionPolicy
 from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
     ChoiceArrayField,
@@ -78,7 +80,7 @@ def get_instance_identifier_from_wildcard_domain(
     return (None, None)
 
 
-class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig']):
+class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PathsQuerySet['InstanceConfig']):
     def for_hostname(self, hostname: str, request: HttpRequest | None = None):
         hostname = hostname.lower()
         hostnames = InstanceHostname.objects.filter(hostname=hostname)
@@ -101,44 +103,42 @@ class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuery
 del _InstanceConfigManager
 
 
-class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig']):
+class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
     def __init__(self):
+        from .roles import instance_admin_role
+        self.admin_role = instance_admin_role
         super().__init__(InstanceConfig)
 
-    """
-    @cached_property
-    def admin_role(self) -> InstanceAdminRole:
-        from .roles import instance_admin_role
-        return instance_admin_role
-    """
+    def is_admin(self, user: User, obj: InstanceConfig) -> bool:
+        return user.has_instance_role(self.admin_role, obj)
 
-    def instances_user_has_any_permission_for(self, user: User, actions: Sequence[str]) -> InstanceConfigQuerySet:
-        qs = super().instances_user_has_any_permission_for(user, actions)
-        if not user.is_superuser:
-            qs = qs.filter(admin_group__in=user.groups.all())
-        return qs # type: ignore
+    def is_framework_admin(self, user: User, obj: InstanceConfig) -> bool:
+        from frameworks.roles import framework_admin_role
+        if obj.framework_config is None:
+            return False
+        return user.has_instance_role(framework_admin_role, obj.framework_config.framework)
 
-        """
-        qs = InstanceConfig.objects.get_queryset()
-        if user.is_superuser:
-            return qs
+    def construct_perm_q(self, user: User, action: BaseObjectAction) -> models.Q | None:
+        is_admin = Q(admin_group__in=user.groups)
+        is_fw_admin = Q(framework_config__framework__admin_group=user.groups)
+        if action == 'view':
+            return is_admin | is_fw_admin | Q(framework_config__isnull=True)
+        return is_admin | is_fw_admin
 
+    def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
+        if action == 'view':
+            # If it's a framework-based config, require authentication for viewing
+            # FIXME: Enable this soon
+            # return Q(framework_config__isnull=True)
+            return Q()
+        return None
 
-        aset = set(actions)
-        admin_actions = self.admin_role.get_actions_for_model(InstanceConfig)
-        if aset.intersection(admin_actions):
-            return qs.filter(id__in=self.admin_role.get_instances_for_user(user))
-
-        return qs.none()
-        """
-
-    """
-    def user_has_permission_for_instance(self, user: User, action: str, instance: InstanceConfig) -> bool:
-        admin_actions = self.admin_role.get_actions_for_model(InstanceConfig)
-    """
-
-    def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
-        return self.instances_user_has_any_permission_for(user, ['change'])
+    def user_has_perm(self, user: User, action: BaseObjectAction, obj: InstanceConfig) -> bool:
+        if action == 'delete':
+            return self.is_framework_admin(user, obj)
+        if action == 'view' and self.anon_has_perm('view', obj):
+            return True
+        return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
 
 
 class NodeCache(TypedDict):
@@ -207,7 +207,8 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     hostnames: RevMany[InstanceHostname]
     dimensions: RevMany[DimensionModel]
     datasets: RevMany[DatasetModel]
-    framework_configs: RevMany[FrameworkConfig]
+    framework_config: RevOne[InstanceConfig, FrameworkConfig]
+    framework_config_id: int | None
 
     search_fields = [
         index.SearchField('identifier'),
@@ -257,8 +258,8 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             self.other_languages = list(other_langs)
 
     def _create_from_config(self) -> Instance:
-        fwc = self.framework_configs.first()
-        if fwc is not None:
+        if self.framework_config is not None:
+            fwc = self.framework_config
             instance = fwc.create_model_instance(self)
         else:
             config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
@@ -482,12 +483,12 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             # TODO: Update Site and root page attributes
             pass
 
-        if self.admin_group is None:
-            from admin_site.perms import AdminRole
-            role = AdminRole()
-            role.update_instance(self)
-
         super().save(*args, **kwargs)
+
+        if self.admin_group is None:
+            from .roles import InstanceAdminRole
+            role = InstanceAdminRole()
+            role.create_or_update_instance_group(self)
 
     def invalidate_cache(self):
         self.cache_invalidated_at = timezone.now()
@@ -596,7 +597,7 @@ class DataSource(UserModifiableModel):
     def __str__(self):
         return self.get_label()
 
-    class Meta:
+    class Meta:  # pyright: ignore
         verbose_name = _('Data source')
         verbose_name_plural = _('Data sources')
 
@@ -671,13 +672,13 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
         index.FilterField('instance'),
     ]
 
-    objects: ClassVar[NodeConfigManager] = NodeConfigManager()
+    objects: ClassVar[NodeConfigManager] = NodeConfigManager()  # pyright: ignore
 
     _node: Node | None
 
     indicates_nodes: RevMany[NodeConfig]
 
-    class Meta:
+    class Meta:  # pyright: ignore
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)

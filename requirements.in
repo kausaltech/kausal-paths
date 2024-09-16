@@ -65,3 +65,4 @@ opentelemetry-instrumentation-threading
 #strawberry-graphql
 #strawberry-graphql-django
 diffsync
+django-pydantic-field

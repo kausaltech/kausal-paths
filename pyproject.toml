@@ -37,7 +37,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "kausal_common/typings/*" = ["D"]
 "kausal_common/typings/django/*" = ["ALL"]
-"**/migrations/*" = ["I002", "E501"]
+"**/migrations/*" = ["I001", "I002", "E501"]
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = true

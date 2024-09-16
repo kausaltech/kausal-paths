@@ -156,6 +156,7 @@ django==5.0.8
     #   django-modeltrans
     #   django-oauth-toolkit
     #   django-permissionedforms
+    #   django-pydantic-field
     #   django-storages
     #   django-stubs-ext
     #   django-taggit
@@ -187,6 +188,8 @@ django-oauth-toolkit==2.4.0
     # via -r requirements.in
 django-permissionedforms==0.1
     # via wagtail
+django-pydantic-field==0.3.10
+    # via -r requirements.in
 django-storages==1.14.4
     # via -r requirements.in
 django-stubs-ext==5.0.4
@@ -533,6 +536,7 @@ pydantic==2.8.2
     # via
     #   -r requirements.in
     #   diffsync
+    #   django-pydantic-field
     #   gto
 pydantic-core==2.20.1
     # via pydantic
@@ -729,6 +733,7 @@ typer==0.12.4
 typing-extensions==4.12.2
     # via
     #   asyncssh
+    #   django-pydantic-field
     #   django-stubs-ext
     #   flexcache
     #   flexparser

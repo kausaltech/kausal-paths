@@ -271,6 +271,7 @@ SOCIAL_AUTH_PIPELINE = (
     # specified by settings (and the default ones like access_token, etc).
     'social_core.pipeline.social_auth.load_extra_data',
 
+    'admin_site.auth_pipeline.assign_roles',
     # Update avatar photo from MS Graph
     # 'kausal_common.auth.pipeline.update_avatar',
 )

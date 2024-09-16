@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-from pint import DimensionalityError
 import polars as pl
+from pint import DimensionalityError
 
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
@@ -29,17 +29,18 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         data['framework_config_updated'] = str(fwc.last_modified_at)
         return data
 
-    def _override_with_measure_datapoints(self, context: Context, df: ppl.PathsDataFrame):
-        from nodes.models import InstanceConfig
+    def _override_with_measure_datapoints(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         from django.db.models import TextField
         from django.db.models.functions import Cast
+
+        from nodes.models import InstanceConfig
 
         ic = InstanceConfig.objects.filter(identifier=context.instance.id).first()
         if ic is None:
             return df
-        fwc = ic.framework_configs.first()
-        if fwc is None:
+        if ic.framework_config is None:
             return df
+        fwc = ic.framework_config
 
         df = df.with_columns(pl.when(pl.col('UUID') == 'ADD UUID HERE')
                                .then(pl.lit(None))
@@ -85,7 +86,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             ds_unit = context.unit_registry(ds_unit_s)
             cf = context.unit_registry._get_conversion_factor(m_unit._units, ds_unit._units)
             if isinstance(cf, DimensionalityError):
-                raise
+                raise cf
             conversions.append((m_unit_s, ds_unit_s, float(cf)))
         if conversions and ENABLE_UNIT_CONVERSION:
             conv_df = pl.DataFrame(data=conversions, schema=('MeasureUnit', 'Unit', 'ConversionFactor'), orient='row')

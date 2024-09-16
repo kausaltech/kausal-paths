@@ -8,33 +8,45 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
-from django.db.models import Case, OuterRef
-from django.db.models.expressions import Subquery, When
+from django.db.models import Case, OuterRef, QuerySet
+from django.db.models.expressions import F, Subquery, When
 from django.db.models.functions import Length, Substr
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_stubs_ext.db.models import TypedModelMeta
 
+from loguru import logger
 from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.ordered import OrderedModel
-from kausal_common.models.types import FK, M2M, OneToOne, copy_signature
+from kausal_common.models.types import FK, M2M, QS, ModelManager, OneToOne, RevManyQS, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
-from kausal_common.users import user_or_none
+from kausal_common.users import UserOrAnon, user_or_none
 
+from paths.types import PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
 from nodes.instance import Instance, InstanceLoader
-from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
     from kausal_common.models.types import RevMany
 
-    from paths.types import UserOrAnon
+    from nodes.models import InstanceConfig
+
+    from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy
 
 
-class Framework(UUIDIdentifiedModel):
+class FrameworkQuerySet(PathsQuerySet['Framework']):
+    pass
+
+
+_FrameworkManager = models.Manager.from_queryset(FrameworkQuerySet)
+class FrameworkManager(ModelManager['Framework', FrameworkQuerySet], _FrameworkManager):  # pyright: ignore
+    """Model manager for Framework."""
+del _FrameworkManager
+
+class Framework(PathsModel, UUIDIdentifiedModel):
     """
     Represents a framework for Paths models.
 
@@ -72,13 +84,13 @@ class Framework(UUIDIdentifiedModel):
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
-    objects: ClassVar[models.Manager[Framework]]
+    objects: ClassVar[FrameworkManager] = FrameworkManager()  # pyright: ignore
 
     root_section_id: int | None
     admin_group_id: int | None
     dimensions: RevMany[FrameworkDimension]
     sections: RevMany[Section]
-    configs: RevMany[FrameworkConfig]
+    configs: RevManyQS[FrameworkConfig, FrameworkConfigQuerySet]
 
     def __str__(self):
         return self.name
@@ -87,6 +99,11 @@ class Framework(UUIDIdentifiedModel):
         yield self.name
         yield 'identifier', self.identifier
         yield 'uuid', self.uuid
+
+    @classmethod
+    def permission_policy(cls) -> FrameworkPermissionPolicy:
+        from .permissions import FrameworkPermissionPolicy
+        return FrameworkPermissionPolicy()
 
     def to_dict(self):
         return {
@@ -139,6 +156,8 @@ class Framework(UUIDIdentifiedModel):
         self.save(update_fields=['root_section'])
         return root_section
 
+    def measure_templates(self) -> QS[MeasureTemplate]:
+        return MeasureTemplate.objects.get_queryset().filter(section__framework=self)
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
     """
@@ -405,7 +424,23 @@ def create_random_token():
     return uuid.uuid4().hex
 
 
-class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
+def filter_viewable_by[QS: QuerySet[PathsModel]](qs: QS, user: UserOrAnon) -> QS:
+    model = qs.model
+    pp = model.permission_policy()
+    return qs.filter(id__in=pp.instances_user_has_permission_for(user, 'view'))
+
+
+class FrameworkConfigQuerySet(PathsQuerySet['FrameworkConfig']):
+    pass
+
+
+_FrameworkConfigManager = models.Manager.from_queryset(FrameworkConfigQuerySet)
+class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet], _FrameworkConfigManager):  # pyright: ignore
+    """Model manager for FrameworkConfig."""
+del _FrameworkConfigManager
+
+
+class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
     """
     Represents a configuration of a Framework for a specific instance.
 
@@ -415,13 +450,17 @@ class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
     """
 
     framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="configs")
-    instance_config: FK[InstanceConfig] = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='framework_configs',
+    instance_config: OneToOne[InstanceConfig] = models.OneToOneField(
+        'nodes.InstanceConfig', on_delete=models.CASCADE, related_name='framework_config',
     )
-    organization_name = models.CharField(max_length=200, blank=True)
+    organization_name = models.CharField(max_length=200, blank=True, null=True)
+    organization_identifier = models.CharField(max_length=200, blank=True, null=True)
+    organization_slug = models.CharField(max_length=200, blank=True, null=True)
     baseline_year = models.IntegerField()
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     token = models.CharField(max_length=50, default=create_random_token)
+
+    objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()  # pyright: ignore
 
     measures: RevMany[Measure]
 
@@ -433,15 +472,27 @@ class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
         ]
 
     @classmethod
+    def permission_policy(cls) -> FrameworkConfigPermissionPolicy:
+        from .permissions import FrameworkConfigPermissionPolicy
+        return FrameworkConfigPermissionPolicy()
+
+    @classmethod
     @transaction.atomic
     def create_instance(  # noqa: PLR0913
         cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
         user: UserOrAnon | None = None,
-    ) -> Self:
+    ) -> FrameworkConfig:
+        from nodes.models import InstanceConfig
+
         ic = InstanceConfig.objects.create(
             name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
             primary_language="en", other_languages=[],
         )
+        pp = cls.permission_policy()
+        if pp.user_is_authenticated(user):
+            extra = cls.permission_policy().get_create_defaults(user, framework)
+        else:
+            extra = {}
         fc = cls.objects.create(
             framework=framework,
             instance_config=ic,
@@ -449,12 +500,71 @@ class FrameworkConfig(UserModifiableModel, UUIDIdentifiedModel):
             baseline_year=baseline_year,
             uuid=uuid,
             created_by=user_or_none(user),  # type: ignore[misc]
+            **extra,
         )
         ic.site_url = fc.get_view_url()
         if ic.site_url is not None:
+            from pages.models import ActionListPage
+
             ic.sync_nodes()
             ic.create_default_content()
+            site = ic.site
+            assert site is not None
+            for alp in site.root_page.get_descendants().type(ActionListPage).specific():
+                assert isinstance(alp, ActionListPage)
+                alp.show_in_footer = False
+                alp.show_in_menus = False
+                alp.save()
+
         return fc
+
+    def create_measure_defaults(self, defaults: dict[str, float] | None = None):
+        if not defaults:
+            defaults = {}
+        fw = self.framework
+        mt_qs = fw.measure_templates()
+        m_qs = self.measures.filter(measure_template__in=mt_qs)
+        m_by_uuid: dict[uuid.UUID, Measure] = {
+            m.mt_uuid: m for m in m_qs.annotate(mt_uuid=F('measure_template__uuid'))  # pyright: ignore
+        }
+        year = self.baseline_year
+        mdp_qs = (
+            MeasureDataPoint.objects.get_queryset().filter(year=year, measure__in=m_qs)
+            .annotate(mt_uuid=F('measure__measure_template__uuid'))
+        )
+        mdp_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
+            mdp.mt_uuid: mdp for mdp in mdp_qs  # pyright: ignore
+        }
+        for mt in mt_qs:
+            m = m_by_uuid.get(mt.uuid)
+            if m is None:
+                logger.info("Creating measure for %s" % mt)
+                m = Measure(framework_config=self, measure_template=mt)
+                m.save()
+                m_by_uuid[mt.uuid] = m
+
+        new_mdps: list[MeasureDataPoint] = []
+        update_mdps: list[MeasureDataPoint] = []
+
+        for mt in mt_qs:
+            mdp = mdp_by_uuid.get(mt.uuid)
+            m = m_by_uuid[mt.uuid]
+            default_value = defaults.get(str(mt.uuid))
+            if mdp is None:
+                mdp = MeasureDataPoint(
+                    measure=m,
+                    year=year,
+                    default_value=default_value,
+                    value=None,
+                )
+                new_mdps.append(mdp)
+            else:
+                mdp.default_value = default_value
+                update_mdps.append(mdp)
+        if new_mdps:
+            MeasureDataPoint.objects.bulk_create(new_mdps)
+        if update_mdps:
+            MeasureDataPoint.objects.bulk_update(update_mdps, fields=['default_value'])
 
     def create_model_instance(self, ic: InstanceConfig) -> Instance:
         fw = self.framework
@@ -527,7 +637,7 @@ class MeasureDataPoint(models.Model):
     value = models.FloatField(null=True)
     default_value = models.FloatField(null=True)
 
-    public_fields: ClassVar = ['id', 'year', 'value']
+    public_fields: ClassVar = ['id', 'year', 'value', 'default_value']
 
     class Meta(TypedModelMeta):
         ordering = ["measure", "year"]

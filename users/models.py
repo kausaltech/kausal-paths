@@ -1,24 +1,57 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Self
+from functools import cached_property
+from typing import TYPE_CHECKING, ClassVar, Self, Sequence, overload
 
 from django.db import models
+from django.db.models import Model
 from django.utils.translation import gettext_lazy as _
+from pydantic import BaseModel, Field
+
+from django_pydantic_field import SchemaField
 
 from .base import AbstractUser, UserManager
 
 if TYPE_CHECKING:
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
-    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
+    from django.contrib.auth.models import Group
+
+    from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
+    from kausal_common.models.types import QS
+
+    from frameworks.roles import FrameworkRoleDef
+    from nodes.models import InstanceConfigQuerySet
 
 
-class User(AbstractUser):  # type: ignore[django-manager-missing]
+class UserFrameworkRole(BaseModel):
+    framework_id: str
+    role_id: str
+
+
+class UserExtra(BaseModel):
+    framework_roles: Sequence[FrameworkRoleDef] = Field(default_factory=list)
+
+    def set_framework_role(self, role: FrameworkRoleDef):
+        self.framework_roles = list(filter(
+            lambda role: role.framework_id == role.framework_id,
+            self.framework_roles,
+        ))
+        self.framework_roles.append(role)
+
+    @classmethod
+    def get_default(cls) -> Self:
+        from frameworks.roles import FrameworkRoleDef  # noqa: F401
+        cls.model_rebuild()
+        return cls()
+
+
+class User(AbstractUser):
     selected_instance = models.ForeignKey(
-        'nodes.InstanceConfig', null=True, blank=True, on_delete=models.SET_NULL
+        'nodes.InstanceConfig', null=True, blank=True, on_delete=models.SET_NULL,
     )
     email = models.EmailField(_('email address'), unique=True)
+    extra: UserExtra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
 
-    objects: ClassVar[UserManager[Self]]  # type:ignore[misc]
+    objects: ClassVar[UserManager[User]]
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -36,9 +69,27 @@ class User(AbstractUser):  # type: ignore[django-manager-missing]
         # TODO
         return self.selected_instance
 
-    def get_adminable_instances(self):
+    def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
-        return InstanceConfig.objects.adminable_for(self)
+        return InstanceConfig.permission_policy().instances_user_has_permission_for(self, 'change')
+
+    @cached_property
+    def cgroups(self) -> QS[Group]:
+        return self.groups.all()
+
+    @cached_property
+    def perms(self) -> UserPermissionCache:
+        from kausal_common.models.roles import UserPermissionCache
+        return UserPermissionCache(self)
+
+    @overload
+    def has_instance_role[M: Model](self, role: InstanceSpecificRole[M], obj: M) -> bool: ...
+
+    @overload
+    def has_instance_role(self, role: str, obj: Model) -> bool: ...
+
+    def has_instance_role(self, role: str | InstanceSpecificRole, obj: Model) -> bool:
+        return self.perms.has_instance_role(role, obj)
 
     def can_access_admin(self) -> bool:
         if not self.is_active:
