@@ -28,12 +28,11 @@ from wagtail.search import index
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
-from paths.types import PathsQuerySet
 from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from paths.permissions import BaseObjectAction, PathsPermissionPolicy
-from paths.types import PathsModel, UserOrAnon
+from paths.permissions import BaseObjectAction, ObjectSpecificAction, PathsPermissionPolicy
+from paths.types import PathsModel, PathsQuerySet, UserOrAnon
 from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
@@ -128,17 +127,29 @@ class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', Ins
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':
             # If it's a framework-based config, require authentication for viewing
-            # FIXME: Enable this soon
-            # return Q(framework_config__isnull=True)
-            return Q()
+            return Q(framework_config__isnull=True)
         return None
 
-    def user_has_perm(self, user: User, action: BaseObjectAction, obj: InstanceConfig) -> bool:
+    def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
+        return self.instances_user_has_any_permission_for(user, ['change'])
+
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
         if action == 'delete':
             return self.is_framework_admin(user, obj)
         if action == 'view' and self.anon_has_perm('view', obj):
             return True
         return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+
+    def anon_has_perm(self, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
+        if action != 'view':
+            return False
+        if obj.framework_config is None:
+            # FIXME: Add checking for a "published" status here
+            return True
+        return False
+
+    def user_can_create(self, user: User, context: Any) -> bool:  # noqa: ANN401
+        return False
 
 
 class NodeCache(TypedDict):
