@@ -49,8 +49,7 @@ class FrameworkAdminRole(AdminRole['Framework']):
         return None
 
     def get_instances_for_user(self, user: User) -> FrameworkQuerySet:
-        user_groups = user.groups
-        return self.model.objects.get_queryset().filter(admin_group__in=user_groups).distinct()
+        return self.model.objects.get_queryset().filter(admin_group__in=user.cgroups).distinct()
 
 
 framework_admin_role = FrameworkAdminRole()
