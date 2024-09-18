@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 import sentry_sdk
+from loguru import logger
 from social_core.backends.azuread_tenant import AzureADTenantOAuth2
 from social_core.backends.oauth import BaseOAuth2
 
@@ -88,6 +89,9 @@ class NZCPortalOAuth2(BaseOAuth2):
         return resp_email.strip().lower()
 
     def _get_user_details(self, response: dict[str, Any]) -> dict[str, Any]:
+        # FIXME: Remove later
+        logger.debug("User details: %s" % response)
+
         user_type = response.get('userType')
         role_id = self.TYPE_TO_ROLE.get(user_type or '')
         if role_id is None:
@@ -98,6 +102,7 @@ class NZCPortalOAuth2(BaseOAuth2):
             org_slug=response.get('userCity'),
             org_id=response.get('cityUID'),
         )
+        logger.debug("Determined role: %s" % repr(role))
         return {
             'email': self.canonize_email(response['Mail']),
             'first_name': response.get('FirstName'),
