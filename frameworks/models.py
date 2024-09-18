@@ -502,6 +502,8 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
             created_by=user_or_none(user),  # type: ignore[misc]
             **extra,
         )
+        if pp.user_is_authenticated(user):
+            pp.realm_admin_role.assign_user(ic, user)
         ic.site_url = fc.get_view_url()
         if ic.site_url is not None:
             from pages.models import ActionListPage
