@@ -127,7 +127,7 @@ class Command(BaseCommand):
                 else:
                     continue
             ic = InstanceConfig.objects.get(identifier=iid)
-            if ic.framework_config is not None:
+            if ic.has_framework_config():
                 continue
             logger.info("Checking instance %s" % iid)
             self.check_instance(ic)

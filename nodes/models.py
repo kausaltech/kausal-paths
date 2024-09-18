@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -113,7 +114,7 @@ class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', Ins
 
     def is_framework_admin(self, user: User, obj: InstanceConfig) -> bool:
         from frameworks.roles import framework_admin_role
-        if obj.framework_config is None:
+        if not obj.has_framework_config():
             return False
         return user.has_instance_role(framework_admin_role, obj.framework_config.framework)
 
@@ -143,7 +144,7 @@ class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', Ins
     def anon_has_perm(self, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
         if action != 'view':
             return False
-        if obj.framework_config is None:
+        if not obj.has_framework_config():
             # FIXME: Add checking for a "published" status here
             return True
         return False
@@ -239,6 +240,14 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         assert not cls.objects.filter(identifier=instance.id).exists()
         return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
 
+    def has_framework_config(self) -> bool:
+        try:
+            _ = self.framework_config
+        except ObjectDoesNotExist:
+            return False
+        else:
+            return True
+
     def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
         for node_config in self.nodes.all():
             node = instance.context.nodes.get(node_config.identifier)
@@ -269,7 +278,7 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             self.other_languages = list(other_langs)
 
     def _create_from_config(self) -> Instance:
-        if self.framework_config is not None:
+        if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
         else:

@@ -38,7 +38,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         ic = InstanceConfig.objects.filter(identifier=context.instance.id).first()
         if ic is None:
             return df
-        if ic.framework_config is None:
+        if not ic.has_framework_config():
             return df
         fwc = ic.framework_config
 
