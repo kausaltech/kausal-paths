@@ -143,12 +143,6 @@ class PathsExecutionContext(ExecutionContext):
     def process_instance_headers(self, context: GQLContext) -> InstanceConfig | None:
         identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
         hostname = context.headers.get(settings.INSTANCE_HOSTNAME_HEADER)
-        if IDTokenAuthentication is not None:
-            auth = IDTokenAuthentication()
-            ret = auth.authenticate(context)  # type: ignore
-            if ret is not None:
-                user, token = ret  # pyright: ignore
-                context.user = user
 
         qs = InstanceConfig.objects.get_queryset()
         if identifier:
@@ -265,7 +259,7 @@ class PathsExecutionContext(ExecutionContext):
     def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:  # noqa: ANN401
         op_name = operation.name.value if operation.name else '<unnamed>'
         with sentry_sdk.start_span(op='graphql_execute', description='Query %s' % op_name):
-            if operation.operation != OperationType.QUERY:
+            if operation.operation != OperationType.QUERY or self.context_value.user.is_authenticated:
                 self.context_value.graphene_no_cache = True  # type: ignore[attr-defined]
             with self.instance_context(operation):
                 ret = super().execute_operation(operation, root_value)
@@ -389,6 +383,15 @@ class PathsGraphQLView(GraphQLView):
 
         return ret
 
+    def process_auth_token(self, request: GQLInstanceContext):
+        if IDTokenAuthentication is None:
+            return
+        auth = IDTokenAuthentication()
+        ret = auth.authenticate(request)  # type: ignore
+        if ret is not None:
+            user, token = ret  # pyright: ignore
+            request.user = user
+
     def execute_graphql_request(
         self, request: GQLInstanceContext, data: dict, query: str | None, variables: dict | None,
         operation_name: str | None, *args, **kwargs,
@@ -439,6 +442,7 @@ class PathsGraphQLView(GraphQLView):
 
         span = sentry_sdk.get_current_span()
         assert span is not None
+        self.process_auth_token(request)
         with enter('get query cache key'):
             cache_key = self.get_cache_key(request, query, variables, operation_name)
 
