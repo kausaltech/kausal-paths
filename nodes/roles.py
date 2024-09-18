@@ -49,7 +49,7 @@ class InstanceAdminRole(AdminRole['InstanceConfig']):
         return obj.site
 
     def get_instances_for_user(self, user: User) -> QuerySet[InstanceConfig, InstanceConfig]:
-        user_groups = user.groups
+        user_groups = user.cgroups
         return self.model.objects.filter(admin_group__in=user_groups).distinct()
 
 
