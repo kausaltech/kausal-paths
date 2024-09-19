@@ -818,5 +818,9 @@ class FillNewCategoryNode(AdditiveNode):
 
         df = df.paths.concat_vertical(df2)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
-
+        if self.get_parameter_value('drop_nans', required=False):  # FIXME Not consistent with the parameter name!
+            df = df.paths.to_wide()
+            for col in df.metric_cols:
+                df = df.filter(~pl.col(col).is_null())
+            df = df.paths.to_narrow()
         return df
