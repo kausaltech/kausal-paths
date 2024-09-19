@@ -491,13 +491,27 @@ emission_sectors:
   is_outcome: true
 
 nodes:
-- id: delete_redundant_nodes
-  name: Delete the redundant nodes from upstream
-  type: values.AssociationNode
-  quantity: fraction
-  unit: dimensionless
-  historical_values: [[2018, 0], [2023, 0]]
-  input_dataset_processors: [LinearInterpolation]
+- id: discounted_co_benefits
+  name: Discounted costs by aggregated types
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  # is_outcome: true
+  input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_total_cost
+    tags: [non_additive]
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: aggregated_cost_types
+    # from_dimensions:
+    # - id: aggregated_cost_type
+    #   categories: [capex]
+    to_dimensions:
+    - id: aggregated_cost_type
+    - id: cost_type
 
 - id: population
   name: Population
@@ -520,19 +534,19 @@ nodes:
   params:
     sector: Expected annual population growth (up until 2030)
 
-- id: aggregated_net_emissions
-  name: Aggregated net emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  is_outcome: true
-  input_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
+# - id: aggregated_net_emissions
+#   name: Aggregated net emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: kt/a
+#   # is_outcome: true
+#   input_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     - id: scope
+#       flatten: true
 
 - id: total_electricity_consumption
   name: Total electricity consumption, uncorrected
@@ -555,6 +569,25 @@ nodes:
   input_nodes:
   - id: total_electricity_consumption
     tags: [non_additive]
+
+- id: total_electricity_consumption3
+  name: Total electricity consumption by production shares
+  description: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: total_electricity_consumption2
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
 
 - id: electricity_emissions
   name: Total electricity emissions
@@ -635,26 +668,26 @@ nodes:
   output_nodes:
   - id: total_electricity_consumption2
 
-- id: fossil_electricity_factor
-  name: Fossil electricity factor
-  description: The historical emission factor is for the whole mix of electricity
-    production, but the CO2 emissions come mainly from fossil fuels. Therefore, the
-    emission factor is scaled so that it matches the fossil fraction, while other
-    categories are assumed to have zero CO2 emissions.
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_nodes:
-  - id: electricity_shares
-    tags: [geometric_inverse]
-    from_dimensions:
-    - id: fuel_type
-      categories: [fossil]
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
+# - id: fossil_electricity_factor
+#   name: Fossil electricity factor
+#   description: The historical emission factor is for the whole mix of electricity
+#     production, but the CO2 emissions come mainly from fossil fuels. Therefore, the
+#     emission factor is scaled so that it matches the fossil fraction, while other
+#     categories are assumed to have zero CO2 emissions.
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [fuel_type, energy_carrier]
+#   output_dimensions: [fuel_type, energy_carrier]
+#   input_nodes:
+#   - id: electricity_shares
+#     tags: [geometric_inverse]
+#     from_dimensions:
+#     - id: fuel_type
+#       categories: [fossil]
+#     to_dimensions:
+#     - id: fuel_type
+#     - id: energy_carrier
 
 - id: electricity_production_emission_factor
   name: Electricity production emission factor
@@ -805,7 +838,7 @@ nodes:
   type: costs.ExponentialNode
   quantity: currency
   unit: MEUR/a
-  is_outcome: true
+  # is_outcome: true
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_nodes: [total_cost]
@@ -825,25 +858,6 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Aggregated cost types
-
-- id: discounted_co_benefits
-  name: Discounted costs by aggregated types
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  is_outcome: true
-  input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
-  output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
-  input_nodes:
-  - id: discounted_total_cost
-    tags: [non_additive]
-    to_dimensions:
-    - id: cost_type
-    - id: stakeholder
-  - id: aggregated_cost_types
-    to_dimensions:
-    - id: aggregated_cost_type
-    - id: cost_type
 
 - id: aggregated_discounted_total_cost
   name: Aggregated discounted total cost

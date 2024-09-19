@@ -53,18 +53,18 @@ nodes:
       exclude: true
       flatten: true
 
-- id: transport_electricity_emissions
-  name: Transport electricity emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
-  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
-  input_nodes:
-  - id: transport_emissions
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
+# - id: transport_electricity_emissions
+#   name: Transport electricity emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+#   output_dimensions: [transport_mode, ghg, scope, energy_carrier]
+#   input_nodes:
+#   - id: transport_emissions
+#     from_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
   # output_nodes:
   # - id: electricity_emissions
   #   from_dimensions:
@@ -1209,6 +1209,10 @@ nodes:
   output_dimensions: [transport_mode, cost_type, energy_carrier]
   input_nodes:
   - id: car_driving_unit_price
+    from_dimensions:
+    - id: cost_type
+      categories: [fuel]
+      exclude: true
   - id: vehicle_kilometres
     from_dimensions:
     - id: transport_mode
@@ -1360,7 +1364,7 @@ nodes:
     - id: transport_mode
     - id: energy_carrier
   output_nodes:
-  - id: freight_transport_cost
+  - id: transport_cost
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1763,10 +1767,10 @@ nodes:
   quantity: unit_price
   unit: EUR/pkm
   input_datasets: [nzc/defaults]
-  input_dimensions: [transport_mode, stakeholder, cost_type]
-  output_dimensions: [transport_mode, stakeholder, cost_type]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
   params:
-    sector: Total Average cost of cycling/walking
+    sector: Average value of increased walking/cycling  # TODO There is another data about implementation costs, not co-benefits. It this used?: Total Average cost of cycling/walking
 
 - id: walking_cycling_cost
   name: Walking & cycling cost
@@ -1777,15 +1781,17 @@ nodes:
   output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
   - id: walking_cycling_unit_price
+    tags: [arithmetic_inverse]
     to_dimensions:
     - id: transport_mode
-    - id: stakeholder
     - id: cost_type
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
   - id: passenger_kilometres
     to_dimensions:
     - id: transport_mode
-    # - id: stakeholder
-    #   categories: [citizens]
   output_nodes: [transport_cost]
 
 - id: transport_cost

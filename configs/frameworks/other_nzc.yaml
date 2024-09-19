@@ -1,32 +1,32 @@
-emission_sectors:
+# emission_sectors:
 
-- id: other_emissions
-  name: Other emissions
-  input_nodes: [net_emissions]
+# - id: other_emissions
+#   name: Other emissions
+#   input_nodes: [net_emissions]
 
 nodes:
 
-- id: electricity_production_emissions  # FIXME Remove
-  name_en: Electricity production emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  color: '#59A14F'
-  input_dimensions: [fuel_type, pollutant, energy_carrier]
-  output_dimensions: [fuel_type, pollutant, energy_carrier]
-  input_nodes:
-  - id: electricity_production_by_fuel_type
-    to_dimensions:
-    - id: energy_carrier
-    - id: fuel_type
-  - id: electricity_production_emission_factor
-    to_dimensions:
-    - id: pollutant
-    - id: energy_carrier
-  - id: fossil_electricity_factor
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
+# - id: electricity_production_emissions  # FIXME Remove
+#   name_en: Electricity production emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   color: '#59A14F'
+#   input_dimensions: [fuel_type, pollutant, energy_carrier]
+#   output_dimensions: [fuel_type, pollutant, energy_carrier]
+#   input_nodes:
+#   - id: electricity_production_by_fuel_type
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: fuel_type
+#   - id: electricity_production_emission_factor
+#     to_dimensions:
+#     - id: pollutant
+#     - id: energy_carrier
+#   - id: fossil_electricity_factor
+#     to_dimensions:
+#     - id: fuel_type
+#     - id: energy_carrier
 
 - id: electricity_production_by_fuel_type
   name_en: Electricity production by fuel type
@@ -46,38 +46,38 @@ nodes:
     - id: energy_carrier
   - id: electricity_production_switched
 
-- id: effective_electricity_emission_factor2  # FIXME Remove
-  name: Effective electricity emission factor old
-  description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
-  type: simple.MultiplicativeNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [energy_carrier, pollutant]
-  output_dimensions: [energy_carrier, pollutant]
-  input_nodes:
-  - id: electricity_production_emissions
-    from_dimensions:
-    - id: pollutant
-      categories: [co2]
-    - id: fuel_type
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: pollutant
-  - id: electricity_production_by_fuel_type
-    tags: [geometric_inverse]
-    from_dimensions:
-    - id: fuel_type
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-  output_nodes:
-  - id: delete_redundant_nodes
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: pollutant
-      flatten: true
+# - id: effective_electricity_emission_factor2  # FIXME Remove
+#   name: Effective electricity emission factor old
+#   description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
+#   type: simple.MultiplicativeNode
+#   quantity: emission_factor
+#   unit: g/kWh
+#   input_dimensions: [energy_carrier, pollutant]
+#   output_dimensions: [energy_carrier, pollutant]
+#   input_nodes:
+#   - id: electricity_production_emissions
+#     from_dimensions:
+#     - id: pollutant
+#       categories: [co2]
+#     - id: fuel_type
+#       flatten: true
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: pollutant
+#   - id: electricity_production_by_fuel_type
+#     tags: [geometric_inverse]
+#     from_dimensions:
+#     - id: fuel_type
+#       flatten: true
+#     to_dimensions:
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: delete_redundant_nodes
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     - id: pollutant
+#       flatten: true
   
 - id: effective_electricity_emission_factor
   name: Effective electricity emission factor
@@ -148,11 +148,19 @@ nodes:
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
-  - id: total_electricity_consumption2
-    tags: [difference, non_additive]
+  - id: total_electricity_consumption3
+    tags: [difference, non_additive, make_nonnegative]
+    from_dimensions:
+    - id: fuel_type
+      categories: [non_fossil]
+      flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: new_electricity_production_shares
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      exclude: true
     to_dimensions:
     - id: energy_carrier
     - id: fuel_type
@@ -185,7 +193,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: employment
   unit: jobs
-  is_outcome: true
+  # is_outcome: true
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -202,7 +210,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
-- id: new_electricity_production_shares  # FIXME Remove
+- id: new_electricity_production_shares
   name: New electricity production shares
   type: gpc.DatasetNode
   quantity: fraction
@@ -247,7 +255,7 @@ nodes:
   params:
     sector: Yearly average of solar electricity generated by 1 m2 solar PV
 
-- id: electricity_production_shares  # FIXME remove
+- id: electricity_production_shares
   name_en: Electricity production shares
   type: simple.AdditiveNode
   quantity: fraction
@@ -282,7 +290,7 @@ nodes:
     sector: 'PV: Upfront investment cost'
 
 - id: renewable_electricity_shares
-  name: Renewable electricity shares
+  name: Renewable electricity cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -307,7 +315,6 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: new_electricity_production_capacity
-    tags: [cumulative]
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
@@ -316,6 +323,15 @@ nodes:
     - id: fuel_type
     - id: energy_carrier
     - id: cost_type
+  - id: multiplier_node
+    to_dimensions: []
+
+- id: multiplier_node  # TODO Improve
+  name: Multiplier node
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: a
+  historical_values: [[2018, 1], [2013, 1]]
 
 - id: electricity_cost  # FIXME Should this be non-renewable?
   name: Electricity cost
@@ -419,7 +435,7 @@ nodes:
       categories: [fossil]
     - id: energy_carrier
 
-- id: electricity_shares_goal
+- id: electricity_shares_goal  # TODO Why does the graph not make sense?!?
   name: Electricity shares goal
   type: simple.FillNewCategoryNode
   quantity: fraction
@@ -434,6 +450,7 @@ nodes:
   - id: fossil_electricity_shares_goal
   params:
     new_category: 'fuel_type:non_fossil'
+    drop_nans: true
 
 - id: electricity_shares
   name: Electricity shares
@@ -1213,14 +1230,14 @@ actions:
 
 - id: waste_recycling_trend
   name: Waste recycling trend
-  type: linear.DatasetReduceAction  # FIXME Make a node that does not use the last historical value but value for each year.
+  type: linear.DatasetDifferenceAction
   quantity: fraction
   unit: '%'
   input_dimensions: [waste_treatment, waste_type]
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_frozen
-    tags: [historical]
+    tags: [baseline]
   - id: waste_recycling_future_baseline_shares
     tags: [goal]
     to_dimensions:
@@ -1231,7 +1248,7 @@ actions:
 
 - id: increase_waste_recycling
   name: 5.1 Increase waste recycling
-  type: linear.DatasetReduceAction
+  type: linear.DatasetDifferenceAction
   quantity: fraction
   unit: '%'
   group: waste
@@ -1239,7 +1256,7 @@ actions:
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_baseline
-    tags: [historical]
+    tags: [baseline]
   - id: waste_recycling_shares_goal
     tags: [goal]
     to_dimensions:
