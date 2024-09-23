@@ -185,10 +185,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    filters:
-    - column: Year
-      value: 2030
-      drop_col: false
   params:
     sector: Renovation rate - decarbonisation scenario
 
@@ -226,10 +222,6 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/defaults
-    filters:
-    - column: Year
-      value: 2030
-      drop_col: false
   params:
     sector: Assumed share of type of renovation in lever
 
@@ -1073,8 +1065,20 @@ nodes:
   params:
     sector: Cost of efficiency programme per m2
 
+- id: old_building_renovation_unit_price
+  name: Old building renovation unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [building_energy_class, cost_type]
+  output_dimensions: [building_energy_class, cost_type]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Cost of energy renovations
+
 - id: old_building_cost_shares
-  name: Old building cost_shares
+  name: Old building cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1084,6 +1088,35 @@ nodes:
   - id: nzc/defaults
   params:
     sector: building renovation investments
+
+- id: old_building_renovation_costs
+  name: Old building renovation costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [building_energy_class, cost_type, stakeholder]
+  output_dimensions: [building_energy_class, cost_type, stakeholder]
+  input_nodes:
+  - id: old_building_renovation_unit_price
+    to_dimensions:
+    - id: building_energy_class
+    - id: cost_type
+  - id: old_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  - id: renovated_building_stock
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
+      exclude: true
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
 
 - id: efficiency_programme_cost
   name: Efficiency programme cost
@@ -1102,10 +1135,12 @@ nodes:
     - id: efficiency_programme
     - id: energy_carrier
   - id: efficiency_programme_unit_price
-    to_dimensions:
-    - id: efficiency_programme
-    - id: energy_carrier
+    from_dimensions:
     - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
   - id: old_building_cost_shares  # CHECK
     to_dimensions:
     - id: stakeholder
@@ -1290,13 +1325,25 @@ actions:
   output_nodes:
   - id: new_building_shares
 
-- id: heating_technology_improvement  # FIXME Add 20 a lifetime
+- id: decarbonising_heating_generation
+  name: 3.4 Decarbonising heating generation
+  type: parent.ParentActionNode
+  unit: t/a
+  quantity: emissions
+  group: buildings
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  # indicator_nodes:
+  # - id: building_heat_mix
+
+- id: heating_technology_improvement  # TODO Add 20 a lifetime
   name: 3.4.1 Increase distrcit heating
   description: Switch from local to district heating.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
+  parent: decarbonising_heating_generation
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
   input_nodes:
@@ -1318,6 +1365,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
+  parent: decarbonising_heating_generation
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_nodes:
@@ -1334,6 +1382,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
+  parent: decarbonising_heating_generation
   input_dimensions: [energy_carrier, fuel_type, heating_type]
   output_dimensions: [energy_carrier, fuel_type, heating_type]
   input_nodes:
@@ -1354,6 +1403,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
+  parent: decarbonising_heating_generation
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
@@ -1367,6 +1417,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
+  parent: decarbonising_heating_generation
   historical_values: [[2021, 0], [2022, 0]]  # FIXME
   forecast_values: [[2023, 50]]
   output_nodes:

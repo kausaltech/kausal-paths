@@ -228,12 +228,12 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
-  - id: electricity_consumption_for_electric_vehicles
+  - id: electricity_efficiency_for_electric_vehicles
     to_dimensions:
     - id: energy_carrier
     - id: transport_mode
 
-- id: transport_emission_factor
+- id: transport_emission_factor  # TODO Add wear&tear from electric vehicles
   name: Transport emission factor
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -241,11 +241,11 @@ nodes:
   input_dimensions: [pollutant, transport_mode, energy_carrier]
   output_dimensions: [pollutant, transport_mode, energy_carrier]
   input_nodes:
-  - id: electric_vehicle_emission_factor
-    from_dimensions:
-    - id: transport_mode
-      categories: [light_trucks, heavy_trucks]
-      exclude: true
+  # - id: electric_vehicle_emission_factor
+  #   from_dimensions:
+  #   - id: transport_mode
+  #     categories: [light_trucks, heavy_trucks]
+  #     exclude: true
   - id: fleet_emission_factor
 
 - id: transport_air_pollution_emissions
@@ -454,7 +454,7 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  - id: electricity_consumption_for_electric_vehicles
+  - id: electricity_efficiency_for_electric_vehicles
     to_dimensions:
     - id: transport_mode
     - id: energy_carrier
@@ -849,7 +849,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
   - id: freight_transport_vehicle_kilometres
-  - id: electricity_consumption_for_electric_vehicles
+  - id: electricity_efficiency_for_electric_vehicles
 
 # ---------------- Freight transport costs -------
 
@@ -911,13 +911,6 @@ nodes:
     - id: ghg
       flatten: true
     to_dimensions:
-    - id: cost_type
-  output_nodes:
-  - id: freight_transport_cost
-    to_dimensions:
-    - id: stakeholder
-      categories: [city]  # FIXME
-    - id: transport_mode
     - id: cost_type
 
 - id: new_electric_trucks_additional_costs
@@ -1147,7 +1140,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
     - id: energy_carrier
-  - id: electricity_consumption_for_electric_vehicles
+  - id: electricity_efficiency_for_electric_vehicles
     to_dimensions:
     - id: transport_mode
     - id: energy_carrier
@@ -1242,6 +1235,17 @@ nodes:
   params:
     sector: Charging infrastructure costs
 
+- id: charging_infrastructure_shares
+  name: Charging infrastructure shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: ev charging infrastructure
+
 - id: total_number_of_cars  # FIXME Does not change by time
   name: Total number of cars
   type: gpc.DatasetNode
@@ -1297,10 +1301,26 @@ nodes:
   input_nodes:
   - id: charging_infrastructure_unit_price
     tags: [non_additive]
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: energy_carrier
   - id: number_of_new_evs
     to_dimensions:
     - id: transport_mode
     - id: energy_carrier
+  - id: charging_infrastructure_shares
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: stakeholder
+  
   output_nodes:
   - id: transport_cost
     from_dimensions:
@@ -1409,6 +1429,38 @@ nodes:
   - id: electric_vehicles_unit_price_rate
     tags: [arithmetic_inverse, complement_cumulative_product]
 
+- id: additional_cost_of_buying_electric_vehicles
+  name: Additional cost of buying electric vehicles
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [transport_mode, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: electric_vehicles_additional_unit_price
+    from_dimensions:  # FIXME
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [capex]
+    - id: transport_mode
+    - id: energy_carrier
+  - id: number_of_new_evs
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: up_front_cost_shares_of_evs
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: transport_mode
+    - id: cost_type
+
 - id: additional_cost_of_buying_electric_buses
   name: Additional cost of buying electric buses
   type: simple.MultiplicativeNode
@@ -1437,8 +1489,8 @@ nodes:
     - id: transport_mode
     - id: cost_type
 
-- id: electricity_consumption_for_electric_vehicles
-  name: Electricity consumption for electric vehicles
+- id: electricity_efficiency_for_electric_vehicles
+  name: Electricity efficiency for electric vehicles
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/vkm
@@ -1447,6 +1499,17 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Electricity consumption average vehicle
+
+- id: up_front_cost_shares_of_evs
+  name: Up-front cost shares of EVs
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier, stakeholder, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: up-front costs for EVs
 
 - id: air_pollution_unit_price
   name: Air pollution unit price
@@ -1526,16 +1589,6 @@ nodes:
     to_dimensions:
     - id: scope
       categories: [scope1]
-    - id: cost_type
-  output_nodes:
-  - id: transport_cost
-    from_dimensions:
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-      categories: [city]
-    - id: transport_mode
     - id: cost_type
 
 - id: transport_noise_unit_price
@@ -1836,7 +1889,7 @@ nodes:
     sector: relative transport efficiency
 
 - id: electrification_year_of_transport  # FIXME Make this work
-  name: 1.4.1 Electrification of passenger cars
+  name: Electrification year of passenger cars
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless

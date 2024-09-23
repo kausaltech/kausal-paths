@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ba13779c60d1ae36b9494668f8c30407bab86a8c
+  commit: dd57fecd9dd4ac58d30573df0197482b9e48c579
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -589,8 +589,8 @@ nodes:
     - id: energy_carrier
     - id: fuel_type
 
-- id: electricity_emissions
-  name: Total electricity emissions
+- id: total_electricity_emissions
+  name: Total electricity emissions including air pollutants
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -604,11 +604,26 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
+
+- id: electricity_emissions
+  name: Electricity emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: pollutant
-      categories: [co2]
       flatten: true
     - id: energy_carrier
       flatten: true
@@ -743,7 +758,7 @@ nodes:
   output_nodes:
   - id: electricity_cost
 
-- id: consumer_heating_unit_price
+- id: consumer_heating_unit_price  # TODO Prices should be separated by energy_carrier but no data available.
   name: Consumer heating unit price
   type: gpc.DatasetNode
   quantity: unit_price
@@ -775,11 +790,13 @@ nodes:
       exclude: true
     to_dimensions:
     - id: energy_carrier
-    - id: stakeholder
-      categories: [citizens]
-    - id: cost_type
-      categories: [opex]
     - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+    - id: heating_type
+
   output_nodes:
   - id: building_cost
     from_dimensions:
