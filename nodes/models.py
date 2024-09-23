@@ -120,7 +120,7 @@ class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', Ins
 
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> models.Q | None:
         is_admin = Q(admin_group__in=user.cgroups)
-        is_fw_admin = Q(framework_config__framework__admin_group=user.cgroups)
+        is_fw_admin = Q(framework_config__framework__admin_group__in=user.cgroups)
         if action == 'view':
             return is_admin | is_fw_admin | Q(framework_config__isnull=True)
         return is_admin | is_fw_admin
