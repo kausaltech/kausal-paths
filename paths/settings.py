@@ -363,11 +363,13 @@ LANGUAGES = (
     ('da', _('Danish')),
     ('pl', _('Polish')),
     ('lv', _('Latvian')),
+    ('es-US', _('Spanish (United States)')),
 )
 # For languages that Django has no translations for, we need to manually specify what the language is called in that
 # language. We use this for displaying the list of available languages in the user settings.
 LOCAL_LANGUAGE_NAMES = {
     'de-CH': "Deutsch (Schweiz)",
+    'es-US': "Español (Estados Unidos)",
 }
 MODELTRANS_AVAILABLE_LANGUAGES = [x[0].lower() for x in LANGUAGES]
 MODELTRANS_FALLBACK = {
