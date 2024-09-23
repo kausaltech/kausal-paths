@@ -765,6 +765,8 @@ class InstanceLoader:
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
+            pc['label'] = self.make_trans_string(pc, 'label', pop=True)
+            pc['description'] = self.make_trans_string(pc, 'description', pop=True)
             param = param_type(**pc)
             sub_node_ids = pc.get('subscription_nodes', None)
             if sub_node_ids is not None:
