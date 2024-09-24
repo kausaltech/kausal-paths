@@ -13,7 +13,7 @@ from grapple.types.rich_text import RichText
 from grapple.types.streamfield import StreamFieldInterface
 from markdown_it import MarkdownIt
 
-from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance, pass_context
+from paths.graphql_helpers import ensure_instance, pass_context
 
 from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
@@ -24,6 +24,10 @@ from .models import InstanceConfig
 
 if TYPE_CHECKING:
     from graphql import GraphQLResolveInfo
+
+    from kausal_common.graphene import GQLInfo
+
+    from paths.graphql_helpers import GQLInstanceInfo
 
     from common import polars as ppl
     from nodes.context import Context

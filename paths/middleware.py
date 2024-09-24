@@ -1,20 +1,27 @@
+from __future__ import annotations
+
 import re
-from typing import Callable, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpRequest
 from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
 from wagtail.users.models import UserProfile
 
-
 from kausal_common.logging.http import start_request
-from nodes.models import InstanceConfig
+
 from paths.admin_context import set_admin_instance
 from paths.cache import PathsObjectCache
 from paths.types import PathsAdminRequest, PathsRequest
+
+from nodes.models import InstanceConfig
 from users.models import User
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from django.http import HttpRequest
 
 
 class RequestMiddleware(MiddlewareMixin):
@@ -38,23 +45,21 @@ class AdminMiddleware:
 
         user = request.user
         if not isinstance(user, User):
-            return
+            return None
         if not user.is_active or not user.is_authenticated or not user.is_staff:
             return None
 
-        instance_config: Optional[InstanceConfig] = None
+        instance_config: InstanceConfig | None = None
         admin_instance_id = request.session.get('admin_instance')
         if admin_instance_id:
             instance_config = InstanceConfig.objects.filter(id=admin_instance_id).first()
 
-        # FIXME
         adminable_instances = (
             InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['change'])
             .filter(site__isnull=False)
         )
-        if instance_config is not None:
-            if instance_config not in adminable_instances:
-                instance_config = None
+        if instance_config is not None and instance_config not in adminable_instances:
+            instance_config = None
 
         if instance_config is None:
             instance_config = adminable_instances.last()
@@ -86,12 +91,11 @@ class AdminMiddleware:
         self.activate_language(ic, user)
         set_admin_instance(ic, request=request)
 
-        assert ic.site is not None
         request._wagtail_site = ic.site
 
         # If it's an admin method that changes something, invalidate GraphQL cache.
         if request.method in ('POST', 'PUT', 'DELETE'):
-            def invalidate_cache():
+            def invalidate_cache() -> None:
                 ic.invalidate_cache()
             transaction.on_commit(invalidate_cache)
 

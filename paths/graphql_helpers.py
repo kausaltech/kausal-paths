@@ -1,26 +1,24 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
 import functools
-from typing import Any, Callable, Concatenate, ParamSpec, TypeVar, TYPE_CHECKING, cast
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable, Concatenate, OrderedDict, ParamSpec, TypeVar, cast
 
 from django.core.handlers.wsgi import WSGIRequest
-from graphql.type import GraphQLResolveInfo
-from graphql.language.ast import OperationDefinitionNode
 from graphql.error import GraphQLError
 
 from nodes.instance import Instance
-from nodes.perf import PerfContext
 
 if TYPE_CHECKING:
-    from nodes.context import Context
+    from typing import type_check_only
+
+    from kausal_common.graphene import GQLInfo
+
     from paths.types import UserOrAnon
 
-
-# Helper classes for typing
-class GQLContext(WSGIRequest):
-    user: UserOrAnon
-    graphql_query_language: str
+    from nodes.context import Context
+    from nodes.instance import Instance
+    from nodes.perf import PerfContext
 
 
 @dataclass(slots=True)
@@ -28,28 +26,32 @@ class GraphQLPerfNode:
     id: str
 
 
-class GQLInstanceContext(GQLContext):
-    instance: Instance
-    _referer: str | None
-    graphql_operation_name: str | None
-    graphql_perf: PerfContext[GraphQLPerfNode]
-    wildcard_domains: list[str]
+if TYPE_CHECKING:
+    # Helper classes for typing
+    @type_check_only
+    class GQLContext(WSGIRequest):
+        user: UserOrAnon  # type: ignore[override]
+        graphql_query_language: str
+
+    @type_check_only
+    class GQLInstanceContext(GQLContext):  # pyright: ignore
+        instance: Instance
+        _referer: str | None
+        graphql_operation_name: str | None
+        graphql_perf: PerfContext[GraphQLPerfNode]
+        wildcard_domains: list[str]
+        oauth2_error: OrderedDict[str, str]
+
+    @type_check_only
+    class GQLInstanceInfo(GQLInfo):  # pyright: ignore
+        context: GQLInstanceContext  # type: ignore[override]
 
 
-class GQLInfo(GraphQLResolveInfo):
-    context: GQLContext
-    operation: OperationDefinitionNode
-
-
-class GQLInstanceInfo(GQLInfo):
-    context: GQLInstanceContext
-
-
-def _instance_or_bust(info: GQLInstanceInfo):
+def _instance_or_bust(info: GQLInstanceInfo) -> Instance:
     if getattr(info.context, 'instance', None) is None:
         raise GraphQLError(
             "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
-            info.field_nodes
+            info.field_nodes,
         )
     return info.context.instance
 

@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
-from kausal_common.graphene import DjangoNode, DjangoNodeMeta, GQLInfo
+from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
 from kausal_common.models.uuid import UUID_PATTERN, query_pk_or_uuid
 
@@ -34,6 +34,7 @@ from .models import (
 if TYPE_CHECKING:
     from django.db.models.query import QuerySet
 
+    from kausal_common.graphene import GQLInfo
     from kausal_common.models.types import QS
 
     from frameworks.models import SectionQuerySet

@@ -6,7 +6,7 @@ import graphene
 
 from grapple.types.pages import Page as GrapplePageType
 
-from paths.graphql_helpers import GQLInstanceInfo, ensure_instance
+from paths.graphql_helpers import ensure_instance
 
 from nodes.models import InstanceConfig
 from nodes.schema import NodeType
@@ -16,6 +16,8 @@ from .models import OutcomePage, Page, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
+    from paths.graphql_helpers import GQLInstanceInfo
+
     from nodes.node import Node
 
 policy = PagePermissionPolicy()
