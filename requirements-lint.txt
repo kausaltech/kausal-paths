@@ -7,7 +7,7 @@ asgiref==3.8.1
     #   django-stubs
 celery-types==0.22.0
     # via -r requirements-lint.in
-certifi==2024.7.4
+certifi==2024.8.30
     # via
     #   -c requirements.txt
     #   requests
@@ -15,7 +15,7 @@ charset-normalizer==3.3.2
     # via
     #   -c requirements.txt
     #   requests
-django==5.0.8
+django==5.1.1
     # via
     #   -c requirements.txt
     #   django-stubs
@@ -34,13 +34,13 @@ factory-boy==3.3.1
     # via
     #   -c requirements.txt
     #   types-factory-boy
-faker==28.0.0
+faker==29.0.0
     # via
     #   -c requirements.txt
     #   factory-boy
 graphene-stubs==0.16
     # via -r requirements-lint.in
-idna==3.8
+idna==3.10
     # via
     #   -c requirements.txt
     #   requests
@@ -50,7 +50,7 @@ mypy==1.11.2
     #   graphene-stubs
 mypy-extensions==1.0.0
     # via mypy
-numpy==2.0.1
+numpy==2.0.2
     # via
     #   -c requirements.txt
     #   pandas-stubs
@@ -61,7 +61,7 @@ pyarrow==17.0.0
     # via
     #   -c requirements.txt
     #   pyarrow-stubs
-pyarrow-stubs==17.4
+pyarrow-stubs==17.6
     # via -r requirements-lint.in
 python-dateutil==2.9.0.post0
     # via
@@ -71,7 +71,7 @@ requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.6.4
+ruff==0.6.7
     # via -r requirements-lint.in
 six==1.16.0
     # via
@@ -85,7 +85,9 @@ types-cffi==1.16.0.20240331
     # via types-pygit2
 types-factory-boy==0.4.1
     # via -r requirements-lint.in
-types-openpyxl==3.1.5.20240822
+types-oauthlib==3.2.0.20240806
+    # via -r requirements-lint.in
+types-openpyxl==3.1.5.20240918
     # via -r requirements-lint.in
 types-orjson==3.6.2
     # via -r requirements-lint.in
@@ -93,13 +95,13 @@ types-pygit2==1.15.0.20240822
     # via -r requirements-lint.in
 types-pytz==2024.2.0.20240913
     # via pandas-stubs
-types-pyyaml==6.0.12.20240808
+types-pyyaml==6.0.12.20240917
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.32.0.20240907
+types-requests==2.32.0.20240914
     # via djangorestframework-stubs
-types-setuptools==74.1.0.20240907
+types-setuptools==75.1.0.20240917
     # via types-cffi
 typing-extensions==4.12.2
     # via
@@ -111,7 +113,7 @@ typing-extensions==4.12.2
     #   graphene-stubs
     #   mypy
     #   types-factory-boy
-urllib3==2.2.2
+urllib3==2.2.3
     # via
     #   -c requirements.txt
     #   requests
