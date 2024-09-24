@@ -488,7 +488,7 @@ dimensions:
 emission_sectors:
 - id: net_emissions
   name: Net emissions
-  # is_outcome: true
+  is_outcome: true
 
 nodes:
 - id: discounted_co_benefits
