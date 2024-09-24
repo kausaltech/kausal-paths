@@ -8,6 +8,7 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager, nullco
 from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.utils import translation
 from graphene_django.views import GraphQLView
@@ -27,16 +28,16 @@ from loguru import logger
 from rich.console import Console
 from rich.syntax import Syntax
 
+from kausal_common.auth.tokens import authenticate_api_request
 from kausal_common.testing.graphql import capture_query
 
-from paths.authentication import IDTokenAuthentication
 from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
 
 from nodes.models import Instance, InstanceConfig, InstanceConfigQuerySet
 from nodes.perf import PerfContext
 from params.storage import SessionStorage
 
-from .graphql_helpers import GQLContext, GQLInstanceContext, GraphQLPerfNode
+from .graphql_helpers import GraphQLPerfNode
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -45,6 +46,8 @@ if TYPE_CHECKING:
     from graphql.type import GraphQLObjectType
 
     from sentry_sdk.tracing import Transaction
+
+    from .graphql_helpers import GQLContext, GQLInstanceContext
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
@@ -285,7 +288,7 @@ class PathsGraphQLView(GraphQLView):
             log = log.bind(graphql_operation=operation_name)
         log.log(level, 'GQL request [magenta]%s[/]: %s' % (operation_name, msg), *args, **kwargs)
 
-    def json_encode(self, request: GQLInstanceContext, d, pretty=False):  # pyright: ignore
+    def json_encode(self, request: GQLInstanceContext, d, pretty=False) -> str:
         errors = []
         def serialize_unknown(obj) -> str:
             err = TypeError("Unable to serialize value %s with type %s" % (obj, type(obj)))
@@ -306,7 +309,7 @@ class PathsGraphQLView(GraphQLView):
         self.log_reg(
             'DEBUG', op_name, 'Response was {} bytes', len(ret),
         )
-        return ret
+        return ret.decode('utf8')
 
     def get_ic_from_headers(self, request: HttpRequest):
         identifier = request.headers.get('x-paths-instance-identifier')
@@ -362,17 +365,42 @@ class PathsGraphQLView(GraphQLView):
     def store_to_cache(self, key, result):
         return cache.set(key, result, timeout=30 * 60)
 
-    def get_response(self, request: HttpRequest, data, show_graphiql=False):
+    def get_response(self, request: HttpRequest, data, show_graphiql=False) -> tuple[str | None, int]:  # pyright: ignore
         operation_name = request.GET.get("operationName") or data.get("operationName")
         if operation_name == "null":
             operation_name = None
-        request = cast(GQLInstanceContext, request)
+        request = cast('GQLInstanceContext', request)
         perf: PerfContext = PerfContext(
             supports_cache=False, min_ms=10, description=operation_name,
         )
         perf.enabled = settings.ENABLE_PERF_TRACING
         request.graphql_perf = perf
-        with perf:
+
+        auth_error = authenticate_api_request(request, 'graphql')
+        if auth_error:
+            logger.warning("Authentication failed: %s (%s)" % (auth_error.get('error'), auth_error.get('error_description')))
+            resp = dict(
+                errors=[dict(
+                    message='Authentication failed',
+                    extensions=dict(
+                        code=auth_error.get('error'),
+                        description=auth_error.get('error_description'),
+                    ),
+                )],
+            )
+            return self.json_encode(request, resp), 401
+
+        user_log_context: dict[str, Any]
+        if isinstance(request.user, User):
+            user = request.user
+            user_log_context = {
+                'user.email': user.email,
+                'user.id': user.pk,
+            }
+        else:
+            user_log_context = {}
+
+        with perf, logger.contextualize(**user_log_context):
             start = time.time()
             ret = super().get_response(request, data, show_graphiql)
             if GRAPHQL_CAPTURE_QUERIES and data and ret[0]:
@@ -382,15 +410,6 @@ class PathsGraphQLView(GraphQLView):
                 capture_query(request, headers, data, ret[0], ret[1], (now - start) * 1000)
 
         return ret
-
-    def process_auth_token(self, request: GQLInstanceContext):
-        if IDTokenAuthentication is None:
-            return
-        auth = IDTokenAuthentication()
-        ret = auth.authenticate(request)  # type: ignore
-        if ret is not None:
-            user, token = ret  # pyright: ignore
-            request.user = user
 
     def execute_graphql_request(
         self, request: GQLInstanceContext, data: dict, query: str | None, variables: dict | None,
@@ -442,7 +461,6 @@ class PathsGraphQLView(GraphQLView):
 
         span = sentry_sdk.get_current_span()
         assert span is not None
-        self.process_auth_token(request)
         with enter('get query cache key'):
             cache_key = self.get_cache_key(request, query, variables, operation_name)
 
