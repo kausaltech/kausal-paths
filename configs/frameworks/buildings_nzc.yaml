@@ -1035,15 +1035,58 @@ nodes:
       flatten: true
     - id: pollutant
       categories: [nox, pm25_combustion, pm10_combustion]
-  # - id: consumer_electricity_emissions
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
-  #   - id: pollutant
-  #     categories: [co2]
-  #     exclude: true
 
 # --------------- Costs ----------------
+
+- id: air_pollutant_distance_index
+  name: Air pollutant distance index
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [pollutant, heating_type, area_distance]
+  output_dimensions: [pollutant, heating_type, area_distance]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Air pollutant distance index
+
+- id: building_air_pollution_cost
+  name: Building air pollution cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
+  output_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
+  input_nodes:
+  - id: building_air_pollutant_emissions
+    to_dimensions:
+    - id: pollutant
+  - id: air_pollutant_distance_index
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+    - id: area_distance
+  - id: air_pollution_unit_price
+    to_dimensions:
+    - id: pollutant
+    - id: cost_type
+    - id: area_distance
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    - id: area_distance
+      flatten: true
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
 
 - id: efficiency_programme_unit_price
   name: Efficiency programme unit price
@@ -1269,10 +1312,8 @@ actions:
   name: 3.1 Improve old building renovations
   type: parent.ParentActionNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   group: buildings
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
 
 - id: renovation_rate_improvement
   name: 3.1.1 Renovation rate improvement
@@ -1335,16 +1376,14 @@ actions:
 - id: decarbonising_heating_generation
   name: 3.4 Decarbonising heating generation
   type: parent.ParentActionNode
-  unit: t/a
+  unit: kt/a
   quantity: emissions
   group: buildings
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
   # indicator_nodes:
   # - id: building_heat_mix
 
 - id: heating_technology_improvement  # TODO Add 20 a lifetime
-  name: 3.4.1 Increase distrcit heating
+  name: 3.4.1 Increase district heating
   description: Switch from local to district heating.
   type: linear.DatasetReduceAction
   quantity: fraction

@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: aa18d0db28d64d9df2fdd27cab861a3cf8c4ca3f
+  commit: c96d88263e894267bd298f2c2da22432f22154ae
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -488,7 +488,7 @@ dimensions:
 emission_sectors:
 - id: net_emissions
   name: Net emissions
-  is_outcome: true
+  # is_outcome: true
 
 nodes:
 - id: discounted_co_benefits
@@ -496,7 +496,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  # is_outcome: true
+  is_outcome: true
   input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
   output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
   input_nodes:

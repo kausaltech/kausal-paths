@@ -1187,8 +1187,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/vkm
-  input_dimensions: [transport_mode, cost_type, energy_carrier]
-  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
   input_datasets: [nzc/defaults]
   params:
     sector: Cost of driving a car per kilometre (excluding fuel)
@@ -1206,6 +1206,9 @@ nodes:
     - id: cost_type
       categories: [fuel]
       exclude: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
   - id: vehicle_kilometres
     from_dimensions:
     - id: transport_mode
@@ -1565,31 +1568,31 @@ nodes:
     - id: stakeholder
     - id: transport_mode
 
-- id: transport_co2_cost
-  name: Transport CO2 cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [scope, transport_mode, cost_type]
-  output_dimensions: [scope, transport_mode, cost_type]
-  input_nodes:
-  - id: transport_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: transport_mode
-  - id: co2_unit_price
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: scope
-      categories: [scope1]
-    - id: cost_type
+# - id: transport_co2_cost
+#   name: Transport CO2 cost
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [scope, transport_mode, cost_type]
+#   output_dimensions: [scope, transport_mode, cost_type]
+#   input_nodes:
+#   - id: transport_emissions
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#     - id: transport_mode
+#   - id: co2_unit_price
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#       categories: [scope1]
+#     - id: cost_type
 
 - id: transport_noise_unit_price
   name: Transport noise unit price
@@ -1601,6 +1604,19 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: Noise
+
+- id: transport_noise_unit_price_per_vkm
+  name: Transport noise unit price per vehicle km
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: transport_noise_unit_price
+  - id: transport_efficiency
+    to_dimensions:
+    - id: transport_mode
 
 - id: transport_co_benefit_cost_shares
   name: Transport co-benefit cost shares
@@ -1621,11 +1637,14 @@ nodes:
   input_dimensions: [stakeholder, transport_mode, cost_type]
   output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
-  - id: transport_noise_unit_price
+  - id: transport_noise_unit_price_per_vkm
     to_dimensions:
     - id: cost_type
     - id: transport_mode
-  - id: passenger_kilometres
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: transport_mode
   - id: transport_co_benefit_cost_shares
@@ -1650,6 +1669,19 @@ nodes:
   params:
     sector: Traffic accidents
 
+- id: transport_accident_unit_price_per_vkm
+  name: Transport accident unit price per vehicle km
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: transport_accident_unit_price
+  - id: transport_efficiency
+    to_dimensions:
+    - id: transport_mode
+
 - id: transport_accident_cost
   name: Transport accident cost
   type: simple.MultiplicativeNode
@@ -1658,11 +1690,14 @@ nodes:
   input_dimensions: [stakeholder, transport_mode, cost_type]
   output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
-  - id: transport_accident_unit_price
+  - id: transport_accident_unit_price_per_vkm
     to_dimensions:
     - id: transport_mode
     - id: cost_type
-  - id: passenger_kilometres
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: transport_mode
   - id: transport_co_benefit_cost_shares
