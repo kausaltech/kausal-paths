@@ -342,8 +342,6 @@ nodes:
       flatten: true
     - id: fuel_type
       flatten: true
-    # - id: scope
-    #   flatten: true
     to_dimensions: []
 
 - id: energy_use_intensity_change_new
@@ -608,52 +606,50 @@ nodes:
   params:
     sector: Efficiency of heat pumps
 
-# - id: building_heat_electricity_use  # FIXME Not needed because electricity is in total energy.
-#   name: Building heat electricity use
-#   description: Electricity used to produce heat with heat pumps and direct electricity.
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
-#   output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
-#   input_nodes:
-#   - id: building_heat_energy_use
-#     tags: [non_additive]
-#     from_dimensions:
-#     - id: fuel_type
-#       flatten: true
-#     - id: energy_carrier
-#       categories: [electricity]
-#     to_dimensions:
-#     - id: building_energy_class
-#     - id: heating_type
-#     - id: energy_carrier
-#     - id: scope
-#       categories: [scope2]
-#   - id: heating_type_shares
-#     to_dimensions:
-#     - id: heating_type
-#     - id: energy_carrier
-#     - id: scope
-#     - id: fuel_type
-#   - id: efficiency_of_heat_pumps
-#     tags: [geometric_inverse]
-#     to_dimensions:
-#     - id: fuel_type
-#     - id: energy_carrier
-#   output_nodes:
-#   - id: total_electricity_consumption
-#     from_dimensions:
-#     - id: fuel_type
-#       flatten: true
-#     - id: heating_type
-#       flatten: true
-#     - id: building_energy_class
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: energy_carrier
+- id: building_heat_electricity_use
+  name: Building heat electricity use
+  description: Electricity used to produce heat with heat pumps and direct electricity.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [non_additive]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: building_energy_class
+    - id: heating_type
+    - id: energy_carrier
+    - id: scope
+  - id: building_heating_shares_pre
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+  - id: efficiency_of_heat_pumps
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
 
 # - id: building_heat_energy_use2
 #   name: Building heat energy use without electricity
@@ -695,8 +691,8 @@ nodes:
     - id: building_energy_class
       flatten: true
     - id: energy_carrier
-      # categories: [electricity]
-      # exclude: true
+      categories: [electricity]
+      exclude: true
       flatten: true
     # - id: fuel_type
     #   flatten: true
@@ -1269,12 +1265,22 @@ nodes:
 
 actions:
 
+- id: renovation_improvements
+  name: 3.1 Improve old building renovations
+  type: parent.ParentActionNode
+  quantity: emissions
+  unit: t/a
+  group: buildings
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+
 - id: renovation_rate_improvement
   name: 3.1.1 Renovation rate improvement
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%/a'
   group: buildings
+  parent: renovation_improvements
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
@@ -1295,6 +1301,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: buildings
+  parent: renovation_improvements
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
