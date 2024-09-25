@@ -14,7 +14,7 @@ from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import Q, CharField
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
@@ -348,8 +348,8 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     @cached_property
     def action_list_page(self) -> ActionListPage | None:
         from pages.models import ActionListPage
-        qs = self.root_page.get_descendants().type(ActionListPage)
-        return qs.first()
+        qs = self.root_page.get_descendants().type(ActionListPage).specific()
+        return cast(ActionListPage | None, qs.first())
 
     def get_translated_root_page(self) -> Page:
         """Return root page in activated language, fall back to default language."""
@@ -668,7 +668,7 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
     )
 
-    color = ColorField(max_length=20, null=True, blank=True)
+    color: CharField[str, str] = ColorField(max_length=20, null=True, blank=True)
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
