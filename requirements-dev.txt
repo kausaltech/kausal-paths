@@ -87,8 +87,9 @@ pip==24.2
 platformdirs==3.11.0
     # via
     #   -c requirements.txt
+    #   textual
     #   virtualenv
-plotext==5.3.1
+plotext==5.3.2
     # via -r requirements-dev.in
 pre-commit==3.8.0
     # via -r requirements-dev.in
@@ -130,7 +131,7 @@ stack-data==0.6.3
     # via
     #   -c requirements.txt
     #   ipython
-textual==0.78.0
+textual==0.80.1
     # via -r requirements-dev.in
 traitlets==5.14.3
     # via
@@ -144,7 +145,7 @@ typing-extensions==4.12.2
     #   textual
 uc-micro-py==1.0.3
     # via linkify-it-py
-uv==0.4.15
+uv==0.4.16
     # via -r requirements-dev.in
 virtualenv==20.26.5
     # via pre-commit
