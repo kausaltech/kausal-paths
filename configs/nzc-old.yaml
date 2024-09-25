@@ -1,5 +1,6 @@
 id: nzc
 default_language: en
+frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -93,6 +94,18 @@ dimensions:
     aliases: [pm10]
   - id: pm10_wear_tear
     label: PM10 wear & tear
+
+- id: transport_pollutant
+  label: Transport pollutant
+  categories:
+  - id: co2
+    label: CO2
+  - id: nox
+    label: NOx
+  - id: pm25
+    label: PM2.5
+  - id: pm10
+    label: PM10
 
 - id: scope
   label: Scope
@@ -256,6 +269,78 @@ dimensions:
   - id: heat_pump
     label: Heat pump
 
+- id: waste_type
+  label: Waste type
+  categories:
+  - id: paper
+    label: Paper and cardboard
+  - id: metal
+    label: Metal
+  - id: plastics
+    label: Plastics
+  - id: glass
+    label: Glass
+  - id: organic_waste
+    label: Organic waste
+  - id: other_waste
+    label: Other waste (e.g. textiles, rubble, wood)
+  - id: mixed_waste
+    label: Mixed waste
+  - id: aluminium
+    label: Aluminiium
+
+- id: waste_treatment
+  label: Waste treatment
+  categories:
+  # - id: other
+  #   label: Other waste management
+  - id: incinerated
+    label: Incinerated (e.g. energy recovery)
+  - id: recycled
+    label: Recycled
+  - id: decay
+    label: Organic decay (waste)
+  - id: sorting
+    label: Sorting
+  - id: plastic_sorting
+    label: Plastic sorting
+  - id: landfill
+    label: Landfill
+    aliases: [other, Other waste management]
+  - id: landfill_gas
+    label: Landfill gas
+  - id: composting
+    label: Composting
+
+- id: building_energy_class
+  label: Building energy class
+  categories:
+  - id: new_standard
+    label: New, standard
+  - id: new_top_performance
+    label: New, top performance
+  - id: old_no_renovations
+    label: Old, no renovation
+  - id: minor_renovation
+    aliases: [minor_renovations]
+    label: Old, minor heating renovation
+  - id: major_renovation
+    aliases: [major_renovations]
+    label: Old, extensive heating renovation
+  - id: no_improvement  # FIXME Remove redundant
+    label: No improvement
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
+  - id: moderate_renovation
+    aliases: [moderate_renovations]
+    label: Moderate renovation
+
 - id: efficiency_programme
   label: Energy efficiency programme
   categories:
@@ -270,6 +355,14 @@ dimensions:
     label: Moderate improvements
   - id: nzeb
     label: Net zero emission buildings
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
 
 - id: city_area
   label: City area
@@ -298,6 +391,32 @@ dimensions:
     label: Outside city
   - id: average
     label: Average
+
+- id: diet
+  label: Diet
+  categories:
+  - id: current_average
+    label: Current average
+  - id: flexitarian
+    label: Flexitarian
+  - id: pescetarian
+    label: Pescetarian
+  - id: vegetarian
+    label: Vegetarian
+  - id: vegan
+    label: Vegan
+
+- id: material
+  label: Material
+  categories:
+  - id: concrete
+    label: Concrete
+  - id: steel
+    label: Steel
+  - id: plastics
+    label: Plastics
+  - id: aluminium
+    label: Aluminium
 
 - id: stakeholder
   label: Stakeholder
@@ -352,9 +471,9 @@ dimensions:
   - id: it
     label: Italy
   - id: lt
-    label: Latvia
+  #   label: Latvia
   # - id: 'no'
-  #   label: Norway
+    label: Norway
   - id: pl
     label: Poland
   - id: ro
@@ -374,15 +493,6 @@ emission_sectors:
   is_outcome: true
 
 nodes:
-
-- id: technical_root_node
-  name: Technical root node
-  description: This node is used as the outcome node of ParentActionNodes so that they don't pick a random root node from the model.
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: m**3
-  historical_values: [[2018, 0.0], [2023, 0.0]]
-
 - id: discounted_co_benefits
   name: Discounted costs by aggregated types
   type: simple.MultiplicativeNode
@@ -439,6 +549,263 @@ nodes:
 #       flatten: true
 #     - id: scope
 #       flatten: true
+
+- id: total_electricity_consumption
+  name: Total electricity consumption, uncorrected
+  description: Consumption is not corrected for the actual consumption statistics.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+
+- id: total_electricity_consumption2
+  name: Total electricity consumption
+  description: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [non_additive]
+
+- id: total_electricity_consumption3
+  name: Total electricity consumption by production shares
+  description: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: total_electricity_consumption2
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: total_electricity_emissions
+  name: Total electricity emissions including air pollutants
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption2
+    to_dimensions:
+    - id: energy_carrier
+  - id: effective_electricity_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
+
+- id: electricity_emissions
+  name: Electricity emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+
+- id: statistical_electricity_consumption
+  name: Statistical electricity consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Total electricity demand within city boundaries
+
+- id: electricity_consumption_ratio
+  name: Electricity consumption ratio between statistics and modelled
+  type: simple.MultiplicativeNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: statistical_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_correction
+  name: Electricity statistics correction
+  type: gpc.CorrectionNode2
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_consumption_ratio
+    tags: [inventory_only, extend_values]
+  params:
+  - id: do_correction
+    ref: statistical_correction
+  # - id: inventory_only
+  #   value: false
+  output_nodes:
+  - id: total_electricity_consumption2
+
+# - id: fossil_electricity_factor
+#   name: Fossil electricity factor
+#   description: The historical emission factor is for the whole mix of electricity
+#     production, but the CO2 emissions come mainly from fossil fuels. Therefore, the
+#     emission factor is scaled so that it matches the fossil fraction, while other
+#     categories are assumed to have zero CO2 emissions.
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [fuel_type, energy_carrier]
+#   output_dimensions: [fuel_type, energy_carrier]
+#   input_nodes:
+#   - id: electricity_shares
+#     tags: [geometric_inverse]
+#     from_dimensions:
+#     - id: fuel_type
+#       categories: [fossil]
+#     to_dimensions:
+#     - id: fuel_type
+#     - id: energy_carrier
+
+- id: electricity_production_emission_factor
+  name: Electricity production emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Emission factors from electricity generation
+
+- id: electricity_production_unit_price
+  name: Electricity production unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Spot price electricity
+
+- id: consumer_electricity_unit_price
+  name: Consumer electricity unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Retail price of electricity
+
+- id: electricity_consumption_cost
+  name: Electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type]
+  input_nodes:
+  - id: consumer_electricity_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption2
+    to_dimensions:
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [citizens]  # FIXME Actually affects other stakeholders as well
+    - id: cost_type
+      categories: [opex]
+  output_nodes:
+  - id: electricity_cost
+
+- id: consumer_heating_unit_price  # TODO Prices should be separated by energy_carrier but no data available.
+  name: Consumer heating unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Retail price of heating
+
+- id: consumer_heating_cost
+  name: Consumer heating cost (excluding electricity)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
+  input_nodes:
+  - id: consumer_heating_unit_price
+    to_dimensions: []
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+    - id: heating_type
+
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: co2_unit_price
   name: CO2 unit price
@@ -524,435 +891,13 @@ nodes:
     - id: cost_type
       flatten: true
 
-actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
-
-# --------------- TRANSPORT -------------
-
-- id: reduce_all_motorised_transport
-  name: 1.1 Reduce all motorised transport
-  type: gpc.DatasetAction2  # FIXME Allow historical values in LinearCumulativeAdditiveAction.
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Transportation need reduction by 2030 from urban planning, digital meetings and other transport-reducing initiatives
-  output_nodes:
-  - id: motorised_transport_change
-    to_dimensions: []
-    tags: [non_additive, extend_values]
-
-- id: modal_switch_from_cars_to_other_modes
-  name: 1.2 Modal switch from cars to other modes
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Reduced Pkm cars + motorcycles by 2030
-  output_nodes:
-  - id: passenger_kilometres_switched
-    to_dimensions: []
-
-- id: car_pooling
-  name: 1.3 Car pooling
-  description: How many % increase there is in the average number of people in a car.
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
-  output_nodes:
-  - id: relative_transport_efficiency
-    to_dimensions:
-    - id: transport_mode
-  params:
-    sector: 1.3 Car pooling
-
-- id: electrification_of_passenger_cars
-  name: 1.4.1 Electrification of passenger cars
-  type: gpc.SCurveAction
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Electrification of transport fleet
-  input_nodes:
-  - id: fully_electric_vehicle_share
-    from_dimensions:
-    - id: transport_mode
-      categories: [cars]
-  output_nodes:
-  - id: fully_electric_car_share
-
-- id: electrification_of_buses
-  name: 1.4.2 Electrification of buses
-  description: Fraction of buses that is replaced with electric buses each year.
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%/a'
-  group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Expected procurement schedule for buses
-  output_nodes:
-  - id: fully_electric_bus_share
-    tags: [cumulative]
-
-# ----------------- Freight transport -----------------
-
-- id: improve_utilisation_of_trucks
-  name: 2.1.1 Improve utilisation of trucks
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_nodes:
-  - id: average_truck_utilisation_goal
-    tags: [goal]
-  - id: average_truck_utilisation_historical
-    tags: [historical]
-  output_nodes:
-  - id: average_truck_utilisation
-
-- id: route_optimisation
-  name: 2.1.2 Route optimisation
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  input_datasets:
-  - id: nzc/defaults
-  output_nodes:
-  - id: freight_transport_vehicle_kilometres
-    tags: [complement, non_additive]
-    to_dimensions: []
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: truck_fleet_electrification
-  name: 2.2 Truck fleet electrification
-  type: gpc.SCurveAction
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Electrification of transport fleet
-  input_nodes:
-  - id: fully_electric_vehicle_share
-    from_dimensions:
-    - id: transport_mode
-      categories: [light_trucks, heavy_trucks]
-  output_nodes:
-  - id: fully_electric_truck_share
-  
-  # ----------- BUILDINGS ---------------
-
-- id: renovation_improvements
-  name: 3.1 Improve old building renovations
-  type: parent.ParentActionNode
-  quantity: fraction
-  unit: m**3
-  group: buildings
-
-- id: renovation_rate_improvement
-  name: 3.1.1 Renovation rate improvement
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%/a'
-  group: buildings
-  parent: renovation_improvements
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: old_building_renovation_rate_historical
-    tags: [historical]
-    to_dimensions:
-    - id: building_energy_class
-  - id: old_building_renovation_rate_goal
-    tags: [goal]
-    to_dimensions:
-    - id: building_energy_class
-  output_nodes:
-  - id: old_building_renovation_rate
-
-- id: renovation_shares_improvement
-  name: 3.1.2 Renovation shares improvement
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: renovation_improvements
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: renovation_intensity_shares_historical
-    tags: [historical, inventory_only]
-    to_dimensions:
-    - id: building_energy_class
-  - id: renovation_intensity_shares_goal
-    tags: [goal]
-    to_dimensions:
-    - id: building_energy_class
-  output_nodes:
-  - id: renovation_intensity_shares
-
-- id: new_building_shares_improvement
-  name: 3.2 New building shares improvement
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: new_building_shares_historical
-    tags: [historical]
-  - id: new_building_shares_improvements
-    tags: [goal]
-  output_nodes:
-  - id: new_building_shares
-
-- id: decarbonising_heating_generation
-  name: 3.4 Decarbonising heating generation
-  type: parent.ParentActionNode
-  unit: m**3
-  quantity: fraction
-  group: buildings
-  # indicator_nodes:
-  # - id: building_heat_mix
-
-- id: heating_technology_improvement  # TODO Add 20 a lifetime
-  name: 3.4.1 Increase district heating
-  description: Switch from local to district heating.
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: decarbonising_heating_generation
-  input_dimensions: [heating_type]
-  output_dimensions: [heating_type]
-  input_nodes:
-  - id: building_heating_type_share_historical
-    tags: [historical, inventory_only]
-  - id: building_heating_type_share_goal
-    tags: [goal]
-    to_dimensions:
-    - id: heating_type
-  output_nodes:
-  - id: building_heating_type_share
-    to_dimensions:
-    - id: heating_type
-
-- id: heating_energy_improvement
-  name: 3.4.2 Increase low-emission heating
-  description: Improve the fuel shares of heating.
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: decarbonising_heating_generation
-  input_dimensions: [energy_carrier, heating_type, fuel_type]
-  output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_nodes:
-  - id: heating_fuel_share_historical
-    tags: [historical]
-  - id: heating_fuel_share_goal
-    tags: [goal]
-  output_nodes:
-  - id: heating_fuel_share
-
-- id: change_heating_fossil_share
-  name: 3.4.3 Reduce fossil heating
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: decarbonising_heating_generation
-  input_dimensions: [energy_carrier, fuel_type, heating_type]
-  output_dimensions: [energy_carrier, fuel_type, heating_type]
-  input_nodes:
-  - id: heating_fossil_share_historical
-    tags: [historical]
-  - id: heating_fossil_share_goal
-    tags: [goal]
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
-    - id: heating_type
-  output_nodes:
-  - id: heating_waste_fossil_share
-
-- id: fossil_electricity_replacement_fraction
-  name: 3.4.5 Fossil electricity replacement fraction
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: decarbonising_heating_generation
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Share of current fossil production replaced by renewables (or nuclear)
-
-- id: top_performance_improvement
-  name: '3.4.4 Top performance standard improvement compared with the regular new buildings'
-  type: simple.CumulativeAdditiveAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: decarbonising_heating_generation
-  historical_values: [[2021, 0], [2022, 0]]  # FIXME
-  forecast_values: [[2023, 50]]
-  output_nodes:
-  - id: energy_use_intensity_change_new
-    to_dimensions:
-    - id: building_energy_class
-      categories: [new_top_performance]
-
-- id: do_efficient_appliances
-  name: 3.3 Do efficient lighting & appliances renovation
+actions:
+- id: test
+  name: Test
   type: simple.AdditiveAction
-  quantity: fraction
-  unit: dimensionless
-  group: buildings
-  historical_values: [[2018, 0.0], [2022, 0.0]]
-  forecast_values: [[2023, 1], [2045, 1]]
-  input_dataset_processors: [LinearInterpolation]
-  # output_nodes:
-  # - id: efficient_appliances_rate
-  #   tags: [non_additive]
-  #   to_dimensions: []
-  # - id: efficiency_programme_shares_pre
-  #   tags: [non_additive]
-  #   to_dimensions: []
-
-# -------------- ELECTRICITY ----------------
-
-- id: replace_fossil_electricity  # TODO streamline this by using relative goal
-  name_en: 4.1 Replace fossil electricity
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: electricity
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_nodes:
-  - id: electricity_production_shares_historical
-    tags: [historical]
-  - id: electricity_shares_goal
-    tags: [goal, forecast_only]
-  output_nodes:
-  - id: electricity_shares
-
-# ------------- WASTE -------------------------
-
-- id: waste_recycling_trend
-  name: Waste recycling trend
-  type: linear.DatasetDifferenceAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
-  input_nodes:
-  - id: waste_recycling_shares_frozen
-    tags: [baseline]
-  - id: waste_recycling_future_baseline_shares
-    tags: [goal]
-    to_dimensions:
-    - id: waste_treatment
-    - id: waste_type
-  output_nodes:
-  - id: waste_recycling_shares_baseline
-
-- id: increase_waste_recycling
-  name: 5.1 Increase waste recycling
-  type: linear.DatasetDifferenceAction
-  quantity: fraction
-  unit: '%'
-  group: waste
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
-  input_nodes:
-  - id: waste_recycling_shares_baseline
-    tags: [baseline]
-  - id: waste_recycling_shares_goal
-    tags: [goal]
-    to_dimensions:
-    - id: waste_treatment
-    - id: waste_type
-  output_nodes:
-  - id: waste_recycling_shares
-
-# ---------------- OTHER SECTORS -------------
-
-- id: reduced_co2_emissions_in_other_sectors
-  name: '6? Reduced CO2 emissions in other sectors'
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: scope_3
-  output_nodes:
-  - id: emissions_from_other_sectors
-    tags: [non_additive, complement]
-    to_dimensions: []
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other sector
-
-# --------------- Scope 3 ---------------
-
-# - id: improve_building_material_composition
-#   name: 6.1 Improve building material composition
-#   type: linear.DatasetReduceAction
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   group: scope_3
-#   input_nodes:
-#   - id: building_material_composition_historical
-#     tags: [historical]
-#   - id: building_material_composition_goal
-#     tags: [goal]
-#   output_nodes:
-#   - id: building_materials_used_by_material
-#     to_dimensions:
-#     - id: material
-
-# --------------- AFOLU -----------------
-
-# - id: tree_planting
-#   name: 7.1 Tree planting
-#   type: gpc.DatasetAction2
-#   quantity: number
-#   unit: pcs
-#   group: reforestation
-#   input_dimensions: [area_distance]
-#   output_dimensions: [area_distance]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Number of planted trees until 2030
-#   output_nodes:
-#   - id: number_of_new_trees
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2023, 100]]
 
 pages:
 - id: home
@@ -1002,17 +947,3 @@ scenarios:
     value: true
   - id: waste_recycling_trend.enabled
     value: true
-
-include:
-- file: nzc/transport.yaml
-  node_group: Transport
-- file: nzc/freight_transport.yaml
-  node_group: Freight transport
-- file: nzc/buildings.yaml
-  node_group: Buildings
-- file: nzc/electricity.yaml
-  node_group: Electricity§
-- file: nzc/waste.yaml
-  node_group: Waste
-- file: nzc/other.yaml
-  node_group: Other

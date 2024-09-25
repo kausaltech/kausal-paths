@@ -1,0 +1,638 @@
+nodes:
+
+- id: fully_electric_truck_share
+  name: Fully electric truck share
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      values: [light_trucks, heavy_trucks]
+      drop_col: false
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: freight_transport_energy_carrier_shares
+  name: Freight transport energy carrier shares
+  description: Share of freight fleet fully electric (not including hybrids)
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_nodes:
+  - id: fully_electric_truck_share
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  output_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  params:
+    new_category: 'energy_carrier:petrol_diesel'
+
+# ---------------- Freight transport -------------
+
+- id: freight_transport_need
+  name: Freight transport need
+  type: gpc.DatasetNode
+  quantity: freight_mileage
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+  - id: sector
+    value: Total transportation need within city - Road freight transport
+
+- id: average_truck_utilisation_historical
+  name: Average truck utilisation historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Average utilisation
+
+- id: average_truck_utilisation
+  name: Average truck utilisation
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Average utilisation
+
+- id: average_truck_utilisation_goal
+  name: Average truck utilisation goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Utilisation of trucks in decarbonisation scenario
+
+- id: truck_max_load_weight
+  name: Truck max load weight
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: tkm/vkm
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Max load weight
+
+- id: freight_transport_vehicle_kilometres
+  name: Freight transport vehicle kilometres
+  type: simple.MultiplicativeNode
+  quantity: freight_mileage
+  unit: Mvkm/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: freight_transport_need
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+  - id: average_truck_utilisation
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+  - id: truck_max_load_weight
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+
+- id: number_of_trucks_registered_within_city
+  name: Number of trucks registered within city
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Number of trucks registered within city
+
+- id: truck_mileage
+  name: Truck mileage
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    tags: [inventory_only]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: number_of_trucks_registered_within_city
+    tags: [geometric_inverse, inventory_only]
+
+- id: number_of_electric_trucks
+  name: Number of electric trucks
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: truck_mileage
+    tags: [extend_values, geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+  - id: freight_transport_vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+
+- id: baseline_year_truck_emission_factor
+  name: Baseline year truck emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Baseline year truck emission factor
+
+- id: new_truck_emission_factor
+  name: New truck emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: New truck emission factor
+
+- id: truck_emission_factor
+  name: Truck emission factor
+  type: costs.DilutionNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant]
+  output_dimensions: [transport_mode, pollutant]
+  input_nodes:
+  - id: baseline_year_truck_emission_factor
+    tags: [inventory_only, existing]
+  - id: new_truck_emission_factor
+    tags: [incoming]
+  - id: old_fleet_removal
+    tags: [removing, inserting]
+    to_dimensions:
+    - id: transport_mode
+
+- id: freight_transport_emissions
+  name: Freight transport emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  color: '#F28E2B'
+  input_dimensions: [transport_mode, pollutant, energy_carrier]
+  output_dimensions: [transport_mode, pollutant, energy_carrier]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol_diesel]
+    - id: transport_mode
+    - id: pollutant
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+
+- id: freight_transport_air_pollution_emissions
+  name: Freight transport air pollution emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  color: '#ff4f57'
+#  color: '#0047b6'
+  input_dimensions: [pollutant, energy_carrier, transport_mode]
+  output_dimensions: [pollutant, energy_carrier, transport_mode]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      exclude: true
+      categories: [co2]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol_diesel]
+    - id: transport_mode
+    - id: pollutant
+
+- id: truck_fuel_consumption
+  name: Truck fuel consumption
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: cl/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Fleet average consumption
+  
+- id: freight_transport_fuel_consumption
+  name: freight transport fuel consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: Ml/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+  - id: truck_fuel_consumption
+  - id: fuel_consumption_increase_due_to_load
+    tags: [arithmetic_inverse, complement]
+    to_dimensions:
+    - id: transport_mode
+
+- id: freight_transport_electricity_consumption  # FIXME Leads nowhere. Was there double counting?
+  name: freight transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+  - id: electricity_efficiency_for_electric_vehicles
+
+# ---------------- Freight transport costs -------
+
+- id: freight_transport_air_pollution_costs
+  name: Freight transport air pollution costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
+  output_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
+  input_nodes:
+  - id: air_pollution_unit_price
+    from_dimensions:
+    - id: area_distance
+      categories: [inside]
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: pollutant
+  - id: freight_transport_air_pollution_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: pollutant
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: transport_mode
+
+- id: freight_transport_co2_cost
+  name: Freight transport CO2 cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  - id: co2_unit_price
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: new_electric_trucks_additional_costs
+  name: New electric trucks additional costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: electric_vehicles_additional_unit_price
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: cost_type
+  - id: number_of_electric_trucks
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+    - id: stakeholder
+      categories: [transport_operators]
+
+- id: freight_transport_noise_unit_price
+  name: Freight transport noise unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/tkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight transport Noise
+
+- id: freight_transport_noise_cost
+  name: Freight transport noise cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_noise_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_need
+    to_dimensions:
+    - id: transport_mode
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
+
+- id: freight_transport_accident_unit_price
+  name: Freight transport accident unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/tkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight transport Traffic accidents
+
+- id: freight_transport_accident_cost
+  name: Freight transport accident cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_accident_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_need
+    to_dimensions:
+    - id: transport_mode
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
+
+- id: freight_transport_ownership_costs
+  name: Freight transport ownership costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, transport_mode, energy_carrier]
+  output_dimensions: [cost_type, transport_mode, energy_carrier]
+  input_nodes:
+  - id: total_cost_of_ownership
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+
+- id: freight_ownership_labour_cost_fraction
+  name: Freight ownership_labour cost fraction
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Freight labour cost fraction
+
+- id: freight_ownership_cost_without_labour
+  name: Freight ownership cost without labour
+  description: Labour costs are dropped here because those are assumed to stay constant despite changes in vehicle kilometres. Therefore, they are not included in total costs where the impacts are calculated.
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: freight_transport_ownership_costs
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: stakeholder
+      categories: [transport_operators]
+  - id: freight_ownership_labour_cost_fraction
+    tags: [complement]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  output_nodes:
+  - id: freight_transport_cost
+    to_dimensions:
+    - id: stakeholder
+    - id: transport_mode
+    - id: cost_type
+
+- id: fuel_consumption_increase_per_load_increase
+  name: Fuel consumption increase per load increase
+  description: Fuel consumption change of 1% utilisation change
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: 'Fuel consumption change of 1% utilisation change '
+
+- id: fuel_consumption_increase_due_to_load
+  name: Fuel consumption increase due to load
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: fuel_consumption_increase_per_load_increase
+    tags: [non_additive]
+  - id: average_truck_utilisation
+    tags: [non_additive]
+
+- id: freight_transport_fuel_cost
+  name: Freight transport fuel cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: freight_transport_fuel_consumption
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: fuel_unit_price
+    to_dimensions:
+    - id: cost_type
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: stakeholder
+      categories: [transport_operators]
+
+- id: freight_transport_electricity_cost
+  name: Freight transport electricity cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: freight_transport_vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: electricity_efficiency_for_electric_vehicles
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: consumer_electricity_unit_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+      categories: [opex]
+  - id: fuel_consumption_increase_due_to_load
+    tags: [arithmetic_inverse, complement]
+    to_dimensions:
+    - id: transport_mode
+  output_nodes:
+  - id: freight_transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: transport_mode
+    - id: cost_type
+
+- id: freight_transport_cost
+  name: Freight transport cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+
