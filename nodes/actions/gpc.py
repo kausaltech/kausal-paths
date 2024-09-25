@@ -426,7 +426,7 @@ class SCurveAction(DatasetAction):
     def extend_value_to_whole_column(self, df: ppl.PathsDataFrame, col: str, row) -> ppl.PathsDataFrame:
         df = df.paths.to_wide()
         cols = [co for co in df.columns if col + '@' in co]
-        expr = [pl.col(col).where(pl.col(YEAR_COLUMN).eq(row)) for col in cols]
+        expr = [pl.col(col).where(pl.col(YEAR_COLUMN).eq(row)).first() for col in cols]
         df = df.with_columns(expr)
         df = df.paths.to_narrow()
         return df

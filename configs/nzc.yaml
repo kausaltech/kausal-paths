@@ -4,7 +4,7 @@ frameworks: [transport_nzc, buildings_nzc, other_nzc]
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0df9b9abc8e2b2ca7fff041991bd83df7b2d723b
+  commit: 1e853eba98c0f6655fad1e6060abc58c5b4291f7
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -181,6 +181,8 @@ dimensions:
     label: Agriculture (AFOLU)
   - id: other_sources
     label: Other sources
+  - id: grid_stability
+    label: Storage, grid stability etc.
 
 - id: aggregated_cost_type
   label: Aggregated cost type
@@ -257,7 +259,7 @@ dimensions:
   - id: local_pv
     label: Local photovoltaics
   - id: centralised_pv
-    label: Centralised photovoltaics
+    label: Centralised photovoltaics and wind
   - id: pv
     label: Photovoltaics
   - id: flexibility
@@ -469,8 +471,8 @@ dimensions:
   - id: it
     label: Italy
   - id: lt
-    label: Latvia
-  - id: 'no'
+  #   label: Latvia
+  # - id: 'no'
     label: Norway
   - id: pl
     label: Poland
@@ -715,7 +717,7 @@ nodes:
   params:
     sector: Emission factors from electricity generation
 
-- id: electricity_production_unit_price  # FIXME Check how this should be used
+- id: electricity_production_unit_price
   name: Electricity production unit_price
   type: gpc.DatasetNode
   quantity: unit_price

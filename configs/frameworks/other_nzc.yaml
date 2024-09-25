@@ -165,6 +165,118 @@ nodes:
     - id: energy_carrier
     - id: fuel_type
 
+- id: renewable_electricity_production_unit_price
+  name: Renewable electricity production unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Spot price electricity
+
+- id: existing_electricity_production
+  name: Existing electricity production
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: total_electricity_consumption3
+  - id: new_renewable_electricity_production
+
+- id: new_renewable_electricity_production
+  name: New renewable electricity production
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    tags: [cumulative]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+
+- id: operating_unit_price_for_renewables
+  name: Operating cost for renewables
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: MEUR/MWh
+  input_dimensions: [cost_type, fuel_type, energy_carrier]
+  output_dimensions: [cost_type, fuel_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Operating cost for renewables
+
+- id: renewable_electricity_operating_cost
+  name: Renewable electricity operating cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
+  input_nodes:
+  - id: operating_unit_price_for_renewables
+    to_dimensions:
+    - id: cost_type
+    - id: fuel_type
+    - id: energy_carrier
+  - id: new_renewable_electricity_production
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: renewable_electricity_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: fuel_type
+  output_nodes:
+  - id: electricity_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+
+- id: electricity_air_pollution_cost
+  name: Electricity air pollution cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: total_electricity_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+  - id: air_pollution_unit_price
+    from_dimensions:
+    - id: area_distance
+      categories: [outside]
+      flatten: true
+    to_dimensions:
+    - id: pollutant
+    - id: cost_type
+  - id: transport_co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: electricity_cost_by_stakeholder
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: energy_carrier
+
 - id: effective_electricity_production_hours
   name: Effective electricity production hours
   type: gpc.DatasetNode
@@ -300,14 +412,14 @@ nodes:
   params:
     sector: solar panel costs
   output_nodes:
-  - id: renewable_electricity_cost
+  - id: renewable_electricity_investment_cost
     to_dimensions:
     - id: fuel_type
     - id: stakeholder
     - id: cost_type
 
-- id: renewable_electricity_cost
-  name: Renewable electricity cost
+- id: renewable_electricity_investment_cost
+  name: Renewable electricity investment cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -333,7 +445,7 @@ nodes:
   unit: a
   historical_values: [[2018, 1], [2013, 1]]
 
-- id: electricity_cost  # FIXME Should this be non-renewable?
+- id: electricity_cost
   name: Electricity cost
   type: simple.AdditiveNode
   quantity: currency
@@ -341,12 +453,17 @@ nodes:
   input_dimensions: [energy_carrier, cost_type, stakeholder]
   output_dimensions: [energy_carrier, cost_type, stakeholder]
   input_nodes:
-  - id: renewable_electricity_cost
+  - id: renewable_electricity_investment_cost
     from_dimensions:
     - id: fuel_type
       flatten: true
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
-- id: electricity_cost_shares
+- id: electricity_cost_shares  # FIXME Where do we need this?
   name: Electricity cost shares
   type: gpc.DatasetNode
   quantity: fraction
@@ -372,11 +489,6 @@ nodes:
     - id: cost_type
     to_dimensions:
     - id: stakeholder
-  output_nodes:
-  - id: total_cost
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
 
 - id: electricity_production_switched  # FIXME Remove
   name: Electricity production switched
@@ -1212,7 +1324,7 @@ nodes:
 
 actions:
 
-- id: replace_fossil_electricity
+- id: replace_fossil_electricity  # TODO streamline this by using relative goal
   name_en: 4.1 Replace fossil electricity
   type: linear.DatasetReduceAction
   quantity: fraction
