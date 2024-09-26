@@ -12,11 +12,12 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
+from pydantic.dataclasses import dataclass as pydantic_dataclass
+
 import dvc_pandas
 import orjson
 import platformdirs
 from loguru import logger
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 from rich import print
 from ruamel.yaml import YAML as RuamelYAML, CommentedMap  # noqa: N811
 from yaml import safe_load as yaml_load
@@ -59,7 +60,8 @@ class InstanceTerms(I18nBaseModel):
 class InstanceFeatures:
     baseline_visible_in_graphs: bool = True
     show_accumulated_effects: bool = True
-    show_significant_digits: int = 3
+    show_significant_digits: int | None = 3
+    maximum_fraction_digits: int | None = None
 
 
 @dataclass

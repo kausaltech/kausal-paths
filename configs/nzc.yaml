@@ -18,6 +18,7 @@ emission_dimensions: [scope, ghg]
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 4
+  maximum_fraction_digits: 0
 
 params:
 - id: municipality_name
@@ -671,7 +672,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
       categories: [light_trucks, heavy_trucks]
   output_nodes:
   - id: fully_electric_truck_share
-  
+
   # ----------- BUILDINGS ---------------
 
 - id: renovation_improvements
@@ -974,10 +975,10 @@ pages:
   lead_paragraph: Climate budgeting is about including climate emissions systematically
     in the city's planning and budgeting. In the first phase, the Global Protocol
     for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing
-    these emissions are considered. C40 Network's website describes <a 
+    these emissions are considered. C40 Network's website describes <a
     href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why
     this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer
-    city</a> in this area. They have also made a practical <a 
+    city</a> in this area. They have also made a practical <a
     href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual
     for cities</a> to guide through the climate budgeting process.
 
