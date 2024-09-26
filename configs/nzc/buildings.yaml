@@ -859,7 +859,7 @@ nodes:
   name: Jobs per renovation investment
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: pcs/MEUR  # FIXME
+  unit: jobs/(MEUR/a)
   input_datasets: [nzc/defaults]
   params:
     sector: Jobs created by investment in renovation
@@ -868,7 +868,7 @@ nodes:
   name: Jobs created by renovations
   type: simple.MultiplicativeNode
   quantity: employment
-  unit: pcs/a  # FIXME
+  unit: jobs
   input_nodes:
   - id: old_building_renovation_costs
     from_dimensions:
@@ -879,13 +879,8 @@ nodes:
     - id: cost_type
       flatten: true
   - id: jobs_per_renovation_investment
-  # output_nodes:  # FIXME
-  # - id: total_jobs_created
-  #   from_dimensions:
-  #   - id: fuel_type
-  #     flatten: true
-  #   - id: eneergy_carrier
-  #     flatten: true
+  output_nodes:
+  - id: total_jobs_created
 
 - id: air_pollutant_distance_index
   name: Air pollutant distance index
@@ -1011,13 +1006,15 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type, building_energy_class]
-  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type, building_energy_class]
+  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   input_nodes:
-  - id: building_stock
+  - id: electricity_renovated_buildings
     tags: [difference]
-    to_dimensions:
-    - id: building_energy_class
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions: []
   - id: efficiency_programme_shares
     to_dimensions:
     - id: efficiency_programme
@@ -1077,16 +1074,13 @@ nodes:
   description: The unit is multiplied by 1 a because the unit price is given per production, not production capacity.
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR*a/MWh
+  unit: EUR/MWh
   input_dimensions: [energy_carrier, cost_type, heating_type]
   output_dimensions: [energy_carrier, cost_type, heating_type]
   input_datasets: [nzc/defaults]
   params:
   - id: sector
     value: Un-levelized capital cost of heating
-  - id: multiplier  # FIXME
-    value: 1
-    unit: a
 
 - id: heating_cost_stakeholder_shares
   name: Heating cost stakeholder shares
@@ -1103,7 +1097,7 @@ nodes:
   name: New heating capacity cost
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: EUR/a
+  unit: MEUR/a
   input_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
   output_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
   input_nodes:
@@ -1121,6 +1115,8 @@ nodes:
     - id: stakeholder
     - id: cost_type
     - id: heating_type
+  - id: multiplier_node  # FIXME
+    to_dimensions: []
   output_nodes:
   - id: building_cost
     from_dimensions:
@@ -1229,6 +1225,57 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
+- id: heat_production_capital_unit_price
+  name: Heat production capital unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier, heating_type, cost_type]
+  output_dimensions: [energy_carrier, heating_type, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Un-levelized capital cost of heating
+
+- id: heat_production_capital_cost
+  name: Heat production capital cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  output_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  input_nodes:
+  - id: heat_production_capital_unit_price
+    to_dimensions:
+    - id: heating_type
+    - id: cost_type
+    - id: energy_carrier
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: heating_type
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
 # ---------------- Summary ---------------------
 
 - id: building_cost  # TODO Add stakeholders and topic-wise costs
@@ -1248,8 +1295,6 @@ nodes:
     - id: efficiency_programme
       flatten: true
     - id: energy_carrier
-      flatten: true
-    - id: building_energy_class
       flatten: true
     to_dimensions:  # FIXME Allocate categories correctly
     - id: stakeholder

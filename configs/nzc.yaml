@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1e853eba98c0f6655fad1e6060abc58c5b4291f7
+  commit: 55bcd152883e7674724c608da3b49e649a90931a
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -156,6 +156,8 @@ dimensions:
     label: Vehicle costs
   - id: infrastructure_costs
     label: Infrastructure costs
+  - id: network
+    label: Network
   - id: fuel
     label: Fuel costs
   - id: tires
@@ -232,6 +234,8 @@ dimensions:
     label: Bio (biogas, biomass) and solar heaters
   - id: waste
     label: Waste (fossil & non-fossil waste)
+  - id: network  # FIXME remove
+    label: Network
 
 - id: fuel_type
   label: Fuel type
@@ -379,7 +383,8 @@ nodes:
 
 - id: technical_root_node
   name: Technical root node
-  description: This node is used as the outcome node of ParentActionNodes so that they don't pick a random root node from the model.
+  description: This node is used as the outcome node of ParentActionNodes so that
+    they don't pick a random root node from the model.
   type: simple.AdditiveNode
   quantity: fraction
   unit: m**3
@@ -548,7 +553,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   group: transport
   input_datasets: [nzc/defaults]
   params:
-    sector: Transportation need reduction by 2030 from urban planning, digital meetings and other transport-reducing initiatives
+    sector: Transportation need reduction by 2030 from urban planning, digital meetings
+      and other transport-reducing initiatives
   output_nodes:
   - id: motorised_transport_change
     to_dimensions: []
@@ -623,12 +629,20 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # ----------------- Freight transport -----------------
 
+- id: optimised_logistics
+  name: 2.1 Optimised logistics
+  type: parent.ParentActionNode
+  quantity: mass
+  unit: m**3
+  group: freight_transport
+
 - id: improve_utilisation_of_trucks
   name: 2.1.1 Improve utilisation of trucks
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: freight_transport
+  parent: optimised_logistics
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
@@ -645,6 +659,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%'
   group: freight_transport
+  parent: optimised_logistics
   input_datasets:
   - id: nzc/defaults
   output_nodes:
@@ -826,7 +841,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     sector: Share of current fossil production replaced by renewables (or nuclear)
 
 - id: top_performance_improvement
-  name: '3.4.4 Top performance standard improvement compared with the regular new buildings'
+  name: 3.4.4 Top performance standard improvement compared with the regular new buildings
   type: simple.CumulativeAdditiveAction
   quantity: fraction
   unit: '%'
@@ -917,7 +932,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # ---------------- OTHER SECTORS -------------
 
 - id: reduced_co2_emissions_in_other_sectors
-  name: '6? Reduced CO2 emissions in other sectors'
+  name: 6. Reduced CO2 emissions in other sectors
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'

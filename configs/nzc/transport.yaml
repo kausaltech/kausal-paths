@@ -992,6 +992,7 @@ nodes:
   input_nodes:
   - id: transport_noise_unit_price
   - id: transport_efficiency
+    tags: [inventory_only, extend_values]
     to_dimensions:
     - id: transport_mode
 
@@ -1056,6 +1057,7 @@ nodes:
   input_nodes:
   - id: transport_accident_unit_price
   - id: transport_efficiency
+    tags: [inventory_only, extend_values]
     to_dimensions:
     - id: transport_mode
 
