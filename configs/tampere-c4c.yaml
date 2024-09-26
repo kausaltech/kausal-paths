@@ -1,10 +1,10 @@
-id: tampere
+id: tampere-c4c
 default_language: fi
 supported_languages: [en]
-site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
+site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0ed7e0faff316fbbb1d2bdde8db65c3df33a1f15
+  commit: c95c2df71ef6ff92cf626cfcaa3eb6efbe083002
   dvc_remote: kausal-s3
 name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
@@ -35,7 +35,6 @@ action_groups:
   name_en: Sustainable energy
 
 dimensions:
-
 - id: tram_phase
   label: Ratikan vaihe
   label_en: Tram phase
@@ -842,30 +841,24 @@ nodes:
   #
   # LED Streetlight Detailed Action Module
   #
-- id: i22_baseline_streetlights
-  name: I.2.2 Baseline Streetlights
+- id: baseline_streetlights
+  name: Baseline Streetlights
   type: gpc.DetailedDatasetNode
   quantity: number
-  unit: count/a
+  unit: count
   input_dimensions: [streetlight_type]
   output_dimensions: [streetlight_type]
   params:
-  - id: sector
-    value: I.2.2
-  - id: action
-    value: LED Streetlights
-  # - id: multiplier  # FIXME Fix unit in dataset and then remove this parameter
-  #   value: 1
-  #   unit: a
+    sector: I.2.2
+    action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_streetlights
-    tags: [cumulative]  # FIXME Fix unit in dataset and then remove this row.
+  - id: streetlights
 
-- id: i22_annual_new_streetlights
-  name: I.2.2 Annual New Streetlights
+- id: annual_new_streetlights
+  name: Annual New Streetlights
   type: gpc.DetailedDatasetNode
   quantity: number
   unit: count/a
@@ -878,29 +871,29 @@ nodes:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_streetlights
+  - id: streetlights
     tags: [cumulative]
-  - id: i22_new_streetlight_costs
+  - id: new_streetlight_costs
     to_dimensions:
     - id: streetlight_type
 
-- id: i22_streetlights
-  name: I.2.2 Streetlights
+- id: streetlights
+  name: Streetlights
   type: simple.AdditiveNode
   quantity: number
   unit: count
   input_dimensions: [streetlight_type]
   output_dimensions: [streetlight_type]
   output_nodes:
-  - id: i22_streetlight_energy_consumption
+  - id: streetlight_energy_consumption
     to_dimensions:
     - id: streetlight_type
-  - id: i22_maintenance_costs
+  - id: maintenance_costs
     to_dimensions:
     - id: streetlight_type
 
-- id: i22_new_streetlight_unit_costs
-  name: I.2.2 New Streetlight Unit Costs
+- id: new_streetlight_unit_costs
+  name: New Streetlight Unit Costs
   type: gpc.DetailedDatasetNode
   quantity: unit_price
   unit: EUR/count
@@ -913,57 +906,52 @@ nodes:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_new_streetlight_costs
+  - id: new_streetlight_costs
 
-- id: i22_new_streetlight_costs
-  name: I.2.2 New Streetlight Costs
+- id: new_streetlight_costs
+  name: New Streetlight Costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
   input_dimensions: [streetlight_type, cost_type]
   output_dimensions: [streetlight_type, cost_type]
 
-- id: i22_streetlight_energy_factor
-  name: I.2.2 Streetlight Energy Factor
+- id: streetlight_energy_factor
+  name: Streetlight Energy Factor
   type: gpc.DetailedDatasetNode
   quantity: energy_factor
-  unit: kWh/count
+  unit: kWh/count/a
   input_dimensions: [streetlight_type, energy_carrier]
   output_dimensions: [streetlight_type, energy_carrier]
   params:
-  - id: sector
-    value: I.2.2
-  - id: action
-    value: LED Streetlights
-  # - id: multiplier  # FIXME Fix unit in dataset and then remove this parameter
-  #   value: 1
-  #   unit: 1/a
+    sector: I.2.2
+    action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_streetlight_energy_consumption
-    tags: [difference]  # FIXME Fix unit in dataset and then remove this row.
+  - id: streetlight_energy_consumption
+    tags: [non_additive]
 
-- id: i22_streetlight_energy_consumption
-  name: I.2.2 Streetlight Energy Consumption
+- id: streetlight_energy_consumption
+  name: Streetlight Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
   unit: kWh/a
   input_dimensions: [streetlight_type, energy_carrier]
   output_dimensions: [streetlight_type, energy_carrier]
   output_nodes:
-  - id: i22_energy_costs
+  - id: energy_costs
     to_dimensions:
     - id: streetlight_type
     - id: energy_carrier
-  - id: i22_energy_consumption_emissions
+  - id: energy_consumption_emissions
     to_dimensions:
     - id: streetlight_type
     - id: energy_carrier
 
-- id: i22_energy_unit_costs
-  name: I.2.2 Energy Unit Costs
+- id: energy_unit_costs
+  name: Energy Unit Costs
   type: gpc.DetailedDatasetNode
   quantity: unit_price
   unit: EUR/kWh
@@ -976,51 +964,46 @@ nodes:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_energy_costs
+  - id: energy_costs
     to_dimensions:
     - id: cost_type
     - id: energy_carrier
 
-- id: i22_energy_costs
-  name: I.2.2 Energy Costs
+- id: energy_costs
+  name: Energy Costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
   input_dimensions: [streetlight_type, cost_type, energy_carrier]
   output_dimensions: [streetlight_type, cost_type, energy_carrier]
 
-- id: i22_maintenance_unit_costs
-  name: I.2.2 Maintenance Unit Costs
+- id: maintenance_unit_costs
+  name: Maintenance Unit Costs
   type: gpc.DetailedDatasetNode
   quantity: unit_price
-  unit: EUR/count
+  unit: EUR/count/a
   input_dimensions: [streetlight_type, cost_type]
   output_dimensions: [streetlight_type, cost_type]
   params:
-  - id: sector
-    value: I.2.2
-  - id: action
-    value: LED Streetlights
-  # - id: multiplier  # FIXME Fix unit in dataset and then remove this parameter
-  #   value: 1
-  #   unit: 1/a
+    sector: I.2.2
+    action: LED Streetlights
   input_datasets:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_maintenance_costs
-    tags: [difference]  # FIXME Fix unit in dataset and then remove this row.
+  - id: maintenance_costs
+    tags: [non_additive]
 
-- id: i22_maintenance_costs
-  name: I.2.2 Maintenance Costs
+- id: maintenance_costs
+  name: Maintenance Costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
   input_dimensions: [streetlight_type, cost_type]
   output_dimensions: [streetlight_type, cost_type]
 
-- id: i22_energy_emission_factor
-  name: I.2.2 Energy Emission Factor
+- id: energy_emission_factor
+  name: Energy Emission Factor
   type: gpc.DetailedDatasetNode
   quantity: emission_factor
   unit: kg/kWh
@@ -1033,40 +1016,39 @@ nodes:
   - id: gpc/tampere_detailed_actions
     forecast_from: 2021
   output_nodes:
-  - id: i22_energy_consumption_emissions
+  - id: energy_consumption_emissions
     to_dimensions:
     - id: energy_carrier
     - id: ghg
 
-- id: i22_energy_consumption_emissions
-  name: I.2.2 Energy Consumption Emissions
+- id: energy_consumption_emissions
+  name: Energy Consumption Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
   input_dimensions: [streetlight_type, energy_carrier, ghg]
   output_dimensions: [streetlight_type, energy_carrier, ghg]
 
-- id: i22_streetlight_total_costs
-  name: I.2.2 Streetlight Total Costs
+- id: streetlight_total_costs
+  name: Streetlight Total Costs
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
   input_dimensions: [streetlight_type, cost_type]
   output_dimensions: [streetlight_type, cost_type]
   input_nodes:
-  - id: i22_new_streetlight_costs
-  - id: i22_energy_costs
+  - id: new_streetlight_costs
+  - id: energy_costs
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: i22_maintenance_costs
+  - id: maintenance_costs
 
 #
 # ------- ACTIONS --------
 #
 
 actions:
-
 # - id: i22_streetlight_replacement_action
 #   name: I.2.2 Streetlight Replacement Action
 #   type: gpc.StockReplacementAction
@@ -1085,7 +1067,6 @@ actions:
 #     tags: [baseline]
 #   - id: i22_annual_new_streetlights
 #     tags: [new]
-
 #   # output_metrics:
 #   # - id: currency
 #   #   unit: [unit]
@@ -1095,10 +1076,6 @@ actions:
 #   #   quantity: number
 #   output_nodes:
 #   - id: i22_streetlights
-
-
-
-
 
 - id: naistenlahti3
   name: Naistenlahti 3 -biovoimalaitos

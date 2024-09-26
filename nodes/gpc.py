@@ -207,10 +207,13 @@ class DetailedDatasetNode(DatasetNode):
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset_pl()
 
+        sector = self.get_parameter_value('sector')
+        nodename = str(self.name).replace('%s ' % sector, '')
+
         df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
-                       (pl.col('Sector') == self.get_parameter_value('sector')) &
+                       (pl.col('Sector') == sector) &
                        (pl.col('Action') == self.get_parameter_value('action')) &
-                       (pl.col('Node Name') == str(self.name).split(' ', 1)[1]))
+                       (pl.col('Node Name') == nodename))
 
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action', 'Node Name'])
         df = self.convert_names_to_ids(df)
