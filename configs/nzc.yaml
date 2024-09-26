@@ -19,6 +19,7 @@ features:
   baseline_visible_in_graphs: true
   show_significant_digits: 4
   maximum_fraction_digits: 0
+  hide_node_details: true
 
 params:
 - id: municipality_name

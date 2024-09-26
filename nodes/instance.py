@@ -62,6 +62,7 @@ class InstanceFeatures:
     show_accumulated_effects: bool = True
     show_significant_digits: int | None = 3
     maximum_fraction_digits: int | None = None
+    hide_node_details: bool = False
 
 
 @dataclass
