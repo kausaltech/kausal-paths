@@ -440,6 +440,16 @@ nodes:
 #     - id: scope
 #       flatten: true
 
+# ------------- Jobs -----------------
+
+- id: total_jobs_created
+  name: Total jobs created
+  type: simple.AdditiveNode
+  quantity: employment
+  unit: jobs
+
+# ------------- Costs ----------------
+
 - id: co2_unit_price
   name: CO2 unit price
   type: gpc.DatasetNode
@@ -524,13 +534,13 @@ nodes:
     - id: cost_type
       flatten: true
 
-actions:  # FIXME It would be nice to have multiplier parameter in the DatasetAction class.
+actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
 
 # --------------- TRANSPORT -------------
 
 - id: reduce_all_motorised_transport
   name: 1.1 Reduce all motorised transport
-  type: gpc.DatasetAction2  # FIXME Allow historical values in LinearCumulativeAdditiveAction.
+  type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
   quantity: fraction
   unit: '%'
   group: transport

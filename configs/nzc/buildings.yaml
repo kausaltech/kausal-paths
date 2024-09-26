@@ -25,7 +25,7 @@ dimensions:
   - id: major_renovation
     aliases: [major_renovations]
     label: Old, extensive heating renovation
-  - id: no_improvement  # FIXME Remove redundant
+  - id: no_improvement  # TODO Remove redundant
     label: No improvement
   - id: minor_improvements
     label: Minor improvements
@@ -217,7 +217,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    sector: Share of building stock renovated each year  # FIXME This is rate for appliance efficiency renovations
+    sector: Share of building stock renovated each year  # TODO This is rate for appliance efficiency renovations
 
 - id: old_building_renovation_rate_goal
   name: Old building renovation rate goal
@@ -302,7 +302,7 @@ nodes:
 
 # --------------------- Heating ---------------------
 
-# FIXME Rename shares better
+# TODO Rename shares better
 - id: total_building_heat_energy_use  # FIXME Calculate non-electric heating floor area and use  that for EUI.
   name: Total building heat energy use
   type: gpc.DatasetNode
@@ -612,7 +612,7 @@ nodes:
 
 - id: building_heat_energy_use
   name: Building heat energy use
-  description: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed. Electricity is here classified as non-fossil for technical purposes and it carries no information about the actual electricity production types.
+  description: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -785,7 +785,7 @@ nodes:
   input_nodes:
   - id: new_building_current_unit_price
   params:
-  - id: annual_change  # FIXME from nzc/defaults Cost improvements - new buildings
+  - id: annual_change  # TODO from nzc/defaults Cost improvements - new buildings
     value: -1.024671139
     unit: '%'
 
@@ -855,6 +855,38 @@ nodes:
 
 # --------------- Costs ----------------
 
+- id: jobs_per_renovation_investment
+  name: Jobs per renovation investment
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: pcs/MEUR  # FIXME
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Jobs created by investment in renovation
+
+- id: jobs_created_by_renovations
+  name: Jobs created by renovations
+  type: simple.MultiplicativeNode
+  quantity: employment
+  unit: pcs/a  # FIXME
+  input_nodes:
+  - id: old_building_renovation_costs
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: jobs_per_renovation_investment
+  # output_nodes:  # FIXME
+  # - id: total_jobs_created
+  #   from_dimensions:
+  #   - id: fuel_type
+  #     flatten: true
+  #   - id: eneergy_carrier
+  #     flatten: true
+
 - id: air_pollutant_distance_index
   name: Air pollutant distance index
   type: gpc.DatasetNode
@@ -888,7 +920,7 @@ nodes:
     - id: pollutant
     - id: cost_type
     - id: area_distance
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: cost_type
     - id: stakeholder
@@ -1004,6 +1036,7 @@ nodes:
 
 - id: heating_re_investment_fraction
   name: Heating re-investment fraction
+  description: Share of current fossil production that would need to be re-invested in by 2030, if current production were to continue. (However, the calculations account for re-investments also after 2030, so the user can use their own timeline here as long as they interpret the results accordingly.)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -1014,7 +1047,8 @@ nodes:
     sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
 
 - id: new_heating_capacity_needed
-  name: New heating capacity needed (investments)
+  name: New heating capacity needed (differential investments)
+  description: This the amount that is needed to invest or de-vest on heat production due to changes in production types compared with a situation where the production types remain constant. The investments needed in the constant situation are ignored here and only the difference is estimated.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: GWh/a**2
@@ -1022,7 +1056,7 @@ nodes:
   output_dimensions: [heating_type, energy_carrier]
   input_nodes:
   - id: building_heat_energy_use
-    tags: [non_additive, difference, make_nonnegative]  # FIXME Should we look also at negative investments?
+    tags: [non_additive, difference]
     from_dimensions:
     - id: scope
       flatten: true
@@ -1050,7 +1084,7 @@ nodes:
   params:
   - id: sector
     value: Un-levelized capital cost of heating
-  - id: multiplier
+  - id: multiplier  # FIXME
     value: 1
     unit: a
 
@@ -1140,6 +1174,60 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+
+- id: heat_production_unit_price
+  name: Heat production unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier, heating_type, cost_type]
+  output_dimensions: [energy_carrier, heating_type, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: (Un-levelised) costs of Decarbonised heating
+
+- id: heat_production_cost
+  name: Heat production cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  output_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  input_nodes:
+  - id: heat_production_unit_price
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]      
+    to_dimensions:
+    - id: heating_type
+    - id: cost_type
+    - id: energy_carrier
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: heating_type
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
 
 # ---------------- Summary ---------------------
 

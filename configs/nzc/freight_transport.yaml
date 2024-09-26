@@ -100,6 +100,19 @@ nodes:
   params:
     sector: Max load weight
 
+- id: conversion_from_tonnes_to_vehicle_kilometres
+  name: Conversion from tonnes to vehicle kilometres
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: tkm/vkm
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: truck_max_load_weight
+    tags: [non_additive]
+  - id: average_truck_utilisation
+    tags: [inventory_only, extend_values]
+
 - id: freight_transport_vehicle_kilometres
   name: Freight transport vehicle kilometres
   type: simple.MultiplicativeNode
@@ -296,7 +309,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-- id: freight_transport_electricity_consumption  # FIXME Leads nowhere. Was there double counting?
+- id: freight_transport_electricity_consumption  # TODO Leads nowhere. Was there double counting?
   name: freight transport electricity consumption
   type: simple.MultiplicativeNode
   quantity: energy
@@ -332,7 +345,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
     - id: pollutant
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: cost_type
     - id: stakeholder
@@ -370,7 +383,7 @@ nodes:
     - id: cost_type
 
 - id: new_electric_trucks_additional_costs
-  name: New electric trucks additional costs
+  name: Additional costs of new electric trucks and charging stations
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -421,10 +434,16 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: transport_mode
-  - id: freight_transport_need
+  - id: conversion_from_tonnes_to_vehicle_kilometres
     to_dimensions:
     - id: transport_mode
-  - id: transport_co_benefit_cost_shares
+  - id: freight_transport_vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
@@ -458,10 +477,16 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: transport_mode
-  - id: freight_transport_need
+  - id: conversion_from_tonnes_to_vehicle_kilometres
     to_dimensions:
     - id: transport_mode
-  - id: transport_co_benefit_cost_shares
+  - id: freight_transport_vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type

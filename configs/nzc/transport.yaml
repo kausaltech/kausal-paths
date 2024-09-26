@@ -931,7 +931,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
     - id: pollutant
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: cost_type
     - id: stakeholder
@@ -995,8 +995,8 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-- id: transport_co_benefit_cost_shares
-  name: Transport co-benefit cost shares
+- id: co_benefit_cost_shares
+  name: Co-benefit cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1024,7 +1024,7 @@ nodes:
       flatten: true
     to_dimensions:
     - id: transport_mode
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
@@ -1077,7 +1077,7 @@ nodes:
       flatten: true
     to_dimensions:
     - id: transport_mode
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
@@ -1250,7 +1250,7 @@ nodes:
     to_dimensions:
     - id: transport_mode
     - id: cost_type
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: cost_type
     - id: stakeholder

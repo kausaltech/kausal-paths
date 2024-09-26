@@ -25,8 +25,8 @@ nodes:
     tags: [non_additive]
 
 - id: total_electricity_consumption3
-  name: Total electricity consumption by production shares
-  description: These consumption values are corrected for actual consumption statistics,
+  name: Total electricity production by shares
+  description: These production values are corrected for actual consumption statistics,
     if the global parameter <i>Statistical correction</i> is turned on.
   type: simple.MultiplicativeNode
   quantity: energy
@@ -46,7 +46,7 @@ nodes:
 - id: total_electricity_emissions
   name: Total electricity emissions including air pollutants
   type: simple.MultiplicativeNode
-  quantity: emissions
+  quantity: mass
   unit: kt/a
   input_dimensions: [pollutant, energy_carrier]
   output_dimensions: [pollutant, energy_carrier]
@@ -271,7 +271,7 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
-  - id: do_efficient_appliances  # FIXME Fix the multiplication problem and remove this technical node
+  - id: do_efficient_appliances  # TODO Fix the multiplication problem and remove this technical node
     tags: [non_additive]
     to_dimensions: []
   - id: efficiency_programme_shares_data
@@ -614,11 +614,43 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [energy_carrier, fuel_type]
-  output_dimensions: [energy_carrier, fuel_type]
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes:
   - id: total_electricity_consumption3
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: new_renewable_electricity_production
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_production_cost
+  name: Electricity production cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: existing_electricity_production
+    to_dimensions:
+    - id: energy_carrier
+  - id: existing_electricity_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: electricity_cost
 
 - id: new_renewable_electricity_production
   name: New renewable electricity production
@@ -640,7 +672,7 @@ nodes:
   name: Operating cost for renewables
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: MEUR/MWh
+  unit: EUR/MWh
   input_dimensions: [cost_type, fuel_type, energy_carrier]
   output_dimensions: [cost_type, fuel_type, energy_carrier]
   input_datasets: [nzc/defaults]
@@ -698,12 +730,12 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: cost_type
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: cost_type
     - id: stakeholder
   output_nodes:
-  - id: electricity_cost_by_stakeholder
+  - id: electricity_cost
     from_dimensions:
     - id: pollutant
       flatten: true
@@ -737,6 +769,7 @@ nodes:
 
 - id: jobs_created_by_renewables
   name: Jobs created by renewables
+  description: Cumulative number of existing jobs due to renewables
   type: simple.MultiplicativeNode
   quantity: employment
   unit: jobs
@@ -744,8 +777,7 @@ nodes:
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
-  - id: new_electricity_production_capacity
-    tags: [cumulative]
+  - id: new_renewable_electricity_production
     to_dimensions:
     - id: energy_carrier
     - id: fuel_type
@@ -756,6 +788,13 @@ nodes:
     tags: [geometric_inverse]
     to_dimensions:
     - id: energy_carrier
+  output_nodes:
+  - id: total_jobs_created
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: new_electricity_production_shares
   name: New electricity production shares
@@ -870,7 +909,7 @@ nodes:
     - id: fuel_type
     - id: energy_carrier
     - id: cost_type
-  - id: multiplier_node
+  - id: multiplier_node  # FIXME
     to_dimensions: []
 
 - id: multiplier_node  # TODO Improve
@@ -878,7 +917,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: a
-  historical_values: [[2018, 1], [2013, 1]]
+  historical_values: [[2018, 1], [2023, 1]]
 
 - id: electricity_cost
   name: Electricity cost
@@ -898,8 +937,8 @@ nodes:
     - id: energy_carrier
       flatten: true
 
-- id: electricity_cost_shares  # FIXME Where do we need this?
-  name: Electricity cost shares
+- id: existing_electricity_cost_shares
+  name: Existing electricity cost shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -908,22 +947,6 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: fossil/current electricity supply
-
-- id: electricity_cost_by_stakeholder  # FIXME Should this be additive renewable + non-renewable?
-  name: Electricity cost by stakeholder
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, cost_type, energy_carrier]
-  output_dimensions: [stakeholder, cost_type, energy_carrier]
-  input_nodes:
-  - id: electricity_cost
-    tags: [non_additive]
-  - id: electricity_cost_shares
-    from_dimensions:
-    - id: cost_type
-    to_dimensions:
-    - id: stakeholder
 
 - id: electricity_production_switched  # FIXME Remove
   name: Electricity production switched

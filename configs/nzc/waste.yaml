@@ -361,7 +361,7 @@ nodes:
       flatten: true
     to_dimensions:
     - id: cost_type
-  - id: transport_co_benefit_cost_shares
+  - id: co_benefit_cost_shares
     to_dimensions:
     - id: stakeholder
     - id: cost_type
