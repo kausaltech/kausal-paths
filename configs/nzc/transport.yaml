@@ -610,8 +610,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/v
-  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
-  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
   input_datasets: [nzc/defaults]
   params:
     sector: Charging infrastructure costs
@@ -682,9 +682,6 @@ nodes:
   input_nodes:
   - id: charging_infrastructure_unit_price
     tags: [non_additive]
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
     to_dimensions:
     - id: transport_mode
     - id: cost_type

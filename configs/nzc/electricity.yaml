@@ -222,7 +222,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: do_efficient_appliances
+  - id: 33_do_efficient_appliances
     tags: [non_additive]
     to_dimensions: []
   - id: lighting_and_appliances_renovation_rate_if_done
@@ -271,7 +271,7 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
-  - id: do_efficient_appliances  # TODO Fix the multiplication problem and remove this technical node
+  - id: 33_do_efficient_appliances  # TODO Fix the multiplication problem and remove this technical node
     tags: [non_additive]
     to_dimensions: []
   - id: efficiency_programme_shares_data

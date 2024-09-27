@@ -109,8 +109,8 @@ nodes:
     sector: 'Energy efficiency of new buildings, Share'
     inventory_only: true
 
-- id: new_building_shares_improvements
-  name: New building shares improvements
+- id: new_building_shares_goal
+  name: New building shares goal
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'

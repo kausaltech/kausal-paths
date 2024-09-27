@@ -515,7 +515,7 @@ nodes:
     - id: energy_carrier
 
 - id: freight_ownership_labour_cost_fraction
-  name: Freight ownership_labour cost fraction
+  name: Freight ownership labour cost fraction
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
