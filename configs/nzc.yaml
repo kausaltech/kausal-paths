@@ -1038,7 +1038,7 @@ include:
 - file: nzc/buildings.yaml
   node_group: Buildings
 - file: nzc/electricity.yaml
-  node_group: Electricity§
+  node_group: Electricity
 - file: nzc/waste.yaml
   node_group: Waste
 - file: nzc/other.yaml

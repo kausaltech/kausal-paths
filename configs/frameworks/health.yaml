@@ -17,7 +17,7 @@ nodes:
 - id: transport_emission_factor
   name_fi: Liikennepäästöjen päästökerroin
   name_en: Air pollution emission factor
-  description: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
+  description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -68,7 +68,7 @@ nodes:
 - id: fossil_plant_emission_factor
   name_fi: Fossiilivoimalan ilmansaasteiden päästökerroin
   name_en: Air pollution emission factor
-  description: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
+  description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -215,6 +215,7 @@ nodes:
 
 - id: active_mobility_speed
   name_fi: Aktiivisen liikkumisen keskinopeus
+  name_en: Average speed of active mobility
   description_fi: Aktiivisen liikkumisen keskinopeus saadaan artikkelista Kelly ym. 2014. Myös Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021
   type: gpc.DatasetNode
   quantity: speed
@@ -227,6 +228,7 @@ nodes:
 
 - id: active_mobility
   name_fi: Aktiivisen liikkumisen matka
+  name_en: Distance of active mobility
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/person/d
@@ -234,7 +236,8 @@ nodes:
   output_dimensions: [transport_mode]
 
 - id: amount_of_active_mobility
-  name_fi: Aktiivisen liikkumiseen käytetty aika
+  name_fi: Aktiivisen liikkumisen kesto
+  name_en: Duration of active mobility
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: min/person/d
@@ -251,6 +254,7 @@ nodes:
 
 - id: health_factor_of_active_mobility
   name_fi: Aktiivisen liikkumisen terveyskerroin
+  name_en: Active mobility health factor
   description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
     arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
     aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalyn osalta tarkastellaan
@@ -266,6 +270,7 @@ nodes:
 
 - id: health_effect_of_active_mobility
   name_fi: Aktiivisen liikkumisen ehkäisemät tapaukset
+  name_en: Cases prevented by active mobility
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: cases/a
@@ -287,6 +292,7 @@ nodes:
 
 - id: planetary_health
   name_fi: Raakile luonnon monimuotoisuudesta ja planetaarisesta terveydestä
+  name_en: A draft of biodiversity and planetary health
   description_fi: 'https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi https://www.biwe.fi/ https://www.allergia.fi/jarjesto/tutkimus-1/'
   type: simple.AdditiveNode
   quantity: utility
@@ -378,7 +384,8 @@ nodes:
       flatten: true
 
 - id: total_exposure_related_cases
-  name: Altisteisiin kohdentuva tapausmäärä yhteensä
+  name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
+  name_en: Number of cases attributable to exposure
   description_fi: Yhteismäärään lasketaan sekä ilmansaasteiden että aktiivisen liikkumisen tapausmäärät. Positiivisen luvut ovat tautitapauksia, negatiiviset luvut ehkäistyjä tapauksia.
   type: simple.AdditiveNode
   quantity: health_effect
@@ -441,7 +448,7 @@ nodes:
 
 - id: value_of_statistical_life
   name_fi: Kuolemanriskin tilastollinen hinta
-  description_fi: 
+  name_en: Value of statistical life
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/case
@@ -451,6 +458,7 @@ nodes:
 
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
+  name_en: Health costs attributable to exposure
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a
@@ -463,6 +471,7 @@ nodes:
 
 - id: discounted_health_costs
   name_fi: Diskontatut terveyskustannukset
+  name_en: Discounted health costs
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a
