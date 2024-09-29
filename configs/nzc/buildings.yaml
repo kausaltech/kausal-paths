@@ -217,7 +217,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    sector: Share of building stock renovated each year  # TODO This is rate for appliance efficiency renovations
+    sector: Share of building stock renovated each year  # This is also rate for appliance efficiency renovations
 
 - id: old_building_renovation_rate_goal
   name: Old building renovation rate goal
@@ -530,7 +530,7 @@ nodes:
 
 - id: heating_waste_fossil_share
   name: Heating fossil shares
-  description: This node applies to fossil shares of waste used in district heating. Many other fuel types and energy carriers are included but for technical purposes only.
+  description: This node applies to fossil shares of waste used in district heating.
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -1009,16 +1009,11 @@ nodes:
   input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
   input_nodes:
-  - id: electricity_renovated_buildings
+  - id: building_stock_by_electricity_renovation
     tags: [difference]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions: []
-  - id: efficiency_programme_shares
     to_dimensions:
-    - id: efficiency_programme
     - id: energy_carrier
+    - id: efficiency_programme
   - id: efficiency_programme_unit_price
     from_dimensions:
     - id: cost_type

@@ -673,7 +673,7 @@ nodes:
     - id: transport_mode
 
 - id: charging_infrastructure_costs
-  name: Charging infrastructure costs
+  name: Charging infrastructure costs, cars
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -698,6 +698,33 @@ nodes:
     - id: transport_mode
     - id: energy_carrier
     - id: stakeholder
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: charging_infrastructure_costs_buses
+  name: Charging infrastructure costs, buses
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_nodes:
+  - id: charging_infrastructure_unit_price
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [transport_operators]
+  - id: number_of_buses
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
   output_nodes:
   - id: transport_cost
     from_dimensions:
@@ -1119,7 +1146,7 @@ nodes:
     sector: public transport operation costs
 
 - id: public_transport_operation_cost
-  name: Public transport operation cost
+  name: Public transport operation cost (excluding fuel)
   description: Operation cost to all stakeholders.
   type: simple.MultiplicativeNode
   quantity: currency
@@ -1169,6 +1196,17 @@ nodes:
   params:
     sector: transport energy factor ice petrol diesel
 
+- id: bus_mileage
+  name: Bus mileage (fuel use)
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: l/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Average fuel consumption of buses, based on current fleet
+
 - id: fuel_unit_price
   name: Fuel unit price
   description: The values come from Eurostat (2019) - Electricity prices for household consumers
@@ -1181,6 +1219,40 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: fuel unit price
+
+- id: transport_fuel_cost_buses
+  name: Transport fuel cost for buses
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      categories: [petrol_diesel]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+  - id: bus_mileage
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  - id: fuel_unit_price
+    to_dimensions:
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: cost_type
+  output_nodes:
+  - id: transport_fuel_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: transport_mode
+    - id: cost_type
 
 - id: transport_fuel_cost
   name: Transport fuel cost
@@ -1225,8 +1297,8 @@ nodes:
     - id: transport_mode
     - id: cost_type
 
-- id: walking_cycling_unit_price
-  name: Walking & cycling unit price
+- id: walking_cycling_unit_price1
+  name: Walking & cycling unit price, co-benefits
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1234,7 +1306,65 @@ nodes:
   input_dimensions: [transport_mode, cost_type]
   output_dimensions: [transport_mode, cost_type]
   params:
-    sector: Average value of increased walking/cycling  # TODO There is another data about implementation costs, not co-benefits. It this used?: Total Average cost of cycling/walking
+    sector: Average value of increased walking/cycling
+
+- id: walking_cycling_unit_price2
+  name: Walking & cycling unit price, capex
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/pkm
+  input_datasets: [nzc/defaults]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  params:
+    sector: Total Average cost of cycling/walking
+
+- id: walking_cycling_unit_price
+  name: Walking & cycling unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/pkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: walking_cycling_unit_price1
+  - id: walking_cycling_unit_price2
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+
+- id: walking_cycling_co_benefit
+  name: Walking & cycling co-benefit
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: walking_cycling_unit_price1
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+  - id: co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: transport_mode
+  output_nodes: [transport_cost]
+
+- id: walking_cycling_cost_shares
+  name: Walking & cycling cost shares, capex
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets: [nzc/defaults]
+  input_dimensions: [transport_mode, cost_type, stakeholder]
+  output_dimensions: [transport_mode, cost_type, stakeholder]
+  params:
+    sector: investment costs in walking & cycling
 
 - id: walking_cycling_cost
   name: Walking & cycling cost
@@ -1244,15 +1374,11 @@ nodes:
   input_dimensions: [stakeholder, transport_mode, cost_type]
   output_dimensions: [stakeholder, transport_mode, cost_type]
   input_nodes:
-  - id: walking_cycling_unit_price
-    tags: [arithmetic_inverse]
+  - id: walking_cycling_unit_price2
     to_dimensions:
     - id: transport_mode
     - id: cost_type
-  - id: co_benefit_cost_shares
-    to_dimensions:
-    - id: cost_type
-    - id: stakeholder
+  - id: walking_cycling_cost_shares
   - id: passenger_kilometres
     to_dimensions:
     - id: transport_mode

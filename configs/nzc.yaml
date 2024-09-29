@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9888447cb16266a378039695cea8ddfe273315d6
+  commit: 53ed0aed2101704532b9d6687881ea415ff1510d
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -741,26 +741,58 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 - id: 33_do_efficient_appliances
   name: 3.3 Do efficient lighting & appliances renovation
-  type: simple.AdditiveAction
+  type: parent.ParentActionNode
   quantity: fraction
-  unit: dimensionless
+  unit: m**3
   group: buildings
-  historical_values: [[2018, 0.0], [2022, 0.0]]
-  forecast_values: [[2023, 1], [2045, 1]]
-  input_dataset_processors: [LinearInterpolation]
-  # output_nodes:  # FIXME
-  # - id: efficient_appliances_rate
-  #   tags: [non_additive]
-  #   to_dimensions: []
-  # - id: efficiency_programme_shares_pre
-  #   tags: [non_additive]
-  #   to_dimensions: []
+
+# - id: 331_increase_appliance_renovation
+#   name: 3.3.1 Increase appliance renovation
+#   type: linear.DatasetReduceAction
+#   quantity: rate
+#   unit: '%/a'
+#   group: buildings
+#   parent: 33_do_efficient_appliances
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: efficient_appliances_renovation_rate_historical
+#     tags: [historical]
+#     from_dimensions:
+#     - id: building_energy_class
+#       flatten: true
+#     to_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
+#   - id: efficient_appliances_renovation_rate_goal
+#     tags: [goal]
+#   output_nodes:
+#   - id: efficient_appliances_rate
+#     to_dimensions:
+#     - id: energy_carrier
+
+- id: 332_increase_aggressive_renovations
+  name: 3.3.2 Increase aggressive appliance renovation
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: 33_do_efficient_appliances
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares_historical
+    tags: [historical]
+  - id: efficiency_programme_shares_goal
+    tags: [goal]
+  output_nodes:
+  - id: efficiency_programme_shares
 
 - id: 34_decarbonising_heat_generation
   name: 3.4 Decarbonising heating generation
   type: parent.ParentActionNode
-  unit: m**3
   quantity: fraction
+  unit: m**3
   group: buildings
   # indicator_nodes:
   # - id: building_heat_mix
@@ -806,7 +838,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: heating_fuel_share
 
 - id: 343_change_heating_fossil_share
-  name: 3.4.3 Reduce fossil heating
+  name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -841,19 +873,19 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     - id: building_energy_class
       categories: [new_top_performance]
 
-- id: 345_fossil_electricity_replacement_fraction
-  name: 3.4.5 Fossil electricity replacement fraction
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: 34_decarbonising_heat_generation
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Share of current fossil production replaced by renewables (or nuclear)
+# - id: 345_fossil_electricity_replacement_fraction  # REMOVE
+#   name: 3.4.5 Fossil electricity replacement fraction  # FIXME This relates to 4.1!
+#   type: gpc.DatasetAction2
+#   quantity: fraction
+#   unit: '%'
+#   group: buildings
+#   parent: 34_decarbonising_heat_generation
+#   input_dimensions: [fuel_type, energy_carrier]
+#   output_dimensions: [fuel_type, energy_carrier]
+#   input_datasets:
+#   - id: nzc/defaults
+#   params:
+#     sector: Share of current fossil production replaced by renewables (or nuclear)
 
 # -------------- ELECTRICITY ----------------
 
