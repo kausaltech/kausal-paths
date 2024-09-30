@@ -176,7 +176,7 @@ nodes:
 #     sector: Emissions from production
 
 - id: building_material_unit_price
-  name: Building material unit_price
+  name: Building material unit price
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t

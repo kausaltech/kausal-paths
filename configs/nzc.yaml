@@ -66,7 +66,7 @@ action_groups:
 # action_efficiency_pairs:
 
 # - graph_type: cost_effectiveness
-#   cost_node: aggregated_discounted_total_cost
+#   cost_node: discounted_total_cost
 #   impact_node: aggregated_net_emissions
 #   invert_cost: true
 #   invert_impact: true
@@ -523,6 +523,89 @@ nodes:
     ref: discount_rate
   - id: is_decreasing_rate
     value: true
+
+- id: discounted_total_cost
+  name: Discounted total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: aggregated_cost_type
+      flatten: true
+
+# - id: tes_energy
+#   name: tes
+#   type: simple.AdditiveNode
+#   quantity: energy
+#   unit: GWh/a
+#   is_outcome: true
+#   input_dimensions: [fuel_type]
+#   output_dimensions: [fuel_type]
+#   input_nodes:
+#   - id: building_heat_energy_use
+#     from_dimensions:
+#     - id: building_energy_class
+#       flatten: true
+#     - id: heating_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+
+# - id: tes_price
+#   name: tes price
+#   type: simple.AdditiveNode
+#   quantity: unit_price
+#   unit: EUR/kWh
+#   is_outcome: true
+#   input_dimensions: [energy_carrier, heating_type]
+#   output_dimensions: [energy_carrier, heating_type]
+#   input_nodes:
+#   - id: heat_production_capital_unit_price
+#     from_dimensions:
+#     - id: cost_type
+#       flatten: true
+
+# - id: tes_cost
+#   name: tes cost
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MEUR/a
+#   is_outcome: true
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: heat_production_capital_cost
+#     from_dimensions:
+#     - id: cost_type
+#       flatten: true
+#     - id: stakeholder
+#       flatten: true
+#     - id: heating_type
+#       flatten: true
+
+# - id: tes_discount
+#   name: tes discount
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MEUR/a
+#   is_outcome: true
+#   input_dimensions: [aggregated_cost_type]
+#   output_dimensions: [aggregated_cost_type]
+#   input_nodes:
+#   - id: discounted_cost
+#     from_dimensions:
+#     - id: cost_type
+#       flatten: true
+#     - id: stakeholder
+#       flatten: true
 
 actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
 

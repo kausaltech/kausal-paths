@@ -1064,19 +1064,6 @@ nodes:
     - id: heating_type
     - id: energy_carrier
 
-- id: un_levelised_capital_cost_of_heating
-  name: Un-levelised capital cost of heating
-  description: The unit is multiplied by 1 a because the unit price is given per production, not production capacity.
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/MWh
-  input_dimensions: [energy_carrier, cost_type, heating_type]
-  output_dimensions: [energy_carrier, cost_type, heating_type]
-  input_datasets: [nzc/defaults]
-  params:
-  - id: sector
-    value: Un-levelized capital cost of heating
-
 - id: heating_cost_stakeholder_shares
   name: Heating cost stakeholder shares
   type: gpc.DatasetNode
@@ -1100,7 +1087,7 @@ nodes:
     to_dimensions:
     - id: heating_type
     - id: energy_carrier
-  - id: un_levelised_capital_cost_of_heating
+  - id: heat_production_capital_unit_price
     to_dimensions:
     - id: cost_type
     - id: heating_type

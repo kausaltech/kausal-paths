@@ -1204,6 +1204,13 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [transport_operators]
   params:
     sector: Average fuel consumption of buses, based on current fleet
 
@@ -1220,47 +1227,13 @@ nodes:
   params:
     sector: fuel unit price
 
-- id: transport_fuel_cost_buses
-  name: Transport fuel cost for buses
+- id: vehicle_mileage
+  name: Vehicle mileage (fuel use)
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
-  output_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
-  input_nodes:
-  - id: vehicle_kilometres
-    from_dimensions:
-    - id: energy_carrier
-      categories: [petrol_diesel]
-      flatten: true
-    to_dimensions:
-    - id: transport_mode
-  - id: bus_mileage
-    to_dimensions:
-    - id: energy_carrier
-    - id: transport_mode
-  - id: fuel_unit_price
-    to_dimensions:
-    - id: stakeholder
-      categories: [transport_operators]
-    - id: cost_type
-  output_nodes:
-  - id: transport_fuel_cost
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: transport_mode
-    - id: cost_type
-
-- id: transport_fuel_cost
-  name: Transport fuel cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, transport_mode, cost_type]
-  output_dimensions: [stakeholder, transport_mode, cost_type]
+  unit: l/vkm
+  input_dimensions: [transport_mode, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, energy_carrier, stakeholder]
   input_nodes:
   - id: transport_emission_factor
     from_dimensions:
@@ -1269,29 +1242,41 @@ nodes:
       flatten: true
     - id: energy_carrier
       categories: [petrol_diesel]
-      flatten: true
     to_dimensions:
     - id: transport_mode
-  - id: transport_energy_factor_ice_petrol_diesel
-    to_dimensions:
-    - id: transport_mode
-      categories: [cars]
-  - id: vehicle_kilometres
-    from_dimensions:
     - id: energy_carrier
-      categories: [petrol_diesel]
-      flatten: true
-    to_dimensions:
-    - id: transport_mode
-  - id: fuel_unit_price
+  - id: transport_energy_factor_ice_petrol_diesel
     to_dimensions:
     - id: transport_mode
       categories: [cars]
     - id: stakeholder
       categories: [citizens]
+
+- id: transport_fuel_cost
+  name: Transport fuel cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: stakeholder
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: fuel_unit_price
+    to_dimensions:
     - id: cost_type
   output_nodes:
   - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: stakeholder
     - id: transport_mode
