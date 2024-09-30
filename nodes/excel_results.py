@@ -22,7 +22,7 @@ DATA_SHEET_NAME = 'Data'
 PARAM_SHEET_NAME = 'Parameters'
 
 
-def _convert_to_camel_case(input_string: str):
+def _convert_to_camel_case(input_string: str) -> str:
     # Split the input string into words
     words = re.split(r'[-\s]+', input_string)
 
@@ -35,7 +35,7 @@ def _convert_to_camel_case(input_string: str):
     return camel_case_string
 
 
-def _dim_to_col(dim: Dimension):
+def _dim_to_col(dim: Dimension) -> str:
     return _convert_to_camel_case(str(dim.label))
 
 FIXED_COLUMNS = [
@@ -66,7 +66,7 @@ def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str],
         'Unit': pl.lit(str(node.unit)),
         'Value': pl.col(VALUE_COLUMN),
         'BaselineValue': pl.col('BaselineValue'),
-        'Forecast': pl.col(FORECAST_COLUMN)
+        'Forecast': pl.col(FORECAST_COLUMN),
     }
     cols = [col_map[col_id].alias(col_id) for col_id in FIXED_COLUMNS]
     for dim_id in dim_ids:
@@ -95,7 +95,7 @@ def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str],
     end_row = sheet.max_row
 
     start_col = get_column_letter(1)
-    end_col = get_column_letter(len(row))
+    end_col = get_column_letter(len(row)) # type: ignore
     cell_range = absolute_coordinate('%s%s:%s%s' % (start_col, start_row, end_col, end_row))
     ref = '%s!%s' % (quote_sheetname(sheet.title), cell_range)
     defn = DefinedName(node.id, attr_text=ref)
@@ -127,7 +127,11 @@ def _add_param_sheet(context: Context, wb: Workbook):
     ps.column_dimensions['A'].width = max_name_length
 
 
-def create_result_excel(context: Context, existing_wb: Path | str | None = None, node_ids: list[str] | None = None, action_seq: list[str] | None = None):
+def create_result_excel(
+        context: Context,
+        existing_wb: Path | str | None = None,
+        node_ids: list[str] | None = None,
+        action_seq: list[str] | None = None):
     """
     Create or update an Excel workbook with simulation results.
 
@@ -174,8 +178,8 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
     #     "total_building_heat_energy_use",
     #     "statistical_electricity_consumption",
     #     "collected_waste",
-    #     "11_reduce_all_motorised_transport",
-    #     "12_modal_switch_from_cars_to_other_modes",
+    #     "a11_reduce_all_motorised_transport",
+    #     "a12_modal_switch_from_cars_to_other_modes",
     #     "transport_efficiency",
     #     "fully_electric_vehicle_share",
     #     "fully_electric_car_share",
@@ -194,30 +198,30 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
 
     if str(context.instance.name)[:13] == 'NetZeroCities':
         action_seq = [
-            '11_reduce_all_motorised_transport',
-            '12_modal_switch_from_cars_to_other_modes',
-            '13_car_pooling',
-            '141_electrification_of_passenger_cars',
-            '142_electrification_of_buses',
-            '21_optimised_logistics',
-            '211_improve_utilisation_of_trucks',
-            '212_route_optimisation',
-            '22_truck_fleet_electrification',
-            '31_renovation_improvements',
-            '311_renovation_rate_improvement',
-            '312_renovation_shares_improvement',
-            '32_new_building_improvements',
-            '33_do_efficient_appliances',
-            # '331_increase_appliance_renovation',
-            '332_increase_aggressive_renovations',
-            '34_decarbonising_heat_generation',
-            '341_heating_technology_improvement',
-            '342_heating_energy_improvement',
-            '343_change_heating_fossil_share',
-            '344_top_performance_improvement',
-            '41_replace_fossil_electricity',
-            '51_increase_waste_recycling',
-            '61_reduced_co2_emissions_in_other_sectors'
+            'a11_reduce_all_motorised_transport',
+            'a12_modal_switch_from_cars_to_other_modes',
+            'a13_car_pooling',
+            'a141_electrification_of_passenger_cars',
+            'a142_electrification_of_buses',
+            'a21_optimised_logistics',
+            'a211_improve_utilisation_of_trucks',
+            'a212_route_optimisation',
+            'a22_truck_fleet_electrification',
+            'a31_renovation_improvements',
+            'a311_renovation_rate_improvement',
+            'a312_renovation_shares_improvement',
+            'a32_new_building_improvements',
+            'a33_do_efficient_appliances',
+            # 'a331_increase_appliance_renovation',
+            'a332_increase_aggressive_renovations',
+            'a34_decarbonising_heat_generation',
+            'a341_heating_technology_improvement',
+            'a342_heating_energy_improvement',
+            'a343_change_heating_fossil_share',
+            'a344_top_performance_improvement',
+            'a41_replace_fossil_electricity',
+            'a51_increase_waste_recycling',
+            'a61_reduced_co2_emissions_in_other_sectors'
         ]
 
     if node_ids is None:

@@ -611,7 +611,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # --------------- TRANSPORT -------------
 
-- id: 11_reduce_all_motorised_transport
+- id: a11_reduce_all_motorised_transport
   name: 1.1 Reduce all motorised transport
   type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
   quantity: fraction
@@ -626,7 +626,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     to_dimensions: []
     tags: [non_additive, extend_values]
 
-- id: 12_modal_switch_from_cars_to_other_modes
+- id: a12_modal_switch_from_cars_to_other_modes
   name: 1.2 Modal switch from cars to other modes
   type: gpc.DatasetAction2
   quantity: fraction
@@ -639,7 +639,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: passenger_kilometres_switched
     to_dimensions: []
 
-- id: 13_car_pooling
+- id: a13_car_pooling
   name: 1.3 Car pooling
   description: How many % increase there is in the average number of people in a car.
   type: gpc.DatasetAction2
@@ -656,7 +656,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   params:
     sector: 1.3 Car pooling
 
-- id: 141_electrification_of_passenger_cars
+- id: a141_electrification_of_passenger_cars
   name: 1.4.1 Electrification of passenger cars
   type: gpc.SCurveAction
   quantity: fraction
@@ -676,7 +676,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: fully_electric_car_share
 
-- id: 142_electrification_of_buses
+- id: a142_electrification_of_buses
   name: 1.4.2 Electrification of buses
   description: Fraction of buses that is replaced with electric buses each year.
   type: gpc.DatasetAction2
@@ -695,20 +695,20 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # ----------------- Freight transport -----------------
 
-- id: 21_optimised_logistics
+- id: a21_optimised_logistics
   name: 2.1 Optimised logistics
   type: parent.ParentActionNode
   quantity: mass
   unit: m**3
   group: freight_transport
 
-- id: 211_improve_utilisation_of_trucks
+- id: a211_improve_utilisation_of_trucks
   name: 2.1.1 Improve utilisation of trucks
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: freight_transport
-  parent: 21_optimised_logistics
+  parent: a21_optimised_logistics
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
@@ -719,13 +719,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: average_truck_utilisation
 
-- id: 212_route_optimisation
+- id: a212_route_optimisation
   name: 2.1.2 Route optimisation
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   group: freight_transport
-  parent: 21_optimised_logistics
+  parent: a21_optimised_logistics
   input_datasets:
   - id: nzc/defaults
   output_nodes:
@@ -735,7 +735,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   params:
     sector: Reduction of total distance travelled through route optimisation
 
-- id: 22_truck_fleet_electrification
+- id: a22_truck_fleet_electrification
   name: 2.2 Truck fleet electrification
   type: gpc.SCurveAction
   quantity: fraction
@@ -757,20 +757,20 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
   # ----------- BUILDINGS ---------------
 
-- id: 31_renovation_improvements
+- id: a31_renovation_improvements
   name: 3.1 Improve old building renovations
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
-- id: 311_renovation_rate_improvement
+- id: a311_renovation_rate_improvement
   name: 3.1.1 Renovation rate improvement
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%/a'
   group: buildings
-  parent: 31_renovation_improvements
+  parent: a31_renovation_improvements
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
@@ -785,13 +785,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: old_building_renovation_rate
 
-- id: 312_renovation_shares_improvement
+- id: a312_renovation_shares_improvement
   name: 3.1.2 Renovation shares improvement
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
-  parent: 31_renovation_improvements
+  parent: a31_renovation_improvements
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_nodes:
@@ -806,7 +806,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: renovation_intensity_shares
 
-- id: 32_new_building_improvements
+- id: a32_new_building_improvements
   name: 3.2 New building shares improvement
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -822,20 +822,20 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: new_building_shares
 
-- id: 33_do_efficient_appliances
+- id: a33_do_efficient_appliances
   name: 3.3 Do efficient lighting & appliances renovation
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
-# - id: 331_increase_appliance_renovation
+# - id: a331_increase_appliance_renovation
 #   name: 3.3.1 Increase appliance renovation
 #   type: linear.DatasetReduceAction
 #   quantity: rate
 #   unit: '%/a'
 #   group: buildings
-#   parent: 33_do_efficient_appliances
+#   parent: a33_do_efficient_appliances
 #   input_dimensions: [energy_carrier]
 #   output_dimensions: [energy_carrier]
 #   input_nodes:
@@ -854,13 +854,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 #     to_dimensions:
 #     - id: energy_carrier
 
-- id: 332_increase_aggressive_renovations
+- id: a332_increase_aggressive_renovations
   name: 3.3.2 Increase aggressive appliance renovation
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
-  parent: 33_do_efficient_appliances
+  parent: a33_do_efficient_appliances
   input_dimensions: [efficiency_programme, energy_carrier]
   output_dimensions: [efficiency_programme, energy_carrier]
   input_nodes:
@@ -871,7 +871,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: efficiency_programme_shares
 
-- id: 34_decarbonising_heat_generation
+- id: a34_decarbonising_heat_generation
   name: 3.4 Decarbonising heating generation
   type: parent.ParentActionNode
   quantity: fraction
@@ -880,14 +880,14 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   # indicator_nodes:
   # - id: building_heat_mix
 
-- id: 341_heating_technology_improvement  # TODO Add 20 a lifetime
+- id: a341_heating_technology_improvement  # TODO Add 20 a lifetime
   name: 3.4.1 Increase district heating
   description: Switch from local to district heating.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
-  parent: 34_decarbonising_heat_generation
+  parent: a34_decarbonising_heat_generation
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
   input_nodes:
@@ -902,14 +902,14 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     to_dimensions:
     - id: heating_type
 
-- id: 342_heating_energy_improvement
+- id: a342_heating_energy_improvement
   name: 3.4.2 Increase low-emission heating
   description: Improve the fuel shares of heating.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
-  parent: 34_decarbonising_heat_generation
+  parent: a34_decarbonising_heat_generation
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_nodes:
@@ -920,13 +920,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: heating_fuel_share
 
-- id: 343_change_heating_fossil_share
+- id: a343_change_heating_fossil_share
   name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
   group: buildings
-  parent: 34_decarbonising_heat_generation
+  parent: a34_decarbonising_heat_generation
   input_dimensions: [energy_carrier, fuel_type, heating_type]
   output_dimensions: [energy_carrier, fuel_type, heating_type]
   input_nodes:
@@ -941,13 +941,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: heating_waste_fossil_share
 
-- id: 344_top_performance_improvement
+- id: a344_top_performance_improvement
   name: 3.4.4 Top performance standard improvement compared with the regular new buildings
   type: simple.CumulativeAdditiveAction
   quantity: fraction
   unit: '%'
   group: buildings
-  parent: 34_decarbonising_heat_generation
+  parent: a34_decarbonising_heat_generation
   historical_values: [[2021, 0], [2022, 0]]  # FIXME
   forecast_values: [[2023, 50]]
   output_nodes:
@@ -962,7 +962,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 #   quantity: fraction
 #   unit: '%'
 #   group: buildings
-#   parent: 34_decarbonising_heat_generation
+#   parent: a34_decarbonising_heat_generation
 #   input_dimensions: [fuel_type, energy_carrier]
 #   output_dimensions: [fuel_type, energy_carrier]
 #   input_datasets:
@@ -972,7 +972,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # -------------- ELECTRICITY ----------------
 
-- id: 41_replace_fossil_electricity  # TODO streamline this by using relative goal
+- id: a41_replace_fossil_electricity  # TODO streamline this by using relative goal
   name_en: 4.1 Replace fossil electricity
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -1008,7 +1008,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   output_nodes:
   - id: waste_recycling_shares_baseline
 
-- id: 51_increase_waste_recycling
+- id: a51_increase_waste_recycling
   name: 5.1 Increase waste recycling
   type: linear.DatasetDifferenceAction
   quantity: fraction
@@ -1029,7 +1029,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # ---------------- OTHER SECTORS -------------
 
-- id: 61_reduced_co2_emissions_in_other_sectors
+- id: a61_reduced_co2_emissions_in_other_sectors
   name: 6.1 Reduced CO2 emissions in other sectors
   type: gpc.DatasetAction2
   quantity: fraction
