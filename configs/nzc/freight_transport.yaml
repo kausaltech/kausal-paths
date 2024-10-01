@@ -133,6 +133,22 @@ nodes:
     tags: [geometric_inverse]
     to_dimensions:
     - id: transport_mode
+  output_nodes:
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: freight_transport_electricity_consumption
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
 
 - id: number_of_trucks_registered_within_city
   name: Number of trucks registered within city
@@ -229,10 +245,6 @@ nodes:
   input_dimensions: [transport_mode, pollutant, energy_carrier]
   output_dimensions: [transport_mode, pollutant, energy_carrier]
   input_nodes:
-  - id: freight_transport_vehicle_kilometres
-    to_dimensions:
-    - id: transport_mode
-    - id: energy_carrier
   - id: truck_emission_factor
     from_dimensions:
     - id: pollutant
@@ -311,16 +323,24 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-# - id: freight_transport_electricity_consumption  # TODO Leads nowhere. Was there double counting?
-#   name: freight transport electricity consumption
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [transport_mode, energy_carrier]
-#   output_dimensions: [transport_mode, energy_carrier]
-#   input_nodes:
-#   - id: freight_transport_vehicle_kilometres
-#   - id: electricity_efficiency_for_electric_vehicles
+- id: freight_transport_electricity_consumption
+  name: Freight transport electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: electricity_efficiency_for_electric_vehicles
+  output_nodes:
+  - id: total_electricity_consumption_uncorr
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
 
 # ---------------- Freight transport costs -------
 
