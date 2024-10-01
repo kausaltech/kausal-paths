@@ -1377,3 +1377,18 @@ nodes:
     tags: [non_additive]
   params:
     sector: relative transport efficiency
+
+- id: electrification_year_of_transport
+  name: Electrification year of passenger cars
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Parameter
+      value: Max year
+  params:
+    sector: Electrification of transport fleet
