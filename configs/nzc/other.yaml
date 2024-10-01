@@ -51,6 +51,8 @@ nodes:
     to_dimensions:
     - id: scope
     - id: ghg
+    - id: sector
+      categories: [other]
   input_datasets:
   - id: nzc/defaults
   params:

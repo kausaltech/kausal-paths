@@ -14,7 +14,7 @@ minimum_historical_year: 2018
 maximum_historical_year: 2020
 emission_unit: kt/a
 emission_forecast_from: 2021
-emission_dimensions: [scope, ghg]
+emission_dimensions: [scope, ghg, sector]
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 4
@@ -96,8 +96,24 @@ dimensions:
   - id: pm10_wear_tear
     label: PM10 wear & tear
 
+- id: sector
+  label: Sector
+  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC).
+  categories:
+  - id: transport
+    label: Transport
+  - id: buildings
+    label: Buildings & Heating
+  - id: electricity
+    label: Other electricity
+  - id: waste
+    label: Waste
+  - id: other
+    label: Other (incl. IPPU & AFOLU)
+
 - id: scope
   label: Scope
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating). 3: Indirect emissions.'
   categories:
   - id: scope1
     label: Scope 1
@@ -467,6 +483,8 @@ nodes:
     - id: ghg
       flatten: true
     - id: scope
+      flatten: true
+    - id: sector
       flatten: true
     to_dimensions: []
   output_nodes:

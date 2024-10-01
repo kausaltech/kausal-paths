@@ -66,6 +66,11 @@ nodes:
       categories: [electricity]
       exclude: true
       flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: ghg
+    - id: scope
 
 # - id: transport_electricity_emissions
 #   name: Transport electricity emissions
@@ -436,10 +441,14 @@ nodes:
     - id: transport_mode
     - id: energy_carrier
   output_nodes:
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption_uncorr
     from_dimensions:
     - id: transport_mode
       flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
 
 - id: transport_efficiency
   name: Transport efficiency
@@ -968,32 +977,6 @@ nodes:
     - id: cost_type
     - id: stakeholder
     - id: transport_mode
-
-# - id: transport_co2_cost
-#   name: Transport CO2 cost
-#   type: simple.MultiplicativeNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [scope, transport_mode, cost_type]
-#   output_dimensions: [scope, transport_mode, cost_type]
-#   input_nodes:
-#   - id: transport_emissions
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#     - id: transport_mode
-#   - id: co2_unit_price
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#       categories: [scope1]
-#     - id: cost_type
 
 - id: transport_noise_unit_price
   name: Transport noise unit price

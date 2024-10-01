@@ -169,9 +169,11 @@ nodes:
       flatten: true
     to_dimensions:
     - id: scope
-      categories: [scope1]
+      categories: [scope3]
     - id: ghg
       categories: [co2e]
+    - id: sector
+      categories: [waste]
 
 - id: waste_air_pollution_emission_factor
   name: Waste air pollution emission factor

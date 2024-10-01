@@ -64,6 +64,11 @@ nodes:
   color: '#4E79A7'
   output_nodes:
   - id: net_emissions
+    to_dimensions:
+    - id: sector
+      categories: [buildings]
+    - id: ghg
+    - id: scope
 
 # ----------------- Building stock ----------------------
 
@@ -680,7 +685,7 @@ nodes:
     - id: fuel_type
     - id: energy_carrier
   output_nodes:
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption_uncorr
     from_dimensions:
     - id: fuel_type
       flatten: true
@@ -692,19 +697,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
-
-# - id: building_heat_energy_use2
-#   name: Building heat energy use without electricity
-#   description: This node should be fixed, as building heat energy use contains the heat produced, not the electricity used to produce the heat.
-#   type: simple.AdditiveNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
-#   output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type]
-#   input_nodes:
-#   - id: building_heat_energy_use
-#   - id: building_heat_electricity_use
-#     tags: [arithmetic_inverse]
+    - id: sector
+      categories: [buildings]
 
 - id: heating_emission_factor
   name: Heating emission factor

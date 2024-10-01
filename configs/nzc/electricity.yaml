@@ -2,29 +2,29 @@ nodes:
 
 # -------------------- Electricity consumption ---------------------
 
-- id: total_electricity_consumption
+- id: total_electricity_consumption_uncorr
   name: Total electricity consumption, uncorrected
   description: Consumption is not corrected for the actual consumption statistics.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
 
-- id: total_electricity_consumption2
+- id: total_electricity_consumption
   name: Total electricity consumption
   description: These consumption values are corrected for actual consumption statistics,
-    if the global parameter <i>Statistical correction</i> is turned on.
+    if the global parameter <i>Statistical correction</i> is turned on (default).
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption_uncorr
     tags: [non_additive]
 
-- id: total_electricity_consumption3
+- id: total_electricity_production
   name: Total electricity production by shares
   description: These production values are corrected for actual consumption statistics,
     if the global parameter <i>Statistical correction</i> is turned on.
@@ -34,8 +34,11 @@ nodes:
   input_dimensions: [energy_carrier, fuel_type]
   output_dimensions: [energy_carrier, fuel_type]
   input_nodes:
-  - id: total_electricity_consumption2
+  - id: total_electricity_consumption
     tags: [non_additive]
+    from_dimensions:
+    - id: sector
+      flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: electricity_shares
@@ -48,12 +51,13 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
-  input_dimensions: [pollutant, energy_carrier]
-  output_dimensions: [pollutant, energy_carrier]
+  input_dimensions: [pollutant, energy_carrier, sector]
+  output_dimensions: [pollutant, energy_carrier, sector]
   input_nodes:
-  - id: total_electricity_consumption2
+  - id: total_electricity_consumption
     to_dimensions:
     - id: energy_carrier
+    - id: sector
   - id: effective_electricity_emission_factor
     to_dimensions:
     - id: pollutant
@@ -64,8 +68,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [pollutant, energy_carrier]
-  output_dimensions: [pollutant, energy_carrier]
+  input_dimensions: [pollutant, energy_carrier, sector]
+  output_dimensions: [pollutant, energy_carrier, sector]
   input_nodes:
   - id: total_electricity_emissions
     from_dimensions:
@@ -74,6 +78,7 @@ nodes:
     to_dimensions:
     - id: pollutant
     - id: energy_carrier
+    - id: sector
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -86,6 +91,7 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope2]
+    - id: sector
 
 - id: statistical_electricity_consumption
   name: Statistical electricity consumption
@@ -114,8 +120,11 @@ nodes:
   - id: statistical_electricity_consumption
     to_dimensions:
     - id: energy_carrier
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption_uncorr
     tags: [geometric_inverse]
+    from_dimensions:
+    - id: sector
+      flatten: true
     to_dimensions:
     - id: energy_carrier
 
@@ -132,31 +141,10 @@ nodes:
   params:
   - id: do_correction
     ref: statistical_correction
-  # - id: inventory_only
-  #   value: false
   output_nodes:
-  - id: total_electricity_consumption2
-
-# - id: fossil_electricity_factor
-#   name: Fossil electricity factor
-#   description: The historical emission factor is for the whole mix of electricity
-#     production, but the CO2 emissions come mainly from fossil fuels. Therefore, the
-#     emission factor is scaled so that it matches the fossil fraction, while other
-#     categories are assumed to have zero CO2 emissions.
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [fuel_type, energy_carrier]
-#   output_dimensions: [fuel_type, energy_carrier]
-#   input_nodes:
-#   - id: electricity_shares
-#     tags: [geometric_inverse]
-#     from_dimensions:
-#     - id: fuel_type
-#       categories: [fossil]
-#     to_dimensions:
-#     - id: fuel_type
-#     - id: energy_carrier
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
 
 - id: electricity_production_emission_factor
   name: Electricity production emission factor
@@ -202,7 +190,10 @@ nodes:
   - id: consumer_electricity_unit_price
     to_dimensions:
     - id: energy_carrier
-  - id: total_electricity_consumption2
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: sector
+      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: stakeholder
@@ -413,73 +404,16 @@ nodes:
   - id: building_stock_by_electricity_renovation
   - id: consumer_electricity_intensity
   output_nodes:
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption_uncorr
     from_dimensions:
     - id: efficiency_programme
       flatten: true
-
-# - id: consumer_electricity_use2
-#   name: Electricity use for lighting & appliances in renovated buildings
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [efficiency_programme, energy_carrier]
-#   output_dimensions: [efficiency_programme, energy_carrier]
-#   input_nodes:
-#   - id: electricity_renovated_buildings
-#   - id: consumer_electricity_intensity
-#   output_nodes:
-#   - id: total_electricity_consumption
-#     from_dimensions:
-#     - id: efficiency_programme
-#       flatten: true
-
-# - id: consumer_electricity_use3
-#   name: Electricity use for lighting & appliances in non-renovated buildings
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [efficiency_programme, energy_carrier]
-#   output_dimensions: [efficiency_programme, energy_carrier]
-#   input_nodes:
-#   - id: electricity_non_renovated_old_buildings
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: efficiency_programme
-#       categories: [no_improvements]
-#   - id: consumer_electricity_intensity
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: efficiency_programme
-#   output_nodes:
-#   - id: total_electricity_consumption
-#     from_dimensions:
-#     - id: efficiency_programme
-#       flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
 
 # ----------- Electricity production ----------------
-
-# - id: electricity_production_emissions  # FIXME Remove
-#   name_en: Electricity production emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   color: '#59A14F'
-#   input_dimensions: [fuel_type, pollutant, energy_carrier]
-#   output_dimensions: [fuel_type, pollutant, energy_carrier]
-#   input_nodes:
-#   - id: electricity_production_by_fuel_type
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: fuel_type
-#   - id: electricity_production_emission_factor
-#     to_dimensions:
-#     - id: pollutant
-#     - id: energy_carrier
-#   - id: fossil_electricity_factor
-#     to_dimensions:
-#     - id: fuel_type
-#     - id: energy_carrier
 
 - id: electricity_production_by_fuel_type
   name_en: Electricity production by fuel type
@@ -499,39 +433,6 @@ nodes:
     - id: energy_carrier
   - id: electricity_production_switched
 
-# - id: effective_electricity_emission_factor2  # FIXME Remove
-#   name: Effective electricity emission factor old
-#   description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
-#   type: simple.MultiplicativeNode
-#   quantity: emission_factor
-#   unit: g/kWh
-#   input_dimensions: [energy_carrier, pollutant]
-#   output_dimensions: [energy_carrier, pollutant]
-#   input_nodes:
-#   - id: electricity_production_emissions
-#     from_dimensions:
-#     - id: pollutant
-#       categories: [co2]
-#     - id: fuel_type
-#       flatten: true
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: pollutant
-#   - id: electricity_production_by_fuel_type
-#     tags: [geometric_inverse]
-#     from_dimensions:
-#     - id: fuel_type
-#       flatten: true
-#     to_dimensions:
-#     - id: energy_carrier
-#   output_nodes:
-#   - id: delete_redundant_nodes
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: pollutant
-#       flatten: true
-  
 - id: effective_electricity_emission_factor
   name: Effective electricity emission factor
   description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
@@ -555,44 +456,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
-# - id: heat_electricity_emissions  # FIXME
-#   name: Heat electricity emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [building_energy_class, heating_type, scope, fuel_type, pollutant, energy_carrier]
-#   output_dimensions: [building_energy_class, heating_type, scope, fuel_type, pollutant, energy_carrier]
-#   input_nodes:
-#   - id: building_heat_electricity_use
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: building_energy_class
-#     - id: heating_type
-#     - id: fuel_type
-#     - id: scope
-#     - id: energy_carrier
-#   - id: effective_electricity_emission_factor
-#     to_dimensions:
-#     - id: pollutant
-#     - id: energy_carrier
-#   output_nodes:
-#   - id: electricity_emissions
-#     from_dimensions:
-#     - id: pollutant
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: building_energy_class
-#       flatten: true
-#     - id: heating_type
-#       flatten: true
-#     - id: fuel_type
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#     - id: ghg
-#       categories: [co2e]
-
 - id: new_electricity_production_capacity
   name: New electricity production capacity
   type: simple.MultiplicativeNode
@@ -601,7 +464,7 @@ nodes:
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
-  - id: total_electricity_consumption3
+  - id: total_electricity_production
     tags: [difference, non_additive, make_nonnegative]
     from_dimensions:
     - id: fuel_type
@@ -637,7 +500,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: total_electricity_consumption3
+  - id: total_electricity_production
     from_dimensions:
     - id: fuel_type
       flatten: true
@@ -739,6 +602,9 @@ nodes:
   output_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: total_electricity_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: pollutant

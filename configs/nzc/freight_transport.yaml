@@ -257,6 +257,8 @@ nodes:
       categories: [co2e]
     - id: scope
       categories: [scope1]
+    - id: sector
+      categories: [transport]
 
 - id: freight_transport_air_pollution_emissions
   name: Freight transport air pollution emissions
@@ -358,29 +360,6 @@ nodes:
     - id: cost_type
     - id: stakeholder
     - id: transport_mode
-
-# - id: freight_transport_co2_cost
-#   name: Freight transport CO2 cost
-#   type: simple.MultiplicativeNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [transport_mode, cost_type]
-#   output_dimensions: [transport_mode, cost_type]
-#   input_nodes:
-#   - id: freight_transport_emissions
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: pollutant
-#       flatten: true
-#     to_dimensions:
-#     - id: transport_mode
-#   - id: co2_unit_price
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: cost_type
 
 - id: new_electric_trucks_additional_costs
   name: Additional costs of new electric trucks and charging stations
