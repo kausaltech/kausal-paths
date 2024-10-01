@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 53ed0aed2101704532b9d6687881ea415ff1510d
+  commit: f5a8166b6dc8dcd5ff885f1f215ba326c90baa70
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -113,7 +113,8 @@ dimensions:
 
 - id: scope
   label: Scope
-  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating). 3: Indirect emissions.'
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
   categories:
   - id: scope1
     label: Scope 1
@@ -254,8 +255,6 @@ dimensions:
     label: Bio (biogas, biomass) and solar heaters
   - id: waste
     label: Waste (fossil & non-fossil waste)
-  - id: network  # FIXME remove
-    label: Network
 
 - id: fuel_type
   label: Fuel type
@@ -966,27 +965,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   unit: '%'
   group: buildings
   parent: a34_decarbonising_heat_generation
-  historical_values: [[2021, 0], [2022, 0]]  # FIXME
+  historical_values: [[2021, 0], [2022, 0]]  # TODO
   forecast_values: [[2023, 50]]
   output_nodes:
   - id: energy_use_intensity_change_new
     to_dimensions:
     - id: building_energy_class
       categories: [new_top_performance]
-
-# - id: 345_fossil_electricity_replacement_fraction  # REMOVE
-#   name: 3.4.5 Fossil electricity replacement fraction  # FIXME This relates to 4.1!
-#   type: gpc.DatasetAction2
-#   quantity: fraction
-#   unit: '%'
-#   group: buildings
-#   parent: a34_decarbonising_heat_generation
-#   input_dimensions: [fuel_type, energy_carrier]
-#   output_dimensions: [fuel_type, energy_carrier]
-#   input_datasets:
-#   - id: nzc/defaults
-#   params:
-#     sector: Share of current fossil production replaced by renewables (or nuclear)
 
 # -------------- ELECTRICITY ----------------
 
@@ -1124,28 +1109,10 @@ scenarios:
   - id: waste_recycling_trend.enabled
     value: true
 
-# - id: frozen
-#   name: Frozen scenario
-#   params:
-#   - id: waste_recycling_share_goal.slice_category_at_edge
-#     value: parameter:frozen_scenario
-
 - id: default
   default: true
   name: Decarbonsation scenario
   all_actions_enabled: true
-  params:  # FIXME Check that values get recalculated after scenario switch.
-  - id: show_scenario_impacts
-    value: false
-
-- id: difference
-  name: Difference between decarbonsation and baseline scenarios
-  all_actions_enabled: true
-  params:  # FIXME Check that values get recalculated after scenario switch.
-  - id: show_scenario_impacts
-    value: true
-  - id: waste_recycling_trend.enabled
-    value: true
 
 include:
 - file: nzc/transport.yaml

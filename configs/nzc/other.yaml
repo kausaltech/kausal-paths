@@ -161,7 +161,7 @@ nodes:
 #   unit: t/m**2
 #   input_dimensions: [material]
 #   output_dimensions: [material] 
-#   input_datasets:  # FIXME
+#   input_datasets:
 #   - id: nzc/defaults
 #   params:
 #     sector: New materials composition due to materials efficiency

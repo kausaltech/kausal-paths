@@ -308,7 +308,7 @@ nodes:
 # --------------------- Heating ---------------------
 
 # TODO Rename shares better
-- id: total_building_heat_energy_use  # FIXME Calculate non-electric heating floor area and use  that for EUI.
+- id: total_building_heat_energy_use  # TODO Calculate non-electric heating floor area and use  that for EUI.
   name: Total building heat energy use
   type: gpc.DatasetNode
   quantity: energy
@@ -795,18 +795,6 @@ nodes:
   params:
     sector: investment costs in new buildings
 
-- id: building_renovation_investment_shares
-  name: Building renovation investment shares
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: building renovation investments
-
 - id: new_building_cost
   name: New building cost
   type: simple.MultiplicativeNode
@@ -1091,7 +1079,7 @@ nodes:
     - id: stakeholder
     - id: cost_type
     - id: heating_type
-  - id: multiplier_node  # FIXME
+  - id: multiplier_node  # TODO
     to_dimensions: []
   output_nodes:
   - id: building_cost
@@ -1205,7 +1193,7 @@ nodes:
   name: Heat production capital unit price
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/MWh
+  unit: EUR/MWh  # TODO Should this be EUR/(MWh/a)?
   input_dimensions: [energy_carrier, heating_type, cost_type]
   output_dimensions: [energy_carrier, heating_type, cost_type]
   input_datasets: [nzc/defaults]
@@ -1252,9 +1240,57 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
+- id: heat_production_network_unit_price
+  name: Heat production network unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [heating_type, cost_type]
+  output_dimensions: [heating_type, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Un-levelized capital cost of heating network
+
+- id: new_heating_network_cost
+  name: New heating network cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, heating_type, cost_type]
+  output_dimensions: [stakeholder, heating_type, cost_type]
+  input_nodes:
+  - id: new_heating_capacity_needed
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+  - id: heat_production_network_unit_price
+    to_dimensions:
+    - id: heating_type
+    - id: cost_type
+  - id: heating_cost_stakeholder_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [capex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: heating_type
+  - id: multiplier_node  # TODO
+    to_dimensions: []
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
 # ---------------- Summary ---------------------
 
-- id: building_cost  # TODO Add stakeholders and topic-wise costs
+- id: building_cost
   name: Building cost
   type: simple.AdditiveNode
   quantity: currency
@@ -1272,7 +1308,7 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
-    to_dimensions:  # FIXME Allocate categories correctly
+    to_dimensions:
     - id: stakeholder
     - id: cost_type
   output_nodes:

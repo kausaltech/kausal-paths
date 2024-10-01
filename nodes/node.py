@@ -1464,7 +1464,7 @@ class Node:
             df = df.set_unit(VALUE_COLUMN, 'dimensionless')
         return df
 
-    def get_explanation(self):
+    def get_explanation(self):  # FIXME Add warning if categories drop out in merge.
         operation_nodes = [n.name for n in self.input_nodes]  # FIXME separate operation and additive
         text = self.explanation + '\n'
         if 'formula' in self.parameters.keys():

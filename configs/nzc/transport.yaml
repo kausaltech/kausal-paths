@@ -196,22 +196,7 @@ nodes:
     value: 0.5
     unit: 1/a
 
-- id: fleet_replacement_rate
-  name: Fleet replacement rate
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
-  params:
-  - id: sector
-    value: Share of fleet that is less than 2 years old
-  - id: multiplier
-    value: 0.5
-    unit: dimensionless
-
-- id: fleet_emission_factor  #  FIXME Node dilutes too little. Should go 130-->107 2020-->2030 but goes onlt 120 in cars.
+- id: fleet_emission_factor
   name: Fleet emission factor
   description: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
   type: costs.DilutionNode
@@ -636,7 +621,7 @@ nodes:
   params:
     sector: ev charging infrastructure
 
-- id: total_number_of_cars  # FIXME Does not change by time
+- id: total_number_of_cars
   name: Total number of cars
   type: gpc.DatasetNode
   quantity: number
@@ -851,7 +836,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: electric_vehicles_additional_unit_price
-    from_dimensions:  # FIXME
+    from_dimensions:
     - id: cost_type
       flatten: true
     to_dimensions:
@@ -952,7 +937,7 @@ nodes:
   - id: air_pollution_unit_price
     from_dimensions:
     - id: area_distance
-      categories: [inside]  # FIXME Check PM10: Does it drop out?
+      categories: [inside]
       flatten: true
     to_dimensions:
     - id: cost_type
@@ -1140,12 +1125,12 @@ nodes:
   - id: public_transport_operation_unit_price
     to_dimensions:
     - id: transport_mode
-      categories: [buses]  # FIXME
+      categories: [buses]
     - id: cost_type
-      categories: [opex]  # FIXME
+      categories: [opex]
   - id: vehicle_kilometres
     from_dimensions:
-    - id: energy_carrier  # FIXME Check that the costs are the same for electric buses
+    - id: energy_carrier
       flatten: true
     - id: transport_mode
       categories: [buses, trains]
@@ -1392,18 +1377,3 @@ nodes:
     tags: [non_additive]
   params:
     sector: relative transport efficiency
-
-- id: electrification_year_of_transport
-  name: Electrification year of passenger cars
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-    filters:
-    - column: Parameter
-      value: Max year
-  params:
-    sector: Electrification of transport fleet

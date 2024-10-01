@@ -218,9 +218,10 @@ nodes:
   input_nodes:
   - id: waste_management_amount
     tags: [non_additive]
-#    from_dimensions:  # FIXME Check what is wanted.
-#    - id: waste_treatment
-#      categories: [incinerated, landfill]
+    from_dimensions:
+    - id: waste_type
+      categories: [glass]
+      exclude: true
     to_dimensions:
     - id: waste_type
     - id: waste_treatment
@@ -296,8 +297,9 @@ nodes:
   output_nodes:
   - id: waste_management_cost
 
-- id: waste_management_cost  # FIXME Add nodes for waste incineration income
+- id: waste_management_cost
   name: Waste management cost
+  description: TODO Add nodes for waste incineration income
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
