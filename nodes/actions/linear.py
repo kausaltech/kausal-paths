@@ -238,6 +238,9 @@ class DatasetReduceAction(ActionNode):
             gn = self.get_input_node(tag='goal', required=True)
             gdf = gn.get_output_pl(target_node=self)
 
+        gdf = gdf.paths.cast_index_to_str()
+        df = df.paths.cast_index_to_str()
+
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
             raise NodeError(self, "Dimension mismatch to input nodes")
 
@@ -286,6 +289,8 @@ class DatasetReduceAction(ActionNode):
         df = df.filter(pl.col(YEAR_COLUMN).lt(end_year + 1))
         df = df.paths.to_narrow()
         for m in self.output_metrics.values():
+            if m.column_id not in df.metric_cols:
+                raise NodeError(self, "Metric column '%s' not found in output")
             if not self.is_enabled():
                 # Replace non-null columns with 0 when action is not enabled
                 df = df.with_columns(
