@@ -1,4 +1,22 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
+
+import os
+
+import django
+
+from kausal_common.telemetry import init_django_telemetry, init_telemetry
+
+
+def init_django():
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
+    init_django_telemetry()
+    django.setup()
+
+
+# Some imports already need Django to be initialized
+init_django()
+
 import argparse
 import cProfile
 from math import log10
@@ -10,7 +28,6 @@ import time
 from opentelemetry import trace
 from dotenv import load_dotenv
 from kausal_common.logging.init import init_logging
-from kausal_common.telemetry import init_django_telemetry, init_telemetry
 from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.instance import InstanceLoader
@@ -27,27 +44,10 @@ load_dotenv()
 
 console = Console()
 
-
 if True:
     from kausal_common.logging.warnings import register_warning_handler
     rich.traceback.install(max_frames=10)
     register_warning_handler()
-
-django_initialized = False
-
-
-def init_django():
-    global django_initialized  # noqa: PLW0603
-    if django_initialized:
-        return
-    import os
-
-    import django
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
-    init_django_telemetry()
-    django.setup()
-    django_initialized = True
-
 
 parser = argparse.ArgumentParser(description='Execute the computational graph')
 parser.add_argument('-i', '--instance', type=str, help='instance identifier')
@@ -86,7 +86,6 @@ if args.disable_ext_cache:
     os.environ['REDIS_URL'] = ''
 
 if args.instance:
-    init_django()
     tracer = trace.get_tracer('load-nodes')
 
     with tracer.start_as_current_span('django-init', attributes={'instance_id': args.instance}) as span:
@@ -185,7 +184,6 @@ if args.check or args.update_instance or args.update_nodes:
 
         context.cache.prefix = old_cache_prefix
 
-    init_django()
     from nodes.models import InstanceConfig
     from django.db import transaction
 
