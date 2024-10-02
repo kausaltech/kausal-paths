@@ -1,19 +1,19 @@
 from __future__ import annotations
+
 import abc
+import threading
 import types
 import typing
-import threading
 from contextlib import contextmanager
 
-from django.utils.translation import gettext_lazy, gettext, get_language  # noqa
-from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.utils.translation import get_language, gettext, gettext_lazy  # noqa: F401
+from pydantic import BaseModel, GetCoreSchemaHandler, model_validator
 
 from pydantic_core import CoreSchema, core_schema
-from pydantic import GetCoreSchemaHandler, BaseModel, ValidationInfo, model_validator, root_validator
 
 from kausal_common.i18n.helpers import convert_language_code
-
 
 if typing.TYPE_CHECKING:
     from django.db.models import Model
