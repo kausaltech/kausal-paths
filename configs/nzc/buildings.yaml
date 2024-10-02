@@ -698,7 +698,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: sector
-      categories: [buildings]
+      categories: [electricity]  # TODO You may want to change the categorisation some day
 
 - id: heating_emission_factor
   name: Heating emission factor

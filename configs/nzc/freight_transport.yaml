@@ -339,7 +339,7 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
-      categories: [transport]
+      categories: [electricity]  # TODO You may want to change the categorisation some day
     - id: energy_carrier
 
 # ---------------- Freight transport costs -------
