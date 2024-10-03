@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import threading
 import uuid
 from contextlib import contextmanager
@@ -14,7 +15,7 @@ from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
-from django.db.models import Q, CharField
+from django.db.models import CharField, Q
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
@@ -29,6 +30,7 @@ from wagtail.search import index
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
+from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
@@ -46,13 +48,10 @@ from paths.utils import (
 
 from common.i18n import get_modeltrans_attrs_from_str
 from pages.blocks import CardListBlock
-from users.models import User
 
 from .instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from django.http import HttpRequest
 
     from loguru import Logger
@@ -783,8 +782,20 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
 
     @copy_signature(models.Model.save)
     def save(self, **kwargs) -> None:
+        if self.i18n:
+            for key in self.i18n.keys():
+                regex_match = re.search(r'_([a-z]{2}([_-][a-z]{2})?$)', key, re.IGNORECASE)
+                if regex_match is None:
+                    error_message = f'No language code found in i18n key "{key}".'
+                    raise RuntimeError(error_message)
+                lang = regex_match.group(1)
+                if lang != convert_language_code(lang, 'modeltrans'):
+                    error_message = f'Language code "{lang}" in i18n key "{key}" is not in "modeltrans" format.'
+                    raise RuntimeError(error_message)
+
         if self.uuid is None:
             self.uuid = uuid.uuid4()
+
         return super().save(**kwargs)
 
     def natural_key(self):
