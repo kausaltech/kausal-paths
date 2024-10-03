@@ -52,13 +52,14 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         dps = (
             MeasureDataPoint.objects.filter(measure__in=measures)
             .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid', 'year', 'value', 'measure__measure_template__unit')
+            .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
         schema = (
             ('UUID', pl.String),
             ('MeasureYear', pl.Int64),
             ('MeasureValue', pl.Float64),
-            ('MeasureUnit', pl.String)
+            ('MeasureDefaultValue', pl.Float64),
+            ('MeasureUnit', pl.String),
         )
         dpdf = pl.DataFrame(data=list(dps), schema=schema, orient='row')
 
@@ -70,14 +71,13 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         df = df.with_columns(
             pl.when(pl.col('Year').lt(100))
             .then(pl.col('Year') + baseline_year)
-            .otherwise(pl.col('Year')).alias('Year')
+            .otherwise(pl.col('Year')).alias('Year'),
         )
 
         # Duplicates may occur when baseline year overlaps with existing data points.
         df = ppl.to_ppdf(df.unique(subset = meta.primary_keys, keep = 'last', maintain_order = True), meta = meta)
 
         jdf = df.join(dpdf, on=['UUID'], how='left')
-
         # Convert units
         diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()
         conversions = []
@@ -92,12 +92,13 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             conv_df = pl.DataFrame(data=conversions, schema=('MeasureUnit', 'Unit', 'ConversionFactor'), orient='row')
             jdf = jdf.join(conv_df, on=['MeasureUnit', 'Unit'], how='left')
             jdf = jdf.with_columns([
+                pl.col('MeasureDefaultValue') * pl.col('ConversionFactor').fill_null(1.0),
                 pl.col('MeasureValue') * pl.col('ConversionFactor').fill_null(1.0),
-                pl.col('Unit').alias('MeasureUnit')
+                pl.col('Unit').alias('MeasureUnit'),
             ])
 
         jdf = jdf.with_columns([
-            pl.coalesce(['MeasureValue', 'Value']).alias('Value'),
+            pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
             pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
         ])
         df = ppl.to_ppdf(jdf.select(df_cols), meta=meta)
