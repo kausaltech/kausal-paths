@@ -105,7 +105,7 @@ dimensions:
   - id: buildings
     label: Buildings & Heating
   - id: electricity
-    label: Other electricity
+    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
   - id: waste
     label: Waste
   - id: other

@@ -1004,6 +1004,12 @@ class Node:
                 if tag == 'extend_values':
                     res = extend_last_historical_value_pl(res, self.get_end_year())
                 elif tag == 'inventory_only':
+                    res = res.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
+                        pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+                        .then(False)
+                        .otherwise(pl.col(FORECAST_COLUMN))
+                        .alias(FORECAST_COLUMN)
+                    )
                     res = res.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
                 elif tag == 'forecast_only':
                     res = res.filter(pl.col(FORECAST_COLUMN))
