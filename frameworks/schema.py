@@ -442,7 +442,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         dp.value = value
         dp.save()
 
-        fwc.notify_change(info.context.user)
+        fwc.notify_change(info.context.user, save=True)
 
         return UpdateMeasureDataPoint(ok=True, measure_data_point=dp)
 
@@ -553,7 +553,7 @@ class UpdateMeasureDataPoints(graphene.Mutation):
                     mdp.value = value
                     mdp.save()
 
-        fwc.notify_change(info.context.user)
+        fwc.notify_change(info.context.user, save=True)
 
         return UpdateMeasureDataPoints(
             ok=True,
