@@ -164,7 +164,7 @@ emission_sectors:
 nodes:
 # ----- Detailed Inventory -----
 - id: i11_residential_fuel_emissions
-  name: I.1.1 Residential Fuel Emissions
+  name: Residential Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -183,7 +183,7 @@ nodes:
     - id: ghg
 
 - id: i12_residential_grid_energy_emissions
-  name: I.1.2 Residential Grid Energy Emissions
+  name: Residential Grid Energy Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -201,9 +201,8 @@ nodes:
     - id: residential_building_type
     - id: ghg
 
-
 - id: i21_commercial_and_institutional_fuel_emissions
-  name: I.2.1 Commercial & Institutional Fuel Emissions
+  name: Commercial & Institutional Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -222,7 +221,7 @@ nodes:
     - id: ici_subsector
 
 - id: i22_commercial_and_institutional_grid_energy_emissions
-  name: I.2.2 Commercial & Institutional Grid Energy Emissions
+  name: Commercial & Institutional Grid Energy Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -240,9 +239,8 @@ nodes:
     - id: ghg
     - id: ici_subsector
 
-
 - id: i31_manufacturing_fuel_emissions
-  name: I.3.1 Manufacturing Fuel Emissions
+  name: Manufacturing Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -260,9 +258,8 @@ nodes:
     - id: ghg
     - id: industry_type
 
-
 - id: i51_ag_forestry_and_fishing_fuel_emissions
-  name: I.5.1 Ag, Forestry, & Fishing Fuel Emissions
+  name: Ag, Forestry, & Fishing Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -279,9 +276,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i61_nonspecified_fuel_emissions
-  name: I.6.1 Non-Specified Fuel Emissions
+  name: Non-Specified Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -299,9 +295,8 @@ nodes:
     - id: equipment_type
     - id: ghg
 
-
 - id: ii11_onroad_transport_fuel_emissions
-  name: II.1.1 On-Road Transport Fuel Emissions
+  name: On-Road Transport Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -320,7 +315,7 @@ nodes:
     - id: ghg
 
 - id: ii12_onroad_transport_grid_energy_emissions
-  name: II.1.2 On-Road Transport Grid Energy Emissions
+  name: On-Road Transport Grid Energy Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -339,7 +334,7 @@ nodes:
     - id: ghg
 
 - id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
-  name: II.1.3 On-Road Transport Outside City, T & D Loss Emissions
+  name: On-Road Transport Outside City, T & D Loss Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -357,9 +352,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii21_railway_fuel_emissions
-  name: II.2.1 Railway Fuel Emissions
+  name: Railway Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -377,9 +371,8 @@ nodes:
     - id: ghg
     - id: rail_type
 
-
 - id: ii31_waterborne_fuel_emissions
-  name: II.3.1 Waterborne Fuel Emissions
+  name: Waterborne Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -397,9 +390,8 @@ nodes:
     - id: ghg
     - id: waterborne_type
 
-
 - id: ii41_aviation_fuel_emissions
-  name: II.4.1 Aviation Fuel Emissions
+  name: Aviation Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -416,9 +408,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii51_offroad_transport_fuel_emissions
-  name: II.5.1 Off-Road Transport Fuel Emissions
+  name: Off-Road Transport Fuel Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -436,9 +427,8 @@ nodes:
     - id: equipment_type
     - id: ghg
 
-
 - id: iii12_solid_waste_disposed_outside_city_emissions
-  name: III.1.2 Solid Waste Disposed outside City Emissions
+  name: Solid Waste Disposed outside City Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -455,9 +445,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: iii22_biological_waste_treated_outside_city_emissions
-  name: III.2.2 Biological Waste Treated outside City Emissions
+  name: Biological Waste Treated outside City Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -474,9 +463,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: iii42_wastewater_treated_outside_city_emissions
-  name: III.4.2 Wastewater Treated outside City Emissions
+  name: Wastewater Treated outside City Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -493,9 +481,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i1_residential_total_emissions
-  name: I.1 Residential Total Emissions
+  name: Residential Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -510,9 +497,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i2_commercial_and_institutional_total_emissions
-  name: I.2 Commercial & Institutional Total Emissions
+  name: Commercial & Institutional Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -527,9 +513,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i3_manufacturing_total_emissions
-  name: I.3 Manufacturing Total Emissions
+  name: Manufacturing Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -544,9 +529,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i5_ag_forestry_and_fishing_total_emissions
-  name: I.5 Ag, Forestry, & Fishing Total Emissions
+  name: Ag, Forestry, & Fishing Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -558,9 +542,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i6_nonspecified_total_emissions
-  name: I.6 Non-Specified Total Emissions
+  name: Non-Specified Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -575,9 +558,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: i_stationary_total_emissions
-  name: I Stationary Total Emissions
+  name: Stationary Total Emissions
   color: '#6EC0C7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -590,9 +572,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii1_onroad_transport_total_emissions
-  name: II.1 On-Road Transport Total Emissions
+  name: On-Road Transport Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -607,9 +588,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii2_railway_total_emissions
-  name: II.2 Railway Total Emissions
+  name: Railway Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -624,9 +604,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii3_waterborne_total_emissions
-  name: II.3 Waterborne Total Emissions
+  name: Waterborne Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -641,9 +620,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii4_aviation_total_emissions
-  name: II.4 Aviation Total Emissions
+  name: Aviation Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -655,9 +633,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii5_offroad_transport_total_emissions
-  name: II.5 Off-Road Transport Total Emissions
+  name: Off-Road Transport Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -672,9 +649,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: ii_transportation_total_emissions
-  name: II Transportation Total Emissions
+  name: Transportation Total Emissions
   color: '#B93F40'
   type: simple.AdditiveNode
   quantity: emissions
@@ -687,9 +663,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: iii1_solid_waste_total_emissions
-  name: III.1 Solid Waste Total Emissions
+  name: Solid Waste Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -700,10 +675,9 @@ nodes:
     to_dimensions:
     - id: scope
     - id: ghg
-
 
 - id: iii2_biological_waste_total_emissions
-  name: III.2 Biological Waste Total Emissions
+  name: Biological Waste Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -714,10 +688,9 @@ nodes:
     to_dimensions:
     - id: scope
     - id: ghg
-
 
 - id: iii4_wastewater_total_emissions
-  name: III.4 Wastewater Total Emissions
+  name: Wastewater Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -729,9 +702,8 @@ nodes:
     - id: scope
     - id: ghg
 
-
 - id: iii_waste_total_emissions
-  name: III Waste Total Emissions
+  name: Waste Total Emissions
   color: '#C4D652'
   type: simple.AdditiveNode
   quantity: emissions
@@ -744,10 +716,9 @@ nodes:
     - id: scope
     - id: ghg
 
-
 # ----- Generalized Inventory & Forecast -----
 - id: i1_residential_emissions
-  name: I.1 Residential Emissions
+  name: Residential Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -764,7 +735,7 @@ nodes:
     - id: ghg
 
 - id: i2_commercial_and_institutional_emissions
-  name: I.2 Commercial & Institutional Emissions
+  name: Commercial & Institutional Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -781,7 +752,7 @@ nodes:
     - id: ghg
 
 - id: i3_manufacturing_emissions
-  name: I.3 Manufacturing Emissions
+  name: Manufacturing Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -798,7 +769,7 @@ nodes:
     - id: ghg
 
 - id: i5_ag_forestry_and_fishing_emissions
-  name: I.5 Ag, Forestry, & Fishing Emissions
+  name: Ag, Forestry, & Fishing Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -815,7 +786,7 @@ nodes:
     - id: ghg
 
 - id: i6_nonspecified_emissions
-  name: I.6 Non-Specified Emissions
+  name: Non-Specified Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -832,7 +803,7 @@ nodes:
     - id: ghg
 
 - id: i_stationary_emissions
-  name: I Stationary Emissions
+  name: Stationary Emissions
   color: '#6EC0C7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -844,9 +815,8 @@ nodes:
     to_dimensions:
     - id: ghg
 
-
 - id: ii1_onroad_transport_emissions
-  name: II.1 On-Road Transport Emissions
+  name: On-Road Transport Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -863,7 +833,7 @@ nodes:
     - id: ghg
 
 - id: ii2_railway_emissions
-  name: II.2 Railway Emissions
+  name: Railway Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -880,7 +850,7 @@ nodes:
     - id: ghg
 
 - id: ii_transportation_emissions
-  name: II Transportation Emissions
+  name: Transportation Emissions
   color: '#B93F40'
   type: simple.AdditiveNode
   quantity: emissions
@@ -892,9 +862,8 @@ nodes:
     to_dimensions:
     - id: ghg
 
-
 - id: iii1_solid_waste_emissions
-  name: III.1 Solid Waste Emissions
+  name: Solid Waste Emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -911,7 +880,7 @@ nodes:
     - id: ghg
 
 - id: iii_waste_emissions
-  name: III Waste Emissions
+  name: Waste Emissions
   color: '#C4D652'
   type: simple.AdditiveNode
   quantity: emissions
@@ -922,7 +891,6 @@ nodes:
   - id: net_emissions_forecast
     to_dimensions:
     - id: ghg
-
 
 - id: net_emissions_forecast
   name: Net Emissions Forecast
@@ -1649,7 +1617,6 @@ actions:
     metrics: [iii1_emissions]
     to_dimensions:
     - id: ghg
-
 
 pages:
 - id: home
