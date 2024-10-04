@@ -21,34 +21,34 @@ features:
 
 dimensions:
 - id: vehicle_type
-  label: Vehicle Type
+  label: Vehicle type
   categories:
   - id: heavyduty_diesel_vehicles
-    label: 'Heavy-Duty Diesel Vehicles'
+    label: 'Heavy-duty diesel vehicles'
   - id: heavyduty_gasoline_vehicles
-    label: 'Heavy-Duty Gasoline Vehicles'
+    label: 'Heavy-duty gasoline vehicles'
   - id: lightduty_diesel_trucks
-    label: 'Light-Duty Diesel Trucks'
+    label: 'Light-duty diesel trucks'
   - id: lightduty_diesel_vehicles
-    label: 'Light-Duty Diesel Vehicles'
+    label: 'Light-duty diesel vehicles'
   - id: lightduty_gasoline_trucks
-    label: 'Light-Duty Gasoline Trucks'
+    label: 'Light-duty gasoline trucks'
   - id: lightduty_gasoline_vehicles
-    label: 'Light-Duty Gasoline Vehicles'
+    label: 'Light-duty gasoline vehicles'
   - id: motorcycles
     label: 'Motorcycles'
   - id: propane_and_natural_gas_vehicles
-    label: 'Propane and Natural Gas Vehicles'
+    label: 'Propane and natural gas vehicles'
   - id: public_transit
-    label: 'Public Transit'
+    label: 'Public transit'
   - id: zero_emissions_heavyduty_vehicles
-    label: 'Zero Emissions Heavy-Duty Vehicles'
+    label: 'Zero emissions heavy-duty vehicles'
   - id: zero_emissions_lightduty_trucks
-    label: 'Zero Emissions Light-Duty Trucks'
+    label: 'Zero emissions light-duty trucks'
   - id: zero_emissions_lightduty_vehicles
-    label: 'Zero Emissions Light-Duty Vehicles'
+    label: 'Zero emissions light-duty vehicles'
   - id: zero_emissions_motorcycles
-    label: 'Zero Emissions Motorcycles'
+    label: 'Zero emissions motorcycles'
 
 - id: scope
   label: Scope
@@ -61,38 +61,38 @@ dimensions:
     label: 'Scope 3'
 
 - id: equipment_type
-  label: Equipment Type
+  label: Equipment type
   categories:
   - id: airport_equipment
-    label: 'Airport Equipment'
+    label: 'Airport equipment'
   - id: commercial_equipment
-    label: 'Commercial Equipment'
+    label: 'Commercial equipment'
   - id: construction_equipment
-    label: 'Construction Equipment'
+    label: 'Construction equipment'
   - id: industrial_equipment
-    label: 'Industrial Equipment'
+    label: 'Industrial equipment'
   - id: lawn_and_garden_equipment_commercial
-    label: 'Lawn & Garden Equipment (Commercial)'
+    label: 'Lawn & garden equipment (commercial)'
   - id: lawn_and_garden_equipment_residential
-    label: 'Lawn & Garden Equipment (Residential)'
+    label: 'Lawn & garden equipment (residential)'
   - id: railroad_equipment
-    label: 'Railroad Equipment'
+    label: 'Railroad equipment'
 
 - id: residential_building_type
-  label: Residential Building Type
+  label: Residential building type
   categories:
   - id: high_rise_apartment
-    label: 'High Rise Apartment'
+    label: 'High rise apartment'
   - id: low_rise_apartment
-    label: 'Low Rise Apartment'
+    label: 'Low rise apartment'
   - id: mobile_house
-    label: 'Mobile House'
+    label: 'Mobile house'
   - id: one_family_dwelling
-    label: 'One Family Dwelling'
+    label: 'One family dwelling'
   - id: townhouse
     label: 'Townhouse'
   - id: two_family_dwelling
-    label: 'Two Family Dwelling'
+    label: 'Two family dwelling'
 
 - id: ghg
   label: GHG
@@ -109,37 +109,37 @@ dimensions:
     label: 'N2O'
 
 - id: waterborne_type
-  label: Waterborne Type
+  label: Waterborne type
   categories:
   - id: merchant_bulk
-    label: 'Merchant Bulk'
+    label: 'Merchant bulk'
   - id: merchant_container
-    label: 'Merchant Container'
+    label: 'Merchant container'
   - id: merchant_other
-    label: 'Merchant Other'
+    label: 'Merchant other'
   - id: pleasure_craft
-    label: 'Pleasure Craft'
+    label: 'Pleasure craft'
   - id: tanker
     label: 'Tanker'
 
 - id: industry_type
-  label: Industry Type
+  label: Industry type
   categories:
   - id: industry__chemical
-    label: 'Industry - Chemical'
+    label: 'Industry - chemical'
   - id: industry__metal_fabrication
-    label: 'Industry - Metal Fabrication'
+    label: 'Industry - metal fabrication'
   - id: industry__mineral
-    label: 'Industry - Mineral'
+    label: 'Industry - mineral'
   - id: industry__miscellaneous
-    label: 'Industry - Miscellaneous'
+    label: 'Industry - miscellaneous'
   - id: industry__petroleum
-    label: 'Industry - Petroleum'
+    label: 'Industry - petroleum'
   - id: industry__wood
-    label: 'Industry - Wood'
+    label: 'Industry - wood'
 
 - id: ici_subsector
-  label: ICI Subsector
+  label: ICI subsector
   categories:
   - id: commercial
     label: 'Commercial'
@@ -149,22 +149,22 @@ dimensions:
     label: 'Institutional'
 
 - id: rail_type
-  label: Rail Type
+  label: Rail type
   categories:
   - id: freight_rail
-    label: 'Freight Rail'
+    label: 'Freight rail'
   - id: passenger_rail
-    label: 'Passenger Rail'
+    label: 'Passenger rail'
 
 emission_sectors:
 - id: net_emissions
-  name: Net Emissions
+  name: Net emissions
 
 
 nodes:
 # ----- Detailed Inventory -----
 - id: i11_residential_fuel_emissions
-  name: Residential Fuel Emissions
+  name: Residential fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -183,7 +183,7 @@ nodes:
     - id: ghg
 
 - id: i12_residential_grid_energy_emissions
-  name: Residential Grid Energy Emissions
+  name: Residential grid energy emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -202,7 +202,7 @@ nodes:
     - id: ghg
 
 - id: i21_commercial_and_institutional_fuel_emissions
-  name: Commercial & Institutional Fuel Emissions
+  name: Commercial & institutional fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -221,7 +221,7 @@ nodes:
     - id: ici_subsector
 
 - id: i22_commercial_and_institutional_grid_energy_emissions
-  name: Commercial & Institutional Grid Energy Emissions
+  name: Commercial & institutional grid energy emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -240,7 +240,7 @@ nodes:
     - id: ici_subsector
 
 - id: i31_manufacturing_fuel_emissions
-  name: Manufacturing Fuel Emissions
+  name: Manufacturing fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -259,7 +259,7 @@ nodes:
     - id: industry_type
 
 - id: i51_ag_forestry_and_fishing_fuel_emissions
-  name: Ag, Forestry, & Fishing Fuel Emissions
+  name: Ag, forestry, & fishing fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -277,7 +277,7 @@ nodes:
     - id: ghg
 
 - id: i61_nonspecified_fuel_emissions
-  name: Non-Specified Fuel Emissions
+  name: Non-specified fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -296,7 +296,7 @@ nodes:
     - id: ghg
 
 - id: ii11_onroad_transport_fuel_emissions
-  name: On-Road Transport Fuel Emissions
+  name: On-road transport fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -315,7 +315,7 @@ nodes:
     - id: ghg
 
 - id: ii12_onroad_transport_grid_energy_emissions
-  name: On-Road Transport Grid Energy Emissions
+  name: On-road transport grid energy emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -334,7 +334,7 @@ nodes:
     - id: ghg
 
 - id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
-  name: On-Road Transport Outside City, T & D Loss Emissions
+  name: On-road transport outside city, T & D loss emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -353,7 +353,7 @@ nodes:
     - id: ghg
 
 - id: ii21_railway_fuel_emissions
-  name: Railway Fuel Emissions
+  name: Railway fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -372,7 +372,7 @@ nodes:
     - id: rail_type
 
 - id: ii31_waterborne_fuel_emissions
-  name: Waterborne Fuel Emissions
+  name: Waterborne fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -391,7 +391,7 @@ nodes:
     - id: waterborne_type
 
 - id: ii41_aviation_fuel_emissions
-  name: Aviation Fuel Emissions
+  name: Aviation fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -409,7 +409,7 @@ nodes:
     - id: ghg
 
 - id: ii51_offroad_transport_fuel_emissions
-  name: Off-Road Transport Fuel Emissions
+  name: Off-road transport fuel emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -428,7 +428,7 @@ nodes:
     - id: ghg
 
 - id: iii12_solid_waste_disposed_outside_city_emissions
-  name: Solid Waste Disposed outside City Emissions
+  name: Solid waste disposed outside city emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -446,7 +446,7 @@ nodes:
     - id: ghg
 
 - id: iii22_biological_waste_treated_outside_city_emissions
-  name: Biological Waste Treated outside City Emissions
+  name: Biological waste treated outside city emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -464,7 +464,7 @@ nodes:
     - id: ghg
 
 - id: iii42_wastewater_treated_outside_city_emissions
-  name: Wastewater Treated outside City Emissions
+  name: Wastewater treated outside city emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -482,7 +482,7 @@ nodes:
     - id: ghg
 
 - id: i1_residential_total_emissions
-  name: Residential Total Emissions
+  name: Residential total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -498,7 +498,7 @@ nodes:
     - id: ghg
 
 - id: i2_commercial_and_institutional_total_emissions
-  name: Commercial & Institutional Total Emissions
+  name: Commercial & institutional total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -514,7 +514,7 @@ nodes:
     - id: ghg
 
 - id: i3_manufacturing_total_emissions
-  name: Manufacturing Total Emissions
+  name: Manufacturing total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -530,7 +530,7 @@ nodes:
     - id: ghg
 
 - id: i5_ag_forestry_and_fishing_total_emissions
-  name: Ag, Forestry, & Fishing Total Emissions
+  name: Ag, forestry, & fishing total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -543,7 +543,7 @@ nodes:
     - id: ghg
 
 - id: i6_nonspecified_total_emissions
-  name: Non-Specified Total Emissions
+  name: Non-specified total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -559,7 +559,7 @@ nodes:
     - id: ghg
 
 - id: i_stationary_total_emissions
-  name: Stationary Total Emissions
+  name: Stationary total emissions
   color: '#6EC0C7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -573,7 +573,7 @@ nodes:
     - id: ghg
 
 - id: ii1_onroad_transport_total_emissions
-  name: On-Road Transport Total Emissions
+  name: On-road transport total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -589,7 +589,7 @@ nodes:
     - id: ghg
 
 - id: ii2_railway_total_emissions
-  name: Railway Total Emissions
+  name: Railway total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -605,7 +605,7 @@ nodes:
     - id: ghg
 
 - id: ii3_waterborne_total_emissions
-  name: Waterborne Total Emissions
+  name: Waterborne total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -621,7 +621,7 @@ nodes:
     - id: ghg
 
 - id: ii4_aviation_total_emissions
-  name: Aviation Total Emissions
+  name: Aviation total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -634,7 +634,7 @@ nodes:
     - id: ghg
 
 - id: ii5_offroad_transport_total_emissions
-  name: Off-Road Transport Total Emissions
+  name: Off-road transport total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -650,7 +650,7 @@ nodes:
     - id: ghg
 
 - id: ii_transportation_total_emissions
-  name: Transportation Total Emissions
+  name: Transportation total emissions
   color: '#B93F40'
   type: simple.AdditiveNode
   quantity: emissions
@@ -664,7 +664,7 @@ nodes:
     - id: ghg
 
 - id: iii1_solid_waste_total_emissions
-  name: Solid Waste Total Emissions
+  name: Solid waste total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -677,7 +677,7 @@ nodes:
     - id: ghg
 
 - id: iii2_biological_waste_total_emissions
-  name: Biological Waste Total Emissions
+  name: Biological waste total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -690,7 +690,7 @@ nodes:
     - id: ghg
 
 - id: iii4_wastewater_total_emissions
-  name: Wastewater Total Emissions
+  name: Wastewater total emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -703,7 +703,7 @@ nodes:
     - id: ghg
 
 - id: iii_waste_total_emissions
-  name: Waste Total Emissions
+  name: Waste total emissions
   color: '#C4D652'
   type: simple.AdditiveNode
   quantity: emissions
@@ -718,7 +718,7 @@ nodes:
 
 # ----- Generalized Inventory & Forecast -----
 - id: i1_residential_emissions
-  name: Residential Emissions
+  name: Residential emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -735,7 +735,7 @@ nodes:
     - id: ghg
 
 - id: i2_commercial_and_institutional_emissions
-  name: Commercial & Institutional Emissions
+  name: Commercial & institutional emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -752,7 +752,7 @@ nodes:
     - id: ghg
 
 - id: i3_manufacturing_emissions
-  name: Manufacturing Emissions
+  name: Manufacturing emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -769,7 +769,7 @@ nodes:
     - id: ghg
 
 - id: i5_ag_forestry_and_fishing_emissions
-  name: Ag, Forestry, & Fishing Emissions
+  name: Ag, forestry, & fishing emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -786,7 +786,7 @@ nodes:
     - id: ghg
 
 - id: i6_nonspecified_emissions
-  name: Non-Specified Emissions
+  name: Non-specified emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -803,7 +803,7 @@ nodes:
     - id: ghg
 
 - id: i_stationary_emissions
-  name: Stationary Emissions
+  name: Stationary emissions
   color: '#6EC0C7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -816,7 +816,7 @@ nodes:
     - id: ghg
 
 - id: ii1_onroad_transport_emissions
-  name: On-Road Transport Emissions
+  name: On-road transport emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -833,7 +833,7 @@ nodes:
     - id: ghg
 
 - id: ii2_railway_emissions
-  name: Railway Emissions
+  name: Railway emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -850,7 +850,7 @@ nodes:
     - id: ghg
 
 - id: ii_transportation_emissions
-  name: Transportation Emissions
+  name: Transportation emissions
   color: '#B93F40'
   type: simple.AdditiveNode
   quantity: emissions
@@ -863,7 +863,7 @@ nodes:
     - id: ghg
 
 - id: iii1_solid_waste_emissions
-  name: Solid Waste Emissions
+  name: Solid waste emissions
   type: gpc.DatasetNode
   quantity: emissions
   unit: t/a
@@ -880,7 +880,7 @@ nodes:
     - id: ghg
 
 - id: iii_waste_emissions
-  name: Waste Emissions
+  name: Waste emissions
   color: '#C4D652'
   type: simple.AdditiveNode
   quantity: emissions
@@ -893,7 +893,7 @@ nodes:
     - id: ghg
 
 - id: net_emissions_forecast
-  name: Net Emissions Forecast
+  name: Net emissions forecast
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -904,13 +904,13 @@ nodes:
 
 actions:
 - id: zeroemission_vehicles_zevs
-  name: Zero-Emission Vehicles (ZEVs)
+  name: Zero-emission vehicles (ZEVs)
   description: Adopt policies and regulations facilitating a transition to ZEVs.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Zero-Emission Vehicles (ZEVs)
+    action: Zero-emission vehicles (ZEVs)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -959,13 +959,13 @@ actions:
     - id: ghg
 
 - id: land_use_and_15minute_neighborhoods_t
-  name: Land Use & 15-Minute Neighborhoods (T)
+  name: Land use & 15-minute neighborhoods (T)
   description: Adopt 50x50 and develop 15-minute neighborhoods (T).
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Land Use & 15-Minute Neighborhoods (T)
+    action: Land use & 15-minute neighborhoods (T)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1014,13 +1014,13 @@ actions:
     - id: ghg
 
 - id: land_use_and_15minute_neighborhoods_b
-  name: Land Use & 15-Minute Neighborhoods (B)
+  name: Land use & 15-minute neighborhoods (B)
   description: Adopt 50x50 and develop 15-minute neighborhoods (B).
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Land Use & 15-Minute Neighborhoods (B)
+    action: Land use & 15-minute neighborhoods (B)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1179,13 +1179,13 @@ actions:
     - id: ghg
 
 - id: roadway_management
-  name: Roadway Management
+  name: Roadway management
   description: Manage roadways for transportation emissions reductions.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Roadway Management
+    action: Roadway management
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1234,13 +1234,13 @@ actions:
     - id: ghg
 
 - id: mhdv_technology
-  name: MHDV Technology
+  name: MHDV technology
   description: Transition medium and heavy-duty vehicles (MHDVs) to ZEVs.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: MHDV Technology
+    action: MHDV technology
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1289,13 +1289,13 @@ actions:
     - id: ghg
 
 - id: clean_transportation_fuels
-  name: Clean Transportation Fuels
+  name: Clean transportation fuels
   description: Transition to renewable fuels for transportation.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Clean Transportation Fuels
+    action: Clean transportation fuels
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1344,13 +1344,13 @@ actions:
     - id: ghg
 
 - id: new_construction
-  name: New Construction
+  name: New construction
   description: Building new zero-GHG residential and ICI buildings.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: New Construction
+    action: New construction
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1399,13 +1399,13 @@ actions:
     - id: ghg
 
 - id: building_retrofits
-  name: Building Retrofits
+  name: Building retrofits
   description: Rapidly implement fuel-switching retrofits to existing buildings.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Building Retrofits
+    action: Building retrofits
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1454,13 +1454,13 @@ actions:
     - id: ghg
 
 - id: renewable_natural_gas
-  name: Renewable Natural Gas
+  name: Renewable natural gas
   description: Shift from fossil to renewable natural gas.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Renewable Natural Gas
+    action: Renewable natural gas
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1509,13 +1509,13 @@ actions:
     - id: ghg
 
 - id: bc_hydro_renewable_electricity
-  name: BC Hydro Renewable Electricity
+  name: BC Hydro renewable electricity
   description: Decarbonize the BC Hydro electrical grid with renewable energy.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: BC Hydro Renewable Electricity
+    action: BC Hydro renewable electricity
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1564,13 +1564,13 @@ actions:
     - id: ghg
 
 - id: waste_reduction_and_diversion
-  name: Waste Reduction & Diversion
+  name: Waste reduction & diversion
   description: Reduce and divert waste to landfills.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Waste Reduction & Diversion
+    action: Waste reduction & diversion
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1638,9 +1638,9 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Business as Usual
+  name: Business as usual
 
 - id: default
   default: true
-  name: Climate Action Plan
+  name: Climate action plan
   all_actions_enabled: true
