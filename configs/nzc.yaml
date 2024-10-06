@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f5a8166b6dc8dcd5ff885f1f215ba326c90baa70
+  commit: 4e26e169cfeabb5536dcf42f389787929dc5d1c4
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -63,7 +63,17 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-# action_efficiency_pairs:
+action_efficiency_pairs:
+
+- graph_type: cost_benefit
+  cost_node: discounted_investment
+  impact_node: discounted_benefits
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit
 
 # - graph_type: cost_effectiveness
 #   cost_node: discounted_total_cost
@@ -555,6 +565,41 @@ nodes:
       flatten: true
     - id: aggregated_cost_type
       flatten: true
+
+- id: discounted_investment
+  name: Discounted investment
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: aggregated_cost_type
+#      categories: [capex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: discounted_benefits  # TODO Remove this is the single-node CBA visualisation gets accepted.
+  name: Discounted benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: aggregated_cost_type
+      categories: [capex]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
 
 # - id: tes_energy
 #   name: tes

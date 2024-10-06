@@ -326,6 +326,54 @@ class ActionEfficiencyPair:
 
     def validate(self):
         # Ensure that quantities, units and dimensions are compatible
+        # TODO Currently, the function assumes that there are no extra dimensions. This should be updated
+        # so that the dimensions that are not stakeholder or outcome dimensions are summed up.
+        # If the quantity is not stackable, the need to sum up gives an error.
+        impact_overview_settings = {
+            # TODO Validate based on this dict, not based on a stack of if clauses.
+            # Applies to calculate_iter() as well.
+            'impact': {
+                'allow_non_stackable': False,
+                'is_cost_node_required': False,
+                'is_impact_node_required': True,
+                'indicator_unit_type': 'None',
+                'allow_stakeholders': False,
+                'allow_outcomes': True,
+            },
+            'cost_efficiency': {
+                'allow_non_stackable': False,
+                'is_cost_node_required': True,  # If node is required, then its unit is as well.
+                'is_impact_node_required': True,
+                'indicator_unit_type': 'cost/impact',  # Possible values: None, cost/impact, dimensionless
+                'allow_stakeholders': False,
+                'allow_outcomes': True,
+            },
+            'cost_benefit': {
+                'allow_non_stackable': False,
+                'is_cost_node_required': True,
+                'is_impact_node_required': False,
+                'indicator_unit_type': 'None',
+                'allow_stakeholders': True,
+                'allow_outcomes': True,
+            },
+            'return_on_investment': {
+                'allow_non_stackable': False,
+                'is_cost_node_required': True,
+                'is_impact_node_required': True,
+                'indicator_unit_type': 'dimensionless',
+                'allow_stakeholders': False,
+                'allow_outcomes': False,
+            },
+            'value_of_information': {
+                'allow_non_stackable': True,  # TODO Think whether we actually need this attribute
+                'is_cost_node_required': True,
+                'is_impact_node_required': False,
+                'indicator_unit_type': 'None',
+                'allow_stakeholders': False,
+                'allow_outcomes': False,
+            },
+        }
+
         if not (self.cost_node.quantity in STACKABLE_QUANTITIES and self.impact_node.quantity in STACKABLE_QUANTITIES):
             raise Exception("Cost and impact nodes must have stackable quantities")
         if self.cost_node.unit is None or self.impact_node.unit is None:
