@@ -1157,7 +1157,7 @@ scenarios:
 
 - id: default
   default: true
-  name: Decarbonsation scenario
+  name: Decarbonisation scenario
   all_actions_enabled: true
 
 include:
