@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4e26e169cfeabb5536dcf42f389787929dc5d1c4
+  commit: 2699aa39c8ad9603c05593e7ae337c21a442f131
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -1005,13 +1005,14 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 - id: a344_top_performance_improvement
   name: 3.4.4 Top performance standard improvement compared with the regular new buildings
-  type: simple.CumulativeAdditiveAction
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   group: buildings
   parent: a34_decarbonising_heat_generation
-  historical_values: [[2021, 0], [2022, 0]]  # TODO
-  forecast_values: [[2023, 50]]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: 3.4.4 Top performance standard improvement compared with the regular new buildings
   output_nodes:
   - id: energy_use_intensity_change_new
     to_dimensions:

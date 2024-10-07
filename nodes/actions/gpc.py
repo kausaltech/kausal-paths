@@ -432,7 +432,7 @@ class SCurveAction(DatasetAction):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        BASE_YEAR = 2018.0
+        BASE_YEAR = 2018.0  # FIXME Use the actual baseline year
 
         df = self.get_input_node().get_output_pl(target_node=self)
 
