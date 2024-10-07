@@ -432,7 +432,7 @@ class SCurveAction(DatasetAction):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        BASE_YEAR = 2018.0  # FIXME Use the actual baseline year
+        base_year = 2018.0  # FIXME Use the actual baseline year
 
         df = self.get_input_node().get_output_pl(target_node=self)
 
@@ -457,8 +457,8 @@ class SCurveAction(DatasetAction):
         df = self.extend_value_to_whole_column(df, 'maxyear', row)
 
         df = df.with_columns((
-            pl.col(YEAR_COLUMN) - (pl.lit(BASE_YEAR) +
-            (pl.col('maxyear') - pl.lit(BASE_YEAR)) / 2)).alias('x'))
+            pl.col(YEAR_COLUMN) - (pl.lit(base_year) +
+            (pl.col('maxyear') - pl.lit(base_year)) / 2)).alias('x'))
         df = df.with_columns((pl.col('A') / (
             pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
             ).alias('out'))
