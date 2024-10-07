@@ -910,7 +910,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Zero-emission vehicles (ZEVs)
+    action: Zero-Emission Vehicles (ZEVs)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -965,7 +965,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Land use & 15-minute neighborhoods (T)
+    action: Land Use & 15-Minute Neighborhoods (T)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1020,7 +1020,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Land use & 15-minute neighborhoods (B)
+    action: Land Use & 15-Minute Neighborhoods (B)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1185,7 +1185,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Roadway management
+    action: Roadway Management
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1240,7 +1240,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: MHDV technology
+    action: MHDV Technology
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1295,7 +1295,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Clean transportation fuels
+    action: Clean Transportation Fuels
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1350,7 +1350,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: New construction
+    action: New Construction
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1405,7 +1405,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Building retrofits
+    action: Building Retrofits
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1460,7 +1460,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Renewable natural gas
+    action: Renewable Natural Gas
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1515,7 +1515,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: BC Hydro renewable electricity
+    action: BC Hydro Renewable Electricity
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1570,7 +1570,7 @@ actions:
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Waste reduction & diversion
+    action: Waste Reduction & Diversion
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1638,9 +1638,9 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Business as usual
+  name: Business as Usual
 
 - id: default
   default: true
-  name: Climate action plan
+  name: Pathway to 2050
   all_actions_enabled: true
