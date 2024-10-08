@@ -700,9 +700,9 @@ nodes:
     - id: sector
       categories: [electricity]  # TODO You may want to change the categorisation some day
 
-- id: heating_emission_factor
-  name: Heating emission factor
-  description: Emission factor for building heating
+- id: average_heating_emission_factor
+  name: Average heating emission factor
+  description: Emission factor for building heating. Averaged over all heating types currently in use.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -712,6 +712,77 @@ nodes:
   - id: nzc/defaults
   params:
     sector: Emission factors from heat production
+
+- id: building_heat_fossil_energy
+  name: Building heat fossil energy
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating_type, fuel_type]
+  output_dimensions: [heating_type, fuel_type]
+  input_nodes:
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: fuel_type
+
+- id: building_heat_fossil_ratio
+  name: Building heat fossil ratio
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [heating_type, fuel_type]
+  output_dimensions: [heating_type, fuel_type]
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [geometric_inverse, inventory_only]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+  - id: building_heat_fossil_energy
+    tags: [inventory_only]
+
+- id: heating_emission_factor
+  name: Heating emission factor
+  description: Emission factor for building heating. This applies only to fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, heating_type, fuel_type]
+  output_dimensions: [pollutant, heating_type, fuel_type]
+  input_nodes:
+  - id: average_heating_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+  - id: building_heat_fossil_ratio
+    tags: [geometric_inverse, extend_values]
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+    to_dimensions:
+    - id: heating_type
+    - id: fuel_type
 
 - id: building_heating_emissions
   name: Building heating emissions
@@ -741,7 +812,6 @@ nodes:
     - id: pollutant
     - id: heating_type
     - id: fuel_type
-      categories: [fossil]
   output_nodes:
   - id: building_emissions
     from_dimensions:
