@@ -6,8 +6,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: c95c2df71ef6ff92cf626cfcaa3eb6efbe083002
   dvc_remote: kausal-s3
-name: Hiilineutraali Tampere 2030
-name_en: Carbon-neutral Tampere 2030
+name: C4C Hiilineutraali Tampere 2030
+name_en: C4C Carbon-neutral Tampere 2030
 owner: Tampereen kaupunki
 owner_en: City of Tampere
 theme_identifier: tampere-ilmasto
