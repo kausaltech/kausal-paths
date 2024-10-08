@@ -776,7 +776,7 @@ nodes:
     - id: pollutant
     - id: heating_type
   - id: building_heat_fossil_ratio
-    tags: [geometric_inverse, extend_values]
+    tags: [geometric_inverse, empty_to_zero, extend_values]
     from_dimensions:
     - id: fuel_type
       categories: [fossil]
