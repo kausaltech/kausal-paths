@@ -1039,6 +1039,11 @@ class Node:
                     res = res.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
                 elif tag == 'make_nonpositive':
                     res = res.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
+                elif tag == 'empty_to_zero':
+                    res = res.with_columns(
+                        pl.when(pl.col(VALUE_COLUMN).is_nan())
+                        .then(pl.lit(0.0))
+                        .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
         return res
 
@@ -1524,6 +1529,8 @@ class Node:
                                 edge_text += _('    - Negative result values are replaced with 0.\n')
                             elif tag == 'make_nonpositive':
                                 edge_text += _('    - Positive result values are replaced with 0.\n')
+                            elif tag == 'empty_to_zero':
+                                edge_text += _('    - Convert NaNs to zeros.\n')
                             else:
                                 edge_text += _('    - The tag "%s" is given.\n') % tag
 
