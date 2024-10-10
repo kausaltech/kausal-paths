@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-09-26 08:45+0300\n"
-"PO-Revision-Date: 2024-10-10 08:52+0000\n"
-"Last-Translator: DeepL <noreply-mt-deepl@weblate.org>\n"
+"PO-Revision-Date: 2024-10-10 10:20+0000\n"
+"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Spanish (American) <https://weblate.kausal.tech/projects/"
 "paths/django/es_US/>\n"
 "Language: es_US\n"
@@ -213,7 +213,7 @@ msgstr "UUID"
 
 #: nodes/actions/action.py
 msgid "Is implemented"
-msgstr "Se aplica"
+msgstr "Es implementada"
 
 #: nodes/actions/action.py
 msgid "Is the action included in the scenario"
