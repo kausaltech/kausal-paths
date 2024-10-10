@@ -31,7 +31,7 @@ params:
   max_value: 5
   unit: '%'
   is_visible: true
-  is_customizable: true
+  is_customizable: false
 - id: show_scenario_impacts
   label: Show scenario impacts instead of node outputs?
   value: false
