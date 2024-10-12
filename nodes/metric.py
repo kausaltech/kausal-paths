@@ -15,12 +15,12 @@ from colormath.color_conversions import convert_color  # type: ignore
 from common import polars as ppl
 from common.i18n import gettext as _
 from .node import Node
-from .actions import ActionNode, ActionEfficiency, ActionEfficiencyPair
+from .actions import ActionNode, ActionImpact, ImpactOverview
 from .actions.shift import ShiftAction
 from .constants import (
     BASELINE_VALUE_COLUMN, FLOW_ID_COLUMN, FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE,
     FLOW_ROLE_TARGET, FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES,
-    VALUE_COLUMN, YEAR_COLUMN,
+    VALUE_COLUMN, YEAR_COLUMN, UNCERTAINTY_COLUMN
 )
 from .exceptions import NodeError
 from .goals import NodeGoalsEntry
@@ -353,6 +353,10 @@ class DimensionalMetric:
                 df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
                 df.drop(VALUE_COLUMN + '_right')
 
+        # For now, slice for the median value if probabilistic.
+        if UNCERTAINTY_COLUMN in df.columns:
+            df = df.filter(pl.col(UNCERTAINTY_COLUMN).eq('median'))
+
         if node.context.active_normalization:
             normalizer, df = node.context.active_normalization.normalize_output(m, df)
         else:
@@ -454,21 +458,23 @@ class DimensionalMetric:
         return dm
 
     @classmethod
-    def from_action_efficiency(
-        cls, action_efficiency: ActionEfficiency, root: ActionEfficiencyPair, col: str,
+    def from_action_impact(
+        cls, action_impact: ActionImpact, root: ImpactOverview, col: str,
     ) -> DimensionalMetric:
-        action = action_efficiency.action
+        action = action_impact.action
         def make_id(*args: str) -> str:
             return ':'.join([action.id, *args])
-        df = action_efficiency.df
+        df = action_impact.df
         if col=='Cost':
-            dimensions = root.cost_node.output_dimensions.items()
+            dimensions = root.cost_node.output_dimensions
         elif col=='Impact':
-            dimensions = root.impact_node.output_dimensions.items()
+            dimensions = root.impact_node.output_dimensions
 
         dims: list[MetricDimension] = []
 
-        for dim_id, dim in dimensions:
+        for dim_id, dim in dimensions.items():
+            if dim_id == 'iteration':
+                continue
             df_cats = set(df[dim_id].unique())
             ordered_cats = []
             for cat in dim.categories:

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from params import Parameter
     from params.storage import SettingStorage
 
-    from .actions.action import ActionEfficiencyPair, ActionNode
+    from .actions.action import ImpactOverview, ActionNode
     from .instance import Instance
     from .node import Dimension, Node
     from .normalization import Normalization
@@ -70,8 +70,8 @@ class Context:
     skip_cache: bool = False
     check_mode: bool = False
     instance: Instance
-    action_efficiency_pairs: list[ActionEfficiencyPair]
-    setting_storage: SettingStorage | None
+    impact_overviews: list[ImpactOverview]
+    setting_storage: Optional[SettingStorage]
     perf_context: PerfContext[Node]
     node_graph: nx.DiGraph
     baseline_values_generated: bool = False
@@ -111,7 +111,7 @@ class Context:
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
         self.active_normalization = None
-        self.action_efficiency_pairs = []
+        self.impact_overviews = []
         self.dimensions = {}
         self.options = {}
         self.normalizations = {}

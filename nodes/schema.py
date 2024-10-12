@@ -20,7 +20,7 @@ from paths.graphql_helpers import ensure_instance, pass_context
 from nodes.node import Node
 from nodes.scenario import Scenario
 
-from .actions import ActionEfficiencyPair, ActionGroup, ActionNode
+from .actions import ImpactOverview, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
 from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 from .instance import Instance, InstanceFeatures
@@ -710,7 +710,7 @@ class ScenarioType(graphene.ObjectType):
         return root.default
 
 
-class ActionEfficiency(graphene.ObjectType):
+class ActionEfficiency(graphene.ObjectType):  # FIXME Rename to ActionImpact
     action = graphene.Field(ActionNodeType, required=True)
     cost_values = graphene.List(YearlyValue, required=True)
     impact_values = graphene.List(YearlyValue, required=True)
@@ -720,7 +720,7 @@ class ActionEfficiency(graphene.ObjectType):
     unit_adjustment_multiplier = graphene.Float()  # To replace efficiency_divisor
 
 
-class ActionEfficiencyPairType(graphene.ObjectType):
+class ActionEfficiencyPairType(graphene.ObjectType):  # FIXME Rename to ImpactOverviewType
     id = graphene.ID(required=True)
     graph_type = graphene.String()
     cost_node = graphene.Field(NodeType, required=True)
@@ -739,29 +739,29 @@ class ActionEfficiencyPairType(graphene.ObjectType):
     actions = graphene.List(graphene.NonNull(ActionEfficiency), required=True)
 
     @staticmethod
-    def resolve_id(root: ActionEfficiencyPair, info: GQLInstanceInfo) -> str:
+    def resolve_id(root: ImpactOverview, info: GQLInstanceInfo) -> str:
         return '%s:%s' % (root.cost_node.id, root.impact_node.id)
 
     @staticmethod
-    def resolve_actions(root: ActionEfficiencyPair, info: GQLInstanceInfo) -> list[dict[str, Any]]:
-        all_aes = root.calculate(info.context.instance.context)
+    def resolve_actions(root: ImpactOverview, info: GQLInstanceInfo) -> list[dict[str, Any]]:
+        all_ais = root.calculate(info.context.instance.context)
         out: list[dict] = []
-        for ae in all_aes:
-            years = ae.df[YEAR_COLUMN]
+        for ai in all_ais:
+            years = ai.df[YEAR_COLUMN]
             d = dict(
-                action=ae.action,
-                cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)],
-                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']), strict=False)],
-                cost_dim=DimensionalMetric.from_action_efficiency(ae, root, 'Cost'),
-                impact_dim=DimensionalMetric.from_action_efficiency(ae, root, 'Impact'),
-                efficiency_divisor=ae.efficiency_divisor,
-                unit_adjustment_multiplier=ae.unit_adjustment_multiplier,
+                action=ai.action,
+                cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ai.df['Cost']), strict=False)],  # FIXME Depreciated
+                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ai.df['Impact']), strict=False)],  # FIXME Depreciated
+                cost_dim=DimensionalMetric.from_action_impact(ai, root, 'Cost'),
+                impact_dim=DimensionalMetric.from_action_impact(ai, root, 'Impact'),
+                efficiency_divisor=ai.efficiency_divisor,  # FIXME Depreciated
+                unit_adjustment_multiplier=ai.unit_adjustment_multiplier,
             )
             out.append(d)
         return out
 
     @staticmethod
-    def resolve_efficiency_unit(root: ActionEfficiencyPair, info: GQLInstanceInfo) -> Unit:  # FIXME depreciated.
+    def resolve_efficiency_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:  # FIXME depreciated.
         return root.indicator_unit
 
 
@@ -827,7 +827,7 @@ class Query(graphene.ObjectType):
         required=True,
     )
     action = graphene.Field(ActionNodeType, id=graphene.ID(required=True))
-    action_efficiency_pairs = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
+    action_efficiency_pairs = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)  # FIXME Depreciated
     impact_overviews = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
@@ -890,12 +890,12 @@ class Query(graphene.ObjectType):
         return action
 
     @pass_context
-    def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo, context: Context):
-        return context.action_efficiency_pairs
+    def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo, context: Context):  # FIXME Depreciated
+        return context.impact_overviews
 
     @pass_context
     def resolve_impact_overviews(root, info: GQLInstanceInfo, context: Context):
-        return context.action_efficiency_pairs
+        return context.impact_overviews
 
     @pass_context
     def resolve_available_normalizations(root, info: GQLInstanceInfo, context: Context):
